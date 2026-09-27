@@ -72,10 +72,27 @@ export const postgresDialect: Dialect = {
     })
     return sql`exists (select 1 from jsonb_array_elements(${onlyArray(array)}) as ${el}(value)${where ? sql` where ${where}` : sql``})`
   },
-  firstElementValue: (array, path, type) => {
-    const el = alias()
-    const text = sql`(${el}.value #>> ${jsonPath(path)})`
-    return sql`(select ${cast(text, type)} from jsonb_array_elements(${onlyArray(array)}) with ordinality as ${el}(value, idx) where ${text} is not null order by ${el}.idx limit 1)`
+  firstElementValue: (array, lists, path, type) => {
+    // Nested lists join to the element before them (functions in FROM are lateral); rows are
+    // ordered by position at each level.
+    const els = [alias()]
+    const from = [
+      sql`jsonb_array_elements(${onlyArray(array)}) with ordinality as ${els[0]}(value, idx)`,
+    ]
+    for (const list of lists) {
+      const outer = els.at(-1)
+      const el = alias()
+      els.push(el)
+      from.push(
+        sql`jsonb_array_elements(${onlyArray(sql`(${outer}.value #> ${jsonPath(list)})`)}) with ordinality as ${el}(value, idx)`,
+      )
+    }
+    const text = sql`(${els.at(-1)}.value #>> ${jsonPath(path)})`
+    const order = sql.join(
+      els.map((el) => sql`${el}.idx`),
+      sql`, `,
+    )
+    return sql`(select ${cast(text, type)} from ${sql.join(from, sql`, `)} where ${text} is not null order by ${order} limit 1)`
   },
   param: (n) => `$${n}`,
   migrationsTableSQL: (name) =>

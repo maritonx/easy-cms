@@ -254,7 +254,20 @@ describe('blocks (FR-BLK)', () => {
       where: { 'layout.heading': { exists: true } },
     })
     expect(byHeading.docs.map((d) => d.title)).toEqual(['Hero page'])
-    await expect(cms.find('pages', { sort: 'layout.items.title' })).rejects.toThrow(/Cannot sort/)
+    // In lists inside blocks: the first row (of the first block) that has the value.
+    await cms.create('pages', {
+      title: 'More cards',
+      layout: [
+        { blockType: 'hero', heading: 'x' },
+        { blockType: 'cards', items: [{}, { title: 'Alpha' }, { title: 'Zulu' }] },
+      ],
+    })
+    const withItems = { 'layout.items.title': { exists: true } }
+    const byItem = async (sort: string) =>
+      (await cms.find('pages', { sort, where: withItems })).docs.map((d) => d.title)
+    expect(await byItem('layout.items.title')).toEqual(['More cards', 'Cards page'])
+    expect(await byItem('-layout.items.title')).toEqual(['Cards page', 'More cards'])
+    await expect(cms.find('pages', { sort: 'layout.items' })).rejects.toThrow(/Cannot sort/)
     await cms.destroy()
   })
 

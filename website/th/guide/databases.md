@@ -15,6 +15,10 @@ db: sqlite({ url: 'libsql://my-db.turso.io', authToken: process.env.TURSO_TOKEN 
 
 ใช้ libSQL ไม่รองรับฐานข้อมูลแบบ in-memory (`:memory:`)
 
+SQLite เขียนได้ทีละรายการ การเขียนใน process เดียวกันจะรอคิวกัน ส่วนเมื่อ process อื่นเขียนไฟล์เดียวกันอยู่
+(server ตัวที่สอง หรือคำสั่ง `easy-cms`) การเขียนจะรอได้นานสูงสุด 10 วินาทีแล้วทำใหม่ ถ้ามีหลาย process
+ที่เขียนไฟล์เดียวกันบ่อยๆ ควรใช้ Postgres
+
 ## Postgres {#postgres}
 
 ```bash

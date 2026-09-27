@@ -28,13 +28,15 @@ ADR 0014–0016 ทิ้งข้อจำกัดไว้สามข้อ:
 - ทำเป็น `EXISTS` บนสมาชิกของ JSON array: SQLite ใช้ `json_each` + `json_extract`, Postgres ใช้
   `jsonb_array_elements` + `#>>` แล้ว cast ตามชนิด field (number/boolean/relationship)
 - list ข้างในบล็อก (array, blocks, hasMany) เป็น `EXISTS` ซ้อนกันทีละชั้น แต่ละชั้นมี alias ของตัวเอง (0.8)
-- sort ใช้ค่าจากบล็อกแรกที่มี field นั้น (subquery เรียงตามลำดับบล็อก `limit 1`) ส่วน field ใน list ข้างในบล็อก sort ไม่ได้ (0.8)
+- sort ใช้ค่าแรกที่พบ ไล่ตามลำดับบล็อกและแถวของ list ข้างใน (subquery ที่ join แต่ละชั้นแล้วเรียงตามตำแหน่ง `limit 1`) (0.8, list ซ้อน 0.9)
 
 **SQLite เขียนทีละรายการ (0.8)**
 - libSQL เปิด connection ใหม่ทุก transaction และ SQLite มีผู้เขียนได้ทีละคน การเขียนพร้อมกันใน process เดียว
   (เช่น บรรณาธิการสองคน หรือคิว webhook กับการบันทึกเอกสาร) จึงล้มด้วย `SQLITE_BUSY` ตั้ง busy timeout ก็ไม่ช่วย
   เพราะตัวรอของ libSQL บล็อก event loop จนอีกฝั่งทำงานต่อไม่ได้
 - dialect ประกาศ `singleWriter` แล้ว adapter จะต่อคิวการเขียนของ process นั้นไว้ Postgres ไม่ได้รับผลกระทบ
+- ต่าง process (0.9): เจอ `SQLITE_BUSY` จะรอแบบ async (5 ms เพิ่มเป็นเท่าตัวถึง 250 ms สุ่มเล็กน้อย) แล้วทำทั้ง transaction ใหม่
+  ได้นานสูงสุด 10 วินาที ไม่ใช้ busy_timeout ของ SQLite ด้วยเหตุผลเดียวกับข้างบน
 
 **ย้ายข้อมูลเมื่อเปลี่ยน `defaultLocale`**
 - snapshot ที่เก็บ (ไฟล์ migration และตาราง migrations) บันทึก `easyCms.localization` ไว้ข้าง snapshot ของ drizzle-kit
@@ -51,6 +53,6 @@ ADR 0014–0016 ทิ้งข้อจำกัดไว้สามข้อ:
 - ✅ เปลี่ยนภาษาเริ่มต้นได้โดยข้อมูลไม่หาย
 - ❌ โปรเจกต์ที่มี webhooks อยู่แล้วต้องสร้าง migration ใหม่ (ตาราง `webhook-deliveries`)
 - ~~❌ ถ้า process ดับระหว่างการส่งครั้งแรก (ยังไม่ทันบันทึก) event นั้นยังหายได้~~ แก้แล้วใน 0.8 เหลือเพียงช่วงระหว่าง commit เอกสารกับการบันทึกคิว ซึ่งไม่มีการรอ network
-- ❌ การเขียน SQLite ใน process เดียวกันต้องรอกัน (ปกติเร็วมาก) ส่วนหลาย process ที่เขียนไฟล์เดียวกันยังชนกันได้
+- ❌ การเขียน SQLite ต้องรอกันทั้งใน process และข้าม process ถ้ามีอีก process ถือ lock นานเกิน 10 วินาที การเขียนจะล้ม
 - ❌ การค้นในบล็อกต้องอ่าน JSON ทุกแถว ช้ากว่าคอลัมน์ที่มี index
 - ❌ snapshot จากก่อน 0.7 ไม่มีข้อมูลภาษา การเปลี่ยน `defaultLocale` ครั้งแรกหลังอัปเกรดควรสร้าง migration ก่อน

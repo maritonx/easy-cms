@@ -123,8 +123,8 @@ await cms.find('pages', { where: { 'layout.tags': { in: ['sale'] } } }) // ค�
 await cms.find('pages', { where: { 'layout.content.blockType': { equals: 'quote' } } }) // blocks
 ```
 
-`sort` ใช้ค่าจากบล็อกแรกที่มี field นั้น (`sort: '-layout.columns'`) ส่วน field ใน list ข้างในบล็อก
-ใช้ sort ไม่ได้ การค้นแบบนี้ต้องอ่าน JSON ของทุกเอกสาร จึงเหมาะกับการกรองมากกว่ารายการใหญ่ที่ถูกเรียกบ่อย
+`sort` ใช้ค่าแรกที่พบ โดยไล่ตามลำดับบล็อก (และแถวของ list ข้างในบล็อก): `sort: '-layout.columns'`,
+`sort: 'layout.items.title'` การค้นแบบนี้ต้องอ่าน JSON ของทุกเอกสาร จึงเหมาะกับการกรองมากกว่ารายการใหญ่ที่ถูกเรียกบ่อย
 
 ## วิธีจัดเก็บ field {#how-fields-are-stored}
 

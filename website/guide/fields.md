@@ -123,8 +123,8 @@ await cms.find('pages', { where: { 'layout.tags': { in: ['sale'] } } }) // hasMa
 await cms.find('pages', { where: { 'layout.content.blockType': { equals: 'quote' } } }) // blocks
 ```
 
-`sort` uses the value in the first block that has the field (`sort: '-layout.columns'`);
-fields inside lists in blocks can't be sorted by. These queries read the JSON of each document,
+`sort` uses the first value found, going through the blocks (and the rows of lists in them) in
+order: `sort: '-layout.columns'`, `sort: 'layout.items.title'`. These queries read the JSON of each document,
 so they suit filters more than large, hot lists.
 
 ## How fields are stored

@@ -56,10 +56,26 @@ export const sqliteDialect: Dialect = {
     })
     return sql`exists (select 1 from json_each(${onlyArray(array)}) as ${el}${where ? sql` where ${where}` : sql``})`
   },
-  firstElementValue: (array, path) => {
-    const el = alias()
-    const value = sql`json_extract(${el}.value, ${jsonPath(path)})`
-    return sql`(select ${value} from json_each(${onlyArray(array)}) as ${el} where ${value} is not null order by ${el}.key limit 1)`
+  firstElementValue: (array, lists, path) => {
+    // Nested lists join to the element before them; rows are ordered by position at each level.
+    const els = [alias()]
+    const from = [sql`json_each(${onlyArray(array)}) as ${els[0]}`]
+    for (const list of lists) {
+      const outer = els.at(-1)
+      const el = alias()
+      els.push(el)
+      from.push(
+        sql`json_each(${onlyArray(sql`json_extract(${outer}.value, ${jsonPath(list)})`)}) as ${el}`,
+      )
+    }
+    const last = els.at(-1)
+    const value =
+      path.length === 0 ? sql`${last}.value` : sql`json_extract(${last}.value, ${jsonPath(path)})`
+    const order = sql.join(
+      els.map((el) => sql`${el}.key`),
+      sql`, `,
+    )
+    return sql`(select ${value} from ${sql.join(from, sql`, `)} where ${value} is not null order by ${order} limit 1)`
   },
   param: () => '?',
   migrationsTableSQL: (name) =>

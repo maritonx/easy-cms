@@ -389,11 +389,12 @@ export class WhereBuilder {
     return subquery(this.build(table, { [rest.join('.')]: { [op]: value } }))
   }
 
-  /** A column, or the value in the first block that has it. */
+  /** A column, or the first value in blocks (and the lists in them, in order) that has it. */
   private sortValue(target: Target, path: string): SQL | AnyColumn {
     if (target.kind === 'column') return target.column
-    if (target.kind === 'blocks' && target.value.lists.length === 0 && target.value.path) {
-      return this.dialect.firstElementValue(target.column, target.value.path, target.value.type)
+    if (target.kind === 'blocks' && target.value.path) {
+      const { lists, path: inner, type } = target.value
+      return this.dialect.firstElementValue(target.column, lists, inner, type)
     }
     throw new QueryError(`Cannot sort by "${path}"`)
   }

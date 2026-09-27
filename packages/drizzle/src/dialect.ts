@@ -74,8 +74,16 @@ export interface Dialect {
    * (any element when it returns undefined). Anything but an array has no elements.
    */
   someElement(array: AnyColumn | SQL, condition: (el: JsonElement) => SQL | undefined): SQL
-  /** The value at `path` in the first element of a JSON array that has one, for sorting. */
-  firstElementValue(array: AnyColumn | SQL, path: readonly string[], type: JsonValueType): SQL
+  /**
+   * For sorting: the value at `path` in the first element that has one, stepping through the
+   * nested `lists` in each element (in order) like `someElement`.
+   */
+  firstElementValue(
+    array: AnyColumn | SQL,
+    lists: readonly (readonly string[])[],
+    path: readonly string[],
+    type: JsonValueType,
+  ): SQL
   /** Placeholder for the n-th parameter (1-based) in raw SQL. */
   param(n: number): string
   /** CREATE TABLE IF NOT EXISTS for the migrations table. */
