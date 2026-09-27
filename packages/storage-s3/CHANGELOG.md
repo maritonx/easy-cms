@@ -1,5 +1,11 @@
 # @easy-cms/storage-s3
 
+## 0.9.1
+
+### Patch Changes
+
+- @easy-cms/core@0.9.1
+
 ## 0.9.0
 
 ### Patch Changes
