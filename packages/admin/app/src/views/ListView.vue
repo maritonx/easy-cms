@@ -3,9 +3,11 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import LocaleSwitcher from '../components/LocaleSwitcher.vue'
 import MediaThumb from '../components/MediaThumb.vue'
 import UploadDropzone from '../components/UploadDropzone.vue'
 import { ApiError, api, type Doc, type Paginated, toQuery } from '../lib/api'
+import { contentLocale, localeQuery, setContentLocale } from '../lib/content-locale'
 import { titleOf } from '../lib/fields'
 import { formatDate, humanize, label, t } from '../lib/i18n'
 import { findCollection } from '../lib/session'
@@ -37,6 +39,13 @@ const selected = ref<Set<Doc['id']>>(new Set())
 // With versions and drafts, a live document can have a newer draft; the list shows the draft,
 // so it needs to know separately which documents are live.
 const separateDrafts = !!collection?.drafts && !!collection?.versions
+const localized = computed(
+  () => !!contentLocale() && (collection?.fields.some((f) => f.localized) ?? false),
+)
+function switchLocale(next: string) {
+  setContentLocale(next)
+  void load()
+}
 const liveIds = ref<Set<string>>(new Set())
 const confirming = ref(false)
 
@@ -48,7 +57,7 @@ async function load() {
     const where = search.value && titleField ? { [titleField]: { like: search.value } } : undefined
     result.value = await api<Paginated<Doc>>(
       'GET',
-      `/${slug}${toQuery({ where, sort: sort.value, limit: PAGE_SIZE, page: page.value, depth: 0, draft: true })}`,
+      `/${slug}${toQuery({ where, sort: sort.value, limit: PAGE_SIZE, page: page.value, depth: 0, draft: true })}${localeQuery()}`,
     )
     selected.value = new Set()
     liveIds.value = separateDrafts ? await loadLive(result.value.docs) : new Set()
@@ -132,6 +141,7 @@ async function deleteSelected() {
   <template v-else>
     <header class="toolbar">
       <h1>{{ label(collection.labels?.plural, collection.slug) }}</h1>
+      <LocaleSwitcher v-if="localized" class="list-locales" @change="switchLocale" />
       <!-- Media is created by uploading, below. -->
       <RouterLink v-if="collection.permissions.create && !isMedia" :to="`/collections/${slug}/new`" class="btn btn-primary">
         {{ t('list.new') }}

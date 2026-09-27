@@ -28,17 +28,21 @@ function setAt(data: Data, path: readonly string[], value: unknown) {
   current[path[path.length - 1] as string] = value
 }
 
+const columnPath = (column: TableModel['columns'][number]) =>
+  column.locale === undefined ? column.path : [...column.path, column.locale]
+
 /** Converts a database row into document data (groups nested, children empty). */
 function rowToData(model: TableModel, row: Row): Data {
   const data: Data = {}
-  for (const column of model.columns) setAt(data, column.path, row[column.column] ?? null)
+  // Localized fields become `{ [locale]: value }`; the Local API picks the requested locale.
+  for (const column of model.columns) setAt(data, columnPath(column), row[column.column] ?? null)
   for (const child of model.children) setAt(data, child.path, [])
   return data
 }
 
 function dataToRow(model: TableModel, data: Data): Row {
   const row: Row = {}
-  for (const column of model.columns) row[column.column] = getAt(data, column.path) ?? null
+  for (const column of model.columns) row[column.column] = getAt(data, columnPath(column)) ?? null
   return row
 }
 

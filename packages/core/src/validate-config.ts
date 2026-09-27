@@ -44,6 +44,7 @@ export function validateConfig(config: Config): ConfigIssue[] {
   validateUpload(config, add)
   validateAuth(config, add)
   validateCors(config.cors, add)
+  validateLocalization(config, add)
 
   const collections = asArray(config.collections, 'collections', add)
   const globals = asArray(config.globals, 'globals', add)
@@ -137,6 +138,79 @@ function validateAuth(config: Config, add: Add) {
   }
 }
 
+const LOCALE_PATTERN = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/
+const LOCALIZABLE = new Set([
+  'text',
+  'textarea',
+  'email',
+  'slug',
+  'richText',
+  'number',
+  'boolean',
+  'date',
+  'json',
+  'select',
+  'upload',
+  'relationship',
+])
+
+function validateLocalization(config: Config, add: Add) {
+  const localization = config.localization
+  if (localization !== undefined && localization !== null) {
+    const locales = localization?.locales
+    if (!Array.isArray(locales) || locales.length === 0) {
+      add('localization.locales', 'must be a non-empty list of locales', "locales: ['th', 'en']")
+    } else {
+      const seen = new Set<string>()
+      for (const [i, locale] of locales.entries()) {
+        if (typeof locale !== 'string' || !LOCALE_PATTERN.test(locale)) {
+          add(
+            `localization.locales[${i}]`,
+            `must be a locale code like "th" or "en-US" (got ${JSON.stringify(locale)})`,
+          )
+        } else if (seen.has(locale)) {
+          add(`localization.locales[${i}]`, `duplicate locale "${locale}"`)
+        }
+        seen.add(locale)
+      }
+      const fallbackDefault = localization.defaultLocale
+      if (fallbackDefault !== undefined && !locales.includes(fallbackDefault)) {
+        add('localization.defaultLocale', `must be one of the locales (got "${fallbackDefault}")`)
+      }
+    }
+  }
+
+  const walk = (fields: readonly Field[] | undefined, path: string) => {
+    if (!Array.isArray(fields)) return
+    for (const field of fields) {
+      if (typeof field?.name !== 'string') continue
+      const fieldPath = `${path}.${field.name}`
+      if (field.localized) {
+        if (!localization) {
+          add(
+            `${fieldPath}.localized`,
+            'needs `localization` in the config',
+            "localization: { locales: ['th', 'en'] }",
+          )
+        } else if (!LOCALIZABLE.has(field.type)) {
+          add(
+            `${fieldPath}.localized`,
+            `${field.type} fields cannot be localized`,
+            'localize the fields inside it instead',
+          )
+        } else if ('hasMany' in field && field.hasMany) {
+          add(`${fieldPath}.localized`, 'hasMany fields cannot be localized yet')
+        }
+      }
+      if (field.type === 'group' || field.type === 'array')
+        walk(field.fields, `${fieldPath}.fields`)
+    }
+  }
+  for (const [i, c] of (config.collections ?? []).entries())
+    walk(c?.fields, `collections[${i}].fields`)
+  for (const [i, g] of (config.globals ?? []).entries()) walk(g?.fields, `globals[${i}].fields`)
+}
+
 function validateCors(cors: unknown, add: Add) {
   if (cors === undefined || cors === '*') return
   if (!Array.isArray(cors)) {
@@ -225,6 +299,7 @@ function validateContainer(
     add(
       `${path}.preview`,
       'must be a function ({ doc }) => url',
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: an example shown to the user
       'preview: ({ doc }) => `/posts/${doc.slug}`',
     )
   }

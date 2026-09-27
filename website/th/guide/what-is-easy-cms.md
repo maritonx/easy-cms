@@ -33,5 +33,5 @@ server ของแอป จึงไม่ต้องโฮสต์บริ
 
 ## ข้อจำกัดปัจจุบัน {#current-limits}
 
-- ยังไม่มี GraphQL และการแปลเนื้อหาหลายภาษา (localization)
+- ยังไม่มี GraphQL
 - Node.js ≥ 22.12; ไม่รองรับ edge runtime

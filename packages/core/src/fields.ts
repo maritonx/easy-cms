@@ -27,6 +27,11 @@ interface BaseField<TType extends string, TValue> {
   readonly access?: FieldAccess
   /** Stored but never returned by the API nor accepted as input (e.g. a password hash). */
   readonly hidden?: boolean
+  /**
+   * One value per locale (needs `localization` in the config). Not for groups, arrays or
+   * hasMany fields: localize the fields inside a group or array instead.
+   */
+  readonly localized?: boolean
 }
 
 export interface TextField extends BaseField<'text', string> {

@@ -63,11 +63,33 @@ const stop = subscribeLivePreview((doc) => render(doc), {
 
 นอก frame ของหน้า admin helper เหล่านี้ไม่ทำอะไร จึงปล่อยไว้ในโค้ด production ได้
 
+## Preview token {#preview-tokens}
+
+เมื่อหน้า admin เปิดตัวอย่าง จะเติม `easy-cms-preview=<token>` ต่อท้าย URL token นี้เปิดอ่าน **ฉบับร่างปัจจุบัน
+ของเอกสารเดียว** (หรือ global เดียว) ได้ 1 ชั่วโมงโดยไม่ต้องเข้าสู่ระบบ frontend ที่อยู่คนละ origin จึงแสดง
+ฉบับร่างที่ยังไม่เคยเผยแพร่ได้:
+
+```ts
+import { getPreviewToken } from '@easy-cms/core/live-preview'
+
+const token = getPreviewToken() // from ?easy-cms-preview=, or null
+const post = await fetch(
+  `${api}/posts/${id}?depth=2${token ? `&preview=${token}` : ''}`,
+).then((r) => r.json())
+```
+
+กรณีนี้ให้ใส่ id ของเอกสารไว้ใน URL ของ preview เช่น
+`preview: ({ doc }) => \`https://www.example.com/preview/posts/${doc.id}\``
+
+ฝั่ง server `cms.verifyPreviewToken(token)` คืนสิ่งที่ token เปิดได้ (`{ collection, id }` หรือ `{ global }`)
+หรือ `null` ส่วน `cms.createPreviewToken({ collection, id })` ใช้สร้าง token เอง เช่น ปุ่ม "แชร์ลิงก์ตัวอย่าง"
+
 ## ข้อควรรู้ {#things-to-know}
 
 - ให้ render rich text ฝั่ง client ด้วย (`renderRichText` จาก `@easy-cms/richtext` ใช้ในเบราว์เซอร์ได้)
   เพราะเอกสารที่ส่งมามี rich text เป็น JSON
 - เมื่อใช้ adapter ของ Nuxt และ Next หน้าเว็บกับหน้า admin อยู่ origin เดียวกันและใช้ session เดียวกัน หน้าที่อ่าน
-  ฉบับร่างให้ผู้ใช้ที่เข้าสู่ระบบ (อย่างที่ตัวอย่างทำ) จึงแสดงฉบับร่างที่ยังไม่เคยเผยแพร่ได้ด้วย ส่วน frontend ที่อยู่
-  คนละ origin จะแสดงหน้าที่เผยแพร่อยู่ตอนโหลดครั้งแรก และเปลี่ยนเป็นเอกสารที่กำลังแก้ไขเมื่อ admin ส่งมา
+  ฉบับร่างให้ผู้ใช้ที่เข้าสู่ระบบ (อย่างที่ตัวอย่างทำ) จึงไม่ต้องใช้ token
+- preview token เปิดได้เฉพาะเอกสารที่สร้างให้ หมดอายุใน 1 ชั่วโมง และถ้าถูกแก้ไขจะใช้ไม่ได้ ให้ถือว่า URL ของ preview
+  เป็นลิงก์แชร์ชั่วคราว
 - ดูตัวอย่างได้เฉพาะผู้ใช้ที่มีสิทธิ์แก้ไขเอกสารนั้น (หรือสิทธิ์สร้าง สำหรับเอกสารใหม่)

@@ -84,13 +84,23 @@ function resolvePath(model: TableModel, segments: string[], drafts: boolean): Ta
     const child = model.children.find((c) => c.path.join('.') === path.join('.'))
     if (child) return { kind: 'child', child, rest: segments.slice(i + 1) }
 
-    if (i < segments.length - 1) {
+    // Localized fields: `title.en` names the locale; plain `title` means the default locale.
+    const locale = field.localized ? segments[i + 1] : undefined
+    const last = field.localized && locale !== undefined ? i + 1 : i
+    if (last < segments.length - 1) {
       throw new QueryError(`Cannot query inside "${shown}" (${field.type} field)`)
     }
     if (field.type === 'json' || field.type === 'richText') {
       throw new QueryError(`Cannot query "${shown}": ${field.type} fields are not queryable`)
     }
-    const column = model.columns.find((c) => c.path.join('.') === path.join('.'))
+    const same = (c: TableModel['columns'][number]) => c.path.join('.') === path.join('.')
+    const column = field.localized
+      ? model.columns.find(
+          (c) => same(c) && (locale === undefined ? c.defaultLocale : c.locale === locale),
+        )
+      : model.columns.find(same)
+    if (field.localized && !column)
+      throw new QueryError(`Unknown locale "${locale}" for "${shown}"`)
     if (!column) throw new QueryError(`Unknown field "${shown}"`)
     return { kind: 'column', column: col(model, column.column), field }
   }

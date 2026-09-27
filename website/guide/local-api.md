@@ -52,6 +52,8 @@ throw `NotFoundError`.
 | `limit`, `page` | `10`, `1` | Pagination |
 | `depth` | `1` | Levels of relationships to populate (max 3) |
 | `draft` | `false` | Include drafts |
+| `locale` | default locale | With [localization](./localization): the locale to read or write, or `'all'` |
+| `fallbackLocale` | `true` | Empty localized values fall back to the default locale |
 | `overrideAccess` | `true` | `false` applies [access rules](./access-control) for `user` |
 | `user` | `null` | The user to check access for |
 

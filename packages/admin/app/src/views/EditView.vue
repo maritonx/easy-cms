@@ -3,10 +3,12 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import LivePreview from '../components/LivePreview.vue'
+import LocaleSwitcher from '../components/LocaleSwitcher.vue'
 import MediaThumb from '../components/MediaThumb.vue'
 import VersionHistory from '../components/VersionHistory.vue'
 import FieldList from '../fields/FieldList.vue'
 import { ApiError, api, type Doc } from '../lib/api'
+import { contentLocale, localeQuery, setContentLocale } from '../lib/content-locale'
 import { initialValues, snapshot, titleOf, toFormValues } from '../lib/fields'
 import { formatBytes, formatDate, label, singularize, t } from '../lib/i18n'
 import { findCollection, loadSession, session, setFlash, takeFlash } from '../lib/session'
@@ -102,7 +104,25 @@ function reset(values: Record<string, unknown>) {
   baseline.value = snapshot([values, ''])
 }
 
-onMounted(async () => {
+// Localized fields are edited one content language at a time.
+const localized = computed(() => !!contentLocale() && hasLocalized(collection?.fields ?? []))
+function hasLocalized(fields: readonly { localized?: boolean; fields?: unknown }[]): boolean {
+  return fields.some(
+    (f) => f.localized || (Array.isArray(f.fields) && hasLocalized(f.fields as typeof fields)),
+  )
+}
+
+async function switchLocale(next: string) {
+  if (dirty.value && !window.confirm(t('locale.switchUnsaved'))) return
+  setContentLocale(next)
+  message.value = null
+  errors.value = {}
+  if (id) await load()
+}
+
+onMounted(() => load())
+
+async function load() {
   if (!collection) return
   if (!id) {
     reset(initialValues(collection.fields))
@@ -110,7 +130,10 @@ onMounted(async () => {
   }
   try {
     const [loaded, permissions] = await Promise.all([
-      api<Doc>('GET', `/${slug}/${encodeURIComponent(id)}?depth=0&draft=true`),
+      api<Doc>(
+        'GET',
+        `/${slug}/${encodeURIComponent(id)}?depth=0&draft=true${localeQuery({ editing: true })}`,
+      ),
       api<{ update: boolean; delete: boolean }>(
         'GET',
         `/admin/access/${slug}/${encodeURIComponent(id)}`,
@@ -127,7 +150,7 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
-})
+}
 
 /** Whether a published version is on the site (the draft we edit may be newer). */
 async function isLive(): Promise<boolean> {
@@ -156,7 +179,7 @@ async function action(path: 'unpublish' | 'discard-draft') {
   try {
     const saved = await api<Doc>(
       'POST',
-      `/${slug}/${encodeURIComponent(String(id))}/${path}?depth=0`,
+      `/${slug}/${encodeURIComponent(String(id))}/${path}?depth=0${localeQuery({ editing: true })}`,
     )
     if (path === 'unpublish') live.value = false
     show(saved, t(path === 'unpublish' ? 'edit.unpublished' : 'edit.discarded'))
@@ -182,8 +205,12 @@ async function save(status?: 'draft' | 'published') {
   if (isUsers && password.value) body.password = password.value
   try {
     const saved = id
-      ? await api<Doc>('PATCH', `/${slug}/${encodeURIComponent(id)}?depth=0`, body)
-      : await api<Doc>('POST', `/${slug}?depth=0`, body)
+      ? await api<Doc>(
+          'PATCH',
+          `/${slug}/${encodeURIComponent(id)}?depth=0${localeQuery({ editing: true })}`,
+          body,
+        )
+      : await api<Doc>('POST', `/${slug}?depth=0${localeQuery({ editing: true })}`, body)
     doc.value = saved
     reset(toFormValues(collection.fields, saved))
     historyKey.value += 1
@@ -256,6 +283,7 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
       <div>
         <RouterLink :to="`/collections/${slug}`" class="back">← {{ label(collection.labels?.plural, collection.slug) }}</RouterLink>
         <h1>{{ heading }}</h1>
+        <LocaleSwitcher v-if="localized" class="locale-switcher" @change="switchLocale" />
         <p v-if="doc" class="meta muted">
           <span v-if="collection.drafts" :class="['badge', `badge-${liveStatus}`]">
             {{ t(liveStatus === 'published' ? 'status.published' : 'status.draft') }}
@@ -328,6 +356,7 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
       :path="id ? `/${slug}/${encodeURIComponent(id)}/preview` : `/${slug}/preview`"
       :data="form"
       :collection="slug"
+      :query="localeQuery({ editing: true })"
     />
     <VersionHistory
       v-else-if="side === 'history' && id"
@@ -336,6 +365,7 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
       :drafts="collection.drafts"
       :can-restore="canSave"
       :reload-key="historyKey"
+      :query="localeQuery({ editing: true })"
       @restored="(d) => show(d as Doc, t('history.restored'))"
     />
     </div>
@@ -373,6 +403,9 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
 .back {
   font-size: 0.85rem;
   text-decoration: none;
+}
+.locale-switcher {
+  margin-top: 0.5rem;
 }
 .meta {
   display: flex;

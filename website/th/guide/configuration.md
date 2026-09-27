@@ -37,6 +37,7 @@ export default defineConfig({
 | `secret` | — | **จำเป็น** อย่างน้อย 32 ตัวอักษร ใช้ลงนาม session ควรอ่านค่าจาก env var |
 | `db` | — | **จำเป็น** database adapter: `sqlite()` หรือ `postgres()` ดู [ฐานข้อมูล](./databases) |
 | `serverURL` | — | origin สาธารณะ เช่น `https://example.com` ทำให้ URL ของ media เป็นแบบ absolute |
+| `localization` | — | `{ locales, defaultLocale?, fallback? }`: เนื้อหาหลายภาษา ดู [หลายภาษา](./localization) |
 | `cors` | `[]` | origin ที่โค้ดฝั่งเบราว์เซอร์เรียก REST API ได้ หรือ `'*'` สำหรับทุก origin (คำขอแบบไม่ระบุตัวตน) origin ใน `auth.trustedOrigins` ได้รับอนุญาตเสมอ พร้อม cookie |
 | `routes.api` | `/api/cms` | ตำแหน่งที่ให้บริการ REST API |
 | `admin.path` | `/admin` | ตำแหน่งที่ให้บริการหน้า admin |

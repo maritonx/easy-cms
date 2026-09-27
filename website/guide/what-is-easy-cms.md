@@ -33,5 +33,5 @@ your app's server, so there is no separate CMS service to host:
 
 ## Current limits
 
-- No GraphQL and no localization of content yet.
+- No GraphQL yet.
 - Node.js ≥ 22.12; no edge runtimes.

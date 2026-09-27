@@ -12,6 +12,7 @@ Every field has a `name` and a `type`. Common options:
 | `validate` | `(value, { data, operation }) => true \| 'error message'`, may be async. |
 | `access` | `{ read, update }` field-level [access](./access-control#field-access). |
 | `hidden` | Stored, but never returned by the API nor accepted as input. |
+| `localized` | One value per locale; see [Localization](./localization). |
 
 ## Types
 

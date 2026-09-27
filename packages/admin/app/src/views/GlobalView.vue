@@ -3,9 +3,11 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { onBeforeRouteLeave, useRoute } from 'vue-router'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import LivePreview from '../components/LivePreview.vue'
+import LocaleSwitcher from '../components/LocaleSwitcher.vue'
 import VersionHistory from '../components/VersionHistory.vue'
 import FieldList from '../fields/FieldList.vue'
 import { ApiError, api } from '../lib/api'
+import { contentLocale, localeQuery, setContentLocale } from '../lib/content-locale'
 import { snapshot, toFormValues } from '../lib/fields'
 import { formatDate, label, t } from '../lib/i18n'
 import { findGlobal } from '../lib/session'
@@ -48,11 +50,25 @@ function reset(data: Data) {
   baseline.value = snapshot(form.value)
 }
 
-onMounted(async () => {
+const localized = computed(
+  () => !!contentLocale() && (global?.fields.some((f) => f.localized) ?? false),
+)
+
+async function switchLocale(next: string) {
+  if (dirty.value && !window.confirm(t('locale.switchUnsaved'))) return
+  setContentLocale(next)
+  message.value = null
+  errors.value = {}
+  await load()
+}
+
+onMounted(() => load())
+
+async function load() {
   if (!global) return
   try {
     const [draft, current] = await Promise.all([
-      api<Data>('GET', `/globals/${slug}?depth=0&draft=true`),
+      api<Data>('GET', `/globals/${slug}?depth=0&draft=true${localeQuery({ editing: true })}`),
       api<Data>('GET', `/globals/${slug}?depth=0`),
     ])
     live.value = current.status === 'published'
@@ -62,7 +78,7 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
-})
+}
 
 async function save(status?: 'draft' | 'published') {
   saving.value = true
@@ -72,7 +88,7 @@ async function save(status?: 'draft' | 'published') {
     reset(
       await api<Data>(
         'POST',
-        `/globals/${slug}?depth=0`,
+        `/globals/${slug}?depth=0${localeQuery({ editing: true })}`,
         status ? { ...form.value, status } : form.value,
       ),
     )
@@ -99,7 +115,9 @@ async function action(path: 'unpublish' | 'discard-draft') {
   saving.value = true
   message.value = null
   try {
-    reset(await api<Data>('POST', `/globals/${slug}/${path}?depth=0`))
+    reset(
+      await api<Data>('POST', `/globals/${slug}/${path}?depth=0${localeQuery({ editing: true })}`),
+    )
     if (path === 'unpublish') live.value = false
     historyKey.value += 1
     message.value = {
@@ -134,6 +152,7 @@ onBeforeRouteLeave(() => (dirty.value ? window.confirm(t('edit.unsaved')) : true
     <header class="editor-header">
       <div>
         <h1>{{ label(global.label, global.slug) }}</h1>
+        <LocaleSwitcher v-if="localized" class="locale-switcher" @change="switchLocale" />
         <p v-if="meta.updatedAt" class="muted meta">
           <span v-if="global.drafts" :class="['badge', `badge-${liveStatus}`]">
             {{ t(liveStatus === 'published' ? 'status.published' : 'status.draft') }}
@@ -164,7 +183,13 @@ onBeforeRouteLeave(() => (dirty.value ? window.confirm(t('edit.unsaved')) : true
       <div class="card form-body">
         <FieldList v-model="form" :fields="global.fields" :errors="errors" :read-only="readOnly" />
       </div>
-      <LivePreview v-if="side === 'preview'" :path="`/globals/${slug}/preview`" :data="form" :global="slug" />
+      <LivePreview
+        v-if="side === 'preview'"
+        :path="`/globals/${slug}/preview`"
+        :data="form"
+        :global="slug"
+        :query="localeQuery({ editing: true })"
+      />
       <VersionHistory
         v-else-if="side === 'history'"
         :path="`/globals/${slug}`"
@@ -172,6 +197,7 @@ onBeforeRouteLeave(() => (dirty.value ? window.confirm(t('edit.unsaved')) : true
         :drafts="global.drafts"
         :can-restore="!readOnly"
         :reload-key="historyKey"
+        :query="localeQuery({ editing: true })"
         @restored="restored"
       />
     </div>
@@ -192,6 +218,9 @@ onBeforeRouteLeave(() => (dirty.value ? window.confirm(t('edit.unsaved')) : true
   justify-content: space-between;
   gap: 1rem;
   margin-bottom: 1rem;
+}
+.locale-switcher {
+  margin-top: 0.5rem;
 }
 .meta {
   display: flex;

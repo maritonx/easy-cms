@@ -9,6 +9,10 @@ export interface ColumnModel {
   readonly path: readonly string[]
   readonly field: Field
   readonly column: string
+  /** For localized fields: the locale whose value this column holds. */
+  readonly locale?: string
+  /** The default locale's column, used when a query names no locale. */
+  readonly defaultLocale?: boolean
 }
 
 /** A child table holding array rows or hasMany values. */
@@ -75,6 +79,8 @@ function columnKind(field: Field): ColumnKind {
 }
 
 interface Builder {
+  /** Locales of localized fields; the default one keeps the plain column name. */
+  readonly localization: ResolvedConfig['localization']
   readonly dialect: Dialect
   readonly prefix: string
   readonly tableNames: Set<string>
@@ -89,6 +95,7 @@ export function buildSchema(config: ResolvedConfig, prefix: string, dialect: Dia
     tableNames: new Set([migrationsTableName(prefix)]),
     // The hash covers the logical schema only, so it stays stable across releases for the same config.
     description: [],
+    localization: config.localization,
   }
   const collections = new Map<string, CollectionModel>()
   const tables: Record<string, AnyTable> = {}
@@ -242,17 +249,38 @@ function buildTable(
         described.push([base, 'values', child.name])
       } else {
         const kindOfColumn = columnKind(field)
-        add(base, makeColumn(dialect, base, kindOfColumn), kindOfColumn)
-        columnModels.push({ path: fieldPath, field, column: base })
-        if (topLevel && kind === 'root' && (field.unique || field.type === 'slug')) {
-          indexes.push({ column: base, unique: true })
-        } else if (
-          field.index ||
-          field.unique ||
-          field.type === 'relationship' ||
-          field.type === 'upload'
-        ) {
-          indexes.push({ column: base, unique: false })
+        const localization = field.localized ? builder.localization : null
+        // Localized: one column per locale. The default locale keeps the plain name, so turning
+        // `localized` on keeps existing values as the default locale's.
+        const targets = localization
+          ? localization.locales.map((locale) => ({
+              column: locale === localization.defaultLocale ? base : `${base}__${snake(locale)}`,
+              locale,
+            }))
+          : [{ column: base, locale: undefined }]
+        for (const { column, locale } of targets) {
+          add(column, makeColumn(dialect, column, kindOfColumn), kindOfColumn)
+          columnModels.push(
+            locale === undefined
+              ? { path: fieldPath, field, column }
+              : {
+                  path: fieldPath,
+                  field,
+                  column,
+                  locale,
+                  defaultLocale: locale === localization?.defaultLocale,
+                },
+          )
+          if (topLevel && kind === 'root' && (field.unique || field.type === 'slug')) {
+            indexes.push({ column, unique: true })
+          } else if (
+            field.index ||
+            field.unique ||
+            field.type === 'relationship' ||
+            field.type === 'upload'
+          ) {
+            indexes.push({ column, unique: false })
+          }
         }
       }
     }

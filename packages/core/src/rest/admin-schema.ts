@@ -26,6 +26,8 @@ export interface AdminField {
   fields?: AdminField[]
   /** The current user may not change this field. */
   readOnly?: boolean
+  /** One value per content locale. */
+  localized?: boolean
 }
 
 export interface AdminCollection {
@@ -53,6 +55,8 @@ export interface AdminGlobal {
 
 export interface AdminSchema {
   locale: AdminLocale
+  /** Content locales, when the config has `localization`. */
+  localization: { locales: string[]; defaultLocale: string } | null
   collections: AdminCollection[]
   globals: AdminGlobal[]
 }
@@ -65,6 +69,7 @@ async function allowed(access: Access | undefined, user: AuthUser): Promise<bool
 async function serializeFields(
   fields: readonly Field[],
   update: FieldAccessChecker,
+  localized: boolean,
 ): Promise<AdminField[]> {
   const out: AdminField[] = []
   for (const field of fields) {
@@ -75,6 +80,7 @@ async function serializeFields(
     if (field.unique) f.unique = true
     if (field.defaultValue !== undefined) f.defaultValue = field.defaultValue
     if (!(await update.allows(field))) f.readOnly = true
+    if (field.localized && localized) f.localized = true
     switch (field.type) {
       case 'text':
       case 'textarea':
@@ -104,10 +110,10 @@ async function serializeFields(
       case 'array':
         if (field.minRows !== undefined) f.minRows = field.minRows
         if (field.maxRows !== undefined) f.maxRows = field.maxRows
-        f.fields = await serializeFields(field.fields, update)
+        f.fields = await serializeFields(field.fields, update, localized)
         break
       case 'group':
-        f.fields = await serializeFields(field.fields, update)
+        f.fields = await serializeFields(field.fields, update, localized)
         break
     }
     out.push(f)
@@ -115,13 +121,21 @@ async function serializeFields(
   return out
 }
 
-async function collection(config: CollectionConfig, user: AuthUser): Promise<AdminCollection> {
+async function collection(
+  config: CollectionConfig,
+  user: AuthUser,
+  localized: boolean,
+): Promise<AdminCollection> {
   const result: AdminCollection = {
     slug: config.slug,
     drafts: config.drafts === true,
     versions: Boolean(config.versions),
     preview: typeof config.preview === 'function',
-    fields: await serializeFields(config.fields, new FieldAccessChecker('update', { user })),
+    fields: await serializeFields(
+      config.fields,
+      new FieldAccessChecker('update', { user }),
+      localized,
+    ),
     permissions: {
       read: await allowed(config.access?.read, user),
       create: await allowed(config.access?.create, user),
@@ -134,13 +148,21 @@ async function collection(config: CollectionConfig, user: AuthUser): Promise<Adm
   return result
 }
 
-async function global(config: GlobalConfig, user: AuthUser): Promise<AdminGlobal> {
+async function global(
+  config: GlobalConfig,
+  user: AuthUser,
+  localized: boolean,
+): Promise<AdminGlobal> {
   const result: AdminGlobal = {
     slug: config.slug,
     drafts: config.drafts === true,
     versions: Boolean(config.versions),
     preview: typeof config.preview === 'function',
-    fields: await serializeFields(config.fields, new FieldAccessChecker('update', { user })),
+    fields: await serializeFields(
+      config.fields,
+      new FieldAccessChecker('update', { user }),
+      localized,
+    ),
     permissions: {
       read: await allowed(config.access?.read, user),
       update: await allowed(config.access?.update, user),
@@ -153,9 +175,14 @@ async function global(config: GlobalConfig, user: AuthUser): Promise<AdminGlobal
 /** Everything the admin UI needs to render forms and menus for this user. */
 export async function adminSchema(cms: EasyCMS, user: AuthUser): Promise<AdminSchema> {
   const collections = cms.config.collections.filter((c) => !INTERNAL_COLLECTIONS.has(c.slug))
+  const localization = cms.config.localization
+  const localized = localization !== null
   return {
     locale: cms.config.admin.locale,
-    collections: await Promise.all(collections.map((c) => collection(c, user))),
-    globals: await Promise.all(cms.config.globals.map((g) => global(g, user))),
+    localization: localization
+      ? { locales: [...localization.locales], defaultLocale: localization.defaultLocale }
+      : null,
+    collections: await Promise.all(collections.map((c) => collection(c, user, localized))),
+    globals: await Promise.all(cms.config.globals.map((g) => global(g, user, localized))),
   }
 }

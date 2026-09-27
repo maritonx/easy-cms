@@ -303,8 +303,7 @@ test.describe('logged in as admin', () => {
   })
 
   test('previews unsaved changes on the real page (FR-PRV)', async ({ page, context }) => {
-    // The standalone example has no site pages to preview.
-    test.skip(standalone(), 'no preview page in the standalone example')
+    // Standalone: the frontend is on another origin and reads the draft with a preview token.
     await page.goto('/admin/collections/posts?q=Hello')
     await page.getByRole('link', { name: 'Hello from Playwright' }).click()
     await page.getByRole('button', { name: 'Preview' }).click()
@@ -320,8 +319,14 @@ test.describe('logged in as admin', () => {
 
     // Visitors still see the saved post.
     const visitor = await context.newPage()
-    await visitor.goto(page.url().replace(/\/admin\/.*$/, '/posts/hello-from-playwright'))
-    await expect(visitor.getByRole('heading', { level: 1 })).toHaveText('Hello from Playwright')
+    if (standalone()) {
+      await publicSite(visitor)
+      await expect(visitor.getByRole('link', { name: 'Hello from Playwright' })).toBeVisible()
+      await expect(visitor.getByText('Hello, previewed live')).toHaveCount(0)
+    } else {
+      await visitor.goto(page.url().replace(/\/admin\/.*$/, '/posts/hello-from-playwright'))
+      await expect(visitor.getByRole('heading', { level: 1 })).toHaveText('Hello from Playwright')
+    }
     await visitor.close()
 
     // Put the title back so the form is clean again.
@@ -329,6 +334,51 @@ test.describe('logged in as admin', () => {
     await expect(preview.getByRole('heading', { level: 1 })).toHaveText('Hello from Playwright')
     await page.getByRole('button', { name: 'Close preview' }).click()
     await expect(page.getByRole('complementary', { name: 'History' })).toBeVisible()
+  })
+
+  test('previews a draft that was never published (FR-PRV-03)', async ({ page }) => {
+    await page.goto('/admin/collections/posts?q=Secret')
+    await page.getByRole('link', { name: 'Secret draft' }).click()
+    await page.getByRole('button', { name: 'Preview' }).click()
+    const preview = page.frameLocator('iframe[title="Live preview"]')
+    await expect(preview.getByRole('heading', { level: 1 })).toHaveText('Secret draft')
+    await expect(preview.getByText('Draft preview')).toBeVisible()
+  })
+
+  test('translates a post into another language (FR-L10N)', async ({ page }) => {
+    await page.goto('/admin/collections/posts?q=Hello')
+    await page.getByRole('link', { name: 'Hello from Playwright' }).click()
+    const languages = page.getByRole('group', { name: 'Content language' })
+    const title = page.getByRole('textbox', { name: 'Title', exact: true })
+    await expect(languages.getByRole('button', { name: 'Thai' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+
+    // English starts empty for translated fields; shared fields keep their values.
+    await languages.getByRole('button', { name: 'English' }).click()
+    await expect(title).toHaveValue('')
+    await expect(page.getByLabel('Slug')).toHaveValue('hello-from-playwright')
+    await title.fill('Hello in English')
+    await page.getByRole('button', { name: 'Publish', exact: true }).click()
+    await expect(page.getByRole('status')).toHaveText('Saved')
+    await shot(page, '10-english')
+
+    // Thai is untouched.
+    await languages.getByRole('button', { name: 'Thai' }).click()
+    await expect(title).toHaveValue('Hello from Playwright')
+
+    // The list follows the chosen language.
+    await page.goto('/admin/collections/posts')
+    await page
+      .getByRole('group', { name: 'Content language' })
+      .getByRole('button', { name: 'English' })
+      .click()
+    await expect(page.getByRole('link', { name: 'Hello in English' })).toBeVisible()
+
+    // The site shows the default language.
+    await publicSite(page)
+    await expect(page.getByRole('link', { name: 'Hello from Playwright' })).toBeVisible()
   })
 
   test('lists, searches, sorts and bulk-deletes (FR-ADM-04)', async ({ page }) => {

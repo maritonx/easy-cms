@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { ID } from './access.js'
 import type { FieldError } from './errors.js'
 import type { Field, SelectField } from './fields.js'
+import type { Localization } from './localization.js'
 
 type Data = Record<string, unknown>
 
@@ -25,17 +26,34 @@ export function slugify(text: string): string {
 }
 
 /** Fills in `defaultValue` for fields that are missing, including inside groups and array rows. */
-export function applyDefaults(fields: readonly Field[], data: Data): Data {
+export function applyDefaults(
+  fields: readonly Field[],
+  data: Data,
+  localization: Localization | null = null,
+): Data {
   const result: Data = { ...data }
   for (const field of fields) {
     const value = result[field.name]
     if (field.type === 'group') {
-      result[field.name] = applyDefaults(field.fields, isPlainObject(value) ? value : {})
+      result[field.name] = applyDefaults(
+        field.fields,
+        isPlainObject(value) ? value : {},
+        localization,
+      )
     } else if (field.type === 'array') {
       if (Array.isArray(value)) {
         result[field.name] = value.map((row) =>
-          isPlainObject(row) ? applyDefaults(field.fields, row) : row,
+          isPlainObject(row) ? applyDefaults(field.fields, row, localization) : row,
         )
+      }
+    } else if (field.localized && localization && field.defaultValue !== undefined) {
+      // Localized: the default fills the default locale only.
+      const map = isPlainObject(value) ? value : {}
+      if (map[localization.defaultLocale] === undefined) {
+        result[field.name] = {
+          ...map,
+          [localization.defaultLocale]: structuredClone(field.defaultValue),
+        }
       }
     } else if (value === undefined && field.defaultValue !== undefined) {
       result[field.name] = structuredClone(field.defaultValue)
@@ -59,22 +77,40 @@ export function fillMissing(fields: readonly Field[], data: Data): Data {
 }
 
 /** Fills empty `slug` fields from their `from` field. Does not check uniqueness. */
-export function generateSlugs(fields: readonly Field[], data: Data): Data {
+export function generateSlugs(
+  fields: readonly Field[],
+  data: Data,
+  localization: Localization | null = null,
+): Data {
   const result: Data = { ...data }
   for (const field of fields) {
-    if (field.type === 'slug') {
+    if (field.type === 'slug' && field.localized && localization) {
+      // One slug per locale, each from that locale's source value.
+      const map = isPlainObject(result[field.name]) ? (result[field.name] as Data) : {}
+      const source = field.from ? result[field.from] : undefined
+      const next: Data = { ...map }
+      for (const locale of localization.locales) {
+        const current = map[locale]
+        const from = isPlainObject(source) ? source[locale] : source
+        if (typeof current === 'string' && current !== '') next[locale] = slugify(current)
+        else if (typeof from === 'string' && from.trim() !== '') next[locale] = slugify(from)
+      }
+      result[field.name] = next
+    } else if (field.type === 'slug') {
       const current = result[field.name]
       if (typeof current === 'string' && current !== '') {
         result[field.name] = slugify(current)
       } else if (field.from) {
-        const source = result[field.from]
+        // A localized source gives a shared slug from its default locale's value.
+        const raw = result[field.from]
+        const source = isPlainObject(raw) && localization ? raw[localization.defaultLocale] : raw
         if (typeof source === 'string' && source.trim() !== '') result[field.name] = slugify(source)
       }
     } else if (field.type === 'group' && isPlainObject(result[field.name])) {
-      result[field.name] = generateSlugs(field.fields, result[field.name] as Data)
+      result[field.name] = generateSlugs(field.fields, result[field.name] as Data, localization)
     } else if (field.type === 'array' && Array.isArray(result[field.name])) {
       result[field.name] = (result[field.name] as unknown[]).map((row) =>
-        isPlainObject(row) ? generateSlugs(field.fields, row) : row,
+        isPlainObject(row) ? generateSlugs(field.fields, row, localization) : row,
       )
     }
   }
@@ -123,6 +159,13 @@ export interface ValidateOptions {
   readonly skipRequired?: boolean
   /** The whole top-level document, passed to custom `validate` functions. */
   readonly root: Data
+  /** Localized fields hold `{ [locale]: value }`; each value is validated. */
+  readonly localization?: Localization | null
+  /**
+   * The locale being written: `required` and custom `validate` apply to its values, and its
+   * errors use the plain field path. Default: the default locale.
+   */
+  readonly locale?: string
 }
 
 export interface ValidateResult {
@@ -162,6 +205,43 @@ export async function validateFields(
       data[field.name] = sub.data
       errors.push(...sub.errors)
       references.push(...sub.references)
+      continue
+    }
+
+    const localization = options.localization
+    if (field.localized && localization) {
+      if (!isEmpty(raw) && !isPlainObject(raw)) {
+        fail('must be an object with one value per locale')
+        continue
+      }
+      const map = isPlainObject(raw) ? raw : {}
+      const written = options.locale ?? localization.defaultLocale
+      const out: Data = {}
+      for (const locale of localization.locales) {
+        const own = locale === written
+        const localePath = own ? path : `${path}.${locale}`
+        const failLocale = (message: string) => errors.push({ field: localePath, message })
+        const value = map[locale]
+        if (isEmpty(value)) {
+          if (own && field.required && !options.skipRequired) failLocale('is required')
+          out[locale] = null
+          if (own && !field.required) await runCustom(field, null, options, failLocale)
+          continue
+        }
+        const normalized = await normalizeValue(
+          field,
+          value,
+          localePath,
+          options,
+          failLocale,
+          errors,
+          references,
+        )
+        if (normalized === undefined) continue
+        out[locale] = normalized
+        if (own) await runCustom(field, normalized, options, failLocale)
+      }
+      data[field.name] = out
       continue
     }
 

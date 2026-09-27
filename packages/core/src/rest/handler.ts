@@ -144,7 +144,7 @@ async function route(
   options: RestHandlerOptions,
 ): Promise<Result> {
   const [first, second, third] = segments
-  const access = { overrideAccess: false, user: ctx.user } as const
+  const access = { overrideAccess: false, user: ctx.user, ...parseLocale(ctx.url) } as const
   // Drafts are only for logged-in users; anonymous requests always see published documents.
   const draft = ctx.user !== null && ctx.url.searchParams.get('draft') === 'true'
 
@@ -222,8 +222,19 @@ async function route(
     if (!cms.config.globals.some((g) => g.slug === second))
       throw new HttpError(`Unknown global "${second}"`, 404)
     if (third !== undefined) return globalAction(cms, ctx, method, second, segments.slice(2))
-    if (method === 'GET')
+    if (method === 'GET') {
+      if (ctx.url.searchParams.has('preview')) {
+        requirePreview(cms, ctx, { global: second })
+        return {
+          body: await cms.findGlobal(second, {
+            ...parseDepth(ctx.url),
+            ...parseLocale(ctx.url),
+            draft: true,
+          }),
+        }
+      }
       return { body: await cms.findGlobal(second, { ...access, ...parseDepth(ctx.url), draft }) }
+    }
     if (method === 'POST') {
       const body = await readJson(ctx.request)
       return { body: await cms.updateGlobal(second, body, { ...access, ...parseDepth(ctx.url) }) }
@@ -280,6 +291,17 @@ async function route(
   }
 
   const id = second
+  if (method === 'GET' && ctx.url.searchParams.has('preview')) {
+    // A preview token opens this one document's current draft, without a login.
+    requirePreview(cms, ctx, { collection, id })
+    const doc = await cms.findById(collection, id, {
+      ...parseDepth(ctx.url),
+      ...parseLocale(ctx.url),
+      draft: true,
+    })
+    if (!doc) throw new NotFoundError(collection, id)
+    return { body: doc }
+  }
   if (method === 'GET') {
     const doc = await cms.findById(collection, id, { ...access, ...parseDepth(ctx.url), draft })
     if (!doc) throw new NotFoundError(collection, id)
@@ -318,7 +340,7 @@ async function documentAction(
   id: string,
   path: string[],
 ): Promise<Result> {
-  const access = { overrideAccess: false, user: ctx.user } as const
+  const access = { overrideAccess: false, user: ctx.user, ...parseLocale(ctx.url) } as const
   const depth = parseDepth(ctx.url)
   const [action, versionId, extra] = path
   if (action === 'versions' && versionId === undefined) {
@@ -343,7 +365,9 @@ async function documentAction(
   if (path.length === 1 && action === 'preview') {
     if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
     const body = await readJson(ctx.request)
-    return { body: await cms.preview(collection, id, body, { ...access, ...depth }) }
+    const result = await cms.preview(collection, id, body, { ...access, ...depth })
+    const token = cms.createPreviewToken({ collection, id })
+    return { body: { ...result, url: result.url && withPreviewToken(result.url, token) } }
   }
   if (path.length === 1 && (action === 'unpublish' || action === 'discard-draft')) {
     if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
@@ -366,7 +390,7 @@ async function globalAction(
   slug: string,
   path: string[],
 ): Promise<Result> {
-  const access = { overrideAccess: false, user: ctx.user } as const
+  const access = { overrideAccess: false, user: ctx.user, ...parseLocale(ctx.url) } as const
   const depth = parseDepth(ctx.url)
   const [action, versionId, extra] = path
   if (action === 'versions' && versionId === undefined) {
@@ -391,7 +415,9 @@ async function globalAction(
   if (path.length === 1 && action === 'preview') {
     if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
     const body = await readJson(ctx.request)
-    return { body: await cms.previewGlobal(slug, body, { ...access, ...depth }) }
+    const result = await cms.previewGlobal(slug, body, { ...access, ...depth })
+    const token = cms.createPreviewToken({ global: slug })
+    return { body: { ...result, url: result.url && withPreviewToken(result.url, token) } }
   }
   if (path.length === 1 && (action === 'unpublish' || action === 'discard-draft')) {
     if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
@@ -404,6 +430,44 @@ async function globalAction(
     }
   }
   throw new HttpError('Not found', 404)
+}
+
+/** `?locale=` (a content locale or `all`) and `?fallback-locale=false`. */
+function parseLocale(url: URL): { locale?: string; fallbackLocale?: boolean } {
+  const locale = url.searchParams.get('locale')
+  const fallback = url.searchParams.get('fallback-locale')
+  return {
+    ...(locale ? { locale } : {}),
+    ...(fallback === 'false' || fallback === 'true' ? { fallbackLocale: fallback === 'true' } : {}),
+  }
+}
+
+/** Query parameter the admin adds to preview URLs; pages pass it on as `?preview=`. */
+export const PREVIEW_PARAM = 'easy-cms-preview'
+
+/** Adds the preview token to a (possibly relative) URL, before any `#fragment`. */
+function withPreviewToken(url: string, token: string): string {
+  const hash = url.indexOf('#')
+  const [base, fragment] = hash === -1 ? [url, ''] : [url.slice(0, hash), url.slice(hash)]
+  const separator = base.includes('?') ? '&' : '?'
+  return `${base}${separator}${PREVIEW_PARAM}=${encodeURIComponent(token)}${fragment}`
+}
+
+/** Throws unless `?preview=` holds a valid token for exactly this document or global. */
+function requirePreview(
+  cms: EasyCMS,
+  ctx: Context,
+  target: { collection: string; id: string } | { global: string },
+) {
+  const opened = cms.verifyPreviewToken(ctx.url.searchParams.get('preview'))
+  const matches =
+    opened !== null &&
+    ('global' in target
+      ? 'global' in opened && opened.global === target.global
+      : 'collection' in opened &&
+        opened.collection === target.collection &&
+        opened.id === target.id)
+  if (!matches) throw new UnauthorizedError('Invalid or expired preview token')
 }
 
 /** `?page=&limit=` for version lists, validated like list queries. */

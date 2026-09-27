@@ -165,6 +165,17 @@ h1 {
   color: var(--danger);
   margin-left: 0.15rem;
 }
+/* Marks fields with one value per content language. */
+.field-locale {
+  margin-left: 0.4rem;
+  padding: 0 0.35rem;
+  border-radius: 4px;
+  background: var(--accent-soft, var(--border));
+  color: var(--accent);
+  font-size: 0.7rem;
+  font-weight: 650;
+  vertical-align: middle;
+}
 .field-hint {
   color: var(--text-muted);
   font-size: 0.85rem;

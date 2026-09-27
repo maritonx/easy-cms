@@ -10,6 +10,8 @@ const props = defineProps<{
   data: Record<string, unknown>
   collection?: string
   global?: string
+  /** Extra query, e.g. the content locale (`&locale=en`). */
+  query?: string
 }>()
 
 const frame = ref<HTMLIFrameElement>()
@@ -35,7 +37,7 @@ async function refresh() {
   try {
     const result = await api<{ doc: Record<string, unknown>; url: string | null }>(
       'POST',
-      `${props.path}?depth=2`,
+      `${props.path}?depth=2${props.query ?? ''}`,
       props.data,
     )
     if (current !== request) return // a newer change is on its way
@@ -62,6 +64,14 @@ function reload() {
   if (frame.value && src.value) frame.value.src = src.value
 }
 
+// Another content locale: load that locale's page (its URL may differ).
+watch(
+  () => props.query,
+  () => {
+    src.value = null
+    void refresh()
+  },
+)
 watch(
   () => props.data,
   () => {

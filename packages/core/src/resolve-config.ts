@@ -40,6 +40,13 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
   const result: ResolvedConfig = {
     ...rest,
     cors: config.cors ?? [],
+    localization: config.localization
+      ? {
+          locales: config.localization.locales,
+          defaultLocale: config.localization.defaultLocale ?? config.localization.locales[0] ?? '',
+          fallback: config.localization.fallback ?? true,
+        }
+      : null,
     routes: { api: `/${(config.routes?.api ?? DEFAULT_API_PATH).replace(/^\/+|\/+$/g, '')}` },
     admin: {
       path: config.admin?.path ?? DEFAULT_ADMIN_PATH,

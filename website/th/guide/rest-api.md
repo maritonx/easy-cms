@@ -8,7 +8,7 @@
 |---|---|---|
 | GET | `/:collection` | แสดงรายการ Query: `where`, `sort`, `limit` (1–100), `page`, `depth`, `draft` |
 | POST | `/:collection` | สร้าง (JSON body) |
-| GET | `/:collection/:id` | เอกสารหนึ่งรายการ Query: `depth`, `draft` |
+| GET | `/:collection/:id` | เอกสารหนึ่งรายการ Query: `depth`, `draft`, `preview` ([preview token](./live-preview#preview-tokens): ฉบับร่างปัจจุบันโดยไม่ต้องเข้าสู่ระบบ) |
 | PATCH | `/:collection/:id` | อัปเดต field ที่ระบุ |
 | DELETE | `/:collection/:id` | ลบ |
 | GET / POST | `/globals/:slug` | อ่าน / อัปเดต global |
@@ -32,7 +32,9 @@ GET /api/cms/posts?where={"or":[{"featured":{"equals":true}},{"views":{"gt":100}
 ```
 
 `in` / `not_in` รับค่าที่คั่นด้วยจุลภาค `exists` รับ `true`/`false` และ `equals=null`
-จะตรงกับค่าว่าง `draft=true` ใช้ได้เฉพาะผู้ใช้ที่เข้าสู่ระบบแล้ว
+จะตรงกับค่าว่าง `draft=true` ใช้ได้เฉพาะผู้ใช้ที่เข้าสู่ระบบแล้ว เมื่อใช้
+[หลายภาษา](./localization) `locale` (`th`, `en`… หรือ `all`) และ `fallback-locale=false` ใช้ได้กับ
+ทุกการอ่านและเขียน
 
 ## การยืนยันตัวตน {#authentication}
 

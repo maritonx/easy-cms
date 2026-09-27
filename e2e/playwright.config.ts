@@ -61,6 +61,9 @@ export default defineConfig({
         NUXT_TELEMETRY_DISABLED: '1',
         NEXT_TELEMETRY_DISABLED: '1',
         CORS_ORIGINS: FRONTEND,
+        // Standalone example: live preview opens the frontend, which calls this server.
+        FRONTEND_URL: FRONTEND,
+        CMS_URL: `http://localhost:${app.port}`,
       },
     })),
     // The standalone example's frontend, on its own origin.

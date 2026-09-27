@@ -52,6 +52,8 @@ await cms.discardDraft('posts', 12)
 | `limit`, `page` | `10`, `1` | การแบ่งหน้า |
 | `depth` | `1` | จำนวนระดับของ relationship ที่จะดึงข้อมูลมาแทน (สูงสุด 3) |
 | `draft` | `false` | รวมฉบับร่าง (draft) ด้วย |
+| `locale` | ภาษาเริ่มต้น | เมื่อใช้ [หลายภาษา](./localization): ภาษาที่จะอ่านหรือเขียน หรือ `'all'` |
+| `fallbackLocale` | `true` | ค่าที่ localized แล้วว่างจะใช้ค่าของภาษาเริ่มต้นแทน |
 | `overrideAccess` | `true` | `false` จะใช้ [กฎการควบคุมสิทธิ์](./access-control) กับ `user` |
 | `user` | `null` | ผู้ใช้ที่จะตรวจสอบสิทธิ์ |
 

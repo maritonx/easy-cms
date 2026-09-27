@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { AdminField } from '@easy-cms/core'
 import { computed, defineAsyncComponent, ref } from 'vue'
+import { contentLocale } from '../lib/content-locale'
 import { fromLocalInput, toLocalInput } from '../lib/fields'
 import { label, t } from '../lib/i18n'
 import ArrayField from './ArrayField.vue'
@@ -115,6 +116,7 @@ function onNumber(value: string) {
   <div v-else class="field">
     <label :for="id" class="field-label">
       {{ text }}<span v-if="field.required" class="field-required" aria-hidden="true">*</span>
+      <span v-if="field.localized" class="field-locale" :title="t('locale.localized')" aria-hidden="true">{{ contentLocale()?.toUpperCase() }}</span>
     </label>
 
     <input

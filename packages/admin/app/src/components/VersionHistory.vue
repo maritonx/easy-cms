@@ -15,6 +15,8 @@ const props = defineProps<{
   canRestore: boolean
   /** Changes after every save, so the list reloads. */
   reloadKey: number
+  /** Extra query, e.g. the content locale (`&locale=en`). */
+  query?: string
 }>()
 const emit = defineEmits<{ restored: [doc: Record<string, unknown>] }>()
 
@@ -49,7 +51,10 @@ async function more() {
 }
 
 async function open(summary: VersionSummary) {
-  const version = await api<Version>('GET', `${props.path}/versions/${summary.id}?depth=0`)
+  const version = await api<Version>(
+    'GET',
+    `${props.path}/versions/${summary.id}?depth=0${props.query ?? ''}`,
+  )
   selected.value = version
   preview.value = toFormValues(props.fields, version.data)
   dialog.value?.showModal()
@@ -66,7 +71,7 @@ async function restore() {
   try {
     const doc = await api<Record<string, unknown>>(
       'POST',
-      `${props.path}/versions/${selected.value.id}/restore?depth=0`,
+      `${props.path}/versions/${selected.value.id}/restore?depth=0${props.query ?? ''}`,
     )
     close()
     emit('restored', doc)

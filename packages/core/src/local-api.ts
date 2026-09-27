@@ -9,6 +9,7 @@ import {
 } from './access-control.js'
 import { Auth } from './auth/auth.js'
 import { hashPassword, MIN_PASSWORD_LENGTH } from './auth/password.js'
+import { signPreviewToken, verifyPreviewToken } from './auth/tokens.js'
 import { MEDIA, USERS } from './builtins.js'
 import type { CollectionConfig, Config, GlobalConfig, ImageSize, ResolvedConfig } from './config.js'
 import type { Database, PaginatedDocs, RawDocument, SchemaMode } from './database.js'
@@ -40,6 +41,13 @@ import type {
   MediaDocument,
   UpdateInput,
 } from './infer.js'
+import {
+  ALL_LOCALES,
+  localizeSort,
+  localizeWhere,
+  pickLocale,
+  toLocaleMaps,
+} from './localization.js'
 import { consoleLogger, type Logger } from './logger.js'
 import { imageDimensions, mimeAllowed, sniffMimeType, storageKey } from './media.js'
 import { DEFAULT_DEPTH, type Loader, MAX_DEPTH, populate } from './populate.js'
@@ -84,6 +92,11 @@ export interface AccessOptions {
 export interface DepthOptions extends AccessOptions {
   /** How many levels of relationships to populate. Default 1, maximum 3. */
   readonly depth?: number
+  /**
+   * With `localization`: the locale to read, and for writes the locale the data is in. Default:
+   * the default locale. `'all'` reads (and writes) localized fields as `{ [locale]: value }`.
+   */
+  readonly locale?: string
 }
 
 export interface ReadOptions extends DepthOptions {
@@ -92,6 +105,8 @@ export interface ReadOptions extends DepthOptions {
    * `drafts: true` are returned, including when populating relationships (FR-DRF-04).
    */
   readonly draft?: boolean
+  /** Use the default locale's value when a localized value is empty. Default: `localization.fallback`. */
+  readonly fallbackLocale?: boolean
 }
 
 export interface FindOptions extends ReadOptions {
@@ -175,12 +190,21 @@ export class EasyCMS<C extends Config = Config> {
       throw new QueryError('limit must be a non-negative integer')
     if (!Number.isInteger(page) || page < 1) throw new QueryError('page must be a positive integer')
 
-    const where = draftWhere(
+    const where = this.whereFor(
       config,
-      options.draft,
-      await this.readWhere(config, guard, options.where),
+      draftWhere(config, options.draft, await this.readWhere(config, guard, options.where)),
+      options,
     )
-    const sort = options.sort === undefined ? ['-createdAt'] : [options.sort].flat()
+    const requested = options.sort === undefined ? ['-createdAt'] : [options.sort].flat()
+    const locale = this.localeOf(options)
+    const sort =
+      locale === undefined
+        ? requested
+        : localizeSort(
+            config.fields,
+            requested,
+            locale === ALL_LOCALES ? (this.config.localization?.defaultLocale ?? locale) : locale,
+          )
     const result = await this.db.find({ collection, where, sort, limit, page })
     const found = options.draft ? await this.withDrafts(config, result.docs) : result.docs
     const docs = await this.output(config, found, guard, options)
@@ -196,7 +220,11 @@ export class EasyCMS<C extends Config = Config> {
     const guard = guardOf(options)
     const parsed = parseId(id)
     if (parsed === undefined) return null
-    const where = draftWhere(config, options.draft, await this.readWhere(config, guard, undefined))
+    const where = this.whereFor(
+      config,
+      draftWhere(config, options.draft, await this.readWhere(config, guard, undefined)),
+      options,
+    )
     const doc = where
       ? (
           await this.db.find({
@@ -216,13 +244,17 @@ export class EasyCMS<C extends Config = Config> {
 
   async count<S extends Slug<C>>(
     collection: S,
-    options: { where?: Where; draft?: boolean } & AccessOptions = {},
+    options: { where?: Where; draft?: boolean; locale?: string } & AccessOptions = {},
   ): Promise<number> {
     const config = this.collection(collection)
-    const where = draftWhere(
+    const where = this.whereFor(
       config,
-      options.draft,
-      await this.readWhere(config, guardOf(options), options.where),
+      draftWhere(
+        config,
+        options.draft,
+        await this.readWhere(config, guardOf(options), options.where),
+      ),
+      options,
     )
     return this.db.count({ collection, where })
   }
@@ -423,6 +455,7 @@ export class EasyCMS<C extends Config = Config> {
       parsed,
       config.drafts ? { ...data, status: 'draft' } : data,
       options,
+      'restore',
     )) as Doc<C, S>
   }
 
@@ -461,16 +494,42 @@ export class EasyCMS<C extends Config = Config> {
       input,
       this.fieldChecker('update', guard, parsed, input),
     )
+    const localized = this.toMaps(config, filtered, base ?? {}, options)
     const merged = base
-      ? mergeForUpdate(config.fields, base, filtered)
-      : applyDefaults(config.fields, filtered)
+      ? mergeForUpdate(config.fields, base, localized)
+      : applyDefaults(config.fields, localized, this.config.localization)
     if (config.drafts) merged.status = filtered.status ?? base?.status ?? 'draft'
-    const doc = await this.previewDoc(config, generateSlugs(config.fields, merged), {
-      id: parsed ?? 0,
-      createdAt: base?.createdAt ?? new Date().toISOString(),
-    })
+    const doc = await this.previewDoc(
+      config,
+      generateSlugs(config.fields, merged, this.config.localization),
+      {
+        id: parsed ?? 0,
+        createdAt: base?.createdAt ?? new Date().toISOString(),
+      },
+      options,
+    )
     const [out] = await this.output(config, [doc], guard, { ...options, draft: true })
-    return { doc: out as Doc<C, S>, url: this.previewURL(config, out as RawDocument) }
+    return { doc: out as Doc<C, S>, url: this.previewURL(config, out as RawDocument, options) }
+  }
+
+  /**
+   * A token that lets a page read one document's current draft for a while (default one hour),
+   * without a login: `GET /api/cms/:collection/:id?preview=<token>`. The admin adds one to the
+   * preview URL as `easy-cms-preview`, for sites on another origin.
+   */
+  createPreviewToken(
+    target: { collection: string; id: ID } | { global: string },
+    options: { expiresIn?: number } = {},
+  ): string {
+    const seconds = options.expiresIn ?? 60 * 60
+    const normalized =
+      'global' in target ? target : { collection: target.collection, id: String(target.id) }
+    return signPreviewToken(this.config.secret, normalized, Date.now() + seconds * 1000)
+  }
+
+  /** What a preview token opens, or `null` when it is invalid or expired. */
+  verifyPreviewToken(token: string | null | undefined) {
+    return token ? verifyPreviewToken(this.config.secret, token) : null
   }
 
   /** Live preview of a global. See `preview`. */
@@ -492,13 +551,18 @@ export class EasyCMS<C extends Config = Config> {
     const current = await this.globalDraft(config, saved)
     const merged = generateSlugs(
       config.fields,
-      applyDefaults(config.fields, mergeForUpdate(config.fields, current, input)),
+      applyDefaults(
+        config.fields,
+        mergeForUpdate(config.fields, current, this.toMaps(config, input, current, options)),
+        this.config.localization,
+      ),
+      this.config.localization,
     )
     if (config.drafts) merged.status = input.status ?? current.status ?? 'draft'
-    const doc = await this.previewDoc(config, merged, { id: 0 })
+    const doc = await this.previewDoc(config, merged, { id: 0 }, options)
     const [out] = await this.output(config, [doc], guard, { ...options, draft: true })
     const { id: _id, ...global } = out as RawDocument
-    return { doc: global as GDoc<C, S>, url: this.previewURL(config, global) }
+    return { doc: global as GDoc<C, S>, url: this.previewURL(config, global, options) }
   }
 
   /** Coerces preview input like a save would, keeping values that would fail validation. */
@@ -506,11 +570,15 @@ export class EasyCMS<C extends Config = Config> {
     config: CollectionConfig | GlobalConfig,
     data: Data,
     system: { id: ID; createdAt?: unknown },
+    options: { locale?: string } = {},
   ): Promise<RawDocument> {
+    const locale = this.localeOf(options)
     const { data: clean } = await validateFields(config.fields, data, {
       operation: 'update',
       root: data,
       skipRequired: true,
+      localization: this.config.localization,
+      ...(locale !== undefined && locale !== ALL_LOCALES ? { locale } : {}),
     })
     return {
       ...data,
@@ -521,10 +589,16 @@ export class EasyCMS<C extends Config = Config> {
     } as RawDocument
   }
 
-  private previewURL(config: CollectionConfig | GlobalConfig, doc: Data): string | null {
+  private previewURL(
+    config: CollectionConfig | GlobalConfig,
+    doc: Data,
+    options: { locale?: string },
+  ): string | null {
     if (!config.preview) return null
+    const content = this.localeOf(options)
+    const locale = content && content !== ALL_LOCALES ? content : this.config.admin.locale
     try {
-      return config.preview({ doc, locale: this.config.admin.locale }) ?? null
+      return config.preview({ doc, locale }) ?? null
     } catch (error) {
       this.logger.error(`preview URL of "${config.slug}" failed: ${(error as Error).message}`)
       return null
@@ -548,7 +622,7 @@ export class EasyCMS<C extends Config = Config> {
     id: ID,
     raw: Data,
     options: DepthOptions,
-    mode: 'save' | 'unpublish' = 'save',
+    mode: 'save' | 'unpublish' | 'restore' = 'save',
   ): Promise<RawDocument> {
     const config = this.collection(collection)
     const guard = guardOf(options)
@@ -566,7 +640,10 @@ export class EasyCMS<C extends Config = Config> {
       input,
       this.fieldChecker('update', guard, parsed, input),
     )
-    let merged = mergeForUpdate(config.fields, current, filtered)
+    // Versions hold every locale, so a restore writes the maps as they are.
+    const localized =
+      mode === 'restore' ? filtered : this.toMaps(config, filtered, current, options)
+    let merged = mergeForUpdate(config.fields, current, localized)
     if (config.drafts)
       merged.status = Object.hasOwn(filtered, 'status') ? filtered.status : current.status
     const base = this.hookArgs(config, guard)
@@ -578,9 +655,10 @@ export class EasyCMS<C extends Config = Config> {
     )
     let prepared = await this.prepare(
       config,
-      generateSlugs(config.fields, merged),
+      generateSlugs(config.fields, merged, this.config.localization),
       'update',
       parsed,
+      options,
     )
     prepared = await this.transform(
       config.hooks?.beforeChange,
@@ -592,7 +670,7 @@ export class EasyCMS<C extends Config = Config> {
 
     // A draft of a published document: keep it as a version, leave the live document alone.
     if (
-      mode === 'save' &&
+      mode !== 'unpublish' &&
       this.separateDrafts(config) &&
       existing.status === 'published' &&
       prepared.status === 'draft'
@@ -672,7 +750,10 @@ export class EasyCMS<C extends Config = Config> {
     await this.checkGlobalAccess(config, 'read', guard)
     const saved = await this.db.findGlobal({ slug })
     const stored = saved && options.draft ? await this.globalDraft(config, saved) : saved
-    const data = fillMissing(config.fields, applyDefaults(config.fields, stored ?? {}))
+    const data = fillMissing(
+      config.fields,
+      applyDefaults(config.fields, stored ?? {}, this.config.localization),
+    )
     if (!stored) {
       data.updatedAt = null
       if (config.drafts) data.status = 'draft'
@@ -725,7 +806,10 @@ export class EasyCMS<C extends Config = Config> {
     const config = await this.globalVersionTarget(slug, options)
     const version = await this.versions.get(globalParent(slug), 0, versionId)
     if (!version) return null
-    const data = fillMissing(config.fields, applyDefaults(config.fields, version.data))
+    const data = fillMissing(
+      config.fields,
+      applyDefaults(config.fields, version.data, this.config.localization),
+    )
     const [out] = await this.output(config, [{ ...data, id: 0 } as RawDocument], guardOf(options), {
       ...options,
       draft: true,
@@ -748,6 +832,7 @@ export class EasyCMS<C extends Config = Config> {
       slug,
       config.drafts ? { ...data, status: 'draft' } : data,
       options,
+      'restore',
     ) as Promise<GDoc<C, S>>
   }
 
@@ -770,7 +855,7 @@ export class EasyCMS<C extends Config = Config> {
     slug: string,
     raw: Data,
     options: DepthOptions,
-    mode: 'save' | 'unpublish' = 'save',
+    mode: 'save' | 'unpublish' | 'restore' = 'save',
   ): Promise<Data> {
     const config = this.global(slug)
     const guard = guardOf(options)
@@ -782,14 +867,20 @@ export class EasyCMS<C extends Config = Config> {
     )
     const existing = (await this.db.findGlobal({ slug })) ?? {}
     const current = await this.globalDraft(config, existing)
+    const localized = mode === 'restore' ? input : this.toMaps(config, input, current, options)
 
     const merged = generateSlugs(
       config.fields,
-      applyDefaults(config.fields, mergeForUpdate(config.fields, current, input)),
+      applyDefaults(
+        config.fields,
+        mergeForUpdate(config.fields, current, localized),
+        this.config.localization,
+      ),
+      this.config.localization,
     )
     if (config.drafts) merged.status = input.status ?? current.status ?? 'draft'
     const base = this.hookArgs(config, guard)
-    let prepared = await this.prepare(config, merged, 'update', undefined)
+    let prepared = await this.prepare(config, merged, 'update', undefined, options)
     prepared = await this.transform(
       config.hooks?.beforeChange,
       'data',
@@ -799,7 +890,7 @@ export class EasyCMS<C extends Config = Config> {
     const now = new Date().toISOString()
 
     if (
-      mode === 'save' &&
+      mode !== 'unpublish' &&
       this.separateDrafts(config) &&
       existing.status === 'published' &&
       prepared.status === 'draft'
@@ -953,17 +1044,20 @@ export class EasyCMS<C extends Config = Config> {
       if (where === null) return []
       const found = await this.db.find({
         collection: target.slug,
-        where: draftWhere(target, options.draft, where),
+        where: this.whereFor(target, draftWhere(target, options.draft, where), options),
         sort: [],
         limit: 0,
         page: 1,
       })
       const docs = options.draft ? await this.withDrafts(target, found.docs) : found.docs
-      return Promise.all(docs.map((d) => finish(target, d)))
+      return Promise.all(
+        docs.map((d) => finish(target, this.pick(target, d, options) as RawDocument)),
+      )
     }
     const depth = Math.max(0, Math.min(MAX_DEPTH, Math.trunc(options.depth ?? DEFAULT_DEPTH)))
-    // Populate first (populated documents are finished by the loader), then finish the top level.
-    const populated = await populate(load, this.config.collections, config.fields, docs, depth)
+    // Pick the locale, populate (populated documents are finished by the loader), then finish.
+    const localized = docs.map((d) => this.pick(config, d, options) as RawDocument)
+    const populated = await populate(load, this.config.collections, config.fields, localized, depth)
     return Promise.all(populated.map((d) => finish(config, d)))
   }
 
@@ -993,7 +1087,11 @@ export class EasyCMS<C extends Config = Config> {
       this.fieldChecker('update', guard, undefined, input),
     )
     const base = this.hookArgs(config, hookGuard ?? guard)
-    let data = applyDefaults(config.fields, filtered)
+    let data = applyDefaults(
+      config.fields,
+      this.toMaps(config, filtered, {}, options),
+      this.config.localization,
+    )
     data = await this.transform(
       config.hooks?.beforeValidate,
       'data',
@@ -1002,9 +1100,10 @@ export class EasyCMS<C extends Config = Config> {
     )
     let prepared = await this.prepare(
       config,
-      generateSlugs(config.fields, data),
+      generateSlugs(config.fields, data, this.config.localization),
       'create',
       undefined,
+      options,
     )
     prepared = await this.transform(
       config.hooks?.beforeChange,
@@ -1027,6 +1126,60 @@ export class EasyCMS<C extends Config = Config> {
     })
     const [out] = await this.output(config, [doc], hookGuard ?? guard, { ...options, draft: true })
     return out as RawDocument
+  }
+
+  /** The locale for an operation; `undefined` without localization. Throws on unknown locales. */
+  private localeOf(options: { locale?: string }): string | undefined {
+    const localization = this.config.localization
+    if (!localization) return undefined
+    const locale = options.locale ?? localization.defaultLocale
+    if (locale !== ALL_LOCALES && !localization.locales.includes(locale)) {
+      throw new QueryError(
+        `Unknown locale "${locale}" (use one of: ${localization.locales.join(', ')}, ${ALL_LOCALES})`,
+      )
+    }
+    return locale
+  }
+
+  /** Stored localized maps → the values of the requested locale. */
+  private pick(
+    config: CollectionConfig | GlobalConfig,
+    doc: Data,
+    options: { locale?: string; fallbackLocale?: boolean },
+  ): Data {
+    const localization = this.config.localization
+    const locale = this.localeOf(options)
+    if (!localization || locale === undefined) return doc
+    const fallback = options.fallbackLocale ?? localization.fallback
+    return pickLocale(config.fields, doc, locale, localization, fallback)
+  }
+
+  /** Input for one locale → stored localized maps, keeping the other locales from `current`. */
+  private toMaps(
+    config: CollectionConfig | GlobalConfig,
+    input: Data,
+    current: Data,
+    options: { locale?: string },
+  ): Data {
+    const locale = this.localeOf(options)
+    if (locale === undefined || locale === ALL_LOCALES) return input
+    return toLocaleMaps(config.fields, input, current, locale)
+  }
+
+  /** Makes `where` match localized fields in the operation's locale. */
+  private whereFor(
+    config: CollectionConfig,
+    where: Where | undefined,
+    options: { locale?: string },
+  ): Where | undefined {
+    const locale = this.localeOf(options)
+    const localization = this.config.localization
+    if (locale === undefined || !localization) return where
+    return localizeWhere(
+      config.fields,
+      where,
+      locale === ALL_LOCALES ? localization.defaultLocale : locale,
+    )
   }
 
   /** Drafts are kept as versions (instead of unpublishing) when both are enabled. */
@@ -1169,12 +1322,16 @@ export class EasyCMS<C extends Config = Config> {
     data: Data,
     operation: 'create' | 'update',
     selfId: ID | undefined,
+    options: { locale?: string } = {},
   ): Promise<Data> {
     const isDraft = config.drafts === true && (data.status ?? 'draft') === 'draft'
+    const locale = this.localeOf(options)
     const result = await validateFields(config.fields, data, {
       operation,
       root: data,
       skipRequired: isDraft,
+      localization: this.config.localization,
+      ...(locale !== undefined && locale !== ALL_LOCALES ? { locale } : {}),
     })
     const errors: FieldError[] = [...result.errors]
     const clean: Data = { ...result.data }
@@ -1221,14 +1378,27 @@ export class EasyCMS<C extends Config = Config> {
   }
 
   private async makeSlugsUnique(config: CollectionConfig, data: Data, selfId: ID | undefined) {
-    for (const field of config.fields) {
-      const base = data[field.name]
-      if (field.type !== 'slug' || typeof base !== 'string' || base === '') continue
+    const unique = async (path: string, base: string) => {
       let candidate = base
-      for (let n = 2; await this.isTaken(config.slug, field.name, candidate, selfId); n++) {
+      for (let n = 2; await this.isTaken(config.slug, path, candidate, selfId); n++) {
         candidate = `${base}-${n}`
       }
-      data[field.name] = candidate
+      return candidate
+    }
+    for (const field of config.fields) {
+      if (field.type !== 'slug') continue
+      const value = data[field.name]
+      if (field.localized && value && typeof value === 'object') {
+        // Unique per locale: each locale has its own column.
+        const map = { ...(value as Data) }
+        for (const [locale, slug] of Object.entries(map)) {
+          if (typeof slug === 'string' && slug !== '')
+            map[locale] = await unique(`${field.name}.${locale}`, slug)
+        }
+        data[field.name] = map
+      } else if (typeof value === 'string' && value !== '') {
+        data[field.name] = await unique(field.name, value)
+      }
     }
   }
 
@@ -1241,8 +1411,21 @@ export class EasyCMS<C extends Config = Config> {
     for (const field of config.fields) {
       const value = data[field.name]
       if (!field.unique || field.type === 'slug' || value === null || value === undefined) continue
-      if (await this.isTaken(config.slug, field.name, value, selfId)) {
-        errors.push({ field: field.name, message: 'must be unique' })
+      const checks: [path: string, error: string, value: unknown][] =
+        field.localized && typeof value === 'object'
+          ? Object.entries(value as Data).map(([locale, v]) => [
+              `${field.name}.${locale}`,
+              locale === this.config.localization?.defaultLocale
+                ? field.name
+                : `${field.name}.${locale}`,
+              v,
+            ])
+          : [[field.name, field.name, value]]
+      for (const [path, errorField, v] of checks) {
+        if (v === null || v === undefined) continue
+        if (await this.isTaken(config.slug, path, v, selfId)) {
+          errors.push({ field: errorField, message: 'must be unique' })
+        }
       }
     }
     return errors

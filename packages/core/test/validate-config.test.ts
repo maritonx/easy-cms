@@ -100,6 +100,37 @@ describe('validateConfig', () => {
     ).toEqual(['cors'])
   })
 
+  it('checks localization and localized fields', () => {
+    const fields = [
+      { name: 'title', type: 'text', localized: true },
+      { name: 'seo', type: 'group', localized: true, fields: [{ name: 'd', type: 'text' }] },
+      { name: 'tags', type: 'select', options: ['a'], hasMany: true, localized: true },
+      { name: 'links', type: 'array', fields: [{ name: 'label', type: 'text', localized: true }] },
+    ] as never
+    const localization = { locales: ['th', 'en'], defaultLocale: 'th' }
+    expect(
+      validateConfig(baseConfig({ localization, collections: [{ slug: 'posts', fields }] })).map(
+        (i) => i.path,
+      ),
+    ).toEqual(['collections[0].fields.seo.localized', 'collections[0].fields.tags.localized'])
+    // Without localization, localized fields are an error.
+    expect(
+      validateConfig(
+        baseConfig({
+          collections: [{ slug: 'p', fields: [{ name: 't', type: 'text', localized: true }] }],
+        }),
+      ).map((i) => i.path),
+    ).toEqual(['collections[0].fields.t.localized'])
+    expect(
+      validateConfig(
+        baseConfig({ localization: { locales: ['th', 'TH', 'th'], defaultLocale: 'fr' } }),
+      ).map((i) => i.path),
+    ).toEqual(['localization.locales[1]', 'localization.locales[2]', 'localization.defaultLocale'])
+    expect(
+      validateConfig(baseConfig({ localization: { locales: [] } })).map((i) => i.path),
+    ).toEqual(['localization.locales'])
+  })
+
   it('reserves slugs used internally', () => {
     expect(paths([{ slug: 'login-attempts', fields: [] }])).toEqual(['collections[0].slug'])
   })

@@ -5,6 +5,8 @@ export default defineConfig({
   secret: process.env.EASY_CMS_SECRET ?? '',
   db: sqlite({ url: process.env.DATABASE_URL ?? 'file:./cms.db' }),
   admin: { locale: 'th' },
+  // Posts and the site name in Thai and English; the slug and other fields are shared.
+  localization: { locales: ['th', 'en'], defaultLocale: 'th' },
   upload: {
     // Resized copies need `sharp` installed; without it only the original is kept.
     imageSizes: [
@@ -35,11 +37,11 @@ export default defineConfig({
         read: ({ user }) => (user ? true : { status: { equals: 'published' } }),
       },
       fields: [
-        { name: 'title', type: 'text', required: true, maxLength: 200 },
+        { name: 'title', type: 'text', required: true, maxLength: 200, localized: true },
         { name: 'slug', type: 'slug', from: 'title' },
-        { name: 'excerpt', type: 'textarea', maxLength: 300 },
+        { name: 'excerpt', type: 'textarea', maxLength: 300, localized: true },
         { name: 'cover', type: 'upload' },
-        { name: 'body', type: 'richText' },
+        { name: 'body', type: 'richText', localized: true },
         { name: 'category', type: 'relationship', to: 'categories' },
         { name: 'tags', type: 'select', options: ['nuxt', 'vue', 'cms', 'thai'], hasMany: true },
         { name: 'author', type: 'relationship', to: 'users' },
@@ -52,8 +54,8 @@ export default defineConfig({
       slug: 'site',
       access: { read: () => true },
       fields: [
-        { name: 'siteName', type: 'text', defaultValue: 'Easy CMS Blog' },
-        { name: 'tagline', type: 'text' },
+        { name: 'siteName', type: 'text', defaultValue: 'Easy CMS Blog', localized: true },
+        { name: 'tagline', type: 'text', localized: true },
       ],
     },
   ],

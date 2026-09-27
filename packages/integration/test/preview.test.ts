@@ -123,12 +123,75 @@ describe('live preview (FR-PRV)', () => {
     }
     expect(
       (await call(`/posts/${post.id}/preview?depth=0`, { title: 'Over REST' })).json,
-    ).toMatchObject({ doc: { title: 'Over REST' }, url: '/posts/live' })
+    ).toMatchObject({
+      doc: { title: 'Over REST' },
+      url: expect.stringMatching(/^\/posts\/live\?easy-cms-preview=/),
+    })
     expect((await call('/posts/preview', { title: 'New over REST' })).json.url).toBe(
       '/posts/new-over-rest',
     )
     expect((await call('/globals/site/preview', { name: 'G' })).json.doc.name).toBe('G')
     expect((await call('/posts/999/preview', {})).status).toBe(404)
+    await cms.destroy()
+  })
+
+  it('opens one draft with a preview token (FR-PRV-03)', async () => {
+    const cms = await open(config)
+    const handle = createRestHandler(cms)
+    const draft = await cms.create('posts', { title: 'Never published' })
+    const other = await cms.create('posts', { title: 'Other draft' })
+    const get = (path: string) => handle(new Request(`http://cms.test/api/cms${path}`))
+
+    // Anonymous visitors can't see the draft…
+    expect((await get(`/posts/${draft.id}`)).status).toBe(404)
+    // …but a page holding its token can.
+    const token = cms.createPreviewToken({ collection: 'posts', id: draft.id })
+    const opened = await get(`/posts/${draft.id}?preview=${token}`)
+    expect(opened.status).toBe(200)
+    expect(await opened.json()).toMatchObject({ title: 'Never published', status: 'draft' })
+
+    // The token opens nothing else, and tampered or expired tokens are refused.
+    expect((await get(`/posts/${other.id}?preview=${token}`)).status).toBe(401)
+    expect((await get(`/posts/${draft.id}?preview=${token}x`)).status).toBe(401)
+    const expired = cms.createPreviewToken({ collection: 'posts', id: draft.id }, { expiresIn: -1 })
+    expect((await get(`/posts/${draft.id}?preview=${expired}`)).status).toBe(401)
+    expect(cms.verifyPreviewToken(token)).toMatchObject({
+      collection: 'posts',
+      id: String(draft.id),
+    })
+    expect(cms.verifyPreviewToken('garbage')).toBeNull()
+
+    // Globals
+    const globalToken = cms.createPreviewToken({ global: 'site' })
+    expect((await get(`/globals/site?preview=${globalToken}`)).status).toBe(200)
+    expect((await get(`/globals/site?preview=${token}`)).status).toBe(401)
+    await cms.destroy()
+  })
+
+  it('adds a token to the preview URL for the admin', async () => {
+    const cms = await open(config)
+    const { post } = await setup(cms)
+    const handle = createRestHandler(cms)
+    const admin = await cms.create('users', {
+      email: 'admin@x.test',
+      password: 'password123',
+      role: 'admin',
+    } as never)
+    const { token } = await cms.auth.createSession(admin.id)
+    const response = await handle(
+      new Request(`http://cms.test/api/cms/posts/${post.id}/preview`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+        body: '{}',
+      }),
+    )
+    const { url } = JSON.parse(await response.text())
+    const preview = new URL(url, 'http://site.test').searchParams.get('easy-cms-preview')
+    expect(url).toMatch(/^\/posts\/live\?easy-cms-preview=/)
+    expect(cms.verifyPreviewToken(preview)).toMatchObject({
+      collection: 'posts',
+      id: String(post.id),
+    })
     await cms.destroy()
   })
 })

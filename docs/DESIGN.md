@@ -262,3 +262,4 @@ easy-cms serve               # standalone (v0.2)
 - [ADR-0011](adr/0011-standalone-mode.md) — Standalone mode (`easy-cms serve`) และ CORS
 - [ADR-0012](adr/0012-versions.md) — Version history และการแยกฉบับร่างออกจากเวอร์ชันที่เผยแพร่
 - [ADR-0013](adr/0013-live-preview.md) — Live preview
+- [ADR-0014](adr/0014-localization.md) — Localization (เนื้อหาหลายภาษา)

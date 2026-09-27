@@ -25,6 +25,18 @@ export interface LivePreviewOptions {
   readonly origin?: string | readonly string[]
 }
 
+/** Query parameter with the preview token that the admin adds to preview URLs. */
+export const PREVIEW_PARAM = 'easy-cms-preview'
+
+/**
+ * The preview token from the page URL, or `null`. Pass it on to read the document's draft
+ * without a login, e.g. `fetch(\`${api}/posts/${id}?preview=${token}&depth=2\`)`.
+ */
+export function getPreviewToken(): string | null {
+  if (typeof window === 'undefined') return null
+  return new URLSearchParams(window.location.search).get(PREVIEW_PARAM)
+}
+
 /** True when the page is shown inside a frame (e.g. the admin's preview). */
 export function isLivePreview(): boolean {
   return typeof window !== 'undefined' && window.parent !== window

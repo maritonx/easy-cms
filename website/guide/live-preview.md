@@ -64,12 +64,34 @@ const stop = subscribeLivePreview((doc) => render(doc), {
 
 Outside the admin's frame the helpers do nothing, so they can stay in production code.
 
+## Preview tokens
+
+When the admin opens the preview, it adds `easy-cms-preview=<token>` to the URL. The token opens
+**one document's current draft** (or one global) for an hour, without a login, so a frontend on
+another origin can show drafts that were never published:
+
+```ts
+import { getPreviewToken } from '@easy-cms/core/live-preview'
+
+const token = getPreviewToken() // from ?easy-cms-preview=, or null
+const post = await fetch(
+  `${api}/posts/${id}?depth=2${token ? `&preview=${token}` : ''}`,
+).then((r) => r.json())
+```
+
+Put the document id in the preview URL for this, e.g.
+`preview: ({ doc }) => \`https://www.example.com/preview/posts/${doc.id}\``.
+
+On the server, `cms.verifyPreviewToken(token)` returns what a token opens
+(`{ collection, id }` or `{ global }`) or `null`, and `cms.createPreviewToken({ collection, id })`
+creates one, e.g. for a "share preview link" button.
+
 ## Things to know
 
 - Render rich text on the client too (`renderRichText` from `@easy-cms/richtext` works in the
   browser), since the document carries the rich text JSON.
 - With the Nuxt and Next adapters, the page and the admin share an origin and the editor's
-  session, so a page that reads drafts for logged-in users (as the examples do) also shows drafts
-  that were never published. A frontend on another origin gets the published page on first load
-  and the edited document once the admin sends it.
+  session, so a page that reads drafts for logged-in users (as the examples do) needs no token.
+- A preview token only opens the document it was made for, expires after an hour, and is refused
+  when tampered with. Treat preview URLs like a temporary share link.
 - Only users who may update a document (or create one, for new documents) can preview it.

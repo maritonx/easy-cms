@@ -51,13 +51,23 @@ export interface GlobalHooks {
   readonly afterRead?: readonly AfterReadHook[]
 }
 
+export interface LocalizationConfig {
+  /** Content locales, e.g. `['th', 'en']`. */
+  readonly locales: readonly string[]
+  /** The locale used when none is given; its values also fill empty ones. Default: the first. */
+  readonly defaultLocale?: string
+  /** Reads return the default locale's value when a locale's value is empty. Default true. */
+  readonly fallback?: boolean
+}
+
 /**
  * Where a document is shown on the site, for live preview in the admin: an absolute URL or a
  * path on the site's origin. Return `null` when the document has no page.
  */
 export type PreviewURL = (args: {
   readonly doc: Record<string, unknown>
-  readonly locale: AdminLocale
+  /** The content locale being edited (with `localization`), otherwise the admin locale. */
+  readonly locale: string
 }) => string | null | undefined
 
 export interface VersionsConfig {
@@ -169,6 +179,8 @@ export interface Config {
    * `auth.trustedOrigins` are always allowed, with cookies. Default: none.
    */
   readonly cors?: readonly string[] | '*'
+  /** Content in several languages: fields with `localized: true` hold one value per locale. */
+  readonly localization?: LocalizationConfig | null
   readonly routes?: RoutesConfig
   readonly admin?: AdminConfig
   readonly upload?: UploadConfig
@@ -186,9 +198,19 @@ export interface Config {
 export interface ResolvedConfig
   extends Omit<
     Config,
-    'cors' | 'routes' | 'admin' | 'upload' | 'auth' | 'collections' | 'globals' | 'plugins'
+    | 'cors'
+    | 'localization'
+    | 'routes'
+    | 'admin'
+    | 'upload'
+    | 'auth'
+    | 'collections'
+    | 'globals'
+    | 'plugins'
   > {
   readonly cors: readonly string[] | '*'
+  /** `null` without localization. */
+  readonly localization: Required<LocalizationConfig> | null
   readonly routes: Required<RoutesConfig>
   readonly admin: Required<AdminConfig>
   readonly upload: Required<Omit<UploadConfig, 'storage'>> & Pick<UploadConfig, 'storage'>

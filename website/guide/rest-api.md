@@ -8,7 +8,7 @@ Served at `routes.api` (default `/api/cms`). All responses are JSON; access rule
 |---|---|---|
 | GET | `/:collection` | List. Query: `where`, `sort`, `limit` (1–100), `page`, `depth`, `draft` |
 | POST | `/:collection` | Create (JSON body) |
-| GET | `/:collection/:id` | One document. Query: `depth`, `draft` |
+| GET | `/:collection/:id` | One document. Query: `depth`, `draft`, `preview` (a [preview token](./live-preview#preview-tokens): the current draft, no login) |
 | PATCH | `/:collection/:id` | Update the given fields |
 | DELETE | `/:collection/:id` | Delete |
 | GET / POST | `/globals/:slug` | Read / update a global |
@@ -32,7 +32,9 @@ GET /api/cms/posts?where={"or":[{"featured":{"equals":true}},{"views":{"gt":100}
 ```
 
 `in` / `not_in` accept comma-separated values, `exists` takes `true`/`false`, and `equals=null`
-matches empty values. `draft=true` only works for logged-in users.
+matches empty values. `draft=true` only works for logged-in users. With
+[localization](./localization), `locale` (`th`, `en`… or `all`) and `fallback-locale=false` work on
+every read and write.
 
 ## Authentication
 

@@ -1,6 +1,7 @@
 export * from './access.js'
 export { Auth, type LoginArgs, type Session } from './auth/auth.js'
 export { hashPassword, MIN_PASSWORD_LENGTH, verifyPassword } from './auth/password.js'
+export type { PreviewTarget } from './auth/tokens.js'
 export { INTERNAL_COLLECTIONS, MEDIA } from './builtins.js'
 export type {
   AdminConfig,
@@ -17,6 +18,7 @@ export type {
   GlobalConfig,
   GlobalHooks,
   ImageSize,
+  LocalizationConfig,
   Operation,
   Plugin,
   PreviewURL,

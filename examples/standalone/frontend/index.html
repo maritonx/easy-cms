@@ -10,42 +10,72 @@
       Any frontend can read the CMS over REST from the browser. Serve this page from an origin
       listed in `cors` (default http://localhost:5173), e.g. `npx serve -l 5173 frontend`.
       `?api=` points it at another CMS (default http://localhost:4000/api/cms).
+      `?post=<id>` shows one post: the admin's live preview opens it with a preview token.
     -->
-    <header>
-      <h1 id="site-name">…</h1>
-      <p id="tagline"></p>
-    </header>
-    <main><ul id="posts"></ul></main>
+    <main id="app"></main>
     <script type="module">
-      const api = new URLSearchParams(location.search).get('api') ?? 'http://localhost:4000/api/cms'
+      const params = new URLSearchParams(location.search)
+      const api = params.get('api') ?? 'http://localhost:4000/api/cms'
       const origin = new URL(api).origin
+      const app = document.querySelector('#app')
       const get = async (path) => {
         const response = await fetch(`${api}${path}`)
         if (!response.ok) throw new Error(`${path}: ${response.status}`)
         return response.json()
       }
-
-      const site = await get('/globals/site')
-      document.querySelector('#site-name').textContent = site.siteName
-      document.querySelector('#tagline').textContent = site.tagline ?? ''
-
-      // Anonymous requests only see published posts (the collection's read access).
-      const { docs } = await get('/posts?sort=-createdAt&depth=1&limit=20')
-      for (const post of docs) {
-        const item = document.createElement('li')
-        if (post.cover?.url) {
-          const img = document.createElement('img')
-          img.src = new URL(post.cover.url, origin).href
-          img.alt = post.cover.alt ?? ''
-          img.width = 120
-          item.append(img)
-        }
-        const link = document.createElement('a')
-        link.href = `#${post.slug}`
-        link.textContent = post.title
-        item.append(link)
-        document.querySelector('#posts').append(item)
+      const el = (tag, props = {}, ...children) => {
+        const node = Object.assign(document.createElement(tag), props)
+        node.append(...children)
+        return node
       }
+      const coverOf = (post) =>
+        post.cover?.url
+          ? el('img', { src: new URL(post.cover.url, origin).href, alt: post.cover.alt ?? '', width: 120 })
+          : ''
+
+      async function list() {
+        const site = await get('/globals/site')
+        // Anonymous requests only see published posts (the collection's read access).
+        const { docs } = await get('/posts?sort=-createdAt&depth=1&limit=20')
+        app.replaceChildren(
+          el('h1', { textContent: site.siteName }),
+          el('p', { textContent: site.tagline ?? '' }),
+          el('ul', {}, ...docs.map((post) =>
+            el('li', {}, coverOf(post), el('a', { href: `?post=${post.id}`, textContent: post.title })),
+          )),
+        )
+      }
+
+      function showPost(post) {
+        app.replaceChildren(
+          post.status === 'draft' ? el('p', {}, el('strong', { textContent: 'Draft preview' })) : '',
+          coverOf(post),
+          el('h1', { textContent: post.title }),
+          el('p', { textContent: post.excerpt ?? '' }),
+        )
+      }
+
+      async function single(id) {
+        // With the admin's preview token the draft is readable without a login.
+        const token = params.get('easy-cms-preview')
+        const query = token ? `&preview=${encodeURIComponent(token)}` : ''
+        try {
+          showPost(await get(`/posts/${id}?depth=1${query}`))
+        } catch {
+          app.replaceChildren(el('p', { textContent: 'Waiting for the post…' }))
+        }
+        // Live preview: the admin posts the edited post on every change (see
+        // @easy-cms/core/live-preview for the same thing as a module).
+        if (window.parent !== window) {
+          window.addEventListener('message', (event) => {
+            if (event.origin === origin && event.data?.type === 'easy-cms:preview') showPost(event.data.doc)
+          })
+          window.parent.postMessage({ type: 'easy-cms:preview-ready' }, '*')
+        }
+      }
+
+      const post = params.get('post')
+      await (post ? single(post) : list())
     </script>
   </body>
 </html>
