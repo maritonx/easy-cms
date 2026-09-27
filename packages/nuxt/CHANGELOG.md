@@ -1,5 +1,18 @@
 # @easy-cms/nuxt
 
+## 0.11.0
+
+### Minor Changes
+
+- a035bce: A refreshed admin look: new color tokens, the Anuphan typeface (Thai and Latin), Lucide icons, a menu that works on phones, and a light / dark / system theme switch. Brand the admin for a client with `admin.brand` (`name`, `logo`, `color`; shades are derived and text stays readable), and give collections and globals a menu `icon`.
+
+### Patch Changes
+
+- Updated dependencies [a035bce]
+- Updated dependencies [2a5a18d]
+  - @easy-cms/admin@0.11.0
+  - @easy-cms/core@0.11.0
+
 ## 0.10.0
 
 ### Patch Changes
