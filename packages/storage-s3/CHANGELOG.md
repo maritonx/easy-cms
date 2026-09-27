@@ -1,5 +1,12 @@
 # @easy-cms/storage-s3
 
+## 0.10.0
+
+### Patch Changes
+
+- Updated dependencies [cab02f9]
+  - @easy-cms/core@0.10.0
+
 ## 0.9.1
 
 ### Patch Changes

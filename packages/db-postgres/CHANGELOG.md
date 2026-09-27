@@ -1,5 +1,18 @@
 # @easy-cms/db-postgres
 
+## 0.10.0
+
+### Minor Changes
+
+- cab02f9: Faster reads on large collections: collections with drafts get an index on `status` (list counts were scanning the whole table; 8× faster at 100,000 documents), and on Postgres, `equals`/`in` inside blocks use JSON containment (about 6× faster). The index changes the schema: run `easy-cms migrate:create` after upgrading.
+
+### Patch Changes
+
+- Updated dependencies [cab02f9]
+- Updated dependencies [cab02f9]
+  - @easy-cms/core@0.10.0
+  - @easy-cms/drizzle@0.10.0
+
 ## 0.9.1
 
 ### Patch Changes

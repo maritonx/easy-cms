@@ -1,5 +1,17 @@
 # @easy-cms/drizzle
 
+## 0.10.0
+
+### Minor Changes
+
+- cab02f9: `easy-cms backup <file>` copies a SQLite database to a new file while the CMS keeps running (a consistent snapshot through `VACUUM INTO`). Databases expose it as the optional `db.backup(file)`; for Postgres, use `pg_dump`.
+- cab02f9: Faster reads on large collections: collections with drafts get an index on `status` (list counts were scanning the whole table; 8× faster at 100,000 documents), and on Postgres, `equals`/`in` inside blocks use JSON containment (about 6× faster). The index changes the schema: run `easy-cms migrate:create` after upgrading.
+
+### Patch Changes
+
+- Updated dependencies [cab02f9]
+  - @easy-cms/core@0.10.0
+
 ## 0.9.1
 
 ### Patch Changes
