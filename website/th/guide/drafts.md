@@ -1,4 +1,4 @@
-# ฉบับร่างและเวอร์ชัน {#drafts-versions}
+# ฉบับร่าง เวอร์ชัน และการตั้งเวลา {#drafts-versions-scheduling}
 
 ```ts
 { slug: 'posts', drafts: true, fields: [/* … */] }
@@ -71,3 +71,34 @@ global มีเมธอดชุดเดียวกัน ได้แก่
 - ตัวกรอง `where` และการเรียงลำดับใช้กับเนื้อหาที่เผยแพร่อยู่ ฉบับร่างที่รอเผยแพร่จะแสดงในผลลัพธ์ แต่จะไม่ถูกใช้
   เป็นเงื่อนไขในการค้นหา
 - field ที่ซ่อนอยู่ (เช่น password hash) จะไม่ถูกเก็บในเวอร์ชัน
+
+## การตั้งเวลาเผยแพร่ {#scheduled-publishing}
+
+```ts
+{ slug: 'posts', drafts: true, schedule: true, fields: [/* … */] }
+```
+
+`schedule` ช่วยให้ผู้แก้ไขเนื้อหาตั้งเวลาเผยแพร่หรือยกเลิกการเผยแพร่ได้ (หน้า admin จะมีปุ่ม **Schedule**)
+เมื่อเปิด versions การเผยแพร่ตามเวลาที่ตั้งไว้จะนำฉบับร่างที่รอเผยแพร่ขึ้นแสดงบนเว็บ
+
+```ts
+await cms.schedule('posts', id, { action: 'publish', at: '2026-10-01T09:00:00+07:00' })
+await cms.scheduled('posts', id) // pending jobs, soonest first
+await cms.cancelSchedule('posts', id, jobId)
+```
+
+การตั้งเวลาคำสั่งเดิมซ้ำจะแทนที่งานที่รออยู่ ส่วน global มี `scheduleGlobal`,
+`scheduledGlobal` และ `cancelGlobalSchedule`
+
+**ใครเป็นผู้รันงาน** server ที่รันต่อเนื่อง (Nuxt, `easy-cms serve`, Next.js ที่ host เอง)
+จะตรวจสอบทุกนาที บนแพลตฟอร์ม serverless ไม่มีอะไรรันค้างไว้ จึงต้องเรียก endpoint ของงาน
+จาก cron:
+
+```json
+// vercel.json — Vercel Cron sends Authorization: Bearer $CRON_SECRET
+{ "crons": [{ "path": "/api/cms/jobs/run", "schedule": "* * * * *" }] }
+```
+
+ตั้งค่า `CRON_SECRET` (หรือ `cronSecret` ใน config) admin ที่เข้าสู่ระบบแล้วก็เรียกได้เช่นกัน และ
+`npx easy-cms run-scheduled` จะรันงานที่ถึงเวลาหนึ่งครั้งจาก cron ใดก็ได้ งานที่ล้มเหลว (เช่น การเผยแพร่ที่
+ไม่ผ่านการตรวจสอบ) จะถูกบันทึก log และไม่ลองใหม่

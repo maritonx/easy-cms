@@ -76,6 +76,14 @@ function fieldType(field: Field, n: Names, indent: string): string {
       return `{\n${fieldLines(field.fields, n, `${indent}  `).join('\n')}\n${indent}}`
     case 'array':
       return `{\n${indent}  id: string\n${fieldLines(field.fields, n, `${indent}  `).join('\n')}\n${indent}}[]`
+    case 'blocks': {
+      // A union of the block kinds, told apart by `blockType`.
+      const kinds = field.blocks.map(
+        (block) =>
+          `{\n${indent}  id: string\n${indent}  blockType: ${quote(block.slug)}\n${fieldLines(block.fields, n, `${indent}  `).join('\n')}\n${indent}}`,
+      )
+      return `(${kinds.join(' | ')})[]`
+    }
   }
 }
 
@@ -87,6 +95,7 @@ function fieldLines(fields: readonly Field[], n: Names, indent: string): string[
     // Arrays and hasMany values are always arrays (possibly empty); groups are always objects.
     const alwaysPresent =
       field.type === 'array' ||
+      field.type === 'blocks' ||
       field.type === 'group' ||
       ((field.type === 'select' || field.type === 'relationship') && field.hasMany)
     if (field.required || alwaysPresent) lines.push(`${indent}${key(field.name)}: ${type}`)

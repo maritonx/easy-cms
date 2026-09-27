@@ -263,3 +263,5 @@ easy-cms serve               # standalone (v0.2)
 - [ADR-0012](adr/0012-versions.md) — Version history และการแยกฉบับร่างออกจากเวอร์ชันที่เผยแพร่
 - [ADR-0013](adr/0013-live-preview.md) — Live preview
 - [ADR-0014](adr/0014-localization.md) — Localization (เนื้อหาหลายภาษา)
+- [ADR-0015](adr/0015-webhooks-and-scheduling.md) — Webhooks และการตั้งเวลาเผยแพร่
+- [ADR-0016](adr/0016-blocks-and-localized-lists.md) — Blocks field และ localized array / hasMany

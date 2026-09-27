@@ -32,3 +32,18 @@ a {
 .body img {
   max-width: 100%;
 }
+.quote {
+  margin: 1.5rem 0;
+  padding-left: 1rem;
+  border-left: 4px solid #2f6f5e;
+  font-style: italic;
+}
+.callout {
+  margin: 1.5rem 0;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  background: #e3efe9;
+}
+.callout.warning {
+  background: #fdf1d8;
+}

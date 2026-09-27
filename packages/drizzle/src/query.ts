@@ -44,7 +44,7 @@ const SYSTEM_COLUMNS: Record<string, string> = {
 
 type Target =
   | { kind: 'column'; column: AnyColumn; field: Field | undefined }
-  | { kind: 'child'; child: ChildModel; rest: string[] }
+  | { kind: 'child'; child: ChildModel; rest: string[]; locale?: string | undefined }
 
 const col = (model: TableModel, name: string) => model.table[name] as AnyColumn
 
@@ -82,6 +82,17 @@ function resolvePath(model: TableModel, segments: string[], drafts: boolean): Ta
       continue
     }
     const child = model.children.find((c) => c.path.join('.') === path.join('.'))
+    if (child?.locales) {
+      // Localized list: `tags.en` / `links.en.label`; without a locale, the default one.
+      const next = segments[i + 1]
+      const named = next !== undefined && child.locales.includes(next)
+      return {
+        kind: 'child',
+        child,
+        rest: segments.slice(i + (named ? 2 : 1)),
+        locale: named ? next : child.defaultLocale,
+      }
+    }
     if (child) return { kind: 'child', child, rest: segments.slice(i + 1) }
 
     // Localized fields: `title.en` names the locale; plain `title` means the default locale.
@@ -90,7 +101,7 @@ function resolvePath(model: TableModel, segments: string[], drafts: boolean): Ta
     if (last < segments.length - 1) {
       throw new QueryError(`Cannot query inside "${shown}" (${field.type} field)`)
     }
-    if (field.type === 'json' || field.type === 'richText') {
+    if (field.type === 'json' || field.type === 'richText' || field.type === 'blocks') {
       throw new QueryError(`Cannot query "${shown}": ${field.type} fields are not queryable`)
     }
     const same = (c: TableModel['columns'][number]) => c.path.join('.') === path.join('.')
@@ -206,7 +217,7 @@ export class WhereBuilder {
       if (!OPERATORS.has(op)) throw new QueryError(`Unknown operator "${op}" on "${path}"`)
       if (target.kind === 'column')
         return operatorSQL(this.dialect, target.column, target.field, op, value, path)
-      return this.child(model, target.child, target.rest, op, value, path)
+      return this.child(model, target.child, target.rest, op, value, path, target.locale)
     })
     return (parts.length === 1 ? parts[0] : and(...parts)) as SQL
   }
@@ -219,9 +230,14 @@ export class WhereBuilder {
     op: string,
     value: unknown,
     path: string,
+    locale?: string,
   ): SQL {
     const table = child.table
-    const link = eq(col(table, '_parent_id'), col(parent, 'id'))
+    const parentLink = eq(col(table, '_parent_id'), col(parent, 'id'))
+    const link =
+      locale === undefined
+        ? parentLink
+        : (and(parentLink, eq(col(table, '_locale'), locale)) as SQL)
     const subquery = (condition: SQL | undefined) =>
       exists(
         this.db

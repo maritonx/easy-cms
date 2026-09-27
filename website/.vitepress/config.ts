@@ -32,7 +32,7 @@ function sidebar(prefix: string, t: Labels): DefaultTheme.SidebarItem[] {
     },
     {
       text: t.operations,
-      items: ['databases', 'deployment', 'cli', 'security'].map(page),
+      items: ['databases', 'deployment', 'webhooks', 'cli', 'security'].map(page),
     },
   ]
 }
@@ -51,7 +51,7 @@ const en: Labels = {
   fields: 'Fields',
   'access-control': 'Access control',
   hooks: 'Hooks',
-  drafts: 'Drafts & versions',
+  drafts: 'Drafts, versions & scheduling',
   localization: 'Localization',
   uploads: 'Uploads & media',
   auth: 'Users & auth',
@@ -62,6 +62,7 @@ const en: Labels = {
   'live-preview': 'Live preview',
   databases: 'Databases',
   deployment: 'Migrations & deployment',
+  webhooks: 'Webhooks',
   cli: 'CLI',
   security: 'Security',
 }
@@ -80,7 +81,7 @@ const th: Labels = {
   fields: 'Fields',
   'access-control': 'การควบคุมสิทธิ์',
   hooks: 'Hooks',
-  drafts: 'ฉบับร่างและเวอร์ชัน',
+  drafts: 'ฉบับร่าง เวอร์ชัน และการตั้งเวลา',
   localization: 'หลายภาษา (localization)',
   uploads: 'อัปโหลดและ media',
   auth: 'ผู้ใช้และการยืนยันตัวตน',
@@ -91,6 +92,7 @@ const th: Labels = {
   'live-preview': 'ตัวอย่างสด (live preview)',
   databases: 'ฐานข้อมูล',
   deployment: 'Migration และการ deploy',
+  webhooks: 'Webhooks',
   cli: 'CLI',
   security: 'ความปลอดภัย',
 }

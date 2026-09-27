@@ -19,10 +19,13 @@
 | POST | `/:collection/:id/versions/:version/restore` | กู้คืนเวอร์ชัน |
 | POST | `/:collection/:id/unpublish` | ยกเลิกการเผยแพร่ (collection ที่มีฉบับร่าง) |
 | POST | `/:collection/:id/discard-draft` | ทิ้งฉบับร่างที่รอเผยแพร่ |
+| GET / POST | `/:collection/:id/schedule` | งานที่[ตั้งเวลา](./drafts#scheduled-publishing)ไว้และรอดำเนินการ / ตั้งเวลา `{ action, at }` |
+| DELETE | `/:collection/:id/schedule/:job` | ยกเลิกงานที่ตั้งเวลาไว้ |
+| GET / POST | `/jobs/run` | รันงานที่ตั้งเวลาไว้ซึ่งถึงกำหนดแล้ว (cron secret หรือ admin) |
 | POST | `/:collection/:id/preview` | [ตัวอย่างสด](./live-preview): `{ doc, url }` ของการแก้ไขที่ยังไม่บันทึก (`/:collection/preview` สำหรับเอกสารใหม่) |
 
 global มี route ของเวอร์ชันชุดเดียวกันใต้ `/globals/:slug/…` (`versions`, `versions/:version`,
-`versions/:version/restore`, `unpublish`, `discard-draft`, `preview`) route ของเวอร์ชันและตัวอย่างต้องมีสิทธิ์แก้ไข
+`versions/:version/restore`, `unpublish`, `discard-draft`, `preview`, `schedule`) route ของเวอร์ชันและตัวอย่างต้องมีสิทธิ์แก้ไข
 
 `where` ใช้รูปแบบวงเล็บเหลี่ยมหรือ JSON:
 

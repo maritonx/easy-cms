@@ -1,6 +1,6 @@
 import type { ID } from './access.js'
 import type { CollectionConfig, Config, GlobalConfig } from './config.js'
-import type { Field, RichTextDocument, SelectOption } from './fields.js'
+import type { Block, Field, RichTextDocument, SelectOption } from './fields.js'
 
 type Simplify<T> = { [K in keyof T]: T[K] } & {}
 
@@ -104,11 +104,36 @@ export type FieldValue<F extends Field, C extends Config = Config> = F extends {
                         readonly fields: infer Sub extends readonly Field[]
                       }
                     ? FieldsValue<Sub, C>
-                    : never
+                    : F extends {
+                          readonly type: 'blocks'
+                          readonly blocks: infer B extends readonly Block[]
+                        }
+                      ? BlockValue<B[number], C>[]
+                      : never
+
+/** One row of a `blocks` field: the block's fields plus `id` and `blockType` (distributes over kinds). */
+type BlockValue<B, C extends Config> = B extends {
+  readonly slug: infer S
+  readonly fields: infer Sub extends readonly Field[]
+}
+  ? Simplify<FieldsValue<Sub, C> & { id: string; blockType: S }>
+  : never
+
+type BlockInput<B> = B extends {
+  readonly slug: infer S
+  readonly fields: infer Sub extends readonly Field[]
+}
+  ? Simplify<FieldsInput<Sub> & { id?: string; blockType: S }>
+  : never
 
 type Visible<Fs extends readonly Field[]> = Exclude<Fs[number], { readonly hidden: true }>
-type RequiredFields<Fs extends readonly Field[]> = Extract<Visible<Fs>, { readonly required: true }>
-type OptionalFields<Fs extends readonly Field[]> = Exclude<Visible<Fs>, { readonly required: true }>
+/** Always set when read: required fields, and lists and groups (empty `[]` / `{}` otherwise). */
+type Present =
+  | { readonly required: true }
+  | { readonly type: 'array' | 'blocks' | 'group' }
+  | { readonly hasMany: true }
+type RequiredFields<Fs extends readonly Field[]> = Extract<Visible<Fs>, Present>
+type OptionalFields<Fs extends readonly Field[]> = Exclude<Visible<Fs>, Present>
 
 /** The shape of the data described by a list of fields. */
 export type FieldsValue<Fs extends readonly Field[], C extends Config = Config> = Simplify<
@@ -172,7 +197,12 @@ type InputValue<F extends Field> = F extends { readonly type: 'relationship' }
                 readonly fields: infer Sub extends readonly Field[]
               }
             ? FieldsInput<Sub>
-            : FieldValue<F>
+            : F extends {
+                  readonly type: 'blocks'
+                  readonly blocks: infer B extends readonly Block[]
+                }
+              ? readonly BlockInput<B[number]>[]
+              : FieldValue<F>
 
 /** Required fields must be given, unless Easy CMS can fill them (default value, slug from another field). */
 type NeedsInput<F extends Field> = F extends { readonly required: true }

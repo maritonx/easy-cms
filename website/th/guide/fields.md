@@ -32,6 +32,7 @@
 | `relationship` | id ของเอกสารใน collection อื่น | `to`, `hasMany` |
 | `array` | รายการของแถว แต่ละแถวมี `id` และ field ย่อย | `fields`, `minRows`, `maxRows` |
 | `group` | object ซ้อน | `fields` |
+| `blocks` | รายการของแถวที่มีหลายชนิด แต่ละแถวมี `id` และ `blockType` | `blocks`, `minRows`, `maxRows` |
 
 ### select {#select}
 
@@ -77,8 +78,34 @@ id จะถูกตรวจสอบว่ามีอยู่จริง�
 
 การอัปเดต array จะแทนที่แถวทั้งหมด หากต้องการคงตัวตนของแถวไว้ ให้คง `id` ของแถวนั้นไว้
 
+### blocks {#blocks}
+
+แถวที่มีหลายชนิด สำหรับหน้าที่ผู้แก้ไขเนื้อหาจัดวางเอง:
+
+```ts
+{
+  name: 'layout',
+  type: 'blocks',
+  blocks: [
+    {
+      slug: 'hero',
+      labels: { singular: 'Hero' },
+      fields: [
+        { name: 'heading', type: 'text', required: true },
+        { name: 'image', type: 'upload' },
+      ],
+    },
+    { slug: 'text', fields: [{ name: 'body', type: 'richText' }] },
+  ],
+}
+```
+
+แต่ละแถวคือ `{ id, blockType, ...fields }` โดย `blockType` ใช้เลือก block แถวจะถูกตรวจสอบความถูกต้อง
+relationship และ upload ภายในแถวจะถูก populate และ type ที่สร้างขึ้นจะเป็น union ของ
+block แต่ละชนิด blocks จัดเก็บเป็น JSON จึงใช้ใน `where` หรือ `sort` ไม่ได้
+
 ## วิธีจัดเก็บ field {#how-fields-are-stored}
 
 แต่ละ collection คือตารางหนึ่งตาราง field คือคอลัมน์ (field ใน group จะถูกแผ่ออกเป็นระดับเดียว: `seo.title` →
-`seo_title`) ค่าของ array และ `hasMany` อยู่ในตารางลูก field สองรายการที่จะแมปไปยังคอลัมน์
+`seo_title`) ค่าของ array และ `hasMany` อยู่ในตารางลูก ส่วน blocks เป็นคอลัมน์ JSON field สองรายการที่จะแมปไปยังคอลัมน์
 เดียวกันจะถูกรายงานเป็นข้อผิดพลาดของ config

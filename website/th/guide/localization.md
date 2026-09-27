@@ -25,8 +25,9 @@ export default defineConfig({
 | `fallback` | `true` | เมื่อค่าของภาษาที่อ่านว่าง จะคืนค่าของภาษาเริ่มต้นแทน |
 
 `localized: true` ใช้ได้กับ field ประเภท text, textarea, email, slug, rich text, number, boolean, date,
-JSON, select, upload และ relationship ส่วน group และ array ให้ตั้งที่ field ข้างใน และ field แบบ hasMany
-ยังตั้ง localized ไม่ได้
+JSON, select, upload, relationship (รวมถึง `hasMany`), array และ blocks field แบบ array หรือ blocks ที่ localized
+จะเก็บรายการทั้งชุดแยกตามภาษา หากไม่ต้องการเช่นนั้นให้ตั้ง localized ที่ field ข้างในแทน group ตั้ง localized
+ไม่ได้ ให้ตั้งที่ field ข้างใน field ที่อยู่ในรายการที่ localized แล้วจะตั้ง localized ซ้ำอีกไม่ได้
 
 ## การอ่านและเขียน {#reading-and-writing}
 
@@ -65,5 +66,7 @@ field ที่ localized แต่ละตัวจะมีคอลัมน
 เพิ่มคอลัมน์ใหม่ (`title__en`) ดังนั้น:
 
 - การเปิด `localized` ให้ field ที่มีอยู่แล้วจะเก็บค่าเดิมไว้เป็นค่าของภาษาเริ่มต้น
+- array และ field แบบ `hasMany` ที่ localized จะเก็บแถวไว้ในตารางลูกพร้อมคอลัมน์ `_locale`
+  แถวที่มีอยู่เดิมจะกลายเป็นของภาษาเริ่มต้น
 - การเพิ่มภาษาจะเพิ่มคอลัมน์ ต้องสร้าง migration เหมือนการเปลี่ยน config อื่นๆ
 - ถ้าเปลี่ยน `defaultLocale` ภายหลัง คอลัมน์ชื่อเดิมจะกลายเป็นของภาษาใหม่ ต้องย้ายข้อมูลใน migration เอง

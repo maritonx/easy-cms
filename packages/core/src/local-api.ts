@@ -10,7 +10,7 @@ import {
 import { Auth } from './auth/auth.js'
 import { hashPassword, MIN_PASSWORD_LENGTH } from './auth/password.js'
 import { signPreviewToken, verifyPreviewToken } from './auth/tokens.js'
-import { MEDIA, USERS } from './builtins.js'
+import { INTERNAL_COLLECTIONS, MEDIA, SCHEDULED_JOBS, USERS } from './builtins.js'
 import type { CollectionConfig, Config, GlobalConfig, ImageSize, ResolvedConfig } from './config.js'
 import type { Database, PaginatedDocs, RawDocument, SchemaMode } from './database.js'
 import {
@@ -62,6 +62,7 @@ import {
   type VersionSummary,
   versionLimit,
 } from './versions.js'
+import { type WebhookEvent, Webhooks } from './webhooks.js'
 
 type Data = Record<string, unknown>
 
@@ -122,6 +123,11 @@ export interface FindOptions extends ReadOptions {
 export interface CreateEasyCMSOptions {
   /** Project root. Default `process.cwd()`. */
   readonly cwd?: string
+  /**
+   * Run due scheduled jobs every minute in this process. Default: on when a collection or
+   * global has `schedule`. Turn it off where a cron calls `runScheduled` instead.
+   */
+  readonly scheduler?: boolean
   /** Default `verify` when `NODE_ENV=production`, otherwise `push`. */
   readonly schema?: SchemaMode
   readonly logger?: Logger
@@ -145,8 +151,31 @@ export async function createEasyCMS<const C extends Config>(
     logger,
     interactive: options.interactive ?? false,
   })
-  return new EasyCMS<C>(resolved, db, logger, storage)
+  const cms = new EasyCMS<C>(resolved, db, logger, storage)
+  const scheduling = [...resolved.collections, ...resolved.globals].some((c) => c.schedule)
+  if (scheduling && options.scheduler !== false) cms.startScheduler()
+  return cms
 }
+
+/** A scheduled publish or unpublish. */
+export interface ScheduledJob {
+  readonly id: ID
+  readonly action: 'publish' | 'unpublish'
+  /** ISO time the job runs at (or after). */
+  readonly runAt: string
+  readonly state: 'pending' | 'done' | 'failed'
+  readonly error: string | null
+  readonly author: ID | null
+}
+
+const toJob = (row: RawDocument): ScheduledJob => ({
+  id: row.id,
+  action: row.action as ScheduledJob['action'],
+  runAt: String(row.runAt),
+  state: row.state as ScheduledJob['state'],
+  error: (row.error as string | null) ?? null,
+  author: (row.author as ID | null) ?? null,
+})
 
 /** Access has been checked (or skipped) for one call. */
 interface Guard {
@@ -163,6 +192,7 @@ export class EasyCMS<C extends Config = Config> {
   /** Where uploaded files are stored. */
   readonly storage: StorageAdapter
   private readonly versions: VersionStore
+  private readonly webhooks: Webhooks
 
   constructor(
     config: ResolvedConfig,
@@ -175,6 +205,7 @@ export class EasyCMS<C extends Config = Config> {
     this.logger = logger
     this.storage = storage
     this.versions = new VersionStore(db)
+    this.webhooks = new Webhooks(config.webhooks ?? [], logger)
     this.auth = new Auth(this as unknown as EasyCMS)
   }
 
@@ -204,6 +235,7 @@ export class EasyCMS<C extends Config = Config> {
             config.fields,
             requested,
             locale === ALL_LOCALES ? (this.config.localization?.defaultLocale ?? locale) : locale,
+            this.config.localization?.locales ?? [],
           )
     const result = await this.db.find({ collection, where, sort, limit, page })
     const found = options.draft ? await this.withDrafts(config, result.docs) : result.docs
@@ -688,6 +720,7 @@ export class EasyCMS<C extends Config = Config> {
         previousDoc: current,
         operation: 'update',
       })
+      this.emit(config, 'draft', draft)
       const [out] = await this.output(config, [draft as RawDocument], guard, {
         ...options,
         draft: true,
@@ -712,6 +745,7 @@ export class EasyCMS<C extends Config = Config> {
       previousDoc: current,
       operation: 'update',
     })
+    this.emit(config, 'update', doc, existing.status)
     const [out] = await this.output(config, [doc], guard, { ...options, draft: true })
     return out as RawDocument
   }
@@ -735,11 +769,16 @@ export class EasyCMS<C extends Config = Config> {
     if (config.slug === USERS) await this.auth.revokeSessions(parsed)
     await this.db.delete({ collection, id: parsed })
     if (versionLimit(config)) await this.versions.deleteAll(collectionParent(collection), parsed)
+    if (config.schedule) {
+      for (const job of await this.pendingJobs(collection, parsed))
+        await this.db.delete({ collection: SCHEDULED_JOBS, id: job.id })
+    }
     await this.notify(config.hooks?.afterDelete, 'afterDelete', config.slug, {
       ...base,
       id: parsed,
       doc: existing,
     })
+    this.emit(config, 'delete', existing)
     const [out] = await this.output(config, [existing], guard, { depth: 0, draft: true })
     return out as Doc<C, S>
   }
@@ -903,6 +942,7 @@ export class EasyCMS<C extends Config = Config> {
         previousDoc: current,
         operation: 'update',
       })
+      this.emit(config, 'draft', draft)
       return this.findGlobal(slug, { ...options, draft: true })
     }
 
@@ -914,6 +954,7 @@ export class EasyCMS<C extends Config = Config> {
       previousDoc: current,
       operation: 'update',
     })
+    this.emit(config, 'update', doc, existing.status)
     return this.findGlobal(slug, { ...options, draft: true })
   }
 
@@ -942,8 +983,220 @@ export class EasyCMS<C extends Config = Config> {
   }
 
   /** Closes the database connection. */
+  /**
+   * Waits until webhook deliveries in progress are done. Call it before a serverless function
+   * returns, which may otherwise stop them.
+   */
+  flushWebhooks(): Promise<void> {
+    return this.webhooks.flush()
+  }
+
   async destroy(): Promise<void> {
+    if (this.schedulerTimer) clearInterval(this.schedulerTimer)
+    await this.running
+    await this.webhooks.flush()
     await this.db.destroy()
+  }
+
+  // --- Scheduled publishing --------------------------------------------------
+
+  private schedulerTimer: ReturnType<typeof setInterval> | undefined
+  private running: Promise<unknown> = Promise.resolve()
+
+  /** Runs due jobs every `interval` ms in this process (`createEasyCMS` does this by default). */
+  startScheduler(interval = 60_000): void {
+    if (this.schedulerTimer) return
+    this.schedulerTimer = setInterval(() => {
+      this.running = this.running.then(() =>
+        this.runScheduled().catch((error) =>
+          this.logger.error(`Scheduled jobs failed: ${(error as Error).message}`),
+        ),
+      )
+    }, interval)
+    this.schedulerTimer.unref?.()
+  }
+
+  /**
+   * Publishes or unpublishes documents whose scheduled time has come. Safe to call often, e.g.
+   * from a cron job (`GET <api>/jobs/run`) where no process keeps running.
+   */
+  async runScheduled(now: Date = new Date()): Promise<{ ran: number; failed: number }> {
+    if (!this.config.collections.some((c) => c.slug === SCHEDULED_JOBS))
+      return { ran: 0, failed: 0 }
+    const due = await this.db.find({
+      collection: SCHEDULED_JOBS,
+      where: {
+        and: [{ state: { equals: 'pending' } }, { runAt: { lte: now.toISOString() } }],
+      },
+      sort: ['runAt'],
+      limit: 100,
+      page: 1,
+    })
+    let failed = 0
+    for (const row of due.docs) {
+      const parent = String(row.parent)
+      const action = row.action as ScheduledJob['action']
+      try {
+        if (parent.startsWith('global:')) {
+          const slug = parent.slice('global:'.length)
+          if (action === 'publish') await this.saveGlobal(slug, { status: 'published' }, {})
+          else await this.saveGlobal(slug, { status: 'draft' }, {}, 'unpublish')
+        } else if (action === 'publish') {
+          await this.updateDocument(parent, row.doc as ID, { status: 'published' }, { depth: 0 })
+        } else {
+          await this.updateDocument(
+            parent,
+            row.doc as ID,
+            { status: 'draft' },
+            { depth: 0 },
+            'unpublish',
+          )
+        }
+        await this.db.update({
+          collection: SCHEDULED_JOBS,
+          id: row.id,
+          data: { ...row, state: 'done' },
+        })
+      } catch (error) {
+        failed++
+        const message = (error as Error).message
+        this.logger.error(`Scheduled ${action} of ${parent} ${row.doc} failed: ${message}`)
+        await this.db.update({
+          collection: SCHEDULED_JOBS,
+          id: row.id,
+          data: { ...row, state: 'failed', error: message.slice(0, 500) },
+        })
+      }
+    }
+    return { ran: due.docs.length - failed, failed }
+  }
+
+  /** Schedules a publish or unpublish, replacing a pending job with the same action. */
+  async schedule<S extends Slug<C>>(
+    collection: S,
+    id: ID,
+    job: { action: 'publish' | 'unpublish'; at: Date | string },
+    options: AccessOptions = {},
+  ): Promise<ScheduledJob> {
+    const { parsed } = await this.scheduleTarget(collection, id, options)
+    return this.addJob(collection, parsed, job, options)
+  }
+
+  /** Pending jobs of a document, soonest first. */
+  async scheduled<S extends Slug<C>>(
+    collection: S,
+    id: ID,
+    options: AccessOptions = {},
+  ): Promise<ScheduledJob[]> {
+    const { parsed } = await this.scheduleTarget(collection, id, options)
+    return this.pendingJobs(collection, parsed)
+  }
+
+  async cancelSchedule<S extends Slug<C>>(
+    collection: S,
+    id: ID,
+    jobId: ID,
+    options: AccessOptions = {},
+  ): Promise<void> {
+    const { parsed } = await this.scheduleTarget(collection, id, options)
+    await this.removeJob(collection, parsed, jobId)
+  }
+
+  async scheduleGlobal<S extends GSlug<C>>(
+    slug: S,
+    job: { action: 'publish' | 'unpublish'; at: Date | string },
+    options: AccessOptions = {},
+  ): Promise<ScheduledJob> {
+    await this.globalScheduleTarget(slug, options)
+    return this.addJob(`global:${slug}`, 0, job, options)
+  }
+
+  async scheduledGlobal<S extends GSlug<C>>(slug: S, options: AccessOptions = {}) {
+    await this.globalScheduleTarget(slug, options)
+    return this.pendingJobs(`global:${slug}`, 0)
+  }
+
+  async cancelGlobalSchedule<S extends GSlug<C>>(
+    slug: S,
+    jobId: ID,
+    options: AccessOptions = {},
+  ): Promise<void> {
+    await this.globalScheduleTarget(slug, options)
+    await this.removeJob(`global:${slug}`, 0, jobId)
+  }
+
+  private async scheduleTarget(collection: string, id: ID, options: AccessOptions) {
+    const config = this.collection(collection)
+    if (!config.schedule) throw new QueryError(`"${collection}" has no schedule`)
+    const parsed = parseId(id)
+    const existing =
+      parsed === undefined ? null : await this.db.findById({ collection, id: parsed })
+    if (!existing || parsed === undefined) throw new NotFoundError(collection, id)
+    await this.checkDocumentAccess(config, 'update', guardOf(options), parsed, undefined)
+    return { config, parsed }
+  }
+
+  private async globalScheduleTarget(slug: string, options: AccessOptions) {
+    const config = this.global(slug)
+    if (!config.schedule) throw new QueryError(`"${slug}" has no schedule`)
+    await this.checkGlobalAccess(config, 'update', guardOf(options))
+  }
+
+  private async addJob(
+    parent: string,
+    doc: ID,
+    job: { action: 'publish' | 'unpublish'; at: Date | string },
+    options: AccessOptions,
+  ): Promise<ScheduledJob> {
+    const runAt = new Date(job.at)
+    const errors: FieldError[] = []
+    if (job.action !== 'publish' && job.action !== 'unpublish')
+      errors.push({ field: 'action', message: 'must be "publish" or "unpublish"' })
+    if (Number.isNaN(runAt.getTime())) errors.push({ field: 'at', message: 'must be a valid date' })
+    if (errors.length > 0) throw new ValidationError(SCHEDULED_JOBS, errors)
+    for (const pending of await this.pendingJobs(parent, doc)) {
+      if (pending.action === job.action)
+        await this.db.delete({ collection: SCHEDULED_JOBS, id: pending.id })
+    }
+    const now = new Date().toISOString()
+    const row = await this.db.create({
+      collection: SCHEDULED_JOBS,
+      data: {
+        parent,
+        doc,
+        action: job.action,
+        runAt: runAt.toISOString(),
+        state: 'pending',
+        error: null,
+        author: guardOf(options).user?.id ?? null,
+        createdAt: now,
+        updatedAt: now,
+      },
+    })
+    return toJob(row)
+  }
+
+  private async pendingJobs(parent: string, doc: ID): Promise<ScheduledJob[]> {
+    const rows = await this.db.find({
+      collection: SCHEDULED_JOBS,
+      where: {
+        and: [
+          { parent: { equals: parent } },
+          { doc: { equals: doc } },
+          { state: { equals: 'pending' } },
+        ],
+      },
+      sort: ['runAt'],
+      limit: 0,
+      page: 1,
+    })
+    return rows.docs.map(toJob)
+  }
+
+  private async removeJob(parent: string, doc: ID, jobId: ID) {
+    const job = (await this.pendingJobs(parent, doc)).find((j) => String(j.id) === String(jobId))
+    if (!job) throw new NotFoundError('scheduled job', jobId)
+    await this.db.delete({ collection: SCHEDULED_JOBS, id: job.id })
   }
 
   // -------------------------------------------------------------------------
@@ -1124,6 +1377,7 @@ export class EasyCMS<C extends Config = Config> {
       doc,
       operation: 'create',
     })
+    this.emit(config, 'create', doc)
     const [out] = await this.output(config, [doc], hookGuard ?? guard, { ...options, draft: true })
     return out as RawDocument
   }
@@ -1179,6 +1433,7 @@ export class EasyCMS<C extends Config = Config> {
       config.fields,
       where,
       locale === ALL_LOCALES ? localization.defaultLocale : locale,
+      localization.locales,
     )
   }
 
@@ -1201,6 +1456,34 @@ export class EasyCMS<C extends Config = Config> {
         ? draftOf(doc, version)
         : doc
     })
+  }
+
+  /** Sends webhook events for a change; `before` is the stored status before it, if any. */
+  private emit(
+    config: CollectionConfig | GlobalConfig,
+    event: WebhookEvent,
+    doc: Data,
+    before?: unknown,
+  ) {
+    const isGlobal = !this.config.collections.includes(config as CollectionConfig)
+    if (!isGlobal && INTERNAL_COLLECTIONS.has(config.slug)) return
+    const body = isGlobal
+      ? { ...snapshotOf(config.fields, doc), updatedAt: doc.updatedAt }
+      : {
+          id: doc.id,
+          ...snapshotOf(config.fields, doc),
+          createdAt: doc.createdAt,
+          updatedAt: doc.updatedAt,
+        }
+    const target = isGlobal
+      ? { global: config.slug }
+      : { collection: config.slug, id: doc.id as ID }
+    this.webhooks.emit(event, target, body)
+    if (event === 'draft' || event === 'delete' || !config.drafts) return
+    const after = doc.status
+    if (after === 'published' && before !== 'published') this.webhooks.emit('publish', target, body)
+    if (after !== 'published' && before === 'published')
+      this.webhooks.emit('unpublish', target, body)
   }
 
   /** Records a version after a save, when the collection or global keeps versions. */

@@ -37,6 +37,8 @@ export default defineConfig({
 | `secret` | — | **จำเป็น** อย่างน้อย 32 ตัวอักษร ใช้ลงนาม session ควรอ่านค่าจาก env var |
 | `db` | — | **จำเป็น** database adapter: `sqlite()` หรือ `postgres()` ดู [ฐานข้อมูล](./databases) |
 | `serverURL` | — | origin สาธารณะ เช่น `https://example.com` ทำให้ URL ของ media เป็นแบบ absolute |
+| `webhooks` | `[]` | endpoint ที่จะได้รับแจ้งเมื่อเนื้อหาเปลี่ยนแปลง ดู [Webhooks](./webhooks) |
+| `cronSecret` | `CRON_SECRET` | ให้ cron รัน[งานที่ตั้งเวลาไว้](./drafts#scheduled-publishing)ที่ `<api>/jobs/run` ได้ |
 | `localization` | — | `{ locales, defaultLocale?, fallback? }`: เนื้อหาหลายภาษา ดู [หลายภาษา](./localization) |
 | `cors` | `[]` | origin ที่โค้ดฝั่งเบราว์เซอร์เรียก REST API ได้ หรือ `'*'` สำหรับทุก origin (คำขอแบบไม่ระบุตัวตน) origin ใน `auth.trustedOrigins` ได้รับอนุญาตเสมอ พร้อม cookie |
 | `routes.api` | `/api/cms` | ตำแหน่งที่ให้บริการ REST API |
@@ -61,6 +63,7 @@ collection คือประเภทของเนื้อหาที่ม
 | `drafts` | เพิ่ม `status` (`draft` \| `published`) ดู [ฉบับร่าง (draft)](./drafts) |
 | `versions` | `true` หรือ `{ max }`: เก็บเวอร์ชันของการบันทึกทุกครั้ง พร้อมประวัติและการกู้คืน ถ้ามี `drafts` ด้วย ฉบับร่างของเอกสารที่เผยแพร่แล้วจะถูกเก็บแยก ดู [เวอร์ชัน](./drafts#versions) |
 | `preview` | `({ doc }) => url`: หน้าที่แสดงเอกสาร สำหรับ [ตัวอย่างสด](./live-preview) |
+| `schedule` | เผยแพร่และยกเลิกการเผยแพร่ตามเวลาที่ตั้งไว้ (ต้องมี `drafts`) ดู [การตั้งเวลาเผยแพร่](./drafts#scheduled-publishing) |
 | `access` | `{ read, create, update, delete }` ดู [การควบคุมสิทธิ์](./access-control) |
 | `hooks` | ดู [Hooks](./hooks) |
 
@@ -69,7 +72,8 @@ collection คือประเภทของเนื้อหาที่ม
 มี collection ในตัวสองรายการ: [`users`](./auth) และ [`media`](./uploads) ประกาศ collection
 ที่ใช้ slug เดียวกันเพื่อเพิ่ม field กฎสิทธิ์ หรือ hook ให้กับ collection เหล่านี้
 
-slug ที่สงวนไว้: `admin`, `globals`, `sessions`, `login-attempts`, `migrations`, `access`
+slug ที่สงวนไว้: `admin`, `globals`, `jobs`, `sessions`, `login-attempts`, `document-versions`,
+`scheduled-jobs`, `migrations`, `access`
 
 ## Globals {#globals}
 

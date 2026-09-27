@@ -1,4 +1,4 @@
-# Drafts & versions
+# Drafts, versions & scheduling
 
 ```ts
 { slug: 'posts', drafts: true, fields: [/* … */] }
@@ -72,3 +72,35 @@ Things to know:
 - `where` filters and sorting apply to the published content; a pending draft is shown in the
   results but not matched on its own values.
 - Hidden fields (such as password hashes) are never stored in versions.
+
+## Scheduled publishing
+
+```ts
+{ slug: 'posts', drafts: true, schedule: true, fields: [/* … */] }
+```
+
+`schedule` lets editors publish or unpublish at a set time (the admin gets a **Schedule**
+button). With versions, a scheduled publish puts the pending draft live.
+
+```ts
+await cms.schedule('posts', id, { action: 'publish', at: '2026-10-01T09:00:00+07:00' })
+await cms.scheduled('posts', id) // pending jobs, soonest first
+await cms.cancelSchedule('posts', id, jobId)
+```
+
+Scheduling the same action again replaces the pending job. Globals have `scheduleGlobal`,
+`scheduledGlobal` and `cancelGlobalSchedule`.
+
+**Who runs the jobs.** Long-running servers (Nuxt, `easy-cms serve`, a self-hosted Next.js)
+check every minute. On serverless platforms nothing keeps running, so call the jobs endpoint
+from a cron:
+
+```json
+// vercel.json — Vercel Cron sends Authorization: Bearer $CRON_SECRET
+{ "crons": [{ "path": "/api/cms/jobs/run", "schedule": "* * * * *" }] }
+```
+
+Set `CRON_SECRET` (or `cronSecret` in the config). Logged-in admins can call it too, and
+`npx easy-cms run-scheduled` runs due jobs once from any cron. Failed jobs (e.g. a publish that
+doesn't pass validation) are logged and not retried.
+

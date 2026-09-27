@@ -381,6 +381,51 @@ test.describe('logged in as admin', () => {
     await expect(page.getByRole('link', { name: 'Hello from Playwright' })).toBeVisible()
   })
 
+  test('adds content blocks (FR-BLK)', async ({ page }) => {
+    await page.goto('/admin/collections/posts?q=Hello')
+    await page.getByRole('link', { name: 'Hello from Playwright' }).click()
+    await page.getByRole('button', { name: 'Add block' }).click()
+    await page.getByRole('menuitem', { name: 'Quote' }).click()
+    const quote = page.getByRole('listitem', { name: 'Block 1: Quote' })
+    await quote.getByRole('textbox', { name: 'Text' }).fill('Blocks let editors lay out a page.')
+    await quote.getByRole('textbox', { name: 'Author' }).fill('Ann')
+    await page.getByRole('button', { name: 'Add block' }).click()
+    await page.getByRole('menuitem', { name: 'Callout' }).click()
+    const callout = page.getByRole('listitem', { name: 'Block 2: Callout' })
+    await callout.getByRole('textbox', { name: 'Text' }).fill('Heads up')
+    // Reorder: the callout first.
+    await callout.getByRole('button', { name: 'Move row 2 up' }).click()
+    await page.getByRole('button', { name: 'Publish', exact: true }).click()
+    await expect(page.getByRole('status')).toHaveText('Saved')
+    await shot(page, '11-blocks')
+
+    await page.reload()
+    await expect(page.getByRole('listitem', { name: 'Block 1: Callout' })).toBeVisible()
+    await expect(
+      page.getByRole('listitem', { name: 'Block 2: Quote' }).getByRole('textbox', { name: 'Text' }),
+    ).toHaveValue('Blocks let editors lay out a page.')
+
+    if (!standalone()) {
+      await page.goto(page.url().replace(/\/admin\/.*$/, '/posts/hello-from-playwright'))
+      await expect(page.getByText('Blocks let editors lay out a page.')).toBeVisible()
+      await expect(page.getByText('Heads up')).toBeVisible()
+    }
+  })
+
+  test('schedules publishing (FR-SCH)', async ({ page }) => {
+    await page.goto('/admin/collections/posts?q=Secret')
+    await page.getByRole('link', { name: 'Secret draft' }).click()
+    await page.getByRole('button', { name: 'Schedule' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Schedule' })
+    await expect(dialog.getByLabel('Action')).toHaveValue('publish')
+    await dialog.getByRole('button', { name: 'Schedule' }).click()
+    const notice = page.getByText(/^Publishes on /)
+    await expect(notice).toBeVisible()
+    await shot(page, '12-scheduled')
+    await page.getByRole('button', { name: 'Cancel' }).click()
+    await expect(notice).toHaveCount(0)
+  })
+
   test('lists, searches, sorts and bulk-deletes (FR-ADM-04)', async ({ page }) => {
     for (const title of ['Alpha note', 'Beta note', 'Gamma note']) {
       await page.goto('/admin/collections/posts/new')

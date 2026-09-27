@@ -37,6 +37,8 @@ and how to fix it.
 | `secret` | — | **Required**, at least 32 characters. Signs sessions. Read it from an env var. |
 | `db` | — | **Required**. A database adapter: `sqlite()` or `postgres()`. See [Databases](./databases). |
 | `serverURL` | — | Public origin such as `https://example.com`. Makes media URLs absolute. |
+| `webhooks` | `[]` | Endpoints notified when content changes. See [Webhooks](./webhooks). |
+| `cronSecret` | `CRON_SECRET` | Lets a cron run [scheduled jobs](./drafts#scheduled-publishing) at `<api>/jobs/run`. |
 | `localization` | — | `{ locales, defaultLocale?, fallback? }`: content in several languages. See [Localization](./localization). |
 | `cors` | `[]` | Origins whose browser code may call the REST API, or `'*'` for any (anonymous requests). Origins in `auth.trustedOrigins` are always allowed, with cookies. |
 | `routes.api` | `/api/cms` | Where the REST API is served. |
@@ -61,6 +63,7 @@ A collection is a type of content with many documents: posts, products, pages.
 | `drafts` | Adds `status` (`draft` \| `published`). See [Drafts](./drafts). |
 | `versions` | `true` or `{ max }`: keep a version of every save, with history and restore; with `drafts`, drafts of published documents are kept separately. See [Versions](./drafts#versions). |
 | `preview` | `({ doc }) => url`: the page that shows a document, for [live preview](./live-preview). |
+| `schedule` | Publish and unpublish at a set time (needs `drafts`). See [Scheduled publishing](./drafts#scheduled-publishing). |
 | `access` | `{ read, create, update, delete }`. See [Access control](./access-control). |
 | `hooks` | See [Hooks](./hooks). |
 
@@ -69,7 +72,8 @@ Every document also has `id` (integer), `createdAt` and `updatedAt`.
 Two collections are built in: [`users`](./auth) and [`media`](./uploads). Declare a collection
 with the same slug to add fields, access rules or hooks to them.
 
-Reserved slugs: `admin`, `globals`, `sessions`, `login-attempts`, `migrations`, `access`.
+Reserved slugs: `admin`, `globals`, `jobs`, `sessions`, `login-attempts`, `document-versions`,
+`scheduled-jobs`, `migrations`, `access`.
 
 ## Globals
 

@@ -24,6 +24,8 @@ export interface AdminField {
   minRows?: number
   maxRows?: number
   fields?: AdminField[]
+  /** Block kinds of a `blocks` field. */
+  blocks?: { slug: string; labels?: { singular?: Label; plural?: Label }; fields: AdminField[] }[]
   /** The current user may not change this field. */
   readOnly?: boolean
   /** One value per content locale. */
@@ -38,6 +40,8 @@ export interface AdminCollection {
   versions: boolean
   /** Has live preview (`preview` in the config). */
   preview: boolean
+  /** Publishing can be scheduled. */
+  schedule: boolean
   fields: AdminField[]
   permissions: { read: boolean; create: boolean; update: boolean; delete: boolean }
 }
@@ -49,6 +53,8 @@ export interface AdminGlobal {
   versions: boolean
   /** Has live preview (`preview` in the config). */
   preview: boolean
+  /** Publishing can be scheduled. */
+  schedule: boolean
   fields: AdminField[]
   permissions: { read: boolean; update: boolean }
 }
@@ -112,6 +118,17 @@ async function serializeFields(
         if (field.maxRows !== undefined) f.maxRows = field.maxRows
         f.fields = await serializeFields(field.fields, update, localized)
         break
+      case 'blocks':
+        if (field.minRows !== undefined) f.minRows = field.minRows
+        if (field.maxRows !== undefined) f.maxRows = field.maxRows
+        f.blocks = await Promise.all(
+          field.blocks.map(async (block) => ({
+            slug: block.slug,
+            ...(block.labels ? { labels: block.labels } : {}),
+            fields: await serializeFields(block.fields, update, localized),
+          })),
+        )
+        break
       case 'group':
         f.fields = await serializeFields(field.fields, update, localized)
         break
@@ -131,6 +148,7 @@ async function collection(
     drafts: config.drafts === true,
     versions: Boolean(config.versions),
     preview: typeof config.preview === 'function',
+    schedule: config.schedule === true,
     fields: await serializeFields(
       config.fields,
       new FieldAccessChecker('update', { user }),
@@ -158,6 +176,7 @@ async function global(
     drafts: config.drafts === true,
     versions: Boolean(config.versions),
     preview: typeof config.preview === 'function',
+    schedule: config.schedule === true,
     fields: await serializeFields(
       config.fields,
       new FieldAccessChecker('update', { user }),

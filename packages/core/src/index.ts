@@ -70,6 +70,7 @@ export {
   type FindOptions,
   type LivePreview,
   type ReadOptions,
+  type ScheduledJob,
 } from './local-api.js'
 export { consoleLogger, type Logger, silentLogger } from './logger.js'
 export { EXTENSIONS, imageDimensions, mimeAllowed, sniffMimeType } from './media.js'
@@ -105,3 +106,9 @@ export {
 export { generateTypes, singularize } from './typegen.js'
 export { BUILTIN_COLLECTIONS, MIN_SECRET_LENGTH, validateConfig } from './validate-config.js'
 export { DEFAULT_MAX_VERSIONS, type Version, type VersionSummary } from './versions.js'
+export {
+  WEBHOOK_EVENTS,
+  type WebhookConfig,
+  type WebhookEvent,
+  type WebhookPayload,
+} from './webhooks.js'

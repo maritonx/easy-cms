@@ -74,6 +74,7 @@ describe('form values', () => {
       drafts: false,
       versions: false,
       preview: false,
+      schedule: false,
       fields: [],
       useAsTitle: 'title',
       permissions: { read: true, create: true, update: true, delete: true },

@@ -59,6 +59,7 @@ Commands:
   generate:types          Write TypeScript types for your collections and globals
   create-admin            Create an admin user
   serve                   Run the CMS as its own server (admin + REST API)
+  run-scheduled           Publish/unpublish documents whose scheduled time has come
 
 Options:
   --config <file>         Config file (default: easy-cms.config.ts)
@@ -91,6 +92,11 @@ The file has no imports, so a frontend in another repository can copy it.
 
 Creates a user (role "admin" unless --role is given). The password is asked for in the
 terminal, or read from EASY_CMS_ADMIN_PASSWORD when there is no terminal.
+`,
+  'run-scheduled': `Usage: easy-cms run-scheduled [options]
+
+Runs due scheduled publishes and unpublishes once, for a cron job where no server process
+keeps running. Servers run them every minute on their own.
 `,
   serve: `Usage: easy-cms serve [--port <n>] [--host <host>] [--watch] [--trust-proxy] [options]
 
@@ -151,9 +157,20 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
     // create-admin writes a user, so the schema must exist: push in development like the app does.
     const schema =
       command === 'create-admin' && process.env.NODE_ENV !== 'production' ? 'push' : 'skip'
-    const cms = await createEasyCMS(config, { cwd, schema, logger, interactive: io.interactive })
+    const cms = await createEasyCMS(config, {
+      cwd,
+      schema,
+      logger,
+      interactive: io.interactive,
+      scheduler: false,
+    })
     try {
       switch (command) {
+        case 'run-scheduled': {
+          const { ran, failed } = await cms.runScheduled()
+          io.out(`Ran ${ran} scheduled job(s)${failed ? `, ${failed} failed` : ''}.`)
+          return failed ? 1 : 0
+        }
         case 'migrate': {
           const applied = await cms.db.migrate()
           io.out(

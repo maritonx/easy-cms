@@ -1,6 +1,7 @@
 import {
   DEFAULT_ROLES,
   internalCollections,
+  scheduledJobsCollection,
   versionsCollection,
   withMedia,
   withUsers,
@@ -70,6 +71,7 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
       ...(config.collections ?? []),
       ...internalCollections,
       ...(usesVersions(config) ? [versionsCollection] : []),
+      ...(usesSchedule(config) ? [scheduledJobsCollection] : []),
     ],
     globals: config.globals ?? [],
   }
@@ -79,4 +81,8 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
 
 function usesVersions(config: Config): boolean {
   return [...(config.collections ?? []), ...(config.globals ?? [])].some((c) => c.versions)
+}
+
+function usesSchedule(config: Config): boolean {
+  return [...(config.collections ?? []), ...(config.globals ?? [])].some((c) => c.schedule)
 }

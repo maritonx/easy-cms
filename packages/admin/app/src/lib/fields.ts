@@ -7,7 +7,7 @@ export function initialValues(fields: readonly AdminField[]): Data {
   const data: Data = {}
   for (const field of fields) {
     if (field.type === 'group') data[field.name] = initialValues(field.fields ?? [])
-    else if (field.type === 'array') data[field.name] = []
+    else if (field.type === 'array' || field.type === 'blocks') data[field.name] = []
     else if (field.defaultValue !== undefined)
       data[field.name] = structuredClone(field.defaultValue)
     else if ((field.type === 'select' || field.type === 'relationship') && field.hasMany)
@@ -33,6 +33,14 @@ export function toFormValues(fields: readonly AdminField[], doc: Data): Data {
             id: (row as Data).id,
             ...toFormValues(field.fields ?? [], row as Data),
           }))
+        : []
+    } else if (field.type === 'blocks') {
+      data[field.name] = Array.isArray(value)
+        ? value.map((row) => {
+            const r = row as Data
+            const block = field.blocks?.find((b) => b.slug === r.blockType)
+            return { id: r.id, blockType: r.blockType, ...toFormValues(block?.fields ?? [], r) }
+          })
         : []
     } else if (field.type === 'relationship' || field.type === 'upload') {
       const toId = (v: unknown) => (v && typeof v === 'object' ? (v as Data).id : v)

@@ -112,7 +112,7 @@ describe('validateConfig', () => {
       validateConfig(baseConfig({ localization, collections: [{ slug: 'posts', fields }] })).map(
         (i) => i.path,
       ),
-    ).toEqual(['collections[0].fields.seo.localized', 'collections[0].fields.tags.localized'])
+    ).toEqual(['collections[0].fields.seo.localized']) // hasMany and arrays can be localized
     // Without localization, localized fields are an error.
     expect(
       validateConfig(

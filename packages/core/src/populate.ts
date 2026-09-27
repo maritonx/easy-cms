@@ -1,7 +1,7 @@
 import type { ID } from './access.js'
 import type { CollectionConfig } from './config.js'
 import type { RawDocument } from './database.js'
-import type { Field } from './fields.js'
+import { type Field, hasRows, rowFields } from './fields.js'
 
 type Data = Record<string, unknown>
 
@@ -73,10 +73,17 @@ function collectSlots(
 
     if (field.type === 'group') {
       if (typeof value === 'object') collectSlots(field.fields, value as Data, bySlug, slots)
-    } else if (field.type === 'array') {
-      if (Array.isArray(value))
-        for (const row of value) collectSlots(field.fields, row as Data, bySlug, slots)
+    } else if (hasRows(field)) {
+      if (Array.isArray(value)) {
+        for (const row of value) {
+          const fields = rowFields(field, row)
+          if (fields && row && typeof row === 'object')
+            collectSlots(fields, row as Data, bySlug, slots)
+        }
+      }
     } else if (field.type === 'relationship' || field.type === 'upload') {
+      // Only ids are populated: skip `{ [locale]: … }` maps (reads with `locale: 'all'`).
+      if (typeof value === 'object' && !Array.isArray(value)) continue
       const collection = field.type === 'upload' ? 'media' : field.to
       if (!bySlug.has(collection)) continue // built-in collections are populated from M2/M5
       if (Array.isArray(value)) {

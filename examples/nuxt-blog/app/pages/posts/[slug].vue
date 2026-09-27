@@ -24,6 +24,12 @@ const html = computed(() => renderRichText(post.value?.body))
     <h1>{{ post.title }}</h1>
     <!-- eslint-disable-next-line vue/no-v-html -- sanitized by renderRichText -->
     <div class="body" v-html="html" />
+    <template v-for="section in post.sections" :key="section.id">
+      <blockquote v-if="section.blockType === 'quote'" class="quote">
+        {{ section.text }}<footer v-if="section.author">— {{ section.author }}</footer>
+      </blockquote>
+      <aside v-else-if="section.blockType === 'callout'" :class="['callout', section.tone]">{{ section.text }}</aside>
+    </template>
   </article>
 </template>
 
@@ -31,5 +37,20 @@ const html = computed(() => renderRichText(post.value?.body))
 .cover {
   width: 100%;
   border-radius: 8px;
+}
+.quote {
+  margin: 1.5rem 0;
+  padding-left: 1rem;
+  border-left: 4px solid #2f6f5e;
+  font-style: italic;
+}
+.callout {
+  margin: 1.5rem 0;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  background: #e3efe9;
+}
+.callout.warning {
+  background: #fdf1d8;
 }
 </style>

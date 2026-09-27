@@ -1,6 +1,6 @@
 import { type Access, type AccessArgs, type AuthUser, isLoggedIn, type Where } from './access.js'
 import { QueryError } from './errors.js'
-import type { Field } from './fields.js'
+import { type Field, hasRows, rowFields } from './fields.js'
 
 type Data = Record<string, unknown>
 
@@ -64,11 +64,14 @@ export async function stripFields(
     const value = result[field.name]
     if (field.type === 'group' && value && typeof value === 'object') {
       result[field.name] = await stripFields(field.fields, value as Data, read)
-    } else if (field.type === 'array' && Array.isArray(value)) {
+    } else if (hasRows(field) && Array.isArray(value)) {
       result[field.name] = await Promise.all(
-        value.map((row) =>
-          row && typeof row === 'object' ? stripFields(field.fields, row as Data, read) : row,
-        ),
+        value.map((row) => {
+          const fields = rowFields(field, row)
+          return fields && row && typeof row === 'object'
+            ? stripFields(fields, row as Data, read)
+            : row
+        }),
       )
     }
   }
@@ -94,11 +97,14 @@ export async function filterInput(
     const value = result[field.name]
     if (field.type === 'group' && value && typeof value === 'object' && !Array.isArray(value)) {
       result[field.name] = await filterInput(field.fields, value as Data, update)
-    } else if (field.type === 'array' && Array.isArray(value)) {
+    } else if (hasRows(field) && Array.isArray(value)) {
       result[field.name] = await Promise.all(
-        value.map((row) =>
-          row && typeof row === 'object' ? filterInput(field.fields, row as Data, update) : row,
-        ),
+        value.map((row) => {
+          const fields = rowFields(field, row)
+          return fields && row && typeof row === 'object'
+            ? filterInput(fields, row as Data, update)
+            : row
+        }),
       )
     }
   }

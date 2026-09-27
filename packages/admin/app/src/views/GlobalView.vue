@@ -4,6 +4,7 @@ import { onBeforeRouteLeave, useRoute } from 'vue-router'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import LivePreview from '../components/LivePreview.vue'
 import LocaleSwitcher from '../components/LocaleSwitcher.vue'
+import ScheduleControl from '../components/ScheduleControl.vue'
 import VersionHistory from '../components/VersionHistory.vue'
 import FieldList from '../fields/FieldList.vue'
 import { ApiError, api } from '../lib/api'
@@ -39,6 +40,7 @@ const liveStatus = computed(() =>
 const historyKey = ref(0)
 const confirmingDiscard = ref(false)
 const previewing = ref(false)
+const scheduler = ref<InstanceType<typeof ScheduleControl>>()
 const side = computed(() =>
   readOnly.value ? null : previewing.value ? 'preview' : global?.versions ? 'history' : null,
 )
@@ -160,9 +162,18 @@ onBeforeRouteLeave(() => (dirty.value ? window.confirm(t('edit.unsaved')) : true
           <span v-if="pendingChanges" class="badge badge-changed">{{ t('status.changed') }}</span>
           {{ t('list.updated') }} {{ formatDate(meta.updatedAt) }}
         </p>
+        <ScheduleControl
+          v-if="global.schedule && !readOnly"
+          ref="scheduler"
+          :path="`/globals/${slug}`"
+          :reload-key="historyKey"
+        />
       </div>
       <div class="actions">
         <span v-if="message" :class="['status', message.kind]" role="status" aria-live="polite">{{ message.text }}</span>
+        <button v-if="global.schedule && !readOnly" type="button" class="btn" @click="scheduler?.open()">
+          {{ t('schedule.button') }}
+        </button>
         <button v-if="global.preview && !readOnly" type="button" class="btn" :aria-pressed="previewing" @click="previewing = !previewing">
           {{ previewing ? t('preview.hide') : t('preview.show') }}
         </button>

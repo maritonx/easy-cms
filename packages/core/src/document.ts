@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { ID } from './access.js'
 import type { FieldError } from './errors.js'
-import type { Field, SelectField } from './fields.js'
+import { type BlocksField, type Field, hasRows, rowFields, type SelectField } from './fields.js'
 import type { Localization } from './localization.js'
 
 type Data = Record<string, unknown>
@@ -40,11 +40,12 @@ export function applyDefaults(
         isPlainObject(value) ? value : {},
         localization,
       )
-    } else if (field.type === 'array') {
+    } else if (hasRows(field) && !field.localized) {
       if (Array.isArray(value)) {
-        result[field.name] = value.map((row) =>
-          isPlainObject(row) ? applyDefaults(field.fields, row, localization) : row,
-        )
+        result[field.name] = value.map((row) => {
+          const fields = rowFields(field, row)
+          return fields && isPlainObject(row) ? applyDefaults(fields, row, localization) : row
+        })
       }
     } else if (field.localized && localization && field.defaultValue !== undefined) {
       // Localized: the default fills the default locale only.
@@ -70,7 +71,7 @@ export function fillMissing(fields: readonly Field[], data: Data): Data {
     if (field.type === 'group') {
       result[field.name] = fillMissing(field.fields, isPlainObject(value) ? value : {})
     } else if (value === undefined) {
-      result[field.name] = field.type === 'array' || isHasMany(field) ? [] : null
+      result[field.name] = hasRows(field) || isHasMany(field) ? [] : null
     }
   }
   return result
@@ -108,10 +109,11 @@ export function generateSlugs(
       }
     } else if (field.type === 'group' && isPlainObject(result[field.name])) {
       result[field.name] = generateSlugs(field.fields, result[field.name] as Data, localization)
-    } else if (field.type === 'array' && Array.isArray(result[field.name])) {
-      result[field.name] = (result[field.name] as unknown[]).map((row) =>
-        isPlainObject(row) ? generateSlugs(field.fields, row, localization) : row,
-      )
+    } else if (hasRows(field) && Array.isArray(result[field.name])) {
+      result[field.name] = (result[field.name] as unknown[]).map((row) => {
+        const fields = rowFields(field, row)
+        return fields && isPlainObject(row) ? generateSlugs(fields, row, localization) : row
+      })
     }
   }
   return result
@@ -222,9 +224,9 @@ export async function validateFields(
         const localePath = own ? path : `${path}.${locale}`
         const failLocale = (message: string) => errors.push({ field: localePath, message })
         const value = map[locale]
-        if (isEmpty(value)) {
+        if (isEmpty(value) || (Array.isArray(value) && value.length === 0)) {
           if (own && field.required && !options.skipRequired) failLocale('is required')
-          out[locale] = null
+          out[locale] = hasRows(field) || isHasMany(field) ? [] : null
           if (own && !field.required) await runCustom(field, null, options, failLocale)
           continue
         }
@@ -247,7 +249,7 @@ export async function validateFields(
 
     if (isEmpty(raw) || (Array.isArray(raw) && raw.length === 0)) {
       if (field.required && !options.skipRequired) fail('is required')
-      data[field.name] = field.type === 'array' || isHasMany(field) ? [] : null
+      data[field.name] = hasRows(field) || isHasMany(field) ? [] : null
       if (!field.required) await runCustom(field, null, options, fail)
       continue
     }
@@ -371,9 +373,44 @@ async function normalizeValue(
       }
       return rows
     }
+    case 'blocks':
+      return normalizeBlocks(field, raw, path, options, fail, errors, references)
     case 'group':
       return raw // handled by the caller
   }
+}
+
+async function normalizeBlocks(
+  field: BlocksField,
+  raw: unknown,
+  path: string,
+  options: ValidateOptions,
+  fail: (message: string) => void,
+  errors: FieldError[],
+  references: Reference[],
+): Promise<unknown> {
+  if (!Array.isArray(raw)) return fail('must be an array of blocks')
+  if (field.minRows !== undefined && raw.length < field.minRows)
+    return fail(`must have at least ${field.minRows} blocks`)
+  if (field.maxRows !== undefined && raw.length > field.maxRows)
+    return fail(`must have at most ${field.maxRows} blocks`)
+  const rows: Data[] = []
+  for (const [i, row] of raw.entries()) {
+    const fields = rowFields(field, row)
+    if (!isPlainObject(row) || !fields) {
+      errors.push({
+        field: `${path}.${i}.blockType`,
+        message: `must be one of: ${field.blocks.map((b) => b.slug).join(', ')}`,
+      })
+      continue
+    }
+    const sub = await validateFields(fields, row, options, `${path}.${i}.`)
+    errors.push(...sub.errors)
+    references.push(...sub.references)
+    const id = typeof row.id === 'string' && row.id !== '' ? row.id : randomUUID()
+    rows.push({ id, blockType: row.blockType, ...sub.data })
+  }
+  return rows
 }
 
 function normalizeSelect(field: SelectField, raw: unknown, fail: (m: string) => void): unknown {

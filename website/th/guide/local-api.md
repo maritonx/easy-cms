@@ -37,6 +37,11 @@ await cms.findVersion('posts', 12, versionId)
 await cms.restoreVersion('posts', 12, versionId)
 await cms.unpublish('posts', 12)
 await cms.discardDraft('posts', 12)
+
+// Scheduled publishing and webhooks
+await cms.schedule('posts', 12, { action: 'publish', at: new Date('2026-10-01T02:00:00Z') })
+await cms.runScheduled() // what servers do every minute
+await cms.flushWebhooks() // wait for webhook deliveries (serverless)
 ```
 
 `find` คืนค่า `{ docs, totalDocs, limit, page, totalPages, hasNextPage, hasPrevPage }`

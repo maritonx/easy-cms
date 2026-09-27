@@ -21,6 +21,9 @@ export interface ChildModel {
   readonly path: readonly string[]
   readonly field: Field
   readonly table: TableModel
+  /** Localized: rows carry `_locale`, and the data holds `{ [locale]: rows }`. */
+  readonly locales?: readonly string[]
+  readonly defaultLocale?: string
 }
 
 export interface TableModel {
@@ -69,6 +72,8 @@ function columnKind(field: Field): ColumnKind {
       return 'boolean'
     case 'json':
     case 'richText':
+    // Blocks are stored whole as JSON: rows of different kinds don't fit one child table.
+    case 'blocks':
       return 'json'
     case 'upload':
     case 'relationship':
@@ -174,7 +179,13 @@ function buildTable(
   name: string,
   kind: TableModel['kind'],
   fields: readonly Field[],
-  options: { drafts?: boolean; parentIdKind?: 'integer' | 'text'; valueField?: Field },
+  options: {
+    drafts?: boolean
+    parentIdKind?: 'integer' | 'text'
+    valueField?: Field
+    /** The default locale, for child tables of localized fields. */
+    localized?: string
+  },
 ): TableModel {
   const { dialect } = builder
   claimName(builder, name)
@@ -220,6 +231,15 @@ function buildTable(
     )
     add('_order', dialect.integer('_order').notNull(), 'int!')
     indexes.push({ column: '_parent_id', unique: false })
+    if (options.localized) {
+      // Rows that existed before the field was localized become the default locale's.
+      add(
+        '_locale',
+        dialect.text('_locale').notNull().default(options.localized),
+        `locale:${options.localized}`,
+      )
+      indexes.push({ column: '_locale', unique: false })
+    }
     if (kind === 'values' && options.valueField) {
       const valueKind = columnKind(options.valueField)
       add('value', makeColumn(dialect, 'value', valueKind), valueKind)
@@ -235,17 +255,33 @@ function buildTable(
       if (field.type === 'group') {
         walk(field.fields, fieldPath, false)
       } else if (field.type === 'array') {
+        const localization = field.localized ? builder.localization : null
         const child = buildTable(builder, `${name}__${base}`, 'array', field.fields, {
           parentIdKind: kind === 'array' ? 'text' : 'integer',
+          ...(localization ? { localized: localization.defaultLocale } : {}),
         })
-        children.push({ kind: 'array', path: fieldPath, field, table: child })
+        children.push({
+          kind: 'array',
+          path: fieldPath,
+          field,
+          table: child,
+          ...localeInfo(localization),
+        })
         described.push([base, 'array', child.name])
       } else if ((field.type === 'select' || field.type === 'relationship') && field.hasMany) {
+        const localization = field.localized ? builder.localization : null
         const child = buildTable(builder, `${name}__${base}`, 'values', [], {
           parentIdKind: kind === 'array' ? 'text' : 'integer',
           valueField: field,
+          ...(localization ? { localized: localization.defaultLocale } : {}),
         })
-        children.push({ kind: 'values', path: fieldPath, field, table: child })
+        children.push({
+          kind: 'values',
+          path: fieldPath,
+          field,
+          table: child,
+          ...localeInfo(localization),
+        })
         described.push([base, 'values', child.name])
       } else {
         const kindOfColumn = columnKind(field)
@@ -299,4 +335,10 @@ function buildTable(
   builder.description.push([name, kind, described, indexes])
   const model: TableModel = { name, kind, table, fields, columns: columnModels, children }
   return options.valueField ? { ...model, valueField: options.valueField } : model
+}
+
+function localeInfo(localization: ResolvedConfig['localization']) {
+  return localization
+    ? { locales: localization.locales, defaultLocale: localization.defaultLocale }
+    : {}
 }

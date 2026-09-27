@@ -3,6 +3,7 @@ import type { DatabaseAdapter } from './database.js'
 import type { Field, Label } from './fields.js'
 import type { EasyCMS } from './local-api.js'
 import type { StorageAdapter } from './storage.js'
+import type { WebhookConfig } from './webhooks.js'
 
 type Data = Record<string, unknown>
 type MaybePromise<T> = T | Promise<T>
@@ -90,6 +91,8 @@ export interface CollectionConfig {
    * it is published again.
    */
   readonly versions?: boolean | VersionsConfig
+  /** Allow scheduling publish/unpublish for a later time (needs `drafts`). */
+  readonly schedule?: boolean
   /** Live preview: the page that shows a document, e.g. `({ doc }) => \`/posts/${doc.slug}\``. */
   readonly preview?: PreviewURL
   readonly access?: CollectionAccess
@@ -103,6 +106,8 @@ export interface GlobalConfig {
   readonly drafts?: boolean
   /** Keep a snapshot of every save. See `CollectionConfig.versions`. */
   readonly versions?: boolean | VersionsConfig
+  /** Allow scheduling publish/unpublish for a later time (needs `drafts`). */
+  readonly schedule?: boolean
   /** Live preview: the page that shows the global. See `CollectionConfig.preview`. */
   readonly preview?: PreviewURL
   readonly access?: GlobalAccess
@@ -179,6 +184,14 @@ export interface Config {
    * `auth.trustedOrigins` are always allowed, with cookies. Default: none.
    */
   readonly cors?: readonly string[] | '*'
+  /**
+   * Lets a cron service run due scheduled jobs: `GET <api>/jobs/run` with
+   * `Authorization: Bearer <cronSecret>`. Default: the `CRON_SECRET` environment variable (the
+   * convention of Vercel Cron). Logged-in admins can always run jobs.
+   */
+  readonly cronSecret?: string
+  /** Endpoints notified when content changes, e.g. to rebuild a static site. */
+  readonly webhooks?: readonly WebhookConfig[]
   /** Content in several languages: fields with `localized: true` hold one value per locale. */
   readonly localization?: LocalizationConfig | null
   readonly routes?: RoutesConfig

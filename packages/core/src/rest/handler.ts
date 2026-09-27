@@ -196,6 +196,18 @@ async function route(
     throw new HttpError('Not found', 404)
   }
 
+  // Scheduled jobs, run by a cron service (Authorization: Bearer <cronSecret>) or an admin.
+  if (first === 'jobs' && second === 'run' && third === undefined) {
+    if (method !== 'GET' && method !== 'POST') throw methodNotAllowed(ctx, 'GET, POST')
+    const secret = cms.config.cronSecret ?? process.env.CRON_SECRET
+    const header = ctx.request.headers.get('authorization') ?? ''
+    const byCron = !!secret && safeEqual(header, `Bearer ${secret}`)
+    if (!byCron && ctx.user?.role !== 'admin') {
+      throw ctx.user ? new HttpError('Forbidden', 403) : new UnauthorizedError()
+    }
+    return { body: await cms.runScheduled() }
+  }
+
   // Admin UI metadata
   if (first === 'admin') {
     if (method !== 'GET') throw methodNotAllowed(ctx, 'GET')
@@ -362,6 +374,20 @@ async function documentAction(
     if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
     return { body: await cms.restoreVersion(collection, id, versionId, { ...access, ...depth }) }
   }
+  if (action === 'schedule' && path.length <= 2) {
+    if (path.length === 2) {
+      if (method !== 'DELETE') throw methodNotAllowed(ctx, 'DELETE')
+      await cms.cancelSchedule(collection, id, versionId as string, access)
+      return { body: { message: 'Cancelled' } }
+    }
+    if (method === 'GET') return { body: await cms.scheduled(collection, id, access) }
+    if (method !== 'POST') throw methodNotAllowed(ctx, 'GET, POST')
+    const body = await readJson(ctx.request)
+    return {
+      status: 201,
+      body: await cms.schedule(collection, id, scheduleJob(body), access),
+    }
+  }
   if (path.length === 1 && action === 'preview') {
     if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
     const body = await readJson(ctx.request)
@@ -412,6 +438,17 @@ async function globalAction(
     if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
     return { body: await cms.restoreGlobalVersion(slug, versionId, { ...access, ...depth }) }
   }
+  if (action === 'schedule' && path.length <= 2) {
+    if (path.length === 2) {
+      if (method !== 'DELETE') throw methodNotAllowed(ctx, 'DELETE')
+      await cms.cancelGlobalSchedule(slug, versionId as string, access)
+      return { body: { message: 'Cancelled' } }
+    }
+    if (method === 'GET') return { body: await cms.scheduledGlobal(slug, access) }
+    if (method !== 'POST') throw methodNotAllowed(ctx, 'GET, POST')
+    const body = await readJson(ctx.request)
+    return { status: 201, body: await cms.scheduleGlobal(slug, scheduleJob(body), access) }
+  }
   if (path.length === 1 && action === 'preview') {
     if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
     const body = await readJson(ctx.request)
@@ -430,6 +467,14 @@ async function globalAction(
     }
   }
   throw new HttpError('Not found', 404)
+}
+
+/** `{ action, at }` from a request body; the Local API validates the values. */
+function scheduleJob(body: Record<string, unknown>) {
+  return {
+    action: body.action as 'publish' | 'unpublish',
+    at: typeof body.at === 'string' ? body.at : '',
+  }
 }
 
 /** `?locale=` (a content locale or `all`) and `?fallback-locale=false`. */

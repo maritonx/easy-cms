@@ -25,6 +25,8 @@ export default defineConfig({
       drafts: true,
       // History and restore; drafts of a published post stay unpublished until published.
       versions: true,
+      // Publish or unpublish at a set time (the server runs due jobs every minute).
+      schedule: true,
       // Live preview in the admin: the page that shows a post.
       preview: ({ doc }) => (doc.slug ? `/posts/${doc.slug}` : null),
       useAsTitle: 'title',
@@ -38,6 +40,33 @@ export default defineConfig({
         { name: 'excerpt', type: 'textarea', maxLength: 300, localized: true },
         { name: 'cover', type: 'upload' },
         { name: 'body', type: 'richText', localized: true },
+        {
+          name: 'sections',
+          type: 'blocks',
+          blocks: [
+            {
+              slug: 'quote',
+              labels: { singular: { en: 'Quote', th: 'คำพูด' } },
+              fields: [
+                { name: 'text', type: 'textarea', required: true, localized: true },
+                { name: 'author', type: 'text' },
+              ],
+            },
+            {
+              slug: 'callout',
+              labels: { singular: { en: 'Callout', th: 'กล่องข้อความ' } },
+              fields: [
+                {
+                  name: 'tone',
+                  type: 'select',
+                  options: ['info', 'warning'],
+                  defaultValue: 'info',
+                },
+                { name: 'text', type: 'text', required: true, localized: true },
+              ],
+            },
+          ],
+        },
         { name: 'category', type: 'relationship', to: 'categories' },
         { name: 'tags', type: 'select', options: ['nuxt', 'vue', 'cms', 'thai'], hasMany: true },
         { name: 'author', type: 'relationship', to: 'users' },

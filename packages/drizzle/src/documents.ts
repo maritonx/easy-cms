@@ -36,7 +36,12 @@ function rowToData(model: TableModel, row: Row): Data {
   const data: Data = {}
   // Localized fields become `{ [locale]: value }`; the Local API picks the requested locale.
   for (const column of model.columns) setAt(data, columnPath(column), row[column.column] ?? null)
-  for (const child of model.children) setAt(data, child.path, [])
+  for (const child of model.children)
+    setAt(
+      data,
+      child.path,
+      child.locales ? Object.fromEntries(child.locales.map((locale) => [locale, []])) : [],
+    )
   return data
 }
 
@@ -76,8 +81,16 @@ async function attachChildren(db: Executor, model: TableModel, rows: Row[], docs
     childRows.forEach((childRow, i) => {
       const index = indexById.get(childRow._parent_id as ID)
       if (index === undefined) return
-      const list = getAt(docs[index] as Data, child.path) as unknown[]
-      list.push(child.kind === 'array' ? { id: childRow.id, ...childDocs?.[i] } : childRow.value)
+      const locale = child.locales ? String(childRow._locale) : undefined
+      const path = locale === undefined ? child.path : [...child.path, locale]
+      const list = getAt(docs[index] as Data, path)
+      if (!Array.isArray(list)) return // a locale no longer configured
+      // Localized rows are stored as `<id>:<locale>`; documents show the plain id.
+      const id =
+        locale === undefined
+          ? childRow.id
+          : String(childRow.id).replace(new RegExp(`:${locale}$`), '')
+      list.push(child.kind === 'array' ? { id, ...childDocs?.[i] } : childRow.value)
     })
   }
 }
@@ -102,23 +115,50 @@ export function toDocument(row: Row, data: Data, drafts: boolean): RawDocument {
 async function insertChildren(db: Executor, model: TableModel, parentId: ID, data: Data) {
   for (const child of model.children) {
     const value = getAt(data, child.path)
+    if (child.locales) {
+      // `{ [locale]: rows }`: one set of rows per locale.
+      if (!value || typeof value !== 'object') continue
+      for (const locale of child.locales) {
+        const items = (value as Data)[locale]
+        if (Array.isArray(items) && items.length > 0)
+          await insertChild(db, child, parentId, items, locale)
+      }
+      continue
+    }
     if (!Array.isArray(value) || value.length === 0) continue
     await insertChild(db, child, parentId, value)
   }
 }
 
-async function insertChild(db: Executor, child: ChildModel, parentId: ID, items: unknown[]) {
+async function insertChild(
+  db: Executor,
+  child: ChildModel,
+  parentId: ID,
+  items: unknown[],
+  locale?: string,
+) {
+  const localeColumn = locale === undefined ? {} : { _locale: locale }
   if (child.kind === 'values') {
-    const rows = items.map((value, i) => ({ _parent_id: parentId, _order: i, value }))
+    const rows = items.map((value, i) => ({
+      _parent_id: parentId,
+      _order: i,
+      value,
+      ...localeColumn,
+    }))
     for (const part of chunks(rows)) await db.insert(child.table.table).values(part)
     return
   }
   for (const [i, item] of items.entries()) {
     const rowData = item as Data
-    const id = rowData.id as string
-    await db
-      .insert(child.table.table)
-      .values({ ...dataToRow(child.table, rowData), id, _parent_id: parentId, _order: i })
+    // Rows of each locale get their own ids, so the same input can be saved in two locales.
+    const id = locale === undefined ? (rowData.id as string) : `${rowData.id as string}:${locale}`
+    await db.insert(child.table.table).values({
+      ...dataToRow(child.table, rowData),
+      id,
+      _parent_id: parentId,
+      _order: i,
+      ...localeColumn,
+    })
     await insertChildren(db, child.table, id, rowData)
   }
 }

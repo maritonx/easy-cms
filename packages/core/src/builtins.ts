@@ -7,12 +7,14 @@ export const MEDIA = 'media'
 export const SESSIONS = 'sessions'
 export const LOGIN_ATTEMPTS = 'login-attempts'
 export const VERSIONS = 'document-versions'
+export const SCHEDULED_JOBS = 'scheduled-jobs'
 
 /** Collections Easy CMS uses internally. Not exposed over REST or in the admin UI. */
 export const INTERNAL_COLLECTIONS: ReadonlySet<string> = new Set([
   SESSIONS,
   LOGIN_ATTEMPTS,
   VERSIONS,
+  SCHEDULED_JOBS,
 ])
 
 export const DEFAULT_ROLES = ['admin', 'editor'] as const
@@ -224,5 +226,23 @@ export const versionsCollection: CollectionConfig = {
     { name: 'latest', type: 'boolean', index: true },
     { name: 'author', type: 'number' },
     { name: 'snapshot', type: 'json', required: true },
+  ],
+}
+
+/** Publish/unpublish jobs for collections and globals with `schedule`; added only when used. */
+export const scheduledJobsCollection: CollectionConfig = {
+  slug: SCHEDULED_JOBS,
+  access: { read: nobody, create: nobody, update: nobody, delete: nobody },
+  fields: [
+    // Collection slug, or `global:<slug>`.
+    { name: 'parent', type: 'text', required: true, index: true },
+    // Document id; 0 for globals.
+    { name: 'doc', type: 'number', required: true, index: true },
+    { name: 'action', type: 'text', required: true },
+    { name: 'runAt', type: 'text', required: true, index: true },
+    // pending | done | failed
+    { name: 'state', type: 'text', required: true, index: true },
+    { name: 'error', type: 'text' },
+    { name: 'author', type: 'number' },
   ],
 }

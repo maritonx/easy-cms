@@ -1,6 +1,7 @@
 import type { CollectionConfig, Config, GlobalConfig } from './config.js'
 import type { ConfigIssue } from './errors.js'
 import { FIELD_TYPES, type Field, type SelectOption } from './fields.js'
+import { WEBHOOK_EVENTS } from './webhooks.js'
 
 export const MIN_SECRET_LENGTH = 32
 
@@ -14,6 +15,8 @@ const RESERVED_SLUGS = new Set([
   'sessions',
   'login-attempts',
   'document-versions',
+  'scheduled-jobs',
+  'jobs',
   'migrations',
   'access',
 ])
@@ -45,6 +48,7 @@ export function validateConfig(config: Config): ConfigIssue[] {
   validateAuth(config, add)
   validateCors(config.cors, add)
   validateLocalization(config, add)
+  validateWebhooks(config, add)
 
   const collections = asArray(config.collections, 'collections', add)
   const globals = asArray(config.globals, 'globals', add)
@@ -152,6 +156,8 @@ const LOCALIZABLE = new Set([
   'select',
   'upload',
   'relationship',
+  'blocks',
+  'array',
 ])
 
 function validateLocalization(config: Config, add: Add) {
@@ -180,7 +186,7 @@ function validateLocalization(config: Config, add: Add) {
     }
   }
 
-  const walk = (fields: readonly Field[] | undefined, path: string) => {
+  const walk = (fields: readonly Field[] | undefined, path: string, insideLocalized = false) => {
     if (!Array.isArray(fields)) return
     for (const field of fields) {
       if (typeof field?.name !== 'string') continue
@@ -198,17 +204,52 @@ function validateLocalization(config: Config, add: Add) {
             `${field.type} fields cannot be localized`,
             'localize the fields inside it instead',
           )
-        } else if ('hasMany' in field && field.hasMany) {
-          add(`${fieldPath}.localized`, 'hasMany fields cannot be localized yet')
+        } else if (insideLocalized) {
+          add(
+            `${fieldPath}.localized`,
+            'is inside a localized field, which already holds one value per locale',
+          )
         }
       }
+      const inside = insideLocalized || field.localized === true
       if (field.type === 'group' || field.type === 'array')
-        walk(field.fields, `${fieldPath}.fields`)
+        walk(field.fields, `${fieldPath}.fields`, inside)
+      if (field.type === 'blocks')
+        for (const block of field.blocks ?? [])
+          walk(block?.fields, `${fieldPath}.blocks.${block?.slug}`, inside)
     }
   }
   for (const [i, c] of (config.collections ?? []).entries())
     walk(c?.fields, `collections[${i}].fields`)
   for (const [i, g] of (config.globals ?? []).entries()) walk(g?.fields, `globals[${i}].fields`)
+}
+
+function validateWebhooks(config: Config, add: Add) {
+  const hooks = config.webhooks
+  if (hooks === undefined) return
+  if (!Array.isArray(hooks)) {
+    add('webhooks', 'must be a list', "webhooks: [{ url: 'https://example.com/hook' }]")
+    return
+  }
+  const collections = new Set([
+    ...BUILTIN_COLLECTIONS,
+    ...(config.collections ?? []).map((c) => c?.slug),
+  ])
+  const globals = new Set((config.globals ?? []).map((g) => g?.slug))
+  for (const [i, hook] of hooks.entries()) {
+    const path = `webhooks[${i}]`
+    if (typeof hook?.url !== 'string' || !/^https?:\/\/\S+$/.test(hook.url)) {
+      add(`${path}.url`, 'must be an http(s) URL')
+    }
+    for (const event of hook?.events ?? []) {
+      if (!(WEBHOOK_EVENTS as readonly string[]).includes(event))
+        add(`${path}.events`, `unknown event "${event}"`, `use: ${WEBHOOK_EVENTS.join(', ')}`)
+    }
+    for (const slug of hook?.collections ?? [])
+      if (!collections.has(slug)) add(`${path}.collections`, `unknown collection "${slug}"`)
+    for (const slug of hook?.globals ?? [])
+      if (!globals.has(slug)) add(`${path}.globals`, `unknown global "${slug}"`)
+  }
 }
 
 function validateCors(cors: unknown, add: Add) {
@@ -294,6 +335,9 @@ function validateContainer(
     } else if (max !== undefined && (!Number.isInteger(max) || max < 1)) {
       add(`${path}.versions.max`, 'must be a positive integer')
     }
+  }
+  if (container.schedule && !container.drafts) {
+    add(`${path}.schedule`, 'needs `drafts: true`', 'scheduling publishes and unpublishes drafts')
   }
   if (container.preview !== undefined && typeof container.preview !== 'function') {
     add(
@@ -395,6 +439,43 @@ function validateField(
         checkRange(field.minRows, field.maxRows, 'minRows', 'maxRows', path, add)
       validateFields(field.fields, `${path}.fields`, new Set(['id']), collectionSlugs, add)
       break
+    case 'blocks': {
+      if (!Array.isArray(field.blocks) || field.blocks.length === 0) {
+        add(
+          `${path}.blocks`,
+          'must contain at least one block',
+          "blocks: [{ slug: 'hero', fields: [...] }]",
+        )
+        break
+      }
+      checkRange(field.minRows, field.maxRows, 'minRows', 'maxRows', path, add)
+      const seen = new Set<string>()
+      for (const [i, block] of field.blocks.entries()) {
+        const blockPath = `${path}.blocks[${i}]`
+        if (typeof block?.slug !== 'string' || !SLUG_PATTERN.test(block.slug)) {
+          add(
+            `${blockPath}.slug`,
+            'must be lowercase letters, digits, "-" or "_", starting with a letter',
+          )
+        } else if (seen.has(block.slug)) {
+          add(`${blockPath}.slug`, `duplicate block "${block.slug}"`)
+        } else {
+          seen.add(block.slug)
+        }
+        if (!Array.isArray(block?.fields)) {
+          add(`${blockPath}.fields`, 'must be an array')
+          continue
+        }
+        validateFields(
+          block.fields,
+          `${blockPath}.fields`,
+          new Set(['id', 'blockType']),
+          collectionSlugs,
+          add,
+        )
+      }
+      break
+    }
   }
 }
 

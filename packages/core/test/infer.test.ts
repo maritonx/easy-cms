@@ -83,7 +83,7 @@ describe('type inference', () => {
 
   it('infers select values', () => {
     expectTypeOf<Post['kind']>().toEqualTypeOf<'news' | 'blog'>()
-    expectTypeOf<Post['tags']>().toEqualTypeOf<('a' | 'b')[] | null | undefined>()
+    expectTypeOf<Post['tags']>().toEqualTypeOf<('a' | 'b')[]>()
   })
 
   it('infers rich text, upload and json', () => {

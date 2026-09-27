@@ -32,6 +32,7 @@ Every field has a `name` and a `type`. Common options:
 | `relationship` | id(s) of documents in another collection | `to`, `hasMany` |
 | `array` | list of rows, each with an `id` and sub-fields | `fields`, `minRows`, `maxRows` |
 | `group` | nested object | `fields` |
+| `blocks` | list of rows of different kinds, each with `id` and `blockType` | `blocks`, `minRows`, `maxRows` |
 
 ### select
 
@@ -77,8 +78,34 @@ are dropped from `hasMany` lists.
 
 Updating an array replaces all its rows; keep a row's `id` to keep its identity.
 
+### blocks
+
+Rows of different kinds, for pages editors lay out themselves:
+
+```ts
+{
+  name: 'layout',
+  type: 'blocks',
+  blocks: [
+    {
+      slug: 'hero',
+      labels: { singular: 'Hero' },
+      fields: [
+        { name: 'heading', type: 'text', required: true },
+        { name: 'image', type: 'upload' },
+      ],
+    },
+    { slug: 'text', fields: [{ name: 'body', type: 'richText' }] },
+  ],
+}
+```
+
+Each row is `{ id, blockType, ...fields }`; `blockType` picks the block. Rows are validated,
+relationships and uploads inside them populated, and the generated types are a union of the
+block kinds. Blocks are stored as JSON, so they can't be used in `where` or `sort`.
+
 ## How fields are stored
 
 Each collection is a table; fields are columns (group fields are flattened: `seo.title` →
-`seo_title`). Arrays and `hasMany` values live in child tables. Two fields that would map to the
+`seo_title`). Arrays and `hasMany` values live in child tables; blocks are a JSON column. Two fields that would map to the
 same column are reported as a config error.

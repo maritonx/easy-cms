@@ -26,8 +26,9 @@ export default defineConfig({
 | `fallback` | `true` | Reads return the default locale's value when a locale's value is empty |
 
 `localized: true` works on text, textarea, email, slug, rich text, number, boolean, date, JSON,
-select, upload and relationship fields. For groups and arrays, localize the fields inside; hasMany
-fields can't be localized yet.
+select, upload, relationship (also `hasMany`), array and blocks fields. A localized array or blocks
+field holds a whole list per locale; otherwise localize the fields inside it. Groups can't be
+localized: localize their fields. Fields inside a localized list can't be localized again.
 
 ## Reading and writing
 
@@ -67,6 +68,8 @@ Each localized field gets one column per locale. The default locale keeps the pl
 (`title`), the others add columns (`title__en`). So:
 
 - Turning `localized` on for an existing field keeps its values as the default locale's.
+- Localized arrays and `hasMany` fields keep their rows in the child table with a `_locale`
+  column; existing rows become the default locale's.
 - Adding a locale adds columns: create a migration as for any config change.
 - Changing `defaultLocale` later points the plain columns at another locale; move the data in a
   migration if you do.

@@ -5,6 +5,7 @@ import { contentLocale } from '../lib/content-locale'
 import { fromLocalInput, toLocalInput } from '../lib/fields'
 import { label, t } from '../lib/i18n'
 import ArrayField from './ArrayField.vue'
+import BlocksField from './BlocksField.vue'
 import FieldList from './FieldList.vue'
 import RelationshipField from './RelationshipField.vue'
 import UploadField from './UploadField.vue'
@@ -71,6 +72,16 @@ function onNumber(value: string) {
     />
   </fieldset>
 
+  <BlocksField
+    v-else-if="field.type === 'blocks'"
+    :field="field"
+    :model-value="(modelValue as Record<string, unknown>[]) ?? []"
+    :path="path"
+    :errors="errors"
+    :read-only="readOnly"
+    @update:model-value="set"
+  />
+
   <ArrayField
     v-else-if="field.type === 'array'"
     :field="field"
@@ -98,7 +109,7 @@ function onNumber(value: string) {
   </div>
 
   <fieldset v-else-if="field.type === 'select' && field.hasMany" class="field">
-    <legend class="field-label">{{ text }}<span v-if="field.required" class="field-required" aria-hidden="true">*</span></legend>
+    <legend class="field-label">{{ text }}<span v-if="field.required" class="field-required" aria-hidden="true">*</span><span v-if="field.localized" class="field-locale" :title="t('locale.localized')" aria-hidden="true">{{ contentLocale()?.toUpperCase() }}</span></legend>
     <div class="options">
       <label v-for="option in field.options" :key="option.value" class="checkbox">
         <input

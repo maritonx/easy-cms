@@ -71,6 +71,7 @@ cd my-cms && npm run dev            # http://localhost:4000/admin
   database with `ecms_`-prefixed tables
 - **Localization**: fields with one value per language, a language switcher in the admin
 - **Version history** with separate drafts, and **live preview** of unsaved changes
+- **Blocks** for pages editors lay out, **scheduled publishing** and signed **webhooks**
 - **Migrations**: automatic schema push in development, reviewed migration files in production
 
 Design notes: [docs/DESIGN.md](docs/DESIGN.md) · Requirements: [docs/SRS.md](docs/SRS.md)

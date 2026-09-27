@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { AdminField } from '@easy-cms/core'
 import { computed } from 'vue'
+import { contentLocale } from '../lib/content-locale'
 import { initialValues } from '../lib/fields'
 import { label, t } from '../lib/i18n'
 import FieldList from './FieldList.vue'
@@ -59,6 +60,7 @@ function update(index: number, row: Row) {
   <fieldset class="array">
     <legend class="field-label">
       {{ label(field.label, field.name) }}<span v-if="field.required" class="field-required" aria-hidden="true">*</span>
+      <span v-if="field.localized" class="field-locale" :title="t('locale.localized')" aria-hidden="true">{{ contentLocale()?.toUpperCase() }}</span>
     </legend>
     <ol class="rows">
       <li v-for="(row, index) in rows" :key="String(row.id ?? index)" class="row card">
