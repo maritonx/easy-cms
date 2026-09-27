@@ -1,5 +1,17 @@
 # @easy-cms/next
 
+## 0.6.0
+
+### Patch Changes
+
+- a76cf49: Ship `dist/live-preview.d.ts`: `@easy-cms/next/live-preview` had no type declarations in 0.4.0 and 0.5.0.
+- Updated dependencies [a76cf49]
+- Updated dependencies [a76cf49]
+- Updated dependencies [a76cf49]
+- Updated dependencies [a76cf49]
+  - @easy-cms/core@0.6.0
+  - @easy-cms/admin@0.6.0
+
 ## 0.5.0
 
 ### Patch Changes
