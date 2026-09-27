@@ -7,7 +7,7 @@ on:
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
 # Publishing uses npm trusted publishing (OIDC): each package on npmjs.com trusts
-# maritonx/easy-crm + release.yml, so no npm token is stored in the repository.
+# maritonx/easy-cms + release.yml, so no npm token is stored in the repository.
 permissions:
   contents: write
   pull-requests: write

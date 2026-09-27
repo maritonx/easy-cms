@@ -1,6 +1,6 @@
 # @easy-cms/storage-s3
 
-Upload storage for [Easy CMS](https://maritonx.github.io/easy-crm/) on AWS S3, Cloudflare R2,
+Upload storage for [Easy CMS](https://maritonx.github.io/easy-cms/) on AWS S3, Cloudflare R2,
 MinIO or any S3-compatible service. Use it where there is no persistent disk: Vercel, Netlify,
 containers.
 
@@ -16,4 +16,4 @@ export default defineConfig({
 Credentials default to `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`. Files are served through the
 CMS API (private bucket) unless you set `publicUrl`.
 
-See [Uploads & media](https://maritonx.github.io/easy-crm/guide/uploads#s3-cloudflare-r2-and-minio).
+See [Uploads & media](https://maritonx.github.io/easy-cms/guide/uploads#s3-cloudflare-r2-and-minio).

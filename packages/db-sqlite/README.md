@@ -1,6 +1,6 @@
 # @easy-cms/db-sqlite
 
-SQLite / libSQL (Turso) adapter for [Easy CMS](https://github.com/maritonx/easy-crm).
+SQLite / libSQL (Turso) adapter for [Easy CMS](https://github.com/maritonx/easy-cms).
 
 ```ts
 import { sqlite } from '@easy-cms/db-sqlite'

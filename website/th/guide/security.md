@@ -21,4 +21,4 @@
 - ตรวจทาน migration และอัปเดต dependency อยู่เสมอ
 
 รายงานช่องโหว่แบบส่วนตัวตามที่อธิบายไว้ใน
-[SECURITY.md](https://github.com/maritonx/easy-crm/blob/main/SECURITY.md)
+[SECURITY.md](https://github.com/maritonx/easy-cms/blob/main/SECURITY.md)

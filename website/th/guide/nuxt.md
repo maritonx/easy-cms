@@ -54,4 +54,4 @@ export default defineEventHandler(async (event) => {
 - build สำหรับ production จะรวมไฟล์ native ของไดรเวอร์ฐานข้อมูล (libSQL) ไปด้วย ให้ build บน OS
   และสถาปัตยกรรมเดียวกับที่ deploy และเริ่ม server จาก root ของโปรเจกต์
 
-ดู[ตัวอย่าง Nuxt](https://github.com/maritonx/easy-crm/tree/main/examples/nuxt-blog)
+ดู[ตัวอย่าง Nuxt](https://github.com/maritonx/easy-cms/tree/main/examples/nuxt-blog)

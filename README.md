@@ -1,7 +1,7 @@
 # Easy CMS
 
 [![npm](https://img.shields.io/npm/v/@easy-cms/core?label=npm)](https://www.npmjs.com/package/@easy-cms/core)
-[![CI](https://github.com/maritonx/easy-crm/actions/workflows/ci.yml/badge.svg)](https://github.com/maritonx/easy-crm/actions/workflows/ci.yml)
+[![CI](https://github.com/maritonx/easy-cms/actions/workflows/ci.yml/badge.svg)](https://github.com/maritonx/easy-cms/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 Embedded, code-first headless CMS for **Nuxt** and **Next.js**: your content model lives in
@@ -9,8 +9,8 @@ TypeScript next to your app, and the CMS (admin UI, REST API, typed Local API) r
 No separate server to host. Using Vite, React, Vue or a static site instead? Run it as a
 **standalone server**.
 
-**[Documentation](https://maritonx.github.io/easy-crm/)** ([ภาษาไทย](https://maritonx.github.io/easy-crm/th/)) ·
-[Getting started](https://maritonx.github.io/easy-crm/guide/getting-started) ·
+**[Documentation](https://maritonx.github.io/easy-cms/)** ([ภาษาไทย](https://maritonx.github.io/easy-cms/th/)) ·
+[Getting started](https://maritonx.github.io/easy-cms/guide/getting-started) ·
 [Examples](#examples)
 
 > Pre-1.0: the API may still change between minor versions.
