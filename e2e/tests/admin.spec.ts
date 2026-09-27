@@ -48,8 +48,9 @@ async function publicSite(page: Page) {
 const standalone = () => test.info().project.name === 'standalone'
 
 /** A status badge in the editor header (the history panel has badges too). */
+/** A status badge next to the document's title. */
 const badge = (page: Page, text: string) =>
-  page.locator('.editor-header .meta').getByText(text, { exact: true })
+  page.locator('.editor-header .title-row').getByText(text, { exact: true })
 
 async function shot(page: Page, name: string) {
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/${name}.png`, fullPage: true })

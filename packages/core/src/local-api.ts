@@ -1247,6 +1247,51 @@ export class EasyCMS<C extends Config = Config> {
     return toJob(row)
   }
 
+  /**
+   * The next pending jobs across all collections and globals, soonest first; with access
+   * enforced, only those the user may update.
+   */
+  async upcomingJobs(
+    options: AccessOptions & { limit?: number } = {},
+  ): Promise<(ScheduledJob & { collection?: string; global?: string; doc: ID })[]> {
+    if (!this.config.collections.some((c) => c.slug === SCHEDULED_JOBS)) return []
+    const guard = guardOf(options)
+    const limit = options.limit ?? 10
+    const rows = await this.db.find({
+      collection: SCHEDULED_JOBS,
+      where: { state: { equals: 'pending' } },
+      sort: ['runAt'],
+      limit: limit * 5,
+      page: 1,
+    })
+    const allowed = new Map<string, boolean>()
+    const may = async (parent: string) => {
+      if (!guard.enforce) return true
+      const cached = allowed.get(parent)
+      if (cached !== undefined) return cached
+      const config = parent.startsWith('global:')
+        ? this.config.globals.find((g) => g.slug === parent.slice('global:'.length))
+        : this.config.collections.find((c) => c.slug === parent)
+      const access = config
+        ? await evaluateAccess(config.access?.update, { user: guard.user })
+        : false
+      const result = access !== false
+      allowed.set(parent, result)
+      return result
+    }
+    const jobs: (ScheduledJob & { collection?: string; global?: string; doc: ID })[] = []
+    for (const row of rows.docs) {
+      const parent = String(row.parent)
+      if (!(await may(parent))) continue
+      const target = parent.startsWith('global:')
+        ? { global: parent.slice('global:'.length) }
+        : { collection: parent }
+      jobs.push({ ...toJob(row), ...target, doc: row.doc as ID })
+      if (jobs.length === limit) break
+    }
+    return jobs
+  }
+
   private async pendingJobs(parent: string, doc: ID): Promise<ScheduledJob[]> {
     const rows = await this.db.find({
       collection: SCHEDULED_JOBS,

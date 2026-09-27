@@ -31,7 +31,9 @@ describe('resolveConfig', () => {
   })
 
   it('keeps values that were set', async () => {
-    const config = await resolveConfig(baseConfig({ admin: { path: '/cms', locale: 'th', brand: { name: 'Acme' } } }))
+    const config = await resolveConfig(
+      baseConfig({ admin: { path: '/cms', locale: 'th', brand: { name: 'Acme' } } }),
+    )
     expect(config.admin).toEqual({ path: '/cms', locale: 'th', brand: { name: 'Acme' } })
   })
 

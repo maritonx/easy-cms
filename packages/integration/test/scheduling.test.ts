@@ -94,6 +94,36 @@ describe('scheduled publishing (FR-SCH)', () => {
     await cms.destroy()
   })
 
+  it('lists upcoming jobs across collections and globals, for users who may update them', async () => {
+    const cms = await open(config)
+    const post = await cms.create('posts', { title: 'Later', summary: 's' })
+    await cms.schedule('posts', post.id, { action: 'publish', at: future() })
+    await cms.updateGlobal('banner', { text: 'Soon' })
+    await cms.scheduleGlobal('banner', { action: 'publish', at: new Date(Date.now() + 60_000) })
+
+    const all = await cms.upcomingJobs()
+    expect(all.map((j) => j.global ?? j.collection)).toEqual(['banner', 'posts'])
+    expect(all[1]).toMatchObject({ collection: 'posts', doc: post.id, action: 'publish' })
+    // Visitors may not update posts (isLoggedIn) or the banner (default: logged in).
+    expect(await cms.upcomingJobs({ overrideAccess: false, user: null })).toEqual([])
+
+    const handle = createRestHandler(cms)
+    const admin = await cms.create('users', {
+      email: 'jobs@x.test',
+      password: 'password123',
+      role: 'admin',
+    } as never)
+    const { token } = await cms.auth.createSession(admin.id)
+    const res = await handle(
+      new Request('http://cms.test/api/cms/admin/scheduled', {
+        headers: { authorization: `Bearer ${token}` },
+      }),
+    )
+    const jobs = (await res.json()) as { action: string }[]
+    expect(jobs.map((j) => j.action)).toEqual(['publish', 'publish'])
+    await cms.destroy()
+  })
+
   it('schedules globals', async () => {
     const cms = await open(config)
     await cms.updateGlobal('banner', { text: 'Sale' })

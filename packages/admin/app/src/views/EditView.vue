@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { CalendarClock, ChevronLeft, Eye, EyeOff, Trash2 } from '@lucide/vue'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
@@ -13,6 +14,7 @@ import { contentLocale, localeQuery, setContentLocale } from '../lib/content-loc
 import { initialValues, snapshot, titleOf, toFormValues } from '../lib/fields'
 import { formatBytes, formatDate, label, singularize, t } from '../lib/i18n'
 import { findCollection, loadSession, session, setFlash, takeFlash } from '../lib/session'
+import { showMessages } from '../lib/toast'
 
 const route = useRoute()
 const router = useRouter()
@@ -46,6 +48,9 @@ const side = computed(() =>
         : null,
 )
 
+// The right-hand column: publishing and actions for a saved document, and its history.
+const hasSidebar = computed(() => !!doc.value || side.value === 'history')
+
 const form = ref<Record<string, unknown>>(collection ? initialValues(collection.fields) : {})
 const password = ref('')
 const doc = ref<Doc | null>(null)
@@ -58,6 +63,8 @@ const notFound = ref(false)
 const confirmingDelete = ref(false)
 const flash = takeFlash()
 if (flash) message.value = { kind: 'success', text: flash }
+// Messages show as a toast (one at a time).
+showMessages(message)
 
 // Collection-level permissions say what is possible at all; for an existing document the
 // server resolves document-level rules (e.g. "only your own") into exact answers.
@@ -282,46 +289,36 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
   <p v-else-if="loading" class="muted">{{ t('common.loading') }}</p>
   <form v-else class="editor" novalidate @submit.prevent="save(collection.drafts ? 'published' : undefined)">
     <header class="editor-header">
-      <div>
-        <RouterLink :to="`/collections/${slug}`" class="back">← {{ label(collection.labels?.plural, collection.slug) }}</RouterLink>
-        <h1>{{ heading }}</h1>
-        <LocaleSwitcher v-if="localized" class="locale-switcher" @change="switchLocale" />
-        <p v-if="doc" class="meta muted">
-          <span v-if="collection.drafts" :class="['badge', `badge-${liveStatus}`]">
+      <div class="title-block">
+        <RouterLink :to="`/collections/${slug}`" class="back">
+          <ChevronLeft :size="16" aria-hidden="true" />
+          {{ label(collection.labels?.plural, collection.slug) }}
+        </RouterLink>
+        <div class="title-row">
+          <h1>{{ heading }}</h1>
+          <span v-if="doc && collection.drafts" :class="['badge', `badge-${liveStatus}`]">
             {{ t(liveStatus === 'published' ? 'status.published' : 'status.draft') }}
           </span>
           <span v-if="pendingChanges" class="badge badge-changed">{{ t('status.changed') }}</span>
-          {{ t('list.updated') }} {{ formatDate(doc.updatedAt) }}
-        </p>
-        <ScheduleControl
-          v-if="collection.schedule && id && canSave"
-          ref="scheduler"
-          :path="`/${slug}/${encodeURIComponent(id)}`"
-          :reload-key="historyKey"
-        />
+          <span v-if="dirty && canSave" class="unsaved">
+            <span class="dot" aria-hidden="true" />{{ t('edit.unsavedChanges') }}
+          </span>
+        </div>
       </div>
       <div class="actions">
-        <span v-if="message" :class="['status', message.kind]" role="status" aria-live="polite">{{ message.text }}</span>
+        <LocaleSwitcher v-if="localized" @change="switchLocale" />
         <button v-if="collection.preview && canSave" type="button" class="btn" :aria-pressed="previewing" @click="previewing = !previewing">
+          <component :is="previewing ? EyeOff : Eye" :size="16" aria-hidden="true" />
           {{ previewing ? t('preview.hide') : t('preview.show') }}
-        </button>
-        <button v-if="collection.schedule && id && canSave" type="button" class="btn" @click="scheduler?.open()">
-          {{ t('schedule.button') }}
-        </button>
-        <button v-if="canDelete" type="button" class="btn btn-danger" @click="confirmingDelete = true">
-          {{ t('edit.delete') }}
         </button>
         <template v-if="canSave">
           <!-- Separate drafts: the live version changes only on Publish (FR-VER-04). -->
           <template v-if="separateDrafts && live">
-            <button v-if="pendingChanges" type="button" class="btn" :disabled="saving" @click="confirmingDiscard = true">{{ t('edit.discardChanges') }}</button>
-            <button type="button" class="btn" :disabled="saving" @click="action('unpublish')">{{ t('edit.unpublish') }}</button>
             <button type="button" class="btn" :disabled="saving" @click="save('draft')">{{ t('edit.saveDraft') }}</button>
             <button type="submit" class="btn btn-primary" :disabled="saving">{{ pendingChanges ? t('edit.publishChanges') : t('edit.publish') }}</button>
           </template>
           <!-- A published document stays published on save; unpublishing is explicit (FR-DRF-05). -->
           <template v-else-if="collection.drafts && published">
-            <button type="button" class="btn" :disabled="saving" @click="save('draft')">{{ t('edit.unpublish') }}</button>
             <button type="submit" class="btn btn-primary" :disabled="saving">{{ t('edit.save') }}</button>
           </template>
           <template v-else-if="collection.drafts">
@@ -335,50 +332,99 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
 
     <p v-if="readOnly" class="notice notice-warning">{{ t('edit.readOnly') }}</p>
 
-    <div :class="['editor-body', side && `with-${side}`]">
-    <div class="card form-body">
-      <template v-if="isMedia && doc">
-        <MediaThumb :media="doc" size="large" />
-        <p class="muted media-meta">
-          <a :href="String(doc.url)" target="_blank" rel="noopener">{{ doc.filename }}</a>
-          · {{ doc.mimeType }}
-          <template v-if="doc.width">· {{ t('media.size', { width: String(doc.width), height: String(doc.height), size: formatBytes(doc.filesize) }) }}</template>
-          <template v-else>· {{ formatBytes(doc.filesize) }}</template>
-        </p>
-      </template>
-      <FieldList v-model="form" :fields="isMedia ? mediaFields : collection.fields" :errors="errors" :read-only="readOnly" />
-      <label v-if="isUsers && canSave" class="field">
-        <span class="field-label">
-          {{ id ? t('edit.newPassword') : t('edit.password') }}<span v-if="!id" class="field-required" aria-hidden="true">*</span>
-        </span>
-        <input
-          v-model="password"
-          class="input"
-          type="password"
-          autocomplete="new-password"
-          :aria-invalid="!!errors.password"
-          aria-describedby="password-error"
+    <div :class="['editor-body', side === 'preview' ? 'with-preview' : hasSidebar && 'with-sidebar']">
+      <div class="card form-body">
+        <template v-if="isMedia && doc">
+          <MediaThumb :media="doc" size="large" />
+          <p class="muted media-meta">
+            <a :href="String(doc.url)" target="_blank" rel="noopener">{{ doc.filename }}</a>
+            · {{ doc.mimeType }}
+            <template v-if="doc.width">· {{ t('media.size', { width: String(doc.width), height: String(doc.height), size: formatBytes(doc.filesize) }) }}</template>
+            <template v-else>· {{ formatBytes(doc.filesize) }}</template>
+          </p>
+        </template>
+        <FieldList v-model="form" :fields="isMedia ? mediaFields : collection.fields" :errors="errors" :read-only="readOnly" />
+        <label v-if="isUsers && canSave" class="field">
+          <span class="field-label">
+            {{ id ? t('edit.newPassword') : t('edit.password') }}<span v-if="!id" class="field-required" aria-hidden="true">*</span>
+          </span>
+          <input
+            v-model="password"
+            class="input"
+            type="password"
+            autocomplete="new-password"
+            :aria-invalid="!!errors.password"
+            aria-describedby="password-error"
+          />
+          <span v-for="m in errors.password" id="password-error" :key="m" class="field-error">{{ m }}</span>
+        </label>
+      </div>
+
+      <LivePreview
+        v-if="side === 'preview'"
+        :path="id ? `/${slug}/${encodeURIComponent(id)}/preview` : `/${slug}/preview`"
+        :data="form"
+        :collection="slug"
+        :query="localeQuery({ editing: true })"
+      />
+      <aside v-else-if="hasSidebar" class="sidebar">
+        <section v-if="doc" class="card side-card" :aria-label="collection.drafts ? t('edit.publishing') : t('edit.manage')">
+          <h2>{{ collection.drafts ? t('edit.publishing') : t('edit.manage') }}</h2>
+          <dl class="facts">
+            <div v-if="collection.drafts">
+              <dt>{{ t('edit.onSite') }}</dt>
+              <dd>
+                <span :class="['badge', `badge-${liveStatus}`]">
+                  {{ t(liveStatus === 'published' ? 'status.published' : 'status.draft') }}
+                </span>
+              </dd>
+            </div>
+            <div>
+              <dt>{{ t('edit.lastSaved') }}</dt>
+              <dd>{{ formatDate(doc.updatedAt) }}</dd>
+            </div>
+          </dl>
+          <ScheduleControl
+            v-if="collection.schedule && id && canSave"
+            ref="scheduler"
+            :path="`/${slug}/${encodeURIComponent(id)}`"
+            :reload-key="historyKey"
+          />
+          <div v-if="canSave || canDelete" class="side-actions">
+            <button v-if="collection.schedule && id && canSave" type="button" class="btn btn-sm" @click="scheduler?.open()">
+              <CalendarClock :size="15" aria-hidden="true" />
+              {{ t('schedule.button') }}
+            </button>
+            <template v-if="canSave && separateDrafts && live">
+              <button v-if="pendingChanges" type="button" class="btn btn-sm" :disabled="saving" @click="confirmingDiscard = true">{{ t('edit.discardChanges') }}</button>
+              <button type="button" class="btn btn-sm" :disabled="saving" @click="action('unpublish')">{{ t('edit.unpublish') }}</button>
+            </template>
+            <button
+              v-else-if="canSave && collection.drafts && published"
+              type="button"
+              class="btn btn-sm"
+              :disabled="saving"
+              @click="save('draft')"
+            >
+              {{ t('edit.unpublish') }}
+            </button>
+            <button v-if="canDelete" type="button" class="btn btn-sm btn-danger" @click="confirmingDelete = true">
+              <Trash2 :size="15" aria-hidden="true" />
+              {{ t('edit.delete') }}
+            </button>
+          </div>
+        </section>
+        <VersionHistory
+          v-if="side === 'history' && id"
+          :path="`/${slug}/${encodeURIComponent(id)}`"
+          :fields="collection.fields"
+          :drafts="collection.drafts"
+          :can-restore="canSave"
+          :reload-key="historyKey"
+          :query="localeQuery({ editing: true })"
+          @restored="(d) => show(d as Doc, t('history.restored'))"
         />
-        <span v-for="m in errors.password" id="password-error" :key="m" class="field-error">{{ m }}</span>
-      </label>
-    </div>
-    <LivePreview
-      v-if="side === 'preview'"
-      :path="id ? `/${slug}/${encodeURIComponent(id)}/preview` : `/${slug}/preview`"
-      :data="form"
-      :collection="slug"
-      :query="localeQuery({ editing: true })"
-    />
-    <VersionHistory
-      v-else-if="side === 'history' && id"
-      :path="`/${slug}/${encodeURIComponent(id)}`"
-      :fields="collection.fields"
-      :drafts="collection.drafts"
-      :can-restore="canSave"
-      :reload-key="historyKey"
-      :query="localeQuery({ editing: true })"
-      @restored="(d) => show(d as Doc, t('history.restored'))"
-    />
+      </aside>
     </div>
 
     <ConfirmDialog
@@ -404,26 +450,55 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
   top: 0;
   z-index: 5;
   display: flex;
-  align-items: flex-start;
+  align-items: flex-end;
   justify-content: space-between;
-  gap: 1rem;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
   padding: 0.75rem 0 1rem;
   margin-top: -0.75rem;
   background: var(--bg);
 }
+.title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
 .back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  align-self: flex-start;
+  margin-left: -0.2rem;
+  color: var(--faint);
   font-size: 0.85rem;
   text-decoration: none;
 }
-.locale-switcher {
-  margin-top: 0.5rem;
+.back:hover {
+  color: var(--text);
 }
-.meta {
+.title-row {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  margin: 0.35rem 0 0;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  min-width: 0;
+}
+.title-row h1 {
+  overflow-wrap: anywhere;
+}
+.unsaved {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-muted);
   font-size: 0.85rem;
+}
+.dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: var(--warning-text);
 }
 .actions {
   display: flex;
@@ -432,32 +507,73 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
   justify-content: flex-end;
   gap: 0.5rem;
 }
-.status {
-  font-size: 0.875rem;
-  font-weight: 550;
-}
-.status.success {
-  color: var(--accent);
-}
-.status.error {
-  color: var(--danger);
-}
-.editor-body.with-history {
+.editor-body.with-sidebar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 17rem;
+  grid-template-columns: minmax(0, 1fr) 19rem;
   align-items: start;
-  gap: 1rem;
+  gap: 1.25rem;
 }
 .editor-body.with-preview {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   align-items: start;
+  gap: 1.25rem;
+}
+.sidebar {
+  position: sticky;
+  top: 5.5rem;
+  display: flex;
+  flex-direction: column;
   gap: 1rem;
 }
-@media (max-width: 900px) {
-  .editor-body.with-history,
+.side-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1rem;
+}
+.side-card h2 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.facts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin: 0;
+  font-size: 0.875rem;
+}
+.facts div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.facts dt {
+  color: var(--text-muted);
+}
+.facts dd {
+  margin: 0;
+  text-align: right;
+}
+.side-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--border);
+}
+.side-actions .btn {
+  flex: 1 1 auto;
+}
+@media (max-width: 1100px) {
+  .editor-body.with-sidebar,
   .editor-body.with-preview {
     grid-template-columns: 1fr;
+  }
+  .sidebar {
+    position: static;
   }
 }
 .form-body {

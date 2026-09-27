@@ -43,6 +43,7 @@ await cms.schedule('posts', 12, { action: 'publish', at: new Date('2026-10-01T02
 await cms.runJobs() // what servers do every minute: scheduled jobs and webhook retries
 await cms.runScheduled() // only scheduled publishing
 await cms.retryWebhooks() // only webhook deliveries that failed earlier
+await cms.upcomingJobs({ limit: 10 }) // next scheduled publishes across the site
 await cms.flushWebhooks() // wait for webhook deliveries (serverless)
 ```
 

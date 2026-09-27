@@ -215,6 +215,9 @@ async function route(
     if (!ctx.user) throw new UnauthorizedError()
     if (second === 'schema' && third === undefined)
       return { body: await adminSchema(cms, ctx.user) }
+    // /admin/scheduled → the next scheduled publishes the user may manage (dashboard)
+    if (second === 'scheduled' && third === undefined)
+      return { body: await cms.upcomingJobs({ user: ctx.user, overrideAccess: false }) }
     // /admin/access/:collection/:id → what the user may do with that document
     const [, , collection, id, extra] = segments
     if (second === 'access' && collection && id && extra === undefined) {
