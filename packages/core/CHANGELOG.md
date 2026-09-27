@@ -1,5 +1,11 @@
 # @easy-cms/core
 
+## 0.8.0
+
+### Minor Changes
+
+- e032e1c: Webhook deliveries are saved before the first attempt, so a process that stops while sending no longer loses the event; it is retried by the next `runJobs()` after 5 minutes.
+
 ## 0.7.0
 
 ### Minor Changes
