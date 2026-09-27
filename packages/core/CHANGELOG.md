@@ -1,5 +1,14 @@
 # @easy-cms/core
 
+## 0.6.0
+
+### Minor Changes
+
+- a76cf49: Blocks field: `{ type: 'blocks', blocks: [{ slug, fields }] }` holds rows of different kinds (`{ id, blockType, ...fields }`), validated, populated and typed as a union, with an admin editor to add, reorder and remove blocks. Inferred types now treat arrays, blocks, groups and hasMany fields as always present.
+- a76cf49: Localized arrays and hasMany fields: one list per locale (child tables get a `_locale` column; existing rows become the default locale's), queryable as `tags.en`. Reads with `locale: 'all'` no longer turn localized relationships into `null`.
+- a76cf49: Scheduled publishing: `schedule: true` on collections or globals with drafts. `cms.schedule(collection, id, { action, at })`, a Schedule button in the admin, a per-minute runner in long-running servers, `GET <api>/jobs/run` for cron (Bearer `CRON_SECRET`) and `easy-cms run-scheduled`.
+- a76cf49: Webhooks: `webhooks: [{ url, events?, collections?, globals?, secret? }]` POSTs signed JSON (`x-easy-cms-signature`) on create, update, delete, publish, unpublish and draft saves, with retries, without slowing saves; `cms.flushWebhooks()` for serverless.
+
 ## 0.5.0
 
 ### Minor Changes

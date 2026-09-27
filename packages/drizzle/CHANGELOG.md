@@ -1,5 +1,20 @@
 # @easy-cms/drizzle
 
+## 0.6.0
+
+### Minor Changes
+
+- a76cf49: Blocks field: `{ type: 'blocks', blocks: [{ slug, fields }] }` holds rows of different kinds (`{ id, blockType, ...fields }`), validated, populated and typed as a union, with an admin editor to add, reorder and remove blocks. Inferred types now treat arrays, blocks, groups and hasMany fields as always present.
+- a76cf49: Localized arrays and hasMany fields: one list per locale (child tables get a `_locale` column; existing rows become the default locale's), queryable as `tags.en`. Reads with `locale: 'all'` no longer turn localized relationships into `null`.
+
+### Patch Changes
+
+- Updated dependencies [a76cf49]
+- Updated dependencies [a76cf49]
+- Updated dependencies [a76cf49]
+- Updated dependencies [a76cf49]
+  - @easy-cms/core@0.6.0
+
 ## 0.5.0
 
 ### Minor Changes

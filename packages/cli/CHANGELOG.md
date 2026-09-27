@@ -1,5 +1,20 @@
 # easy-cms
 
+## 0.6.0
+
+### Minor Changes
+
+- a76cf49: Scheduled publishing: `schedule: true` on collections or globals with drafts. `cms.schedule(collection, id, { action, at })`, a Schedule button in the admin, a per-minute runner in long-running servers, `GET <api>/jobs/run` for cron (Bearer `CRON_SECRET`) and `easy-cms run-scheduled`.
+
+### Patch Changes
+
+- Updated dependencies [a76cf49]
+- Updated dependencies [a76cf49]
+- Updated dependencies [a76cf49]
+- Updated dependencies [a76cf49]
+  - @easy-cms/core@0.6.0
+  - @easy-cms/admin@0.6.0
+
 ## 0.5.0
 
 ### Patch Changes
