@@ -12,7 +12,8 @@
       "!**/.pglite*",
       "!**/next-env.d.ts",
       "!**/.tmp",
-      "!**/test-results"
+      "!**/test-results",
+      "!**/easy-cms/migrations"
     ]
   },
   "formatter": {

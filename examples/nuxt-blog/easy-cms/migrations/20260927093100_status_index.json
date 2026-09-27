@@ -68,16 +68,12 @@
         "indexes": {
           "ecms_users_created_at_idx": {
             "name": "ecms_users_created_at_idx",
-            "columns": [
-              "created_at"
-            ],
+            "columns": ["created_at"],
             "isUnique": false
           },
           "ecms_users_email_unique": {
             "name": "ecms_users_email_unique",
-            "columns": [
-              "email"
-            ],
+            "columns": ["email"],
             "isUnique": true
           }
         },
@@ -170,16 +166,12 @@
         "indexes": {
           "ecms_media_created_at_idx": {
             "name": "ecms_media_created_at_idx",
-            "columns": [
-              "created_at"
-            ],
+            "columns": ["created_at"],
             "isUnique": false
           },
           "ecms_media_filename_unique": {
             "name": "ecms_media_filename_unique",
-            "columns": [
-              "filename"
-            ],
+            "columns": ["filename"],
             "isUnique": true
           }
         },
@@ -230,16 +222,12 @@
         "indexes": {
           "ecms_categories_created_at_idx": {
             "name": "ecms_categories_created_at_idx",
-            "columns": [
-              "created_at"
-            ],
+            "columns": ["created_at"],
             "isUnique": false
           },
           "ecms_categories_slug_unique": {
             "name": "ecms_categories_slug_unique",
-            "columns": [
-              "slug"
-            ],
+            "columns": ["slug"],
             "isUnique": true
           }
         },
@@ -368,44 +356,32 @@
         "indexes": {
           "ecms_posts_status_idx": {
             "name": "ecms_posts_status_idx",
-            "columns": [
-              "status"
-            ],
+            "columns": ["status"],
             "isUnique": false
           },
           "ecms_posts_created_at_idx": {
             "name": "ecms_posts_created_at_idx",
-            "columns": [
-              "created_at"
-            ],
+            "columns": ["created_at"],
             "isUnique": false
           },
           "ecms_posts_slug_unique": {
             "name": "ecms_posts_slug_unique",
-            "columns": [
-              "slug"
-            ],
+            "columns": ["slug"],
             "isUnique": true
           },
           "ecms_posts_cover_idx": {
             "name": "ecms_posts_cover_idx",
-            "columns": [
-              "cover"
-            ],
+            "columns": ["cover"],
             "isUnique": false
           },
           "ecms_posts_category_idx": {
             "name": "ecms_posts_category_idx",
-            "columns": [
-              "category"
-            ],
+            "columns": ["category"],
             "isUnique": false
           },
           "ecms_posts_author_idx": {
             "name": "ecms_posts_author_idx",
-            "columns": [
-              "author"
-            ],
+            "columns": ["author"],
             "isUnique": false
           }
         },
@@ -449,16 +425,12 @@
         "indexes": {
           "ecms_posts__tags__parent_id_idx": {
             "name": "ecms_posts__tags__parent_id_idx",
-            "columns": [
-              "_parent_id"
-            ],
+            "columns": ["_parent_id"],
             "isUnique": false
           },
           "ecms_posts__tags_value_idx": {
             "name": "ecms_posts__tags_value_idx",
-            "columns": [
-              "value"
-            ],
+            "columns": ["value"],
             "isUnique": false
           }
         },
@@ -516,30 +488,22 @@
         "indexes": {
           "ecms_sessions_created_at_idx": {
             "name": "ecms_sessions_created_at_idx",
-            "columns": [
-              "created_at"
-            ],
+            "columns": ["created_at"],
             "isUnique": false
           },
           "ecms_sessions_token_hash_unique": {
             "name": "ecms_sessions_token_hash_unique",
-            "columns": [
-              "token_hash"
-            ],
+            "columns": ["token_hash"],
             "isUnique": true
           },
           "ecms_sessions_user_idx": {
             "name": "ecms_sessions_user_idx",
-            "columns": [
-              "user"
-            ],
+            "columns": ["user"],
             "isUnique": false
           },
           "ecms_sessions_expires_at_idx": {
             "name": "ecms_sessions_expires_at_idx",
-            "columns": [
-              "expires_at"
-            ],
+            "columns": ["expires_at"],
             "isUnique": false
           }
         },
@@ -583,16 +547,12 @@
         "indexes": {
           "ecms_login_attempts_created_at_idx": {
             "name": "ecms_login_attempts_created_at_idx",
-            "columns": [
-              "created_at"
-            ],
+            "columns": ["created_at"],
             "isUnique": false
           },
           "ecms_login_attempts_key_idx": {
             "name": "ecms_login_attempts_key_idx",
-            "columns": [
-              "key"
-            ],
+            "columns": ["key"],
             "isUnique": false
           }
         },
@@ -671,30 +631,22 @@
         "indexes": {
           "ecms_document_versions_created_at_idx": {
             "name": "ecms_document_versions_created_at_idx",
-            "columns": [
-              "created_at"
-            ],
+            "columns": ["created_at"],
             "isUnique": false
           },
           "ecms_document_versions_parent_idx": {
             "name": "ecms_document_versions_parent_idx",
-            "columns": [
-              "parent"
-            ],
+            "columns": ["parent"],
             "isUnique": false
           },
           "ecms_document_versions_doc_idx": {
             "name": "ecms_document_versions_doc_idx",
-            "columns": [
-              "doc"
-            ],
+            "columns": ["doc"],
             "isUnique": false
           },
           "ecms_document_versions_latest_idx": {
             "name": "ecms_document_versions_latest_idx",
-            "columns": [
-              "latest"
-            ],
+            "columns": ["latest"],
             "isUnique": false
           }
         },
@@ -780,37 +732,27 @@
         "indexes": {
           "ecms_scheduled_jobs_created_at_idx": {
             "name": "ecms_scheduled_jobs_created_at_idx",
-            "columns": [
-              "created_at"
-            ],
+            "columns": ["created_at"],
             "isUnique": false
           },
           "ecms_scheduled_jobs_parent_idx": {
             "name": "ecms_scheduled_jobs_parent_idx",
-            "columns": [
-              "parent"
-            ],
+            "columns": ["parent"],
             "isUnique": false
           },
           "ecms_scheduled_jobs_doc_idx": {
             "name": "ecms_scheduled_jobs_doc_idx",
-            "columns": [
-              "doc"
-            ],
+            "columns": ["doc"],
             "isUnique": false
           },
           "ecms_scheduled_jobs_run_at_idx": {
             "name": "ecms_scheduled_jobs_run_at_idx",
-            "columns": [
-              "run_at"
-            ],
+            "columns": ["run_at"],
             "isUnique": false
           },
           "ecms_scheduled_jobs_state_idx": {
             "name": "ecms_scheduled_jobs_state_idx",
-            "columns": [
-              "state"
-            ],
+            "columns": ["state"],
             "isUnique": false
           }
         },
@@ -872,10 +814,7 @@
     "easyCms": {
       "localization": {
         "defaultLocale": "th",
-        "locales": [
-          "th",
-          "en"
-        ]
+        "locales": ["th", "en"]
       }
     }
   }

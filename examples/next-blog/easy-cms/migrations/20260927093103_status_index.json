@@ -1059,10 +1059,7 @@
     "easyCms": {
       "localization": {
         "defaultLocale": "th",
-        "locales": [
-          "th",
-          "en"
-        ]
+        "locales": ["th", "en"]
       }
     }
   }
