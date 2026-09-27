@@ -80,6 +80,8 @@ export interface CollectionConfig {
   /** URL and table name. Lowercase letters, digits, `-` and `_`. */
   readonly slug: string
   readonly labels?: { readonly singular?: Label; readonly plural?: Label }
+  /** Icon in the admin menu. Default `file-text`. */
+  readonly icon?: AdminIcon
   readonly fields: readonly Field[]
   /** Top-level field shown as the document title in the admin UI. */
   readonly useAsTitle?: string
@@ -102,6 +104,8 @@ export interface CollectionConfig {
 export interface GlobalConfig {
   readonly slug: string
   readonly label?: Label
+  /** Icon in the admin menu. Default `settings`. */
+  readonly icon?: AdminIcon
   readonly fields: readonly Field[]
   readonly drafts?: boolean
   /** Keep a snapshot of every save. See `CollectionConfig.versions`. */
@@ -116,11 +120,76 @@ export interface GlobalConfig {
 
 export type AdminLocale = 'en' | 'th'
 
+/** Icons a collection or global can show in the admin menu ([Lucide](https://lucide.dev) names). */
+export const ADMIN_ICONS = [
+  'file-text',
+  'newspaper',
+  'book-open',
+  'notebook',
+  'folder',
+  'tag',
+  'tags',
+  'image',
+  'images',
+  'video',
+  'music',
+  'file',
+  'users',
+  'user',
+  'building',
+  'store',
+  'shopping-bag',
+  'shopping-cart',
+  'package',
+  'box',
+  'calendar',
+  'calendar-days',
+  'map-pin',
+  'globe',
+  'house',
+  'layout-grid',
+  'layers',
+  'star',
+  'heart',
+  'message-square',
+  'mail',
+  'phone',
+  'briefcase',
+  'graduation-cap',
+  'utensils',
+  'car',
+  'settings',
+  'sliders-horizontal',
+  'palette',
+  'megaphone',
+  'bell',
+  'link',
+  'quote',
+  'circle-help',
+  'award',
+  'ticket',
+  'camera',
+] as const
+
+export type AdminIcon = (typeof ADMIN_ICONS)[number]
+
+/** Your or your client's brand in the admin UI. */
+export interface AdminBrand {
+  /** Shown in the menu, on the login page and in the browser tab. Default "Easy CMS". */
+  readonly name?: string
+  /** Logo URL: a path on your site (`/logo.svg`) or an `https://` address. */
+  readonly logo?: string
+  /** Main color as `#rrggbb`; lighter and darker shades are derived from it. */
+  readonly color?: string
+}
+
 export interface AdminConfig {
   /** Where the admin UI is served. Default `/admin`. */
   readonly path?: string
   /** Default admin UI language. Default `en`. */
   readonly locale?: AdminLocale
+  /** Name, logo and color of the admin UI. */
+  readonly brand?: AdminBrand
 }
 
 export interface ImageSize {

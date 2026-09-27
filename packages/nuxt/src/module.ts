@@ -151,6 +151,7 @@ declare module '${SERVER}' {
       basePath: adminPath,
       apiPath,
       locale: rawConfig?.admin?.locale ?? 'en',
+      brand: rawConfig?.admin?.brand ?? {},
     })
     nitro.virtual[ADMIN_SHELL] = `export const basePath = ${JSON.stringify(adminPath)}
 export const html = ${JSON.stringify(shell)}

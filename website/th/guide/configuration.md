@@ -44,6 +44,7 @@ export default defineConfig({
 | `routes.api` | `/api/cms` | ตำแหน่งที่ให้บริการ REST API |
 | `admin.path` | `/admin` | ตำแหน่งที่ให้บริการหน้า admin |
 | `admin.locale` | `en` | ภาษาเริ่มต้นของหน้า admin: `en` หรือ `th` |
+| `admin.brand` | — | `{ name, logo, color }`: แบรนด์ของคุณหรือลูกค้าในหน้า admin ดู[ใส่แบรนด์ให้หน้า admin](#branding-the-admin) |
 | `auth` | | ดู [ผู้ใช้และการยืนยันตัวตน](./auth) |
 | `upload` | | ดู [การอัปโหลดและ media](./uploads) |
 | `collections` | `[]` | ดูด้านล่าง |
@@ -60,6 +61,7 @@ collection คือประเภทของเนื้อหาที่ม
 | `fields` | [field](./fields) ทั้งหมด |
 | `labels` | `{ singular, plural }` แต่ละค่าเป็น string หรือ `{ en, th }` |
 | `useAsTitle` | field ระดับบนสุดที่แสดงเป็นชื่อเอกสารในหน้า admin |
+| `icon` | ไอคอนในเมนูของหน้า admin (ค่าเริ่มต้น `file-text`) เลือกจากรายชื่อใน[ใส่แบรนด์ให้หน้า admin](#branding-the-admin) |
 | `drafts` | เพิ่ม `status` (`draft` \| `published`) ดู [ฉบับร่าง (draft)](./drafts) |
 | `versions` | `true` หรือ `{ max }`: เก็บเวอร์ชันของการบันทึกทุกครั้ง พร้อมประวัติและการกู้คืน ถ้ามี `drafts` ด้วย ฉบับร่างของเอกสารที่เผยแพร่แล้วจะถูกเก็บแยก ดู [เวอร์ชัน](./drafts#versions) |
 | `preview` | `({ doc }) => url`: หน้าที่แสดงเอกสาร สำหรับ [ตัวอย่างสด](./live-preview) |
@@ -93,8 +95,31 @@ globals: [
 ],
 ```
 
-global รองรับ `fields`, `label`, `drafts`, `versions`, `preview`, `access` (`read`, `update`) และ `hooks`
+global รองรับ `fields`, `label`, `icon`, `drafts`, `versions`, `preview`, `access` (`read`, `update`) และ `hooks`
 (`beforeChange`, `afterChange`, `afterRead`)
+
+## ใส่แบรนด์ให้หน้า admin {#branding-the-admin}
+
+agency แสดงแบรนด์ของลูกค้าแทน Easy CMS ได้:
+
+```ts
+admin: {
+  brand: {
+    name: 'Acme Coffee',     // เมนู หน้าเข้าสู่ระบบ และแท็บของเบราว์เซอร์
+    logo: '/acme-logo.svg',  // path บนเว็บของคุณ หรือ URL แบบ https://
+    color: '#b45309',        // สีหลัก เฉดสว่างและเข้มจะคำนวณให้เอง
+  },
+},
+collections: [
+  { slug: 'posts', icon: 'newspaper', fields: [/* … */] },
+  { slug: 'menu', icon: 'utensils', fields: [/* … */] },
+],
+globals: [{ slug: 'site', icon: 'house', fields: [/* … */] }],
+```
+
+ตัวอักษรบนสีแบรนด์จะเปลี่ยนเป็นสีเข้มเมื่อสีขาวอ่านยาก ผู้ใช้แต่ละคนเลือกธีมสว่าง มืด หรือตามระบบได้จากเมนู
+
+ไอคอน ([Lucide](https://lucide.dev)): `file-text`, `newspaper`, `book-open`, `notebook`, `folder`, `tag`, `tags`, `image`, `images`, `video`, `music`, `file`, `users`, `user`, `building`, `store`, `shopping-bag`, `shopping-cart`, `package`, `box`, `calendar`, `calendar-days`, `map-pin`, `globe`, `house`, `layout-grid`, `layers`, `star`, `heart`, `message-square`, `mail`, `phone`, `briefcase`, `graduation-cap`, `utensils`, `car`, `settings`, `sliders-horizontal`, `palette`, `megaphone`, `bell`, `link`, `quote`, `circle-help`, `award`, `ticket`, `camera`
 
 ## Plugins {#plugins}
 

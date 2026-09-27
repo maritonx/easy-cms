@@ -73,6 +73,7 @@ export function withUsers(config: Config): Config {
     slug: USERS,
     labels: { singular: { en: 'User', th: 'ผู้ใช้' }, plural: { en: 'Users', th: 'ผู้ใช้' } },
     useAsTitle: 'email',
+    icon: 'users',
     ...custom,
     fields: [...userFields(roles), ...(custom?.fields ?? [])],
     access: {
@@ -148,6 +149,7 @@ export function withMedia(config: Config): Config {
   const media: CollectionConfig = {
     slug: MEDIA,
     labels: { singular: { en: 'Media', th: 'สื่อ' }, plural: { en: 'Media', th: 'คลังสื่อ' } },
+    icon: 'image',
     useAsTitle: 'filename',
     ...custom,
     fields: [...mediaFields(), ...(custom?.fields ?? [])],

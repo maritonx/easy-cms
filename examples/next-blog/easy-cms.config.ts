@@ -13,6 +13,7 @@ export default defineConfig({
   collections: [
     {
       slug: 'categories',
+      icon: 'tag',
       useAsTitle: 'name',
       access: { read: () => true },
       fields: [
@@ -22,6 +23,7 @@ export default defineConfig({
     },
     {
       slug: 'posts',
+      icon: 'newspaper',
       drafts: true,
       // History and restore; drafts of a published post stay unpublished until published.
       versions: true,
@@ -77,6 +79,7 @@ export default defineConfig({
   globals: [
     {
       slug: 'site',
+      icon: 'house',
       access: { read: () => true },
       fields: [
         { name: 'siteName', type: 'text', defaultValue: 'Easy CMS Blog', localized: true },

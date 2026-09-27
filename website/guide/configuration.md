@@ -44,6 +44,7 @@ and how to fix it.
 | `routes.api` | `/api/cms` | Where the REST API is served. |
 | `admin.path` | `/admin` | Where the admin UI is served. |
 | `admin.locale` | `en` | Default admin language: `en` or `th`. |
+| `admin.brand` | — | `{ name, logo, color }`: your or your client's brand in the admin. See [Branding the admin](#branding-the-admin). |
 | `auth` | | See [Users & auth](./auth). |
 | `upload` | | See [Uploads & media](./uploads). |
 | `collections` | `[]` | See below. |
@@ -60,6 +61,7 @@ A collection is a type of content with many documents: posts, products, pages.
 | `fields` | The [fields](./fields). |
 | `labels` | `{ singular, plural }`, each a string or `{ en, th }`. |
 | `useAsTitle` | Top-level field shown as the document title in the admin. |
+| `icon` | Icon in the admin menu (default `file-text`); one of the names under [Branding the admin](#branding-the-admin). |
 | `drafts` | Adds `status` (`draft` \| `published`). See [Drafts](./drafts). |
 | `versions` | `true` or `{ max }`: keep a version of every save, with history and restore; with `drafts`, drafts of published documents are kept separately. See [Versions](./drafts#versions). |
 | `preview` | `({ doc }) => url`: the page that shows a document, for [live preview](./live-preview). |
@@ -93,8 +95,32 @@ globals: [
 ],
 ```
 
-Globals accept `fields`, `label`, `drafts`, `versions`, `preview`, `access` (`read`, `update`) and `hooks`
+Globals accept `fields`, `label`, `icon`, `drafts`, `versions`, `preview`, `access` (`read`, `update`) and `hooks`
 (`beforeChange`, `afterChange`, `afterRead`).
+
+## Branding the admin
+
+Agencies can show their client's brand instead of Easy CMS's:
+
+```ts
+admin: {
+  brand: {
+    name: 'Acme Coffee',     // menu, login page and browser tab
+    logo: '/acme-logo.svg',  // a path on your site or an https:// URL
+    color: '#b45309',        // main color; lighter and darker shades are derived
+  },
+},
+collections: [
+  { slug: 'posts', icon: 'newspaper', fields: [/* … */] },
+  { slug: 'menu', icon: 'utensils', fields: [/* … */] },
+],
+globals: [{ slug: 'site', icon: 'house', fields: [/* … */] }],
+```
+
+Text on the brand color turns dark when white would be hard to read. Each user picks light,
+dark or their system's theme in the menu.
+
+Icons ([Lucide](https://lucide.dev)): `file-text`, `newspaper`, `book-open`, `notebook`, `folder`, `tag`, `tags`, `image`, `images`, `video`, `music`, `file`, `users`, `user`, `building`, `store`, `shopping-bag`, `shopping-cart`, `package`, `box`, `calendar`, `calendar-days`, `map-pin`, `globe`, `house`, `layout-grid`, `layers`, `star`, `heart`, `message-square`, `mail`, `phone`, `briefcase`, `graduation-cap`, `utensils`, `car`, `settings`, `sliders-horizontal`, `palette`, `megaphone`, `bell`, `link`, `quote`, `circle-help`, `award`, `ticket`, `camera`.
 
 ## Plugins
 

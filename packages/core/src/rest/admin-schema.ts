@@ -35,6 +35,7 @@ export interface AdminField {
 export interface AdminCollection {
   slug: string
   labels?: { singular?: Label; plural?: Label }
+  icon?: string
   useAsTitle?: string
   drafts: boolean
   versions: boolean
@@ -49,6 +50,7 @@ export interface AdminCollection {
 export interface AdminGlobal {
   slug: string
   label?: Label
+  icon?: string
   drafts: boolean
   versions: boolean
   /** Has live preview (`preview` in the config). */
@@ -163,6 +165,7 @@ async function collection(
   }
   if (config.labels) result.labels = config.labels
   if (config.useAsTitle) result.useAsTitle = config.useAsTitle
+  if (config.icon) result.icon = config.icon
   return result
 }
 
@@ -188,6 +191,7 @@ async function global(
     },
   }
   if (config.label !== undefined) result.label = config.label
+  if (config.icon) result.icon = config.icon
   return result
 }
 

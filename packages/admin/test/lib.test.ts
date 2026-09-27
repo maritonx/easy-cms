@@ -1,4 +1,4 @@
-import type { AdminField } from '@easy-cms/core'
+import { ADMIN_ICONS, type AdminField } from '@easy-cms/core'
 import { describe, expect, it } from 'vitest'
 import { toQuery } from '../app/src/lib/api'
 import {
@@ -10,6 +10,8 @@ import {
   toLocalInput,
 } from '../app/src/lib/fields'
 import { humanize, label, setLocale, singularize, t } from '../app/src/lib/i18n'
+import { ICON_NAMES } from '../app/src/lib/icons'
+import { initials, textOn } from '../app/src/lib/theme'
 
 const fields: AdminField[] = [
   { name: 'title', type: 'text', required: true },
@@ -132,5 +134,25 @@ describe('i18n', () => {
       'status',
       'new',
     ])
+  })
+})
+
+describe('theme', () => {
+  it('picks readable text on the brand color', () => {
+    expect(textOn('#0f766e')).toBe('#ffffff')
+    expect(textOn('#1d4ed8')).toBe('#ffffff')
+    expect(textOn('#facc15')).toBe('#18181b')
+    expect(textOn('#ffffff')).toBe('#18181b')
+  })
+
+  it('makes avatar initials from a name or an email', () => {
+    expect(initials('ada.lovelace@example.com')).toBe('AL')
+    expect(initials('admin@example.com')).toBe('AD')
+    expect(initials('สมชาย')).toBe('สม')
+    expect(initials(undefined)).toBe('?')
+  })
+
+  it('has a menu icon for every name the config accepts', () => {
+    expect([...ICON_NAMES].sort()).toEqual([...ADMIN_ICONS].sort())
   })
 })

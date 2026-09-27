@@ -23,7 +23,7 @@ describe('createAdminHandler', () => {
       const html = await res.text()
       expect(html).toContain('<base href="/cms/">')
       expect(html).toContain(
-        'content="{&quot;adminPath&quot;:&quot;/cms&quot;,&quot;apiPath&quot;:&quot;/api/content&quot;,&quot;locale&quot;:&quot;th&quot;}"',
+        'content="{&quot;adminPath&quot;:&quot;/cms&quot;,&quot;apiPath&quot;:&quot;/api/content&quot;,&quot;locale&quot;:&quot;th&quot;,&quot;brand&quot;:{}}"',
       )
     }
   })
@@ -80,6 +80,21 @@ describe('renderShell', () => {
   it('escapes injected values', () => {
     const html = renderShell('<head></head>', { basePath: '/a"b' })
     expect(html).toContain('<base href="/a&quot;b/">')
+  })
+
+  it('passes the brand to the app, escaped', () => {
+    const html = renderShell('<head></head>', {
+      brand: { name: 'Acme "Co" <x>', logo: '/logo.svg', color: '#0f766e' },
+    })
+    const content = /<meta name="easy-cms" content="([^"]*)">/.exec(html)?.[1] ?? ''
+    expect(content).not.toContain('<')
+    const settings = JSON.parse(
+      content
+        .replace(/&quot;/g, '"')
+        .replace(/&lt;/g, '<')
+        .replace(/&amp;/g, '&'),
+    )
+    expect(settings.brand).toEqual({ name: 'Acme "Co" <x>', logo: '/logo.svg', color: '#0f766e' })
   })
 })
 

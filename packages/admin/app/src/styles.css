@@ -1,49 +1,88 @@
 :root {
-  --bg: #f7f7f5;
+  /* The brand color; `admin.brand.color` replaces it, and every accent shade derives from it. */
+  --brand: #0f766e;
+  --bg: #f6f6f7;
   --surface: #ffffff;
-  --surface-2: #f1f1ee;
-  --border: #deded8;
-  --border-strong: #c4c4bc;
-  --text: #1d1f1e;
-  --text-muted: #5f635f;
-  --accent: #2f6f5e;
-  --accent-hover: #255a4c;
-  --accent-soft: #e3efe9;
+  --surface-2: #f2f2f4;
+  --border: #e5e5e8;
+  --border-strong: #d4d4d8;
+  --text: #18181b;
+  --text-muted: #52525b;
+  --faint: #6b6b74;
+  --accent: var(--brand);
+  --accent-hover: color-mix(in srgb, var(--brand) 86%, #000);
+  --accent-soft: color-mix(in srgb, var(--brand) 9%, var(--surface));
+  --accent-ink: color-mix(in srgb, var(--brand) 92%, #000);
   --accent-text: #ffffff;
-  --danger: #b3261e;
-  --danger-soft: #fbe9e7;
-  --warning-soft: #fff4d6;
-  --warning-text: #6b4e00;
-  --success-soft: #e3efe9;
-  --focus: #2f6f5e;
-  --radius: 8px;
-  --radius-sm: 6px;
-  --shadow: 0 1px 2px rgb(0 0 0 / 6%), 0 4px 16px rgb(0 0 0 / 6%);
-  --font: "Inter", "Noto Sans Thai", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --danger: #b42318;
+  --danger-soft: #fef3f2;
+  --warning-soft: #fef6e7;
+  --warning-text: #93370d;
+  --ok: #067647;
+  --success-soft: #ecfdf3;
+  --info: #175cd3;
+  --info-soft: #eff6ff;
+  --focus: var(--brand);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 12px 32px rgb(24 24 27 / 10%), 0 2px 6px rgb(24 24 27 / 6%);
+  --shadow-sm: 0 1px 2px rgb(24 24 27 / 8%);
+  --font: "Anuphan Variable", "Noto Sans Thai", system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: ui-monospace, "SF Mono", Menlo, monospace;
   color-scheme: light;
 }
 
+/* Dark: chosen in the menu (data-theme), or by the operating system unless light was chosen. */
+:root[data-theme="dark"] {
+  --bg: #0c0c0e;
+  --surface: #141417;
+  --surface-2: #1d1d21;
+  --border: #28282d;
+  --border-strong: #3a3a41;
+  --text: #f4f4f5;
+  --text-muted: #b4b4bc;
+  --faint: #8e8e98;
+  --accent-hover: color-mix(in srgb, var(--brand) 85%, #fff);
+  --accent-soft: color-mix(in srgb, var(--brand) 24%, var(--surface));
+  --accent-ink: color-mix(in srgb, var(--brand) 50%, #fff);
+  --danger: #f97066;
+  --danger-soft: color-mix(in srgb, #f97066 14%, var(--surface));
+  --warning-soft: color-mix(in srgb, #fdb022 14%, var(--surface));
+  --warning-text: #fdb022;
+  --ok: #47cd89;
+  --success-soft: color-mix(in srgb, #47cd89 14%, var(--surface));
+  --info: #6cb8ff;
+  --info-soft: color-mix(in srgb, #6cb8ff 14%, var(--surface));
+  --focus: var(--accent-ink);
+  --shadow: 0 12px 32px rgb(0 0 0 / 45%), 0 2px 6px rgb(0 0 0 / 30%);
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
+  color-scheme: dark;
+}
+
 @media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #141615;
-    --surface: #1c1f1d;
-    --surface-2: #242826;
-    --border: #333835;
-    --border-strong: #4a504c;
-    --text: #e8eae8;
-    --text-muted: #a3a9a5;
-    --accent: #6fbfa5;
-    --accent-hover: #86cdb6;
-    --accent-soft: #203a32;
-    --accent-text: #0e1f19;
-    --danger: #ff8a80;
-    --danger-soft: #3a1f1d;
-    --warning-soft: #3a3016;
-    --warning-text: #f3d27a;
-    --success-soft: #203a32;
-    --focus: #6fbfa5;
-    --shadow: 0 1px 2px rgb(0 0 0 / 30%), 0 4px 16px rgb(0 0 0 / 30%);
+  :root:not([data-theme="light"]) {
+    --bg: #0c0c0e;
+    --surface: #141417;
+    --surface-2: #1d1d21;
+    --border: #28282d;
+    --border-strong: #3a3a41;
+    --text: #f4f4f5;
+    --text-muted: #b4b4bc;
+    --faint: #8e8e98;
+    --accent-hover: color-mix(in srgb, var(--brand) 85%, #fff);
+    --accent-soft: color-mix(in srgb, var(--brand) 24%, var(--surface));
+    --accent-ink: color-mix(in srgb, var(--brand) 50%, #fff);
+    --danger: #f97066;
+    --danger-soft: color-mix(in srgb, #f97066 14%, var(--surface));
+    --warning-soft: color-mix(in srgb, #fdb022 14%, var(--surface));
+    --warning-text: #fdb022;
+    --ok: #47cd89;
+    --success-soft: color-mix(in srgb, #47cd89 14%, var(--surface));
+    --info: #6cb8ff;
+    --info-soft: color-mix(in srgb, #6cb8ff 14%, var(--surface));
+    --focus: var(--accent-ink);
+    --shadow: 0 12px 32px rgb(0 0 0 / 45%), 0 2px 6px rgb(0 0 0 / 30%);
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
     color-scheme: dark;
   }
 }
@@ -66,7 +105,7 @@ body {
 }
 
 a {
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 h1,
@@ -77,8 +116,9 @@ h3 {
 }
 
 h1 {
-  font-size: 1.5rem;
-  font-weight: 650;
+  font-size: 1.6rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 :focus-visible {
@@ -108,10 +148,17 @@ h1 {
   background: var(--surface);
   color: var(--text);
   font: inherit;
-  font-weight: 550;
+  font-weight: 500;
   cursor: pointer;
   text-decoration: none;
   white-space: nowrap;
+  transition:
+    background-color 0.12s,
+    border-color 0.12s,
+    color 0.12s;
+}
+.btn svg {
+  flex-shrink: 0;
 }
 .btn:hover:not(:disabled) {
   background: var(--surface-2);
@@ -130,8 +177,8 @@ h1 {
 }
 .btn-danger {
   color: var(--danger);
-  border-color: var(--danger);
-  background: transparent;
+  border-color: var(--border-strong);
+  background: var(--surface);
 }
 .btn-danger:hover:not(:disabled) {
   background: var(--danger-soft);
@@ -139,6 +186,10 @@ h1 {
 .btn-ghost {
   border-color: transparent;
   background: transparent;
+  color: var(--text-muted);
+}
+.btn-ghost:hover:not(:disabled) {
+  color: var(--text);
 }
 .btn-sm {
   min-height: 1.9rem;
@@ -170,14 +221,14 @@ h1 {
   margin-left: 0.4rem;
   padding: 0 0.35rem;
   border-radius: 4px;
-  background: var(--accent-soft, var(--border));
-  color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
   font-size: 0.7rem;
   font-weight: 650;
   vertical-align: middle;
 }
 .field-hint {
-  color: var(--text-muted);
+  color: var(--faint);
   font-size: 0.85rem;
 }
 .field-error {
@@ -189,8 +240,8 @@ h1 {
 .select,
 .textarea {
   width: 100%;
-  min-height: 2.4rem;
-  padding: 0.45rem 0.7rem;
+  min-height: 2.5rem;
+  padding: 0.45rem 0.75rem;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   background: var(--surface);
@@ -210,7 +261,7 @@ h1 {
 .textarea:focus {
   outline: none;
   border-color: var(--focus);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 22%, transparent);
 }
 .input[aria-invalid="true"],
 .select[aria-invalid="true"],
@@ -248,22 +299,40 @@ fieldset {
   border-radius: var(--radius);
 }
 .badge {
-  display: inline-block;
-  padding: 0.1rem 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 1.5rem;
+  padding: 0 0.6rem;
   border-radius: 999px;
-  font-size: 0.78rem;
-  font-weight: 600;
+  font-size: 0.8rem;
+  font-weight: 500;
+  white-space: nowrap;
   background: var(--surface-2);
   color: var(--text-muted);
 }
+/* A status dot before document states. */
+.badge-published::before,
+.badge-draft::before,
+.badge-changed::before,
+.badge-scheduled::before {
+  content: "";
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: currentColor;
+}
 .badge-published {
   background: var(--success-soft);
-  color: var(--accent);
+  color: var(--ok);
 }
-.badge-draft,
 .badge-changed {
   background: var(--warning-soft);
   color: var(--warning-text);
+}
+.badge-scheduled {
+  background: var(--info-soft);
+  color: var(--info);
 }
 .notice {
   padding: 0.7rem 0.9rem;

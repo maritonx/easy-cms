@@ -1,4 +1,4 @@
-import type { CollectionConfig, Config, GlobalConfig } from './config.js'
+import { ADMIN_ICONS, type CollectionConfig, type Config, type GlobalConfig } from './config.js'
 import type { ConfigIssue } from './errors.js'
 import { FIELD_TYPES, type Field, type SelectOption } from './fields.js'
 import { WEBHOOK_EVENTS } from './webhooks.js'
@@ -70,10 +70,13 @@ export function validateConfig(config: Config): ConfigIssue[] {
     const path = `collections.${collection.slug ?? `[${i}]`}`
     validateContainer(collection, path, collectionSlugs, add)
     validateUseAsTitle(collection, path, add)
+    validateIcon(collection, path, add)
   })
 
   globals.forEach((global, i) => {
-    validateContainer(global, `globals.${global.slug ?? `[${i}]`}`, collectionSlugs, add)
+    const path = `globals.${global.slug ?? `[${i}]`}`
+    validateContainer(global, path, collectionSlugs, add)
+    validateIcon(global, path, add)
   })
 
   const plugins: unknown = config.plugins
@@ -112,6 +115,35 @@ function validateAdmin(config: Config, add: Add) {
   if (admin.locale !== undefined && admin.locale !== 'en' && admin.locale !== 'th') {
     add('admin.locale', `must be "en" or "th" (got ${JSON.stringify(admin.locale)})`)
   }
+  const brand: unknown = admin.brand
+  if (brand === undefined) return
+  if (typeof brand !== 'object' || brand === null) {
+    add('admin.brand', 'must be an object', "e.g. brand: { name: 'Acme', color: '#0f766e' }")
+    return
+  }
+  const { name, logo, color } = brand as Record<string, unknown>
+  if (name !== undefined && (typeof name !== 'string' || name.trim() === '')) {
+    add('admin.brand.name', 'must be a non-empty string')
+  }
+  if (
+    logo !== undefined &&
+    (typeof logo !== 'string' || !/^(\/|https?:\/\/|data:image\/)/.test(logo))
+  ) {
+    add(
+      'admin.brand.logo',
+      'must be a path starting with "/" or an http(s) URL',
+      "e.g. logo: '/logo.svg'",
+    )
+  }
+  if (color !== undefined && (typeof color !== 'string' || !/^#[0-9a-f]{6}$/i.test(color))) {
+    add('admin.brand.color', `must be a hex color like "#0f766e" (got ${JSON.stringify(color)})`)
+  }
+}
+
+function validateIcon(container: { icon?: unknown }, path: string, add: Add) {
+  const icon = container.icon
+  if (icon === undefined || (ADMIN_ICONS as readonly unknown[]).includes(icon)) return
+  add(`${path}.icon`, `unknown icon ${JSON.stringify(icon)}`, `one of: ${ADMIN_ICONS.join(', ')}`)
 }
 
 function validateAuth(config: Config, add: Add) {

@@ -9,6 +9,8 @@ export interface AdminHandlerOptions {
   readonly apiPath?: string
   /** Default UI language before the user picks one. Default `en`. */
   readonly locale?: 'en' | 'th'
+  /** Name, logo and main color shown in the admin (`admin.brand` in the config). */
+  readonly brand?: { readonly name?: string; readonly logo?: string; readonly color?: string }
   /** Directory with the built app. Defaults to the one shipped in this package. */
   readonly appDir?: string
   /**
@@ -77,6 +79,7 @@ export function renderShell(
     adminPath: basePath,
     apiPath: trimSlashes(options.apiPath ?? '/api/cms'),
     locale: options.locale ?? 'en',
+    brand: options.brand ?? {},
   })
   return source.replace(
     '<head>',

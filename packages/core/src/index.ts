@@ -27,7 +27,13 @@ export type {
   UploadConfig,
   VersionsConfig,
 } from './config.js'
-export { type Config, defineConfig } from './config.js'
+export {
+  ADMIN_ICONS,
+  type AdminBrand,
+  type AdminIcon,
+  type Config,
+  defineConfig,
+} from './config.js'
 export type * from './database.js'
 export {
   applyDefaults,

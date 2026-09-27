@@ -71,6 +71,34 @@ describe('validateConfig', () => {
     expect(issues.map((i) => i.path)).toEqual(['admin.path', 'admin.locale'])
   })
 
+  it('checks the admin brand and menu icons', () => {
+    expect(
+      validateConfig(
+        baseConfig({
+          admin: { brand: { name: 'Acme', logo: '/logo.svg', color: '#0F766E' } },
+          collections: [{ slug: 'posts', icon: 'newspaper', fields: [] }],
+          globals: [{ slug: 'site', icon: 'house', fields: [] }],
+        }),
+      ),
+    ).toEqual([])
+    const issues = validateConfig(
+      baseConfig({
+        admin: { brand: { name: ' ', logo: 'javascript:alert(1)', color: 'teal' } },
+        // @ts-expect-error unknown icon
+        collections: [{ slug: 'posts', icon: 'rocket', fields: [] }],
+        // @ts-expect-error unknown icon
+        globals: [{ slug: 'site', icon: 'nope', fields: [] }],
+      }),
+    )
+    expect(issues.map((i) => i.path)).toEqual([
+      'admin.brand.name',
+      'admin.brand.logo',
+      'admin.brand.color',
+      'collections.posts.icon',
+      'globals.site.icon',
+    ])
+  })
+
   it('checks auth options', () => {
     const issues = validateConfig(
       baseConfig({

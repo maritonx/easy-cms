@@ -53,6 +53,7 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
     admin: {
       path: config.admin?.path ?? DEFAULT_ADMIN_PATH,
       locale: config.admin?.locale ?? 'en',
+      brand: config.admin?.brand ?? {},
     },
     upload: {
       dir: config.upload?.dir ?? 'uploads',
