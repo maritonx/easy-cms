@@ -1,5 +1,16 @@
 # @easy-cms/drizzle
 
+## 0.9.0
+
+### Minor Changes
+
+- ce7f66d: `sort` works on fields in lists inside blocks (`layout.items.title`), using the first value found in block and row order.
+- ce7f66d: SQLite: a write waits (up to 10 s) for another process writing to the same file, instead of failing with "database is locked".
+
+### Patch Changes
+
+- @easy-cms/core@0.9.0
+
 ## 0.8.0
 
 ### Minor Changes
