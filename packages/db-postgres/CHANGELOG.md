@@ -1,5 +1,19 @@
 # @easy-cms/db-postgres
 
+## 0.8.0
+
+### Minor Changes
+
+- e032e1c: `where` reaches into lists inside blocks (`layout.items.title`, `layout.tags`, `layout.content.blockType`), and `sort` works on block fields (`-layout.columns`, using the first block that has the field).
+
+### Patch Changes
+
+- Updated dependencies [e032e1c]
+- Updated dependencies [e032e1c]
+- Updated dependencies [e032e1c]
+  - @easy-cms/drizzle@0.8.0
+  - @easy-cms/core@0.8.0
+
 ## 0.7.0
 
 ### Minor Changes
