@@ -5,7 +5,8 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "bench": "node bench.ts"
+    "bench": "node bench.ts",
+    "load": "node load.ts"
   },
   "devDependencies": {
     "@easy-cms/core": "workspace:^",

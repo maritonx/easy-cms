@@ -75,6 +75,11 @@ export interface Dialect {
    */
   someElement(array: AnyColumn | SQL, condition: (el: JsonElement) => SQL | undefined): SQL
   /**
+   * True when a JSON column contains `pattern` (Postgres `@>`, which can skip unpacking arrays).
+   * Optional: without it, equality inside blocks uses `someElement`.
+   */
+  jsonContains?(column: AnyColumn, pattern: unknown): SQL
+  /**
    * For sorting: the value at `path` in the first element that has one, stepping through the
    * nested `lists` in each element (in order) like `someElement`.
    */
@@ -84,6 +89,8 @@ export interface Dialect {
     path: readonly string[],
     type: JsonValueType,
   ): SQL
+  /** SQL that copies the whole database to a file while it is in use (SQLite: `VACUUM INTO`). */
+  backupSQL?(file: string): string
   /** Placeholder for the n-th parameter (1-based) in raw SQL. */
   param(n: number): string
   /** CREATE TABLE IF NOT EXISTS for the migrations table. */

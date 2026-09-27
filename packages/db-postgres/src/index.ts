@@ -72,6 +72,7 @@ export const postgresDialect: Dialect = {
     })
     return sql`exists (select 1 from jsonb_array_elements(${onlyArray(array)}) as ${el}(value)${where ? sql` where ${where}` : sql``})`
   },
+  jsonContains: (column, pattern) => sql`${column} @> ${JSON.stringify(pattern)}::jsonb`,
   firstElementValue: (array, lists, path, type) => {
     // Nested lists join to the element before them (functions in FROM are lateral); rows are
     // ordered by position at each level.

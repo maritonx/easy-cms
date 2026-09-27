@@ -54,3 +54,4 @@ field ที่เปลี่ยนไปถูกเปลี่ยนชื�
 - build บน OS และสถาปัตยกรรมเดียวกับ server เมื่อใช้ SQLite (native driver)
 - เมื่ออยู่หลัง proxy ที่เชื่อถือได้ ให้เปิด `trustProxy` เพื่อจำกัดอัตราการเข้าสู่ระบบแยกตาม IP
 - ตั้งค่า `auth.trustedOrigins` หากหน้า admin หรือ frontend เรียก API จาก origin อื่น
+- มี[backup](./backups)ของฐานข้อมูลและไฟล์อัปโหลด และเคยลองกู้คืนแล้ว

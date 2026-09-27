@@ -82,6 +82,7 @@ export const sqliteDialect: Dialect = {
     )
     return sql`(select ${value} from ${sql.join(from, sql`, `)} where ${value} is not null order by ${order} limit 1)`
   },
+  backupSQL: (file) => `VACUUM INTO '${file.replaceAll("'", "''")}'`,
   param: () => '?',
   migrationsTableSQL: (name) =>
     `CREATE TABLE IF NOT EXISTS \`${name}\` (

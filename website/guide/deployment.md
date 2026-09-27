@@ -54,3 +54,4 @@ When `EASY_CMS_SECRET` is missing, the API answers `500` and the log says
 - Build on the same OS and architecture as the server when using SQLite (native driver)
 - Behind a trusted proxy, enable `trustProxy` for per-IP login rate limiting
 - Set `auth.trustedOrigins` if the admin or frontend call the API from another origin
+- [Backups](./backups) of the database and uploads, and a restore you have tried

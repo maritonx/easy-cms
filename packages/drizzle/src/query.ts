@@ -339,8 +339,40 @@ export class WhereBuilder {
       if (inner === null) return undefined
       return operatorSQL(this.dialect, el.get(inner, type), field, op, value, path)
     }
+    const contains = this.containment(target, op, value)
+    if (contains) return contains
     const some = this.dialect.someElement(target.column, (el) => match(el, 0))
     return inner === null && value === false ? not(some) : some
+  }
+
+  /**
+   * `equals` and `in` as JSON containment where the database has it: `layout.items.title = x`
+   * becomes `layout @> [{"items": [{"title": x}]}]`, which matches exactly the same documents
+   * without unpacking every array.
+   */
+  private containment(
+    target: Extract<Target, { kind: 'blocks' }>,
+    op: string,
+    value: unknown,
+  ): SQL | undefined {
+    const { jsonContains } = this.dialect
+    const { lists, path, type, field } = target.value
+    if (!jsonContains || !path) return undefined
+    const values = op === 'equals' ? [value] : op === 'in' && Array.isArray(value) ? value : null
+    if (!values || values.length === 0 || values.some((v) => v === null || v === undefined))
+      return undefined
+    const nest = (segments: readonly string[], inner: unknown) =>
+      segments.reduceRight<unknown>((acc, segment) => ({ [segment]: acc }), inner)
+    const patterns = values.map((raw) => {
+      const coerced = coerce(field, raw)
+      // Stored as JSON types: text fields hold strings, so compare `5` as "5".
+      let pattern: unknown =
+        type === 'text' && typeof coerced !== 'string' ? String(coerced) : coerced
+      pattern = nest(path, pattern)
+      for (const list of [...lists].reverse()) pattern = nest(list, [pattern])
+      return jsonContains(target.column, [pattern])
+    })
+    return patterns.length === 1 ? patterns[0] : (or(...patterns) as SQL)
   }
 
   /** Conditions on array rows or hasMany values become (NOT) EXISTS subqueries. */

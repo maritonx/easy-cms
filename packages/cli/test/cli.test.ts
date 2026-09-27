@@ -1,4 +1,12 @@
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  copyFileSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { type IO, run } from '../src/index.js'
@@ -145,6 +153,38 @@ describe('easy-cms CLI (FR-INS-06..08)', () => {
     } finally {
       delete process.env.EASY_CMS_ADMIN_PASSWORD
     }
+  })
+
+  it('backs up a SQLite database to a new file', async () => {
+    const dir = project()
+    process.env.EASY_CMS_ADMIN_PASSWORD = 'a strong password'
+    try {
+      await cli('create-admin', '--email', 'ada@example.com', '--cwd', dir)
+    } finally {
+      delete process.env.EASY_CMS_ADMIN_PASSWORD
+    }
+    const first = await cli('backup', 'backups/cms.db', '--cwd', dir)
+    expect(first).toMatchObject({ code: 0, out: expect.stringContaining('Backed up the database') })
+    // Restored into another project, the copy has the data: the same admin already exists.
+    const restored = project()
+    copyFileSync(join(dir, 'backups/cms.db'), join(restored, 'cms.db'))
+    process.env.EASY_CMS_ADMIN_PASSWORD = 'a strong password'
+    try {
+      expect(
+        await cli('create-admin', '--email', 'ada@example.com', '--cwd', restored),
+      ).toMatchObject({ code: 1, err: 'email: must be unique' })
+    } finally {
+      delete process.env.EASY_CMS_ADMIN_PASSWORD
+    }
+
+    expect(await cli('backup', 'backups/cms.db', '--cwd', dir)).toMatchObject({
+      code: 1,
+      err: expect.stringContaining('already exists'),
+    })
+    expect(await cli('backup', '--cwd', dir)).toMatchObject({
+      code: 1,
+      err: expect.stringContaining('Missing backup file'),
+    })
   })
 
   it('asks for the email and a hidden password in a terminal', async () => {

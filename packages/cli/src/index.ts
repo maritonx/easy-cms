@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs'
-import { writeFile } from 'node:fs/promises'
-import { isAbsolute, join, resolve } from 'node:path'
+import { mkdir, writeFile } from 'node:fs/promises'
+import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { createInterface } from 'node:readline/promises'
 import { parseArgs } from 'node:util'
 import {
@@ -60,6 +60,7 @@ Commands:
   create-admin            Create an admin user
   serve                   Run the CMS as its own server (admin + REST API)
   run-scheduled           Run due scheduled publishes and webhook retries
+  backup <file>           Copy a SQLite database to a file while the CMS runs
 
 Options:
   --config <file>         Config file (default: easy-cms.config.ts)
@@ -92,6 +93,14 @@ The file has no imports, so a frontend in another repository can copy it.
 
 Creates a user (role "admin" unless --role is given). The password is asked for in the
 terminal, or read from EASY_CMS_ADMIN_PASSWORD when there is no terminal.
+`,
+  backup: `Usage: easy-cms backup <file> [options]
+
+Copies the SQLite database to <file> (relative to the project root) while the CMS keeps running,
+as a consistent snapshot. The file must not exist yet. Uploads are not included: back up the
+uploads folder or bucket separately.
+
+Postgres: use pg_dump, e.g. pg_dump --format=custom --file=cms.dump "$DATABASE_URL".
 `,
   'run-scheduled': `Usage: easy-cms run-scheduled [options]
 
@@ -166,6 +175,29 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
     })
     try {
       switch (command) {
+        case 'backup': {
+          const target = rest.join(' ').trim()
+          if (!target) {
+            io.err('Missing backup file.\n')
+            io.err(COMMAND_HELP.backup as string)
+            return 1
+          }
+          if (!cms.db.backup) {
+            io.err(
+              'This database cannot back itself up. For Postgres use pg_dump, e.g.\n  pg_dump --format=custom --file=cms.dump "$DATABASE_URL"',
+            )
+            return 1
+          }
+          const file = isAbsolute(target) ? target : resolve(cwd, target)
+          if (existsSync(file)) {
+            io.err(`${file} already exists; choose a new file name.`)
+            return 1
+          }
+          await mkdir(dirname(file), { recursive: true })
+          await cms.db.backup(file)
+          io.out(`Backed up the database to ${file}`)
+          return 0
+        }
         case 'run-scheduled': {
           const { ran, failed, webhooks } = await cms.runJobs()
           io.out(`Ran ${ran} scheduled job(s)${failed ? `, ${failed} failed` : ''}.`)

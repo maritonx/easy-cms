@@ -277,6 +277,16 @@ class DrizzleDatabase implements Database {
     return this.migrator.status()
   }
 
+  get backup(): ((file: string) => Promise<void>) | undefined {
+    const { backupSQL } = this.dialect
+    if (!backupSQL) return undefined
+    // Queued with writes, so the copy is a consistent point between them.
+    return (file) =>
+      this.write(async () => {
+        await this.connection.runner.query(backupSQL(file))
+      })
+  }
+
   async destroy(): Promise<void> {
     await this.connection.close()
   }

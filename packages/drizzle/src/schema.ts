@@ -234,7 +234,11 @@ function buildTable(
     add('id', dialect.serial('id'), 'id:int')
     add('created_at', dialect.text('created_at').notNull(), 'text!')
     add('updated_at', dialect.text('updated_at').notNull(), 'text!')
-    if (options.drafts) add('status', dialect.text('status').notNull().default('draft'), 'status')
+    if (options.drafts) {
+      add('status', dialect.text('status').notNull().default('draft'), 'status')
+      // Public reads filter by status, and their counts scan the whole table without it.
+      indexes.push({ column: 'status', unique: false })
+    }
     indexes.push({ column: 'created_at', unique: false })
   } else {
     const parentKind = options.parentIdKind ?? 'integer'

@@ -77,6 +77,11 @@ export interface Database {
   /** Applies pending migrations in order. Returns the names applied. */
   migrate(): Promise<string[]>
   migrationStatus(): Promise<MigrationInfo[]>
+  /**
+   * Copies the database to `file` (an absolute path) while it is in use, when the database can
+   * do that itself (SQLite). Others (Postgres) leave it out; use their own tools.
+   */
+  readonly backup?: ((file: string) => Promise<void>) | undefined
 
   destroy(): Promise<void>
 }

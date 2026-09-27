@@ -32,7 +32,7 @@ function sidebar(prefix: string, t: Labels): DefaultTheme.SidebarItem[] {
     },
     {
       text: t.operations,
-      items: ['databases', 'deployment', 'webhooks', 'cli', 'security'].map(page),
+      items: ['databases', 'deployment', 'backups', 'webhooks', 'cli', 'security'].map(page),
     },
   ]
 }
@@ -62,6 +62,7 @@ const en: Labels = {
   'live-preview': 'Live preview',
   databases: 'Databases',
   deployment: 'Migrations & deployment',
+  backups: 'Backups & upgrades',
   webhooks: 'Webhooks',
   cli: 'CLI',
   security: 'Security',
@@ -92,6 +93,7 @@ const th: Labels = {
   'live-preview': 'ตัวอย่างสด (live preview)',
   databases: 'ฐานข้อมูล',
   deployment: 'Migration และการ deploy',
+  backups: 'Backup และการอัปเกรด',
   webhooks: 'Webhooks',
   cli: 'CLI',
   security: 'ความปลอดภัย',
@@ -115,7 +117,7 @@ export default defineConfig({
         ],
         sidebar: sidebar('', en),
         editLink: {
-          pattern: 'https://github.com/maritonx/easy-crm/edit/main/website/:path',
+          pattern: 'https://github.com/maritonx/easy-cms/edit/main/website/:path',
           text: 'Edit this page on GitHub',
         },
         footer: { message: 'Released under the MIT License.' },
@@ -133,7 +135,7 @@ export default defineConfig({
         ],
         sidebar: sidebar('/th', th),
         editLink: {
-          pattern: 'https://github.com/maritonx/easy-crm/edit/main/website/:path',
+          pattern: 'https://github.com/maritonx/easy-cms/edit/main/website/:path',
           text: 'แก้ไขหน้านี้บน GitHub',
         },
         footer: { message: 'เผยแพร่ภายใต้สัญญาอนุญาต MIT' },
@@ -149,7 +151,7 @@ export default defineConfig({
   },
   themeConfig: {
     logo: '/logo.svg',
-    socialLinks: [{ icon: 'github', link: 'https://github.com/maritonx/easy-crm' }],
+    socialLinks: [{ icon: 'github', link: 'https://github.com/maritonx/easy-cms' }],
     search: {
       provider: 'local',
       options: {
