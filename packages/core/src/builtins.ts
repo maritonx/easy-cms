@@ -249,7 +249,7 @@ export const scheduledJobsCollection: CollectionConfig = {
   ],
 }
 
-/** Webhook deliveries waiting for another attempt; added only when `webhooks` is set. */
+/** Webhook deliveries until they succeed; added only when `webhooks` is set. */
 export const webhookDeliveriesCollection: CollectionConfig = {
   slug: WEBHOOK_DELIVERIES,
   access: { read: nobody, create: nobody, update: nobody, delete: nobody },

@@ -23,6 +23,7 @@ const config = defineConfig({
                 { name: 'heading', type: 'text', required: true, localized: true },
                 { name: 'author', type: 'relationship', to: 'authors' },
                 { name: 'featured', type: 'boolean' },
+                { name: 'tags', type: 'select', options: ['news', 'sale'], hasMany: true },
                 { name: 'meta', type: 'group', fields: [{ name: 'tone', type: 'text' }] },
               ],
             },
@@ -30,7 +31,24 @@ const config = defineConfig({
               slug: 'cards',
               fields: [
                 { name: 'columns', type: 'number', defaultValue: 3 },
-                { name: 'items', type: 'array', fields: [{ name: 'title', type: 'text' }] },
+                {
+                  name: 'items',
+                  type: 'array',
+                  fields: [
+                    { name: 'title', type: 'text' },
+                    { name: 'label', type: 'text', localized: true },
+                  ],
+                },
+              ],
+            },
+            {
+              slug: 'section',
+              fields: [
+                {
+                  name: 'content',
+                  type: 'blocks',
+                  blocks: [{ slug: 'quote', fields: [{ name: 'text', type: 'text' }] }],
+                },
               ],
             },
           ],
@@ -90,7 +108,7 @@ describe('blocks (FR-BLK)', () => {
     ).rejects.toMatchObject({
       errors: [
         { field: 'layout.0.heading', message: 'is required' },
-        { field: 'layout.1.blockType', message: 'must be one of: hero, cards' },
+        { field: 'layout.1.blockType', message: 'must be one of: hero, cards, section' },
       ],
     })
     await expect(
@@ -140,6 +158,7 @@ describe('blocks (FR-BLK)', () => {
           heading: 'สวัสดี',
           author: author.id,
           featured: true,
+          tags: ['sale'],
           meta: { tone: 'warm' },
         },
       ],
@@ -156,7 +175,18 @@ describe('blocks (FR-BLK)', () => {
     )
     const cards = await cms.create('pages', {
       title: 'Cards page',
-      layout: [{ blockType: 'cards', columns: 4 }],
+      layout: [
+        {
+          blockType: 'cards',
+          columns: 4,
+          items: [{ title: 'First', label: 'แรก' }, { title: 'Second' }],
+        },
+        { blockType: 'section', content: [{ blockType: 'quote', text: 'Be brief' }] },
+      ],
+    })
+    await cms.create('pages', {
+      title: 'Two columns',
+      layout: [{ blockType: 'cards', columns: 2, items: [] }],
     })
     await cms.create('pages', { title: 'Empty' })
 
@@ -169,12 +199,25 @@ describe('blocks (FR-BLK)', () => {
     expect(await titles({ 'layout.blockType': { in: ['hero', 'cards'] } })).toEqual([
       'Cards page',
       'Hero page',
+      'Two columns',
     ])
     expect(await titles({ 'layout.columns': { gte: 4 } })).toEqual(['Cards page'])
     expect(await titles({ 'layout.featured': { equals: true } })).toEqual(['Hero page'])
     expect(await titles({ 'layout.author': { equals: String(author.id) } })).toEqual(['Hero page'])
     expect(await titles({ 'layout.meta.tone': { like: 'war' } })).toEqual(['Hero page'])
     expect(await titles({ layout: { exists: false } })).toEqual(['Empty'])
+    // Lists inside blocks: arrays, hasMany values and blocks inside blocks.
+    expect(await titles({ 'layout.items.title': { equals: 'Second' } })).toEqual(['Cards page'])
+    expect(await titles({ 'layout.items': { exists: true } })).toEqual(['Cards page'])
+    expect(await titles({ 'layout.items.label': { equals: 'แรก' } })).toEqual(['Cards page'])
+    expect(await titles({ 'layout.items.label.th': { equals: 'แรก' } })).toEqual(['Cards page'])
+    expect(await titles({ 'layout.items.label': { equals: 'แรก' } }, 'en')).toEqual([])
+    expect(await titles({ 'layout.tags': { equals: 'sale' } })).toEqual(['Hero page'])
+    expect(await titles({ 'layout.tags': { in: ['news'] } })).toEqual([])
+    expect(await titles({ 'layout.content.blockType': { equals: 'quote' } })).toEqual([
+      'Cards page',
+    ])
+    expect(await titles({ 'layout.content.text': { like: 'brief' } })).toEqual(['Cards page'])
     // Localized values inside blocks: the default locale, a named locale, or the one being read.
     expect(await titles({ 'layout.heading': { equals: 'สวัสดี' } })).toEqual(['Hero page'])
     expect(await titles({ 'layout.heading.en': { equals: 'Hello' } })).toEqual(['Hero page'])
@@ -189,11 +232,29 @@ describe('blocks (FR-BLK)', () => {
     await expect(titles({ 'layout.nope': { equals: 1 } })).rejects.toThrow(
       /Unknown field "layout.nope"/,
     )
-    await expect(titles({ 'layout.items.title': { equals: 'x' } })).rejects.toThrow(
-      /Cannot query "layout.items" inside blocks/,
+    await expect(titles({ 'layout.tags.x': { equals: 'x' } })).rejects.toThrow(
+      /Cannot query inside "layout.tags"/,
     )
     await expect(titles({ layout: { equals: 'x' } })).rejects.toThrow(/query one of its fields/)
-    await expect(cms.find('pages', { sort: 'layout.columns' })).rejects.toThrow(/Cannot sort/)
+    await expect(titles({ 'layout.items': { equals: 'x' } })).rejects.toThrow(
+      /query one of its fields/,
+    )
+
+    // Sorting uses the value in the first block that has the field; pages without it come last
+    // ascending on Postgres and first on SQLite, like other empty values.
+    const sorted = async (sort: string) =>
+      (await cms.find('pages', { sort, where: { 'layout.columns': { exists: true } } })).docs.map(
+        (d) => d.title,
+      )
+    expect(await sorted('layout.columns')).toEqual(['Two columns', 'Cards page'])
+    expect(await sorted('-layout.columns')).toEqual(['Cards page', 'Two columns'])
+    const byHeading = await cms.find('pages', {
+      sort: '-layout.heading',
+      locale: 'en',
+      where: { 'layout.heading': { exists: true } },
+    })
+    expect(byHeading.docs.map((d) => d.title)).toEqual(['Hero page'])
+    await expect(cms.find('pages', { sort: 'layout.items.title' })).rejects.toThrow(/Cannot sort/)
     await cms.destroy()
   })
 

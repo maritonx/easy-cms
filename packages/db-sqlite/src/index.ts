@@ -26,8 +26,16 @@ export interface SQLiteAdapterOptions extends DrizzleAdapterOptions {
 
 const kit = () => import('drizzle-kit/api')
 
+// JSON helpers for queries inside blocks. Paths are field names and locales checked against the
+// config; each subquery gets its own alias so nested ones can refer to the outer row.
+let aliases = 0
+const alias = () => sql.raw(`_el${++aliases % 1_000_000}`)
+const jsonPath = (path: readonly string[]) => `$${path.map((p) => `."${p}"`).join('')}`
+const onlyArray = (array: unknown) => sql`case when json_type(${array}) = 'array' then ${array} end`
+
 export const sqliteDialect: Dialect = {
   name: 'sqlite',
+  singleWriter: true,
   table: (name, columns, indexes) => sqliteTable(name, columns, indexes),
   index: (name) => index(name),
   uniqueIndex: (name) => uniqueIndex(name),
@@ -39,12 +47,19 @@ export const sqliteDialect: Dialect = {
   json: (name) => text(name, { mode: 'json' }),
   // LIKE is case-insensitive for ASCII in SQLite.
   like: (column, pattern) => sql`${column} LIKE ${pattern} ESCAPE '\\'`,
-  someElement: (column, condition) => {
-    const where = condition((path) => {
-      const json = `$${path.map((p) => `."${p}"`).join('')}`
-      return sql`json_extract(_el.value, ${json})`
+  someElement: (array, condition) => {
+    const el = alias()
+    const where = condition({
+      get: (path) =>
+        path.length === 0 ? sql`${el}.value` : sql`json_extract(${el}.value, ${jsonPath(path)})`,
+      list: (path) => sql`json_extract(${el}.value, ${jsonPath(path)})`,
     })
-    return sql`exists (select 1 from json_each(${column}) as _el${where ? sql` where ${where}` : sql``})`
+    return sql`exists (select 1 from json_each(${onlyArray(array)}) as ${el}${where ? sql` where ${where}` : sql``})`
+  },
+  firstElementValue: (array, path) => {
+    const el = alias()
+    const value = sql`json_extract(${el}.value, ${jsonPath(path)})`
+    return sql`(select ${value} from json_each(${onlyArray(array)}) as ${el} where ${value} is not null order by ${el}.key limit 1)`
   },
   param: () => '?',
   migrationsTableSQL: (name) =>

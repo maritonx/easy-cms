@@ -5,10 +5,11 @@ import {
   connectDatabase,
   type Dialect,
   type DrizzleAdapterOptions,
+  type JsonValueType,
   type SqlRunner,
 } from '@easy-cms/drizzle'
 import type { PGlite } from '@electric-sql/pglite'
-import { sql } from 'drizzle-orm'
+import { type SQL, sql } from 'drizzle-orm'
 import {
   boolean,
   doublePrecision,
@@ -40,7 +41,16 @@ export interface PostgresAdapterOptions extends DrizzleAdapterOptions {
 
 const kit = () => import('drizzle-kit/api')
 
+// JSON helpers for queries inside blocks. Paths are field names and locales checked against the
+// config; each subquery gets its own alias so nested ones can refer to the outer row.
 const PG_TYPES = { number: 'double precision', integer: 'integer', boolean: 'boolean' } as const
+let aliases = 0
+const alias = () => sql.raw(`_el${++aliases % 1_000_000}`)
+const jsonPath = (path: readonly string[]) => sql.raw(`'{${path.join(',')}}'`)
+const cast = (text: SQL, type: JsonValueType) =>
+  type === 'text' ? text : sql`${text}::${sql.raw(PG_TYPES[type])}`
+const onlyArray = (array: unknown) =>
+  sql`case when jsonb_typeof(${array}) = 'array' then ${array} end`
 
 export const postgresDialect: Dialect = {
   name: 'postgres',
@@ -54,12 +64,18 @@ export const postgresDialect: Dialect = {
   boolean: (name) => boolean(name),
   json: (name) => jsonb(name),
   like: (column, pattern) => sql`${column} ILIKE ${pattern} ESCAPE '\\'`,
-  someElement: (column, condition) => {
-    const where = condition((path, type) => {
-      const text = sql`(_el.value #>> ${sql.raw(`'{${path.join(',')}}'`)})`
-      return type === 'text' ? text : sql`${text}::${sql.raw(PG_TYPES[type])}`
+  someElement: (array, condition) => {
+    const el = alias()
+    const where = condition({
+      get: (path, type) => cast(sql`(${el}.value #>> ${jsonPath(path)})`, type),
+      list: (path) => sql`(${el}.value #> ${jsonPath(path)})`,
     })
-    return sql`exists (select 1 from jsonb_array_elements(case when jsonb_typeof(${column}) = 'array' then ${column} end) as _el(value)${where ? sql` where ${where}` : sql``})`
+    return sql`exists (select 1 from jsonb_array_elements(${onlyArray(array)}) as ${el}(value)${where ? sql` where ${where}` : sql``})`
+  },
+  firstElementValue: (array, path, type) => {
+    const el = alias()
+    const text = sql`(${el}.value #>> ${jsonPath(path)})`
+    return sql`(select ${cast(text, type)} from jsonb_array_elements(${onlyArray(array)}) with ordinality as ${el}(value, idx) where ${text} is not null order by ${el}.idx limit 1)`
   },
   param: (n) => `$${n}`,
   migrationsTableSQL: (name) =>

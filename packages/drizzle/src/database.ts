@@ -80,7 +80,7 @@ class DrizzleDatabase implements Database {
   private readonly db: DrizzleDb
 
   constructor(
-    dialect: Dialect,
+    private readonly dialect: Dialect,
     private readonly connection: Connection,
     private readonly schema: SchemaModel,
     private readonly migrator: Migrator,
@@ -171,10 +171,22 @@ class DrizzleDatabase implements Database {
     return Number(row?.total ?? 0)
   }
 
+  private writing: Promise<unknown> = Promise.resolve()
+
+  /** Runs a write; with a single-writer database, after the writes before it are done. */
+  private write<T>(run: () => Promise<T>): Promise<T> {
+    if (!this.dialect.singleWriter) return run()
+    const result = this.writing.then(run)
+    this.writing = result.catch(() => {})
+    return result
+  }
+
   async create(args: { collection: string; data: Record<string, unknown> }): Promise<RawDocument> {
     const model = this.model(args.collection)
-    const id = await this.db.transaction((tx: DrizzleDb) =>
-      insertDocument(tx, model.root, args.data, model.config.drafts === true),
+    const id = await this.write<ID>(() =>
+      this.db.transaction((tx: DrizzleDb) =>
+        insertDocument(tx, model.root, args.data, model.config.drafts === true),
+      ),
     )
     return (await this.findById({ collection: args.collection, id })) as RawDocument
   }
@@ -185,15 +197,19 @@ class DrizzleDatabase implements Database {
     data: Record<string, unknown>
   }): Promise<RawDocument> {
     const model = this.model(args.collection)
-    await this.db.transaction((tx: DrizzleDb) =>
-      replaceDocument(tx, model.root, args.id, args.data, model.config.drafts === true),
+    await this.write(() =>
+      this.db.transaction((tx: DrizzleDb) =>
+        replaceDocument(tx, model.root, args.id, args.data, model.config.drafts === true),
+      ),
     )
     return (await this.findById({ collection: args.collection, id: args.id })) as RawDocument
   }
 
   async delete(args: { collection: string; id: ID }): Promise<void> {
     const model = this.model(args.collection)
-    await this.db.transaction((tx: DrizzleDb) => deleteDocument(tx, model.root, args.id))
+    await this.write(() =>
+      this.db.transaction((tx: DrizzleDb) => deleteDocument(tx, model.root, args.id)),
+    )
   }
 
   async findGlobal(args: { slug: string }): Promise<Record<string, unknown> | null> {
@@ -222,10 +238,12 @@ class DrizzleDatabase implements Database {
       status: (status as string | undefined) ?? null,
       updated_at: updatedAt,
     }
-    await this.db
-      .insert(table)
-      .values(values)
-      .onConflictDoUpdate({ target: table.slug as AnyColumn, set: values })
+    await this.write(() =>
+      this.db
+        .insert(table)
+        .values(values)
+        .onConflictDoUpdate({ target: table.slug as AnyColumn, set: values }),
+    )
     return (await this.findGlobal({ slug: args.slug })) as Record<string, unknown>
   }
 

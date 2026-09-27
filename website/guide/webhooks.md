@@ -66,8 +66,10 @@ Webhooks are sent after the change is saved and never slow it down or make it fa
 not retried.
 
 - Two quick retries happen in the process that made the change (after 1 s and 5 s).
-- As soon as the first attempt fails, the delivery is saved in the database (the internal
-  `webhook-deliveries` table), so a restart or a stopped serverless function doesn't lose it.
+- Each delivery is saved in the database (the internal `webhook-deliveries` table) before the
+  first attempt and removed once it succeeds, so a restart or a stopped serverless function
+  doesn't lose it, even in the middle of sending. A process that stopped mid-send is picked up
+  by the next run after 5 minutes.
 - After the quick retries, it is retried with [scheduled jobs](./drafts#scheduled-publishing):
   after 1 minute, 5 minutes, 30 minutes, 2, 6 and 12 hours. Servers run them every minute; on
   serverless, call `<api>/jobs/run` from a cron.

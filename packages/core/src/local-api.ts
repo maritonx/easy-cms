@@ -1045,14 +1045,14 @@ export class EasyCMS<C extends Config = Config> {
   }
 
   /**
-   * Tries webhook deliveries that failed earlier and are due for another attempt. Failed
-   * deliveries are kept in the database, so they survive restarts.
+   * Tries webhook deliveries that are due for another attempt. Deliveries are kept in the
+   * database until they succeed, so they survive restarts.
    */
   retryWebhooks(now: Date = new Date()): Promise<{ sent: number; failed: number }> {
     return this.webhooks.retry(now)
   }
 
-  /** Failed webhook deliveries, stored in `webhook-deliveries`. */
+  /** Webhook deliveries until they succeed, stored in `webhook-deliveries`. */
   private webhookQueue(): WebhookQueue {
     const collection = WEBHOOK_DELIVERIES
     const toRow = (d: QueuedDelivery, createdAt?: string) => {

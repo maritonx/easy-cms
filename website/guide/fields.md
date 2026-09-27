@@ -114,9 +114,18 @@ await cms.find('pages', { where: { 'layout.heading.en': { equals: 'Hello' } } })
 await cms.find('pages', { where: { layout: { exists: false } } }) // no blocks at all
 ```
 
-Fields in groups inside blocks work too (`layout.meta.tone`); arrays, blocks and `hasMany`
-fields inside blocks, and sorting by block fields, don't. These queries scan the JSON of each
-document, so they suit filters more than large, hot lists.
+Lists inside blocks work the same way: some row must match.
+
+```ts
+await cms.find('pages', { where: { 'layout.meta.tone': { equals: 'warm' } } }) // a group
+await cms.find('pages', { where: { 'layout.items.title': { equals: 'One' } } }) // an array
+await cms.find('pages', { where: { 'layout.tags': { in: ['sale'] } } }) // hasMany values
+await cms.find('pages', { where: { 'layout.content.blockType': { equals: 'quote' } } }) // blocks
+```
+
+`sort` uses the value in the first block that has the field (`sort: '-layout.columns'`);
+fields inside lists in blocks can't be sorted by. These queries read the JSON of each document,
+so they suit filters more than large, hot lists.
 
 ## How fields are stored
 

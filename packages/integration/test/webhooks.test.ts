@@ -16,6 +16,8 @@ let url = ''
 let received: Received[] = []
 /** Status codes to answer with, in order; then 204. */
 let answers: number[] = []
+/** While set, requests wait for it before being answered. */
+let hold: Promise<void> | undefined
 
 beforeAll(async () => {
   server = createServer((req, res) => {
@@ -25,8 +27,11 @@ beforeAll(async () => {
     })
     req.on('end', () => {
       received.push({ headers: req.headers, body, payload: JSON.parse(body) })
-      res.statusCode = answers.shift() ?? 204
-      res.end()
+      const status = answers.shift() ?? 204
+      void (hold ?? Promise.resolve()).then(() => {
+        res.statusCode = status
+        res.end()
+      })
     })
   })
   // Longer than the 5 s between retries, so a retry never reuses a socket the server just closed.
@@ -38,6 +43,7 @@ afterAll(() => new Promise<void>((resolve) => server.close(() => resolve())))
 beforeEach(() => {
   received = []
   answers = []
+  hold = undefined
 })
 
 const config = () =>
@@ -170,6 +176,42 @@ describe('webhooks (FR-HOOK)', () => {
     expect(retry?.headers['x-easy-cms-signature']).toBe(firstTry?.headers['x-easy-cms-signature'])
     expect(await deliveries()).toEqual([])
     await second.destroy()
+  })
+
+  it('saves a delivery before the first attempt, so a process stopping mid-send loses nothing', async () => {
+    const cwd = tempProject()
+    const config = defineConfig({
+      secret: SECRET,
+      db: db(),
+      webhooks: [{ url: `${url}/slow` }],
+      collections: [{ slug: 'notes', fields: [{ name: 'text', type: 'text' }] }],
+    })
+    let release = () => {}
+    hold = new Promise((resolve) => {
+      release = resolve
+    })
+    const stopping = await open(config, cwd)
+    await stopping.create('notes', { text: 'x' })
+    await expect.poll(() => received.length).toBe(1) // the first attempt is in flight
+    expect(
+      await rawQuery(cwd, `select state, attempts from ${table(cwd, 'webhook_deliveries')}`),
+    ).toMatchObject([{ state: 'pending', attempts: 0 }])
+
+    // Another process picks it up once the claim of the first one has run out.
+    hold = undefined
+    const next = await open(config, cwd)
+    expect(await next.retryWebhooks()).toEqual({ sent: 0, failed: 0 })
+    expect(await next.retryWebhooks(new Date(Date.now() + 6 * 60_000))).toEqual({
+      sent: 1,
+      failed: 0,
+    })
+    expect(received.map((r) => r.headers['x-easy-cms-delivery'])).toEqual([
+      received[0]?.headers['x-easy-cms-delivery'],
+      received[0]?.headers['x-easy-cms-delivery'],
+    ])
+    release()
+    await stopping.destroy()
+    await next.destroy()
   })
 
   it('gives up after about a day of retries', async () => {

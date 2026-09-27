@@ -44,7 +44,7 @@ export interface WebhookPayload {
   readonly timestamp: string
 }
 
-/** A delivery that failed, saved so it is retried even if the process stops. */
+/** A delivery saved until it succeeds, so it is retried even if the process stops. */
 export interface QueuedDelivery {
   readonly url: string
   readonly event: WebhookEvent
@@ -59,7 +59,7 @@ export interface QueuedDelivery {
   readonly error: string | null
 }
 
-/** Where failed deliveries wait for their next attempt (the `webhook-deliveries` collection). */
+/** Where deliveries wait until they succeed (the `webhook-deliveries` collection). */
 export interface WebhookQueue {
   add(delivery: QueuedDelivery): Promise<ID>
   update(id: ID, delivery: QueuedDelivery): Promise<void>
@@ -81,6 +81,8 @@ type Attempt = { ok: true } | { ok: false; error: string }
 /** Sends events to the configured webhooks without holding up the operation that caused them. */
 export class Webhooks {
   private readonly pending = new Set<Promise<void>>()
+  /** Deliveries are saved one after another, so they are first sent in the order of events. */
+  private saving: Promise<unknown> = Promise.resolve()
 
   constructor(
     private readonly hooks: readonly WebhookConfig[],
@@ -133,7 +135,8 @@ export class Webhooks {
         sent++
         continue
       }
-      const delay = QUEUE_DELAYS[attempts - this.retryDelays.length - 1]
+      // A process that stopped during its quick retries left fewer attempts: start from the top.
+      const delay = QUEUE_DELAYS[Math.max(0, attempts - this.retryDelays.length - 1)]
       if (delay === undefined) failed++
       await this.queue.update(id, {
         ...queued,
@@ -158,37 +161,46 @@ export class Webhooks {
     const delivery = randomUUID()
     const body = JSON.stringify(payload)
     const { event } = payload
+    const entry = (attempts: number, nextAttemptAt: string, error: string | null) =>
+      ({
+        url: hook.url,
+        event,
+        body,
+        delivery,
+        attempts,
+        nextAttemptAt,
+        state: 'pending',
+        error,
+      }) as const
+    // Saved before the first attempt, so the event survives if the process stops while sending.
+    // Claimed meanwhile: `retry` leaves it alone until the quick retries here are over.
+    const { queue } = this
+    const saved = queue
+      ? this.saving.then(() => queue.add(entry(0, later(new Date(), CLAIM), null)))
+      : Promise.resolve(undefined)
+    this.saving = saved.catch(() => {})
     let queued: ID | undefined
+    try {
+      queued = await saved
+    } catch (error) {
+      this.logger.error(`Could not save webhook delivery: ${(error as Error).message}`)
+    }
     for (let attempt = 0; ; attempt++) {
       const result = await this.attempt(hook, event, body, delivery)
       if (result.ok) {
         if (queued !== undefined) await this.queue?.remove(queued)
         return
       }
-      const entry = (nextAttemptAt: string): QueuedDelivery => ({
-        url: hook.url,
-        event,
-        body,
-        delivery,
-        attempts: attempt + 1,
-        nextAttemptAt,
-        state: 'pending',
-        error: result.error,
-      })
       const delay = this.retryDelays[attempt]
       if (delay === undefined) {
-        if (!this.queue) return this.giveUp(hook, event, result.error, attempt + 1)
-        const next = entry(later(new Date(), QUEUE_DELAYS[0] as number))
-        if (queued === undefined) await this.queue.add(next)
-        else await this.queue.update(queued, next)
+        if (queued === undefined || !this.queue)
+          return this.giveUp(hook, event, result.error, attempt + 1)
+        const next = later(new Date(), QUEUE_DELAYS[0] as number)
+        await this.queue.update(queued, entry(attempt + 1, next, result.error))
         this.logger.warn(
           `Webhook ${hook.url} failed for ${event} (${result.error}); will retry later`,
         )
         return
-      }
-      // Saved before waiting, so the event survives if the process stops meanwhile.
-      if (this.queue && queued === undefined) {
-        queued = await this.queue.add(entry(later(new Date(), CLAIM)))
       }
       await new Promise((resolve) => setTimeout(resolve, delay))
     }

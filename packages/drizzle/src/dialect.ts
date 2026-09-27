@@ -33,12 +33,22 @@ export interface SqlRunner {
 /** How to read a value out of a JSON element for comparing. */
 export type JsonValueType = 'text' | 'number' | 'integer' | 'boolean'
 
-/** A value inside the JSON element being tested, e.g. `['heading', 'en']`. */
-export type JsonGetter = (path: readonly string[], type: JsonValueType) => SQL
+/** The JSON element being tested. Paths are field names, already checked against the config. */
+export interface JsonElement {
+  /** A value inside the element, e.g. `['heading', 'en']`; `[]` for the element itself. */
+  get(path: readonly string[], type: JsonValueType): SQL
+  /** A JSON array inside the element, to test with `someElement`. */
+  list(path: readonly string[]): SQL
+}
 
 /** What differs between SQL dialects. */
 export interface Dialect {
   readonly name: 'sqlite' | 'postgres'
+  /**
+   * One writer at a time (SQLite): writes from this process wait for each other instead of
+   * failing with "database is locked".
+   */
+  readonly singleWriter?: boolean
 
   table(
     name: string,
@@ -60,10 +70,12 @@ export interface Dialect {
   /** Case-insensitive substring match; `pattern` is already escaped and wrapped in `%`. */
   like(column: AnyColumn, pattern: string): SQL
   /**
-   * True when some element of a JSON array column matches `condition` (any element when it
-   * returns undefined). Path segments are field names, already checked against the config.
+   * True when some element of a JSON array (a column, or `JsonElement.list`) matches `condition`
+   * (any element when it returns undefined). Anything but an array has no elements.
    */
-  someElement(column: AnyColumn, condition: (get: JsonGetter) => SQL | undefined): SQL
+  someElement(array: AnyColumn | SQL, condition: (el: JsonElement) => SQL | undefined): SQL
+  /** The value at `path` in the first element of a JSON array that has one, for sorting. */
+  firstElementValue(array: AnyColumn | SQL, path: readonly string[], type: JsonValueType): SQL
   /** Placeholder for the n-th parameter (1-based) in raw SQL. */
   param(n: number): string
   /** CREATE TABLE IF NOT EXISTS for the migrations table. */

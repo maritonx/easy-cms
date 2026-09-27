@@ -114,9 +114,17 @@ await cms.find('pages', { where: { 'layout.heading.en': { equals: 'Hello' } } })
 await cms.find('pages', { where: { layout: { exists: false } } }) // ไม่มีบล็อกเลย
 ```
 
-field ใน group ข้างในบล็อกก็ใช้ได้ (`layout.meta.tone`) แต่ array, blocks และ field แบบ `hasMany`
-ข้างในบล็อก รวมถึงการ sort ด้วย field ในบล็อกยังใช้ไม่ได้ การค้นแบบนี้ต้องอ่าน JSON ของทุกเอกสาร
-จึงเหมาะกับการกรองมากกว่ารายการใหญ่ที่ถูกเรียกบ่อย
+list ที่อยู่ในบล็อกก็ค้นได้แบบเดียวกัน โดยต้องมีบางแถวตรงเงื่อนไข
+
+```ts
+await cms.find('pages', { where: { 'layout.meta.tone': { equals: 'warm' } } }) // group
+await cms.find('pages', { where: { 'layout.items.title': { equals: 'One' } } }) // array
+await cms.find('pages', { where: { 'layout.tags': { in: ['sale'] } } }) // ค่า hasMany
+await cms.find('pages', { where: { 'layout.content.blockType': { equals: 'quote' } } }) // blocks
+```
+
+`sort` ใช้ค่าจากบล็อกแรกที่มี field นั้น (`sort: '-layout.columns'`) ส่วน field ใน list ข้างในบล็อก
+ใช้ sort ไม่ได้ การค้นแบบนี้ต้องอ่าน JSON ของทุกเอกสาร จึงเหมาะกับการกรองมากกว่ารายการใหญ่ที่ถูกเรียกบ่อย
 
 ## วิธีจัดเก็บ field {#how-fields-are-stored}
 
