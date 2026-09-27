@@ -1,5 +1,17 @@
 # @easy-cms/admin
 
+## 0.12.0
+
+### Minor Changes
+
+- 070d710: Small collections can open in a drawer: `editIn: 'drawer'` creates and edits documents in a panel over the list (`?edit=<id>` / `?new` in the URL, so back and reload work). Relationship fields get a "Create …" button that opens the same panel and selects the new document, for targets without drafts, versions or preview.
+- 070d710: Clearer languages in the admin: lists always show the default language with a Translations column instead of a language switch; the edit page labels its content language switcher and marks languages a document still needs; the interface language can also be set on the Account page.
+- 070d710: The admin now follows its design more closely: counts in the menu, a greeting and "View site" on the dashboard (`admin.siteUrl`), breadcrumbs and row menus in lists, and an edit page with a page-wide header, a large title input with the slug beneath it, a split Publish button, a save bar pinned to the bottom, and a side panel for fields with `position: 'sidebar'`. Icons replace the text buttons in the rich-text and blocks editors. The menu lists user accounts under Settings and the media library last; `admin.menu` sets the order of collections.
+
+### Patch Changes
+
+- 070d710: After a new version is deployed, an admin tab that was already open reloads the page it navigates to instead of silently staying put (its old page files are gone).
+
 ## 0.11.0
 
 ### Minor Changes
