@@ -1,5 +1,14 @@
 # @easy-cms/db-sqlite
 
+## 0.9.1
+
+### Patch Changes
+
+- 93202ca: SQLite: writes from separate processes to the same file now wait for each other reliably (libSQL busy timeout, `busyTimeout` option, default 10 s) instead of sometimes failing with "database is locked"; instances in one process share a write queue per file.
+- Updated dependencies [93202ca]
+  - @easy-cms/drizzle@0.9.1
+  - @easy-cms/core@0.9.1
+
 ## 0.9.0
 
 ### Minor Changes
