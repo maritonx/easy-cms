@@ -13,7 +13,7 @@ hero:
       link: /guide/what-is-easy-cms
 features:
   - title: Nuxt and Next.js alike
-    details: One core, thin adapters. A Nuxt module and Next.js route handlers give you the same admin, APIs and types.
+    details: One core, thin adapters. A Nuxt module and Next.js route handlers give you the same admin, APIs and types, or run it as a standalone server.
   - title: Code-first and typed
     details: Collections, fields, access rules and hooks live in easy-cms.config.ts. Document types are inferred from it.
   - title: SQLite or Postgres

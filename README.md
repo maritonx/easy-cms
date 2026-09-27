@@ -9,7 +9,7 @@ TypeScript next to your app, and the CMS (admin UI, REST API, typed Local API) r
 No separate server to host. Using Vite, React, Vue or a static site instead? Run it as a
 **standalone server**.
 
-**[Documentation](https://maritonx.github.io/easy-crm/)** ·
+**[Documentation](https://maritonx.github.io/easy-crm/)** ([ภาษาไทย](https://maritonx.github.io/easy-crm/th/)) ·
 [Getting started](https://maritonx.github.io/easy-crm/guide/getting-started) ·
 [Examples](#examples)
 
