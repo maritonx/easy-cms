@@ -1,5 +1,18 @@
 # easy-cms
 
+## 0.7.0
+
+### Minor Changes
+
+- da85424: Webhook deliveries that fail are saved in the database (`webhook-deliveries`) and retried for about a day, so a restart or a stopped serverless function no longer loses them. Retries run with scheduled jobs: `cms.runJobs()`, `cms.retryWebhooks()`, `GET <api>/jobs/run` (now also returns `webhooks: { sent, failed }`) and `easy-cms run-scheduled`. Projects with `webhooks` need a new migration.
+
+### Patch Changes
+
+- Updated dependencies [da85424]
+- Updated dependencies [da85424]
+  - @easy-cms/core@0.7.0
+  - @easy-cms/admin@0.7.0
+
 ## 0.6.0
 
 ### Minor Changes
