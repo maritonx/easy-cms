@@ -1,5 +1,20 @@
 # easy-cms
 
+## 0.12.0
+
+### Minor Changes
+
+- 070d710: The admin now follows its design more closely: counts in the menu, a greeting and "View site" on the dashboard (`admin.siteUrl`), breadcrumbs and row menus in lists, and an edit page with a page-wide header, a large title input with the slug beneath it, a split Publish button, a save bar pinned to the bottom, and a side panel for fields with `position: 'sidebar'`. Icons replace the text buttons in the rich-text and blocks editors. The menu lists user accounts under Settings and the media library last; `admin.menu` sets the order of collections.
+
+### Patch Changes
+
+- Updated dependencies [070d710]
+- Updated dependencies [070d710]
+- Updated dependencies [070d710]
+- Updated dependencies [070d710]
+  - @easy-cms/admin@0.12.0
+  - @easy-cms/core@0.12.0
+
 ## 0.11.0
 
 ### Minor Changes
