@@ -36,6 +36,8 @@ const apps = [
 
 export default defineConfig({
   testDir: 'tests',
+  // Compile each dev server's routes before the first test.
+  globalSetup: './global-setup.ts',
   // Tests build on each other's data within an app.
   fullyParallel: false,
   workers: 1,
