@@ -1,5 +1,12 @@
 # @easy-cms/core
 
+## 0.5.0
+
+### Minor Changes
+
+- df8b783: Localization: `localization: { locales, defaultLocale }` in the config and `localized: true` on fields store one value per locale (one column per locale; the default locale keeps the existing column, so turning it on keeps data). Reads and writes take `locale` (or `'all'`) and `fallbackLocale`, REST takes `?locale=` and `?fallback-locale=`; queries, sorting, slugs and unique values work per locale. The admin gets a content language switcher.
+- df8b783: Preview tokens: the admin adds `easy-cms-preview=<token>` to live preview URLs. The token opens one document's current draft (or one global) for an hour without a login, via `GET /:collection/:id?preview=<token>`, so frontends on another origin can preview drafts that were never published. `cms.createPreviewToken` / `cms.verifyPreviewToken` on the server, `getPreviewToken()` in `@easy-cms/core/live-preview`.
+
 ## 0.4.0
 
 ### Minor Changes
