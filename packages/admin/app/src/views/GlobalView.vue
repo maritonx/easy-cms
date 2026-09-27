@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { onBeforeRouteLeave, useRoute } from 'vue-router'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import LivePreview from '../components/LivePreview.vue'
 import VersionHistory from '../components/VersionHistory.vue'
 import FieldList from '../fields/FieldList.vue'
 import { ApiError, api } from '../lib/api'
@@ -35,6 +36,10 @@ const liveStatus = computed(() =>
 )
 const historyKey = ref(0)
 const confirmingDiscard = ref(false)
+const previewing = ref(false)
+const side = computed(() =>
+  readOnly.value ? null : previewing.value ? 'preview' : global?.versions ? 'history' : null,
+)
 
 function reset(data: Data) {
   if (!global) return
@@ -139,6 +144,9 @@ onBeforeRouteLeave(() => (dirty.value ? window.confirm(t('edit.unsaved')) : true
       </div>
       <div class="actions">
         <span v-if="message" :class="['status', message.kind]" role="status" aria-live="polite">{{ message.text }}</span>
+        <button v-if="global.preview && !readOnly" type="button" class="btn" :aria-pressed="previewing" @click="previewing = !previewing">
+          {{ previewing ? t('preview.hide') : t('preview.show') }}
+        </button>
         <template v-if="!readOnly">
           <template v-if="separateDrafts && live">
             <button v-if="pendingChanges" type="button" class="btn" :disabled="saving" @click="confirmingDiscard = true">{{ t('edit.discardChanges') }}</button>
@@ -152,12 +160,13 @@ onBeforeRouteLeave(() => (dirty.value ? window.confirm(t('edit.unsaved')) : true
       </div>
     </header>
     <p v-if="readOnly" class="notice notice-warning">{{ t('edit.readOnly') }}</p>
-    <div :class="['editor-body', { 'with-history': global.versions && !readOnly }]">
+    <div :class="['editor-body', side && `with-${side}`]">
       <div class="card form-body">
         <FieldList v-model="form" :fields="global.fields" :errors="errors" :read-only="readOnly" />
       </div>
+      <LivePreview v-if="side === 'preview'" :path="`/globals/${slug}/preview`" :data="form" :global="slug" />
       <VersionHistory
-        v-if="global.versions && !readOnly"
+        v-else-if="side === 'history'"
         :path="`/globals/${slug}`"
         :fields="global.fields"
         :drafts="global.drafts"
@@ -212,8 +221,15 @@ onBeforeRouteLeave(() => (dirty.value ? window.confirm(t('edit.unsaved')) : true
   align-items: start;
   gap: 1rem;
 }
+.editor-body.with-preview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 1rem;
+}
 @media (max-width: 900px) {
-  .editor-body.with-history {
+  .editor-body.with-history,
+  .editor-body.with-preview {
     grid-template-columns: 1fr;
   }
 }

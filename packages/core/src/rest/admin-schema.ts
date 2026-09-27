@@ -34,6 +34,8 @@ export interface AdminCollection {
   useAsTitle?: string
   drafts: boolean
   versions: boolean
+  /** Has live preview (`preview` in the config). */
+  preview: boolean
   fields: AdminField[]
   permissions: { read: boolean; create: boolean; update: boolean; delete: boolean }
 }
@@ -43,6 +45,8 @@ export interface AdminGlobal {
   label?: Label
   drafts: boolean
   versions: boolean
+  /** Has live preview (`preview` in the config). */
+  preview: boolean
   fields: AdminField[]
   permissions: { read: boolean; update: boolean }
 }
@@ -116,6 +120,7 @@ async function collection(config: CollectionConfig, user: AuthUser): Promise<Adm
     slug: config.slug,
     drafts: config.drafts === true,
     versions: Boolean(config.versions),
+    preview: typeof config.preview === 'function',
     fields: await serializeFields(config.fields, new FieldAccessChecker('update', { user })),
     permissions: {
       read: await allowed(config.access?.read, user),
@@ -134,6 +139,7 @@ async function global(config: GlobalConfig, user: AuthUser): Promise<AdminGlobal
     slug: config.slug,
     drafts: config.drafts === true,
     versions: Boolean(config.versions),
+    preview: typeof config.preview === 'function',
     fields: await serializeFields(config.fields, new FieldAccessChecker('update', { user })),
     permissions: {
       read: await allowed(config.access?.read, user),

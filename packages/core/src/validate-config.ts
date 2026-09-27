@@ -221,6 +221,13 @@ function validateContainer(
       add(`${path}.versions.max`, 'must be a positive integer')
     }
   }
+  if (container.preview !== undefined && typeof container.preview !== 'function') {
+    add(
+      `${path}.preview`,
+      'must be a function ({ doc }) => url',
+      'preview: ({ doc }) => `/posts/${doc.slug}`',
+    )
+  }
   const reserved = new Set(SYSTEM_FIELD_NAMES)
   if (container.drafts) reserved.add('status')
   validateFields(container.fields, `${path}.fields`, reserved, collectionSlugs, add)

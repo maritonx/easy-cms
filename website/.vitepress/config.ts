@@ -27,7 +27,7 @@ function sidebar(prefix: string, t: Labels): DefaultTheme.SidebarItem[] {
     },
     {
       text: t.using,
-      items: ['local-api', 'rest-api', 'typescript', 'rich-text'].map(page),
+      items: ['local-api', 'rest-api', 'typescript', 'rich-text', 'live-preview'].map(page),
     },
     {
       text: t.operations,
@@ -57,6 +57,7 @@ const en: Labels = {
   'rest-api': 'REST API',
   typescript: 'TypeScript',
   'rich-text': 'Rich text',
+  'live-preview': 'Live preview',
   databases: 'Databases',
   deployment: 'Migrations & deployment',
   cli: 'CLI',
@@ -84,6 +85,7 @@ const th: Labels = {
   'rest-api': 'REST API',
   typescript: 'TypeScript',
   'rich-text': 'Rich text',
+  'live-preview': 'ตัวอย่างสด (live preview)',
   databases: 'ฐานข้อมูล',
   deployment: 'Migration และการ deploy',
   cli: 'CLI',

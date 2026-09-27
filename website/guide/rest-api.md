@@ -19,9 +19,10 @@ Served at `routes.api` (default `/api/cms`). All responses are JSON; access rule
 | POST | `/:collection/:id/versions/:version/restore` | Restore a version |
 | POST | `/:collection/:id/unpublish` | Unpublish (collections with drafts) |
 | POST | `/:collection/:id/discard-draft` | Discard the pending draft |
+| POST | `/:collection/:id/preview` | [Live preview](./live-preview): `{ doc, url }` for unsaved changes (`/:collection/preview` for a new document) |
 
 Globals have the same version routes under `/globals/:slug/…` (`versions`, `versions/:version`,
-`versions/:version/restore`, `unpublish`, `discard-draft`). Version routes need update access.
+`versions/:version/restore`, `unpublish`, `discard-draft`, `preview`). Version and preview routes need update access.
 
 `where` uses brackets or JSON:
 

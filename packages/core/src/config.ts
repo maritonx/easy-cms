@@ -51,6 +51,15 @@ export interface GlobalHooks {
   readonly afterRead?: readonly AfterReadHook[]
 }
 
+/**
+ * Where a document is shown on the site, for live preview in the admin: an absolute URL or a
+ * path on the site's origin. Return `null` when the document has no page.
+ */
+export type PreviewURL = (args: {
+  readonly doc: Record<string, unknown>
+  readonly locale: AdminLocale
+}) => string | null | undefined
+
 export interface VersionsConfig {
   /** Versions kept per document; older ones are deleted. Default 50. */
   readonly max?: number
@@ -71,6 +80,8 @@ export interface CollectionConfig {
    * it is published again.
    */
   readonly versions?: boolean | VersionsConfig
+  /** Live preview: the page that shows a document, e.g. `({ doc }) => \`/posts/${doc.slug}\``. */
+  readonly preview?: PreviewURL
   readonly access?: CollectionAccess
   readonly hooks?: CollectionHooks
 }
@@ -82,6 +93,8 @@ export interface GlobalConfig {
   readonly drafts?: boolean
   /** Keep a snapshot of every save. See `CollectionConfig.versions`. */
   readonly versions?: boolean | VersionsConfig
+  /** Live preview: the page that shows the global. See `CollectionConfig.preview`. */
+  readonly preview?: PreviewURL
   readonly access?: GlobalAccess
   readonly hooks?: GlobalHooks
 }

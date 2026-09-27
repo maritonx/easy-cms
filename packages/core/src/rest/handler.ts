@@ -255,6 +255,14 @@ async function route(
   if (second !== undefined && third !== undefined) {
     return documentAction(cms, ctx, method, collection, second, segments.slice(2))
   }
+  // Live preview of a document that is not saved yet.
+  if (second === 'preview') {
+    if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
+    const body = await readJson(ctx.request)
+    return {
+      body: await cms.preview(collection, null, body, { ...access, ...parseDepth(ctx.url) }),
+    }
+  }
 
   if (second === undefined) {
     if (method === 'GET') {
@@ -332,6 +340,11 @@ async function documentAction(
     if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
     return { body: await cms.restoreVersion(collection, id, versionId, { ...access, ...depth }) }
   }
+  if (path.length === 1 && action === 'preview') {
+    if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
+    const body = await readJson(ctx.request)
+    return { body: await cms.preview(collection, id, body, { ...access, ...depth }) }
+  }
   if (path.length === 1 && (action === 'unpublish' || action === 'discard-draft')) {
     if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
     const options = { ...access, ...depth }
@@ -374,6 +387,11 @@ async function globalAction(
   ) {
     if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
     return { body: await cms.restoreGlobalVersion(slug, versionId, { ...access, ...depth }) }
+  }
+  if (path.length === 1 && action === 'preview') {
+    if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
+    const body = await readJson(ctx.request)
+    return { body: await cms.previewGlobal(slug, body, { ...access, ...depth }) }
   }
   if (path.length === 1 && (action === 'unpublish' || action === 'discard-draft')) {
     if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')

@@ -73,6 +73,7 @@ describe('form values', () => {
       slug: 'p',
       drafts: false,
       versions: false,
+      preview: false,
       fields: [],
       useAsTitle: 'title',
       permissions: { read: true, create: true, update: true, delete: true },

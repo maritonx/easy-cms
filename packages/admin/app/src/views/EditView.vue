@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import LivePreview from '../components/LivePreview.vue'
 import MediaThumb from '../components/MediaThumb.vue'
 import VersionHistory from '../components/VersionHistory.vue'
 import FieldList from '../fields/FieldList.vue'
@@ -29,6 +30,17 @@ const liveStatus = computed(() =>
 )
 const historyKey = ref(0)
 const confirmingDiscard = ref(false)
+const previewing = ref(false)
+// Side panel: live preview when open, otherwise history (both need edit rights).
+const side = computed(() =>
+  !collection || !canSave.value
+    ? null
+    : previewing.value
+      ? 'preview'
+      : collection.versions && id
+        ? 'history'
+        : null,
+)
 
 const form = ref<Record<string, unknown>>(collection ? initialValues(collection.fields) : {})
 const password = ref('')
@@ -254,6 +266,9 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
       </div>
       <div class="actions">
         <span v-if="message" :class="['status', message.kind]" role="status" aria-live="polite">{{ message.text }}</span>
+        <button v-if="collection.preview && canSave" type="button" class="btn" :aria-pressed="previewing" @click="previewing = !previewing">
+          {{ previewing ? t('preview.hide') : t('preview.show') }}
+        </button>
         <button v-if="canDelete" type="button" class="btn btn-danger" @click="confirmingDelete = true">
           {{ t('edit.delete') }}
         </button>
@@ -281,7 +296,7 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
 
     <p v-if="readOnly" class="notice notice-warning">{{ t('edit.readOnly') }}</p>
 
-    <div :class="['editor-body', { 'with-history': collection.versions && id && canSave }]">
+    <div :class="['editor-body', side && `with-${side}`]">
     <div class="card form-body">
       <template v-if="isMedia && doc">
         <MediaThumb :media="doc" size="large" />
@@ -308,8 +323,14 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
         <span v-for="m in errors.password" id="password-error" :key="m" class="field-error">{{ m }}</span>
       </label>
     </div>
+    <LivePreview
+      v-if="side === 'preview'"
+      :path="id ? `/${slug}/${encodeURIComponent(id)}/preview` : `/${slug}/preview`"
+      :data="form"
+      :collection="slug"
+    />
     <VersionHistory
-      v-if="collection.versions && id && canSave"
+      v-else-if="side === 'history' && id"
       :path="`/${slug}/${encodeURIComponent(id)}`"
       :fields="collection.fields"
       :drafts="collection.drafts"
@@ -383,8 +404,15 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
   align-items: start;
   gap: 1rem;
 }
+.editor-body.with-preview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 1rem;
+}
 @media (max-width: 900px) {
-  .editor-body.with-history {
+  .editor-body.with-history,
+  .editor-body.with-preview {
     grid-template-columns: 1fr;
   }
 }

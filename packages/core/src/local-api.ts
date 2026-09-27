@@ -426,6 +426,111 @@ export class EasyCMS<C extends Config = Config> {
     )) as Doc<C, S>
   }
 
+  /**
+   * Live preview: the document as it would be read if `data` were saved on top of its current
+   * state (or as a new document when `id` is `null`), with relationships populated and
+   * `afterRead` hooks applied. Nothing is written. Also returns the page URL from `preview`.
+   */
+  async preview<S extends Slug<C>>(
+    collection: S,
+    id: ID | null,
+    data: Record<string, unknown>,
+    options: DepthOptions = {},
+  ): Promise<LivePreview<Doc<C, S>>> {
+    const config = this.collection(collection)
+    const guard = guardOf(options)
+    const raw = asObject(data, collection)
+    let base: RawDocument | undefined
+    let parsed: ID | undefined
+    if (id === null) {
+      if (guard.enforce) {
+        const allowed = await evaluateAccess(config.access?.create, { user: guard.user, data: raw })
+        if (allowed !== true) throw deny(guard.user)
+      }
+    } else {
+      parsed = parseId(id)
+      const existing =
+        parsed === undefined ? null : await this.db.findById({ collection, id: parsed })
+      if (!existing || parsed === undefined) throw new NotFoundError(collection, id)
+      await this.checkDocumentAccess(config, 'update', guard, parsed, raw)
+      ;[base] = await this.withDrafts(config, [existing])
+    }
+    const { input } = splitPassword(config, raw)
+    const filtered = await filterInput(
+      config.fields,
+      input,
+      this.fieldChecker('update', guard, parsed, input),
+    )
+    const merged = base
+      ? mergeForUpdate(config.fields, base, filtered)
+      : applyDefaults(config.fields, filtered)
+    if (config.drafts) merged.status = filtered.status ?? base?.status ?? 'draft'
+    const doc = await this.previewDoc(config, generateSlugs(config.fields, merged), {
+      id: parsed ?? 0,
+      createdAt: base?.createdAt ?? new Date().toISOString(),
+    })
+    const [out] = await this.output(config, [doc], guard, { ...options, draft: true })
+    return { doc: out as Doc<C, S>, url: this.previewURL(config, out as RawDocument) }
+  }
+
+  /** Live preview of a global. See `preview`. */
+  async previewGlobal<S extends GSlug<C>>(
+    slug: S,
+    data: Record<string, unknown>,
+    options: DepthOptions = {},
+  ): Promise<LivePreview<GDoc<C, S>>> {
+    const config = this.global(slug)
+    const guard = guardOf(options)
+    await this.checkGlobalAccess(config, 'update', guard)
+    const raw = asObject(data, slug)
+    const input = await filterInput(
+      config.fields,
+      raw,
+      this.fieldChecker('update', guard, undefined, raw),
+    )
+    const saved = (await this.db.findGlobal({ slug })) ?? {}
+    const current = await this.globalDraft(config, saved)
+    const merged = generateSlugs(
+      config.fields,
+      applyDefaults(config.fields, mergeForUpdate(config.fields, current, input)),
+    )
+    if (config.drafts) merged.status = input.status ?? current.status ?? 'draft'
+    const doc = await this.previewDoc(config, merged, { id: 0 })
+    const [out] = await this.output(config, [doc], guard, { ...options, draft: true })
+    const { id: _id, ...global } = out as RawDocument
+    return { doc: global as GDoc<C, S>, url: this.previewURL(config, global) }
+  }
+
+  /** Coerces preview input like a save would, keeping values that would fail validation. */
+  private async previewDoc(
+    config: CollectionConfig | GlobalConfig,
+    data: Data,
+    system: { id: ID; createdAt?: unknown },
+  ): Promise<RawDocument> {
+    const { data: clean } = await validateFields(config.fields, data, {
+      operation: 'update',
+      root: data,
+      skipRequired: true,
+    })
+    return {
+      ...data,
+      ...clean,
+      ...(config.drafts ? { status: data.status } : {}),
+      ...system,
+      updatedAt: new Date().toISOString(),
+    } as RawDocument
+  }
+
+  private previewURL(config: CollectionConfig | GlobalConfig, doc: Data): string | null {
+    if (!config.preview) return null
+    try {
+      return config.preview({ doc, locale: this.config.admin.locale }) ?? null
+    } catch (error) {
+      this.logger.error(`preview URL of "${config.slug}" failed: ${(error as Error).message}`)
+      return null
+    }
+  }
+
   private async versionTarget(collection: string, id: ID, options: AccessOptions) {
     const config = this.collection(collection)
     if (!versionLimit(config)) throw new QueryError(`"${collection}" has no versions`)
@@ -1173,6 +1278,13 @@ export class EasyCMS<C extends Config = Config> {
     }
     return errors
   }
+}
+
+/** A document as live preview shows it, and the page to show it on. */
+export interface LivePreview<T> {
+  readonly doc: T
+  /** From the collection's `preview` function; `null` without one. */
+  readonly url: string | null
 }
 
 /** A published document shown with its newer draft's content. */

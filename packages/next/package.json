@@ -13,6 +13,10 @@
       "types": "./dist/config.d.ts",
       "default": "./dist/config.js"
     },
+    "./live-preview": {
+      "types": "./dist/live-preview.d.ts",
+      "default": "./dist/live-preview.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -31,12 +35,15 @@
   },
   "peerDependencies": {
     "@easy-cms/core": "workspace:^",
-    "next": ">=15.0.0"
+    "next": ">=15.0.0",
+    "react": ">=19.0.0"
   },
   "devDependencies": {
     "@easy-cms/core": "workspace:^",
     "@easy-cms/db-sqlite": "workspace:^",
-    "next": "^16.3.6"
+    "@types/react": "^19.2.0",
+    "next": "^16.3.6",
+    "react": "^19.2.0"
   },
   "publishConfig": {
     "access": "public"

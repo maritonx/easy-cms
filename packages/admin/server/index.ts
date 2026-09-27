@@ -47,6 +47,8 @@ export const SECURITY_HEADERS: Readonly<Record<string, string>> = {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
     "connect-src 'self'",
+    // Live preview shows the site in a frame; the site may be on another origin (standalone).
+    "frame-src 'self' http: https:",
     "font-src 'self' data:",
     "frame-ancestors 'none'",
     "base-uri 'self'",

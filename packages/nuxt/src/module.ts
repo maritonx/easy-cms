@@ -10,6 +10,7 @@ import {
   importConfig,
 } from '@easy-cms/core'
 import {
+  addImports,
   addServerHandler,
   addServerImports,
   addServerPlugin,
@@ -129,6 +130,8 @@ declare module '${SERVER}' {
       { name: 'useEasyCMS', from: SERVER },
       { name: 'useEasyCMSUser', from: SERVER },
     ])
+    // Client side: live preview for pages shown in the admin's preview frame.
+    addImports({ name: 'useLivePreview', from: resolveRuntime('./runtime/live-preview.js') })
     addServerHandler({ route: apiPath, handler: HANDLER })
     addServerHandler({ route: `${apiPath}/**`, handler: HANDLER })
     addServerPlugin(resolveRuntime('./runtime/plugin.js'))

@@ -27,6 +27,8 @@ export default defineConfig({
       drafts: true,
       // History and restore; drafts of a published post stay unpublished until published.
       versions: true,
+      // Live preview in the admin: the page that shows a post.
+      preview: ({ doc }) => (doc.slug ? `/posts/${doc.slug}` : null),
       useAsTitle: 'title',
       access: {
         // Visitors see published posts; logged-in editors see drafts too.

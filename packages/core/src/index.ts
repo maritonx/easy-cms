@@ -19,6 +19,7 @@ export type {
   ImageSize,
   Operation,
   Plugin,
+  PreviewURL,
   ResolvedConfig,
   RoutesConfig,
   UploadConfig,
@@ -65,6 +66,7 @@ export {
   type DepthOptions,
   EasyCMS,
   type FindOptions,
+  type LivePreview,
   type ReadOptions,
 } from './local-api.js'
 export { consoleLogger, type Logger, silentLogger } from './logger.js'

@@ -302,6 +302,35 @@ test.describe('logged in as admin', () => {
     await expect(page.getByRole('status')).toHaveText('Changes discarded')
   })
 
+  test('previews unsaved changes on the real page (FR-PRV)', async ({ page, context }) => {
+    // The standalone example has no site pages to preview.
+    test.skip(standalone(), 'no preview page in the standalone example')
+    await page.goto('/admin/collections/posts?q=Hello')
+    await page.getByRole('link', { name: 'Hello from Playwright' }).click()
+    await page.getByRole('button', { name: 'Preview' }).click()
+    const preview = page.frameLocator('iframe[title="Live preview"]')
+    await expect(preview.getByRole('heading', { level: 1 })).toHaveText('Hello from Playwright')
+
+    // Typing updates the page right away, without saving.
+    const title = page.getByRole('textbox', { name: 'Title', exact: true })
+    await title.fill('Hello, previewed live')
+    await expect(preview.getByRole('heading', { level: 1 })).toHaveText('Hello, previewed live')
+    await expect(preview.getByRole('img', { name: 'A green circle' }).first()).toBeVisible()
+    await shot(page, '09-live-preview')
+
+    // Visitors still see the saved post.
+    const visitor = await context.newPage()
+    await visitor.goto(page.url().replace(/\/admin\/.*$/, '/posts/hello-from-playwright'))
+    await expect(visitor.getByRole('heading', { level: 1 })).toHaveText('Hello from Playwright')
+    await visitor.close()
+
+    // Put the title back so the form is clean again.
+    await title.fill('Hello from Playwright')
+    await expect(preview.getByRole('heading', { level: 1 })).toHaveText('Hello from Playwright')
+    await page.getByRole('button', { name: 'Close preview' }).click()
+    await expect(page.getByRole('complementary', { name: 'History' })).toBeVisible()
+  })
+
   test('lists, searches, sorts and bulk-deletes (FR-ADM-04)', async ({ page }) => {
     for (const title of ['Alpha note', 'Beta note', 'Gamma note']) {
       await page.goto('/admin/collections/posts/new')
