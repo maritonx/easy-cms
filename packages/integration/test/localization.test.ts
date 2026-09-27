@@ -1,4 +1,11 @@
-import { type Config, createRestHandler, defineConfig } from '@easy-cms/core'
+import {
+  type Config,
+  createEasyCMS,
+  createRestHandler,
+  defineConfig,
+  type ID,
+  silentLogger,
+} from '@easy-cms/core'
 import { describe, expect, it } from 'vitest'
 import { db, open, rawQuery, SECRET, table, tempProject } from './helpers.js'
 
@@ -45,13 +52,15 @@ const config = defineConfig({
 
 type CMS = Awaited<ReturnType<typeof open<typeof config>>>
 
+const thaiPostData = async () => ({
+  title: 'สวัสดี',
+  seo: { description: 'คำอธิบาย' },
+  links: [{ url: 'https://example.com', label: 'ลิงก์' }],
+  status: 'published' as const,
+})
+
 async function thaiPost(cms: CMS) {
-  return cms.create('posts', {
-    title: 'สวัสดี',
-    seo: { description: 'คำอธิบาย' },
-    links: [{ url: 'https://example.com', label: 'ลิงก์' }],
-    status: 'published',
-  })
+  return cms.create('posts', await thaiPostData())
 }
 
 describe('localization (FR-L10N)', () => {
@@ -245,5 +254,78 @@ describe('turning localization on', () => {
       title: { th: 'เดิม', en: null },
     })
     await after.destroy()
+  })
+
+  describe('changing the default locale', () => {
+    const withDefault = (defaultLocale: 'th' | 'en') => ({
+      ...config,
+      localization: { locales: ['th', 'en'], defaultLocale },
+    })
+
+    async function check(cms: CMS, id: ID) {
+      const post = await cms.findById('posts', id, { locale: 'all' })
+      expect(post).toMatchObject({
+        title: { th: 'สวัสดี', en: 'Hello' },
+        slug: { th: 'สวัสดี', en: 'hello' },
+        code: { th: 'A', en: 'B' },
+        seo: { description: { th: 'คำอธิบาย', en: 'Description' } },
+      })
+      expect(post?.links.map((l) => l.label)).toEqual([{ th: 'ลิงก์', en: 'Link' }])
+      // The plain path now means the new default locale.
+      const found = await cms.find('posts', { where: { title: { equals: 'Hello' } } })
+      expect(found.docs.map((d) => d.id)).toEqual([id])
+    }
+
+    async function seed(cms: CMS) {
+      const post = await cms.create('posts', { ...(await thaiPostData()), code: 'A' })
+      await cms.update(
+        'posts',
+        post.id,
+        {
+          title: 'Hello',
+          code: 'B',
+          seo: { description: 'Description' },
+          links: [{ id: post.links[0]?.id as string, url: 'https://example.com', label: 'Link' }],
+        },
+        { locale: 'en' },
+      )
+      // A second post whose values would clash while they move.
+      await cms.create('posts', { title: 'Hello', code: 'B', status: 'published' })
+      return post.id
+    }
+
+    it('keeps every locale when developing (schema push)', async () => {
+      const cwd = tempProject()
+      const before = await open(withDefault('th'), cwd)
+      const id = await seed(before)
+      await before.destroy()
+
+      const after = await open(withDefault('en'), cwd)
+      await check(after as never, id)
+      await after.destroy()
+    })
+
+    it('moves the values in the generated migration', async () => {
+      const cwd = tempProject()
+      const tool = (c: Config) => createEasyCMS(c, { cwd, schema: 'skip', logger: silentLogger })
+      const t1 = await tool(withDefault('th'))
+      await t1.db.createMigration({ name: 'init' })
+      await t1.db.migrate()
+      await t1.destroy()
+      const before = await open(withDefault('th'), cwd, 'verify')
+      const id = await seed(before)
+      await before.destroy()
+
+      await new Promise((r) => setTimeout(r, 1100)) // names are timestamped to the second
+      const t2 = await tool(withDefault('en'))
+      const created = await t2.db.createMigration({ name: 'english first' })
+      expect(created?.statements.some((s) => s.startsWith('UPDATE'))).toBe(true)
+      await t2.db.migrate()
+      await t2.destroy()
+
+      const after = await open(withDefault('en'), cwd, 'verify')
+      await check(after as never, id)
+      await after.destroy()
+    })
   })
 })

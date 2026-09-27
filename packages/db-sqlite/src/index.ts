@@ -39,6 +39,13 @@ export const sqliteDialect: Dialect = {
   json: (name) => text(name, { mode: 'json' }),
   // LIKE is case-insensitive for ASCII in SQLite.
   like: (column, pattern) => sql`${column} LIKE ${pattern} ESCAPE '\\'`,
+  someElement: (column, condition) => {
+    const where = condition((path) => {
+      const json = `$${path.map((p) => `."${p}"`).join('')}`
+      return sql`json_extract(_el.value, ${json})`
+    })
+    return sql`exists (select 1 from json_each(${column}) as _el${where ? sql` where ${where}` : sql``})`
+  },
   param: () => '?',
   migrationsTableSQL: (name) =>
     `CREATE TABLE IF NOT EXISTS \`${name}\` (

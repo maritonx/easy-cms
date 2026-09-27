@@ -49,6 +49,24 @@ export interface SchemaModel {
   readonly tables: Readonly<Record<string, AnyTable>>
   /** Changes whenever the generated schema changes. Used to detect missing migrations. */
   readonly hash: string
+  /** Locales of localized fields, recorded with snapshots so a new default locale keeps data. */
+  readonly localization: SchemaLocalization | null
+}
+
+export interface SchemaLocalization {
+  readonly defaultLocale: string
+  readonly locales: readonly string[]
+}
+
+/** Every table of the collections, children included. */
+export function tableModels(schema: SchemaModel): TableModel[] {
+  const all: TableModel[] = []
+  const walk = (model: TableModel) => {
+    all.push(model)
+    for (const child of model.children) walk(child.table)
+  }
+  for (const collection of schema.collections.values()) walk(collection.root)
+  return all
 }
 
 /** Tracks applied migrations. Created separately and never part of a snapshot. */
@@ -137,7 +155,10 @@ export function buildSchema(config: ResolvedConfig, prefix: string, dialect: Dia
     .update(JSON.stringify(builder.description))
     .digest('hex')
     .slice(0, 16)
-  return { collections, globals, tables, hash }
+  const localization = config.localization
+    ? { defaultLocale: config.localization.defaultLocale, locales: config.localization.locales }
+    : null
+  return { collections, globals, tables, hash, localization }
 }
 
 function collectTables(model: TableModel, into: Record<string, AnyTable>) {

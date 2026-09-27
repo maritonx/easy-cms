@@ -20,8 +20,8 @@ import {
   type SQL,
   sql,
 } from 'drizzle-orm'
-import type { AnyColumn, Dialect, DrizzleDb } from './dialect.js'
-import type { ChildModel, TableModel } from './schema.js'
+import type { AnyColumn, Dialect, DrizzleDb, JsonValueType } from './dialect.js'
+import type { ChildModel, SchemaLocalization, TableModel } from './schema.js'
 
 const OPERATORS = new Set([
   'equals',
@@ -42,16 +42,84 @@ const SYSTEM_COLUMNS: Record<string, string> = {
   updatedAt: 'updated_at',
 }
 
+/** A value inside each block of a blocks field; `null` tests only that a block exists. */
+interface BlockValue {
+  readonly path: readonly string[]
+  readonly type: JsonValueType
+  readonly field: Field | undefined
+}
+
 type Target =
   | { kind: 'column'; column: AnyColumn; field: Field | undefined }
   | { kind: 'child'; child: ChildModel; rest: string[]; locale?: string | undefined }
+  | { kind: 'blocks'; column: AnyColumn; value: BlockValue | null }
 
 const col = (model: TableModel, name: string) => model.table[name] as AnyColumn
 
 const ID_FIELD: Field = { name: 'id', type: 'relationship', to: '' }
 const LIKE_TYPES = new Set(['text', 'textarea', 'email', 'slug', 'select'])
 
-function resolvePath(model: TableModel, segments: string[], drafts: boolean): Target {
+const JSON_TYPES: Partial<Record<Field['type'], JsonValueType>> = {
+  number: 'number',
+  boolean: 'boolean',
+  relationship: 'integer',
+  upload: 'integer',
+}
+
+/**
+ * Resolves `blockType`, `heading`, `heading.en` or `seo.title` inside the blocks of a blocks
+ * field. A field name means that field in whichever block has it.
+ */
+function resolveBlockValue(
+  blocks: Extract<Field, { type: 'blocks' }>,
+  rest: string[],
+  shown: string,
+  localization: SchemaLocalization | null,
+): BlockValue {
+  if (rest.length === 1 && rest[0] === 'blockType')
+    return { path: ['blockType'], type: 'text', field: undefined }
+  let fields: readonly Field[] = blocks.blocks.flatMap((block) => block.fields)
+  const path: string[] = []
+  for (let i = 0; i < rest.length; i++) {
+    const segment = rest[i] as string
+    const field = fields.find((f) => f.name === segment)
+    const at = [shown, ...rest.slice(0, i + 1)].join('.')
+    if (!field) throw new QueryError(`Unknown field "${at}"`)
+    path.push(segment)
+    if (field.type === 'group') {
+      fields = field.fields
+      continue
+    }
+    const hasMany = 'hasMany' in field && field.hasMany === true
+    if (
+      hasMany ||
+      field.type === 'array' ||
+      field.type === 'blocks' ||
+      field.type === 'json' ||
+      field.type === 'richText'
+    ) {
+      throw new QueryError(`Cannot query "${at}" inside blocks`)
+    }
+    // Localized values inside blocks are stored as `{ [locale]: value }`.
+    let last = i
+    if (field.localized && localization) {
+      const next = rest[i + 1]
+      const named = next !== undefined && localization.locales.includes(next)
+      path.push(named ? next : localization.defaultLocale)
+      if (named) last = i + 1
+    }
+    if (last < rest.length - 1) throw new QueryError(`Cannot query inside "${at}"`)
+    return { path, type: JSON_TYPES[field.type] ?? 'text', field }
+  }
+  throw new QueryError(`"${[shown, ...rest].join('.')}" is a group; query one of its fields`)
+}
+
+function resolvePath(
+  model: TableModel,
+  segments: string[],
+  drafts: boolean,
+  localization: SchemaLocalization | null = null,
+): Target {
   const [first] = segments
   if (first === undefined) throw new QueryError('empty field path')
 
@@ -96,20 +164,31 @@ function resolvePath(model: TableModel, segments: string[], drafts: boolean): Ta
     if (child) return { kind: 'child', child, rest: segments.slice(i + 1) }
 
     // Localized fields: `title.en` names the locale; plain `title` means the default locale.
-    const locale = field.localized ? segments[i + 1] : undefined
+    let locale = field.localized ? segments[i + 1] : undefined
+    if (field.type === 'blocks' && locale !== undefined && !localization?.locales.includes(locale))
+      locale = undefined // `layout.heading`: a field inside the blocks, not a locale
     const last = field.localized && locale !== undefined ? i + 1 : i
+    const same = (c: TableModel['columns'][number]) => c.path.join('.') === path.join('.')
+    const columnOf = () =>
+      field.localized
+        ? model.columns.find(
+            (c) => same(c) && (locale === undefined ? c.defaultLocale : c.locale === locale),
+          )
+        : model.columns.find(same)
+    if (field.type === 'blocks') {
+      const column = columnOf()
+      if (!column) throw new QueryError(`Unknown locale "${locale}" for "${shown}"`)
+      const rest = segments.slice(last + 1)
+      const value = rest.length === 0 ? null : resolveBlockValue(field, rest, shown, localization)
+      return { kind: 'blocks', column: col(model, column.column), value }
+    }
     if (last < segments.length - 1) {
       throw new QueryError(`Cannot query inside "${shown}" (${field.type} field)`)
     }
-    if (field.type === 'json' || field.type === 'richText' || field.type === 'blocks') {
+    if (field.type === 'json' || field.type === 'richText') {
       throw new QueryError(`Cannot query "${shown}": ${field.type} fields are not queryable`)
     }
-    const same = (c: TableModel['columns'][number]) => c.path.join('.') === path.join('.')
-    const column = field.localized
-      ? model.columns.find(
-          (c) => same(c) && (locale === undefined ? c.defaultLocale : c.locale === locale),
-        )
-      : model.columns.find(same)
+    const column = columnOf()
     if (field.localized && !column)
       throw new QueryError(`Unknown locale "${locale}" for "${shown}"`)
     if (!column) throw new QueryError(`Unknown field "${shown}"`)
@@ -182,6 +261,7 @@ export class WhereBuilder {
     private readonly db: DrizzleDb,
     private readonly dialect: Dialect,
     private readonly drafts: boolean,
+    private readonly localization: SchemaLocalization | null = null,
   ) {}
 
   build(model: TableModel, where: Where | undefined): SQL | undefined {
@@ -211,15 +291,40 @@ export class WhereBuilder {
     }
     const entries = Object.entries(operators).filter(([, v]) => v !== undefined)
     if (entries.length === 0) throw new QueryError(`"${path}" has no operator`)
-    const target = resolvePath(model, path.split('.'), this.drafts && model.kind === 'root')
+    const target = resolvePath(
+      model,
+      path.split('.'),
+      this.drafts && model.kind === 'root',
+      this.localization,
+    )
 
     const parts = entries.map(([op, value]) => {
       if (!OPERATORS.has(op)) throw new QueryError(`Unknown operator "${op}" on "${path}"`)
       if (target.kind === 'column')
         return operatorSQL(this.dialect, target.column, target.field, op, value, path)
+      if (target.kind === 'blocks') return this.blocks(target, op, value, path)
       return this.child(model, target.child, target.rest, op, value, path, target.locale)
     })
     return (parts.length === 1 ? parts[0] : and(...parts)) as SQL
+  }
+
+  /** Conditions inside blocks test each block of the JSON column: some block must match. */
+  private blocks(
+    target: Extract<Target, { kind: 'blocks' }>,
+    op: string,
+    value: unknown,
+    path: string,
+  ): SQL {
+    const { value: inner } = target
+    if (!inner) {
+      if (op !== 'exists')
+        throw new QueryError(`"${path}" is a blocks field; query one of its fields`)
+      const any = this.dialect.someElement(target.column, () => undefined)
+      return value === false ? not(any) : any
+    }
+    return this.dialect.someElement(target.column, (get) =>
+      operatorSQL(this.dialect, get(inner.path, inner.type), inner.field, op, value, path),
+    )
   }
 
   /** Conditions on array rows or hasMany values become (NOT) EXISTS subqueries. */
@@ -272,7 +377,7 @@ export class WhereBuilder {
     const order = sort.map((entry) => {
       const descending = entry.startsWith('-')
       const path = descending ? entry.slice(1) : entry
-      const target = resolvePath(model, path.split('.'), this.drafts)
+      const target = resolvePath(model, path.split('.'), this.drafts, this.localization)
       if (target.kind !== 'column') throw new QueryError(`Cannot sort by "${path}"`)
       return descending ? desc(target.column) : asc(target.column)
     })

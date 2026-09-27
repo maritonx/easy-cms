@@ -62,8 +62,23 @@ const valid =
 ## Delivery
 
 Webhooks are sent after the change is saved and never slow it down or make it fail. Timeouts
-(10 s), network errors, `429` and `5xx` answers are retried twice (after 1 s and 5 s); other
-`4xx` answers are logged and not retried.
+(10 s), network errors, `429` and `5xx` answers are retried; other `4xx` answers are logged and
+not retried.
+
+- Two quick retries happen in the process that made the change (after 1 s and 5 s).
+- As soon as the first attempt fails, the delivery is saved in the database (the internal
+  `webhook-deliveries` table), so a restart or a stopped serverless function doesn't lose it.
+- After the quick retries, it is retried with [scheduled jobs](./drafts#scheduled-publishing):
+  after 1 minute, 5 minutes, 30 minutes, 2, 6 and 12 hours. Servers run them every minute; on
+  serverless, call `<api>/jobs/run` from a cron.
+- After the last attempt (about a day later) the delivery is kept with `state: 'failed'` and its
+  last error, and not retried.
+
+Every attempt sends the same body, signature and `x-easy-cms-delivery`, so a receiver can skip
+deliveries it has already handled. Adding `webhooks` to a config adds the
+`webhook-deliveries` table: create a migration as for any config change.
 
 On serverless platforms a function may stop before a webhook is sent: call
 `await cms.flushWebhooks()` before returning when you write through the Local API there.
+`await cms.retryWebhooks()` tries the saved deliveries that are due (`runJobs()` does that and
+runs scheduled publishing).

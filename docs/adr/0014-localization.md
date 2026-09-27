@@ -21,5 +21,5 @@
 - ✅ แปลเนื้อหาได้โดยไม่ต้องทำ collection แยกตามภาษา และค้นหาหรือเรียงตามภาษาได้
 - ✅ โปรเจกต์ที่ไม่ใช้ localization ไม่เปลี่ยนอะไร
 - ❌ การเพิ่มภาษาต้องสร้าง migration และตารางกว้างขึ้นตามจำนวนภาษา (เหมาะกับภาษาไม่กี่ภาษา)
-- ❌ การเปลี่ยน `defaultLocale` ภายหลังต้องย้ายข้อมูลเอง
+- ~~❌ การเปลี่ยน `defaultLocale` ภายหลังต้องย้ายข้อมูลเอง~~ แก้แล้วใน [ADR 0017](./0017-durable-webhooks-block-queries-locale-moves.md)
 - ❌ hook `beforeValidate`/`beforeChange` เห็นค่าของ field ที่ localized เป็น map และ `locale: 'all'` จะไม่ populate relationship ที่ localized

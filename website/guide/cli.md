@@ -26,7 +26,7 @@ npx easy-cms <command> [--config <file>] [--cwd <dir>]
 | `migrate:status` | List migrations and whether they are applied |
 | `generate:types [--out <file>]` | Write TypeScript types (default `easy-cms-types.ts`) |
 | `create-admin [--email] [--name] [--role]` | Create a user; asks for the password, or reads `EASY_CMS_ADMIN_PASSWORD` |
-| `run-scheduled` | Run due [scheduled](./drafts#scheduled-publishing) publishes and unpublishes once (for cron) |
+| `run-scheduled` | Run due [scheduled](./drafts#scheduled-publishing) publishes and unpublishes, and [webhook retries](./webhooks#delivery), once (for cron) |
 | `serve [--port] [--host] [--watch] [--trust-proxy]` | Run the CMS as its own server; see [Standalone server](./standalone) |
 
 Every command has `--help` and exits non-zero on failure.

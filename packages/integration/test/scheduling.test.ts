@@ -137,8 +137,9 @@ describe('scheduled publishing (FR-SCH)', () => {
     expect((await call('GET', '/jobs/run', undefined, 'Bearer cron-secret-value')).json).toEqual({
       ran: 1,
       failed: 0,
+      webhooks: { sent: 0, failed: 0 },
     })
-    expect((await call('POST', '/jobs/run')).json).toEqual({ ran: 0, failed: 0 })
+    expect((await call('POST', '/jobs/run')).json).toMatchObject({ ran: 0, failed: 0 })
 
     const job = (
       await call('POST', `/posts/${post.id}/schedule`, {

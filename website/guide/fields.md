@@ -102,7 +102,21 @@ Rows of different kinds, for pages editors lay out themselves:
 
 Each row is `{ id, blockType, ...fields }`; `blockType` picks the block. Rows are validated,
 relationships and uploads inside them populated, and the generated types are a union of the
-block kinds. Blocks are stored as JSON, so they can't be used in `where` or `sort`.
+block kinds.
+
+Blocks are stored as JSON. `where` can look inside them: a field name means that field in
+whichever block has it, and a document matches when some block does.
+
+```ts
+await cms.find('pages', { where: { 'layout.blockType': { equals: 'hero' } } })
+await cms.find('pages', { where: { 'layout.heading': { like: 'sale' } } })
+await cms.find('pages', { where: { 'layout.heading.en': { equals: 'Hello' } } }) // a locale
+await cms.find('pages', { where: { layout: { exists: false } } }) // no blocks at all
+```
+
+Fields in groups inside blocks work too (`layout.meta.tone`); arrays, blocks and `hasMany`
+fields inside blocks, and sorting by block fields, don't. These queries scan the JSON of each
+document, so they suit filters more than large, hot lists.
 
 ## How fields are stored
 

@@ -59,7 +59,7 @@ Commands:
   generate:types          Write TypeScript types for your collections and globals
   create-admin            Create an admin user
   serve                   Run the CMS as its own server (admin + REST API)
-  run-scheduled           Publish/unpublish documents whose scheduled time has come
+  run-scheduled           Run due scheduled publishes and webhook retries
 
 Options:
   --config <file>         Config file (default: easy-cms.config.ts)
@@ -95,8 +95,8 @@ terminal, or read from EASY_CMS_ADMIN_PASSWORD when there is no terminal.
 `,
   'run-scheduled': `Usage: easy-cms run-scheduled [options]
 
-Runs due scheduled publishes and unpublishes once, for a cron job where no server process
-keeps running. Servers run them every minute on their own.
+Runs due scheduled publishes and unpublishes, and retries failed webhook deliveries, once:
+for a cron job where no server process keeps running. Servers do this every minute on their own.
 `,
   serve: `Usage: easy-cms serve [--port <n>] [--host <host>] [--watch] [--trust-proxy] [options]
 
@@ -167,8 +167,12 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
     try {
       switch (command) {
         case 'run-scheduled': {
-          const { ran, failed } = await cms.runScheduled()
+          const { ran, failed, webhooks } = await cms.runJobs()
           io.out(`Ran ${ran} scheduled job(s)${failed ? `, ${failed} failed` : ''}.`)
+          if (webhooks.sent || webhooks.failed)
+            io.out(
+              `Retried webhooks: ${webhooks.sent} sent${webhooks.failed ? `, ${webhooks.failed} gave up` : ''}.`,
+            )
           return failed ? 1 : 0
         }
         case 'migrate': {

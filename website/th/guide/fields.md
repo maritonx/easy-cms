@@ -102,7 +102,21 @@ id จะถูกตรวจสอบว่ามีอยู่จริง�
 
 แต่ละแถวคือ `{ id, blockType, ...fields }` โดย `blockType` ใช้เลือก block แถวจะถูกตรวจสอบความถูกต้อง
 relationship และ upload ภายในแถวจะถูก populate และ type ที่สร้างขึ้นจะเป็น union ของ
-block แต่ละชนิด blocks จัดเก็บเป็น JSON จึงใช้ใน `where` หรือ `sort` ไม่ได้
+block แต่ละชนิด
+
+blocks จัดเก็บเป็น JSON และ `where` ค้นข้างในได้: ชื่อ field หมายถึง field นั้นในบล็อกชนิดใดก็ตามที่มี
+และเอกสารจะตรงเงื่อนไขเมื่อมีบล็อกใดบล็อกหนึ่งตรง
+
+```ts
+await cms.find('pages', { where: { 'layout.blockType': { equals: 'hero' } } })
+await cms.find('pages', { where: { 'layout.heading': { like: 'sale' } } })
+await cms.find('pages', { where: { 'layout.heading.en': { equals: 'Hello' } } }) // ระบุภาษา
+await cms.find('pages', { where: { layout: { exists: false } } }) // ไม่มีบล็อกเลย
+```
+
+field ใน group ข้างในบล็อกก็ใช้ได้ (`layout.meta.tone`) แต่ array, blocks และ field แบบ `hasMany`
+ข้างในบล็อก รวมถึงการ sort ด้วย field ในบล็อกยังใช้ไม่ได้ การค้นแบบนี้ต้องอ่าน JSON ของทุกเอกสาร
+จึงเหมาะกับการกรองมากกว่ารายการใหญ่ที่ถูกเรียกบ่อย
 
 ## วิธีจัดเก็บ field {#how-fields-are-stored}
 

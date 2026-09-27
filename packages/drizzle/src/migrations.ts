@@ -2,7 +2,7 @@ import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { type Logger, SchemaError } from '@easy-cms/core'
 import type { Dialect, Snapshot, SqlRunner, Statement } from './dialect.js'
-import type { SchemaModel } from './schema.js'
+import { type SchemaLocalization, type SchemaModel, snake, tableModels } from './schema.js'
 
 const BREAKPOINT = '--> statement-breakpoint'
 const TABLE_PARTS = [
@@ -37,6 +37,27 @@ export function unionSnapshot(prev: Snapshot, cur: Snapshot): Snapshot {
     }
   }
   return merged
+}
+
+/** Easy CMS's own notes, kept beside drizzle-kit's data in stored snapshots. */
+const META = 'easyCms'
+
+interface SnapshotMeta {
+  readonly localization: SchemaLocalization | null
+}
+
+const metaOf = (snapshot: Snapshot): SnapshotMeta | undefined => snapshot[META]
+
+function withoutMeta(snapshot: Snapshot): Snapshot {
+  const { [META]: _, ...rest } = snapshot
+  return rest
+}
+
+/** A table in a drizzle-kit snapshot (Postgres keys them by `schema.name`). */
+function snapshotTable(snapshot: Snapshot, name: string): Snapshot | undefined {
+  return Object.values((snapshot.tables ?? {}) as Record<string, Snapshot>).find(
+    (t) => t.name === name,
+  )
 }
 
 const DESTRUCTIVE = /\b(DROP TABLE|DROP COLUMN)\b|__new_/i
@@ -78,16 +99,68 @@ export class Migrator {
     return this.options.dialect.name === 'postgres' ? `"${name}"` : `\`${name}\``
   }
 
-  private snapshotOf(schema: SchemaModel | null): Promise<Snapshot> {
-    return this.options.dialect.snapshot(schema ? schema.tables : {})
+  private async snapshotOf(schema: SchemaModel | null): Promise<Snapshot> {
+    const snapshot = await this.options.dialect.snapshot(schema ? schema.tables : {})
+    const meta: SnapshotMeta = { localization: schema?.localization ?? null }
+    return { ...snapshot, [META]: meta }
   }
 
   /** SQL statements that turn `prev` into `cur`. Renames become drop + add unless interactive. */
   private async diff(prev: Snapshot, cur: Snapshot, interactive: boolean): Promise<string[]> {
     const { dialect } = this.options
-    if (interactive) return dialect.migration(prev, cur)
-    const union = unionSnapshot(prev, cur)
-    return [...(await dialect.migration(prev, union)), ...(await dialect.migration(union, cur))]
+    const moves = this.localeMoves(prev, metaOf(prev), metaOf(cur))
+    const [from, to] = [withoutMeta(prev), withoutMeta(cur)]
+    if (interactive && moves.length === 0) return dialect.migration(from, to)
+    // Columns are added first and dropped last, so values can move between them in the middle.
+    const union = unionSnapshot(from, to)
+    return [
+      ...(await dialect.migration(from, union)),
+      ...moves,
+      ...(await dialect.migration(union, to)),
+    ]
+  }
+
+  /**
+   * A new default locale changes which locale the plain column holds (`title` is the default
+   * locale's, `title__en` another's). Moves the values so every locale keeps its own.
+   * Snapshots from before 0.7 do not record the locales, so nothing can be moved for them.
+   */
+  private localeMoves(
+    prev: Snapshot,
+    before: SnapshotMeta | undefined,
+    after: SnapshotMeta | undefined,
+  ): string[] {
+    const was = before?.localization
+    const now = after?.localization
+    if (!was || !now || was.defaultLocale === now.defaultLocale) return []
+    const q = (name: string) => this.q(name)
+    const statements: string[] = []
+    for (const model of tableModels(this.options.schema)) {
+      const old = snapshotTable(prev, model.name)
+      if (!old) continue // a new table has nothing to move
+      const has = (column: string) => Object.hasOwn(old.columns ?? {}, column)
+      const keep: string[] = []
+      const clear: string[] = []
+      const fill: string[] = []
+      for (const column of model.columns) {
+        if (!column.defaultLocale || !has(column.column)) continue
+        const base = column.column
+        // The old default locale's values move out of the plain column…
+        const moved = model.columns.find(
+          (c) => c.path.join('.') === column.path.join('.') && c.locale === was.defaultLocale,
+        )
+        if (moved && !has(moved.column)) keep.push(`${q(moved.column)} = ${q(base)}`)
+        // …and the new default locale's move in (empty if it is a new locale).
+        clear.push(`${q(base)} = NULL`)
+        const incoming = `${base}__${snake(now.defaultLocale)}`
+        if (has(incoming)) fill.push(`${q(base)} = ${q(incoming)}`)
+      }
+      // Cleared first, so unique values never clash while they move.
+      for (const set of [keep, clear, fill]) {
+        if (set.length > 0) statements.push(`UPDATE ${q(model.name)} SET ${set.join(', ')}`)
+      }
+    }
+    return statements
   }
 
   async ensureTable() {

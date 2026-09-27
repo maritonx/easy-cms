@@ -87,7 +87,10 @@ class DrizzleDatabase implements Database {
   ) {
     this.db = connection.db
     for (const [slug, model] of schema.collections) {
-      this.builders.set(slug, new WhereBuilder(this.db, dialect, model.config.drafts === true))
+      this.builders.set(
+        slug,
+        new WhereBuilder(this.db, dialect, model.config.drafts === true, schema.localization),
+      )
     }
   }
 

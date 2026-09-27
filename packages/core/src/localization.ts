@@ -133,6 +133,11 @@ export function localizePath(
       list = field.fields
       continue
     }
+    if (field.type === 'blocks') {
+      // A field name inside blocks means that field in whichever block has it.
+      list = field.blocks.flatMap((block) => block.fields)
+      continue
+    }
     return path
   }
   return path

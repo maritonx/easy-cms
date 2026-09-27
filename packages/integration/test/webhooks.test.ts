@@ -3,7 +3,7 @@ import { createServer, type IncomingHttpHeaders, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { defineConfig, type WebhookPayload } from '@easy-cms/core'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { db, open, SECRET } from './helpers.js'
+import { db, open, rawQuery, SECRET, table, tempProject } from './helpers.js'
 
 interface Received {
   headers: IncomingHttpHeaders
@@ -127,6 +127,75 @@ describe('webhooks (FR-HOOK)', () => {
     expect(received[0]?.headers['x-easy-cms-delivery']).toBe(
       received[1]?.headers['x-easy-cms-delivery'],
     )
+    await cms.destroy()
+  })
+
+  it('keeps failed deliveries in the database and retries them later (FR-HOOK-03)', async () => {
+    const cwd = tempProject()
+    const flaky = defineConfig({
+      secret: SECRET,
+      db: db(),
+      webhooks: [{ url: `${url}/down`, secret: 'hook-secret' }],
+      collections: [{ slug: 'notes', fields: [{ name: 'text', type: 'text' }] }],
+    })
+    const first = await open(flaky, cwd)
+    answers = [503, 503, 503]
+    const note = await first.create('notes', { text: 'x' })
+    await first.flushWebhooks()
+    expect(received).toHaveLength(3) // the first attempt and two quick retries
+    const deliveries = () =>
+      rawQuery(cwd, `select state, attempts, error from ${table(cwd, 'webhook_deliveries')}`)
+    expect(await deliveries()).toMatchObject([
+      { state: 'pending', attempts: 3, error: 'status 503' },
+    ])
+    // Not due yet.
+    expect(await first.retryWebhooks()).toEqual({ sent: 0, failed: 0 })
+    await first.destroy()
+
+    // A restart loses nothing: the next process retries once the time comes.
+    const second = await open(flaky, cwd)
+    const inAMinute = new Date(Date.now() + 61_000)
+    expect(await second.runJobs(inAMinute)).toEqual({
+      ran: 0,
+      failed: 0,
+      webhooks: { sent: 1, failed: 0 },
+    })
+    expect(received).toHaveLength(4)
+    const [firstTry, , , retry] = received
+    expect(retry?.payload).toEqual(firstTry?.payload)
+    expect(retry?.payload).toMatchObject({ event: 'create', id: note.id })
+    expect(retry?.headers['x-easy-cms-delivery']).toBe(firstTry?.headers['x-easy-cms-delivery'])
+    expect(retry?.headers['x-easy-cms-signature']).toBe(firstTry?.headers['x-easy-cms-signature'])
+    expect(await deliveries()).toEqual([])
+    await second.destroy()
+  })
+
+  it('gives up after about a day of retries', async () => {
+    const cwd = tempProject()
+    const cms = await open(
+      defineConfig({
+        secret: SECRET,
+        db: db(),
+        webhooks: [{ url: `${url}/gone` }],
+        collections: [{ slug: 'notes', fields: [{ name: 'text', type: 'text' }] }],
+      }),
+      cwd,
+    )
+    answers = Array(20).fill(500)
+    await cms.create('notes', { text: 'x' })
+    await cms.flushWebhooks()
+    let now = Date.now()
+    const results = []
+    for (let i = 0; i < 6; i++) {
+      now += 13 * 3_600_000
+      results.push(await cms.retryWebhooks(new Date(now)))
+    }
+    expect(results.map((r) => r.failed)).toEqual([0, 0, 0, 0, 0, 1])
+    expect(received).toHaveLength(9)
+    expect(
+      await rawQuery(cwd, `select state, attempts from ${table(cwd, 'webhook_deliveries')}`),
+    ).toMatchObject([{ state: 'failed', attempts: 9 }])
+    expect(await cms.retryWebhooks(new Date(now + 86_400_000))).toEqual({ sent: 0, failed: 0 })
     await cms.destroy()
   })
 

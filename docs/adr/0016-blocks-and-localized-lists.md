@@ -19,4 +19,4 @@
 
 - ✅ ปิดข้อจำกัดของ localization ที่เหลือ และลูกค้าจัดหน้าเองได้
 - ✅ inferred type ของ array/blocks/group/hasMany เป็นค่าที่มีเสมอ (ไม่ใช่ null) ตรงกับข้อมูลจริงและ typegen
-- ❌ ค้นหาข้อมูลข้างในบล็อกไม่ได้
+- ~~❌ ค้นหาข้อมูลข้างในบล็อกไม่ได้~~ แก้แล้วใน [ADR 0017](./0017-durable-webhooks-block-queries-locale-moves.md)

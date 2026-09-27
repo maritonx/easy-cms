@@ -40,6 +40,8 @@ export interface PostgresAdapterOptions extends DrizzleAdapterOptions {
 
 const kit = () => import('drizzle-kit/api')
 
+const PG_TYPES = { number: 'double precision', integer: 'integer', boolean: 'boolean' } as const
+
 export const postgresDialect: Dialect = {
   name: 'postgres',
   table: (name, columns, indexes) => pgTable(name, columns, indexes),
@@ -52,6 +54,13 @@ export const postgresDialect: Dialect = {
   boolean: (name) => boolean(name),
   json: (name) => jsonb(name),
   like: (column, pattern) => sql`${column} ILIKE ${pattern} ESCAPE '\\'`,
+  someElement: (column, condition) => {
+    const where = condition((path, type) => {
+      const text = sql`(_el.value #>> ${sql.raw(`'{${path.join(',')}}'`)})`
+      return type === 'text' ? text : sql`${text}::${sql.raw(PG_TYPES[type])}`
+    })
+    return sql`exists (select 1 from jsonb_array_elements(case when jsonb_typeof(${column}) = 'array' then ${column} end) as _el(value)${where ? sql` where ${where}` : sql``})`
+  },
   param: (n) => `$${n}`,
   migrationsTableSQL: (name) =>
     `CREATE TABLE IF NOT EXISTS "${name}" (

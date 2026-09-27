@@ -22,6 +22,8 @@ const config = defineConfig({
               fields: [
                 { name: 'heading', type: 'text', required: true, localized: true },
                 { name: 'author', type: 'relationship', to: 'authors' },
+                { name: 'featured', type: 'boolean' },
+                { name: 'meta', type: 'group', fields: [{ name: 'tone', type: 'text' }] },
               ],
             },
             {
@@ -124,6 +126,74 @@ describe('blocks (FR-BLK)', () => {
     expect(en?.layout[0]).toMatchObject({ id: heroId, heading: 'Hello' })
     expect(th?.banner.map((b) => b.text)).toEqual(['ประกาศ'])
     expect(en?.banner.map((b) => b.text)).toEqual(['Notice', 'Two'])
+    await cms.destroy()
+  })
+
+  it('queries values inside blocks (FR-BLK-03)', async () => {
+    const cms = await open(config)
+    const author = await cms.create('authors', { name: 'Ann' })
+    const hero = await cms.create('pages', {
+      title: 'Hero page',
+      layout: [
+        {
+          blockType: 'hero',
+          heading: 'สวัสดี',
+          author: author.id,
+          featured: true,
+          meta: { tone: 'warm' },
+        },
+      ],
+      banner: [{ blockType: 'notice', text: 'ประกาศ' }],
+    })
+    await cms.update(
+      'pages',
+      hero.id,
+      {
+        layout: [{ ...hero.layout[0], author: author.id, heading: 'Hello' } as never],
+        banner: [{ blockType: 'notice', text: 'Notice' }],
+      },
+      { locale: 'en' },
+    )
+    const cards = await cms.create('pages', {
+      title: 'Cards page',
+      layout: [{ blockType: 'cards', columns: 4 }],
+    })
+    await cms.create('pages', { title: 'Empty' })
+
+    const titles = async (where: object, locale?: string) =>
+      (
+        await cms.find('pages', { where, sort: 'title', ...(locale ? { locale } : {}) } as never)
+      ).docs.map((d) => d.title)
+
+    expect(await titles({ 'layout.blockType': { equals: 'hero' } })).toEqual(['Hero page'])
+    expect(await titles({ 'layout.blockType': { in: ['hero', 'cards'] } })).toEqual([
+      'Cards page',
+      'Hero page',
+    ])
+    expect(await titles({ 'layout.columns': { gte: 4 } })).toEqual(['Cards page'])
+    expect(await titles({ 'layout.featured': { equals: true } })).toEqual(['Hero page'])
+    expect(await titles({ 'layout.author': { equals: String(author.id) } })).toEqual(['Hero page'])
+    expect(await titles({ 'layout.meta.tone': { like: 'war' } })).toEqual(['Hero page'])
+    expect(await titles({ layout: { exists: false } })).toEqual(['Empty'])
+    // Localized values inside blocks: the default locale, a named locale, or the one being read.
+    expect(await titles({ 'layout.heading': { equals: 'สวัสดี' } })).toEqual(['Hero page'])
+    expect(await titles({ 'layout.heading.en': { equals: 'Hello' } })).toEqual(['Hero page'])
+    expect(await titles({ 'layout.heading': { equals: 'Hello' } }, 'en')).toEqual(['Hero page'])
+    expect(await titles({ 'layout.heading': { equals: 'Hello' } })).toEqual([])
+    // A localized blocks field: one layout per locale.
+    expect(await titles({ 'banner.text': { equals: 'ประกาศ' } })).toEqual(['Hero page'])
+    expect(await titles({ 'banner.en.text': { equals: 'Notice' } })).toEqual(['Hero page'])
+    expect(await titles({ 'banner.text': { equals: 'Notice' } }, 'en')).toEqual(['Hero page'])
+    expect(cards.id).toBeDefined()
+
+    await expect(titles({ 'layout.nope': { equals: 1 } })).rejects.toThrow(
+      /Unknown field "layout.nope"/,
+    )
+    await expect(titles({ 'layout.items.title': { equals: 'x' } })).rejects.toThrow(
+      /Cannot query "layout.items" inside blocks/,
+    )
+    await expect(titles({ layout: { equals: 'x' } })).rejects.toThrow(/query one of its fields/)
+    await expect(cms.find('pages', { sort: 'layout.columns' })).rejects.toThrow(/Cannot sort/)
     await cms.destroy()
   })
 

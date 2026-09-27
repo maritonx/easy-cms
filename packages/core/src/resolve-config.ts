@@ -3,6 +3,7 @@ import {
   internalCollections,
   scheduledJobsCollection,
   versionsCollection,
+  webhookDeliveriesCollection,
   withMedia,
   withUsers,
 } from './builtins.js'
@@ -72,6 +73,7 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
       ...internalCollections,
       ...(usesVersions(config) ? [versionsCollection] : []),
       ...(usesSchedule(config) ? [scheduledJobsCollection] : []),
+      ...((config.webhooks?.length ?? 0) > 0 ? [webhookDeliveriesCollection] : []),
     ],
     globals: config.globals ?? [],
   }

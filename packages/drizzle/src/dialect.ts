@@ -30,6 +30,12 @@ export interface SqlRunner {
   transaction(statements: readonly Statement[]): Promise<void>
 }
 
+/** How to read a value out of a JSON element for comparing. */
+export type JsonValueType = 'text' | 'number' | 'integer' | 'boolean'
+
+/** A value inside the JSON element being tested, e.g. `['heading', 'en']`. */
+export type JsonGetter = (path: readonly string[], type: JsonValueType) => SQL
+
 /** What differs between SQL dialects. */
 export interface Dialect {
   readonly name: 'sqlite' | 'postgres'
@@ -53,6 +59,11 @@ export interface Dialect {
 
   /** Case-insensitive substring match; `pattern` is already escaped and wrapped in `%`. */
   like(column: AnyColumn, pattern: string): SQL
+  /**
+   * True when some element of a JSON array column matches `condition` (any element when it
+   * returns undefined). Path segments are field names, already checked against the config.
+   */
+  someElement(column: AnyColumn, condition: (get: JsonGetter) => SQL | undefined): SQL
   /** Placeholder for the n-th parameter (1-based) in raw SQL. */
   param(n: number): string
   /** CREATE TABLE IF NOT EXISTS for the migrations table. */

@@ -10,7 +10,13 @@ import {
 import { Auth } from './auth/auth.js'
 import { hashPassword, MIN_PASSWORD_LENGTH } from './auth/password.js'
 import { signPreviewToken, verifyPreviewToken } from './auth/tokens.js'
-import { INTERNAL_COLLECTIONS, MEDIA, SCHEDULED_JOBS, USERS } from './builtins.js'
+import {
+  INTERNAL_COLLECTIONS,
+  MEDIA,
+  SCHEDULED_JOBS,
+  USERS,
+  WEBHOOK_DELIVERIES,
+} from './builtins.js'
 import type { CollectionConfig, Config, GlobalConfig, ImageSize, ResolvedConfig } from './config.js'
 import type { Database, PaginatedDocs, RawDocument, SchemaMode } from './database.js'
 import {
@@ -62,7 +68,7 @@ import {
   type VersionSummary,
   versionLimit,
 } from './versions.js'
-import { type WebhookEvent, Webhooks } from './webhooks.js'
+import { type QueuedDelivery, type WebhookEvent, type WebhookQueue, Webhooks } from './webhooks.js'
 
 type Data = Record<string, unknown>
 
@@ -124,8 +130,9 @@ export interface CreateEasyCMSOptions {
   /** Project root. Default `process.cwd()`. */
   readonly cwd?: string
   /**
-   * Run due scheduled jobs every minute in this process. Default: on when a collection or
-   * global has `schedule`. Turn it off where a cron calls `runScheduled` instead.
+   * Run due scheduled jobs and webhook retries every minute in this process. Default: on when
+   * a collection or global has `schedule`, or `webhooks` is set. Turn it off where a cron calls
+   * `runJobs` (or `GET <api>/jobs/run`) instead.
    */
   readonly scheduler?: boolean
   /** Default `verify` when `NODE_ENV=production`, otherwise `push`. */
@@ -152,7 +159,9 @@ export async function createEasyCMS<const C extends Config>(
     interactive: options.interactive ?? false,
   })
   const cms = new EasyCMS<C>(resolved, db, logger, storage)
-  const scheduling = [...resolved.collections, ...resolved.globals].some((c) => c.schedule)
+  const scheduling =
+    [...resolved.collections, ...resolved.globals].some((c) => c.schedule) ||
+    (resolved.webhooks?.length ?? 0) > 0
   if (scheduling && options.scheduler !== false) cms.startScheduler()
   return cms
 }
@@ -205,7 +214,13 @@ export class EasyCMS<C extends Config = Config> {
     this.logger = logger
     this.storage = storage
     this.versions = new VersionStore(db)
-    this.webhooks = new Webhooks(config.webhooks ?? [], logger)
+    this.webhooks = new Webhooks(
+      config.webhooks ?? [],
+      logger,
+      config.collections.some((c) => c.slug === WEBHOOK_DELIVERIES)
+        ? this.webhookQueue()
+        : undefined,
+    )
     this.auth = new Auth(this as unknown as EasyCMS)
   }
 
@@ -1003,17 +1018,73 @@ export class EasyCMS<C extends Config = Config> {
   private schedulerTimer: ReturnType<typeof setInterval> | undefined
   private running: Promise<unknown> = Promise.resolve()
 
-  /** Runs due jobs every `interval` ms in this process (`createEasyCMS` does this by default). */
+  /** Runs `runJobs` every `interval` ms in this process (`createEasyCMS` does this by default). */
   startScheduler(interval = 60_000): void {
     if (this.schedulerTimer) return
     this.schedulerTimer = setInterval(() => {
       this.running = this.running.then(() =>
-        this.runScheduled().catch((error) =>
+        this.runJobs().catch((error) =>
           this.logger.error(`Scheduled jobs failed: ${(error as Error).message}`),
         ),
       )
     }, interval)
     this.schedulerTimer.unref?.()
+  }
+
+  /**
+   * Runs due scheduled publishes and unpublishes, and retries failed webhook deliveries. What the
+   * scheduler and the cron endpoint (`GET <api>/jobs/run`) call.
+   */
+  async runJobs(now: Date = new Date()): Promise<{
+    ran: number
+    failed: number
+    webhooks: { sent: number; failed: number }
+  }> {
+    const scheduled = await this.runScheduled(now)
+    return { ...scheduled, webhooks: await this.retryWebhooks(now) }
+  }
+
+  /**
+   * Tries webhook deliveries that failed earlier and are due for another attempt. Failed
+   * deliveries are kept in the database, so they survive restarts.
+   */
+  retryWebhooks(now: Date = new Date()): Promise<{ sent: number; failed: number }> {
+    return this.webhooks.retry(now)
+  }
+
+  /** Failed webhook deliveries, stored in `webhook-deliveries`. */
+  private webhookQueue(): WebhookQueue {
+    const collection = WEBHOOK_DELIVERIES
+    const toRow = (d: QueuedDelivery, createdAt?: string) => {
+      const now = new Date().toISOString()
+      return { ...d, createdAt: createdAt ?? now, updatedAt: now } as unknown as Data
+    }
+    return {
+      add: async (delivery) => (await this.db.create({ collection, data: toRow(delivery) })).id,
+      update: async (id, delivery) => {
+        const current = await this.db.findById({ collection, id })
+        await this.db.update({
+          collection,
+          id,
+          data: toRow(delivery, current?.createdAt as string | undefined),
+        })
+      },
+      remove: async (id) => {
+        await this.db.delete({ collection, id })
+      },
+      due: async (now, limit) => {
+        const { docs } = await this.db.find({
+          collection,
+          where: {
+            and: [{ state: { equals: 'pending' } }, { nextAttemptAt: { lte: now.toISOString() } }],
+          },
+          sort: ['nextAttemptAt'],
+          limit,
+          page: 1,
+        })
+        return docs as unknown as (QueuedDelivery & { id: ID })[]
+      },
+    }
   }
 
   /**

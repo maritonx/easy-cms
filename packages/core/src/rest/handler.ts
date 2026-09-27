@@ -196,7 +196,8 @@ async function route(
     throw new HttpError('Not found', 404)
   }
 
-  // Scheduled jobs, run by a cron service (Authorization: Bearer <cronSecret>) or an admin.
+  // Scheduled jobs and webhook retries, run by a cron service (Authorization: Bearer
+  // <cronSecret>) or an admin.
   if (first === 'jobs' && second === 'run' && third === undefined) {
     if (method !== 'GET' && method !== 'POST') throw methodNotAllowed(ctx, 'GET, POST')
     const secret = cms.config.cronSecret ?? process.env.CRON_SECRET
@@ -205,7 +206,7 @@ async function route(
     if (!byCron && ctx.user?.role !== 'admin') {
       throw ctx.user ? new HttpError('Forbidden', 403) : new UnauthorizedError()
     }
-    return { body: await cms.runScheduled() }
+    return { body: await cms.runJobs() }
   }
 
   // Admin UI metadata

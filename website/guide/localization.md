@@ -71,5 +71,8 @@ Each localized field gets one column per locale. The default locale keeps the pl
 - Localized arrays and `hasMany` fields keep their rows in the child table with a `_locale`
   column; existing rows become the default locale's.
 - Adding a locale adds columns: create a migration as for any config change.
-- Changing `defaultLocale` later points the plain columns at another locale; move the data in a
-  migration if you do.
+- Changing `defaultLocale` later moves the values between columns, so every locale keeps its
+  own: the generated migration (and development push) adds the new columns, copies the values
+  with `UPDATE` statements, then drops the old ones. Review it before deploying. Migrations
+  created before 0.7 don't record the locales, so for the first change after upgrading, create
+  a migration (`easy-cms migrate:create`) before changing `defaultLocale`.

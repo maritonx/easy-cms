@@ -16,6 +16,7 @@ const RESERVED_SLUGS = new Set([
   'login-attempts',
   'document-versions',
   'scheduled-jobs',
+  'webhook-deliveries',
   'jobs',
   'migrations',
   'access',

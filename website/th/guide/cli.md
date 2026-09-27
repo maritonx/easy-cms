@@ -26,7 +26,7 @@ npx easy-cms <command> [--config <file>] [--cwd <dir>]
 | `migrate:status` | แสดงรายการ migration และสถานะว่าใช้แล้วหรือยัง |
 | `generate:types [--out <file>]` | เขียน TypeScript types (ค่าเริ่มต้น `easy-cms-types.ts`) |
 | `create-admin [--email] [--name] [--role]` | สร้างผู้ใช้ โดยถามรหัสผ่าน หรืออ่านจาก `EASY_CMS_ADMIN_PASSWORD` |
-| `run-scheduled` | รันการเผยแพร่และยกเลิกการเผยแพร่ที่[ตั้งเวลา](./drafts#scheduled-publishing)ไว้ซึ่งถึงกำหนดแล้วหนึ่งครั้ง (สำหรับ cron) |
+| `run-scheduled` | รันการเผยแพร่และยกเลิกการเผยแพร่ที่[ตั้งเวลา](./drafts#scheduled-publishing)ไว้ซึ่งถึงกำหนดแล้ว และ[ลองส่ง webhook ใหม่](./webhooks#delivery) หนึ่งครั้ง (สำหรับ cron) |
 | `serve [--port] [--host] [--watch] [--trust-proxy]` | รัน CMS เป็น server แยกของตัวเอง ดู [Standalone server](./standalone) |
 
 ทุกคำสั่งมี `--help` และจบด้วย exit code ที่ไม่ใช่ศูนย์เมื่อล้มเหลว

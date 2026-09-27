@@ -40,7 +40,9 @@ await cms.discardDraft('posts', 12)
 
 // Scheduled publishing and webhooks
 await cms.schedule('posts', 12, { action: 'publish', at: new Date('2026-10-01T02:00:00Z') })
-await cms.runScheduled() // what servers do every minute
+await cms.runJobs() // what servers do every minute: scheduled jobs and webhook retries
+await cms.runScheduled() // only scheduled publishing
+await cms.retryWebhooks() // only webhook deliveries that failed earlier
 await cms.flushWebhooks() // wait for webhook deliveries (serverless)
 ```
 

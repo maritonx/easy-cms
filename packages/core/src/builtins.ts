@@ -8,6 +8,7 @@ export const SESSIONS = 'sessions'
 export const LOGIN_ATTEMPTS = 'login-attempts'
 export const VERSIONS = 'document-versions'
 export const SCHEDULED_JOBS = 'scheduled-jobs'
+export const WEBHOOK_DELIVERIES = 'webhook-deliveries'
 
 /** Collections Easy CMS uses internally. Not exposed over REST or in the admin UI. */
 export const INTERNAL_COLLECTIONS: ReadonlySet<string> = new Set([
@@ -15,6 +16,7 @@ export const INTERNAL_COLLECTIONS: ReadonlySet<string> = new Set([
   LOGIN_ATTEMPTS,
   VERSIONS,
   SCHEDULED_JOBS,
+  WEBHOOK_DELIVERIES,
 ])
 
 export const DEFAULT_ROLES = ['admin', 'editor'] as const
@@ -244,5 +246,23 @@ export const scheduledJobsCollection: CollectionConfig = {
     { name: 'state', type: 'text', required: true, index: true },
     { name: 'error', type: 'text' },
     { name: 'author', type: 'number' },
+  ],
+}
+
+/** Webhook deliveries waiting for another attempt; added only when `webhooks` is set. */
+export const webhookDeliveriesCollection: CollectionConfig = {
+  slug: WEBHOOK_DELIVERIES,
+  access: { read: nobody, create: nobody, update: nobody, delete: nobody },
+  fields: [
+    { name: 'url', type: 'text', required: true },
+    { name: 'event', type: 'text', required: true },
+    // The JSON body as first sent: retries are byte-for-byte the same, signature included.
+    { name: 'body', type: 'textarea', required: true },
+    { name: 'delivery', type: 'text', required: true },
+    { name: 'attempts', type: 'number', required: true },
+    { name: 'nextAttemptAt', type: 'text', required: true, index: true },
+    // pending | failed
+    { name: 'state', type: 'text', required: true, index: true },
+    { name: 'error', type: 'text' },
   ],
 }
