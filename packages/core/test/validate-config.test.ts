@@ -90,6 +90,16 @@ describe('validateConfig', () => {
     ])
   })
 
+  it('checks cors origins', () => {
+    expect(validateConfig(baseConfig({ cors: '*' }))).toEqual([])
+    expect(validateConfig(baseConfig({ cors: ['https://ok.test'] }))).toEqual([])
+    const issues = validateConfig(baseConfig({ cors: ['https://ok.test', 'ok.test'] }))
+    expect(issues.map((i) => i.path)).toEqual(['cors[1]'])
+    expect(
+      validateConfig(baseConfig({ cors: 'yes' as unknown as '*' })).map((i) => i.path),
+    ).toEqual(['cors'])
+  })
+
   it('reserves slugs used internally', () => {
     expect(paths([{ slug: 'login-attempts', fields: [] }])).toEqual(['collections[0].slug'])
   })

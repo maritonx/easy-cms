@@ -259,3 +259,4 @@ easy-cms serve               # standalone (v0.2)
 - [ADR-0008](adr/0008-media-drafts-hooks.md) — Media, drafts และ hooks
 - [ADR-0009](adr/0009-postgres-and-next.md) — Postgres adapter, shared Drizzle layer และ Next.js adapter
 - [ADR-0010](adr/0010-s3-storage.md) — S3-compatible storage (`@easy-cms/storage-s3`)
+- [ADR-0011](adr/0011-standalone-mode.md) — Standalone mode (`easy-cms serve`) และ CORS

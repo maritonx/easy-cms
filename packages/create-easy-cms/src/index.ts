@@ -2,13 +2,15 @@ import { spawn } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
-import { dirname, join, relative, resolve } from 'node:path'
+import { basename, dirname, join, relative, resolve } from 'node:path'
 import { createInterface } from 'node:readline/promises'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 import { configTemplate, type DatabaseChoice, nextAdminRoute, nextApiRoute } from './templates.js'
 
 export type Framework = 'nuxt' | 'next'
+/** Where Easy CMS runs: inside a Nuxt or Next.js app, or as its own server. */
+export type Target = Framework | 'standalone'
 export type PackageManager = 'pnpm' | 'npm' | 'yarn' | 'bun'
 
 export interface IO {
@@ -47,8 +49,11 @@ const defaultIO: IO = {
 const HELP = `Usage: create-easy-cms [dir] [options]
 
 Adds Easy CMS to the Nuxt or Next.js project in [dir] (default: current directory).
+In an empty or new directory it sets up a standalone Easy CMS server instead, the
+backend for a Vite, React, Vue or static frontend.
 
 Options:
+  --standalone            Set up a standalone server even in an existing project
   --db <sqlite|postgres>  Database (default: ask, or sqlite with --yes)
   --yes, -y               Accept the defaults without asking
   --skip-install          Write files only; install the packages yourself
@@ -89,14 +94,18 @@ function ownVersion(): string {
 }
 
 export function packagesFor(
-  framework: Framework,
+  target: Target,
   db: DatabaseChoice,
 ): { deps: string[]; devDeps: string[] } {
   const v = ownVersion()
-  const deps = [`@easy-cms/core@${v}`, `@easy-cms/${framework}@${v}`]
+  // Standalone: the `easy-cms` CLI is the server, so it is a runtime dependency.
+  const deps =
+    target === 'standalone'
+      ? [`@easy-cms/core@${v}`, `easy-cms@${v}`]
+      : [`@easy-cms/core@${v}`, `@easy-cms/${target}@${v}`]
   if (db === 'sqlite') deps.push(`@easy-cms/db-sqlite@${v}`)
   else deps.push(`@easy-cms/db-postgres@${v}`, '@electric-sql/pglite')
-  return { deps, devDeps: [`easy-cms@${v}`] }
+  return { deps, devDeps: target === 'standalone' ? [] : [`easy-cms@${v}`] }
 }
 
 function installArgs(pm: PackageManager, packages: string[], dev: boolean): string[] {
@@ -107,7 +116,13 @@ function installArgs(pm: PackageManager, packages: string[], dev: boolean): stri
 
 /** Runs create-easy-cms and returns the exit code. */
 export async function run(argv: readonly string[], io: IO = defaultIO): Promise<number> {
-  let values: { db?: string; yes?: boolean; 'skip-install'?: boolean; help?: boolean }
+  let values: {
+    db?: string
+    yes?: boolean
+    standalone?: boolean
+    'skip-install'?: boolean
+    help?: boolean
+  }
   let positionals: string[]
   try {
     ;({ values, positionals } = parseArgs({
@@ -116,6 +131,7 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
       options: {
         db: { type: 'string' },
         yes: { type: 'boolean', short: 'y' },
+        standalone: { type: 'boolean' },
         'skip-install': { type: 'boolean' },
         help: { type: 'boolean', short: 'h' },
       },
@@ -132,15 +148,28 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
 
   const dir = resolve(positionals[0] ?? process.cwd())
   const pkgFile = join(dir, 'package.json')
-  if (!existsSync(pkgFile)) {
-    io.err(`No package.json in ${dir}. Run this inside a Nuxt or Next.js project.`)
-    return 1
-  }
-  const framework = detectFramework(JSON.parse(await readFile(pkgFile, 'utf8')))
-  if (!framework) {
-    io.err('This does not look like a Nuxt or Next.js project (no "nuxt" or "next" dependency).')
-    io.err('Create one first, e.g. `npx nuxi init my-app` or `npx create-next-app my-app`.')
-    return 1
+  const hasPackage = existsSync(pkgFile)
+  const framework = hasPackage
+    ? detectFramework(JSON.parse(await readFile(pkgFile, 'utf8')))
+    : undefined
+  let target: Target | undefined = values.standalone ? 'standalone' : framework
+  if (!target && !hasPackage) {
+    // A new or empty directory: nothing to add Easy CMS to, so it becomes the server itself.
+    target = 'standalone'
+  } else if (!target) {
+    const question =
+      'This is not a Nuxt or Next.js project. Set up a standalone Easy CMS server here? [Y/n] '
+    // Only on request: an existing frontend (e.g. a Vite app) rarely wants server packages added.
+    const yes =
+      !values.yes && io.interactive && io.prompt ? !/^n/i.test(await io.prompt(question)) : false
+    if (!yes) {
+      io.err('This does not look like a Nuxt or Next.js project (no "nuxt" or "next" dependency).')
+      io.err(
+        'Create one first (`npx nuxi init my-app`, `npx create-next-app my-app`), or run with --standalone.',
+      )
+      return 1
+    }
+    target = 'standalone'
   }
 
   let db = values.db as DatabaseChoice | undefined
@@ -159,7 +188,11 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
     }
   }
 
-  io.out(`Adding Easy CMS to this ${framework === 'nuxt' ? 'Nuxt' : 'Next.js'} project (${db}).`)
+  io.out(
+    target === 'standalone'
+      ? `Setting up a standalone Easy CMS server in ${relative(process.cwd(), dir) || '.'} (${db}).`
+      : `Adding Easy CMS to this ${target === 'nuxt' ? 'Nuxt' : 'Next.js'} project (${db}).`,
+  )
   const changes: string[] = []
   const notes: string[] = []
 
@@ -168,7 +201,8 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
   if (existsSync(configFile)) {
     notes.push('easy-cms.config.ts already exists; left unchanged.')
   } else {
-    await writeFile(configFile, configTemplate(db))
+    await mkdir(dir, { recursive: true })
+    await writeFile(configFile, configTemplate(db, { standalone: target === 'standalone' }))
     changes.push('created easy-cms.config.ts')
   }
 
@@ -199,23 +233,24 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
     changes.push(`added ${wanted.join(', ')} to .gitignore`)
   }
 
-  if (framework === 'nuxt') await setupNuxt(dir, changes, notes)
-  else await setupNext(dir, changes, notes)
+  if (target === 'nuxt') await setupNuxt(dir, changes, notes)
+  else if (target === 'next') await setupNext(dir, changes, notes)
+  else await setupStandalone(dir, changes)
 
   for (const change of changes) io.out(`  ✓ ${change}`)
   for (const note of notes) io.out(`  • ${note}`)
 
   const pm = detectPackageManager(dir)
-  const { deps, devDeps } = packagesFor(framework, db)
+  const { deps, devDeps } = packagesFor(target, db)
   if (values['skip-install']) {
     io.out('\nInstall the packages:')
     io.out(`  ${pm} ${installArgs(pm, deps, false).join(' ')}`)
-    io.out(`  ${pm} ${installArgs(pm, devDeps, true).join(' ')}`)
+    if (devDeps.length) io.out(`  ${pm} ${installArgs(pm, devDeps, true).join(' ')}`)
   } else if (io.exec) {
     io.out(`\nInstalling with ${pm}…`)
     const code =
       (await io.exec(pm, installArgs(pm, deps, false), dir)) ||
-      (await io.exec(pm, installArgs(pm, devDeps, true), dir))
+      (devDeps.length ? await io.exec(pm, installArgs(pm, devDeps, true), dir) : 0)
     if (code !== 0) {
       io.err(
         `\nInstalling failed. Run it yourself:\n  ${pm} ${installArgs(pm, deps, false).join(' ')}`,
@@ -225,6 +260,18 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
   }
 
   const devCommand = pm === 'npm' ? 'npm run dev' : `${pm} dev`
+  if (target === 'standalone') {
+    const cd = relative(process.cwd(), dir)
+    io.out(`
+Done. Next:
+  1. ${cd ? `cd ${cd} && ` : ''}${devCommand}   (http://localhost:4000/admin)
+  2. Create the first admin there (or run: npx easy-cms create-admin)
+  3. Point your frontend at http://localhost:4000/api/cms and list its origin in \`cors\`
+     in easy-cms.config.ts.
+  4. Before deploying: npx easy-cms migrate:create init, commit easy-cms/migrations,
+     run npx easy-cms migrate, then NODE_ENV=production ${pm === 'npm' ? 'npm start' : `${pm} start`}.`)
+    return 0
+  }
   io.out(`
 Done. Next:
   1. ${devCommand}
@@ -232,11 +279,42 @@ Done. Next:
   3. Before deploying: npx easy-cms migrate:create init, commit easy-cms/migrations,
      and run npx easy-cms migrate where you deploy.
   4. Set EASY_CMS_SECRET in the production environment.${
-    framework === 'nuxt'
+    target === 'nuxt'
       ? `\n     Nuxt's production server does not read .env: set it on the host, or start with\n     node --env-file=.env .output/server/index.mjs`
       : ''
   }`)
   return 0
+}
+
+const STANDALONE_SCRIPTS: Record<string, string> = {
+  dev: 'easy-cms serve --watch',
+  start: 'easy-cms serve',
+  migrate: 'easy-cms migrate',
+  'migrate:create': 'easy-cms migrate:create',
+}
+
+async function setupStandalone(dir: string, changes: string[]) {
+  const file = join(dir, 'package.json')
+  const existing = existsSync(file)
+  const pkg = existing
+    ? (JSON.parse(await readFile(file, 'utf8')) as Record<string, unknown>)
+    : {
+        name: basename(dir)
+          .toLowerCase()
+          .replace(/[^a-z0-9-]+/g, '-'),
+        private: true,
+        type: 'module',
+      }
+  const scripts = { ...(pkg.scripts as Record<string, string> | undefined) }
+  const added = Object.entries(STANDALONE_SCRIPTS).filter(([name]) => !(name in scripts))
+  if (existing && added.length === 0) return
+  for (const [name, command] of added) scripts[name] = command
+  await writeFile(file, `${JSON.stringify({ ...pkg, scripts }, null, 2)}\n`)
+  changes.push(
+    existing
+      ? `added ${added.map(([name]) => name).join(', ')} scripts to package.json`
+      : 'created package.json',
+  )
 }
 
 async function setupNuxt(dir: string, changes: string[], notes: string[]) {

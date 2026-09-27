@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Easy CMS standalone: frontend</title>
+  </head>
+  <body>
+    <!--
+      Any frontend can read the CMS over REST from the browser. Serve this page from an origin
+      listed in `cors` (default http://localhost:5173), e.g. `npx serve -l 5173 frontend`.
+      `?api=` points it at another CMS (default http://localhost:4000/api/cms).
+    -->
+    <header>
+      <h1 id="site-name">…</h1>
+      <p id="tagline"></p>
+    </header>
+    <main><ul id="posts"></ul></main>
+    <script type="module">
+      const api = new URLSearchParams(location.search).get('api') ?? 'http://localhost:4000/api/cms'
+      const origin = new URL(api).origin
+      const get = async (path) => {
+        const response = await fetch(`${api}${path}`)
+        if (!response.ok) throw new Error(`${path}: ${response.status}`)
+        return response.json()
+      }
+
+      const site = await get('/globals/site')
+      document.querySelector('#site-name').textContent = site.siteName
+      document.querySelector('#tagline').textContent = site.tagline ?? ''
+
+      // Anonymous requests only see published posts (the collection's read access).
+      const { docs } = await get('/posts?sort=-createdAt&depth=1&limit=20')
+      for (const post of docs) {
+        const item = document.createElement('li')
+        if (post.cover?.url) {
+          const img = document.createElement('img')
+          img.src = new URL(post.cover.url, origin).href
+          img.alt = post.cover.alt ?? ''
+          img.width = 120
+          item.append(img)
+        }
+        const link = document.createElement('a')
+        link.href = `#${post.slug}`
+        link.textContent = post.title
+        item.append(link)
+        document.querySelector('#posts').append(item)
+      }
+    </script>
+  </body>
+</html>

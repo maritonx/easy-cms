@@ -12,7 +12,10 @@ const browser = {
   ...(process.env.CI ? {} : { channel: 'chrome' as const }),
 }
 
-/** The same admin suite runs against both adapters (FR-ADP-03). */
+/** Where the standalone example's frontend is served; the suite uses it as that app's public site. */
+const FRONTEND = 'http://localhost:3103'
+
+/** The same admin suite runs against both adapters and the standalone server (FR-ADP-03). */
 const apps = [
   {
     name: 'nuxt',
@@ -23,6 +26,11 @@ const apps = [
     name: 'next',
     port: 3101,
     command: 'pnpm --dir ../examples/next-blog exec next dev --port 3101',
+  },
+  {
+    name: 'standalone',
+    port: 3102,
+    command: 'pnpm --dir ../examples/standalone exec easy-cms serve --port 3102',
   },
 ] as const
 
@@ -38,19 +46,29 @@ export default defineConfig({
     name: app.name,
     use: { ...browser, baseURL: `http://localhost:${app.port}` },
   })),
-  webServer: apps.map((app) => ({
-    name: app.name,
-    command: app.command,
-    url: `http://localhost:${app.port}/api/cms/users/init`,
-    timeout: 180_000,
-    reuseExistingServer: false,
-    env: {
-      EASY_CMS_SECRET: SECRET,
-      // Nuxt example: SQLite. Next example: Postgres via PGlite.
-      DATABASE_URL: app.name === 'nuxt' ? `file:${join(scratch, 'nuxt.db')}` : '',
-      PGLITE_DIR: join(scratch, 'next-pglite'),
-      NUXT_TELEMETRY_DISABLED: '1',
-      NEXT_TELEMETRY_DISABLED: '1',
+  webServer: [
+    ...apps.map((app) => ({
+      name: app.name,
+      command: app.command,
+      url: `http://localhost:${app.port}/api/cms/users/init`,
+      timeout: 180_000,
+      reuseExistingServer: false,
+      env: {
+        EASY_CMS_SECRET: SECRET,
+        // Nuxt and standalone examples: SQLite. Next example: Postgres via PGlite.
+        DATABASE_URL: app.name === 'next' ? '' : `file:${join(scratch, `${app.name}.db`)}`,
+        PGLITE_DIR: join(scratch, 'next-pglite'),
+        NUXT_TELEMETRY_DISABLED: '1',
+        NEXT_TELEMETRY_DISABLED: '1',
+        CORS_ORIGINS: FRONTEND,
+      },
+    })),
+    // The standalone example's frontend, on its own origin.
+    {
+      name: 'frontend',
+      command: `node static-server.ts ../examples/standalone/frontend ${new URL(FRONTEND).port}`,
+      url: FRONTEND,
+      reuseExistingServer: false,
     },
-  })),
+  ],
 })

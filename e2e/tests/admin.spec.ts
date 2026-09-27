@@ -31,6 +31,22 @@ async function login(page: Page, user: { email: string; password: string }) {
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
 }
 
+/**
+ * Opens the app's public site: the example blog for Nuxt and Next, and for the standalone server
+ * its frontend example on another origin, which reads the API from the browser (CORS).
+ */
+async function publicSite(page: Page) {
+  if (standalone()) {
+    const api = new URL('/api/cms', test.info().project.use.baseURL).href
+    await page.goto(`http://localhost:3103/?api=${encodeURIComponent(api)}`)
+    await expect(page.getByRole('heading', { level: 1 })).not.toHaveText('…')
+  } else {
+    await page.goto('/')
+  }
+}
+
+const standalone = () => test.info().project.name === 'standalone'
+
 async function shot(page: Page, name: string) {
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/${name}.png`, fullPage: true })
 }
@@ -145,7 +161,7 @@ test.describe('logged in as admin', () => {
     await expect(page.getByRole('checkbox', { name: 'thai' })).toBeChecked()
 
     // The public site shows it.
-    await page.goto('/')
+    await publicSite(page)
     await expect(page.getByRole('link', { name: 'Hello from Playwright' })).toBeVisible()
   })
 
@@ -155,7 +171,7 @@ test.describe('logged in as admin', () => {
     await page.getByRole('button', { name: 'Save draft' }).click()
     await expect(page.getByRole('status')).toHaveText('Created')
     await expect(page.getByText('Draft', { exact: true })).toBeVisible()
-    await page.goto('/')
+    await publicSite(page)
     await expect(page.getByText('Secret draft')).toHaveCount(0)
   })
 
@@ -200,12 +216,14 @@ test.describe('logged in as admin', () => {
     await page.getByRole('button', { name: 'Save', exact: true }).click()
     await expect(page.getByRole('status')).toHaveText('Saved')
 
-    await page.goto('/')
+    await publicSite(page)
     const cover = page.getByRole('img', { name: 'A green circle' })
     await expect(cover).toBeVisible()
     await expect(cover).toHaveAttribute('src', /\/api\/cms\/media\/file\/photo-[0-9a-f]{8}\.png$/)
-    await page.getByRole('link', { name: 'Hello from Playwright' }).click()
-    await expect(page.locator('.body img')).toHaveAttribute('alt', 'A green circle')
+    if (!standalone()) {
+      await page.getByRole('link', { name: 'Hello from Playwright' }).click()
+      await expect(page.locator('.body img')).toHaveAttribute('alt', 'A green circle')
+    }
   })
 
   test('unpublishes and republishes (FR-DRF-05)', async ({ page }) => {
@@ -216,14 +234,14 @@ test.describe('logged in as admin', () => {
     await expect(page.getByText('Draft', { exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Publish' })).toBeVisible()
 
-    await page.goto('/')
+    await publicSite(page)
     await expect(page.getByRole('link', { name: 'Hello from Playwright' })).toHaveCount(0)
 
     await page.goto('/admin/collections/posts?q=Hello')
     await page.getByRole('link', { name: 'Hello from Playwright' }).click()
     await page.getByRole('button', { name: 'Publish' }).click()
     await expect(page.getByText('Published', { exact: true })).toBeVisible()
-    await page.goto('/')
+    await publicSite(page)
     await expect(page.getByRole('link', { name: 'Hello from Playwright' })).toBeVisible()
   })
 
@@ -285,7 +303,7 @@ test.describe('logged in as admin', () => {
     await page.getByLabel('Tagline').fill('Tested end to end')
     await page.getByRole('button', { name: 'Save' }).click()
     await expect(page.getByRole('status')).toHaveText('Saved')
-    await page.goto('/')
+    await publicSite(page)
     await expect(page.getByText('Tested end to end')).toBeVisible()
   })
 

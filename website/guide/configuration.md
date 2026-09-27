@@ -37,6 +37,7 @@ and how to fix it.
 | `secret` | — | **Required**, at least 32 characters. Signs sessions. Read it from an env var. |
 | `db` | — | **Required**. A database adapter: `sqlite()` or `postgres()`. See [Databases](./databases). |
 | `serverURL` | — | Public origin such as `https://example.com`. Makes media URLs absolute. |
+| `cors` | `[]` | Origins whose browser code may call the REST API, or `'*'` for any (anonymous requests). Origins in `auth.trustedOrigins` are always allowed, with cookies. |
 | `routes.api` | `/api/cms` | Where the REST API is served. |
 | `admin.path` | `/admin` | Where the admin UI is served. |
 | `admin.locale` | `en` | Default admin language: `en` or `th`. |

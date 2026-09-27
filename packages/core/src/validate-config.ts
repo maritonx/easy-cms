@@ -42,6 +42,7 @@ export function validateConfig(config: Config): ConfigIssue[] {
   validateAdmin(config, add)
   validateUpload(config, add)
   validateAuth(config, add)
+  validateCors(config.cors, add)
 
   const collections = asArray(config.collections, 'collections', add)
   const globals = asArray(config.globals, 'globals', add)
@@ -131,6 +132,22 @@ function validateAuth(config: Config, add: Add) {
           `must be an origin like "https://example.com" (got ${JSON.stringify(origin)})`,
         )
       }
+    }
+  }
+}
+
+function validateCors(cors: unknown, add: Add) {
+  if (cors === undefined || cors === '*') return
+  if (!Array.isArray(cors)) {
+    add('cors', 'must be a list of origins or "*"', 'cors: ["https://my-site.com"]')
+    return
+  }
+  for (const [i, origin] of cors.entries()) {
+    if (typeof origin !== 'string' || !/^https?:\/\/[^/]+$/.test(origin)) {
+      add(
+        `cors[${i}]`,
+        `must be an origin like "https://example.com" (got ${JSON.stringify(origin)})`,
+      )
     }
   }
 }

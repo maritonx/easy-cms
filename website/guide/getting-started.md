@@ -1,6 +1,7 @@
 # Getting started
 
-You need a Nuxt 4 or Next.js 15+ project and Node.js ≥ 22.12.
+You need a Nuxt 4 or Next.js 15+ project and Node.js ≥ 22.12. Using another framework, or none?
+Run Easy CMS as a [standalone server](./standalone).
 
 ## Add Easy CMS
 

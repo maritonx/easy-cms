@@ -25,6 +25,7 @@ export default defineConfig({
           { text: 'Getting started', link: '/guide/getting-started' },
           { text: 'Nuxt', link: '/guide/nuxt' },
           { text: 'Next.js', link: '/guide/next' },
+          { text: 'Standalone server', link: '/guide/standalone' },
         ],
       },
       {

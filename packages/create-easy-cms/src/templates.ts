@@ -1,6 +1,6 @@
 export type DatabaseChoice = 'sqlite' | 'postgres'
 
-export function configTemplate(db: DatabaseChoice): string {
+export function configTemplate(db: DatabaseChoice, options: { standalone?: boolean } = {}): string {
   const database =
     db === 'sqlite'
       ? `import { sqlite } from '@easy-cms/db-sqlite'`
@@ -18,7 +18,13 @@ ${database}
 export default defineConfig({
   secret: process.env.EASY_CMS_SECRET ?? '',
 ${adapter}
-  admin: { locale: 'en' },
+  admin: { locale: 'en' },${
+    options.standalone
+      ? `
+  // Frontends on other origins that call the API from the browser.
+  cors: ['http://localhost:5173'],`
+      : ''
+  }
   collections: [
     {
       slug: 'posts',

@@ -26,12 +26,13 @@ your app's server, so there is no separate CMS service to host:
 ## When it fits
 
 - You build sites with Nuxt or Next.js and want content editing without another service.
+- You build with Vite, React, Vue or a static site generator and want a small, self-hosted CMS
+  backend: run it as a [standalone server](./standalone).
 - You like your schema in TypeScript and in git.
 - A single app server with a database is how you deploy.
 
-## Current limits (v0.1)
+## Current limits
 
-- Uploads are stored on local disk; S3-compatible storage comes in v0.2.
 - Drafts have no separate version: saving a published document as a draft unpublishes it.
 - No GraphQL, no localization of content, no version history yet.
 - Node.js ≥ 22.12; no edge runtimes.

@@ -72,7 +72,51 @@ describe('create-easy-cms (FR-INS-01..03)', () => {
     const result = await create(dir, '--yes')
     expect(result.code).toBe(1)
     expect(result.err).toContain('not look like a Nuxt or Next.js project')
-    expect((await create(join(dir, 'missing'))).err).toContain('No package.json')
+    expect(result.err).toContain('--standalone')
+  })
+
+  it('sets up a standalone server in a new directory (FR-STD-02)', async () => {
+    const dir = join(project({}), 'my-cms')
+    const result = await create(dir, '--yes')
+    expect(result.code).toBe(0)
+    expect(JSON.parse(read(dir, 'package.json'))).toEqual({
+      name: 'my-cms',
+      private: true,
+      type: 'module',
+      scripts: {
+        dev: 'easy-cms serve --watch',
+        start: 'easy-cms serve',
+        migrate: 'easy-cms migrate',
+        'migrate:create': 'easy-cms migrate:create',
+      },
+    })
+    expect(read(dir, 'easy-cms.config.ts')).toContain("cors: ['http://localhost:5173']")
+    expect(read(dir, '.env')).toMatch(/^EASY_CMS_SECRET=[0-9a-f]{64}\n$/)
+    // The CLI is the server, so it is a runtime dependency: one install, no dev packages.
+    // (The package manager depends on who runs the tests, so only the packages are checked.)
+    expect(result.commands).toHaveLength(1)
+    expect(result.commands[0]).toMatch(
+      new RegExp(` @easy-cms/core@\\${V} easy-cms@\\${V} @easy-cms/db-sqlite@\\${V}$`),
+    )
+    expect(result.out).toContain('http://localhost:4000/admin')
+  })
+
+  it('adds a standalone server to an existing package on request', async () => {
+    const dir = project({
+      'package.json':
+        '{"name":"api","scripts":{"start":"node server.js"},"dependencies":{"vite":"1"}}',
+    })
+    const result = await create(dir, '--standalone', '--skip-install')
+    expect(result.code).toBe(0)
+    const pkg = JSON.parse(read(dir, 'package.json'))
+    // Existing scripts are kept.
+    expect(pkg.scripts).toMatchObject({ start: 'node server.js', dev: 'easy-cms serve --watch' })
+    expect(pkg.dependencies).toEqual({ vite: '1' })
+
+    const asked = project({ 'package.json': '{"dependencies":{"vite":"1"}}' })
+    const io: IO = { out: () => {}, err: () => {}, interactive: true, prompt: async () => '' }
+    expect(await run([asked, '--skip-install', '--db', 'sqlite'], io)).toBe(0)
+    expect(read(asked, 'package.json')).toContain('easy-cms serve')
   })
 
   it('sets up a Nuxt project with SQLite', async () => {
@@ -191,6 +235,15 @@ describe('helpers', () => {
   })
 
   it('lists packages per framework and database', () => {
+    expect(packagesFor('standalone', 'postgres')).toEqual({
+      deps: [
+        `@easy-cms/core@${V}`,
+        `easy-cms@${V}`,
+        `@easy-cms/db-postgres@${V}`,
+        '@electric-sql/pglite',
+      ],
+      devDeps: [],
+    })
     expect(packagesFor('next', 'sqlite').deps).toEqual([
       `@easy-cms/core@${V}`,
       `@easy-cms/next@${V}`,

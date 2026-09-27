@@ -6,7 +6,8 @@
 
 Embedded, code-first headless CMS for **Nuxt** and **Next.js**: your content model lives in
 TypeScript next to your app, and the CMS (admin UI, REST API, typed Local API) runs inside it.
-No separate server to host.
+No separate server to host. Using Vite, React, Vue or a static site instead? Run it as a
+**standalone server**.
 
 **[Documentation](https://maritonx.github.io/easy-crm/)** ·
 [Getting started](https://maritonx.github.io/easy-crm/guide/getting-started) ·
@@ -50,6 +51,13 @@ export default defineConfig({
 Then read it with `useEasyCMS()` (Nuxt) or `getEasyCMS(config)` (Next.js), fully typed, or over
 REST at `/api/cms`.
 
+Without Nuxt or Next.js, create a standalone server and call its REST API from any frontend:
+
+```bash
+npm create easy-cms@latest my-cms   # a new directory becomes a standalone server
+cd my-cms && npm run dev            # http://localhost:4000/admin
+```
+
 ## Features
 
 - **Admin UI** at `/admin`: lists, forms, rich text (Tiptap), media library, drafts, TH/EN
@@ -78,13 +86,14 @@ Design notes: [docs/DESIGN.md](docs/DESIGN.md) · Requirements: [docs/SRS.md](do
 | [`@easy-cms/richtext`](packages/richtext) | `renderRichText()`: Tiptap JSON → safe HTML |
 | [`@easy-cms/nuxt`](packages/nuxt) | Nuxt 4 module: REST API, admin, typed `useEasyCMS()` |
 | [`@easy-cms/next`](packages/next) | Next.js adapter: route handlers, typed `getEasyCMS()` |
-| [`easy-cms`](packages/cli) | CLI: migrations, `generate:types`, `create-admin` |
+| [`easy-cms`](packages/cli) | CLI: migrations, `generate:types`, `create-admin`, standalone `serve` |
 | [`create-easy-cms`](packages/create-easy-cms) | Adds Easy CMS to a Nuxt or Next.js project |
 
 ## Examples
 
 - [`examples/nuxt-blog`](examples/nuxt-blog) — Nuxt 4 blog on SQLite
 - [`examples/next-blog`](examples/next-blog) — Next.js 16 blog on Postgres (PGlite locally)
+- [`examples/standalone`](examples/standalone) — standalone server with a plain HTML frontend on another origin
 
 ## Development
 

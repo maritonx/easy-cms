@@ -42,6 +42,12 @@ must include the CSRF token as `x-csrf-token` (from the login response, `GET /us
 **Servers and apps** send `Authorization: Bearer <token>` with the session token; no CSRF token
 is needed.
 
+## CORS
+
+Browser code on another origin can call the API when that origin is listed in `cors` (or in
+`auth.trustedOrigins`, which also allows cookies). Preflight `OPTIONS` requests are answered for
+those origins; other origins get no CORS headers, so the browser blocks the response.
+
 ## Errors
 
 ```json

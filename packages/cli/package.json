@@ -25,7 +25,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@easy-cms/core": "workspace:^"
+    "@easy-cms/core": "workspace:^",
+    "@easy-cms/admin": "workspace:^"
   },
   "devDependencies": {
     "@easy-cms/db-sqlite": "workspace:^"

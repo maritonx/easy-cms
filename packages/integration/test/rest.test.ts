@@ -6,6 +6,7 @@ const config = defineConfig({
   secret: SECRET,
   db: db(),
   auth: { trustedOrigins: ['https://admin.example.com'] },
+  cors: ['https://app.example.com'],
   collections: [
     {
       slug: 'posts',
@@ -455,5 +456,50 @@ describe('admin endpoints', () => {
     })
     expect((await call('/admin/access/sessions/1', { headers: editor.headers })).status).toBe(404)
     expect((await call('/admin/nope', { headers: editor.headers })).status).toBe(404)
+  })
+})
+
+describe('CORS (FR-API-CORS)', () => {
+  const preflight = (origin: string) =>
+    call('/posts', {
+      method: 'OPTIONS',
+      headers: { origin, 'access-control-request-method': 'POST' },
+    })
+
+  it('answers preflight requests from allowed origins', async () => {
+    const app = await preflight('https://app.example.com')
+    expect(app.status).toBe(204)
+    expect(app.headers.get('access-control-allow-origin')).toBe('https://app.example.com')
+    expect(app.headers.get('access-control-allow-methods')).toContain('PATCH')
+    expect(app.headers.get('access-control-allow-headers')).toContain('x-csrf-token')
+    // Only trusted origins may send cookies.
+    expect(app.headers.get('access-control-allow-credentials')).toBeNull()
+
+    const trusted = await preflight('https://admin.example.com')
+    expect(trusted.headers.get('access-control-allow-credentials')).toBe('true')
+  })
+
+  it('adds CORS headers to responses for allowed origins only', async () => {
+    const allowed = await call('/posts', { headers: { origin: 'https://app.example.com' } })
+    expect(allowed.status).toBe(200)
+    expect(allowed.headers.get('access-control-allow-origin')).toBe('https://app.example.com')
+    expect(allowed.headers.get('vary')).toContain('Origin')
+
+    const other = await call('/posts', { headers: { origin: 'https://evil.example' } })
+    expect(other.status).toBe(200)
+    expect(other.headers.get('access-control-allow-origin')).toBeNull()
+    expect(
+      (await preflight('https://evil.example')).headers.get('access-control-allow-origin'),
+    ).toBeNull()
+  })
+
+  it('still requires a trusted origin for cookie-authenticated writes', async () => {
+    const response = await call('/posts', {
+      method: 'POST',
+      body: { title: 'x' },
+      headers: { origin: 'https://app.example.com', cookie: 'ecms-session=abc' },
+    })
+    expect(response.headers.get('access-control-allow-origin')).toBe('https://app.example.com')
+    expect(response.status).not.toBe(201)
   })
 })

@@ -33,6 +33,7 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
   const { plugins: _plugins, ...rest } = config
   const result: ResolvedConfig = {
     ...rest,
+    cors: config.cors ?? [],
     routes: { api: `/${(config.routes?.api ?? DEFAULT_API_PATH).replace(/^\/+|\/+$/g, '')}` },
     admin: {
       path: config.admin?.path ?? DEFAULT_ADMIN_PATH,

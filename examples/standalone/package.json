@@ -1,0 +1,16 @@
+{
+  "name": "example-standalone",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "easy-cms serve --watch",
+    "start": "easy-cms serve",
+    "migrate:create": "easy-cms migrate:create",
+    "migrate": "easy-cms migrate"
+  },
+  "dependencies": {
+    "@easy-cms/core": "workspace:^",
+    "@easy-cms/db-sqlite": "workspace:^",
+    "easy-cms": "workspace:^"
+  }
+}

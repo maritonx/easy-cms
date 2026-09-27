@@ -12,6 +12,7 @@ import {
   loadConfig,
   ValidationError,
 } from '@easy-cms/core'
+import { startServer } from './serve.js'
 
 export interface IO {
   readonly out: (line: string) => void
@@ -57,6 +58,7 @@ Commands:
   migrate:status          List migrations and whether they are applied
   generate:types          Write TypeScript types for your collections and globals
   create-admin            Create an admin user
+  serve                   Run the CMS as its own server (admin + REST API)
 
 Options:
   --config <file>         Config file (default: easy-cms.config.ts)
@@ -89,6 +91,18 @@ The file has no imports, so a frontend in another repository can copy it.
 
 Creates a user (role "admin" unless --role is given). The password is asked for in the
 terminal, or read from EASY_CMS_ADMIN_PASSWORD when there is no terminal.
+`,
+  serve: `Usage: easy-cms serve [--port <n>] [--host <host>] [--watch] [--trust-proxy] [options]
+
+Runs Easy CMS without Nuxt or Next.js: the admin at /admin, the REST API at /api/cms and
+/healthz for load balancers. Frontends on other origins need \`cors\` in the config.
+
+  --port <n>       Port (default: PORT, then 4000)
+  --host <host>    Interface to listen on (default: HOST, then all interfaces)
+  --watch          Reload when the config or files it imports change (development)
+  --trust-proxy    Trust X-Forwarded-For / X-Forwarded-Proto from your reverse proxy
+
+In production (NODE_ENV=production) pending migrations stop the server from starting.
 `,
 }
 
@@ -124,10 +138,9 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
   const logger: Logger = { info: io.out, warn: (m) => io.err(`warning: ${m}`), error: io.err }
 
   try {
-    const config = await loadConfig({
-      cwd,
-      ...(values.config ? { configFile: values.config } : {}),
-    })
+    const load = () => loadConfig({ cwd, ...(values.config ? { configFile: values.config } : {}) })
+    if (command === 'serve') return await serve(values, cwd, logger, load, io)
+    const config = await load()
     if (command === 'generate:types') {
       const out = values.out ?? 'easy-cms-types.ts'
       const file = isAbsolute(out) ? out : resolve(cwd, out)
@@ -232,9 +245,53 @@ function parse(argv: readonly string[]) {
       email: { type: 'string' },
       name: { type: 'string' },
       role: { type: 'string' },
+      port: { type: 'string' },
+      host: { type: 'string' },
+      watch: { type: 'boolean' },
+      'trust-proxy': { type: 'boolean' },
       help: { type: 'boolean', short: 'h' },
     },
   })
+}
+
+async function serve(
+  values: ReturnType<typeof parse>['values'],
+  cwd: string,
+  logger: Logger,
+  load: () => ReturnType<typeof loadConfig>,
+  io: IO,
+): Promise<number> {
+  const port = Number(values.port ?? process.env.PORT ?? 4000)
+  if (!Number.isInteger(port) || port < 0 || port > 65535) {
+    io.err(`Invalid port "${values.port ?? process.env.PORT}".`)
+    return 1
+  }
+  const host = values.host ?? process.env.HOST
+  const server = await startServer({
+    port,
+    ...(host ? { host } : {}),
+    cwd,
+    logger,
+    loadConfig: load,
+    watch: values.watch ?? false,
+    trustProxy: values['trust-proxy'] ?? false,
+  })
+  const config = await load()
+  io.out(`Easy CMS running at ${server.url}`)
+  io.out(`  admin  ${server.url}/${config.admin.path.replace(/^\/+|\/+$/g, '')}`)
+  io.out(`  API    ${server.url}${config.routes.api}`)
+  if (values.watch) io.out('  watching for changes')
+
+  await new Promise<void>((resolveStop) => {
+    const stop = (signal: string) => {
+      io.out(`\n${signal} received, shutting down…`)
+      resolveStop()
+    }
+    process.once('SIGINT', () => stop('SIGINT'))
+    process.once('SIGTERM', () => stop('SIGTERM'))
+  })
+  await server.close()
+  return 0
 }
 
 /** Loads `<cwd>/.env` like Nuxt and Next do. Variables already set are kept. */
@@ -242,3 +299,10 @@ function loadDotEnv(cwd: string) {
   const file = join(cwd, '.env')
   if (existsSync(file)) process.loadEnvFile(file)
 }
+
+export {
+  createStandaloneHandler,
+  type RunningServer,
+  type StartOptions,
+  startServer,
+} from './serve.js'

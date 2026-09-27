@@ -53,6 +53,15 @@ export function createRestHandler<C extends Config>(
   const production = process.env.NODE_ENV === 'production'
 
   return async (request) => {
+    const cors = corsHeaders(cms, request)
+    if (request.method.toUpperCase() === 'OPTIONS') {
+      // Preflight: answered before auth; the browser then sends the real request.
+      return new Response(null, { status: 204, headers: cors })
+    }
+    return withHeaders(await handle(request), cors)
+  }
+
+  async function handle(request: Request): Promise<Response> {
     const headers = new Headers({
       'content-type': 'application/json; charset=utf-8',
       'cache-control': 'no-store',
@@ -74,7 +83,7 @@ export function createRestHandler<C extends Config>(
       const ctx: Context = { request, url, user, via: user ? via : null, token, headers }
 
       const method = request.method.toUpperCase()
-      if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') checkCsrf(cms, ctx)
+      if (method !== 'GET' && method !== 'HEAD') checkCsrf(cms, ctx)
 
       const result = await route(cms, ctx, method, segments, options)
       if (result.body instanceof Response) return result.body
@@ -83,6 +92,43 @@ export function createRestHandler<C extends Config>(
       return errorResponse(cms, error, headers, production)
     }
   }
+}
+
+const CORS_METHODS = 'GET, HEAD, POST, PATCH, PUT, DELETE'
+const CORS_HEADERS = `authorization, content-type, ${CSRF_HEADER}`
+
+/**
+ * CORS headers for the request's origin. Origins in `cors` may make anonymous requests (or send
+ * a bearer token); origins in `auth.trustedOrigins` may also send cookies.
+ */
+function corsHeaders(cms: EasyCMS, request: Request): Headers {
+  const headers = new Headers({ vary: 'Origin' })
+  const origin = request.headers.get('origin')
+  if (!origin) return headers
+  const { cors, auth } = cms.config
+  const trusted = auth.trustedOrigins.includes(origin)
+  if (!trusted && cors !== '*' && !cors.includes(origin)) return headers
+  headers.set('access-control-allow-origin', origin)
+  if (trusted) headers.set('access-control-allow-credentials', 'true')
+  if (request.method.toUpperCase() === 'OPTIONS') {
+    headers.set('access-control-allow-methods', CORS_METHODS)
+    headers.set('access-control-allow-headers', CORS_HEADERS)
+    headers.set('access-control-max-age', '600')
+  }
+  return headers
+}
+
+function withHeaders(response: Response, extra: Headers): Response {
+  const headers = new Headers(response.headers)
+  extra.forEach((value, key) => {
+    if (key === 'vary') headers.append('vary', value)
+    else headers.set(key, value)
+  })
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  })
 }
 
 interface Result {

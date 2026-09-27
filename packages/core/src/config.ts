@@ -137,6 +137,12 @@ export interface Config {
    * so frontends on other origins can use them. Default: relative URLs.
    */
   readonly serverURL?: string
+  /**
+   * Origins whose browser code may call the REST API (CORS), e.g. a Vite or React app on
+   * another origin. `'*'` allows any origin for anonymous requests. Origins in
+   * `auth.trustedOrigins` are always allowed, with cookies. Default: none.
+   */
+  readonly cors?: readonly string[] | '*'
   readonly routes?: RoutesConfig
   readonly admin?: AdminConfig
   readonly upload?: UploadConfig
@@ -154,8 +160,9 @@ export interface Config {
 export interface ResolvedConfig
   extends Omit<
     Config,
-    'routes' | 'admin' | 'upload' | 'auth' | 'collections' | 'globals' | 'plugins'
+    'cors' | 'routes' | 'admin' | 'upload' | 'auth' | 'collections' | 'globals' | 'plugins'
   > {
+  readonly cors: readonly string[] | '*'
   readonly routes: Required<RoutesConfig>
   readonly admin: Required<AdminConfig>
   readonly upload: Required<Omit<UploadConfig, 'storage'>> & Pick<UploadConfig, 'storage'>

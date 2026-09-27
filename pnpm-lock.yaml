@@ -101,6 +101,18 @@ importers:
         specifier: workspace:^
         version: link:../../packages/cli
 
+  examples/standalone:
+    dependencies:
+      '@easy-cms/core':
+        specifier: workspace:^
+        version: link:../../packages/core
+      '@easy-cms/db-sqlite':
+        specifier: workspace:^
+        version: link:../../packages/db-sqlite
+      easy-cms:
+        specifier: workspace:^
+        version: link:../../packages/cli
+
   packages/admin:
     devDependencies:
       '@easy-cms/core':
@@ -142,6 +154,9 @@ importers:
 
   packages/cli:
     dependencies:
+      '@easy-cms/admin':
+        specifier: workspace:^
+        version: link:../admin
       '@easy-cms/core':
         specifier: workspace:^
         version: link:../core

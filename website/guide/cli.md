@@ -3,14 +3,17 @@
 ## create-easy-cms
 
 ```bash
-npx create-easy-cms [dir] [--db sqlite|postgres] [--yes] [--skip-install]
+npx create-easy-cms [dir] [--db sqlite|postgres] [--standalone] [--yes] [--skip-install]
 ```
 
-Adds Easy CMS to a Nuxt or Next.js project. See [Getting started](./getting-started).
+Adds Easy CMS to a Nuxt or Next.js project. In a new or empty directory (or with
+`--standalone`) it sets up a [standalone server](./standalone). See
+[Getting started](./getting-started).
 
 ## easy-cms
 
-Installed as a dev dependency. Every command loads `.env` from the project root.
+Installed as a dev dependency (a dependency for standalone servers). Every command loads `.env`
+from the project root.
 
 ```bash
 npx easy-cms <command> [--config <file>] [--cwd <dir>]
@@ -23,5 +26,6 @@ npx easy-cms <command> [--config <file>] [--cwd <dir>]
 | `migrate:status` | List migrations and whether they are applied |
 | `generate:types [--out <file>]` | Write TypeScript types (default `easy-cms-types.ts`) |
 | `create-admin [--email] [--name] [--role]` | Create a user; asks for the password, or reads `EASY_CMS_ADMIN_PASSWORD` |
+| `serve [--port] [--host] [--watch] [--trust-proxy]` | Run the CMS as its own server; see [Standalone server](./standalone) |
 
 Every command has `--help` and exits non-zero on failure.
