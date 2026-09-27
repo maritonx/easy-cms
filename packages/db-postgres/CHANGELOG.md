@@ -1,5 +1,18 @@
 # @easy-cms/db-postgres
 
+## 0.9.0
+
+### Minor Changes
+
+- ce7f66d: `sort` works on fields in lists inside blocks (`layout.items.title`), using the first value found in block and row order.
+
+### Patch Changes
+
+- Updated dependencies [ce7f66d]
+- Updated dependencies [ce7f66d]
+  - @easy-cms/drizzle@0.9.0
+  - @easy-cms/core@0.9.0
+
 ## 0.8.0
 
 ### Minor Changes
