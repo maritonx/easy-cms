@@ -1,5 +1,19 @@
 # @easy-cms/db-postgres
 
+## 0.7.0
+
+### Minor Changes
+
+- da85424: `where` can look inside blocks: `layout.blockType`, `layout.heading`, `layout.heading.en`, fields in groups inside blocks, and `layout: { exists }`.
+
+### Patch Changes
+
+- Updated dependencies [da85424]
+- Updated dependencies [da85424]
+- Updated dependencies [da85424]
+  - @easy-cms/core@0.7.0
+  - @easy-cms/drizzle@0.7.0
+
 ## 0.6.0
 
 ### Patch Changes

@@ -1,5 +1,18 @@
 # @easy-cms/drizzle
 
+## 0.7.0
+
+### Minor Changes
+
+- da85424: `where` can look inside blocks: `layout.blockType`, `layout.heading`, `layout.heading.en`, fields in groups inside blocks, and `layout: { exists }`.
+- da85424: Changing `localization.defaultLocale` keeps every locale's values: migrations (and development push) move them between columns. Snapshots now record the locales; migrations created before this release don't, so create one before the first change.
+
+### Patch Changes
+
+- Updated dependencies [da85424]
+- Updated dependencies [da85424]
+  - @easy-cms/core@0.7.0
+
 ## 0.6.0
 
 ### Minor Changes
