@@ -1,5 +1,6 @@
-// Dev servers (Next.js especially) compile a route on its first request and may reload the page
-// while doing so, which aborts a test's first navigation. Request every route once up front.
+// Dev servers compile a route on its first request and may reload the page while doing so, which
+// aborts a test's first navigation. Request every route once up front. (Next.js runs a
+// production build, standalone needs no compiling, but warming it costs nothing.)
 const PAGES = [
   '/',
   '/admin/',
@@ -10,7 +11,7 @@ const PAGES = [
 ]
 
 export default async function warmUp() {
-  for (const port of [3100, 3101, 3102]) {
+  for (const port of [3100, 3102]) {
     for (const path of PAGES) {
       for (let attempt = 0; attempt < 3; attempt++) {
         try {

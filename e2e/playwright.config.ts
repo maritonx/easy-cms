@@ -15,7 +15,10 @@ const browser = {
 /** Where the standalone example's frontend is served; the suite uses it as that app's public site. */
 const FRONTEND = 'http://localhost:3103'
 
-/** The same admin suite runs against both adapters and the standalone server (FR-ADP-03). */
+/**
+ * The same admin suite runs against both adapters and the standalone server (FR-ADP-03): Nuxt in
+ * development, Next.js as a production build, standalone as `easy-cms serve`.
+ */
 const apps = [
   {
     name: 'nuxt',
@@ -25,7 +28,10 @@ const apps = [
   {
     name: 'next',
     port: 3101,
-    command: 'pnpm --dir ../examples/next-blog exec next dev --port 3101',
+    // A production build: `next dev` compiles routes on demand and reloads pages mid-test, which
+    // aborted navigations in CI. Production also verifies the migrations, so apply them first.
+    command:
+      'pnpm --dir ../examples/next-blog exec next build && pnpm --dir ../examples/next-blog exec easy-cms migrate && pnpm --dir ../examples/next-blog exec next start --port 3101',
   },
   {
     name: 'standalone',
