@@ -22,6 +22,7 @@ export type {
   ResolvedConfig,
   RoutesConfig,
   UploadConfig,
+  VersionsConfig,
 } from './config.js'
 export { type Config, defineConfig } from './config.js'
 export type * from './database.js'
@@ -99,3 +100,4 @@ export {
 } from './storage.js'
 export { generateTypes, singularize } from './typegen.js'
 export { BUILTIN_COLLECTIONS, MIN_SECRET_LENGTH, validateConfig } from './validate-config.js'
+export { DEFAULT_MAX_VERSIONS, type Version, type VersionSummary } from './versions.js'

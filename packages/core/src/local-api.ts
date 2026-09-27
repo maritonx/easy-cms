@@ -45,6 +45,15 @@ import { imageDimensions, mimeAllowed, sniffMimeType, storageKey } from './media
 import { DEFAULT_DEPTH, type Loader, MAX_DEPTH, populate } from './populate.js'
 import { resolveConfig } from './resolve-config.js'
 import { localStorage, type StorageAdapter } from './storage.js'
+import {
+  collectionParent,
+  globalParent,
+  snapshotOf,
+  type Version,
+  VersionStore,
+  type VersionSummary,
+  versionLimit,
+} from './versions.js'
 
 type Data = Record<string, unknown>
 
@@ -138,6 +147,7 @@ export class EasyCMS<C extends Config = Config> {
   readonly auth: Auth
   /** Where uploaded files are stored. */
   readonly storage: StorageAdapter
+  private readonly versions: VersionStore
 
   constructor(
     config: ResolvedConfig,
@@ -149,6 +159,7 @@ export class EasyCMS<C extends Config = Config> {
     this.db = db
     this.logger = logger
     this.storage = storage
+    this.versions = new VersionStore(db)
     this.auth = new Auth(this as unknown as EasyCMS)
   }
 
@@ -171,7 +182,8 @@ export class EasyCMS<C extends Config = Config> {
     )
     const sort = options.sort === undefined ? ['-createdAt'] : [options.sort].flat()
     const result = await this.db.find({ collection, where, sort, limit, page })
-    const docs = await this.output(config, result.docs, guard, options)
+    const found = options.draft ? await this.withDrafts(config, result.docs) : result.docs
+    const docs = await this.output(config, found, guard, options)
     return { ...result, docs: docs as Doc<C, S>[] }
   }
 
@@ -197,7 +209,8 @@ export class EasyCMS<C extends Config = Config> {
         ).docs[0]
       : await this.db.findById({ collection, id: parsed })
     if (!doc) return null
-    const [out] = await this.output(config, [doc], guard, options)
+    const [current] = options.draft ? await this.withDrafts(config, [doc]) : [doc]
+    const [out] = await this.output(config, [current as RawDocument], guard, options)
     return (out ?? null) as Doc<C, S> | null
   }
 
@@ -304,14 +317,143 @@ export class EasyCMS<C extends Config = Config> {
     data: Update<C, S>,
     options: DepthOptions = {},
   ): Promise<Doc<C, S>> {
+    return (await this.updateDocument(collection, id, asObject(data, collection), options)) as Doc<
+      C,
+      S
+    >
+  }
+
+  /**
+   * Takes a document off the site: its status becomes `draft`. With versions and drafts, a plain
+   * `update` with `status: 'draft'` only saves a draft and leaves the published document live;
+   * this is how to unpublish it.
+   */
+  async unpublish<S extends Slug<C>>(
+    collection: S,
+    id: ID,
+    options: DepthOptions = {},
+  ): Promise<Doc<C, S>> {
+    const config = this.collection(collection)
+    if (!config.drafts) throw new QueryError(`"${collection}" has no drafts`)
+    return (await this.updateDocument(
+      collection,
+      id,
+      { status: 'draft' },
+      options,
+      'unpublish',
+    )) as Doc<C, S>
+  }
+
+  /** Throws away the unpublished draft of a published document, going back to what is live. */
+  async discardDraft<S extends Slug<C>>(
+    collection: S,
+    id: ID,
+    options: DepthOptions = {},
+  ): Promise<Doc<C, S>> {
     const config = this.collection(collection)
     const guard = guardOf(options)
-    const raw = asObject(data, collection)
+    const parsed = parseId(id)
+    const existing =
+      parsed === undefined ? null : await this.db.findById({ collection, id: parsed })
+    if (!existing || parsed === undefined) throw new NotFoundError(collection, id)
+    await this.checkDocumentAccess(config, 'update', guard, parsed, undefined)
+    const [current] = await this.withDrafts(config, [existing])
+    if (current !== existing) {
+      // The published document becomes the latest version again; the draft stays in history.
+      await this.saveVersion(config, collectionParent(collection), parsed, existing, guard)
+    }
+    const [out] = await this.output(config, [existing], guard, { ...options, draft: true })
+    return out as Doc<C, S>
+  }
+
+  /** Saved versions of a document, newest first. Needs update access to the document. */
+  async findVersions<S extends Slug<C>>(
+    collection: S,
+    id: ID,
+    options: AccessOptions & { limit?: number; page?: number } = {},
+  ): Promise<PaginatedDocs<VersionSummary>> {
+    const { config, parsed } = await this.versionTarget(collection, id, options)
+    return this.versions.list(
+      collectionParent(config.slug),
+      parsed,
+      options.limit ?? 20,
+      options.page ?? 1,
+    )
+  }
+
+  /** One saved version with the document as it was then. */
+  async findVersion<S extends Slug<C>>(
+    collection: S,
+    id: ID,
+    versionId: ID,
+    options: DepthOptions = {},
+  ): Promise<Version<Doc<C, S>> | null> {
+    const { config, parsed, existing } = await this.versionTarget(collection, id, options)
+    const version = await this.versions.get(collectionParent(config.slug), parsed, versionId)
+    if (!version) return null
+    const doc = {
+      ...version.data,
+      id: parsed,
+      createdAt: existing.createdAt,
+      updatedAt: version.createdAt,
+    }
+    const [out] = await this.output(config, [doc as RawDocument], guardOf(options), {
+      ...options,
+      draft: true,
+    })
+    return { ...version, data: out as Doc<C, S> }
+  }
+
+  /**
+   * Makes an old version the current content, as a new version. With drafts it is restored as
+   * a draft (publish it to put it live); access, hooks and validation run as for `update`.
+   */
+  async restoreVersion<S extends Slug<C>>(
+    collection: S,
+    id: ID,
+    versionId: ID,
+    options: DepthOptions = {},
+  ): Promise<Doc<C, S>> {
+    const { config, parsed } = await this.versionTarget(collection, id, options)
+    const version = await this.versions.get(collectionParent(config.slug), parsed, versionId)
+    if (!version) throw new NotFoundError(`${collection} version`, versionId)
+    const { status: _status, ...data } = version.data
+    return (await this.updateDocument(
+      collection,
+      parsed,
+      config.drafts ? { ...data, status: 'draft' } : data,
+      options,
+    )) as Doc<C, S>
+  }
+
+  private async versionTarget(collection: string, id: ID, options: AccessOptions) {
+    const config = this.collection(collection)
+    if (!versionLimit(config)) throw new QueryError(`"${collection}" has no versions`)
+    const parsed = parseId(id)
+    const existing =
+      parsed === undefined ? null : await this.db.findById({ collection, id: parsed })
+    if (!existing || parsed === undefined) throw new NotFoundError(collection, id)
+    // History holds unpublished content: only people who may edit the document can see it.
+    await this.checkDocumentAccess(config, 'update', guardOf(options), parsed, undefined)
+    return { config, parsed, existing }
+  }
+
+  private async updateDocument(
+    collection: string,
+    id: ID,
+    raw: Data,
+    options: DepthOptions,
+    mode: 'save' | 'unpublish' = 'save',
+  ): Promise<RawDocument> {
+    const config = this.collection(collection)
+    const guard = guardOf(options)
     const parsed = parseId(id)
     const existing =
       parsed === undefined ? null : await this.db.findById({ collection, id: parsed })
     if (!existing || parsed === undefined) throw new NotFoundError(collection, id)
     await this.checkDocumentAccess(config, 'update', guard, parsed, raw)
+    // With separate drafts, edits apply to the pending draft when there is one.
+    const [current] = (await this.withDrafts(config, [existing])) as [RawDocument]
 
     const { input, password } = splitPassword(config, raw)
     const filtered = await filterInput(
@@ -319,14 +461,14 @@ export class EasyCMS<C extends Config = Config> {
       input,
       this.fieldChecker('update', guard, parsed, input),
     )
-    let merged = mergeForUpdate(config.fields, existing, filtered)
+    let merged = mergeForUpdate(config.fields, current, filtered)
     if (config.drafts)
-      merged.status = Object.hasOwn(filtered, 'status') ? filtered.status : existing.status
+      merged.status = Object.hasOwn(filtered, 'status') ? filtered.status : current.status
     const base = this.hookArgs(config, guard)
     merged = await this.transform(
       config.hooks?.beforeValidate,
       'data',
-      { ...base, operation: 'update', originalDoc: existing },
+      { ...base, operation: 'update', originalDoc: current },
       merged,
     )
     let prepared = await this.prepare(
@@ -338,27 +480,57 @@ export class EasyCMS<C extends Config = Config> {
     prepared = await this.transform(
       config.hooks?.beforeChange,
       'data',
-      { ...base, operation: 'update', originalDoc: existing },
+      { ...base, operation: 'update', originalDoc: current },
       prepared,
     )
+    const now = new Date().toISOString()
+
+    // A draft of a published document: keep it as a version, leave the live document alone.
+    if (
+      mode === 'save' &&
+      this.separateDrafts(config) &&
+      existing.status === 'published' &&
+      prepared.status === 'draft'
+    ) {
+      if (password !== undefined) {
+        throw new ValidationError(collection, [
+          { field: 'password', message: 'cannot be changed in a draft; publish instead' },
+        ])
+      }
+      const draft = { ...prepared, id: parsed, createdAt: existing.createdAt, updatedAt: now }
+      await this.saveVersion(config, collectionParent(collection), parsed, draft, guard)
+      await this.notify(config.hooks?.afterChange, 'afterChange', config.slug, {
+        ...base,
+        doc: draft,
+        previousDoc: current,
+        operation: 'update',
+      })
+      const [out] = await this.output(config, [draft as RawDocument], guard, {
+        ...options,
+        draft: true,
+      })
+      return out as RawDocument
+    }
+
     if (config.slug === USERS) await this.guardLastAdmin(parsed, existing, prepared)
     if (password !== undefined) prepared.passwordHash = await hashPassword(password)
 
     const doc = await this.db.update({
       collection,
       id: parsed,
-      data: { ...prepared, createdAt: existing.createdAt, updatedAt: new Date().toISOString() },
+      data: { ...prepared, createdAt: existing.createdAt, updatedAt: now },
     })
+    await this.saveVersion(config, collectionParent(collection), parsed, doc, guard)
     // A new password signs the user out everywhere.
     if (password !== undefined) await this.auth.revokeSessions(parsed)
     await this.notify(config.hooks?.afterChange, 'afterChange', config.slug, {
       ...base,
       doc,
-      previousDoc: existing,
+      previousDoc: current,
       operation: 'update',
     })
     const [out] = await this.output(config, [doc], guard, { ...options, draft: true })
-    return out as Doc<C, S>
+    return out as RawDocument
   }
 
   async delete<S extends Slug<C>>(
@@ -379,6 +551,7 @@ export class EasyCMS<C extends Config = Config> {
     for (const hook of config.hooks?.beforeDelete ?? []) await hook({ ...base, id: parsed })
     if (config.slug === USERS) await this.auth.revokeSessions(parsed)
     await this.db.delete({ collection, id: parsed })
+    if (versionLimit(config)) await this.versions.deleteAll(collectionParent(collection), parsed)
     await this.notify(config.hooks?.afterDelete, 'afterDelete', config.slug, {
       ...base,
       id: parsed,
@@ -392,7 +565,8 @@ export class EasyCMS<C extends Config = Config> {
     const config = this.global(slug)
     const guard = guardOf(options)
     await this.checkGlobalAccess(config, 'read', guard)
-    const stored = await this.db.findGlobal({ slug })
+    const saved = await this.db.findGlobal({ slug })
+    const stored = saved && options.draft ? await this.globalDraft(config, saved) : saved
     const data = fillMissing(config.fields, applyDefaults(config.fields, stored ?? {}))
     if (!stored) {
       data.updatedAt = null
@@ -408,39 +582,140 @@ export class EasyCMS<C extends Config = Config> {
     data: GInput<C, S>,
     options: DepthOptions = {},
   ): Promise<GDoc<C, S>> {
+    return this.saveGlobal(slug, asObject(data, slug), options) as Promise<GDoc<C, S>>
+  }
+
+  /** Takes a global off the site (`status: 'draft'`). See `unpublish`. */
+  async unpublishGlobal<S extends GSlug<C>>(slug: S, options: DepthOptions = {}) {
+    if (!this.global(slug).drafts) throw new QueryError(`"${slug}" has no drafts`)
+    return this.saveGlobal(slug, { status: 'draft' }, options, 'unpublish') as Promise<GDoc<C, S>>
+  }
+
+  /** Throws away the unpublished draft of a published global. */
+  async discardGlobalDraft<S extends GSlug<C>>(slug: S, options: DepthOptions = {}) {
     const config = this.global(slug)
     const guard = guardOf(options)
     await this.checkGlobalAccess(config, 'update', guard)
-    const raw = asObject(data, slug)
+    const saved = await this.db.findGlobal({ slug })
+    if (saved && (await this.globalDraft(config, saved)) !== saved) {
+      await this.saveVersion(config, globalParent(slug), 0, saved, guard)
+    }
+    return this.findGlobal(slug, { ...options, draft: true })
+  }
+
+  /** Saved versions of a global, newest first. Needs update access. */
+  async findGlobalVersions<S extends GSlug<C>>(
+    slug: S,
+    options: AccessOptions & { limit?: number; page?: number } = {},
+  ): Promise<PaginatedDocs<VersionSummary>> {
+    await this.globalVersionTarget(slug, options)
+    return this.versions.list(globalParent(slug), 0, options.limit ?? 20, options.page ?? 1)
+  }
+
+  async findGlobalVersion<S extends GSlug<C>>(
+    slug: S,
+    versionId: ID,
+    options: DepthOptions = {},
+  ): Promise<Version<GDoc<C, S>> | null> {
+    const config = await this.globalVersionTarget(slug, options)
+    const version = await this.versions.get(globalParent(slug), 0, versionId)
+    if (!version) return null
+    const data = fillMissing(config.fields, applyDefaults(config.fields, version.data))
+    const [out] = await this.output(config, [{ ...data, id: 0 } as RawDocument], guardOf(options), {
+      ...options,
+      draft: true,
+    })
+    const { id: _id, ...doc } = out as RawDocument
+    return { ...version, data: { ...doc, updatedAt: version.createdAt } as GDoc<C, S> }
+  }
+
+  /** Makes an old version of a global current (as a draft when the global has drafts). */
+  async restoreGlobalVersion<S extends GSlug<C>>(
+    slug: S,
+    versionId: ID,
+    options: DepthOptions = {},
+  ): Promise<GDoc<C, S>> {
+    const config = await this.globalVersionTarget(slug, options)
+    const version = await this.versions.get(globalParent(slug), 0, versionId)
+    if (!version) throw new NotFoundError(`${slug} version`, versionId)
+    const { status: _status, ...data } = version.data
+    return this.saveGlobal(
+      slug,
+      config.drafts ? { ...data, status: 'draft' } : data,
+      options,
+    ) as Promise<GDoc<C, S>>
+  }
+
+  private async globalVersionTarget(slug: string, options: AccessOptions) {
+    const config = this.global(slug)
+    if (!versionLimit(config)) throw new QueryError(`"${slug}" has no versions`)
+    await this.checkGlobalAccess(config, 'update', guardOf(options))
+    return config
+  }
+
+  /** The global's pending draft when it has one (see `withDrafts`), otherwise `saved`. */
+  private async globalDraft(config: GlobalConfig, saved: Data): Promise<Data> {
+    if (!this.separateDrafts(config) || saved.status !== 'published') return saved
+    const version = (await this.versions.latest(globalParent(config.slug), [0])).get('0')
+    if (version?.status !== 'draft') return saved
+    return { ...version.data, updatedAt: version.createdAt, status: 'draft' }
+  }
+
+  private async saveGlobal(
+    slug: string,
+    raw: Data,
+    options: DepthOptions,
+    mode: 'save' | 'unpublish' = 'save',
+  ): Promise<Data> {
+    const config = this.global(slug)
+    const guard = guardOf(options)
+    await this.checkGlobalAccess(config, 'update', guard)
     const input = await filterInput(
       config.fields,
       raw,
       this.fieldChecker('update', guard, undefined, raw),
     )
     const existing = (await this.db.findGlobal({ slug })) ?? {}
+    const current = await this.globalDraft(config, existing)
 
     const merged = generateSlugs(
       config.fields,
-      applyDefaults(config.fields, mergeForUpdate(config.fields, existing, input)),
+      applyDefaults(config.fields, mergeForUpdate(config.fields, current, input)),
     )
-    if (config.drafts) merged.status = input.status ?? existing.status ?? 'draft'
+    if (config.drafts) merged.status = input.status ?? current.status ?? 'draft'
     const base = this.hookArgs(config, guard)
     let prepared = await this.prepare(config, merged, 'update', undefined)
     prepared = await this.transform(
       config.hooks?.beforeChange,
       'data',
-      { ...base, operation: 'update', originalDoc: existing },
+      { ...base, operation: 'update', originalDoc: current },
       prepared,
     )
+    const now = new Date().toISOString()
 
-    const doc = await this.db.updateGlobal({
-      slug,
-      data: { ...prepared, updatedAt: new Date().toISOString() },
-    })
+    if (
+      mode === 'save' &&
+      this.separateDrafts(config) &&
+      existing.status === 'published' &&
+      prepared.status === 'draft'
+    ) {
+      const draft = { ...prepared, updatedAt: now }
+      await this.saveVersion(config, globalParent(slug), 0, draft, guard)
+      await this.notify(config.hooks?.afterChange, 'afterChange', slug, {
+        ...base,
+        doc: draft,
+        previousDoc: current,
+        operation: 'update',
+      })
+      return this.findGlobal(slug, { ...options, draft: true })
+    }
+
+    const doc = await this.db.updateGlobal({ slug, data: { ...prepared, updatedAt: now } })
+    await this.saveVersion(config, globalParent(slug), 0, doc, guard)
     await this.notify(config.hooks?.afterChange, 'afterChange', slug, {
       ...base,
       doc,
-      previousDoc: existing,
+      previousDoc: current,
       operation: 'update',
     })
     return this.findGlobal(slug, { ...options, draft: true })
@@ -578,7 +853,8 @@ export class EasyCMS<C extends Config = Config> {
         limit: 0,
         page: 1,
       })
-      return Promise.all(found.docs.map((d) => finish(target, d)))
+      const docs = options.draft ? await this.withDrafts(target, found.docs) : found.docs
+      return Promise.all(docs.map((d) => finish(target, d)))
     }
     const depth = Math.max(0, Math.min(MAX_DEPTH, Math.trunc(options.depth ?? DEFAULT_DEPTH)))
     // Populate first (populated documents are finished by the loader), then finish the top level.
@@ -638,6 +914,7 @@ export class EasyCMS<C extends Config = Config> {
       collection,
       data: { ...prepared, createdAt: now, updatedAt: now },
     })
+    await this.saveVersion(config, collectionParent(collection), doc.id, doc, guard)
     await this.notify(config.hooks?.afterChange, 'afterChange', collection, {
       ...base,
       doc,
@@ -645,6 +922,47 @@ export class EasyCMS<C extends Config = Config> {
     })
     const [out] = await this.output(config, [doc], hookGuard ?? guard, { ...options, draft: true })
     return out as RawDocument
+  }
+
+  /** Drafts are kept as versions (instead of unpublishing) when both are enabled. */
+  private separateDrafts(config: CollectionConfig | GlobalConfig): boolean {
+    return config.drafts === true && versionLimit(config) !== undefined
+  }
+
+  /** Replaces published documents that have a newer draft with that draft. */
+  private async withDrafts(
+    config: CollectionConfig | GlobalConfig,
+    docs: RawDocument[],
+  ): Promise<RawDocument[]> {
+    if (!this.separateDrafts(config)) return docs
+    const published = docs.filter((d) => d.status === 'published').map((d) => d.id)
+    const latest = await this.versions.latest(collectionParent(config.slug), published)
+    return docs.map((doc) => {
+      const version = latest.get(String(doc.id))
+      return version && doc.status === 'published' && version.status === 'draft'
+        ? draftOf(doc, version)
+        : doc
+    })
+  }
+
+  /** Records a version after a save, when the collection or global keeps versions. */
+  private async saveVersion(
+    config: CollectionConfig | GlobalConfig,
+    parent: string,
+    id: ID,
+    doc: Data,
+    guard: Guard,
+  ): Promise<void> {
+    const max = versionLimit(config)
+    if (max === undefined) return
+    await this.versions.save({
+      parent,
+      doc: id,
+      status: config.drafts ? ((doc.status as 'draft' | 'published') ?? 'draft') : null,
+      snapshot: snapshotOf(config.fields, doc),
+      author: guard.user?.id ?? null,
+      max,
+    })
   }
 
   private hookArgs(config: CollectionConfig | GlobalConfig, guard: Guard) {
@@ -855,6 +1173,17 @@ export class EasyCMS<C extends Config = Config> {
     }
     return errors
   }
+}
+
+/** A published document shown with its newer draft's content. */
+function draftOf(doc: RawDocument, version: Version): RawDocument {
+  return {
+    ...version.data,
+    id: doc.id,
+    createdAt: doc.createdAt,
+    updatedAt: version.createdAt,
+    status: 'draft',
+  } as RawDocument
 }
 
 /** Restricts reads to published documents unless drafts were asked for. */

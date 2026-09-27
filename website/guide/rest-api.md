@@ -14,6 +14,14 @@ Served at `routes.api` (default `/api/cms`). All responses are JSON; access rule
 | GET / POST | `/globals/:slug` | Read / update a global |
 | POST | `/media` | Upload (`multipart/form-data`, field `file`) |
 | GET | `/media/file/:name` | A stored file (public) |
+| GET | `/:collection/:id/versions` | Versions, newest first. Query: `limit`, `page` |
+| GET | `/:collection/:id/versions/:version` | One version with its `data` |
+| POST | `/:collection/:id/versions/:version/restore` | Restore a version |
+| POST | `/:collection/:id/unpublish` | Unpublish (collections with drafts) |
+| POST | `/:collection/:id/discard-draft` | Discard the pending draft |
+
+Globals have the same version routes under `/globals/:slug/…` (`versions`, `versions/:version`,
+`versions/:version/restore`, `unpublish`, `discard-draft`). Version routes need update access.
 
 `where` uses brackets or JSON:
 

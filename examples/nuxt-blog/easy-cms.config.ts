@@ -25,6 +25,8 @@ export default defineConfig({
     {
       slug: 'posts',
       drafts: true,
+      // History and restore; drafts of a published post stay unpublished until published.
+      versions: true,
       useAsTitle: 'title',
       access: {
         // Visitors see published posts; logged-in editors see drafts too.

@@ -1,4 +1,10 @@
-import { DEFAULT_ROLES, internalCollections, withMedia, withUsers } from './builtins.js'
+import {
+  DEFAULT_ROLES,
+  internalCollections,
+  versionsCollection,
+  withMedia,
+  withUsers,
+} from './builtins.js'
 import type { Config, ResolvedConfig } from './config.js'
 import { ConfigError } from './errors.js'
 import { validateConfig } from './validate-config.js'
@@ -53,9 +59,17 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
       lockWindow: config.auth?.lockWindow ?? 15 * 60,
       trustedOrigins: config.auth?.trustedOrigins ?? [],
     },
-    collections: [...(config.collections ?? []), ...internalCollections],
+    collections: [
+      ...(config.collections ?? []),
+      ...internalCollections,
+      ...(usesVersions(config) ? [versionsCollection] : []),
+    ],
     globals: config.globals ?? [],
   }
   resolved.add(result)
   return result
+}
+
+function usesVersions(config: Config): boolean {
+  return [...(config.collections ?? []), ...(config.globals ?? [])].some((c) => c.versions)
 }

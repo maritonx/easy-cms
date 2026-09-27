@@ -34,6 +34,10 @@ const result = ref<Paginated<Doc> | null>(null)
 const loading = ref(false)
 const error = ref('')
 const selected = ref<Set<Doc['id']>>(new Set())
+// With versions and drafts, a live document can have a newer draft; the list shows the draft,
+// so it needs to know separately which documents are live.
+const separateDrafts = !!collection?.drafts && !!collection?.versions
+const liveIds = ref<Set<string>>(new Set())
 const confirming = ref(false)
 
 async function load() {
@@ -47,6 +51,7 @@ async function load() {
       `/${slug}${toQuery({ where, sort: sort.value, limit: PAGE_SIZE, page: page.value, depth: 0, draft: true })}`,
     )
     selected.value = new Set()
+    liveIds.value = separateDrafts ? await loadLive(result.value.docs) : new Set()
   } catch (e) {
     error.value =
       e instanceof ApiError && e.status === 403
@@ -55,6 +60,20 @@ async function load() {
   } finally {
     loading.value = false
   }
+}
+
+async function loadLive(docs: Doc[]): Promise<Set<string>> {
+  const drafts = docs.filter((d) => d.status === 'draft').map((d) => d.id)
+  if (drafts.length === 0) return new Set()
+  const live = await api<Paginated<Doc>>(
+    'GET',
+    `/${slug}${toQuery({ where: { id: { in: drafts.join(',') } }, limit: drafts.length, depth: 0 })}`,
+  )
+  return new Set(live.docs.map((d) => String(d.id)))
+}
+
+function statusOf(doc: Doc): 'published' | 'draft' {
+  return doc.status === 'published' || liveIds.value.has(String(doc.id)) ? 'published' : 'draft'
 }
 
 function setQuery(patch: Record<string, string | undefined>) {
@@ -173,7 +192,8 @@ async function deleteSelected() {
               <RouterLink :to="`/collections/${slug}/${doc.id}`" class="title-link">{{ titleOf(collection, doc) }}</RouterLink>
             </td>
             <td v-if="collection.drafts">
-              <span :class="['badge', `badge-${doc.status}`]">{{ t(doc.status === 'published' ? 'status.published' : 'status.draft') }}</span>
+              <span :class="['badge', `badge-${statusOf(doc)}`]">{{ t(statusOf(doc) === 'published' ? 'status.published' : 'status.draft') }}</span>
+              <span v-if="liveIds.has(String(doc.id))" class="badge badge-changed">{{ t('status.changed') }}</span>
             </td>
             <td class="date muted">{{ formatDate(doc.updatedAt) }}</td>
           </tr>

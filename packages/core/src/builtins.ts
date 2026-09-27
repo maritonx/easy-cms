@@ -6,9 +6,14 @@ export const USERS = 'users'
 export const MEDIA = 'media'
 export const SESSIONS = 'sessions'
 export const LOGIN_ATTEMPTS = 'login-attempts'
+export const VERSIONS = 'document-versions'
 
 /** Collections Easy CMS uses internally. Not exposed over REST or in the admin UI. */
-export const INTERNAL_COLLECTIONS: ReadonlySet<string> = new Set([SESSIONS, LOGIN_ATTEMPTS])
+export const INTERNAL_COLLECTIONS: ReadonlySet<string> = new Set([
+  SESSIONS,
+  LOGIN_ATTEMPTS,
+  VERSIONS,
+])
 
 export const DEFAULT_ROLES = ['admin', 'editor'] as const
 
@@ -201,3 +206,23 @@ export const internalCollections: readonly CollectionConfig[] = [
     fields: [{ name: 'key', type: 'text', required: true, index: true }],
   },
 ]
+
+/**
+ * Snapshots for collections and globals with `versions`. Only added to the schema when one of
+ * them uses versions, so projects without versions keep their tables unchanged.
+ */
+export const versionsCollection: CollectionConfig = {
+  slug: VERSIONS,
+  access: { read: nobody, create: nobody, update: nobody, delete: nobody },
+  fields: [
+    // Collection slug, or `global:<slug>`.
+    { name: 'parent', type: 'text', required: true, index: true },
+    // Document id; 0 for globals.
+    { name: 'doc', type: 'number', required: true, index: true },
+    { name: 'status', type: 'text' },
+    // The newest version of the document: its current editable state.
+    { name: 'latest', type: 'boolean', index: true },
+    { name: 'author', type: 'number' },
+    { name: 'snapshot', type: 'json', required: true },
+  ],
+}

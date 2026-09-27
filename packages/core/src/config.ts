@@ -51,6 +51,11 @@ export interface GlobalHooks {
   readonly afterRead?: readonly AfterReadHook[]
 }
 
+export interface VersionsConfig {
+  /** Versions kept per document; older ones are deleted. Default 50. */
+  readonly max?: number
+}
+
 export interface CollectionConfig {
   /** URL and table name. Lowercase letters, digits, `-` and `_`. */
   readonly slug: string
@@ -60,6 +65,12 @@ export interface CollectionConfig {
   readonly useAsTitle?: string
   /** Adds a `status` field (`draft` | `published`). */
   readonly drafts?: boolean
+  /**
+   * Keep a snapshot of every save, to view history and restore. With `drafts`, a draft saved
+   * on a published document is kept as a version and the published document stays live until
+   * it is published again.
+   */
+  readonly versions?: boolean | VersionsConfig
   readonly access?: CollectionAccess
   readonly hooks?: CollectionHooks
 }
@@ -69,6 +80,8 @@ export interface GlobalConfig {
   readonly label?: Label
   readonly fields: readonly Field[]
   readonly drafts?: boolean
+  /** Keep a snapshot of every save. See `CollectionConfig.versions`. */
+  readonly versions?: boolean | VersionsConfig
   readonly access?: GlobalAccess
   readonly hooks?: GlobalHooks
 }

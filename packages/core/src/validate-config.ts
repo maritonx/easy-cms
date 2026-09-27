@@ -13,6 +13,7 @@ const RESERVED_SLUGS = new Set([
   'globals',
   'sessions',
   'login-attempts',
+  'document-versions',
   'migrations',
   'access',
 ])
@@ -210,6 +211,15 @@ function validateContainer(
   if (!Array.isArray(container.fields)) {
     add(`${path}.fields`, 'must be an array')
     return
+  }
+  const versions = container.versions
+  if (versions !== undefined && typeof versions !== 'boolean') {
+    const max = typeof versions === 'object' && versions !== null ? versions.max : undefined
+    if (typeof versions !== 'object' || versions === null) {
+      add(`${path}.versions`, 'must be true, false or { max }')
+    } else if (max !== undefined && (!Number.isInteger(max) || max < 1)) {
+      add(`${path}.versions.max`, 'must be a positive integer')
+    }
   }
   const reserved = new Set(SYSTEM_FIELD_NAMES)
   if (container.drafts) reserved.add('status')

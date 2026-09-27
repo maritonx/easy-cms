@@ -249,7 +249,8 @@ fieldset {
   background: var(--success-soft);
   color: var(--accent);
 }
-.badge-draft {
+.badge-draft,
+.badge-changed {
   background: var(--warning-soft);
   color: var(--warning-text);
 }

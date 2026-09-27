@@ -218,9 +218,10 @@ async function route(
 
   // Globals
   if (first === 'globals') {
-    if (!second || third !== undefined) throw new HttpError('Not found', 404)
+    if (!second) throw new HttpError('Not found', 404)
     if (!cms.config.globals.some((g) => g.slug === second))
       throw new HttpError(`Unknown global "${second}"`, 404)
+    if (third !== undefined) return globalAction(cms, ctx, method, second, segments.slice(2))
     if (method === 'GET')
       return { body: await cms.findGlobal(second, { ...access, ...parseDepth(ctx.url), draft }) }
     if (method === 'POST') {
@@ -251,7 +252,9 @@ async function route(
   ) {
     throw new HttpError(`Unknown collection "${collection}"`, 404)
   }
-  if (third !== undefined) throw new HttpError('Not found', 404)
+  if (second !== undefined && third !== undefined) {
+    return documentAction(cms, ctx, method, collection, second, segments.slice(2))
+  }
 
   if (second === undefined) {
     if (method === 'GET') {
@@ -293,6 +296,102 @@ async function route(
     return { body: await cms.delete(collection, id, access) }
   }
   throw methodNotAllowed(ctx, 'GET, PATCH, DELETE')
+}
+
+/**
+ * `/:collection/:id/…`: versions (`versions`, `versions/:v`, `versions/:v/restore`), `unpublish`
+ * and `discard-draft`.
+ */
+async function documentAction(
+  cms: EasyCMS,
+  ctx: Context,
+  method: string,
+  collection: string,
+  id: string,
+  path: string[],
+): Promise<Result> {
+  const access = { overrideAccess: false, user: ctx.user } as const
+  const depth = parseDepth(ctx.url)
+  const [action, versionId, extra] = path
+  if (action === 'versions' && versionId === undefined) {
+    if (method !== 'GET') throw methodNotAllowed(ctx, 'GET')
+    return { body: await cms.findVersions(collection, id, { ...access, ...parsePage(ctx.url) }) }
+  }
+  if (action === 'versions' && versionId !== undefined && extra === undefined) {
+    if (method !== 'GET') throw methodNotAllowed(ctx, 'GET')
+    const version = await cms.findVersion(collection, id, versionId, { ...access, ...depth })
+    if (!version) throw new NotFoundError(`${collection} version`, versionId)
+    return { body: version }
+  }
+  if (
+    action === 'versions' &&
+    versionId !== undefined &&
+    extra === 'restore' &&
+    path.length === 3
+  ) {
+    if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
+    return { body: await cms.restoreVersion(collection, id, versionId, { ...access, ...depth }) }
+  }
+  if (path.length === 1 && (action === 'unpublish' || action === 'discard-draft')) {
+    if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
+    const options = { ...access, ...depth }
+    return {
+      body:
+        action === 'unpublish'
+          ? await cms.unpublish(collection, id, options)
+          : await cms.discardDraft(collection, id, options),
+    }
+  }
+  throw new HttpError('Not found', 404)
+}
+
+/** `/globals/:slug/…`: the same actions as `documentAction`, for a global. */
+async function globalAction(
+  cms: EasyCMS,
+  ctx: Context,
+  method: string,
+  slug: string,
+  path: string[],
+): Promise<Result> {
+  const access = { overrideAccess: false, user: ctx.user } as const
+  const depth = parseDepth(ctx.url)
+  const [action, versionId, extra] = path
+  if (action === 'versions' && versionId === undefined) {
+    if (method !== 'GET') throw methodNotAllowed(ctx, 'GET')
+    return { body: await cms.findGlobalVersions(slug, { ...access, ...parsePage(ctx.url) }) }
+  }
+  if (action === 'versions' && versionId !== undefined && extra === undefined) {
+    if (method !== 'GET') throw methodNotAllowed(ctx, 'GET')
+    const version = await cms.findGlobalVersion(slug, versionId, { ...access, ...depth })
+    if (!version) throw new NotFoundError(`${slug} version`, versionId)
+    return { body: version }
+  }
+  if (
+    action === 'versions' &&
+    versionId !== undefined &&
+    extra === 'restore' &&
+    path.length === 3
+  ) {
+    if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
+    return { body: await cms.restoreGlobalVersion(slug, versionId, { ...access, ...depth }) }
+  }
+  if (path.length === 1 && (action === 'unpublish' || action === 'discard-draft')) {
+    if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
+    const options = { ...access, ...depth }
+    return {
+      body:
+        action === 'unpublish'
+          ? await cms.unpublishGlobal(slug, options)
+          : await cms.discardGlobalDraft(slug, options),
+    }
+  }
+  throw new HttpError('Not found', 404)
+}
+
+/** `?page=&limit=` for version lists, validated like list queries. */
+function parsePage(url: URL): { page: number; limit: number } {
+  const { page, limit } = parseListQuery(url)
+  return { page, limit }
 }
 
 function methodNotAllowed(ctx: Context, allow: string) {

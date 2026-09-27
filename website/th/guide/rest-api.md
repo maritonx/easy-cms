@@ -14,6 +14,14 @@
 | GET / POST | `/globals/:slug` | อ่าน / อัปเดต global |
 | POST | `/media` | อัปโหลด (`multipart/form-data`, field `file`) |
 | GET | `/media/file/:name` | ไฟล์ที่จัดเก็บไว้ (สาธารณะ) |
+| GET | `/:collection/:id/versions` | รายการเวอร์ชัน ใหม่สุดก่อน query: `limit`, `page` |
+| GET | `/:collection/:id/versions/:version` | เวอร์ชันเดียวพร้อม `data` |
+| POST | `/:collection/:id/versions/:version/restore` | กู้คืนเวอร์ชัน |
+| POST | `/:collection/:id/unpublish` | ยกเลิกการเผยแพร่ (collection ที่มีฉบับร่าง) |
+| POST | `/:collection/:id/discard-draft` | ทิ้งฉบับร่างที่รอเผยแพร่ |
+
+global มี route ของเวอร์ชันชุดเดียวกันใต้ `/globals/:slug/…` (`versions`, `versions/:version`,
+`versions/:version/restore`, `unpublish`, `discard-draft`) route ของเวอร์ชันต้องมีสิทธิ์แก้ไข
 
 `where` ใช้รูปแบบวงเล็บเหลี่ยมหรือ JSON:
 

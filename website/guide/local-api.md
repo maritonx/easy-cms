@@ -30,6 +30,13 @@ await cms.delete('posts', 12)
 await cms.findGlobal('site')
 await cms.updateGlobal('site', { siteName: 'Easy' })
 await cms.upload({ data, name: 'photo.jpg' }, { alt: '' })
+
+// Collections and globals with versions (see Drafts & versions)
+await cms.findVersions('posts', 12, { limit: 20, page: 1 })
+await cms.findVersion('posts', 12, versionId)
+await cms.restoreVersion('posts', 12, versionId)
+await cms.unpublish('posts', 12)
+await cms.discardDraft('posts', 12)
 ```
 
 `find` returns `{ docs, totalDocs, limit, page, totalPages, hasNextPage, hasPrevPage }`.

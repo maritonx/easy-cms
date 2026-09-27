@@ -33,6 +33,7 @@ export interface AdminCollection {
   labels?: { singular?: Label; plural?: Label }
   useAsTitle?: string
   drafts: boolean
+  versions: boolean
   fields: AdminField[]
   permissions: { read: boolean; create: boolean; update: boolean; delete: boolean }
 }
@@ -41,6 +42,7 @@ export interface AdminGlobal {
   slug: string
   label?: Label
   drafts: boolean
+  versions: boolean
   fields: AdminField[]
   permissions: { read: boolean; update: boolean }
 }
@@ -113,6 +115,7 @@ async function collection(config: CollectionConfig, user: AuthUser): Promise<Adm
   const result: AdminCollection = {
     slug: config.slug,
     drafts: config.drafts === true,
+    versions: Boolean(config.versions),
     fields: await serializeFields(config.fields, new FieldAccessChecker('update', { user })),
     permissions: {
       read: await allowed(config.access?.read, user),
@@ -130,6 +133,7 @@ async function global(config: GlobalConfig, user: AuthUser): Promise<AdminGlobal
   const result: AdminGlobal = {
     slug: config.slug,
     drafts: config.drafts === true,
+    versions: Boolean(config.versions),
     fields: await serializeFields(config.fields, new FieldAccessChecker('update', { user })),
     permissions: {
       read: await allowed(config.access?.read, user),

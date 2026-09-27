@@ -58,6 +58,7 @@ collection คือประเภทของเนื้อหาที่ม
 | `labels` | `{ singular, plural }` แต่ละค่าเป็น string หรือ `{ en, th }` |
 | `useAsTitle` | field ระดับบนสุดที่แสดงเป็นชื่อเอกสารในหน้า admin |
 | `drafts` | เพิ่ม `status` (`draft` \| `published`) ดู [ฉบับร่าง (draft)](./drafts) |
+| `versions` | `true` หรือ `{ max }`: เก็บเวอร์ชันของการบันทึกทุกครั้ง พร้อมประวัติและการกู้คืน ถ้ามี `drafts` ด้วย ฉบับร่างของเอกสารที่เผยแพร่แล้วจะถูกเก็บแยก ดู [เวอร์ชัน](./drafts#versions) |
 | `access` | `{ read, create, update, delete }` ดู [การควบคุมสิทธิ์](./access-control) |
 | `hooks` | ดู [Hooks](./hooks) |
 
@@ -86,7 +87,7 @@ globals: [
 ],
 ```
 
-global รองรับ `fields`, `label`, `drafts`, `access` (`read`, `update`) และ `hooks`
+global รองรับ `fields`, `label`, `drafts`, `versions`, `access` (`read`, `update`) และ `hooks`
 (`beforeChange`, `afterChange`, `afterRead`)
 
 ## Plugins {#plugins}

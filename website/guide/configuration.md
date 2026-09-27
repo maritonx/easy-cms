@@ -58,6 +58,7 @@ A collection is a type of content with many documents: posts, products, pages.
 | `labels` | `{ singular, plural }`, each a string or `{ en, th }`. |
 | `useAsTitle` | Top-level field shown as the document title in the admin. |
 | `drafts` | Adds `status` (`draft` \| `published`). See [Drafts](./drafts). |
+| `versions` | `true` or `{ max }`: keep a version of every save, with history and restore; with `drafts`, drafts of published documents are kept separately. See [Versions](./drafts#versions). |
 | `access` | `{ read, create, update, delete }`. See [Access control](./access-control). |
 | `hooks` | See [Hooks](./hooks). |
 
@@ -86,7 +87,7 @@ globals: [
 ],
 ```
 
-Globals accept `fields`, `label`, `drafts`, `access` (`read`, `update`) and `hooks`
+Globals accept `fields`, `label`, `drafts`, `versions`, `access` (`read`, `update`) and `hooks`
 (`beforeChange`, `afterChange`, `afterRead`).
 
 ## Plugins

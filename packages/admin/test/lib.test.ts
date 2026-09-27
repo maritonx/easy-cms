@@ -72,6 +72,7 @@ describe('form values', () => {
     const collection = {
       slug: 'p',
       drafts: false,
+      versions: false,
       fields: [],
       useAsTitle: 'title',
       permissions: { read: true, create: true, update: true, delete: true },

@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import MediaThumb from '../components/MediaThumb.vue'
+import VersionHistory from '../components/VersionHistory.vue'
 import FieldList from '../fields/FieldList.vue'
 import { ApiError, api, type Doc } from '../lib/api'
 import { initialValues, snapshot, titleOf, toFormValues } from '../lib/fields'
@@ -17,6 +18,17 @@ const collection = findCollection(slug)
 const isUsers = slug === 'users'
 const isMedia = slug === 'media'
 const published = computed(() => doc.value?.status === 'published')
+// With versions and drafts, a draft of a published document is saved separately and the
+// published version stays live until it is published again.
+const separateDrafts = !!collection?.drafts && !!collection?.versions
+const live = ref(false)
+const pendingChanges = computed(() => separateDrafts && live.value && !published.value)
+// What visitors see: with separate drafts the live version, otherwise the document's status.
+const liveStatus = computed(() =>
+  separateDrafts ? (live.value ? 'published' : 'draft') : (doc.value?.status ?? 'draft'),
+)
+const historyKey = ref(0)
+const confirmingDiscard = ref(false)
 
 const form = ref<Record<string, unknown>>(collection ? initialValues(collection.fields) : {})
 const password = ref('')
@@ -94,6 +106,7 @@ onMounted(async () => {
     ])
     doc.value = loaded
     docPermissions.value = permissions
+    live.value = separateDrafts ? await isLive() : loaded.status === 'published'
     reset(toFormValues(collection.fields, loaded))
   } catch (e) {
     if (e instanceof ApiError && e.status === 404) notFound.value = true
@@ -103,6 +116,48 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
+/** Whether a published version is on the site (the draft we edit may be newer). */
+async function isLive(): Promise<boolean> {
+  try {
+    const current = await api<Doc>('GET', `/${slug}/${encodeURIComponent(String(id))}?depth=0`)
+    return current.status === 'published'
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) return false
+    throw e
+  }
+}
+
+/** Shows a document returned by an action (unpublish, discard, restore). */
+function show(saved: Doc, text: string) {
+  if (!collection) return
+  doc.value = saved
+  reset(toFormValues(collection.fields, saved))
+  historyKey.value += 1
+  message.value = { kind: 'success', text }
+}
+
+async function action(path: 'unpublish' | 'discard-draft') {
+  confirmingDiscard.value = false
+  saving.value = true
+  message.value = null
+  try {
+    const saved = await api<Doc>(
+      'POST',
+      `/${slug}/${encodeURIComponent(String(id))}/${path}?depth=0`,
+    )
+    if (path === 'unpublish') live.value = false
+    show(saved, t(path === 'unpublish' ? 'edit.unpublished' : 'edit.discarded'))
+  } catch (e) {
+    message.value = {
+      kind: 'error',
+      text:
+        e instanceof ApiError && e.status === 403 ? t('common.forbidden') : (e as Error).message,
+    }
+  } finally {
+    saving.value = false
+  }
+}
 
 async function save(status?: 'draft' | 'published') {
   if (!collection) return
@@ -119,11 +174,15 @@ async function save(status?: 'draft' | 'published') {
       : await api<Doc>('POST', `/${slug}?depth=0`, body)
     doc.value = saved
     reset(toFormValues(collection.fields, saved))
+    historyKey.value += 1
+    if (status === 'published') live.value = true
     const text = !id
       ? t('edit.created')
-      : wasPublished && status === 'draft'
-        ? t('edit.unpublished')
-        : t('edit.saved')
+      : separateDrafts && live.value && status === 'draft'
+        ? t('edit.draftSaved')
+        : wasPublished && status === 'draft'
+          ? t('edit.unpublished')
+          : t('edit.saved')
     message.value = { kind: 'success', text }
     // Editing yourself may change what you can do (role, name shown in the sidebar).
     if (isUsers && String(saved.id) === String(session.user?.id)) await loadSession()
@@ -186,9 +245,10 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
         <RouterLink :to="`/collections/${slug}`" class="back">← {{ label(collection.labels?.plural, collection.slug) }}</RouterLink>
         <h1>{{ heading }}</h1>
         <p v-if="doc" class="meta muted">
-          <span v-if="collection.drafts" :class="['badge', `badge-${doc.status}`]">
-            {{ t(doc.status === 'published' ? 'status.published' : 'status.draft') }}
+          <span v-if="collection.drafts" :class="['badge', `badge-${liveStatus}`]">
+            {{ t(liveStatus === 'published' ? 'status.published' : 'status.draft') }}
           </span>
+          <span v-if="pendingChanges" class="badge badge-changed">{{ t('status.changed') }}</span>
           {{ t('list.updated') }} {{ formatDate(doc.updatedAt) }}
         </p>
       </div>
@@ -198,8 +258,15 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
           {{ t('edit.delete') }}
         </button>
         <template v-if="canSave">
+          <!-- Separate drafts: the live version changes only on Publish (FR-VER-04). -->
+          <template v-if="separateDrafts && live">
+            <button v-if="pendingChanges" type="button" class="btn" :disabled="saving" @click="confirmingDiscard = true">{{ t('edit.discardChanges') }}</button>
+            <button type="button" class="btn" :disabled="saving" @click="action('unpublish')">{{ t('edit.unpublish') }}</button>
+            <button type="button" class="btn" :disabled="saving" @click="save('draft')">{{ t('edit.saveDraft') }}</button>
+            <button type="submit" class="btn btn-primary" :disabled="saving">{{ pendingChanges ? t('edit.publishChanges') : t('edit.publish') }}</button>
+          </template>
           <!-- A published document stays published on save; unpublishing is explicit (FR-DRF-05). -->
-          <template v-if="collection.drafts && published">
+          <template v-else-if="collection.drafts && published">
             <button type="button" class="btn" :disabled="saving" @click="save('draft')">{{ t('edit.unpublish') }}</button>
             <button type="submit" class="btn btn-primary" :disabled="saving">{{ t('edit.save') }}</button>
           </template>
@@ -214,6 +281,7 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
 
     <p v-if="readOnly" class="notice notice-warning">{{ t('edit.readOnly') }}</p>
 
+    <div :class="['editor-body', { 'with-history': collection.versions && id && canSave }]">
     <div class="card form-body">
       <template v-if="isMedia && doc">
         <MediaThumb :media="doc" size="large" />
@@ -240,7 +308,24 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
         <span v-for="m in errors.password" id="password-error" :key="m" class="field-error">{{ m }}</span>
       </label>
     </div>
+    <VersionHistory
+      v-if="collection.versions && id && canSave"
+      :path="`/${slug}/${encodeURIComponent(id)}`"
+      :fields="collection.fields"
+      :drafts="collection.drafts"
+      :can-restore="canSave"
+      :reload-key="historyKey"
+      @restored="(d) => show(d as Doc, t('history.restored'))"
+    />
+    </div>
 
+    <ConfirmDialog
+      :open="confirmingDiscard"
+      :message="t('edit.confirmDiscard')"
+      :confirm-label="t('edit.discardChanges')"
+      @confirm="action('discard-draft')"
+      @cancel="confirmingDiscard = false"
+    />
     <ConfirmDialog
       :open="confirmingDelete"
       :message="t('edit.confirmDelete')"
@@ -291,6 +376,17 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
 }
 .status.error {
   color: var(--danger);
+}
+.editor-body.with-history {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 17rem;
+  align-items: start;
+  gap: 1rem;
+}
+@media (max-width: 900px) {
+  .editor-body.with-history {
+    grid-template-columns: 1fr;
+  }
 }
 .form-body {
   display: flex;

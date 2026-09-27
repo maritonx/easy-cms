@@ -33,6 +33,5 @@ your app's server, so there is no separate CMS service to host:
 
 ## Current limits
 
-- Drafts have no separate version: saving a published document as a draft unpublishes it.
-- No GraphQL, no localization of content, no version history yet.
+- No GraphQL and no localization of content yet.
 - Node.js ≥ 22.12; no edge runtimes.

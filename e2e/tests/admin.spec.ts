@@ -47,6 +47,10 @@ async function publicSite(page: Page) {
 
 const standalone = () => test.info().project.name === 'standalone'
 
+/** A status badge in the editor header (the history panel has badges too). */
+const badge = (page: Page, text: string) =>
+  page.locator('.editor-header .meta').getByText(text, { exact: true })
+
 async function shot(page: Page, name: string) {
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/${name}.png`, fullPage: true })
 }
@@ -114,7 +118,7 @@ test.describe('logged in as admin', () => {
     await expect(page.getByRole('heading', { name: 'Create Post' })).toBeVisible()
 
     // Server-side validation errors appear on the field.
-    await page.getByRole('button', { name: 'Publish' }).click()
+    await page.getByRole('button', { name: 'Publish', exact: true }).click()
     await expect(page.getByRole('status')).toHaveText('Please fix the highlighted fields.')
     const title = page.getByRole('textbox', { name: 'Title', exact: true })
     await expect(title).toHaveAttribute('aria-invalid', 'true')
@@ -145,10 +149,10 @@ test.describe('logged in as admin', () => {
     await page.getByLabel('Published at').fill('2026-09-01T10:30')
     await shot(page, '03-post-form')
 
-    await page.getByRole('button', { name: 'Publish' }).click()
+    await page.getByRole('button', { name: 'Publish', exact: true }).click()
     await expect(page.getByRole('status')).toHaveText('Created')
     await expect(page).toHaveURL(/\/admin\/collections\/posts\/\d+$/)
-    await expect(page.getByText('Published', { exact: true })).toBeVisible()
+    await expect(badge(page, 'Published')).toBeVisible()
     await expect(page.getByLabel('Slug')).toHaveValue('hello-from-playwright')
 
     // Reload: everything was stored.
@@ -170,7 +174,7 @@ test.describe('logged in as admin', () => {
     await page.getByRole('textbox', { name: 'Title', exact: true }).fill('Secret draft')
     await page.getByRole('button', { name: 'Save draft' }).click()
     await expect(page.getByRole('status')).toHaveText('Created')
-    await expect(page.getByText('Draft', { exact: true })).toBeVisible()
+    await expect(badge(page, 'Draft')).toBeVisible()
     await publicSite(page)
     await expect(page.getByText('Secret draft')).toHaveCount(0)
   })
@@ -213,7 +217,8 @@ test.describe('logged in as admin', () => {
     await expect(page.locator('.rte-content img')).toHaveAttribute('alt', 'A green circle')
     await shot(page, '06-post-with-media')
 
-    await page.getByRole('button', { name: 'Save', exact: true }).click()
+    // Posts keep versions: on a live post, Publish updates the site.
+    await page.getByRole('button', { name: 'Publish', exact: true }).click()
     await expect(page.getByRole('status')).toHaveText('Saved')
 
     await publicSite(page)
@@ -231,18 +236,70 @@ test.describe('logged in as admin', () => {
     await page.getByRole('link', { name: 'Hello from Playwright' }).click()
     await page.getByRole('button', { name: 'Unpublish' }).click()
     await expect(page.getByRole('status')).toHaveText('Unpublished')
-    await expect(page.getByText('Draft', { exact: true })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Publish' })).toBeVisible()
+    await expect(badge(page, 'Draft')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Publish', exact: true })).toBeVisible()
 
     await publicSite(page)
     await expect(page.getByRole('link', { name: 'Hello from Playwright' })).toHaveCount(0)
 
     await page.goto('/admin/collections/posts?q=Hello')
     await page.getByRole('link', { name: 'Hello from Playwright' }).click()
-    await page.getByRole('button', { name: 'Publish' }).click()
-    await expect(page.getByText('Published', { exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'Publish', exact: true }).click()
+    await expect(badge(page, 'Published')).toBeVisible()
     await publicSite(page)
     await expect(page.getByRole('link', { name: 'Hello from Playwright' })).toBeVisible()
+  })
+
+  test('edits a draft while the published version stays live, and restores history (FR-VER)', async ({
+    page,
+  }) => {
+    await page.goto('/admin/collections/posts?q=Hello')
+    await page.getByRole('link', { name: 'Hello from Playwright' }).click()
+    const title = page.getByRole('textbox', { name: 'Title', exact: true })
+    await title.fill('Hello, edited in a draft')
+    await page.getByRole('button', { name: 'Save draft' }).click()
+    await expect(page.getByRole('status')).toHaveText(
+      'Draft saved. The published version is still live.',
+    )
+    await expect(badge(page, 'Published')).toBeVisible()
+    await expect(badge(page, 'Unpublished changes')).toBeVisible()
+    await shot(page, '07-pending-draft')
+
+    // Visitors still see the published title.
+    await publicSite(page)
+    await expect(page.getByRole('link', { name: 'Hello from Playwright' })).toBeVisible()
+    await expect(page.getByText('Hello, edited in a draft')).toHaveCount(0)
+
+    // The list shows the draft, still marked as published, with unpublished changes.
+    await page.goto('/admin/collections/posts?q=Hello')
+    const row = page.getByRole('row', { name: /Hello, edited in a draft/ })
+    await expect(row.getByText('Published', { exact: true })).toBeVisible()
+    await expect(row.getByText('Unpublished changes')).toBeVisible()
+
+    // The editor sees the draft; discarding goes back to the live content.
+    await row.getByRole('link').click()
+    await expect(title).toHaveValue('Hello, edited in a draft')
+    await page.getByRole('button', { name: 'Discard changes' }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Discard changes' }).click()
+    await expect(page.getByRole('status')).toHaveText('Changes discarded')
+    await expect(title).toHaveValue('Hello from Playwright')
+    await expect(badge(page, 'Unpublished changes')).toHaveCount(0)
+
+    // History: open the first version and restore it as a draft.
+    const history = page.getByRole('complementary', { name: 'History' })
+    const versions = history.getByRole('listitem')
+    await expect(versions.first()).toBeVisible()
+    await versions.last().getByRole('button').click()
+    const dialog = page.getByRole('dialog')
+    await expect(dialog.getByRole('heading', { name: /^Version from / })).toBeVisible()
+    await shot(page, '08-version')
+    await dialog.getByRole('button', { name: 'Restore as draft' }).click()
+    await expect(page.getByRole('status')).toHaveText('Version restored')
+    await expect(badge(page, 'Unpublished changes')).toBeVisible()
+    // Keep the live post as it was for the next tests.
+    await page.getByRole('button', { name: 'Discard changes' }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Discard changes' }).click()
+    await expect(page.getByRole('status')).toHaveText('Changes discarded')
   })
 
   test('lists, searches, sorts and bulk-deletes (FR-ADM-04)', async ({ page }) => {

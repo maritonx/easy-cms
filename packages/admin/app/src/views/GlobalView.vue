@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { onBeforeRouteLeave, useRoute } from 'vue-router'
+import ConfirmDialog from '../components/ConfirmDialog.vue'
+import VersionHistory from '../components/VersionHistory.vue'
 import FieldList from '../fields/FieldList.vue'
 import { ApiError, api } from '../lib/api'
 import { snapshot, toFormValues } from '../lib/fields'
@@ -22,6 +24,17 @@ const errors = ref<Record<string, string[]>>({})
 const message = ref<{ kind: 'success' | 'error'; text: string } | null>(null)
 const readOnly = computed(() => !global?.permissions.update)
 const dirty = computed(() => snapshot(form.value) !== baseline.value)
+// See EditView: with versions and drafts the published version stays live until published again.
+const separateDrafts = !!global?.drafts && !!global?.versions
+const live = ref(false)
+const pendingChanges = computed(
+  () => separateDrafts && live.value && meta.value.status !== 'published',
+)
+const liveStatus = computed(() =>
+  separateDrafts ? (live.value ? 'published' : 'draft') : String(meta.value.status ?? 'draft'),
+)
+const historyKey = ref(0)
+const confirmingDiscard = ref(false)
 
 function reset(data: Data) {
   if (!global) return
@@ -33,7 +46,12 @@ function reset(data: Data) {
 onMounted(async () => {
   if (!global) return
   try {
-    reset(await api<Data>('GET', `/globals/${slug}?depth=0&draft=true`))
+    const [draft, current] = await Promise.all([
+      api<Data>('GET', `/globals/${slug}?depth=0&draft=true`),
+      api<Data>('GET', `/globals/${slug}?depth=0`),
+    ])
+    live.value = current.status === 'published'
+    reset(draft)
   } catch (e) {
     message.value = { kind: 'error', text: t('common.error', { message: (e as Error).message }) }
   } finally {
@@ -53,7 +71,11 @@ async function save(status?: 'draft' | 'published') {
         status ? { ...form.value, status } : form.value,
       ),
     )
-    message.value = { kind: 'success', text: t('edit.saved') }
+    historyKey.value += 1
+    if (status === 'published') live.value = true
+    const text =
+      separateDrafts && live.value && status === 'draft' ? t('edit.draftSaved') : t('edit.saved')
+    message.value = { kind: 'success', text }
   } catch (e) {
     if (e instanceof ApiError) {
       errors.value = e.fieldErrors
@@ -65,6 +87,31 @@ async function save(status?: 'draft' | 'published') {
   } finally {
     saving.value = false
   }
+}
+
+async function action(path: 'unpublish' | 'discard-draft') {
+  confirmingDiscard.value = false
+  saving.value = true
+  message.value = null
+  try {
+    reset(await api<Data>('POST', `/globals/${slug}/${path}?depth=0`))
+    if (path === 'unpublish') live.value = false
+    historyKey.value += 1
+    message.value = {
+      kind: 'success',
+      text: t(path === 'unpublish' ? 'edit.unpublished' : 'edit.discarded'),
+    }
+  } catch (e) {
+    message.value = { kind: 'error', text: (e as Error).message }
+  } finally {
+    saving.value = false
+  }
+}
+
+function restored(data: Data) {
+  reset(data)
+  historyKey.value += 1
+  message.value = { kind: 'success', text: t('history.restored') }
 }
 
 function beforeUnload(event: BeforeUnloadEvent) {
@@ -83,24 +130,49 @@ onBeforeRouteLeave(() => (dirty.value ? window.confirm(t('edit.unsaved')) : true
       <div>
         <h1>{{ label(global.label, global.slug) }}</h1>
         <p v-if="meta.updatedAt" class="muted meta">
-          <span v-if="global.drafts" :class="['badge', `badge-${meta.status}`]">
-            {{ t(meta.status === 'published' ? 'status.published' : 'status.draft') }}
+          <span v-if="global.drafts" :class="['badge', `badge-${liveStatus}`]">
+            {{ t(liveStatus === 'published' ? 'status.published' : 'status.draft') }}
           </span>
+          <span v-if="pendingChanges" class="badge badge-changed">{{ t('status.changed') }}</span>
           {{ t('list.updated') }} {{ formatDate(meta.updatedAt) }}
         </p>
       </div>
       <div class="actions">
         <span v-if="message" :class="['status', message.kind]" role="status" aria-live="polite">{{ message.text }}</span>
         <template v-if="!readOnly">
+          <template v-if="separateDrafts && live">
+            <button v-if="pendingChanges" type="button" class="btn" :disabled="saving" @click="confirmingDiscard = true">{{ t('edit.discardChanges') }}</button>
+            <button type="button" class="btn" :disabled="saving" @click="action('unpublish')">{{ t('edit.unpublish') }}</button>
+          </template>
           <button v-if="global.drafts" type="button" class="btn" :disabled="saving" @click="save('draft')">{{ t('edit.saveDraft') }}</button>
-          <button type="submit" class="btn btn-primary" :disabled="saving">{{ global.drafts ? t('edit.publish') : t('edit.save') }}</button>
+          <button type="submit" class="btn btn-primary" :disabled="saving">
+            {{ !global.drafts ? t('edit.save') : pendingChanges ? t('edit.publishChanges') : t('edit.publish') }}
+          </button>
         </template>
       </div>
     </header>
     <p v-if="readOnly" class="notice notice-warning">{{ t('edit.readOnly') }}</p>
-    <div class="card form-body">
-      <FieldList v-model="form" :fields="global.fields" :errors="errors" :read-only="readOnly" />
+    <div :class="['editor-body', { 'with-history': global.versions && !readOnly }]">
+      <div class="card form-body">
+        <FieldList v-model="form" :fields="global.fields" :errors="errors" :read-only="readOnly" />
+      </div>
+      <VersionHistory
+        v-if="global.versions && !readOnly"
+        :path="`/globals/${slug}`"
+        :fields="global.fields"
+        :drafts="global.drafts"
+        :can-restore="!readOnly"
+        :reload-key="historyKey"
+        @restored="restored"
+      />
     </div>
+    <ConfirmDialog
+      :open="confirmingDiscard"
+      :message="t('edit.confirmDiscard')"
+      :confirm-label="t('edit.discardChanges')"
+      @confirm="action('discard-draft')"
+      @cancel="confirmingDiscard = false"
+    />
   </form>
 </template>
 
@@ -133,6 +205,17 @@ onBeforeRouteLeave(() => (dirty.value ? window.confirm(t('edit.unsaved')) : true
 }
 .status.error {
   color: var(--danger);
+}
+.editor-body.with-history {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 17rem;
+  align-items: start;
+  gap: 1rem;
+}
+@media (max-width: 900px) {
+  .editor-body.with-history {
+    grid-template-columns: 1fr;
+  }
 }
 .form-body {
   padding: 1.5rem;
