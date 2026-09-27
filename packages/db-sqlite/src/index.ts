@@ -22,6 +22,11 @@ export interface SQLiteAdapterOptions extends DrizzleAdapterOptions {
   readonly url: string
   /** Auth token for Turso / remote libSQL. */
   readonly authToken?: string
+  /**
+   * Local files: how long (ms) a write waits while another process (a second server, the CLI)
+   * is writing to the same file. Default 10000.
+   */
+  readonly busyTimeout?: number
 }
 
 const kit = () => import('drizzle-kit/api')
@@ -97,14 +102,19 @@ export function sqlite(options: SQLiteAdapterOptions): DatabaseAdapter {
   return {
     name: 'sqlite',
     init: async (args) => {
+      const url = resolveUrl(options.url, args.cwd)
       const client = createClient({
-        url: resolveUrl(options.url, args.cwd),
+        url,
         ...(options.authToken ? { authToken: options.authToken } : {}),
+        // SQLite has one writer. Writes in this process share a queue (`writeQueue`); this waits
+        // for other processes. Its wait blocks the process, but only for another's short write.
+        timeout: options.busyTimeout ?? 10_000,
       })
       if (options.url.startsWith('file:')) await client.execute('PRAGMA journal_mode = WAL')
       const toStatement = (s: Statement) => ({ sql: s.sql, args: [...(s.params ?? [])] as InArgs })
       const connection: Connection = {
         db: drizzle(client),
+        writeQueue: url,
         runner: {
           async query(text, params = []) {
             const result = await client.execute({ sql: text, args: [...params] as InArgs })

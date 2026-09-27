@@ -1,6 +1,9 @@
+import { execFile } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
+import { promisify } from 'node:util'
 import { defineConfig } from '@easy-cms/core'
 import { describe, expect, it } from 'vitest'
-import { db, open, SECRET, tempProject } from './helpers.js'
+import { DIALECT, db, open, SECRET, tempProject } from './helpers.js'
 
 const config = defineConfig({
   secret: SECRET,
@@ -36,9 +39,25 @@ describe('concurrent writes', () => {
     await cms.destroy()
   })
 
-  it('waits for another process writing to the same database', async () => {
+  it.runIf(DIALECT === 'sqlite')('waits for other processes writing to the same file', async () => {
     const cwd = tempProject()
-    // Two instances have their own connections, like two processes (a server and the CLI).
+    const setup = await open(config, cwd) // creates the tables first
+    await setup.destroy()
+    const writer = fileURLToPath(new URL('./fixtures/sqlite-writer.mjs', import.meta.url))
+    const startAt = String(Date.now() + 2_000)
+    await Promise.all(
+      ['a', 'b', 'c'].map((name) =>
+        promisify(execFile)(process.execPath, [writer, cwd, name, startAt]),
+      ),
+    )
+    const cms = await open(config, cwd)
+    expect(await cms.count('notes')).toBe(120)
+    await cms.destroy()
+  })
+
+  it('shares one write queue between instances in the same process', async () => {
+    const cwd = tempProject()
+    // Two instances on one file, as when a dev server reloads while the old one still writes.
     const one = await open(config, cwd)
     const two = await open(config, cwd)
     await Promise.all(

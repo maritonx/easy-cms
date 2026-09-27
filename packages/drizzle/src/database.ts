@@ -41,8 +41,16 @@ export interface DrizzleAdapterOptions {
 export interface Connection {
   readonly db: DrizzleDb
   readonly runner: SqlRunner
+  /**
+   * With a single-writer dialect: identifies the database (e.g. the SQLite file), so every
+   * instance in this process that writes to it shares one queue.
+   */
+  readonly writeQueue?: string
   close(): Promise<void>
 }
+
+/** Writes in progress per single-writer database, shared by instances in this process. */
+const writeQueues = new Map<string, Promise<unknown>>()
 
 /**
  * Builds the schema for the config, pushes or verifies it, and returns a `Database`.
@@ -171,13 +179,23 @@ class DrizzleDatabase implements Database {
     return Number(row?.total ?? 0)
   }
 
-  private writing: Promise<unknown> = Promise.resolve()
-
-  /** Runs a write; with a single-writer database, after the writes before it are done. */
+  /**
+   * Runs a write; with a single-writer database, after the writes before it in this process are
+   * done. (Other processes are waited for by the database's busy timeout.)
+   */
   private write<T>(run: () => Promise<T>): Promise<T> {
     if (!this.dialect.singleWriter) return run()
-    const result = this.writing.then(() => retryWhileBusy(run))
-    this.writing = result.catch(() => {})
+    const key = this.connection.writeQueue ?? ''
+    const result = (writeQueues.get(key) ?? Promise.resolve()).then(run)
+    const settled = result.then(
+      () => {},
+      () => {},
+    )
+    writeQueues.set(key, settled)
+    // Forget the queue once it is idle, so closed databases don't stay in the map.
+    void settled.then(() => {
+      if (writeQueues.get(key) === settled) writeQueues.delete(key)
+    })
     return result
   }
 
@@ -262,33 +280,4 @@ class DrizzleDatabase implements Database {
   async destroy(): Promise<void> {
     await this.connection.close()
   }
-}
-
-/** How long a write waits for another process holding the SQLite write lock. */
-const BUSY_TIMEOUT = 10_000
-
-/**
- * Another process (a second server, the CLI) is writing to the same SQLite file: wait and run
- * the whole transaction again. Waits asynchronously; SQLite's own busy handler would block the
- * event loop.
- */
-async function retryWhileBusy<T>(run: () => Promise<T>): Promise<T> {
-  const until = Date.now() + BUSY_TIMEOUT
-  for (let delay = 5; ; delay = Math.min(delay * 2, 250)) {
-    try {
-      return await run()
-    } catch (error) {
-      if (!isBusy(error) || Date.now() + delay > until) throw error
-      await new Promise((resolve) => setTimeout(resolve, delay + Math.random() * delay))
-    }
-  }
-}
-
-function isBusy(error: unknown): boolean {
-  for (let e = error; e; e = (e as { cause?: unknown }).cause) {
-    const code = (e as { code?: unknown }).code
-    if (typeof code === 'string' && code.startsWith('SQLITE_BUSY')) return true
-    if (e === (e as { cause?: unknown }).cause) break
-  }
-  return false
 }

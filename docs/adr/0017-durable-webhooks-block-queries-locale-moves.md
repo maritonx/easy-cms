@@ -34,9 +34,12 @@ ADR 0014–0016 ทิ้งข้อจำกัดไว้สามข้อ:
 - libSQL เปิด connection ใหม่ทุก transaction และ SQLite มีผู้เขียนได้ทีละคน การเขียนพร้อมกันใน process เดียว
   (เช่น บรรณาธิการสองคน หรือคิว webhook กับการบันทึกเอกสาร) จึงล้มด้วย `SQLITE_BUSY` ตั้ง busy timeout ก็ไม่ช่วย
   เพราะตัวรอของ libSQL บล็อก event loop จนอีกฝั่งทำงานต่อไม่ได้
-- dialect ประกาศ `singleWriter` แล้ว adapter จะต่อคิวการเขียนของ process นั้นไว้ Postgres ไม่ได้รับผลกระทบ
-- ต่าง process (0.9): เจอ `SQLITE_BUSY` จะรอแบบ async (5 ms เพิ่มเป็นเท่าตัวถึง 250 ms สุ่มเล็กน้อย) แล้วทำทั้ง transaction ใหม่
-  ได้นานสูงสุด 10 วินาที ไม่ใช้ busy_timeout ของ SQLite ด้วยเหตุผลเดียวกับข้างบน
+- dialect ประกาศ `singleWriter` แล้ว adapter จะต่อคิวการเขียนไว้ คิวแชร์กันตามไฟล์ฐานข้อมูล (`Connection.writeQueue`)
+  ทุก instance ใน process เดียวกันจึงไม่แย่ง lock กันเอง (เช่น dev server ที่ reload ขณะตัวเก่ายังเขียนอยู่) Postgres ไม่ได้รับผลกระทบ
+- ต่าง process (0.9.1): ตั้ง busy timeout ของ libSQL (`timeout`, ค่าเริ่มต้น 10 วินาที, ปรับได้ด้วย `busyTimeout`) ตัวรอนี้บล็อก process
+  แต่เนื่องจากใน process เดียวกันไม่แย่งกันแล้ว จึงรอแค่ transaction สั้นๆ ของ process อื่น
+  (0.9.0 ลองใหม่จากภายนอกเมื่อเจอ `SQLITE_BUSY` แต่ถ้าล้มตอน commit transaction จะค้างอยู่และลองใหม่ไม่ได้
+  ทดสอบกับ process จริงแล้วล้ม จึงเปลี่ยนมาใช้วิธีนี้ และเพิ่มเทสที่ spawn process จริง)
 
 **ย้ายข้อมูลเมื่อเปลี่ยน `defaultLocale`**
 - snapshot ที่เก็บ (ไฟล์ migration และตาราง migrations) บันทึก `easyCms.localization` ไว้ข้าง snapshot ของ drizzle-kit
@@ -53,6 +56,7 @@ ADR 0014–0016 ทิ้งข้อจำกัดไว้สามข้อ:
 - ✅ เปลี่ยนภาษาเริ่มต้นได้โดยข้อมูลไม่หาย
 - ❌ โปรเจกต์ที่มี webhooks อยู่แล้วต้องสร้าง migration ใหม่ (ตาราง `webhook-deliveries`)
 - ~~❌ ถ้า process ดับระหว่างการส่งครั้งแรก (ยังไม่ทันบันทึก) event นั้นยังหายได้~~ แก้แล้วใน 0.8 เหลือเพียงช่วงระหว่าง commit เอกสารกับการบันทึกคิว ซึ่งไม่มีการรอ network
-- ❌ การเขียน SQLite ต้องรอกันทั้งใน process และข้าม process ถ้ามีอีก process ถือ lock นานเกิน 10 วินาที การเขียนจะล้ม
+- ❌ การเขียน SQLite ต้องรอกันทั้งใน process และข้าม process ระหว่างรอ process อื่น process ที่รอจะหยุดชั่วคราว
+  และถ้าอีก process ถือ lock นานเกิน `busyTimeout` การเขียนจะล้ม
 - ❌ การค้นในบล็อกต้องอ่าน JSON ทุกแถว ช้ากว่าคอลัมน์ที่มี index
 - ❌ snapshot จากก่อน 0.7 ไม่มีข้อมูลภาษา การเปลี่ยน `defaultLocale` ครั้งแรกหลังอัปเกรดควรสร้าง migration ก่อน
