@@ -5,7 +5,13 @@ import { baseConfig } from './helpers.js'
 describe('resolveConfig', () => {
   it('applies defaults', async () => {
     const config = await resolveConfig(baseConfig())
-    expect(config.admin).toEqual({ path: '/admin', locale: 'en', brand: {} })
+    expect(config.admin).toEqual({
+      path: '/admin',
+      locale: 'en',
+      brand: {},
+      siteUrl: '',
+      menu: [],
+    })
     expect(config.upload).toEqual({
       dir: 'uploads',
       maxFileSize: 10 * 1024 * 1024,
@@ -34,7 +40,13 @@ describe('resolveConfig', () => {
     const config = await resolveConfig(
       baseConfig({ admin: { path: '/cms', locale: 'th', brand: { name: 'Acme' } } }),
     )
-    expect(config.admin).toEqual({ path: '/cms', locale: 'th', brand: { name: 'Acme' } })
+    expect(config.admin).toEqual({
+      path: '/cms',
+      locale: 'th',
+      brand: { name: 'Acme' },
+      siteUrl: '',
+      menu: [],
+    })
   })
 
   it('throws ConfigError listing every issue', async () => {

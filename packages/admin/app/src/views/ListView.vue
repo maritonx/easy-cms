@@ -6,8 +6,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Columns3,
+  Ellipsis,
   Eye,
   Inbox,
+  Pencil,
   Plus,
   Search,
   SearchX,
@@ -18,15 +20,16 @@ import {
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
-import LocaleSwitcher from '../components/LocaleSwitcher.vue'
+import DocumentDrawer from '../components/DocumentDrawer.vue'
 import MediaThumb from '../components/MediaThumb.vue'
 import UploadDropzone from '../components/UploadDropzone.vue'
 import { ApiError, api, type Doc, type Paginated, toQuery } from '../lib/api'
-import { contentLocale, localeQuery, setContentLocale } from '../lib/content-locale'
+import { localeName } from '../lib/content-locale'
 import { titleOf } from '../lib/fields'
 import { formatDate, humanize, label, t } from '../lib/i18n'
-import { findCollection } from '../lib/session'
+import { findCollection, session } from '../lib/session'
 import { notify } from '../lib/toast'
+import { inLocale, missingLocales } from '../lib/translation'
 
 const route = useRoute()
 const router = useRouter()
@@ -93,9 +96,13 @@ function toggleColumn(name: string) {
 }
 const columnsOpen = ref(false)
 const columnsMenu = ref<HTMLElement>()
+/** The row whose "more" menu is open. */
+const rowMenu = ref<Doc['id'] | null>(null)
 function onDocumentClick(event: MouseEvent) {
   if (columnsOpen.value && !columnsMenu.value?.contains(event.target as Node))
     columnsOpen.value = false
+  if (rowMenu.value !== null && !(event.target as Element).closest?.('.row-menu'))
+    rowMenu.value = null
 }
 
 function cell(field: AdminField, value: unknown): string {
@@ -150,13 +157,11 @@ const selected = ref<Set<Doc['id']>>(new Set())
 // With versions and drafts, a live document can have a newer draft; the list shows the draft,
 // so it needs to know separately which documents are live.
 const separateDrafts = !!collection?.drafts && !!collection?.versions
-const localized = computed(
-  () => !!contentLocale() && (collection?.fields.some((f) => f.localized) ?? false),
-)
-function switchLocale(next: string) {
-  setContentLocale(next)
-  void load()
-}
+// Lists show the default language, with a column saying which translations are missing.
+const localization = session.schema?.localization ?? null
+const localized = !!localization && (collection?.fields.some((f) => f.localized) ?? false)
+/** Locales each listed document still needs, by id. */
+const missing = ref<Map<string, string[]>>(new Map())
 const liveIds = ref<Set<string>>(new Set())
 const confirming = ref(false)
 const busy = ref(false)
@@ -168,8 +173,22 @@ async function load() {
   try {
     result.value = await api<Paginated<Doc>>(
       'GET',
-      `/${slug}${toQuery({ where: whereOf(), sort: sort.value, limit: PAGE_SIZE, page: page.value, depth: 0, draft: true })}${localeQuery()}`,
+      `/${slug}${toQuery({ where: whereOf(), sort: sort.value, limit: PAGE_SIZE, page: page.value, depth: 0, draft: true })}${localized ? '&locale=all' : ''}`,
     )
+    if (localized && localization && collection) {
+      const { locales, defaultLocale } = localization
+      const raw = result.value.docs
+      missing.value = new Map(
+        raw.map((d) => [
+          String(d.id),
+          missingLocales(collection.fields, d, locales, defaultLocale),
+        ]),
+      )
+      result.value = {
+        ...result.value,
+        docs: raw.map((d) => inLocale(collection.fields, d, defaultLocale, locales) as Doc),
+      }
+    }
     selected.value = new Set()
     liveIds.value = separateDrafts ? await loadLive(result.value.docs) : new Set()
   } catch (e) {
@@ -213,7 +232,48 @@ watch(search, (value) => {
   clearTimeout(debounce)
   debounce = setTimeout(() => setQuery({ q: value, page: undefined }), 250)
 })
-watch(() => route.query, load)
+// Reload when the list's own parameters change, not when a drawer opens or closes.
+const listQuery = computed(() =>
+  JSON.stringify(
+    Object.entries(route.query)
+      .filter(([key]) => key !== 'edit' && key !== 'new')
+      .sort(),
+  ),
+)
+watch(listQuery, load)
+
+// --- Drawer (`editIn: 'drawer'`): `?edit=<id>` or `?new` ----------------------------------------
+
+const useDrawer = collection?.editIn === 'drawer'
+/** The document open in the drawer: an id, `null` for a new one, `undefined` when closed. */
+const drawerId = computed<string | null | undefined>(() => {
+  if (!useDrawer) return undefined
+  if (typeof route.query.edit === 'string') return route.query.edit
+  return route.query.new !== undefined ? null : undefined
+})
+function listOnly() {
+  const { edit: _edit, new: _new, ...rest } = route.query
+  return rest
+}
+const docLink = (id: Doc['id']) =>
+  useDrawer ? { query: { ...listOnly(), edit: String(id) } } : `/collections/${slug}/${id}`
+const newLink = useDrawer
+  ? computed(() => ({ query: { ...listOnly(), new: '1' } }))
+  : computed(() => `/collections/${slug}/new`)
+function closeDrawer() {
+  // Opened from this list: going back closes it and keeps history tidy.
+  const back = router.options.history.state.back
+  if (back === router.resolve({ query: listOnly() }).fullPath) router.back()
+  else void router.replace({ query: listOnly() })
+}
+function onDrawerSaved(doc: Doc, created: boolean) {
+  void load()
+  if (created) void router.replace({ query: { ...listOnly(), edit: String(doc.id) } })
+}
+function onDrawerDeleted() {
+  closeDrawer()
+  void load()
+}
 onMounted(() => {
   void load()
   document.addEventListener('click', onDocumentClick)
@@ -287,6 +347,24 @@ const unpublishSelected = () =>
     (id) => api('POST', `/${slug}/${id}/unpublish?depth=0`),
     (count) => t('list.unpublishedCount', { count }),
   )
+/** A single document deleted from its row menu. */
+const deleting = ref<Doc | null>(null)
+async function deleteOne() {
+  const doc = deleting.value
+  deleting.value = null
+  if (!doc) return
+  try {
+    await api('DELETE', `/${slug}/${doc.id}`)
+    notify('success', t('list.deletedCount', { count: 1 }))
+  } catch (e) {
+    notify(
+      'error',
+      e instanceof ApiError && e.status === 403 ? t('common.forbidden') : (e as Error).message,
+    )
+  }
+  await load()
+}
+
 async function deleteSelected() {
   confirming.value = false
   await bulk(
@@ -299,15 +377,20 @@ async function deleteSelected() {
 <template>
   <p v-if="!collection" class="notice">{{ t('common.notFound') }}</p>
   <template v-else>
+    <nav class="crumbs" :aria-label="t('list.breadcrumb')">
+      <!-- The menu section: user accounts are under Settings. -->
+      <span>{{ slug === 'users' ? t('nav.globals') : t('nav.collections') }}</span>
+      <ChevronRight :size="14" aria-hidden="true" />
+      <span class="current">{{ label(collection.labels?.plural, collection.slug) }}</span>
+    </nav>
     <header class="toolbar">
       <div class="heading">
         <h1>{{ label(collection.labels?.plural, collection.slug) }}</h1>
         <span v-if="result" class="count">{{ t(result.totalDocs === 1 ? 'list.countOne' : 'list.count', { count: result.totalDocs }) }}</span>
       </div>
       <div class="toolbar-actions">
-        <LocaleSwitcher v-if="localized" @change="switchLocale" />
         <!-- Media is created by uploading, below. -->
-        <RouterLink v-if="collection.permissions.create && !isMedia" :to="`/collections/${slug}/new`" class="btn btn-primary">
+        <RouterLink v-if="collection.permissions.create && !isMedia" :to="newLink" class="btn btn-primary">
           <Plus :size="16" aria-hidden="true" />
           {{ t('list.new') }}
         </RouterLink>
@@ -320,18 +403,17 @@ async function deleteSelected() {
         <Search :size="16" class="search-icon" aria-hidden="true" />
         <input v-model="search" class="input" type="search" :placeholder="t('list.search', { field: titleLabel })" />
       </label>
-      <div v-if="collection.drafts" class="segmented" role="group" :aria-label="t('list.status')">
-        <button
-          v-for="option in (['', 'published', 'draft'] as const)"
-          :key="option"
-          type="button"
-          :class="{ on: statusFilter === option }"
-          :aria-pressed="statusFilter === option"
-          @click="setQuery({ status: option || undefined, page: undefined })"
+      <label v-if="collection.drafts" :class="['filter', { on: statusFilter }]">
+        <span class="visually-hidden">{{ t('list.status') }}</span>
+        <select
+          :value="statusFilter"
+          @change="setQuery({ status: ($event.target as HTMLSelectElement).value || undefined, page: undefined })"
         >
-          {{ option === '' ? t('list.all') : t(option === 'published' ? 'status.published' : 'status.draft') }}
-        </button>
-      </div>
+          <option value="">{{ t('list.statusAll') }}</option>
+          <option value="published">{{ t('list.statusIs', { status: t('status.published') }) }}</option>
+          <option value="draft">{{ t('list.statusIs', { status: t('status.draft') }) }}</option>
+        </select>
+      </label>
       <label v-for="f in filterFields" :key="f.name" :class="['filter', { on: filterValue(f.name) }]">
         <span class="visually-hidden">{{ label(f.label, f.name) }}</span>
         <select
@@ -391,6 +473,7 @@ async function deleteSelected() {
               </button>
               <span v-else>{{ label(f.label, humanize(f.name)) }}</span>
             </th>
+            <th v-if="localized">{{ t('list.translations') }}</th>
             <th v-if="collection.drafts">{{ t('list.status') }}</th>
             <th :aria-sort="sortState('updatedAt')" class="date">
               <button type="button" class="sort" @click="toggleSort('updatedAt')">
@@ -399,6 +482,7 @@ async function deleteSelected() {
                 <ArrowDown v-else-if="sortState('updatedAt') === 'descending'" :size="13" aria-hidden="true" />
               </button>
             </th>
+            <th class="more"><span class="visually-hidden">{{ t('edit.manage') }}</span></th>
           </tr>
         </thead>
         <tbody>
@@ -413,16 +497,62 @@ async function deleteSelected() {
             </td>
             <td v-if="isMedia" class="preview"><MediaThumb :media="doc" /></td>
             <td class="title-cell">
-              <RouterLink :to="`/collections/${slug}/${doc.id}`" class="title-link">{{ titleOf(collection, doc) }}</RouterLink>
+              <RouterLink :to="docLink(doc.id)" class="title-link">{{ titleOf(collection, doc) }}</RouterLink>
             </td>
             <td v-for="f in extraColumns" :key="f.name" class="muted value-cell" :data-label="label(f.label, humanize(f.name))">
               {{ cell(f, doc[f.name]) }}
+            </td>
+            <td v-if="localized && localization" class="translations">
+              <span
+                v-for="code in localization.locales"
+                :key="code"
+                :class="['lang', missing.get(String(doc.id))?.includes(code) ? 'todo' : 'done']"
+                :title="`${localeName(code)}: ${t(missing.get(String(doc.id))?.includes(code) ? 'list.untranslated' : 'list.translated')}`"
+              >
+                <span aria-hidden="true">{{ code.toUpperCase() }}</span>
+                <span class="visually-hidden">
+                  {{ localeName(code) }}: {{ t(missing.get(String(doc.id))?.includes(code) ? 'list.untranslated' : 'list.translated') }}
+                </span>
+              </span>
             </td>
             <td v-if="collection.drafts" class="status-cell">
               <span :class="['badge', `badge-${statusOf(doc)}`]">{{ t(statusOf(doc) === 'published' ? 'status.published' : 'status.draft') }}</span>
               <span v-if="liveIds.has(String(doc.id))" class="badge badge-changed">{{ t('status.changed') }}</span>
             </td>
             <td class="date muted">{{ formatDate(doc.updatedAt) }}</td>
+            <td class="more">
+              <div class="row-menu">
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-sm btn-icon"
+                  :aria-label="t('list.rowActions', { title: titleOf(collection, doc) })"
+                  :aria-expanded="rowMenu === doc.id"
+                  aria-haspopup="menu"
+                  @click="rowMenu = rowMenu === doc.id ? null : doc.id"
+                >
+                  <Ellipsis :size="16" aria-hidden="true" />
+                </button>
+                <div v-if="rowMenu === doc.id" class="menu" role="menu">
+                  <RouterLink :to="docLink(doc.id)" class="menu-item" role="menuitem">
+                    <Pencil :size="15" aria-hidden="true" />
+                    {{ t('list.open') }}
+                  </RouterLink>
+                  <button
+                    v-if="collection.permissions.delete"
+                    type="button"
+                    class="menu-item danger"
+                    role="menuitem"
+                    @click="
+                      rowMenu = null;
+                      deleting = doc
+                    "
+                  >
+                    <Trash2 :size="15" aria-hidden="true" />
+                    {{ t('edit.delete') }}
+                  </button>
+                </div>
+              </div>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -431,7 +561,7 @@ async function deleteSelected() {
         <p>{{ search || activeFilters ? t('list.noResults') : t('list.empty') }}</p>
         <RouterLink
           v-if="!search && !activeFilters && collection.permissions.create && !isMedia"
-          :to="`/collections/${slug}/new`"
+          :to="newLink"
           class="btn btn-sm"
         >
           <Plus :size="15" aria-hidden="true" />
@@ -473,6 +603,22 @@ async function deleteSelected() {
       </div>
     </Transition>
 
+    <DocumentDrawer
+      v-if="drawerId !== undefined"
+      :key="String(drawerId)"
+      :slug="slug"
+      :id="drawerId"
+      @saved="onDrawerSaved"
+      @deleted="onDrawerDeleted"
+      @close="closeDrawer"
+    />
+    <ConfirmDialog
+      :open="deleting !== null"
+      :message="t('list.confirmDelete', { count: 1 })"
+      :confirm-label="t('edit.delete')"
+      @confirm="deleteOne"
+      @cancel="deleting = null"
+    />
     <ConfirmDialog
       :open="confirming"
       :message="t('list.confirmDelete', { count: selected.size })"
@@ -484,6 +630,41 @@ async function deleteSelected() {
 </template>
 
 <style scoped>
+.crumbs {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.4rem;
+  color: var(--faint);
+  font-size: 0.875rem;
+}
+.crumbs .current {
+  color: var(--text-muted);
+}
+.more {
+  width: 3rem;
+  text-align: right;
+}
+.row-menu {
+  position: relative;
+  display: inline-block;
+}
+.row-menu .menu {
+  min-width: 10rem;
+}
+.menu-item.danger {
+  color: var(--danger);
+}
+a.menu-item,
+button.menu-item {
+  width: 100%;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: none;
+  text-align: left;
+}
 .toolbar {
   display: flex;
   align-items: center;
@@ -651,6 +832,30 @@ tr.selected td {
 }
 .status-cell {
   white-space: nowrap;
+}
+.translations {
+  white-space: nowrap;
+}
+.lang {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  height: 1.4rem;
+  margin-right: 0.25rem;
+  padding: 0 0.35rem;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+.lang.done {
+  background: var(--success-soft);
+  color: var(--ok);
+}
+.lang.todo {
+  border: 1px dashed var(--border-strong);
+  color: var(--faint);
 }
 .status-cell .badge + .badge {
   margin-left: 0.35rem;

@@ -34,6 +34,7 @@ export function createStandaloneHandler<C extends Config>(cms: EasyCMS<C>): Hand
     apiPath: config.routes.api,
     locale: config.admin.locale,
     brand: config.admin.brand,
+    siteUrl: config.admin.siteUrl,
   })
   const under = (path: string, base: string) => path === base || path.startsWith(`${base}/`)
 

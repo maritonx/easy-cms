@@ -12,8 +12,9 @@ import { ApiError, api } from '../lib/api'
 import { contentLocale, localeQuery, setContentLocale } from '../lib/content-locale'
 import { snapshot, toFormValues } from '../lib/fields'
 import { formatDate, label, t } from '../lib/i18n'
-import { findGlobal } from '../lib/session'
+import { findGlobal, session } from '../lib/session'
 import { showMessages } from '../lib/toast'
+import { missingLocales } from '../lib/translation'
 
 type Data = Record<string, unknown>
 
@@ -45,6 +46,12 @@ const historyKey = ref(0)
 const confirmingDiscard = ref(false)
 const previewing = ref(false)
 const scheduler = ref<InstanceType<typeof ScheduleControl>>()
+/** Fields in the side panel (`position: 'sidebar'`), and the rest in the main form. */
+const sideFields = computed(() => global?.fields.filter((f) => f.position === 'sidebar') ?? [])
+const mainFields = computed(() => global?.fields.filter((f) => f.position !== 'sidebar') ?? [])
+function undoChanges() {
+  form.value = JSON.parse(baseline.value) as Data
+}
 const side = computed(() =>
   readOnly.value ? null : previewing.value ? 'preview' : global?.versions ? 'history' : null,
 )
@@ -59,6 +66,27 @@ function reset(data: Data) {
 const localized = computed(
   () => !!contentLocale() && (global?.fields.some((f) => f.localized) ?? false),
 )
+
+// Languages this document still needs translating into (dots on the language buttons).
+const untranslated = ref<string[]>([])
+async function refreshTranslations() {
+  const localization = session.schema?.localization
+  if (!localization || !localized.value || !true) {
+    untranslated.value = []
+    return
+  }
+  try {
+    const all = await api<Data>('GET', `/globals/${slug}?depth=0&draft=true&locale=all`)
+    untranslated.value = missingLocales(
+      global?.fields ?? [],
+      all,
+      localization.locales,
+      localization.defaultLocale,
+    )
+  } catch {
+    untranslated.value = []
+  }
+}
 
 async function switchLocale(next: string) {
   if (dirty.value && !window.confirm(t('locale.switchUnsaved'))) return
@@ -79,6 +107,7 @@ async function load() {
     ])
     live.value = current.status === 'published'
     reset(draft)
+    void refreshTranslations()
   } catch (e) {
     message.value = { kind: 'error', text: t('common.error', { message: (e as Error).message }) }
   } finally {
@@ -99,6 +128,7 @@ async function save(status?: 'draft' | 'published') {
       ),
     )
     historyKey.value += 1
+    void refreshTranslations()
     if (status === 'published') live.value = true
     const text =
       separateDrafts && live.value && status === 'draft' ? t('edit.draftSaved') : t('edit.saved')
@@ -126,6 +156,7 @@ async function action(path: 'unpublish' | 'discard-draft') {
     )
     if (path === 'unpublish') live.value = false
     historyKey.value += 1
+    void refreshTranslations()
     message.value = {
       kind: 'success',
       text: t(path === 'unpublish' ? 'edit.unpublished' : 'edit.discarded'),
@@ -140,6 +171,7 @@ async function action(path: 'unpublish' | 'discard-draft') {
 function restored(data: Data) {
   reset(data)
   historyKey.value += 1
+  void refreshTranslations()
   message.value = { kind: 'success', text: t('history.restored') }
 }
 
@@ -162,18 +194,14 @@ onBeforeRouteLeave(() => (dirty.value ? window.confirm(t('edit.unsaved')) : true
           {{ t(liveStatus === 'published' ? 'status.published' : 'status.draft') }}
         </span>
         <span v-if="pendingChanges" class="badge badge-changed">{{ t('status.changed') }}</span>
-        <span v-if="dirty && !readOnly" class="unsaved">
-          <span class="dot" aria-hidden="true" />{{ t('edit.unsavedChanges') }}
-        </span>
       </div>
       <div class="actions">
-        <LocaleSwitcher v-if="localized" @change="switchLocale" />
+        <LocaleSwitcher v-if="localized" :missing="untranslated" @change="switchLocale" />
         <button v-if="global.preview && !readOnly" type="button" class="btn" :aria-pressed="previewing" @click="previewing = !previewing">
           <component :is="previewing ? EyeOff : Eye" :size="16" aria-hidden="true" />
           {{ previewing ? t('preview.hide') : t('preview.show') }}
         </button>
         <template v-if="!readOnly">
-          <button v-if="global.drafts" type="button" class="btn" :disabled="saving" @click="save('draft')">{{ t('edit.saveDraft') }}</button>
           <button type="submit" class="btn btn-primary" :disabled="saving">
             {{ !global.drafts ? t('edit.save') : pendingChanges ? t('edit.publishChanges') : t('edit.publish') }}
           </button>
@@ -182,8 +210,8 @@ onBeforeRouteLeave(() => (dirty.value ? window.confirm(t('edit.unsaved')) : true
     </header>
     <p v-if="readOnly" class="notice notice-warning">{{ t('edit.readOnly') }}</p>
     <div :class="['editor-body', side === 'preview' ? 'with-preview' : 'with-sidebar']">
-      <div class="card form-body">
-        <FieldList v-model="form" :fields="global.fields" :errors="errors" :read-only="readOnly" />
+      <div class="form-body">
+        <FieldList v-model="form" :fields="mainFields" :errors="errors" :read-only="readOnly" />
       </div>
       <LivePreview
         v-if="side === 'preview'"
@@ -226,6 +254,10 @@ onBeforeRouteLeave(() => (dirty.value ? window.confirm(t('edit.unsaved')) : true
             </template>
           </div>
         </section>
+        <section v-if="sideFields.length" class="card side-card" :aria-label="t('edit.details')">
+          <h2>{{ t('edit.details') }}</h2>
+          <FieldList v-model="form" :fields="sideFields" :errors="errors" :read-only="readOnly" />
+        </section>
         <VersionHistory
           v-if="side === 'history'"
           :path="`/globals/${slug}`"
@@ -238,6 +270,17 @@ onBeforeRouteLeave(() => (dirty.value ? window.confirm(t('edit.unsaved')) : true
         />
       </aside>
     </div>
+    <footer v-if="!readOnly" class="save-bar">
+      <span class="save-state">
+        <template v-if="dirty"><span class="dot" aria-hidden="true" />{{ t('edit.unsavedChanges') }}</template>
+        <template v-else-if="meta.updatedAt">{{ t('edit.savedAt', { date: formatDate(meta.updatedAt) }) }}</template>
+        <template v-else>{{ t('edit.notSaved') }}</template>
+      </span>
+      <div class="save-actions">
+        <button v-if="dirty" type="button" class="btn btn-ghost" :disabled="saving" @click="undoChanges">{{ t('edit.undoChanges') }}</button>
+        <button v-if="global.drafts" type="button" class="btn" :disabled="saving" @click="save('draft')">{{ t('edit.saveDraft') }}</button>
+      </div>
+    </footer>
     <ConfirmDialog
       :open="confirmingDiscard"
       :message="t('edit.confirmDiscard')"
@@ -258,9 +301,52 @@ onBeforeRouteLeave(() => (dirty.value ? window.confirm(t('edit.unsaved')) : true
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 0.75rem 1rem;
-  padding: 0.75rem 0 1rem;
-  margin-top: -0.75rem;
-  background: var(--bg);
+  margin: calc(-1 * var(--page-top)) calc(-1 * var(--page-x)) 1.75rem;
+  padding: 0.85rem var(--page-x);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.editor-header h1 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+form {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - var(--page-top) - var(--page-bottom));
+}
+.editor-body {
+  margin-bottom: 2rem;
+}
+.save-bar {
+  margin-top: auto !important;
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 2rem calc(-1 * var(--page-x)) calc(-1 * var(--page-bottom));
+  padding: 0.75rem var(--page-x);
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+.save-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-muted);
+}
+.save-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+@media (max-width: 900px) {
+  .editor-header {
+    position: static;
+  }
 }
 .title-row {
   display: flex;
@@ -291,7 +377,7 @@ onBeforeRouteLeave(() => (dirty.value ? window.confirm(t('edit.unsaved')) : true
 }
 .editor-body.with-sidebar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 19rem;
+  grid-template-columns: minmax(0, 1fr) 21rem;
   align-items: start;
   gap: 1.25rem;
 }
@@ -359,7 +445,8 @@ onBeforeRouteLeave(() => (dirty.value ? window.confirm(t('edit.unsaved')) : true
   }
 }
 .form-body {
-  padding: 1.5rem;
+  max-width: 54rem;
+  min-width: 0;
 }
 .notice-warning {
   margin-bottom: 1rem;

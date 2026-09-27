@@ -98,6 +98,8 @@ export function createAdminRouteHandlers(config: Config, options: { appDir?: str
         apiPath: resolved.routes.api,
         locale: resolved.admin.locale,
         brand: resolved.admin.brand,
+        // The site is this Next.js app.
+        siteUrl: resolved.admin.siteUrl || '/',
         appDir: options.appDir ?? adminAppDir(),
         // Next.js strips trailing slashes; redirecting back would loop.
         trailingSlashRedirect: false,

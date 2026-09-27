@@ -13,6 +13,7 @@
 | `access` | `{ read, update }` [สิทธิ์](./access-control#field-access)ระดับ field |
 | `hidden` | ถูกจัดเก็บ แต่ API จะไม่ส่งคืนและไม่รับเป็น input |
 | `localized` | เก็บค่าแยกตามภาษา ดู [หลายภาษา](./localization) |
+| `position` | `'sidebar'`: แสดงในแถบข้างของหน้าแก้ไข (สำหรับ field ระดับบนสุด เช่น หมวดหมู่ แท็ก หรือวันที่) |
 
 ## ประเภท {#types}
 

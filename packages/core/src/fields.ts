@@ -32,6 +32,8 @@ interface BaseField<TType extends string, TValue> {
    * hasMany fields: localize the fields inside a group or array instead.
    */
   readonly localized?: boolean
+  /** `sidebar`: shown in the edit page's side panel instead of the main form (top-level fields). */
+  readonly position?: 'sidebar'
 }
 
 export interface TextField extends BaseField<'text', string> {

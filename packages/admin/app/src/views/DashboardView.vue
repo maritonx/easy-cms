@@ -1,15 +1,25 @@
 <script setup lang="ts">
 import type { AdminCollection } from '@easy-cms/core'
-import { CalendarClock, Plus } from '@lucide/vue'
-import { computed, onMounted, reactive, ref } from 'vue'
+import { ArrowUpRight, CalendarClock, Plus } from '@lucide/vue'
+import { computed, onMounted, ref } from 'vue'
 import { api, type Doc, type Paginated, toQuery } from '../lib/api'
+import { counts, refreshCounts } from '../lib/counts'
 import { titleOf } from '../lib/fields'
 import { formatDate, label, locale, singularize, t } from '../lib/i18n'
 import { collectionIcon } from '../lib/icons'
+import { menuOrder } from '../lib/menu'
 import { session } from '../lib/session'
+import { settings } from '../lib/settings'
 
-const collections = (session.schema?.collections ?? []).filter((c) => c.permissions.read)
-const counts = reactive<Record<string, number | null>>({})
+const collections = menuOrder(
+  (session.schema?.collections ?? []).filter((c) => c.permissions.read),
+  session.schema?.menu,
+)
+const hour = new Date().getHours()
+const greeting = t(
+  hour < 12 ? 'dashboard.morning' : hour < 18 ? 'dashboard.afternoon' : 'dashboard.evening',
+)
+const name = session.user?.name || session.user?.email || ''
 /** Content people write: not the user accounts or the media library. */
 const content = collections.filter((c) => c.slug !== 'users' && c.slug !== 'media')
 // The shortcut creates in the main content collection: one with drafts, else the first.
@@ -75,14 +85,7 @@ async function loadScheduled() {
 }
 
 onMounted(() => {
-  for (const c of collections) {
-    counts[c.slug] = null
-    api<Paginated<unknown>>('GET', `/${c.slug}?limit=1&depth=0&draft=true`)
-      .then((r) => {
-        counts[c.slug] = r.totalDocs
-      })
-      .catch(() => {})
-  }
+  void refreshCounts(true)
   void Promise.all(content.map((c) => latest(c))).then((lists) => {
     recent.value = lists.flat().sort(byUpdated).slice(0, 6)
   })
@@ -116,13 +119,19 @@ const statusOf = (doc: Doc) => (doc.status === 'published' ? 'published' : 'draf
 <template>
   <header class="page-header">
     <div>
-      <h1>{{ t('dashboard.title') }}</h1>
-      <p class="muted">{{ t('dashboard.welcome', { name: session.user?.name || session.user?.email || '' }) }}</p>
+      <h1>{{ greeting }}<template v-if="name">, {{ name }}</template></h1>
+      <p class="muted">{{ t('dashboard.subtitle') }}</p>
     </div>
-    <RouterLink v-if="creatable" :to="`/collections/${creatable.slug}/new`" class="btn btn-primary">
-      <Plus :size="16" aria-hidden="true" />
-      {{ t('edit.create', { label: label(creatable.labels?.singular, singularize(creatable.slug)) }) }}
-    </RouterLink>
+    <div class="header-actions">
+      <a v-if="settings.siteUrl" :href="settings.siteUrl" class="btn" target="_blank" rel="noopener">
+        <ArrowUpRight :size="16" aria-hidden="true" />
+        {{ t('dashboard.viewSite') }}
+      </a>
+      <RouterLink v-if="creatable" :to="`/collections/${creatable.slug}/new`" class="btn btn-primary">
+        <Plus :size="16" aria-hidden="true" />
+        {{ t('edit.create', { label: label(creatable.labels?.singular, singularize(creatable.slug)) }) }}
+      </RouterLink>
+    </div>
   </header>
 
   <div class="tiles">
@@ -131,7 +140,10 @@ const statusOf = (doc: Doc) => (doc.status === 'published' ? 'published' : 'draf
         <component :is="collectionIcon(c.icon)" :size="16" aria-hidden="true" />
         {{ label(c.labels?.plural, c.slug) }}
       </span>
-      <span class="tile-count">{{ counts[c.slug] == null ? '…' : counts[c.slug] }}</span>
+      <span class="tile-row">
+        <span class="tile-count">{{ counts[c.slug] ?? '…' }}</span>
+        <span class="tile-more">{{ t('dashboard.viewAll') }}</span>
+      </span>
       <span class="visually-hidden">{{ t('dashboard.documents', { count: counts[c.slug] ?? 0 }) }}</span>
     </RouterLink>
   </div>
@@ -212,19 +224,41 @@ const statusOf = (doc: Doc) => (doc.status === 'published' ? 'published' : 'draf
   margin-bottom: 1.5rem;
 }
 .page-header p {
-  margin: 0.25rem 0 0;
+  margin: 0.3rem 0 0;
+}
+.header-actions {
+  display: flex;
+  gap: 0.6rem;
 }
 .tiles {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
-  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 1rem;
   margin-bottom: 1rem;
+}
+.tile-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.tile-more {
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+.tile:hover .tile-more {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
 }
 .tile {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
-  padding: 1rem 1.1rem;
+  gap: 0.6rem;
+  padding: 1.25rem;
   color: var(--text);
   text-decoration: none;
   transition: border-color 0.12s;
@@ -240,7 +274,7 @@ const statusOf = (doc: Doc) => (doc.status === 'published' ? 'published' : 'draf
   font-size: 0.9rem;
 }
 .tile-count {
-  font-size: 1.75rem;
+  font-size: 2rem;
   font-weight: 600;
   letter-spacing: -0.01em;
   line-height: 1.2;

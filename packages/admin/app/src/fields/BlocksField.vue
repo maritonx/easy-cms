@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { AdminField } from '@easy-cms/core'
+import { ArrowDown, ArrowUp, Plus, X } from '@lucide/vue'
 import { computed, ref } from 'vue'
 import { contentLocale } from '../lib/content-locale'
 import { initialValues } from '../lib/fields'
@@ -83,9 +84,9 @@ function update(index: number, row: Row) {
             <span class="muted">#{{ index + 1 }}</span>
           </span>
           <div v-if="!readOnly" class="row-actions">
-            <button type="button" class="btn btn-ghost btn-icon" :disabled="index === 0" :aria-label="t('field.moveUp', { n: index + 1 })" @click="move(index, -1)">↑</button>
-            <button type="button" class="btn btn-ghost btn-icon" :disabled="index === rows.length - 1" :aria-label="t('field.moveDown', { n: index + 1 })" @click="move(index, 1)">↓</button>
-            <button type="button" class="btn btn-ghost btn-icon" :aria-label="t('field.removeRow', { n: index + 1 })" @click="remove(index)">✕</button>
+            <button type="button" class="btn btn-ghost btn-icon" :disabled="index === 0" :aria-label="t('field.moveUp', { n: index + 1 })" @click="move(index, -1)"><ArrowUp :size="15" aria-hidden="true" /></button>
+            <button type="button" class="btn btn-ghost btn-icon" :disabled="index === rows.length - 1" :aria-label="t('field.moveDown', { n: index + 1 })" @click="move(index, 1)"><ArrowDown :size="15" aria-hidden="true" /></button>
+            <button type="button" class="btn btn-ghost btn-icon" :aria-label="t('field.removeRow', { n: index + 1 })" @click="remove(index)"><X :size="15" aria-hidden="true" /></button>
           </div>
         </div>
         <FieldList
@@ -104,12 +105,13 @@ function update(index: number, row: Row) {
     <div v-if="canAdd" class="add">
       <button
         type="button"
-        class="btn btn-sm"
+        class="btn add-button"
         :aria-expanded="menuOpen"
         aria-haspopup="menu"
         @click="menuOpen = !menuOpen"
       >
-        + {{ t('field.addBlock') }}
+        <Plus :size="16" aria-hidden="true" />
+        {{ t('field.addBlock') }}
       </button>
       <ul v-if="menuOpen" class="menu card" role="menu">
         <li v-for="block in blocks" :key="block.slug" role="none">
@@ -138,9 +140,8 @@ function update(index: number, row: Row) {
   gap: 0.6rem;
 }
 .row {
-  padding: 0.75rem 1rem 1rem;
-  background: var(--bg);
-  border-left: 3px solid var(--accent);
+  padding: 0.6rem 1rem 1rem;
+  background: var(--surface);
 }
 .row-header {
   display: flex;
@@ -155,7 +156,13 @@ function update(index: number, row: Row) {
   font-weight: 600;
 }
 .block-type {
-  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-weight: 500;
 }
 .row-actions {
   display: flex;
@@ -163,7 +170,11 @@ function update(index: number, row: Row) {
 }
 .add {
   position: relative;
-  align-self: flex-start;
+}
+.add-button {
+  width: 100%;
+  border-style: dashed;
+  color: var(--text-muted);
 }
 .menu {
   position: absolute;

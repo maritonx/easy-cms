@@ -99,6 +99,32 @@ describe('validateConfig', () => {
     ])
   })
 
+  it('checks the site URL and side-panel fields', () => {
+    const issues = validateConfig(
+      baseConfig({
+        admin: { siteUrl: 'example.com', menu: ['posts', 'media', 'nope'] },
+        collections: [
+          {
+            slug: 'posts',
+            // @ts-expect-error only "page" or "drawer"
+            editIn: 'modal',
+            fields: [
+              { name: 'tags', type: 'text', position: 'sidebar' },
+              // @ts-expect-error only "sidebar"
+              { name: 'x', type: 'text', position: 'left' },
+            ],
+          },
+        ],
+      }),
+    )
+    expect(issues.map((i) => i.path)).toEqual([
+      'admin.siteUrl',
+      'admin.menu[2]',
+      'collections.posts.fields.x.position',
+      'collections.posts.editIn',
+    ])
+  })
+
   it('checks auth options', () => {
     const issues = validateConfig(
       baseConfig({

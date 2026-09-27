@@ -53,14 +53,33 @@ Over REST add `?locale=en` (or `all`) and `?fallback-locale=false`, on reads and
 
 ## Admin
 
-Collections and globals with localized fields get a language switcher; localized fields show the
-language being edited. Editing shows empty values for untranslated fields instead of the
-fallback. The list and live preview follow the chosen language; `preview` receives it as
-`locale`:
+The edit page of a collection or global with localized fields has a **content language**
+switcher; localized fields show the language being edited, and languages a document still needs
+are marked with a dot. Editing shows empty values for untranslated fields instead of the
+fallback. Live preview follows the chosen language; `preview` receives it as `locale`:
 
 ```ts
 preview: ({ doc, locale }) => `/${locale}/posts/${doc.slug}`
 ```
+
+Lists show the default language, with a **Translations** column: a language counts as translated
+when every localized field filled in the default language is filled in it too.
+
+The admin's own interface language (English or Thai) is separate: each user switches it at the
+bottom of the menu or on their Account page.
+
+## Adding a language
+
+Languages are part of the schema (each localized field gets a column per language), so they are
+added in the config and deployed with a migration, not from the admin:
+
+1. Add the locale code: `localization: { locales: ['th', 'en', 'ja'], defaultLocale: 'th' }`.
+2. Run `npx easy-cms migrate:create add-japanese` and review the new `*__ja` columns.
+3. Deploy and run `easy-cms migrate`.
+
+The admin then shows the new language everywhere, named in the user's interface language
+(日本語 / Japanese / ญี่ปุ่น); existing documents list it as not translated yet. Removing a
+language drops its columns and their text: back up first.
 
 ## Storage
 

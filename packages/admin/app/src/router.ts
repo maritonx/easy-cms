@@ -66,3 +66,31 @@ setUnauthorizedHandler(() => {
     void router.push({ name: 'login', query: { redirect: router.currentRoute.value.fullPath } })
   }
 })
+
+// A new version was deployed while this tab was open: the page files it knows of are gone.
+// Load the page the user was going to from the server once, instead of failing silently.
+const RELOADED = 'easy-cms-reloaded-for'
+const staleChunk = (error: unknown) =>
+  // Browsers word a missing module differently; Vite says so when a page's CSS is missing.
+  /dynamically imported module|importing a module script failed|error loading dynamically|unable to preload css/i.test(
+    String((error as Error)?.message ?? error),
+  )
+router.onError((error, to) => {
+  if (!staleChunk(error)) return
+  const target = router.resolve(to).href
+  try {
+    // Once per address: if the files are still missing after a reload, show the error.
+    if (sessionStorage.getItem(RELOADED) === target) return
+    sessionStorage.setItem(RELOADED, target)
+  } catch {
+    // no storage: reload anyway
+  }
+  window.location.assign(target)
+})
+router.afterEach(() => {
+  try {
+    sessionStorage.removeItem(RELOADED)
+  } catch {
+    // ignore
+  }
+})

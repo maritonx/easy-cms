@@ -61,6 +61,18 @@ export function validateConfig(config: Config): ConfigIssue[] {
     if (slug) collectionSlugs.add(slug)
   })
 
+  const menu: unknown = config.admin?.menu
+  if (menu !== undefined) {
+    if (!Array.isArray(menu)) {
+      add('admin.menu', 'must be an array of collection slugs', "e.g. menu: ['posts', 'media']")
+    } else {
+      for (const [i, slug] of menu.entries()) {
+        if (typeof slug !== 'string' || !collectionSlugs.has(slug))
+          add(`admin.menu[${i}]`, `unknown collection ${JSON.stringify(slug)}`)
+      }
+    }
+  }
+
   const seenGlobals = new Set<string>()
   globals.forEach((global, i) => {
     checkSlug(global, `globals[${i}]`, seenGlobals, add)
@@ -71,6 +83,9 @@ export function validateConfig(config: Config): ConfigIssue[] {
     validateContainer(collection, path, collectionSlugs, add)
     validateUseAsTitle(collection, path, add)
     validateIcon(collection, path, add)
+    const editIn: unknown = collection.editIn
+    if (editIn !== undefined && editIn !== 'page' && editIn !== 'drawer')
+      add(`${path}.editIn`, `must be "page" or "drawer" (got ${JSON.stringify(editIn)})`)
   })
 
   globals.forEach((global, i) => {
@@ -114,6 +129,17 @@ function validateAdmin(config: Config, add: Add) {
   }
   if (admin.locale !== undefined && admin.locale !== 'en' && admin.locale !== 'th') {
     add('admin.locale', `must be "en" or "th" (got ${JSON.stringify(admin.locale)})`)
+  }
+  const siteUrl: unknown = admin.siteUrl
+  if (
+    siteUrl !== undefined &&
+    (typeof siteUrl !== 'string' || !/^(\/|https?:\/\/)/.test(siteUrl))
+  ) {
+    add(
+      'admin.siteUrl',
+      'must be a path starting with "/" or an http(s) URL',
+      "e.g. siteUrl: 'https://example.com'",
+    )
   }
   const brand: unknown = admin.brand
   if (brand === undefined) return
@@ -432,6 +458,10 @@ function validateField(
   collectionSlugs: ReadonlySet<string>,
   add: Add,
 ) {
+  const position: unknown = field.position
+  if (position !== undefined && position !== 'sidebar') {
+    add(`${path}.position`, `must be "sidebar" (got ${JSON.stringify(position)})`)
+  }
   switch (field.type) {
     case 'text':
     case 'textarea':

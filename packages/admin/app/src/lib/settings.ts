@@ -4,11 +4,19 @@ export interface Settings {
   locale: 'en' | 'th'
   /** `admin.brand` from the config. */
   brand: { name?: string; logo?: string; color?: string }
+  /** The public site for the "View site" link; empty when unknown. */
+  siteUrl: string
 }
 
 /** Injected by the server as <meta name="easy-cms">. Falls back to defaults for `vite dev`. */
 export function readSettings(): Settings {
-  const defaults: Settings = { adminPath: '/admin', apiPath: '/api/cms', locale: 'en', brand: {} }
+  const defaults: Settings = {
+    adminPath: '/admin',
+    apiPath: '/api/cms',
+    locale: 'en',
+    brand: {},
+    siteUrl: '',
+  }
   const content = document.querySelector('meta[name="easy-cms"]')?.getAttribute('content')
   if (!content) return defaults
   try {

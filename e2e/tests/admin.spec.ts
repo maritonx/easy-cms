@@ -23,12 +23,15 @@ async function english(page: Page) {
   await page.addInitScript(() => localStorage.setItem('easy-cms-locale', 'en'))
 }
 
+/** The dashboard's heading. */
+const GREETING = /^Good (morning|afternoon|evening)/
+
 async function login(page: Page, user: { email: string; password: string }) {
   await page.goto('/admin/login')
   await page.getByLabel('Email').fill(user.email)
   await page.getByLabel('Password').fill(user.password)
   await page.getByRole('button', { name: 'Log in' }).click()
-  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1, name: GREETING })).toBeVisible()
 }
 
 /**
@@ -70,8 +73,8 @@ test('shows Thai by default and asks for the first admin (FR-ADM-02, FR-ADM-11)'
   await page.getByLabel('Email').fill(ADMIN.email)
   await page.getByLabel('Password').fill(ADMIN.password)
   await page.getByRole('button', { name: 'Create admin' }).click()
-  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
-  await expect(page.getByText('Welcome, Ada Admin')).toBeVisible()
+  // The dashboard greets the user by name.
+  await expect(page.getByRole('heading', { level: 1, name: GREETING })).toHaveText(/, Ada Admin$/)
   await shot(page, '02-dashboard')
 })
 
@@ -356,6 +359,11 @@ test.describe('logged in as admin', () => {
       'true',
     )
 
+    // Not translated yet: the English button says so.
+    await expect(
+      languages.getByRole('button', { name: 'English (not translated yet)' }),
+    ).toBeVisible()
+
     // English starts empty for translated fields; shared fields keep their values.
     await languages.getByRole('button', { name: 'English' }).click()
     await expect(title).toHaveValue('')
@@ -369,13 +377,13 @@ test.describe('logged in as admin', () => {
     await languages.getByRole('button', { name: 'Thai' }).click()
     await expect(title).toHaveValue('Hello from Playwright')
 
-    // The list follows the chosen language.
+    // The list shows the default language and which translations each post has.
     await page.goto('/admin/collections/posts')
-    await page
-      .getByRole('group', { name: 'Content language' })
-      .getByRole('button', { name: 'English' })
-      .click()
-    await expect(page.getByRole('link', { name: 'Hello in English' })).toBeVisible()
+    const row = page.getByRole('row', { name: /Hello from Playwright/ })
+    await expect(row.getByText('Thai: translated')).toBeAttached()
+    // Only the title is in English; the excerpt and body are still Thai only.
+    await expect(row.getByText('English: not translated yet')).toBeAttached()
+    await expect(page.getByRole('group', { name: 'Content language' })).toHaveCount(0)
 
     // The site shows the default language.
     await publicSite(page)
@@ -487,6 +495,32 @@ test.describe('logged in as admin', () => {
     await expect(page.getByRole('status')).toHaveText('Saved')
     await publicSite(page)
     await expect(page.getByText('Tested end to end')).toBeVisible()
+  })
+
+  test('edits small collections in a drawer, and creates related documents in place', async ({
+    page,
+  }) => {
+    // Categories open in a panel over their list (editIn: 'drawer').
+    await page.goto('/admin/collections/categories')
+    await page.getByRole('link', { name: 'Create new' }).click()
+    const drawer = page.getByRole('dialog', { name: 'Create Category' })
+    await drawer.getByLabel('Name').fill('Recipes')
+    await drawer.getByRole('button', { name: 'Save' }).click()
+    await expect(page.getByRole('status')).toHaveText('Created')
+    await expect(page).toHaveURL(/edit=\d+/)
+    await expect(page.getByRole('row', { name: /Recipes/ })).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('dialog')).toHaveCount(0)
+    await expect(page).not.toHaveURL(/edit=/)
+
+    // From a post: create the category it should belong to without leaving the page.
+    await page.goto('/admin/collections/posts/new')
+    await page.getByRole('button', { name: 'Create Category' }).click()
+    const inline = page.getByRole('dialog', { name: 'Create Category' })
+    await inline.getByLabel('Name').fill('Travel')
+    await inline.getByRole('button', { name: 'Save' }).click()
+    await expect(page.getByRole('dialog')).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'Travel' })).toBeVisible()
   })
 
   test('creates an editor account', async ({ page }) => {

@@ -1,18 +1,26 @@
 <script setup lang="ts">
 import { Languages, LayoutDashboard, LogOut, Menu, Monitor, Moon, Sun, X } from '@lucide/vue'
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { counts, refreshCounts } from '../lib/counts'
 import { label, locale, setLocale, t } from '../lib/i18n'
 import { collectionIcon, globalIcon } from '../lib/icons'
+import { menuOrder } from '../lib/menu'
 import { logout, session } from '../lib/session'
 import { settings } from '../lib/settings'
 import { brandName, initials, setTheme, type ThemeMode, themeMode } from '../lib/theme'
 
 const router = useRouter()
 const route = useRoute()
-const collections = computed(
-  () => session.schema?.collections.filter((c) => c.permissions.read) ?? [],
+const readable = computed(() =>
+  menuOrder(
+    session.schema?.collections.filter((c) => c.permissions.read) ?? [],
+    session.schema?.menu,
+  ),
 )
+/** Content collections; user accounts are listed under Settings. */
+const collections = computed(() => readable.value.filter((c) => c.slug !== 'users'))
+const users = computed(() => readable.value.find((c) => c.slug === 'users'))
 const globals = computed(() => session.schema?.globals.filter((g) => g.permissions.read) ?? [])
 
 /** Small screens: the menu opens over the page. */
@@ -21,8 +29,11 @@ watch(
   () => route.fullPath,
   () => {
     menuOpen.value = false
+    // Creating or deleting changes the counts next to the menu items.
+    void refreshCounts()
   },
 )
+onMounted(() => void refreshCounts(true))
 
 const themes: {
   mode: ThemeMode
@@ -65,7 +76,10 @@ async function onLogout() {
         <RouterLink to="/" class="brand">
           <img v-if="settings.brand.logo" :src="settings.brand.logo" alt="" class="logo-img" />
           <span v-else class="logo" aria-hidden="true">{{ brandName().slice(0, 1) }}</span>
-          <span class="brand-name">{{ brandName() }}</span>
+          <span class="brand-text">
+            <span class="brand-name">{{ brandName() }}</span>
+            <span class="brand-sub">{{ t('app.subtitle') }}</span>
+          </span>
         </RouterLink>
         <button
           type="button"
@@ -93,10 +107,11 @@ async function onLogout() {
         >
           <component :is="collectionIcon(c.icon)" :size="18" aria-hidden="true" />
           <span>{{ label(c.labels?.plural, c.slug) }}</span>
+          <span v-if="counts[c.slug] !== undefined" class="nav-count" aria-hidden="true">{{ counts[c.slug] }}</span>
         </RouterLink>
       </template>
 
-      <template v-if="globals.length">
+      <template v-if="globals.length || users">
         <h2 class="nav-heading">{{ t('nav.globals') }}</h2>
         <RouterLink
           v-for="g in globals"
@@ -107,6 +122,11 @@ async function onLogout() {
         >
           <component :is="globalIcon(g.icon)" :size="18" aria-hidden="true" />
           <span>{{ label(g.label, g.slug) }}</span>
+        </RouterLink>
+        <RouterLink v-if="users" to="/collections/users" class="nav-link" active-class="active">
+          <component :is="collectionIcon(users.icon)" :size="18" aria-hidden="true" />
+          <span>{{ label(users.labels?.plural, users.slug) }}</span>
+          <span v-if="counts.users !== undefined" class="nav-count" aria-hidden="true">{{ counts.users }}</span>
         </RouterLink>
       </template>
 
@@ -126,9 +146,11 @@ async function onLogout() {
               <component :is="option.icon" :size="15" aria-hidden="true" />
             </button>
           </div>
+          <!-- The admin's interface language; content languages are chosen on each document. -->
           <button
             type="button"
             class="btn btn-ghost btn-sm"
+            :title="t('account.language')"
             @click="setLocale(locale === 'th' ? 'en' : 'th')"
           >
             <Languages :size="15" aria-hidden="true" />
@@ -156,7 +178,8 @@ async function onLogout() {
       </div>
     </nav>
     <main class="content">
-      <RouterView :key="$route.fullPath" />
+      <!-- Keyed by path: query changes (filters, an open drawer) keep the page. -->
+      <RouterView :key="$route.path" />
     </main>
   </div>
 </template>
@@ -164,7 +187,7 @@ async function onLogout() {
 <style scoped>
 .layout {
   display: grid;
-  grid-template-columns: 15.5rem minmax(0, 1fr);
+  grid-template-columns: 17.75rem minmax(0, 1fr);
   min-height: 100vh;
 }
 .topbar,
@@ -201,10 +224,27 @@ async function onLogout() {
   color: var(--text);
   text-decoration: none;
 }
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
 .brand-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.brand-sub {
+  color: var(--faint);
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+.nav-count {
+  margin-left: auto;
+  color: var(--faint);
+  font-size: 0.8rem;
+  font-weight: 500;
 }
 .logo {
   display: inline-flex;
@@ -226,11 +266,12 @@ async function onLogout() {
   object-fit: contain;
 }
 .nav-heading {
-  margin: 1.1rem 0 0.3rem;
-  padding: 0 0.65rem;
-  font-size: 0.75rem;
+  margin: 1.15rem 0 0.35rem;
+  padding: 0 0.7rem;
+  font-size: 0.8rem;
   font-weight: 600;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--faint);
 }
 .nav-link {
@@ -351,8 +392,11 @@ async function onLogout() {
   white-space: nowrap;
 }
 .content {
-  padding: 1.75rem 2.5rem 4rem;
-  max-width: 76rem;
+  /* Pages that span the width (edit header, save bar) offset these paddings. */
+  --page-x: 2.75rem;
+  --page-top: 2rem;
+  --page-bottom: 4rem;
+  padding: var(--page-top) var(--page-x) var(--page-bottom);
   width: 100%;
   min-width: 0;
 }
@@ -410,7 +454,9 @@ async function onLogout() {
     background: rgb(0 0 0 / 40%);
   }
   .content {
-    padding: 1.25rem 1rem 3rem;
+    --page-x: 1rem;
+    --page-top: 1.25rem;
+    --page-bottom: 3rem;
   }
 }
 @media (prefers-reduced-motion: reduce) {

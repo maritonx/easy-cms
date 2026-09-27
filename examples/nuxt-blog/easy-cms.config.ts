@@ -4,7 +4,8 @@ import { sqlite } from '@easy-cms/db-sqlite'
 export default defineConfig({
   secret: process.env.EASY_CMS_SECRET ?? '',
   db: sqlite({ url: process.env.DATABASE_URL ?? 'file:./cms.db' }),
-  admin: { locale: 'th' },
+  // The admin menu: posts first; users are listed under Settings.
+  admin: { locale: 'th', menu: ['posts', 'categories', 'media'] },
   // Posts and the site name in Thai and English; the slug and other fields are shared.
   localization: { locales: ['th', 'en'], defaultLocale: 'th' },
   upload: {
@@ -17,16 +18,23 @@ export default defineConfig({
   collections: [
     {
       slug: 'categories',
+      // Small: create and edit in a panel over the list.
+      editIn: 'drawer',
+      labels: {
+        singular: { en: 'Category', th: 'หมวดหมู่' },
+        plural: { en: 'Categories', th: 'หมวดหมู่' },
+      },
       icon: 'tag',
       useAsTitle: 'name',
       access: { read: () => true },
       fields: [
-        { name: 'name', type: 'text', required: true },
-        { name: 'slug', type: 'slug', from: 'name' },
+        { name: 'name', type: 'text', required: true, label: { en: 'Name', th: 'ชื่อ' } },
+        { name: 'slug', type: 'slug', from: 'name', label: { en: 'Slug', th: 'Slug' } },
       ],
     },
     {
       slug: 'posts',
+      labels: { singular: { en: 'Post', th: 'บทความ' }, plural: { en: 'Posts', th: 'บทความ' } },
       icon: 'newspaper',
       drafts: true,
       // History and restore; drafts of a published post stay unpublished until published.
@@ -41,13 +49,27 @@ export default defineConfig({
         read: ({ user }) => (user ? true : { status: { equals: 'published' } }),
       },
       fields: [
-        { name: 'title', type: 'text', required: true, maxLength: 200, localized: true },
-        { name: 'slug', type: 'slug', from: 'title' },
-        { name: 'excerpt', type: 'textarea', maxLength: 300, localized: true },
-        { name: 'cover', type: 'upload' },
-        { name: 'body', type: 'richText', localized: true },
+        {
+          name: 'title',
+          type: 'text',
+          label: { en: 'Title', th: 'ชื่อเรื่อง' },
+          required: true,
+          maxLength: 200,
+          localized: true,
+        },
+        { name: 'slug', type: 'slug', from: 'title', label: { en: 'Slug', th: 'Slug' } },
+        {
+          name: 'excerpt',
+          type: 'textarea',
+          label: { en: 'Excerpt', th: 'คำโปรย' },
+          maxLength: 300,
+          localized: true,
+        },
+        { name: 'cover', type: 'upload', label: { en: 'Cover', th: 'รูปปก' } },
+        { name: 'body', type: 'richText', label: { en: 'Body', th: 'เนื้อหา' }, localized: true },
         {
           name: 'sections',
+          label: { en: 'Sections', th: 'ส่วนเนื้อหา' },
           type: 'blocks',
           blocks: [
             {
@@ -73,21 +95,52 @@ export default defineConfig({
             },
           ],
         },
-        { name: 'category', type: 'relationship', to: 'categories' },
-        { name: 'tags', type: 'select', options: ['nuxt', 'vue', 'cms', 'thai'], hasMany: true },
-        { name: 'author', type: 'relationship', to: 'users' },
-        { name: 'publishedAt', type: 'date' },
+        {
+          name: 'category',
+          type: 'relationship',
+          to: 'categories',
+          label: { en: 'Category', th: 'หมวดหมู่' },
+          position: 'sidebar',
+        },
+        {
+          name: 'tags',
+          type: 'select',
+          options: ['nuxt', 'vue', 'cms', 'thai'],
+          hasMany: true,
+          label: { en: 'Tags', th: 'แท็ก' },
+          position: 'sidebar',
+        },
+        {
+          name: 'author',
+          type: 'relationship',
+          to: 'users',
+          label: { en: 'Author', th: 'ผู้เขียน' },
+          position: 'sidebar',
+        },
+        {
+          name: 'publishedAt',
+          type: 'date',
+          label: { en: 'Published at', th: 'วันที่เผยแพร่' },
+          position: 'sidebar',
+        },
       ],
     },
   ],
   globals: [
     {
       slug: 'site',
+      label: { en: 'Site', th: 'ข้อมูลเว็บไซต์' },
       icon: 'house',
       access: { read: () => true },
       fields: [
-        { name: 'siteName', type: 'text', defaultValue: 'Easy CMS Blog', localized: true },
-        { name: 'tagline', type: 'text', localized: true },
+        {
+          name: 'siteName',
+          type: 'text',
+          label: { en: 'Site name', th: 'ชื่อเว็บไซต์' },
+          defaultValue: 'Easy CMS Blog',
+          localized: true,
+        },
+        { name: 'tagline', type: 'text', label: { en: 'Tagline', th: 'คำโปรย' }, localized: true },
       ],
     },
   ],

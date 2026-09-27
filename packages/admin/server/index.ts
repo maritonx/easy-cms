@@ -11,6 +11,8 @@ export interface AdminHandlerOptions {
   readonly locale?: 'en' | 'th'
   /** Name, logo and main color shown in the admin (`admin.brand` in the config). */
   readonly brand?: { readonly name?: string; readonly logo?: string; readonly color?: string }
+  /** The public site, for the "View site" link (`admin.siteUrl`). Empty: no link. */
+  readonly siteUrl?: string
   /** Directory with the built app. Defaults to the one shipped in this package. */
   readonly appDir?: string
   /**
@@ -80,6 +82,7 @@ export function renderShell(
     apiPath: trimSlashes(options.apiPath ?? '/api/cms'),
     locale: options.locale ?? 'en',
     brand: options.brand ?? {},
+    siteUrl: options.siteUrl ?? '',
   })
   return source.replace(
     '<head>',

@@ -11,7 +11,9 @@ import {
 } from '../app/src/lib/fields'
 import { humanize, label, setLocale, singularize, t } from '../app/src/lib/i18n'
 import { ICON_NAMES } from '../app/src/lib/icons'
+import { menuOrder } from '../app/src/lib/menu'
 import { initials, textOn } from '../app/src/lib/theme'
+import { inLocale, missingLocales } from '../app/src/lib/translation'
 
 const fields: AdminField[] = [
   { name: 'title', type: 'text', required: true },
@@ -154,5 +156,56 @@ describe('theme', () => {
 
   it('has a menu icon for every name the config accepts', () => {
     expect([...ICON_NAMES].sort()).toEqual([...ADMIN_ICONS].sort())
+  })
+})
+
+describe('menu order', () => {
+  const list = ['users', 'media', 'categories', 'posts', 'pages'].map((slug) => ({ slug }))
+  const slugs = (items: { slug: string }[]) => items.map((i) => i.slug)
+
+  it('keeps config order, with the media library last', () => {
+    expect(slugs(menuOrder(list))).toEqual(['users', 'categories', 'posts', 'pages', 'media'])
+  })
+
+  it('puts the collections in admin.menu first, in that order', () => {
+    expect(slugs(menuOrder(list, ['posts', 'categories', 'media']))).toEqual([
+      'posts',
+      'categories',
+      'media',
+      'users',
+      'pages',
+    ])
+  })
+})
+
+describe('translations', () => {
+  const localizedFields: AdminField[] = [
+    { name: 'title', type: 'text', localized: true },
+    { name: 'body', type: 'richText', localized: true },
+    { name: 'slug', type: 'slug' },
+  ]
+  const empty = { type: 'doc', content: [{ type: 'paragraph' }] }
+  const filled = {
+    type: 'doc',
+    content: [{ type: 'paragraph', content: [{ type: 'text', text: 'x' }] }],
+  }
+
+  it('finds the locales a document still needs', () => {
+    const doc = {
+      title: { th: 'สวัสดี', en: 'Hello', ja: null },
+      body: { th: filled, en: empty, ja: null },
+      slug: 'hi',
+    }
+    expect(missingLocales(localizedFields, doc, ['th', 'en', 'ja'], 'th')).toEqual(['en', 'ja'])
+    // Fields empty in the default locale don't count.
+    const short = { title: { th: 'สวัสดี', en: 'Hello' }, body: { th: empty, en: null } }
+    expect(missingLocales(localizedFields, short, ['th', 'en'], 'th')).toEqual([])
+  })
+
+  it('shows a document in one locale', () => {
+    expect(inLocale(localizedFields, { title: { th: 'ก', en: 'A' }, slug: 'a' }, 'en')).toEqual({
+      title: 'A',
+      slug: 'a',
+    })
   })
 })

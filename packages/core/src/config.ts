@@ -82,6 +82,12 @@ export interface CollectionConfig {
   readonly labels?: { readonly singular?: Label; readonly plural?: Label }
   /** Icon in the admin menu. Default `file-text`. */
   readonly icon?: AdminIcon
+  /**
+   * How the admin opens documents from the list: `drawer` slides a panel over the list, handy
+   * for small collections (categories, tags). Default `page`. Collections with drafts, versions
+   * or live preview always use the page.
+   */
+  readonly editIn?: 'page' | 'drawer'
   readonly fields: readonly Field[]
   /** Top-level field shown as the document title in the admin UI. */
   readonly useAsTitle?: string
@@ -190,6 +196,16 @@ export interface AdminConfig {
   readonly locale?: AdminLocale
   /** Name, logo and color of the admin UI. */
   readonly brand?: AdminBrand
+  /**
+   * The public site, for the admin's "View site" link: a path (`/`) or an `https://` URL.
+   * Default `/` with Nuxt and Next.js; none with the standalone server.
+   */
+  readonly siteUrl?: string
+  /**
+   * Order of collections in the admin menu, by slug, e.g. `['posts', 'categories', 'media']`.
+   * Collections not listed follow in config order, with the media library last.
+   */
+  readonly menu?: readonly string[]
 }
 
 export interface ImageSize {

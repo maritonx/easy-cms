@@ -1,8 +1,24 @@
 <script setup lang="ts">
+import {
+  Bold,
+  Code,
+  Heading2,
+  Heading3,
+  Heading4,
+  ImagePlus,
+  Italic,
+  Link,
+  List,
+  ListOrdered,
+  Redo2,
+  TextQuote,
+  Underline,
+  Undo2,
+} from '@lucide/vue'
 import Image from '@tiptap/extension-image'
 import StarterKit from '@tiptap/starter-kit'
 import { EditorContent, useEditor } from '@tiptap/vue-3'
-import { onBeforeUnmount, ref, watch } from 'vue'
+import { type Component, onBeforeUnmount, ref, watch } from 'vue'
 import MediaPicker from '../components/MediaPicker.vue'
 import { t } from '../lib/i18n'
 
@@ -77,6 +93,22 @@ function insertImage(src: string, alt = '') {
 }
 
 type Action = { key: string; label: string; text: string; run: () => void; active?: () => boolean }
+const ICONS: Record<string, Component> = {
+  h2: Heading2,
+  h3: Heading3,
+  h4: Heading4,
+  b: Bold,
+  i: Italic,
+  u: Underline,
+  code: Code,
+  link: Link,
+  ul: List,
+  ol: ListOrdered,
+  quote: TextQuote,
+  img: ImagePlus,
+  undo: Undo2,
+  redo: Redo2,
+}
 const actions = (): Action[] => {
   const e = editor.value
   if (!e) return []
@@ -169,7 +201,8 @@ const actions = (): Action[] => {
         @mousedown.prevent
         @click="action.run"
       >
-        {{ action.text }}
+        <component :is="ICONS[action.key]" v-if="ICONS[action.key]" :size="16" aria-hidden="true" />
+        <template v-else>{{ action.text }}</template>
       </button>
     </div>
     <EditorContent v-if="editor" :editor="editor" />
@@ -200,32 +233,35 @@ const actions = (): Action[] => {
 .rte-toolbar {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.15rem;
-  padding: 0.35rem;
+  gap: 2px;
+  padding: 0.3rem 0.4rem;
   border-bottom: 1px solid var(--border);
-  background: var(--surface-2);
+  background: var(--surface);
   border-radius: var(--radius-sm) var(--radius-sm) 0 0;
 }
 .rte-button {
-  min-width: 2rem;
-  height: 2rem;
-  padding: 0 0.45rem;
-  border: 1px solid transparent;
-  border-radius: 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.2rem;
+  height: 2.2rem;
+  padding: 0 0.4rem;
+  border: 0;
+  border-radius: 6px;
   background: none;
-  color: var(--text);
+  color: var(--text-muted);
   font: inherit;
   font-weight: 600;
   font-size: 0.85rem;
   cursor: pointer;
 }
 .rte-button:hover {
-  background: var(--surface);
+  background: var(--surface-2);
+  color: var(--text);
 }
 .rte-button.active {
-  background: var(--accent-soft);
-  color: var(--accent);
-  border-color: var(--accent);
+  background: var(--surface-2);
+  color: var(--text);
 }
 .rte :deep(.rte-content) {
   min-height: 10rem;

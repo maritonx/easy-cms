@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { ApiError, api } from '../lib/api'
-import { t } from '../lib/i18n'
+import { locale, setLocale, t } from '../lib/i18n'
 import { loadSession, session } from '../lib/session'
 
 const name = ref(session.user?.name ?? '')
@@ -66,11 +66,24 @@ async function save() {
       <button type="submit" class="btn btn-primary" :disabled="saving">{{ t('account.save') }}</button>
     </div>
   </form>
+
+  <section class="card account" :aria-labelledby="'ui-language'">
+    <h2 id="ui-language" class="section-title">{{ t('account.language') }}</h2>
+    <p class="muted hint">{{ t('account.languageHint') }}</p>
+    <div class="segmented" role="group" :aria-label="t('account.language')">
+      <!-- Each language in its own words, so it can be found in either. -->
+      <button type="button" lang="th" :class="{ on: locale === 'th' }" :aria-pressed="locale === 'th'" @click="setLocale('th')">ไทย</button>
+      <button type="button" lang="en" :class="{ on: locale === 'en' }" :aria-pressed="locale === 'en'" @click="setLocale('en')">English</button>
+    </div>
+  </section>
 </template>
 
 <style scoped>
 h1 {
   margin-bottom: 1rem;
+}
+.account + .account {
+  margin-top: 1rem;
 }
 .account {
   max-width: 32rem;
@@ -97,5 +110,37 @@ h1 {
 }
 .status.error {
   color: var(--danger);
+}
+.section-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+.hint {
+  margin: -0.5rem 0 0;
+  font-size: 0.9rem;
+}
+.segmented {
+  display: inline-flex;
+  align-self: flex-start;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 9px;
+  background: var(--surface-2);
+}
+.segmented button {
+  min-height: 2.1rem;
+  padding: 0 1rem;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+.segmented button.on {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
 }
 </style>

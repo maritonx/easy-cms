@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ImageUp, Trash2, Upload } from '@lucide/vue'
 import { ref, watch } from 'vue'
 import MediaPicker from '../components/MediaPicker.vue'
 import MediaThumb from '../components/MediaThumb.vue'
@@ -45,11 +46,18 @@ function choose(doc: Doc) {
         <span class="muted small">{{ media.mimeType }}</span>
       </div>
       <div v-if="!readOnly" class="actions">
-        <button type="button" class="btn btn-sm" @click="picking = true">{{ t('media.change') }}</button>
-        <button type="button" class="btn btn-sm btn-ghost" @click="emit('update:modelValue', null)">{{ t('media.remove') }}</button>
+        <button type="button" class="btn btn-sm" @click="picking = true">
+          <Upload :size="15" aria-hidden="true" />
+          {{ t('media.change') }}
+        </button>
+        <button type="button" class="btn btn-sm btn-ghost" @click="emit('update:modelValue', null)">
+          <Trash2 :size="15" aria-hidden="true" />
+          {{ t('media.remove') }}
+        </button>
       </div>
     </div>
-    <button v-else-if="!readOnly" type="button" class="btn" @click="picking = true">
+    <button v-else-if="!readOnly" type="button" class="btn choose" @click="picking = true">
+      <ImageUp :size="18" aria-hidden="true" />
       {{ t('media.choose') }}
     </button>
     <span v-else class="muted">—</span>
@@ -82,5 +90,11 @@ function choose(doc: Doc) {
 .actions {
   display: flex;
   gap: 0.25rem;
+}
+.choose {
+  width: 100%;
+  min-height: 4.5rem;
+  border-style: dashed;
+  color: var(--text-muted);
 }
 </style>

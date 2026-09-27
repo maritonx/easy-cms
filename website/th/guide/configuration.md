@@ -44,6 +44,8 @@ export default defineConfig({
 | `routes.api` | `/api/cms` | ตำแหน่งที่ให้บริการ REST API |
 | `admin.path` | `/admin` | ตำแหน่งที่ให้บริการหน้า admin |
 | `admin.locale` | `en` | ภาษาเริ่มต้นของหน้า admin: `en` หรือ `th` |
+| `admin.siteUrl` | `/` (Nuxt, Next.js) | เว็บไซต์สาธารณะ สำหรับปุ่ม "ดูเว็บไซต์" ในหน้า admin: path หรือ URL แบบ `https://` |
+| `admin.menu` | ตามลำดับใน config | ลำดับ collection ในเมนูของหน้า admin ตาม slug เช่น `['posts', 'categories', 'media']` ที่ไม่ได้ระบุจะตามมา และคลังสื่ออยู่ท้ายสุด ส่วนผู้ใช้อยู่ในหมวดตั้งค่า |
 | `admin.brand` | — | `{ name, logo, color }`: แบรนด์ของคุณหรือลูกค้าในหน้า admin ดู[ใส่แบรนด์ให้หน้า admin](#branding-the-admin) |
 | `auth` | | ดู [ผู้ใช้และการยืนยันตัวตน](./auth) |
 | `upload` | | ดู [การอัปโหลดและ media](./uploads) |
@@ -61,6 +63,7 @@ collection คือประเภทของเนื้อหาที่ม
 | `fields` | [field](./fields) ทั้งหมด |
 | `labels` | `{ singular, plural }` แต่ละค่าเป็น string หรือ `{ en, th }` |
 | `useAsTitle` | field ระดับบนสุดที่แสดงเป็นชื่อเอกสารในหน้า admin |
+| `editIn` | `'drawer'`: สร้างและแก้ไขในแผงเลื่อนทับหน้ารายการ เหมาะกับ collection เล็กอย่างหมวดหมู่ และช่อง relationship ที่ชี้มาจะมีปุ่ม "สร้าง" ที่เปิดแผงเดียวกัน ส่วน collection ที่มี drafts, versions หรือ preview จะใช้หน้าเต็มเสมอ |
 | `icon` | ไอคอนในเมนูของหน้า admin (ค่าเริ่มต้น `file-text`) เลือกจากรายชื่อใน[ใส่แบรนด์ให้หน้า admin](#branding-the-admin) |
 | `drafts` | เพิ่ม `status` (`draft` \| `published`) ดู [ฉบับร่าง (draft)](./drafts) |
 | `versions` | `true` หรือ `{ max }`: เก็บเวอร์ชันของการบันทึกทุกครั้ง พร้อมประวัติและการกู้คืน ถ้ามี `drafts` ด้วย ฉบับร่างของเอกสารที่เผยแพร่แล้วจะถูกเก็บแยก ดู [เวอร์ชัน](./drafts#versions) |

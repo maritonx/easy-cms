@@ -152,6 +152,8 @@ declare module '${SERVER}' {
       apiPath,
       locale: rawConfig?.admin?.locale ?? 'en',
       brand: rawConfig?.admin?.brand ?? {},
+      // The site is this Nuxt app.
+      siteUrl: rawConfig?.admin?.siteUrl ?? '/',
     })
     nitro.virtual[ADMIN_SHELL] = `export const basePath = ${JSON.stringify(adminPath)}
 export const html = ${JSON.stringify(shell)}

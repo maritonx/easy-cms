@@ -30,6 +30,8 @@ export interface AdminField {
   readOnly?: boolean
   /** One value per content locale. */
   localized?: boolean
+  /** Shown in the edit page's side panel. */
+  position?: 'sidebar'
 }
 
 export interface AdminCollection {
@@ -37,6 +39,8 @@ export interface AdminCollection {
   labels?: { singular?: Label; plural?: Label }
   icon?: string
   useAsTitle?: string
+  /** Documents open in a panel over the list. */
+  editIn?: 'drawer'
   drafts: boolean
   versions: boolean
   /** Has live preview (`preview` in the config). */
@@ -63,6 +67,8 @@ export interface AdminGlobal {
 
 export interface AdminSchema {
   locale: AdminLocale
+  /** Menu order of collections (`admin.menu`); unlisted ones follow. */
+  menu: string[]
   /** Content locales, when the config has `localization`. */
   localization: { locales: string[]; defaultLocale: string } | null
   collections: AdminCollection[]
@@ -89,6 +95,7 @@ async function serializeFields(
     if (field.defaultValue !== undefined) f.defaultValue = field.defaultValue
     if (!(await update.allows(field))) f.readOnly = true
     if (field.localized && localized) f.localized = true
+    if (field.position === 'sidebar') f.position = 'sidebar'
     switch (field.type) {
       case 'text':
       case 'textarea':
@@ -166,6 +173,9 @@ async function collection(
   if (config.labels) result.labels = config.labels
   if (config.useAsTitle) result.useAsTitle = config.useAsTitle
   if (config.icon) result.icon = config.icon
+  // Drafts, history and preview need the whole page.
+  if (config.editIn === 'drawer' && !result.drafts && !result.versions && !result.preview)
+    result.editIn = 'drawer'
   return result
 }
 
@@ -202,6 +212,7 @@ export async function adminSchema(cms: EasyCMS, user: AuthUser): Promise<AdminSc
   const localized = localization !== null
   return {
     locale: cms.config.admin.locale,
+    menu: [...cms.config.admin.menu],
     localization: localization
       ? { locales: [...localization.locales], defaultLocale: localization.defaultLocale }
       : null,

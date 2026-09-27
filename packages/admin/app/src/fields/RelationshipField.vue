@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import { Plus, X } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
+import DocumentDrawer from '../components/DocumentDrawer.vue'
 import { api, type Doc, type Paginated, toQuery } from '../lib/api'
 import { titleOf } from '../lib/fields'
-import { t } from '../lib/i18n'
+import { label, singularize, t } from '../lib/i18n'
 import { findCollection } from '../lib/session'
 
 type Id = number | string
@@ -94,6 +96,26 @@ function onKeydown(event: KeyboardEvent) {
   event.preventDefault()
 }
 const listId = computed(() => `${props.id}-options`)
+
+// Creating what the field should point to without leaving the page: for small collections.
+const canCreate = computed(
+  () =>
+    !!target?.permissions.create &&
+    !target.drafts &&
+    !target.versions &&
+    !target.preview &&
+    target.slug !== 'media',
+)
+const creating = ref(false)
+/** The search text becomes the new document's title. */
+const createInitial = computed(() =>
+  query.value && target?.useAsTitle ? { [target.useAsTitle]: query.value } : undefined,
+)
+function created(doc: Doc) {
+  creating.value = false
+  choose(doc)
+  open.value = false
+}
 </script>
 
 <template>
@@ -101,7 +123,7 @@ const listId = computed(() => `${props.id}-options`)
     <ul v-if="selectedIds.length" class="chips">
       <li v-for="id in selectedIds" :key="String(id)" class="chip">
         <RouterLink :to="`/collections/${to}/${id}`">{{ titles[String(id)] ?? `#${id}` }}</RouterLink>
-        <button v-if="!readOnly" type="button" class="chip-remove" :aria-label="t('field.remove', { title: titles[String(id)] ?? `#${id}` })" @click="removeId(id)">✕</button>
+        <button v-if="!readOnly" type="button" class="chip-remove" :aria-label="t('field.remove', { title: titles[String(id)] ?? `#${id}` })" @click="removeId(id)"><X :size="13" aria-hidden="true" /></button>
       </li>
     </ul>
     <div v-if="!readOnly && (hasMany || !selectedIds.length)" class="combo">
@@ -136,10 +158,26 @@ const listId = computed(() => `${props.id}-options`)
         <li v-if="!options.length" class="muted empty">{{ t('field.noMatches') }}</li>
       </ul>
     </div>
+    <button v-if="!readOnly && canCreate && (hasMany || !selectedIds.length)" type="button" class="btn btn-ghost btn-sm create" @click="creating = true">
+      <Plus :size="15" aria-hidden="true" />
+      {{ t('edit.create', { label: label(target?.labels?.singular, singularize(to)) }) }}
+    </button>
+    <DocumentDrawer
+      v-if="creating"
+      :slug="to"
+      :id="null"
+      :initial="createInitial"
+      @saved="(doc) => created(doc)"
+      @close="creating = false"
+    />
   </div>
 </template>
 
 <style scoped>
+.create {
+  align-self: flex-start;
+  color: var(--accent-ink);
+}
 .relationship {
   display: flex;
   flex-direction: column;

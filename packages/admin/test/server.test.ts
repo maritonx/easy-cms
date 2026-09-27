@@ -23,7 +23,7 @@ describe('createAdminHandler', () => {
       const html = await res.text()
       expect(html).toContain('<base href="/cms/">')
       expect(html).toContain(
-        'content="{&quot;adminPath&quot;:&quot;/cms&quot;,&quot;apiPath&quot;:&quot;/api/content&quot;,&quot;locale&quot;:&quot;th&quot;,&quot;brand&quot;:{}}"',
+        'content="{&quot;adminPath&quot;:&quot;/cms&quot;,&quot;apiPath&quot;:&quot;/api/content&quot;,&quot;locale&quot;:&quot;th&quot;,&quot;brand&quot;:{},&quot;siteUrl&quot;:&quot;&quot;}"',
       )
     }
   })

@@ -14,7 +14,7 @@ const config = defineConfig({
       fields: [
         { name: 'title', type: 'text', required: true },
         { name: 'views', type: 'number' },
-        { name: 'tags', type: 'select', options: ['a', 'b'], hasMany: true },
+        { name: 'tags', type: 'select', options: ['a', 'b'], hasMany: true, position: 'sidebar' },
         {
           name: 'boom',
           type: 'text',
@@ -25,7 +25,7 @@ const config = defineConfig({
         },
       ],
     },
-    { slug: 'pages', fields: [{ name: 'title', type: 'text' }] },
+    { slug: 'pages', editIn: 'drawer', fields: [{ name: 'title', type: 'text' }] },
   ],
   globals: [
     { slug: 'site', access: { read: () => true }, fields: [{ name: 'name', type: 'text' }] },
@@ -439,6 +439,15 @@ describe('admin endpoints', () => {
     })
     expect(json.globals[0]).toMatchObject({ slug: 'site', permissions: { read: true } })
     expect(JSON.stringify(json)).not.toContain('passwordHash')
+    // Presentation: menu icons (built-in collections have one) and side-panel fields.
+    expect(users.icon).toBe('users')
+    expect(json.collections[1].icon).toBe('image')
+    const posts = json.collections[2]
+    expect(posts.fields.find((f: { name: string }) => f.name === 'tags').position).toBe('sidebar')
+    expect(posts.fields.find((f: { name: string }) => f.name === 'title').position).toBeUndefined()
+    // Small collections open in a drawer; the rest (and ones with drafts or history) in a page.
+    expect(json.collections[3].editIn).toBe('drawer')
+    expect(posts.editIn).toBeUndefined()
   })
 
   it('resolves document-level permissions', async () => {

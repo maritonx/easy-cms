@@ -44,6 +44,8 @@ and how to fix it.
 | `routes.api` | `/api/cms` | Where the REST API is served. |
 | `admin.path` | `/admin` | Where the admin UI is served. |
 | `admin.locale` | `en` | Default admin language: `en` or `th`. |
+| `admin.siteUrl` | `/` (Nuxt, Next.js) | The public site, for the admin's "View site" button: a path or an `https://` URL. |
+| `admin.menu` | config order | Order of collections in the admin menu by slug, e.g. `['posts', 'categories', 'media']`; others follow, the media library last. User accounts are under Settings. |
 | `admin.brand` | — | `{ name, logo, color }`: your or your client's brand in the admin. See [Branding the admin](#branding-the-admin). |
 | `auth` | | See [Users & auth](./auth). |
 | `upload` | | See [Uploads & media](./uploads). |
@@ -61,6 +63,7 @@ A collection is a type of content with many documents: posts, products, pages.
 | `fields` | The [fields](./fields). |
 | `labels` | `{ singular, plural }`, each a string or `{ en, th }`. |
 | `useAsTitle` | Top-level field shown as the document title in the admin. |
+| `editIn` | `'drawer'`: create and edit in a panel over the list, for small collections such as categories; relationship fields to it get a "Create" button that opens the same panel. Collections with drafts, versions or preview always use the full page. |
 | `icon` | Icon in the admin menu (default `file-text`); one of the names under [Branding the admin](#branding-the-admin). |
 | `drafts` | Adds `status` (`draft` \| `published`). See [Drafts](./drafts). |
 | `versions` | `true` or `{ max }`: keep a version of every save, with history and restore; with `drafts`, drafts of published documents are kept separately. See [Versions](./drafts#versions). |
