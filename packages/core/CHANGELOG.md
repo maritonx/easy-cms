@@ -1,5 +1,11 @@
 # @easy-cms/core
 
+## 0.10.0
+
+### Minor Changes
+
+- cab02f9: `easy-cms backup <file>` copies a SQLite database to a new file while the CMS keeps running (a consistent snapshot through `VACUUM INTO`). Databases expose it as the optional `db.backup(file)`; for Postgres, use `pg_dump`.
+
 ## 0.9.1
 
 No changes in this release.
