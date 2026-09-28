@@ -1,5 +1,13 @@
 # @easy-cms/next
 
+## 0.13.1
+
+### Patch Changes
+
+- ff63224: `withEasyCMS()` includes admin modules (such as the SEO plugin's `admin.js`) in the server build's file tracing, so their admin components also load on Vercel and with `output: 'standalone'`.
+- @easy-cms/admin@0.13.1
+  - @easy-cms/core@0.13.1
+
 ## 0.13.0
 
 ### Patch Changes
