@@ -187,6 +187,44 @@ describe('easy-cms CLI (FR-INS-06..08)', () => {
     })
   })
 
+  it("copies another config's database into an empty one", async () => {
+    const dir = project()
+    process.env.EASY_CMS_ADMIN_PASSWORD = 'a strong password'
+    try {
+      await cli('create-admin', '--email', 'ada@example.com', '--cwd', dir)
+      // The old database becomes the source; the project's config moves to a new database.
+      writeFileSync(
+        join(dir, 'easy-cms.old.config.ts'),
+        `import { sqlite } from '@easy-cms/db-sqlite'
+import config from './easy-cms.config.ts'
+export default { ...config, db: sqlite({ url: 'file:./cms.db' }) }
+`,
+      )
+      const main = readFileSync(join(dir, 'easy-cms.config.ts'), 'utf8')
+      writeFileSync(join(dir, 'easy-cms.config.ts'), main.replace('./cms.db', './new.db'))
+
+      expect(await cli('copy', '--cwd', dir)).toMatchObject({
+        code: 1,
+        err: expect.stringContaining('Missing --from'),
+      })
+      const copied = await cli('copy', '--from', 'easy-cms.old.config.ts', '--cwd', dir)
+      expect(copied).toMatchObject({ code: 0, out: expect.stringContaining('ecms_users: 1') })
+      expect(copied.out).toContain('Uploaded files were not copied')
+      // The admin is in the new database now.
+      expect(await cli('create-admin', '--email', 'ada@example.com', '--cwd', dir)).toMatchObject({
+        code: 1,
+        err: 'email: must be unique',
+      })
+      // A second copy would mix content: refused.
+      expect(await cli('copy', '--from', 'easy-cms.old.config.ts', '--cwd', dir)).toMatchObject({
+        code: 1,
+        err: expect.stringContaining('is not empty'),
+      })
+    } finally {
+      delete process.env.EASY_CMS_ADMIN_PASSWORD
+    }
+  })
+
   it('asks for the email and a hidden password in a terminal', async () => {
     const dir = project()
     const asked: { question: string; hidden: boolean }[] = []

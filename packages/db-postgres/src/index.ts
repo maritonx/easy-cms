@@ -73,6 +73,9 @@ export const postgresDialect: Dialect = {
     return sql`exists (select 1 from jsonb_array_elements(${onlyArray(array)}) as ${el}(value)${where ? sql` where ${where}` : sql``})`
   },
   jsonContains: (column, pattern) => sql`${column} @> ${JSON.stringify(pattern)}::jsonb`,
+  // The next id is one past the largest copied one (1 for an empty table).
+  resetSequenceSQL: (table, column) =>
+    `SELECT setval(pg_get_serial_sequence('"${table}"', '${column}'), COALESCE((SELECT MAX("${column}") FROM "${table}"), 0) + 1, false)`,
   firstElementValue: (array, lists, path, type) => {
     // Nested lists join to the element before them (functions in FROM are lateral); rows are
     // ordered by position at each level.

@@ -36,25 +36,39 @@ commit โฟลเดอร์ใหม่ รัน `npx easy-cms migrate` ใ
 
 ## แบบมีเนื้อหาที่ต้องเก็บไว้ {#with-content-to-keep}
 
-Easy CMS ยังไม่มีคำสั่งคัดลอกข้อมูลข้ามฐานข้อมูลในตัว สิ่งที่ทำได้ตอนนี้:
+`easy-cms copy` ย้ายทุกอย่าง: เอกสาร เวอร์ชัน ผู้ใช้ (จึง login ได้เหมือนเดิม) global และงานตั้งเวลา
+id ยังเหมือนเดิม relationship จึงยังชี้ไปที่เอกสารที่ถูกต้อง
 
-1. **สำรอง**ฐานข้อมูล SQLite (`npx easy-cms backup backups/before-postgres.db`) และโฟลเดอร์ uploads
-2. **สร้าง schema ของ Postgres** จาก config ตามด้านบน (`migrate:create init` แล้ว `migrate` กับฐานข้อมูลใหม่)
-   ให้มีทุกตารางและคอลัมน์ที่ Easy CMS ต้องใช้
-3. **คัดลอกแถวข้อมูล**ทีละตารางด้วยเครื่องมือฐานข้อมูล เช่น [pgloader](https://pgloader.io) แบบ "data only"
-   ตารางมีชื่อเดียวกัน (prefix `ecms_`) และคอลัมน์เดียวกันทั้งสองฐานข้อมูล
-4. **ตั้งค่า sequence ของ id ใหม่** เพื่อไม่ให้เอกสารใหม่ชนกับที่คัดลอกมา:
+1. **สำรองข้อมูล**ก่อน: `npx easy-cms backup backups/before-postgres.db`
+2. **เก็บ config ของฐานข้อมูลเก่าไว้** สร้าง `easy-cms.old.config.ts` ข้าง config หลัก ใช้ทุกอย่างเหมือนเดิม
+   และเปลี่ยนแค่ `db`:
 
-   ```sql
-   SELECT setval(pg_get_serial_sequence('ecms_posts', 'id'), (SELECT max(id) FROM ecms_posts));
+   ```ts [easy-cms.old.config.ts]
+   import { sqlite } from '@easy-cms/db-sqlite'
+   import config from './easy-cms.config'
+
+   export default { ...config, db: sqlite({ url: 'file:./cms.db' }) }
    ```
 
-   ทำซ้ำกับทุกตาราง `ecms_` ที่มีคอลัมน์ `id`
-5. **ตรวจ**เว็บกับฐานข้อมูลใหม่: เปิดหน้า admin เอกสารที่มี relationship และรูป และประวัติเวอร์ชัน
+3. **ให้ config หลักชี้ไปที่ Postgres** ตามหัวข้อด้านบน แล้วสร้าง migration ของ Postgres
+   (`rm -r easy-cms/migrations && npx easy-cms migrate:create init`)
+4. **เตรียมฐานข้อมูลใหม่** ในเครื่อง (PGlite หรือตั้ง `DATABASE_URL` ไว้) ขั้นถัดไปจะสร้างตารางให้เอง
+   ถ้าเป็นฐานข้อมูล production ให้รัน `NODE_ENV=production npx easy-cms migrate` พร้อม `DATABASE_URL` ของมันก่อน
+5. **คัดลอก** ในช่วงที่ไม่มีใครแก้เนื้อหา:
 
-::: warning ทดสอบกับสำเนาก่อน
-เรายังไม่ได้ทดสอบทุกเครื่องมือและทุกกรณีในขั้นที่ 3 ให้ลองย้ายทั้งหมดกับสำเนาข้อมูลก่อน และเก็บไฟล์สำรองของ SQLite
-ไว้จนกว่าเว็บบน Postgres จะใช้งานได้ดีสักระยะ
-:::
+   ```bash
+   npx easy-cms copy --from easy-cms.old.config.ts
+   # Copying from sqlite (easy-cms.old.config.ts) to postgres…
+   #   ecms_users: 3
+   #   ecms_posts: 42
+   #   …
+   # Copied 318 row(s) from 17 table(s).
+   ```
 
-ไฟล์อัปโหลดไม่ต้องย้าย ไฟล์ยังอยู่ใน `uploads/` หรือ bucket และเอกสารยังชี้ไปที่ไฟล์เดิม
+   ปลายทางต้องว่าง ถ้าเผลอรันซ้ำจึงไม่มีอะไรเปลี่ยน
+6. **ตรวจ**เว็บ: เปิดหน้า admin เอกสารที่มี relationship และรูป ประวัติของบทความ และลอง login
+
+ไฟล์อัปโหลดไม่ต้องย้าย ไฟล์ยังอยู่ใน `uploads/` หรือ bucket และเอกสารยังชี้ไปที่ไฟล์เดิม เมื่อเว็บบน Postgres
+ทำงานดีแล้ว ลบ `easy-cms.old.config.ts` ได้ (เก็บไฟล์สำรองไว้สักพัก)
+
+คำสั่งเดียวกันใช้กลับทางได้ด้วย คือจาก Postgres ไป SQLite

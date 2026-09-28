@@ -46,6 +46,7 @@ npx easy-cms <command> [--config <file>] [--cwd <dir>]
 | [`create-admin`](#create-admin) | Create a user. |
 | [`generate:types`](#generate-types) | Write TypeScript types for other apps. |
 | [`backup <file>`](#backup) | Copy the SQLite database while the CMS runs. |
+| [`copy --from <config>`](#copy) | Copy all content into another database, e.g. SQLite to Postgres. |
 | [`run-scheduled`](#run-scheduled) | Run due scheduled jobs and webhook retries once. |
 | [`serve`](#serve) | Run the CMS as its own server. |
 
@@ -112,6 +113,25 @@ npx easy-cms backup backups/cms-2026-09-28.db
 Copies the SQLite database to a new file while the CMS keeps running, as a consistent
 snapshot. The file must not exist yet. Uploads are not included: back up the uploads folder or
 bucket separately. For Postgres use `pg_dump`. See [Backups](./backups).
+
+### copy
+
+```bash
+npx easy-cms copy --from easy-cms.old.config.ts
+```
+
+Copies every document, version, user and global from the database of the `--from` config into
+the database of the project's config, for example from SQLite to Postgres (or back). Ids stay
+the same, so relationships, history and logins keep working.
+
+- Both configs need the same collections and fields: import the main config into the old one and
+  change only `db`. Different fields are refused.
+- The target must be empty. In development its tables are created; in production run
+  `easy-cms migrate` against it first.
+- Uploaded files are not copied; they stay in the uploads folder or bucket.
+- Stop writing to the source while copying, or copy from a [backup](#backup).
+
+See [Move from SQLite to Postgres](./recipes/sqlite-to-postgres).
 
 ### run-scheduled
 

@@ -37,6 +37,7 @@ export {
   type Config,
   defineConfig,
 } from './config.js'
+export { type CopyProgress, type CopyResult, copyDatabase } from './copy.js'
 export type * from './database.js'
 export {
   applyDefaults,

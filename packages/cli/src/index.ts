@@ -5,6 +5,7 @@ import { createInterface } from 'node:readline/promises'
 import { parseArgs } from 'node:util'
 import {
   ConfigError,
+  copyDatabase,
   createEasyCMS,
   EasyCMSError,
   generateTypes,
@@ -61,6 +62,7 @@ Commands:
   serve                   Run the CMS as its own server (admin + REST API)
   run-scheduled           Run due scheduled publishes and webhook retries
   backup <file>           Copy a SQLite database to a file while the CMS runs
+  copy --from <config>    Copy all content from another config's database into this one
 
 Options:
   --config <file>         Config file (default: easy-cms.config.ts)
@@ -101,6 +103,17 @@ as a consistent snapshot. The file must not exist yet. Uploads are not included:
 uploads folder or bucket separately.
 
 Postgres: use pg_dump, e.g. pg_dump --format=custom --file=cms.dump "$DATABASE_URL".
+`,
+  copy: `Usage: easy-cms copy --from <config> [options]
+
+Copies every document, version, user and global from the database of the config in --from into
+the database of this project's config (--config), for example from SQLite to Postgres. Ids stay
+the same, so relationships and logins keep working. Both configs must have the same collections
+and fields: import one into the other and change only \`db\`. The target must be empty; in
+development its tables are created, in production run \`easy-cms migrate\` first.
+
+Uploaded files are not copied: they stay in the uploads folder or bucket.
+Stop writing to the source while copying, or copy from a backup.
 `,
   'run-scheduled': `Usage: easy-cms run-scheduled [options]
 
@@ -163,6 +176,7 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
       io.out(`Wrote ${file}`)
       return 0
     }
+    if (command === 'copy') return await copy(values.from, config, cwd, logger, io)
     // create-admin writes a user, so the schema must exist: push in development like the app does.
     const schema =
       command === 'create-admin' && process.env.NODE_ENV !== 'production' ? 'push' : 'skip'
@@ -295,6 +309,7 @@ function parse(argv: readonly string[]) {
       config: { type: 'string' },
       cwd: { type: 'string' },
       out: { type: 'string' },
+      from: { type: 'string' },
       email: { type: 'string' },
       name: { type: 'string' },
       role: { type: 'string' },
@@ -345,6 +360,54 @@ async function serve(
   })
   await server.close()
   return 0
+}
+
+/** `easy-cms copy`: opens both databases and copies the source into the (empty) target. */
+async function copy(
+  from: string | undefined,
+  config: Awaited<ReturnType<typeof loadConfig>>,
+  cwd: string,
+  logger: Logger,
+  io: IO,
+): Promise<number> {
+  if (!from) {
+    io.err('Missing --from <config>.\n')
+    io.err(COMMAND_HELP.copy as string)
+    return 1
+  }
+  const sourceConfig = await loadConfig({ cwd, configFile: from })
+  // Only read the source: never change its schema.
+  const source = await createEasyCMS(sourceConfig, {
+    cwd,
+    schema: 'skip',
+    logger,
+    scheduler: false,
+  })
+  try {
+    const target = await createEasyCMS(config, {
+      cwd,
+      // Development: create the target's tables. Production: they must be migrated already.
+      schema: process.env.NODE_ENV === 'production' ? 'verify' : 'push',
+      logger,
+      interactive: io.interactive,
+      scheduler: false,
+    })
+    try {
+      io.out(`Copying from ${sourceConfig.db.name} (${from}) to ${config.db.name}…`)
+      const result = await copyDatabase(source.db, target.db, {
+        onTable: ({ table, rows }) => {
+          if (rows > 0) io.out(`  ${table}: ${rows}`)
+        },
+      })
+      io.out(`Copied ${result.rows} row(s) from ${result.tables} table(s).`)
+      io.out('Uploaded files were not copied; they stay in the uploads folder or bucket.')
+      return 0
+    } finally {
+      await target.destroy()
+    }
+  } finally {
+    await source.destroy()
+  }
 }
 
 /** Loads `<cwd>/.env` like Nuxt and Next do. Variables already set are kept. */

@@ -2,6 +2,7 @@ import { resolve } from 'node:path'
 import type {
   Database,
   DatabaseInitArgs,
+  DatabaseTransfer,
   FindArgs,
   ID,
   PaginatedDocs,
@@ -9,8 +10,8 @@ import type {
   Where,
 } from '@easy-cms/core'
 import { QueryError } from '@easy-cms/core'
-import { count, eq, inArray } from 'drizzle-orm'
-import type { AnyColumn, Dialect, DrizzleDb, SqlRunner } from './dialect.js'
+import { asc, count, eq, getTableColumns, getTableName, inArray } from 'drizzle-orm'
+import type { AnyColumn, AnyTable, Dialect, DrizzleDb, SqlRunner } from './dialect.js'
 import {
   deleteDocument,
   hydrate,
@@ -285,6 +286,56 @@ class DrizzleDatabase implements Database {
       this.write(async () => {
         await this.connection.runner.query(backupSQL(file))
       })
+  }
+
+  get transfer(): DatabaseTransfer {
+    const { tables, hash } = this.schema
+    const table = (name: string): AnyTable => {
+      const found = tables[name]
+      if (!found) throw new QueryError(`Unknown table "${name}"`)
+      return found
+    }
+    /** The primary key: `id` for documents and rows, `slug` for globals. */
+    const key = (t: AnyTable) => {
+      const columns = getTableColumns(t) as Record<string, AnyColumn>
+      return (columns.id ?? columns.slug) as AnyColumn
+    }
+    return {
+      schemaHash: hash,
+      tables: () => Object.keys(tables),
+      count: async (name) => {
+        const [row] = await this.db.select({ n: count() }).from(table(name))
+        return Number(row?.n ?? 0)
+      },
+      read: (name, offset, limit) => {
+        const t = table(name)
+        return this.db
+          .select()
+          .from(t)
+          .orderBy(asc(key(t)))
+          .limit(limit)
+          .offset(offset)
+      },
+      write: async (name, rows) => {
+        const t = table(name)
+        // One parameter per value: stay well under SQLite's and Postgres' limits for wide tables.
+        const size = Math.max(1, Math.floor(10_000 / Object.keys(getTableColumns(t)).length))
+        for (let i = 0; i < rows.length; i += size) {
+          const batch = rows.slice(i, i + size) as Record<string, unknown>[]
+          await this.write(() => this.db.insert(t).values(batch))
+        }
+      },
+      finish: async () => {
+        const { resetSequenceSQL } = this.dialect
+        if (!resetSequenceSQL) return
+        for (const t of Object.values(tables)) {
+          const id = (getTableColumns(t) as Record<string, AnyColumn>).id
+          // Serial ids (numbers); array rows have text ids.
+          if (id?.dataType === 'number')
+            await this.connection.runner.query(resetSequenceSQL(getTableName(t), 'id'))
+        }
+      },
+    }
   }
 
   async destroy(): Promise<void> {

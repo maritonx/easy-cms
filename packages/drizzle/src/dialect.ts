@@ -91,6 +91,11 @@ export interface Dialect {
   ): SQL
   /** SQL that copies the whole database to a file while it is in use (SQLite: `VACUUM INTO`). */
   backupSQL?(file: string): string
+  /**
+   * SQL that moves a serial column's sequence past its largest value, after rows were inserted
+   * with their ids (Postgres). SQLite needs none: AUTOINCREMENT follows inserted ids.
+   */
+  resetSequenceSQL?(table: string, column: string): string
   /** Placeholder for the n-th parameter (1-based) in raw SQL. */
   param(n: number): string
   /** CREATE TABLE IF NOT EXISTS for the migrations table. */

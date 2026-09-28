@@ -45,6 +45,7 @@ npx easy-cms <command> [--config <file>] [--cwd <dir>]
 | [`create-admin`](#create-admin) | สร้างผู้ใช้ |
 | [`generate:types`](#generate-types) | เขียน type ของ TypeScript สำหรับแอปอื่น |
 | [`backup <file>`](#backup) | คัดลอกฐานข้อมูล SQLite ขณะที่ CMS ทำงานอยู่ |
+| [`copy --from <config>`](#copy) | คัดลอกเนื้อหาทั้งหมดไปอีกฐานข้อมูล เช่น จาก SQLite ไป Postgres |
 | [`run-scheduled`](#run-scheduled) | รันงานตั้งเวลาที่ถึงกำหนดและส่ง webhook ซ้ำหนึ่งรอบ |
 | [`serve`](#serve) | รัน CMS เป็น server ของตัวเอง |
 
@@ -108,6 +109,23 @@ npx easy-cms backup backups/cms-2026-09-28.db
 คัดลอกฐานข้อมูล SQLite ไปไฟล์ใหม่ขณะที่ CMS ยังทำงาน เป็น snapshot ที่ข้อมูลตรงกันทั้งไฟล์
 ไฟล์ปลายทางต้องยังไม่มีอยู่ ไม่รวมไฟล์อัปโหลด ให้สำรองโฟลเดอร์ uploads หรือ bucket แยก
 สำหรับ Postgres ใช้ `pg_dump` ดู [Backup](./backups)
+
+### copy {#copy}
+
+```bash
+npx easy-cms copy --from easy-cms.old.config.ts
+```
+
+คัดลอกทุกเอกสาร เวอร์ชัน ผู้ใช้ และ global จากฐานข้อมูลของ config ใน `--from` ไปยังฐานข้อมูลของ config
+ของโปรเจกต์ เช่น จาก SQLite ไป Postgres (หรือกลับทาง) id ยังเหมือนเดิม relationship ประวัติ และการ login จึงใช้ได้ต่อ
+
+- config ทั้งสองต้องมี collection และ field เหมือนกัน: import config หลักเข้าไปใน config เก่าแล้วเปลี่ยนแค่ `db`
+  ถ้า field ต่างกันจะถูกปฏิเสธ
+- ฐานข้อมูลปลายทางต้องว่าง ตอนพัฒนาจะสร้างตารางให้ ส่วนบน production ให้รัน `easy-cms migrate` กับปลายทางก่อน
+- ไม่คัดลอกไฟล์อัปโหลด ไฟล์ยังอยู่ในโฟลเดอร์ uploads หรือ bucket เดิม
+- หยุดเขียนข้อมูลลงต้นทางระหว่างคัดลอก หรือคัดลอกจาก[ไฟล์สำรอง](#backup)
+
+ดู [ย้ายจาก SQLite ไป Postgres](./recipes/sqlite-to-postgres)
 
 ### run-scheduled {#run-scheduled}
 

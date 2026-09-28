@@ -82,8 +82,30 @@ export interface Database {
    * do that itself (SQLite). Others (Postgres) leave it out; use their own tools.
    */
   readonly backup?: ((file: string) => Promise<void>) | undefined
+  /** Raw table access for copying a whole database to another (`easy-cms copy`). */
+  readonly transfer?: DatabaseTransfer | undefined
 
   destroy(): Promise<void>
+}
+
+/**
+ * Reads and writes stored rows as they are, ids and hidden fields included, bypassing validation
+ * and hooks. Only for moving a database: `copyDatabase()`.
+ */
+export interface DatabaseTransfer {
+  /**
+   * Identifies the tables and columns the config produces, the same for every database kind.
+   * Two databases can be copied into each other when their hashes match.
+   */
+  readonly schemaHash: string
+  /** Every table, in an order that is safe to write. */
+  tables(): string[]
+  count(table: string): Promise<number>
+  /** Rows in a stable order (by primary key), `offset` and `limit` for batches. */
+  read(table: string, offset: number, limit: number): Promise<Record<string, unknown>[]>
+  write(table: string, rows: readonly Record<string, unknown>[]): Promise<void>
+  /** After all writes, e.g. moves id sequences past the copied ids so new documents fit. */
+  finish(): Promise<void>
 }
 
 /** What `sqlite()` / `postgres()` return and what `config.db` holds. */
