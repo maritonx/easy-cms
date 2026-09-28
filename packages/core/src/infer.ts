@@ -28,11 +28,30 @@ export interface BuiltinUsersCollection {
   ]
 }
 
-/** Every collection of a config, including the built-in users collection. */
+/** The built-in API keys collection (`apiKeys: true`); the key's hash is left out. */
+export interface BuiltinApiKeysCollection {
+  readonly slug: 'api-keys'
+  readonly fields: readonly [
+    { readonly name: 'name'; readonly type: 'text'; readonly required: true },
+    { readonly name: 'permissions'; readonly type: 'json' },
+    { readonly name: 'expiresAt'; readonly type: 'date' },
+    { readonly name: 'prefix'; readonly type: 'text' },
+    { readonly name: 'user'; readonly type: 'relationship'; readonly to: 'users' },
+    { readonly name: 'lastUsedAt'; readonly type: 'date' },
+  ]
+}
+
+/** `api-keys` when the config turns API keys on. */
+type ApiKeysOf<C extends Config> = C extends { readonly apiKeys: true }
+  ? BuiltinApiKeysCollection
+  : never
+
+/** Every collection of a config, including the built-in ones. */
 type AllCollections<C extends Config> =
   | NonNullable<C['collections']>[number]
   | BuiltinUsersCollection
   | BuiltinMediaCollection
+  | ApiKeysOf<C>
 
 /** The built-in media collection; its documents are typed as `MediaDocument`. */
 export interface BuiltinMediaCollection {
@@ -164,6 +183,7 @@ export type CollectionSlug<C extends Config> =
   | NonNullable<C['collections']>[number]['slug']
   | 'users'
   | 'media'
+  | ApiKeysOf<C>['slug']
 export type GlobalSlug<C extends Config> = NonNullable<C['globals']>[number]['slug']
 
 /** Document type of a collection, e.g. `CollectionDocument<typeof config, 'posts'>`. */

@@ -379,7 +379,7 @@ async function deleteSelected() {
   <template v-else>
     <nav class="crumbs" :aria-label="t('list.breadcrumb')">
       <!-- The menu section: user accounts are under Settings. -->
-      <span>{{ slug === 'users' ? t('nav.globals') : t('nav.collections') }}</span>
+      <span>{{ slug === 'users' || slug === 'api-keys' ? t('nav.globals') : t('nav.collections') }}</span>
       <ChevronRight :size="14" aria-hidden="true" />
       <span class="current">{{ label(collection.labels?.plural, collection.slug) }}</span>
     </nav>

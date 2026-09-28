@@ -185,6 +185,7 @@ export const ADMIN_ICONS = [
   'award',
   'ticket',
   'camera',
+  'key',
 ] as const
 
 export type AdminIcon = (typeof ADMIN_ICONS)[number]
@@ -341,6 +342,11 @@ export interface Config {
   readonly globals?: readonly GlobalConfig[]
   /** Custom REST endpoints, e.g. from plugins. */
   readonly endpoints?: readonly Endpoint[]
+  /**
+   * API keys for scripts and other apps (`Authorization: Bearer ecms_…`), managed in the admin
+   * under Settings. A key acts as its owner, limited to the collections and operations it lists.
+   */
+  readonly apiKeys?: boolean
   readonly plugins?: readonly Plugin[]
 }
 

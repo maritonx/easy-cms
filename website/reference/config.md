@@ -29,6 +29,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `collections` | `CollectionConfig[]` | `[]` | See [collections](#collections). |
 | `globals` | `GlobalConfig[]` | `[]` | See [globals](#globals). |
 | `endpoints` | `Endpoint[]` | `[]` | See [endpoints](#endpoints). |
+| `apiKeys` | `boolean` | `false` | API keys under Settings, for scripts and other apps. [API keys](/guide/api-keys) |
 | `plugins` | `Plugin[]` | `[]` | `(config) => config`, run in order before validation. [Plugins](/guide/plugins) |
 
 <!-- api: RoutesConfig -->

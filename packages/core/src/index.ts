@@ -1,4 +1,14 @@
 export * from './access.js'
+export {
+  API_KEY_GLOBAL_OPERATIONS,
+  API_KEY_OPERATIONS,
+  API_KEYS,
+  type ApiKeyContext,
+  type ApiKeyGlobalOperation,
+  type ApiKeyOperation,
+  type ApiKeyPermissions,
+  keyAllows,
+} from './api-keys.js'
 export { Auth, type LoginArgs, type Session } from './auth/auth.js'
 export { hashPassword, MIN_PASSWORD_LENGTH, verifyPassword } from './auth/password.js'
 export type { PreviewTarget } from './auth/tokens.js'

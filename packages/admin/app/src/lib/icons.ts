@@ -19,6 +19,7 @@ import {
   House,
   Image,
   Images,
+  KeyRound,
   Layers,
   LayoutGrid,
   Link,
@@ -98,6 +99,7 @@ const ICONS: Record<string, Component> = {
   award: Award,
   ticket: Ticket,
   camera: Camera,
+  key: KeyRound,
 }
 
 export const collectionIcon = (name?: string): Component => (name && ICONS[name]) || FileText

@@ -28,6 +28,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `collections` | `CollectionConfig[]` | `[]` | ดู [collections](#collections) |
 | `globals` | `GlobalConfig[]` | `[]` | ดู [globals](#globals) |
 | `endpoints` | `Endpoint[]` | `[]` | ดู [endpoints](#endpoints) |
+| `apiKeys` | `boolean` | `false` | API key ใต้ตั้งค่า สำหรับสคริปต์และแอปอื่น [API keys](/th/guide/api-keys) |
 | `plugins` | `Plugin[]` | `[]` | `(config) => config` ทำงานตามลำดับก่อนตรวจ config [Plugins](/th/guide/plugins) |
 
 <!-- api: RoutesConfig -->

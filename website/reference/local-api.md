@@ -102,6 +102,7 @@ to apply them, as the REST API does.
 
 | Method | Returns | |
 |---|---|---|
+| `createApiKey({ name, permissions?, expiresAt?, user? }, options?)` | `{ key, doc }` | A new [API key](/guide/api-keys) (with `apiKeys: true`); the key is returned only here. |
 | `documentPermissions(collection, id, user)` | `{ update, delete }` | What a user may do with one document. |
 | `destroy()` | — | Stops the scheduler, waits for webhook deliveries and closes the database. |
 

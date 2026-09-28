@@ -5,6 +5,7 @@ import PluginElement from '../components/PluginElement.vue'
 import { contentLocale } from '../lib/content-locale'
 import { fromLocalInput, toLocalInput } from '../lib/fields'
 import { label, t } from '../lib/i18n'
+import ApiKeyPermissions from './ApiKeyPermissions.vue'
 import ArrayField from './ArrayField.vue'
 import BlocksField from './BlocksField.vue'
 import FieldList from './FieldList.vue'
@@ -68,7 +69,16 @@ function onNumber(value: string) {
       {{ text }}<span v-if="field.required" class="field-required" aria-hidden="true">*</span>
       <span v-if="field.localized" class="field-locale" :title="t('locale.localized')" aria-hidden="true">{{ contentLocale()?.toUpperCase() }}</span>
     </span>
+    <!-- Built in: the permissions of an API key. -->
+    <ApiKeyPermissions
+      v-if="field.admin.component.tag === 'ecms-api-key-permissions'"
+      :model-value="modelValue"
+      :read-only="readOnly"
+      :labelledby="`${id}-label`"
+      @update:model-value="set"
+    />
     <PluginElement
+      v-else
       :component="field.admin.component"
       :value="modelValue ?? null"
       :path="path"

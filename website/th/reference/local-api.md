@@ -100,6 +100,7 @@ Local API เชื่อผู้เรียกและข้ามกฎส�
 
 | Method | คืนค่า | |
 |---|---|---|
+| `createApiKey({ name, permissions?, expiresAt?, user? }, options?)` | `{ key, doc }` | [API key](/th/guide/api-keys) ใหม่ (เมื่อมี `apiKeys: true`) key จะถูกคืนมาที่นี่ครั้งเดียว |
 | `documentPermissions(collection, id, user)` | `{ update, delete }` | ผู้ใช้ทำอะไรกับเอกสารนี้ได้บ้าง |
 | `destroy()` | — | หยุดตัวจับเวลา รอการส่ง webhook และปิดการเชื่อมต่อฐานข้อมูล |
 

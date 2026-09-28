@@ -539,6 +539,37 @@ test.describe('logged in as admin', () => {
     }
   })
 
+  test('creates an API key that scripts can use (apiKeys)', async ({ page }) => {
+    await page
+      .getByRole('navigation', { name: 'Main' })
+      .getByRole('link', { name: 'API keys', exact: true })
+      .click()
+    await page.getByRole('link', { name: 'Create the first one' }).click()
+    await page.getByRole('textbox', { name: 'Name', exact: true }).fill('E2E importer')
+    // Creating posts needs reading them: ticking Create ticks Read too.
+    await page.getByRole('checkbox', { name: 'Posts: Create' }).check()
+    await expect(page.getByRole('checkbox', { name: 'Posts: Read' })).toBeChecked()
+    await page.getByRole('button', { name: 'Save', exact: true }).click()
+
+    const dialog = page.getByRole('dialog', { name: 'Copy your new API key' })
+    const key = await dialog.getByRole('textbox', { name: 'API key' }).inputValue()
+    expect(key).toMatch(/^ecms_[0-9a-f]{8}_/)
+    await dialog.getByRole('button', { name: "I've copied it" }).click()
+    await expect(page).toHaveURL(/\/admin\/collections\/api-keys\/\d+$/)
+
+    // The key works over REST, only for what it lists, without cookies.
+    const api = test.info().project.use.baseURL
+    const headers = { authorization: `Bearer ${key}` }
+    const created = await page.request.post(`${api}/api/cms/posts`, {
+      headers,
+      data: { title: 'Written with an API key' },
+    })
+    expect(created.status()).toBe(201)
+    expect((await created.json()).status).toBe('draft')
+    const denied = await page.request.get(`${api}/api/cms/categories`, { headers })
+    expect(denied.status()).toBe(403)
+  })
+
   test('edits small collections in a drawer, and creates related documents in place', async ({
     page,
   }) => {

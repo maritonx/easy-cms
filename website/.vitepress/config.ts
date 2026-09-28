@@ -40,6 +40,7 @@ function sidebar(prefix: string, t: Labels): DefaultTheme.SidebarItem[] {
         'localization',
         'uploads',
         'auth',
+        'api-keys',
       ].map(page),
     },
     {
@@ -109,6 +110,7 @@ const en: Labels = {
   localization: 'Localization',
   uploads: 'Uploads & media',
   auth: 'Users & auth',
+  'api-keys': 'API keys',
   'local-api': 'Local API',
   'rest-api': 'REST API',
   typescript: 'TypeScript',
@@ -157,6 +159,7 @@ const th: Labels = {
   localization: 'หลายภาษา (localization)',
   uploads: 'อัปโหลดและ media',
   auth: 'ผู้ใช้และการยืนยันตัวตน',
+  'api-keys': 'API keys',
   'local-api': 'Local API',
   'rest-api': 'REST API',
   typescript: 'TypeScript',

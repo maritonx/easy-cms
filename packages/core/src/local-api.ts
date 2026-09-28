@@ -7,6 +7,13 @@ import {
   filterInput,
   stripFields,
 } from './access-control.js'
+import {
+  API_KEYS,
+  type ApiKeyOperation,
+  type ApiKeyPermissions,
+  keyAllows,
+  newApiKey,
+} from './api-keys.js'
 import { Auth } from './auth/auth.js'
 import { hashPassword, MIN_PASSWORD_LENGTH } from './auth/password.js'
 import { signPreviewToken, verifyPreviewToken } from './auth/tokens.js'
@@ -336,6 +343,7 @@ export class EasyCMS<C extends Config = Config> {
     const config = this.collection(MEDIA)
     const guard = guardOf(options)
     if (guard.enforce) {
+      this.checkKey(guard, { collection: MEDIA }, 'create')
       const allowed = await evaluateAccess(config.access?.create, { user: guard.user, data })
       if (allowed !== true) throw deny(guard.user)
     }
@@ -385,6 +393,51 @@ export class EasyCMS<C extends Config = Config> {
       for (const key of stored) await this.storage.delete(key).catch(() => {})
       throw error
     }
+  }
+
+  /**
+   * Creates an API key (needs `apiKeys: true`) and returns it once: only a hash is stored.
+   * With access enforced the key belongs to `user`; trusted calls name the owner in `data.user`.
+   */
+  async createApiKey(
+    data: {
+      name: string
+      permissions?: ApiKeyPermissions
+      expiresAt?: string | Date | null
+      user?: ID
+    },
+    options: AccessOptions = {},
+  ): Promise<{ key: string; doc: Record<string, unknown> }> {
+    if (!this.config.collections.some((c) => c.slug === API_KEYS))
+      throw new QueryError('API keys are off: set `apiKeys: true` in the config')
+    const config = this.collection(API_KEYS)
+    const guard = guardOf(options)
+    if (guard.enforce) {
+      const allowed = await evaluateAccess(config.access?.create, { user: guard.user })
+      if (allowed !== true) throw deny(guard.user)
+    }
+    const owner = guard.enforce ? guard.user?.id : data.user
+    if (owner === undefined || owner === null)
+      throw new ValidationError(API_KEYS, [{ field: 'user', message: 'is required' }])
+    const { key, prefix, hash } = newApiKey()
+    const expiresAt = data.expiresAt instanceof Date ? data.expiresAt.toISOString() : data.expiresAt
+    const created = await this.createDocument(
+      config,
+      {
+        name: data.name,
+        permissions: data.permissions ?? {},
+        expiresAt: expiresAt ?? null,
+        prefix,
+        user: owner,
+      },
+      { depth: 0 },
+      guard,
+    )
+    // The hash is a hidden field, which input never sets: store it directly.
+    const raw = (await this.db.findById({ collection: API_KEYS, id: created.id })) as RawDocument
+    const { id: _id, ...rest } = raw
+    await this.db.update({ collection: API_KEYS, id: created.id, data: { ...rest, keyHash: hash } })
+    return { key, doc: created as Record<string, unknown> }
   }
 
   /** Public URL of a stored file. */
@@ -528,6 +581,7 @@ export class EasyCMS<C extends Config = Config> {
     let parsed: ID | undefined
     if (id === null) {
       if (guard.enforce) {
+        this.checkKey(guard, { collection }, 'create')
         const allowed = await evaluateAccess(config.access?.create, { user: guard.user, data: raw })
         if (allowed !== true) throw deny(guard.user)
       }
@@ -682,6 +736,8 @@ export class EasyCMS<C extends Config = Config> {
       parsed === undefined ? null : await this.db.findById({ collection, id: parsed })
     if (!existing || parsed === undefined) throw new NotFoundError(collection, id)
     await this.checkDocumentAccess(config, 'update', guard, parsed, raw)
+    if (config.drafts && (mode === 'unpublish' || raw.status === 'published'))
+      this.checkKey(guard, { collection }, 'publish')
     // With separate drafts, edits apply to the pending draft when there is one.
     const [current] = (await this.withDrafts(config, [existing])) as [RawDocument]
 
@@ -918,6 +974,8 @@ export class EasyCMS<C extends Config = Config> {
     const config = this.global(slug)
     const guard = guardOf(options)
     await this.checkGlobalAccess(config, 'update', guard)
+    if (config.drafts && (mode === 'unpublish' || raw.status === 'published'))
+      this.checkKey(guard, { global: slug }, 'publish')
     const input = await filterInput(
       config.fields,
       raw,
@@ -1208,6 +1266,7 @@ export class EasyCMS<C extends Config = Config> {
       parsed === undefined ? null : await this.db.findById({ collection, id: parsed })
     if (!existing || parsed === undefined) throw new NotFoundError(collection, id)
     await this.checkDocumentAccess(config, 'update', guardOf(options), parsed, undefined)
+    this.checkKey(guardOf(options), { collection }, 'publish')
     return { config, parsed }
   }
 
@@ -1215,6 +1274,7 @@ export class EasyCMS<C extends Config = Config> {
     const config = this.global(slug)
     if (!config.schedule) throw new QueryError(`"${slug}" has no schedule`)
     await this.checkGlobalAccess(config, 'update', guardOf(options))
+    this.checkKey(guardOf(options), { global: slug }, 'publish')
   }
 
   private async addJob(
@@ -1334,9 +1394,21 @@ export class EasyCMS<C extends Config = Config> {
     return config
   }
 
+  /** Refuses what a request's API key does not allow (see `ApiKeyPermissions`). */
+  private checkKey(
+    guard: Guard,
+    target: { collection: string } | { global: string },
+    operation: ApiKeyOperation,
+  ) {
+    if (!guard.enforce || keyAllows(guard.user, target, operation)) return
+    const name = 'collection' in target ? target.collection : target.global
+    throw new ForbiddenError(`This API key may not ${operation} "${name}"`)
+  }
+
   /** The query constraint read access adds, or `undefined` when there is none. Throws when denied. */
   private async readWhere(config: CollectionConfig, guard: Guard, where: Where | undefined) {
     if (!guard.enforce) return where
+    this.checkKey(guard, { collection: config.slug }, 'read')
     const access = await evaluateAccess(config.access?.read, { user: guard.user })
     if (access === false) throw deny(guard.user)
     return andWhere(where, access)
@@ -1350,6 +1422,7 @@ export class EasyCMS<C extends Config = Config> {
     data: Data | undefined,
   ) {
     if (!guard.enforce) return
+    this.checkKey(guard, { collection: config.slug }, operation)
     const access = await evaluateAccess(config.access?.[operation], {
       user: guard.user,
       id,
@@ -1372,6 +1445,7 @@ export class EasyCMS<C extends Config = Config> {
     guard: Guard,
   ) {
     if (!guard.enforce) return
+    this.checkKey(guard, { global: config.slug }, operation)
     const access = await evaluateAccess(config.access?.[operation], { user: guard.user })
     if (typeof access === 'object')
       throw new QueryError(`${operation} access of global "${config.slug}" must return a boolean`)
@@ -1444,6 +1518,9 @@ export class EasyCMS<C extends Config = Config> {
     const guard = guardOf(options)
     const collection = config.slug
     if (guard.enforce) {
+      this.checkKey(guard, { collection }, 'create')
+      if (config.drafts && raw.status === 'published')
+        this.checkKey(guard, { collection }, 'publish')
       const allowed = await evaluateAccess(config.access?.create, { user: guard.user, data: raw })
       if (typeof allowed === 'object')
         throw new QueryError(`create access of "${collection}" must return a boolean`)

@@ -2,6 +2,7 @@
 import { CalendarClock, ChevronDown, ChevronLeft, Eye, EyeOff, Link2, Trash2 } from '@lucide/vue'
 import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
+import ApiKeyCreated from '../components/ApiKeyCreated.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import LivePreview from '../components/LivePreview.vue'
 import LocaleSwitcher from '../components/LocaleSwitcher.vue'
@@ -115,6 +116,12 @@ provide(FORM, {
   id: computed(() => id ?? null),
 })
 const splitOpen = ref(false)
+const newKey = ref<{ key: string; id: string | number } | null>(null)
+async function closeNewKey() {
+  const created = newKey.value
+  newKey.value = null
+  if (created) await router.replace(`/collections/${slug}/${created.id}`)
+}
 /** Replaces the form (like FieldList does), so watchers see the change. */
 function setField(name: string, value: string) {
   form.value = { ...form.value, [name]: value }
@@ -310,7 +317,9 @@ async function save(status?: 'draft' | 'published') {
     if (isUsers && String(saved.id) === String(session.user?.id)) await loadSession()
     if (!id) {
       setFlash(t('edit.created'))
-      await router.replace(`/collections/${slug}/${saved.id}`)
+      // A new API key is shown once; go to its page when the dialog is closed.
+      if (typeof saved.key === 'string') newKey.value = { key: saved.key, id: saved.id }
+      else await router.replace(`/collections/${slug}/${saved.id}`)
     }
   } catch (e) {
     if (e instanceof ApiError) {
@@ -595,6 +604,7 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
       @cancel="confirmingDelete = false"
     />
   </form>
+  <ApiKeyCreated v-if="newKey" :api-key="newKey.key" @close="closeNewKey" />
 </template>
 
 <style scoped>

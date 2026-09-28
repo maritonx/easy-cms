@@ -10,6 +10,8 @@ export default defineConfig({
     : postgres({ pglite: process.env.PGLITE_DIR ?? '.pglite' }),
   // The admin menu: posts first; users are listed under Settings.
   admin: { locale: 'th', menu: ['posts', 'categories', 'media'] },
+  // API keys for scripts and AI assistants, managed under Settings → API keys.
+  apiKeys: true,
   // Posts and the site name in Thai and English; the slug and other fields are shared.
   localization: { locales: ['th', 'en'], defaultLocale: 'th' },
   collections: [

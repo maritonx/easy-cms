@@ -7,6 +7,8 @@ export default defineConfig({
   db: sqlite({ url: process.env.DATABASE_URL ?? 'file:./cms.db' }),
   // The admin menu: posts first; users are listed under Settings.
   admin: { locale: 'th', menu: ['posts', 'categories', 'media'] },
+  // API keys for scripts and AI assistants, managed under Settings → API keys.
+  apiKeys: true,
   // Posts and the site name in Thai and English; the slug and other fields are shared.
   localization: { locales: ['th', 'en'], defaultLocale: 'th' },
   upload: {

@@ -101,7 +101,8 @@ curl -s -X POST https://example.com/api/cms/users/login \
 curl https://example.com/api/cms/posts?draft=true -H "Authorization: Bearer $TOKEN"
 ```
 
-request ที่ใช้ `Authorization: Bearer` ไม่ต้องใช้ CSRF token ให้บัญชีแบบนี้แยกเป็นของตัวเอง และใช้บทบาทน้อยที่สุดที่พอใช้งาน
+request ที่ใช้ `Authorization: Bearer` ไม่ต้องใช้ CSRF token สำหรับสคริปต์และแอป ควรใช้
+[API key](./api-keys) แทน เพราะไม่หมดอายุตาม session และจำกัดสิทธิ์ให้เท่าที่แอปต้องใช้ได้
 
 ### จำกัดการ login {#login-limits}
 

@@ -1,4 +1,5 @@
 import type { AuthUser } from '../access.js'
+import { API_KEYS, type ApiKeyPermissions } from '../api-keys.js'
 import type { Session } from '../auth/auth.js'
 import { safeEqual } from '../auth/tokens.js'
 import { INTERNAL_COLLECTIONS, MEDIA, USERS } from '../builtins.js'
@@ -81,6 +82,9 @@ export function createRestHandler<C extends Config>(
 
       const { token, via } = readToken(request)
       const user = token ? await cms.auth.verify(token) : null
+      // A script sending a bad key should hear so, not get anonymous access.
+      if (!user && via === 'bearer' && token?.startsWith('ecms_'))
+        throw new UnauthorizedError('Invalid or expired API key')
       const ctx: Context = { request, url, user, via: user ? via : null, token, headers }
 
       const method = request.method.toUpperCase()
@@ -339,6 +343,22 @@ async function route(
       status: 201,
       body: await cms.upload(file, data, { ...access, ...parseDepth(ctx.url) }),
     }
+  }
+
+  // API keys are created with a generated secret, returned only in this response.
+  if (first === API_KEYS && second === undefined && method === 'POST') {
+    const body = await readJson(ctx.request)
+    const { key, doc } = await cms.createApiKey(
+      {
+        name: typeof body.name === 'string' ? body.name : '',
+        ...(body.permissions !== undefined
+          ? { permissions: body.permissions as ApiKeyPermissions }
+          : {}),
+        ...(typeof body.expiresAt === 'string' ? { expiresAt: body.expiresAt } : {}),
+      },
+      access,
+    )
+    return { status: 201, body: { ...doc, key } }
   }
 
   // Collections

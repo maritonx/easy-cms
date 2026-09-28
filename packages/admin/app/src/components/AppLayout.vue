@@ -18,9 +18,12 @@ const readable = computed(() =>
     session.schema?.menu,
   ),
 )
-/** Content collections; user accounts are listed under Settings. */
-const collections = computed(() => readable.value.filter((c) => c.slug !== 'users'))
-const users = computed(() => readable.value.find((c) => c.slug === 'users'))
+/** Listed under Settings rather than Content. */
+const SETTINGS = ['users', 'api-keys']
+const collections = computed(() => readable.value.filter((c) => !SETTINGS.includes(c.slug)))
+const settingsCollections = computed(() =>
+  SETTINGS.flatMap((slug) => readable.value.filter((c) => c.slug === slug)),
+)
 const globals = computed(() => session.schema?.globals.filter((g) => g.permissions.read) ?? [])
 
 /** Small screens: the menu opens over the page. */
@@ -111,7 +114,7 @@ async function onLogout() {
         </RouterLink>
       </template>
 
-      <template v-if="globals.length || users">
+      <template v-if="globals.length || settingsCollections.length">
         <h2 class="nav-heading">{{ t('nav.globals') }}</h2>
         <RouterLink
           v-for="g in globals"
@@ -123,10 +126,16 @@ async function onLogout() {
           <component :is="globalIcon(g.icon)" :size="18" aria-hidden="true" />
           <span>{{ label(g.label, g.slug) }}</span>
         </RouterLink>
-        <RouterLink v-if="users" to="/collections/users" class="nav-link" active-class="active">
-          <component :is="collectionIcon(users.icon)" :size="18" aria-hidden="true" />
-          <span>{{ label(users.labels?.plural, users.slug) }}</span>
-          <span v-if="counts.users !== undefined" class="nav-count" aria-hidden="true">{{ counts.users }}</span>
+        <RouterLink
+          v-for="c in settingsCollections"
+          :key="c.slug"
+          :to="`/collections/${c.slug}`"
+          class="nav-link"
+          active-class="active"
+        >
+          <component :is="collectionIcon(c.icon)" :size="18" aria-hidden="true" />
+          <span>{{ label(c.labels?.plural, c.slug) }}</span>
+          <span v-if="counts[c.slug] !== undefined" class="nav-count" aria-hidden="true">{{ counts[c.slug] }}</span>
         </RouterLink>
       </template>
 

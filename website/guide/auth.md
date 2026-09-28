@@ -103,8 +103,8 @@ curl -s -X POST https://example.com/api/cms/users/login \
 curl https://example.com/api/cms/posts?draft=true -H "Authorization: Bearer $TOKEN"
 ```
 
-Requests with `Authorization: Bearer` need no CSRF token. Give such users their own account and
-the smallest role that works.
+Requests with `Authorization: Bearer` need no CSRF token. For scripts and apps, prefer
+[API keys](./api-keys): they don't expire with a session and can be limited to what the app needs.
 
 ### Login limits
 

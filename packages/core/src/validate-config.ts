@@ -17,6 +17,7 @@ const RESERVED_SLUGS = new Set([
   'document-versions',
   'scheduled-jobs',
   'webhook-deliveries',
+  'api-keys',
   'jobs',
   'migrations',
   'access',
@@ -79,6 +80,8 @@ export function validateConfig(config: Config): ConfigIssue[] {
   })
 
   validateEndpoints(config, collectionSlugs, add)
+  const apiKeys: unknown = config.apiKeys
+  if (apiKeys !== undefined && typeof apiKeys !== 'boolean') add('apiKeys', 'must be true or false')
 
   collections.forEach((collection, i) => {
     const path = `collections.${collection.slug ?? `[${i}]`}`
@@ -620,7 +623,7 @@ function validateComponents(components: unknown, path: string, add: Add) {
 const ENDPOINT_METHODS = ['get', 'post', 'put', 'patch', 'delete']
 const ENDPOINT_SEGMENT = /^(:[A-Za-z_][A-Za-z0-9_]*|[A-Za-z0-9._~-]+)$/
 /** First path segments the built-in REST API uses besides collection slugs. */
-const RESERVED_ENDPOINT_ROOTS = new Set(['users', 'globals', 'admin', 'jobs', 'media'])
+const RESERVED_ENDPOINT_ROOTS = new Set(['users', 'globals', 'admin', 'jobs', 'media', 'api-keys'])
 
 function validateEndpoints(config: Config, collectionSlugs: ReadonlySet<string>, add: Add) {
   const endpoints: unknown = config.endpoints

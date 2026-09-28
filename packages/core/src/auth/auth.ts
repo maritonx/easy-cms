@@ -1,5 +1,13 @@
 import type { AuthUser, ID } from '../access.js'
 import { stripFields } from '../access-control.js'
+import {
+  API_KEYS,
+  type ApiKeyContext,
+  type ApiKeyPermissions,
+  isApiKey,
+  parseApiKey,
+  secretMatches,
+} from '../api-keys.js'
 import { LOGIN_ATTEMPTS, SESSIONS, USERS } from '../builtins.js'
 import type { RawDocument } from '../database.js'
 import { ForbiddenError, TooManyRequestsError, UnauthorizedError } from '../errors.js'
@@ -98,9 +106,13 @@ export class Auth {
     if (session) await this.db.delete({ collection: SESSIONS, id: session.id })
   }
 
-  /** Returns the user for a signed session token, or `null` if it is invalid or expired. */
+  /**
+   * Returns the user for a signed session token, or for an API key (`ecms_…`, with `apiKey` set
+   * on the user), or `null` if it is invalid or expired.
+   */
   async verify(signedToken: string | undefined | null): Promise<AuthUser | null> {
     if (!signedToken) return null
+    if (isApiKey(signedToken)) return this.verifyApiKey(signedToken)
     const token = unsignToken(this.config.secret, signedToken)
     if (!token) return null
     const session = await this.findSession(token)
@@ -138,6 +150,42 @@ export class Auth {
     })
     for (const session of sessions.docs)
       await this.db.delete({ collection: SESSIONS, id: session.id })
+  }
+
+  /** The owner of an API key, limited by the key; `null` when unknown, expired or disabled. */
+  private async verifyApiKey(token: string): Promise<AuthUser | null> {
+    if (!this.cms.config.collections.some((c) => c.slug === API_KEYS)) return null
+    const parsed = parseApiKey(token)
+    if (!parsed) return null
+    const { docs } = await this.db.find({
+      collection: API_KEYS,
+      where: { prefix: { equals: parsed.prefix } },
+      sort: [],
+      limit: 1,
+      page: 1,
+    })
+    const key = docs[0]
+    if (!key || !secretMatches(parsed.secret, key.keyHash)) return null
+    const now = new Date()
+    if (typeof key.expiresAt === 'string' && key.expiresAt <= now.toISOString()) return null
+    const owner = await this.db.findById({ collection: USERS, id: key.user as ID })
+    if (!owner || owner.active === false) return null
+    // At most one write a minute per key, so busy keys don't write on every request.
+    const last = typeof key.lastUsedAt === 'string' ? Date.parse(key.lastUsedAt) : 0
+    if (now.getTime() - last > 60_000) {
+      const { id: _id, ...rest } = key
+      await this.db.update({
+        collection: API_KEYS,
+        id: key.id,
+        data: { ...rest, lastUsedAt: now.toISOString() },
+      })
+    }
+    const apiKey: ApiKeyContext = {
+      id: key.id,
+      name: String(key.name ?? ''),
+      permissions: (key.permissions ?? {}) as ApiKeyPermissions,
+    }
+    return { ...(await this.toAuthUser(owner)), apiKey }
   }
 
   // -------------------------------------------------------------------------
