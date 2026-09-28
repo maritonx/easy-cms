@@ -1,5 +1,13 @@
 # เริ่มต้นใช้งาน {#getting-started}
 
+::: info หน้านี้สอนอะไร
+เพิ่ม Easy CMS ให้โปรเจกต์ Nuxt หรือ Next.js (หรือรันแยกเอง) สร้างผู้ดูแลคนแรก และดึงเนื้อหาไปแสดงในหน้าเว็บ
+
+**ควรอ่านก่อน:** [Easy CMS คืออะไร](./what-is-easy-cms)
+:::
+
+<Screenshot name="dashboard" alt="แดชบอร์ดของหน้า admin หลัง login" />
+
 คุณต้องมีโปรเจกต์ Nuxt 4 หรือ Next.js 15+ และ Node.js ≥ 22.12 ใช้ framework อื่น หรือไม่ใช้เลย?
 ให้รัน Easy CMS เป็น [standalone server](./standalone)
 
@@ -63,7 +71,7 @@ export default async function Home() {
 โดยค่าเริ่มต้น `find` จะคืนเฉพาะเอกสารที่เผยแพร่แล้ว และ `post.title` มี type เป็น `string`
 เพราะ config ระบุว่า field นี้เป็นข้อความที่จำเป็นต้องกรอก
 
-## ขั้นตอนถัดไป {#next-steps}
+## ขั้นต่อไป {#next-steps}
 
 - ออกแบบโครงสร้างเนื้อหา: [Configuration](./configuration) และ [Fields](./fields)
 - กำหนดว่าใครทำอะไรได้บ้าง: [การควบคุมสิทธิ์](./access-control)

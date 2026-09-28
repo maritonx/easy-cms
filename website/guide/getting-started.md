@@ -1,5 +1,13 @@
 # Getting started
 
+::: info What you'll learn
+Add Easy CMS to a Nuxt or Next.js project (or run it on its own), create the first admin and read content in a page.
+
+**Before this page:** [What is Easy CMS?](./what-is-easy-cms).
+:::
+
+<Screenshot name="dashboard" alt="The admin dashboard after logging in" />
+
 You need a Nuxt 4 or Next.js 15+ project and Node.js ≥ 22.12. Using another framework, or none?
 Run Easy CMS as a [standalone server](./standalone).
 

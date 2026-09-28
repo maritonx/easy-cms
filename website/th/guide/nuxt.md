@@ -1,5 +1,11 @@
 # Nuxt {#nuxt}
 
+::: info หน้านี้สอนอะไร
+Nuxt module ติดตั้งหน้า admin และ API อย่างไร มีตัวเลือกอะไร และดึงเนื้อหาใน server route และหน้าเว็บอย่างไร
+
+**ควรอ่านก่อน:** [เริ่มใช้งาน](./getting-started)
+:::
+
 `@easy-cms/nuxt` คือ module สำหรับ Nuxt 4
 
 ```ts
@@ -55,3 +61,8 @@ export default defineEventHandler(async (event) => {
   และสถาปัตยกรรมเดียวกับที่ deploy และเริ่ม server จาก root ของโปรเจกต์
 
 ดู[ตัวอย่าง Nuxt](https://github.com/maritonx/easy-cms/tree/main/examples/nuxt-blog)
+
+## ขั้นต่อไป {#next-steps}
+
+- [Local API](./local-api): อ่านและเขียนเนื้อหาใน server route
+- [ตัวอย่างสด (live preview)](./live-preview): แสดงการแก้ที่ยังไม่บันทึกบนหน้าเว็บ

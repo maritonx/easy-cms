@@ -1,5 +1,11 @@
 # Backups & upgrades
 
+::: info What you'll learn
+What to back up, how to restore, and how to upgrade Easy CMS safely.
+
+**Before this page:** [Migrations & deployment](./deployment).
+:::
+
 Easy CMS keeps everything in two places: the **database** (documents, users, versions, scheduled
 jobs, queued webhooks and the migrations table) and the **uploads** (local `upload.dir` or your
 S3 bucket). Back up both. It doesn't back them up for you.
@@ -87,3 +93,8 @@ Easy CMS follows [semantic versioning](https://semver.org), with the usual pre-1
   upgrade guide. Deprecated APIs keep working, with a warning, until the next major.
 - **Security fixes** go to the latest minor release (and, from 1.0, to the previous major for six
   months). See the [security policy](https://github.com/maritonx/easy-cms/blob/main/SECURITY.md).
+
+## Next steps
+
+- [CLI](./cli): the backup command.
+- [Security](./security): keep backups safe too.

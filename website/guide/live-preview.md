@@ -1,5 +1,13 @@
 # Live preview
 
+::: info What you'll learn
+Show editors the real page next to the form, updated as they type, before saving.
+
+**Before this page:** [Drafts, versions & scheduling](./drafts).
+:::
+
+<Screenshot name="preview" alt="Live preview next to the form" />
+
 Editors see the real page next to the form, updated as they type, before anything is saved.
 
 ```ts
@@ -95,3 +103,8 @@ creates one, e.g. for a "share preview link" button.
 - A preview token only opens the document it was made for, expires after an hour, and is refused
   when tampered with. Treat preview URLs like a temporary share link.
 - Only users who may update a document (or create one, for new documents) can preview it.
+
+## Next steps
+
+- [Localization](./localization): preview each language.
+- [SEO](./seo): preview search results too.

@@ -1,5 +1,11 @@
 # Local API {#local-api}
 
+::: info หน้านี้สอนอะไร
+ทุกฟังก์ชันของ Local API ที่มี type: ค้นหา สร้าง แก้ ลบ ฉบับร่าง เวอร์ชัน และตัวเลือกเรื่องสิทธิ์
+
+**ควรอ่านก่อน:** [การตั้งค่า](./configuration)
+:::
+
 Local API คือวิธีที่โค้ดฝั่ง server อ่านและเขียนเนื้อหาโดยไม่ต้องผ่าน HTTP:
 
 ```ts
@@ -94,3 +100,8 @@ string`, `cms.create` บังคับให้ใส่ field ที่จำ
 error มี `status` คล้าย HTTP: `ValidationError` (400 พร้อม `errors: [{ field, message }]`),
 `UnauthorizedError` (401), `ForbiddenError` (403), `NotFoundError` (404),
 `PayloadTooLargeError` (413), `TooManyRequestsError` (429), `QueryError` (400)
+
+## ขั้นต่อไป {#next-steps}
+
+- [TypeScript](./typescript): type ที่ได้กลับมา
+- [REST API](./rest-api): ทำแบบเดียวกันผ่าน HTTP

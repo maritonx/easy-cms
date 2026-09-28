@@ -1,5 +1,11 @@
 # Local API
 
+::: info What you'll learn
+Every function of the typed Local API: finding, creating, updating, deleting, drafts, versions and access options.
+
+**Before this page:** [Configuration](./configuration).
+:::
+
 The Local API is how your server code reads and writes content, without HTTP:
 
 ```ts
@@ -94,3 +100,8 @@ string`, `cms.create` requires required fields, and unknown collection names are
 Errors carry an HTTP-like `status`: `ValidationError` (400, with `errors: [{ field, message }]`),
 `UnauthorizedError` (401), `ForbiddenError` (403), `NotFoundError` (404),
 `PayloadTooLargeError` (413), `TooManyRequestsError` (429), `QueryError` (400).
+
+## Next steps
+
+- [TypeScript](./typescript): the types it returns.
+- [REST API](./rest-api): the same over HTTP.

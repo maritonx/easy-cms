@@ -1,5 +1,11 @@
 # Plugins {#plugins}
 
+::: info หน้านี้สอนอะไร
+วิธีใช้ plugin และเขียน plugin เองด้วย field, REST endpoint และ component ในหน้า admin
+
+**ควรอ่านก่อน:** [การตั้งค่า](./configuration), [Hooks](./hooks)
+:::
+
 plugin คือฟังก์ชันที่รับ config ของคุณเข้ามาแล้วคืน config ใหม่ จึงเพิ่ม field, collection, hook,
 [REST endpoint](#endpoints) และ [admin components](#admin-components) ได้
 
@@ -201,3 +207,8 @@ customElements.define('ecms-color-picker', ColorPicker)
 - admin module ทำงานด้วยสิทธิ์ของผู้ที่ login อยู่ ติดตั้งเฉพาะ plugin ที่เชื่อถือได้ เหมือน dependency อื่น ๆ
 - Nuxt คัดลอกไฟล์ module เข้าไปใน build ให้เอง ถ้าใช้ Next.js แบบ `output: 'standalone'`
   ให้เพิ่มไฟล์เหล่านี้ใน `outputFileTracingIncludes`
+
+## ขั้นต่อไป {#next-steps}
+
+- [SEO](./seo): plugin SEO
+- [REST API](./rest-api): endpoint อยู่ใน API อย่างไร

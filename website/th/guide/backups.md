@@ -1,5 +1,11 @@
 # Backup และการอัปเกรด {#backups-and-upgrades}
 
+::: info หน้านี้สอนอะไร
+ต้องสำรองอะไร กู้คืนอย่างไร และอัปเกรด Easy CMS อย่างปลอดภัย
+
+**ควรอ่านก่อน:** [Migration และการ deploy](./deployment)
+:::
+
 Easy CMS เก็บข้อมูลไว้สองที่: **ฐานข้อมูล** (เอกสาร, ผู้ใช้, versions, งานที่ตั้งเวลา, webhook ที่รอส่ง และตาราง migrations)
 และ **ไฟล์อัปโหลด** (`upload.dir` บนเครื่อง หรือ bucket S3) ต้อง backup ทั้งสองอย่าง Easy CMS ไม่ได้ backup ให้
 
@@ -78,3 +84,8 @@ Easy CMS ใช้ [semantic versioning](https://semver.org) ตามกติ�
   API ที่เลิกใช้จะยังทำงานพร้อมคำเตือนจนถึง major ถัดไป
 - **การแก้ช่องโหว่** ออกให้ minor release ล่าสุด (และตั้งแต่ 1.0 ให้ major ก่อนหน้าด้วยเป็นเวลาหกเดือน)
   ดู[นโยบายความปลอดภัย](https://github.com/maritonx/easy-cms/blob/main/SECURITY.md)
+
+## ขั้นต่อไป {#next-steps}
+
+- [CLI](./cli): คำสั่ง backup
+- [ความปลอดภัย](./security): ดูแลไฟล์สำรองให้ปลอดภัย

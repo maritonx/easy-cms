@@ -1,5 +1,11 @@
 # Access control
 
+::: info What you'll learn
+How to decide who may read, create, update and delete, per collection, per document and per field.
+
+**Before this page:** [Configuration](./configuration), [Users & auth](./auth).
+:::
+
 Access rules are functions in the config. They decide what the REST API (and so the admin UI)
 lets each user do. The Local API trusts its caller and skips them unless you ask for them.
 
@@ -70,3 +76,8 @@ Without `overrideAccess: false` the Local API does everything; it's for trusted 
 
 Logged-in users can read users; admins create and delete them; users update themselves but not
 their own `role` or `active`. The last active admin can't be demoted, deactivated or deleted.
+
+## Next steps
+
+- [Hooks](./hooks): run code when content changes.
+- [Security](./security): what else is protected.

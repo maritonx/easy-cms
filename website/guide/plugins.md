@@ -1,5 +1,11 @@
 # Plugins
 
+::: info What you'll learn
+How to use plugins, and how to write your own with fields, REST endpoints and admin components.
+
+**Before this page:** [Configuration](./configuration), [Hooks](./hooks).
+:::
+
 A plugin is a function that receives your config and returns a new one. It can add fields,
 collections, hooks, [REST endpoints](#endpoints) and [admin components](#admin-components).
 
@@ -207,3 +213,8 @@ admin's to match its light and dark themes: `--text`, `--text-muted`, `--surface
   would any dependency.
 - Nuxt copies the module files into its build. With Next.js `output: 'standalone'`, add them to
   `outputFileTracingIncludes`.
+
+## Next steps
+
+- [SEO](./seo): the SEO plugin.
+- [REST API](./rest-api): how endpoints fit the API.

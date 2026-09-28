@@ -1,5 +1,13 @@
 # Localization
 
+::: info What you'll learn
+Content in several languages: which fields to translate, how editors switch languages, and how pages read a locale.
+
+**Before this page:** [Fields](./fields).
+:::
+
+<Screenshot name="translate" alt="Editing the other language of a post" />
+
 Content in several languages: localized fields hold one value per locale, other fields are
 shared.
 
@@ -95,3 +103,8 @@ Each localized field gets one column per locale. The default locale keeps the pl
   with `UPDATE` statements, then drops the old ones. Review it before deploying. Migrations
   created before 0.7 don't record the locales, so for the first change after upgrading, create
   a migration (`easy-cms migrate:create`) before changing `defaultLocale`.
+
+## Next steps
+
+- [REST API](./rest-api): the locale parameters of the API.
+- [Migrations & deployment](./deployment): migrations when locales change.

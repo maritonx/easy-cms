@@ -1,5 +1,11 @@
 # REST API {#rest-api}
 
+::: info หน้านี้สอนอะไร
+HTTP API ที่ `/api/cms`: endpoint, การ query, การยืนยันตัวตน, CSRF และ error
+
+**ควรอ่านก่อน:** [Local API](./local-api)
+:::
+
 เสิร์ฟที่ `routes.api` (ค่าเริ่มต้น `/api/cms`) ทุก response เป็น JSON และกฎการควบคุมสิทธิ์มีผลเสมอ
 
 ## Collection {#collections}
@@ -69,3 +75,8 @@ origin เหล่านั้น ส่วน origin อื่นจะไม�
 
 สถานะ: 400 (validation, query ไม่ถูกต้อง), 401, 403, 404, 405, 413, 415, 429 และ 500 ใน production
 response แบบ 500 จะไม่มีรายละเอียดของ error
+
+## ขั้นต่อไป {#next-steps}
+
+- [ผู้ใช้และการยืนยันตัวตน](./auth): การ login และ token
+- [TypeScript](./typescript): type สำหรับแอปอื่น

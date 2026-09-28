@@ -1,5 +1,11 @@
 # Databases
 
+::: info What you'll learn
+SQLite, Turso, Postgres and PGlite: how to connect, choose and tune each.
+
+**Before this page:** [Getting started](./getting-started).
+:::
+
 ## SQLite
 
 ```bash
@@ -94,3 +100,8 @@ What that means for your site:
   most traffic then never reaches the CMS.
 - More concurrent requests than connections wait for a connection; raise `max` on
   `postgres()` if the database has room.
+
+## Next steps
+
+- [Migrations & deployment](./deployment): migrations in production.
+- [Backups & upgrades](./backups): back up the database.

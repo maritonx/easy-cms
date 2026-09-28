@@ -1,5 +1,11 @@
 # Migrations & deployment
 
+::: info What you'll learn
+How schema changes are applied in development and shipped as migrations to production.
+
+**Before this page:** [Databases](./databases).
+:::
+
 ## Development: automatic
 
 While developing (`NODE_ENV` is not `production`), Easy CMS brings the database in line with
@@ -55,3 +61,8 @@ When `EASY_CMS_SECRET` is missing, the API answers `500` and the log says
 - Behind a trusted proxy, enable `trustProxy` for per-IP login rate limiting
 - Set `auth.trustedOrigins` if the admin or frontend call the API from another origin
 - [Backups](./backups) of the database and uploads, and a restore you have tried
+
+## Next steps
+
+- [Backups & upgrades](./backups): back up before upgrading.
+- [Security](./security): a checklist for going live.

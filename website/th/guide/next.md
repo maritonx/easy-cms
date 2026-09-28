@@ -1,5 +1,11 @@
 # Next.js {#next-js}
 
+::: info หน้านี้สอนอะไร
+route handler ของ Next.js ติดตั้งหน้า admin และ API อย่างไร และดึงเนื้อหาใน server component อย่างไร
+
+**ควรอ่านก่อน:** [เริ่มใช้งาน](./getting-started)
+:::
+
 `@easy-cms/next` รองรับ App Router ใน Next.js 15 ขึ้นไป
 
 ## การตั้งค่า {#setup}
@@ -68,3 +74,8 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
 - Next.js ตัดเครื่องหมาย slash ท้าย URL ออก หน้า admin จึงอยู่ที่ `/admin` (ไม่ใช่ `/admin/`)
 
 ดู[ตัวอย่าง Next.js](https://github.com/maritonx/easy-cms/tree/main/examples/next-blog)
+
+## ขั้นต่อไป {#next-steps}
+
+- [Local API](./local-api): อ่านและเขียนเนื้อหาในโค้ดฝั่ง server
+- [ตัวอย่างสด (live preview)](./live-preview): แสดงการแก้ที่ยังไม่บันทึกบนหน้าเว็บ

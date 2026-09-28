@@ -1,5 +1,11 @@
 # Nuxt
 
+::: info What you'll learn
+How the Nuxt module mounts the admin and the API, its options, and how to read content in server routes and pages.
+
+**Before this page:** [Getting started](./getting-started).
+:::
+
 `@easy-cms/nuxt` is a Nuxt 4 module.
 
 ```ts
@@ -55,3 +61,8 @@ export default defineEventHandler(async (event) => {
   and architecture you deploy to, and start the server from the project root.
 
 See the [Nuxt example](https://github.com/maritonx/easy-cms/tree/main/examples/nuxt-blog).
+
+## Next steps
+
+- [Local API](./local-api): read and write content in server routes.
+- [Live preview](./live-preview): show unsaved changes on your pages.

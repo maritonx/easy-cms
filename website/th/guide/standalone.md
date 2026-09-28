@@ -1,5 +1,11 @@
 # Standalone server {#standalone-server}
 
+::: info หน้านี้สอนอะไร
+รัน Easy CMS เป็น server ของตัวเองสำหรับ frontend แบบ Vite, React, Vue หรือเว็บ static และการ deploy
+
+**ควรอ่านก่อน:** [เริ่มใช้งาน](./getting-started)
+:::
+
 Easy CMS สามารถรันเป็น server ของตัวเองแทนการรันภายใน Nuxt หรือ Next.js ใช้เป็น backend สำหรับ
 frontend ที่สร้างด้วย Vite, React, Vue, Svelte หรือเว็บแบบ static หรือเมื่อต้องการให้ CMS อยู่บนโดเมนของตัวเอง
 
@@ -108,3 +114,8 @@ const cms = await createEasyCMS(await loadConfig())
 const handler = createStandaloneHandler(cms)
 Bun.serve({ port: 4000, fetch: (request) => handler(request) })
 ```
+
+## ขั้นต่อไป {#next-steps}
+
+- [REST API](./rest-api): เรียก API จาก frontend
+- [TypeScript](./typescript): type สำหรับ frontend ใน repo อื่น

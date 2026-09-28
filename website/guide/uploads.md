@@ -1,5 +1,13 @@
 # Uploads & media
 
+::: info What you'll learn
+The media library, image sizes, file limits, and storing files on disk or S3, Cloudflare R2 and MinIO.
+
+**Before this page:** [Fields](./fields).
+:::
+
+<Screenshot name="media" alt="The media library" />
+
 Files live in the built-in `media` collection. Link them with `upload` fields:
 
 ```ts
@@ -126,3 +134,8 @@ with your site's origin.
 
 Implement `StorageAdapter` (`put`, `get`, `delete`, optional `url` and `init`) and pass it as
 `upload.storage`.
+
+## Next steps
+
+- [Rich text](./rich-text): images in rich text.
+- [Backups & upgrades](./backups): back up uploads.

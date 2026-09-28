@@ -1,5 +1,11 @@
 # Fields
 
+::: info What you'll learn
+Every field type, its options, what it looks like in the admin, and how it is stored.
+
+**Before this page:** [Configuration](./configuration).
+:::
+
 Every field has a `name` and a `type`. Common options:
 
 | Option | |
@@ -134,3 +140,8 @@ so they suit filters more than large, hot lists.
 Each collection is a table; fields are columns (group fields are flattened: `seo.title` →
 `seo_title`). Arrays and `hasMany` values live in child tables; blocks are a JSON column. Two fields that would map to the
 same column are reported as a config error.
+
+## Next steps
+
+- [Access control](./access-control): field-level access.
+- [Rich text](./rich-text): show rich text on your pages.

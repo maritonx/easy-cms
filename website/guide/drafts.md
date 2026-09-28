@@ -1,5 +1,13 @@
 # Drafts, versions & scheduling
 
+::: info What you'll learn
+Drafts, the version history and restoring, and publishing or unpublishing at a set time.
+
+**Before this page:** [Configuration](./configuration).
+:::
+
+<Screenshot name="edit" alt="A post with its publishing panel and history" />
+
 ```ts
 { slug: 'posts', drafts: true, fields: [/* … */] }
 ```
@@ -105,3 +113,7 @@ Set `CRON_SECRET` (or `cronSecret` in the config). Logged-in admins can call it 
 doesn't pass validation) are logged and not retried. The same run retries
 [webhook deliveries](./webhooks#delivery) that failed earlier.
 
+## Next steps
+
+- [Live preview](./live-preview): preview drafts on the real page.
+- [Webhooks](./webhooks): tell other services about publishing.

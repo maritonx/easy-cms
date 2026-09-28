@@ -1,5 +1,13 @@
 # หลายภาษา (localization) {#localization}
 
+::: info หน้านี้สอนอะไร
+เนื้อหาหลายภาษา: field ไหนต้องแปล ผู้แก้สลับภาษาอย่างไร และหน้าเว็บอ่านภาษาไหน
+
+**ควรอ่านก่อน:** [Fields](./fields)
+:::
+
+<Screenshot name="translate" alt="แก้ภาษาอื่นของบทความ" />
+
 เนื้อหาหลายภาษา: field ที่ตั้ง localized จะเก็บค่าแยกตามภาษา ส่วน field อื่นใช้ค่าร่วมกันทุกภาษา
 
 ```ts
@@ -90,3 +98,8 @@ field ที่ localized แต่ละตัวจะมีคอลัมน
   migration ที่สร้างขึ้น (และ development push) จะเพิ่มคอลัมน์ใหม่ คัดลอกค่าด้วยคำสั่ง `UPDATE`
   แล้วค่อยลบคอลัมน์เก่า ควรตรวจก่อน deploy ส่วน migration ที่สร้างก่อน 0.7 ไม่ได้บันทึกภาษาไว้
   การเปลี่ยนครั้งแรกหลังอัปเกรดจึงควรสร้าง migration (`easy-cms migrate:create`) ก่อนเปลี่ยน `defaultLocale`
+
+## ขั้นต่อไป {#next-steps}
+
+- [REST API](./rest-api): พารามิเตอร์ภาษาของ API
+- [Migration และการ deploy](./deployment): migration เมื่อเปลี่ยนภาษา

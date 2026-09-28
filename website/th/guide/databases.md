@@ -1,5 +1,11 @@
 # ฐานข้อมูล {#databases}
 
+::: info หน้านี้สอนอะไร
+SQLite, Turso, Postgres และ PGlite: การเชื่อมต่อ การเลือก และการปรับแต่ง
+
+**ควรอ่านก่อน:** [เริ่มใช้งาน](./getting-started)
+:::
+
 ## SQLite {#sqlite}
 
 ```bash
@@ -91,3 +97,8 @@ Easy CMS สร้างและแก้ไขเฉพาะตาราง�
 - **cache หน้าสาธารณะ** (CDN หรือ cache ของ framework) แล้วสั่ง revalidate จาก webhook
   traffic ส่วนใหญ่จะไม่ต้องมาถึง CMS เลย
 - ถ้ามี request พร้อมกันมากกว่าจำนวน connection จะต้องรอ connection ว่าง เพิ่ม `max` ของ `postgres()` ได้ถ้าฐานข้อมูลรับไหว
+
+## ขั้นต่อไป {#next-steps}
+
+- [Migration และการ deploy](./deployment): migration บน production
+- [Backup และการอัปเกรด](./backups): สำรองฐานข้อมูล

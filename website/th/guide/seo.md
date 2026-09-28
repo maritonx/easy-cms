@@ -1,5 +1,13 @@
 # SEO {#seo}
 
+::: info หน้านี้สอนอะไร
+เพิ่ม field SEO พร้อมตัวอย่างผลการค้นหาในหน้า admin และเติม metadata ของหน้าเว็บจาก field เหล่านั้น
+
+**ควรอ่านก่อน:** [Plugins](./plugins)
+:::
+
+<Screenshot name="seo" alt="field SEO พร้อมตัวนับความยาวและตัวอย่างผลการค้นหา" />
+
 `@easy-cms/plugin-seo` เพิ่ม group `meta` (ชื่อ คำอธิบาย และรูปสำหรับแชร์) ให้ collection และ global ที่เลือก
 ผู้แก้เนื้อหาจะเห็นความยาวของข้อความแต่ละช่อง ตัวอย่างผลการค้นหา และปุ่มสร้างให้ ส่วนหน้าเว็บของคุณได้ metadata จากฟังก์ชันเดียว
 
@@ -101,3 +109,8 @@ export async function generateMetadata({ params }) {
 
 ผลลัพธ์มี `title`, `description`, `canonical` และ `image` รวมทั้ง `nuxt` (สำหรับ `useSeoMeta`) และ
 `next` (สำหรับ `generateMetadata`) ที่มีแท็ก Open Graph และ Twitter card
+
+## ขั้นต่อไป {#next-steps}
+
+- [หลายภาษา (localization)](./localization): field SEO แยกภาษา
+- [Migration และการ deploy](./deployment): migration สำหรับคอลัมน์ใหม่

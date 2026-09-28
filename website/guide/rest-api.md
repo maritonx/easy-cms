@@ -1,5 +1,11 @@
 # REST API
 
+::: info What you'll learn
+The HTTP API at `/api/cms`: endpoints, queries, authentication, CSRF and errors.
+
+**Before this page:** [Local API](./local-api).
+:::
+
 Served at `routes.api` (default `/api/cms`). All responses are JSON; access rules always apply.
 
 ## Collections
@@ -70,3 +76,8 @@ those origins; other origins get no CORS headers, so the browser blocks the resp
 
 Statuses: 400 (validation, bad query), 401, 403, 404, 405, 413, 415, 429 and 500. In production,
 500 responses don't include error details.
+
+## Next steps
+
+- [Users & auth](./auth): log in and tokens.
+- [TypeScript](./typescript): types for other apps.

@@ -1,5 +1,13 @@
 # การอัปโหลดและ media {#uploads-media}
 
+::: info หน้านี้สอนอะไร
+คลังสื่อ ขนาดรูป ข้อจำกัดของไฟล์ และการเก็บไฟล์บนดิสก์หรือ S3, Cloudflare R2 และ MinIO
+
+**ควรอ่านก่อน:** [Fields](./fields)
+:::
+
+<Screenshot name="media" alt="คลังสื่อ" />
+
 ไฟล์ถูกเก็บไว้ใน collection `media` ที่มีมาในตัว เชื่อมโยงไฟล์ด้วย field ประเภท `upload`:
 
 ```ts
@@ -126,3 +134,8 @@ request
 
 implement `StorageAdapter` (`put`, `get`, `delete` และ `url` กับ `init` ที่ไม่บังคับ) แล้วส่งเป็น
 `upload.storage`
+
+## ขั้นต่อไป {#next-steps}
+
+- [Rich text](./rich-text): รูปใน rich text
+- [Backup และการอัปเกรด](./backups): สำรองไฟล์ที่อัปโหลด

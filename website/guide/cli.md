@@ -1,19 +1,38 @@
 # CLI
 
+::: info What you'll learn
+The two command-line tools: `create-easy-cms` to set up a project, and `easy-cms` for
+migrations, users, types, backups, scheduled jobs and the standalone server.
+:::
+
 ## create-easy-cms
 
 ```bash
 npx create-easy-cms [dir] [--db sqlite|postgres] [--standalone] [--yes] [--skip-install]
 ```
 
-Adds Easy CMS to a Nuxt or Next.js project. In a new or empty directory (or with
-`--standalone`) it sets up a [standalone server](./standalone). See
-[Getting started](./getting-started).
+Adds Easy CMS to a project:
+
+- **In a Nuxt or Next.js project**, it installs the packages, writes `easy-cms.config.ts`, a
+  `.env` with a random `EASY_CMS_SECRET`, wires up the module or route handlers, and adds the
+  database and uploads to `.gitignore`.
+- **In a new or empty directory** (or with `--standalone`), it sets up a
+  [standalone server](./standalone) for any frontend.
+
+| Option | |
+|---|---|
+| `dir` | Where to set up. Default: the current directory. |
+| `--db` | `sqlite` (a file) or `postgres` (PGlite locally, a server in production). Asks when not given; `sqlite` with `--yes`. |
+| `--standalone` | A standalone server even inside a Nuxt or Next.js project. |
+| `--yes` | Accept the defaults without asking. |
+| `--skip-install` | Only write files; run your package manager yourself. |
+
+See [Getting started](./getting-started) for what happens next.
 
 ## easy-cms
 
-Installed as a dev dependency (a dependency for standalone servers). Every command loads `.env`
-from the project root.
+Installed as a dev dependency (a regular dependency for standalone servers). Every command
+loads `.env` from the project root and reads `easy-cms.config.ts`.
 
 ```bash
 npx easy-cms <command> [--config <file>] [--cwd <dir>]
@@ -21,13 +40,110 @@ npx easy-cms <command> [--config <file>] [--cwd <dir>]
 
 | Command | |
 |---|---|
-| `migrate` | Apply pending migrations |
-| `migrate:create <name>` | Write a migration for config changes |
-| `migrate:status` | List migrations and whether they are applied |
-| `generate:types [--out <file>]` | Write TypeScript types (default `easy-cms-types.ts`) |
-| `create-admin [--email] [--name] [--role]` | Create a user; asks for the password, or reads `EASY_CMS_ADMIN_PASSWORD` |
-| `backup <file>` | Copy the SQLite database to a new file while the CMS runs; see [backups](./backups) |
-| `run-scheduled` | Run due [scheduled](./drafts#scheduled-publishing) publishes and unpublishes, and [webhook retries](./webhooks#delivery), once (for cron) |
-| `serve [--port] [--host] [--watch] [--trust-proxy]` | Run the CMS as its own server; see [Standalone server](./standalone) |
+| [`migrate`](#migrate) | Apply pending migrations. |
+| [`migrate:create <name>`](#migrate-create) | Write a migration for config changes. |
+| [`migrate:status`](#migrate-status) | List migrations and whether they are applied. |
+| [`create-admin`](#create-admin) | Create a user. |
+| [`generate:types`](#generate-types) | Write TypeScript types for other apps. |
+| [`backup <file>`](#backup) | Copy the SQLite database while the CMS runs. |
+| [`run-scheduled`](#run-scheduled) | Run due scheduled jobs and webhook retries once. |
+| [`serve`](#serve) | Run the CMS as its own server. |
 
-Every command has `--help` and exits non-zero on failure.
+Options for every command: `--config <file>` (default `easy-cms.config.ts`), `--cwd <dir>`
+(the project root; its `.env` is loaded) and `--help`. Commands exit non-zero on failure, so
+they work in CI and deploy scripts. Set `DEBUG=1` to see stack traces.
+
+### migrate
+
+```bash
+npx easy-cms migrate
+```
+
+Applies every migration in `easy-cms/migrations` that the database has not run yet, in order.
+Each runs in its own transaction; a failure rolls it back and stops. Run it on every deploy,
+before the new version starts. See [Migrations & deployment](./deployment).
+
+### migrate:create
+
+```bash
+npx easy-cms migrate:create add-author-bio
+```
+
+Compares the config with the last migration and writes
+`easy-cms/migrations/<timestamp>_<name>.sql` (and a `.json` snapshot) when something changed.
+In a terminal it asks whether a field that disappeared was renamed, so data is kept instead of
+dropped. Review the SQL, then commit both files.
+
+### migrate:status
+
+```bash
+npx easy-cms migrate:status
+# ✓ applied  20260925091723_init
+# • pending  20260928040614_seo
+```
+
+### create-admin
+
+```bash
+npx easy-cms create-admin --email ann@example.com --name Ann
+npx easy-cms create-admin --email bob@example.com --role editor
+```
+
+Creates a user with the `admin` role (or `--role`). The password is asked for in the terminal;
+where there is no terminal (CI, containers), it is read from `EASY_CMS_ADMIN_PASSWORD`. Handy
+when the first admin can't be created in the browser, or to recover access.
+
+### generate:types
+
+```bash
+npx easy-cms generate:types --out ../web/src/cms-types.ts
+```
+
+Writes one interface per collection and global (default file `easy-cms-types.ts`). The file has
+no imports, so a frontend in another repository can use it. Apps that import the config don't
+need it: their types are [inferred](./typescript).
+
+### backup
+
+```bash
+npx easy-cms backup backups/cms-2026-09-28.db
+```
+
+Copies the SQLite database to a new file while the CMS keeps running, as a consistent
+snapshot. The file must not exist yet. Uploads are not included: back up the uploads folder or
+bucket separately. For Postgres use `pg_dump`. See [Backups](./backups).
+
+### run-scheduled
+
+```bash
+npx easy-cms run-scheduled
+```
+
+Runs due [scheduled publishes and unpublishes](./drafts#scheduled-publishing) and retries
+failed [webhook deliveries](./webhooks#delivery), once. Servers do this every minute on their
+own; use this command from a cron job where no server process keeps running (serverless).
+
+### serve
+
+```bash
+npx easy-cms serve --port 4000
+npx easy-cms serve --watch          # development: reload on config changes
+```
+
+Runs Easy CMS without Nuxt or Next.js: the admin at `/admin`, the REST API at `/api/cms`, and
+`/healthz` for load balancers.
+
+| Option | |
+|---|---|
+| `--port <n>` | Port. Default: `PORT`, then 4000. |
+| `--host <host>` | Interface to listen on. Default: `HOST`, then all interfaces. |
+| `--watch` | Reload when the config or files it imports change. |
+| `--trust-proxy` | Trust `X-Forwarded-For` and `X-Forwarded-Proto` from your reverse proxy. |
+
+In production (`NODE_ENV=production`) pending migrations stop the server from starting. See
+[Standalone server](./standalone).
+
+## Next steps
+
+- [Migrations & deployment](./deployment): when to run which command.
+- [Standalone server](./standalone): run the CMS for any frontend.

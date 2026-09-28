@@ -1,5 +1,11 @@
 # การตั้งค่า {#configuration}
 
+::: info หน้านี้สอนอะไร
+ตัวเลือกทั้งหมดของ `easy-cms.config.ts`: ค่าระดับบนสุด collection, global, แบรนด์ และ plugin
+
+**ควรอ่านก่อน:** [เริ่มใช้งาน](./getting-started)
+:::
+
 ทุกอย่างเกี่ยวกับเนื้อหาของคุณอยู่ใน `easy-cms.config.ts` ที่ root ของโปรเจกต์:
 
 ```ts
@@ -139,3 +145,8 @@ export default defineConfig({ /* … */ plugins: [seoPlugin({ collections: ['pos
 ```
 
 ดู plugin ทางการและวิธีเขียน plugin เองได้ที่ [Plugins](./plugins)
+
+## ขั้นต่อไป {#next-steps}
+
+- [Fields](./fields): field ของ collection
+- [การควบคุมสิทธิ์](./access-control): ใครอ่านและแก้อะไรได้บ้าง

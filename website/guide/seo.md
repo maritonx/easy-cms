@@ -1,5 +1,13 @@
 # SEO
 
+::: info What you'll learn
+Add SEO fields with a search preview to the admin, and fill your pages' metadata from them.
+
+**Before this page:** [Plugins](./plugins).
+:::
+
+<Screenshot name="seo" alt="The SEO fields with length meters and a search preview" />
+
 `@easy-cms/plugin-seo` adds a `meta` group (title, description, share image) to the collections
 and globals you choose. Editors see how long each text is, a preview of the search result, and
 Generate buttons; your pages get their metadata from one function.
@@ -103,3 +111,8 @@ export async function generateMetadata({ params }) {
 
 It returns `title`, `description`, `canonical` and `image`, plus `nuxt` (for `useSeoMeta`) and
 `next` (for `generateMetadata`) with Open Graph and Twitter card tags.
+
+## Next steps
+
+- [Localization](./localization): SEO fields per language.
+- [Migrations & deployment](./deployment): migrate the new columns.

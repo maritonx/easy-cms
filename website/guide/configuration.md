@@ -1,5 +1,11 @@
 # Configuration
 
+::: info What you'll learn
+Every option of `easy-cms.config.ts`: the top-level settings, collections, globals, branding and plugins.
+
+**Before this page:** [Getting started](./getting-started).
+:::
+
 Everything about your content lives in `easy-cms.config.ts` at the project root:
 
 ```ts
@@ -140,3 +146,8 @@ export default defineConfig({ /* … */ plugins: [seoPlugin({ collections: ['pos
 ```
 
 See [Plugins](./plugins) for the official plugins and how to write your own.
+
+## Next steps
+
+- [Fields](./fields): the fields of your collections.
+- [Access control](./access-control): who may read and change what.

@@ -1,5 +1,11 @@
 # Migration และการ deploy {#migrations-deployment}
 
+::: info หน้านี้สอนอะไร
+การเปลี่ยน schema ถูกใช้ตอนพัฒนาอย่างไร และส่งเป็น migration ขึ้น production อย่างไร
+
+**ควรอ่านก่อน:** [ฐานข้อมูล](./databases)
+:::
+
 ## ช่วงพัฒนา: อัตโนมัติ {#development-automatic}
 
 ระหว่างพัฒนา (`NODE_ENV` ไม่ใช่ `production`) Easy CMS จะปรับฐานข้อมูลให้ตรงกับ
@@ -55,3 +61,8 @@ field ที่เปลี่ยนไปถูกเปลี่ยนชื�
 - เมื่ออยู่หลัง proxy ที่เชื่อถือได้ ให้เปิด `trustProxy` เพื่อจำกัดอัตราการเข้าสู่ระบบแยกตาม IP
 - ตั้งค่า `auth.trustedOrigins` หากหน้า admin หรือ frontend เรียก API จาก origin อื่น
 - มี[backup](./backups)ของฐานข้อมูลและไฟล์อัปโหลด และเคยลองกู้คืนแล้ว
+
+## ขั้นต่อไป {#next-steps}
+
+- [Backup และการอัปเกรด](./backups): สำรองข้อมูลก่อนอัปเกรด
+- [ความปลอดภัย](./security): เช็กลิสต์ก่อนขึ้นระบบจริง

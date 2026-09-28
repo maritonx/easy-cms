@@ -1,5 +1,11 @@
 # Fields {#fields}
 
+::: info หน้านี้สอนอะไร
+field ทุกประเภท ตัวเลือก หน้าตาในหน้า admin และวิธีจัดเก็บ
+
+**ควรอ่านก่อน:** [การตั้งค่า](./configuration)
+:::
+
 ทุก field มี `name` และ `type` ตัวเลือกที่ใช้ร่วมกัน:
 
 | ตัวเลือก | |
@@ -133,3 +139,8 @@ await cms.find('pages', { where: { 'layout.content.blockType': { equals: 'quote'
 แต่ละ collection คือตารางหนึ่งตาราง field คือคอลัมน์ (field ใน group จะถูกแผ่ออกเป็นระดับเดียว: `seo.title` →
 `seo_title`) ค่าของ array และ `hasMany` อยู่ในตารางลูก ส่วน blocks เป็นคอลัมน์ JSON field สองรายการที่จะแมปไปยังคอลัมน์
 เดียวกันจะถูกรายงานเป็นข้อผิดพลาดของ config
+
+## ขั้นต่อไป {#next-steps}
+
+- [การควบคุมสิทธิ์](./access-control): สิทธิ์ระดับ field
+- [Rich text](./rich-text): แสดง rich text บนหน้าเว็บ

@@ -1,5 +1,11 @@
 # Next.js
 
+::: info What you'll learn
+How the Next.js route handlers mount the admin and the API, and how to read content in server components.
+
+**Before this page:** [Getting started](./getting-started).
+:::
+
 `@easy-cms/next` supports the App Router in Next.js 15 and later.
 
 ## Setup
@@ -68,3 +74,8 @@ in Server Components, Route Handlers and Server Actions.
 - Next.js removes trailing slashes, so the admin lives at `/admin` (not `/admin/`).
 
 See the [Next.js example](https://github.com/maritonx/easy-cms/tree/main/examples/next-blog).
+
+## Next steps
+
+- [Local API](./local-api): read and write content in server code.
+- [Live preview](./live-preview): show unsaved changes on your pages.

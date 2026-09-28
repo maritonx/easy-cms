@@ -1,5 +1,11 @@
 # Webhooks
 
+::: info What you'll learn
+Notify other services when content changes, with signatures and retries that survive restarts.
+
+**Before this page:** [Hooks](./hooks).
+:::
+
 Tell other services when content changes: rebuild a static site, clear a CDN cache, notify a
 chat channel.
 
@@ -84,3 +90,8 @@ On serverless platforms a function may stop before a webhook is sent: call
 `await cms.flushWebhooks()` before returning when you write through the Local API there.
 `await cms.retryWebhooks()` tries the saved deliveries that are due (`runJobs()` does that and
 runs scheduled publishing).
+
+## Next steps
+
+- [Drafts, versions & scheduling](./drafts): what publishing triggers.
+- [CLI](./cli): run retries from cron.
