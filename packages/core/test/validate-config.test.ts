@@ -149,6 +149,8 @@ describe('validateConfig', () => {
         ],
         globals: [
           { slug: 'site', admin: { sidebar: ['ecms-ok'] }, fields: [{ name: 'n', type: 'text' }] },
+          // @ts-expect-error group is 'settings'
+          { slug: 'odd', admin: { group: 'menu' }, fields: [{ name: 'n', type: 'text' }] },
         ],
         endpoints: [
           { path: '/seo/generate', method: 'post', handler },
@@ -186,6 +188,7 @@ describe('validateConfig', () => {
       'collections.posts.admin.sidebar[1]',
       'collections.posts.fields.c.admin.component',
       'collections.posts.fields.d.admin.after[0].props',
+      'globals.odd.admin.group',
     ])
   })
 

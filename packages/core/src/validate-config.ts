@@ -436,6 +436,9 @@ function validateContainer(
     } else {
       const sidebar: unknown = (admin as { sidebar?: unknown }).sidebar
       if (sidebar !== undefined) validateComponents(sidebar, `${path}.admin.sidebar`, add)
+      const group: unknown = (admin as { group?: unknown }).group
+      if (group !== undefined && group !== 'settings')
+        add(`${path}.admin.group`, `must be 'settings' (got ${JSON.stringify(group)})`)
     }
   }
   const reserved = new Set(SYSTEM_FIELD_NAMES)

@@ -25,7 +25,12 @@ const config = defineConfig({
         },
       ],
     },
-    { slug: 'pages', editIn: 'drawer', fields: [{ name: 'title', type: 'text' }] },
+    {
+      slug: 'pages',
+      editIn: 'drawer',
+      admin: { group: 'settings' },
+      fields: [{ name: 'title', type: 'text' }],
+    },
   ],
   globals: [
     { slug: 'site', access: { read: () => true }, fields: [{ name: 'name', type: 'text' }] },
@@ -448,6 +453,10 @@ describe('admin endpoints', () => {
     // Small collections open in a drawer; the rest (and ones with drafts or history) in a page.
     expect(json.collections[3].editIn).toBe('drawer')
     expect(posts.editIn).toBeUndefined()
+    // Users (built in) and admin.group 'settings' are listed under Settings.
+    expect(users.group).toBe('settings')
+    expect(json.collections[3].group).toBe('settings')
+    expect(posts.group).toBeUndefined()
   })
 
   it('resolves document-level permissions', async () => {

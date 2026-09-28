@@ -1,6 +1,7 @@
 import { defineConfig } from '@easy-cms/core'
 import { sqlite } from '@easy-cms/db-sqlite'
 import { mcpPlugin } from '@easy-cms/plugin-mcp'
+import { redirectsPlugin } from '@easy-cms/plugin-redirects'
 import { seoPlugin } from '@easy-cms/plugin-seo'
 
 export default defineConfig({
@@ -152,6 +153,12 @@ export default defineConfig({
   plugins: [
     // AI assistants (Claude, Cursor…) at /api/cms/mcp, with an API key.
     mcpPlugin(),
+    // Redirects under Settings in the admin; a post whose slug changes redirects from its old
+    // address (served by the middleware in this example).
+    redirectsPlugin({
+      collections: ['posts'],
+      url: ({ doc }) => (doc.slug ? `/posts/${doc.slug}` : null),
+    }),
     seoPlugin({
       collections: ['posts'],
       globals: ['site'],

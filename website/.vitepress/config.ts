@@ -50,7 +50,7 @@ function sidebar(prefix: string, t: Labels): DefaultTheme.SidebarItem[] {
     },
     {
       text: t.plugins,
-      items: ['plugins', 'seo', 'ai-search', 'mcp'].map(page),
+      items: ['plugins', 'seo', 'ai-search', 'redirects', 'mcp'].map(page),
     },
     {
       text: t.operations,
@@ -120,6 +120,7 @@ const en: Labels = {
   'live-preview': 'Live preview',
   seo: 'SEO',
   'ai-search': 'AI search',
+  redirects: 'Redirects',
   mcp: 'MCP (AI assistants)',
   databases: 'Databases',
   deployment: 'Migrations & deployment',
@@ -172,6 +173,7 @@ const th: Labels = {
   'live-preview': 'ตัวอย่างสด (live preview)',
   seo: 'SEO',
   'ai-search': 'SEO สำหรับ AI',
+  redirects: 'Redirects',
   mcp: 'MCP (ผู้ช่วย AI)',
   databases: 'ฐานข้อมูล',
   deployment: 'Migration และการ deploy',

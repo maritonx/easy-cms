@@ -16,6 +16,7 @@
     "@easy-cms/db-postgres": "workspace:^",
     "@easy-cms/next": "workspace:^",
     "@easy-cms/plugin-mcp": "workspace:^",
+    "@easy-cms/plugin-redirects": "workspace:^",
     "@easy-cms/plugin-seo": "workspace:^",
     "@easy-cms/richtext": "workspace:^",
     "@electric-sql/pglite": "^0.5.8",

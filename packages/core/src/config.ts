@@ -82,6 +82,14 @@ export interface ContainerAdmin {
   readonly sidebar?: readonly AdminComponent[]
 }
 
+export interface CollectionAdmin extends ContainerAdmin {
+  /**
+   * `settings` lists the collection under Settings in the admin menu (with Users and API keys)
+   * instead of with the content, e.g. for redirects or forms settings.
+   */
+  readonly group?: 'settings'
+}
+
 export interface CollectionConfig {
   /** URL and table name. Lowercase letters, digits, `-` and `_`. */
   readonly slug: string
@@ -111,8 +119,8 @@ export interface CollectionConfig {
   readonly preview?: PreviewURL
   readonly access?: CollectionAccess
   readonly hooks?: CollectionHooks
-  /** Custom admin components. */
-  readonly admin?: ContainerAdmin
+  /** Custom admin components, and where the collection is in the menu. */
+  readonly admin?: CollectionAdmin
 }
 
 export interface GlobalConfig {

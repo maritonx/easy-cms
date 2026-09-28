@@ -18,12 +18,14 @@ const readable = computed(() =>
     session.schema?.menu,
   ),
 )
-/** Listed under Settings rather than Content. */
-const SETTINGS = ['users', 'api-keys']
-const collections = computed(() => readable.value.filter((c) => !SETTINGS.includes(c.slug)))
-const settingsCollections = computed(() =>
-  SETTINGS.flatMap((slug) => readable.value.filter((c) => c.slug === slug)),
-)
+/** Listed under Settings rather than Content: users, API keys, `admin.group: 'settings'`. */
+const FIRST = ['users', 'api-keys']
+const collections = computed(() => readable.value.filter((c) => c.group !== 'settings'))
+const settingsCollections = computed(() => {
+  const list = readable.value.filter((c) => c.group === 'settings')
+  const rank = (slug: string) => (FIRST.includes(slug) ? FIRST.indexOf(slug) : FIRST.length)
+  return [...list].sort((a, b) => rank(a.slug) - rank(b.slug))
+})
 const globals = computed(() => session.schema?.globals.filter((g) => g.permissions.read) ?? [])
 
 /** Small screens: the menu opens over the page. */

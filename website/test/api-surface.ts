@@ -21,7 +21,7 @@ export const CONFIG_INTERFACES = [
   'CollectionConfig',
   'GlobalConfig',
   'VersionsConfig',
-  'ContainerAdmin',
+  'CollectionAdmin',
   'CollectionHooks',
   'GlobalHooks',
   'Endpoint',

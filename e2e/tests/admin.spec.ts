@@ -663,6 +663,48 @@ test.describe('logged in as admin', () => {
     ])
   })
 
+  test('redirects old addresses, and renamed posts (redirects plugin)', async ({ page }) => {
+    // Under Settings in the menu, edited in a drawer.
+    await page.goto('/admin/')
+    await page
+      .getByRole('navigation', { name: 'Main' })
+      .getByRole('link', { name: 'Redirects', exact: true })
+      .click()
+    await page.getByRole('link', { name: 'Create new' }).click()
+    const drawer = page.getByRole('dialog', { name: 'Create Redirect' })
+    await drawer.getByRole('textbox', { name: 'From', exact: true }).fill('/old-page/')
+    await drawer.getByRole('textbox', { name: 'To (address)' }).fill('/posts/plugins-work')
+    await drawer.getByRole('button', { name: 'Save' }).click()
+    await expect(page.getByRole('status')).toHaveText('Created')
+    // Stored without the trailing slash.
+    await expect(page.getByRole('row', { name: /\/old-page/ })).toBeVisible()
+
+    if (standalone()) {
+      // Frontends on another server ask the API.
+      const response = await page.request.get('/api/cms/resolve-redirect?path=/old-page')
+      expect(await response.json()).toEqual({ location: '/posts/plugins-work', status: 301 })
+      return
+    }
+    await page.goto('/old-page?ref=e2e')
+    await expect(page).toHaveURL(/\/posts\/plugins-work\?ref=e2e$/)
+
+    // A published post with a new slug keeps its old address working.
+    await page.goto('/admin/collections/posts/new')
+    await page.getByRole('textbox', { name: 'Title', exact: true }).fill('Renamed soon')
+    await page.getByRole('button', { name: 'Publish', exact: true }).click()
+    await expect(page.getByRole('status')).toHaveText('Created')
+    await page.getByRole('textbox', { name: 'Slug', exact: true }).fill('renamed-now')
+    await page
+      .getByRole('button', { name: /^Publish/ })
+      .first()
+      .click()
+    await expect(page.getByRole('status')).toHaveText(/Published|Saved/)
+    await page.goto('/posts/renamed-soon')
+    await expect(page).toHaveURL(/\/posts\/renamed-now$/)
+    await expect(page.getByRole('heading', { level: 1, name: 'Renamed soon' })).toBeVisible()
+    await page.waitForLoadState('load')
+  })
+
   test('edits small collections in a drawer, and creates related documents in place', async ({
     page,
   }) => {

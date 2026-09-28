@@ -1,6 +1,7 @@
 import { defineConfig } from '@easy-cms/core'
 import { sqlite } from '@easy-cms/db-sqlite'
 import { mcpPlugin } from '@easy-cms/plugin-mcp'
+import { redirectsPlugin } from '@easy-cms/plugin-redirects'
 import { seoPlugin } from '@easy-cms/plugin-seo'
 
 // Where this server and the frontend (frontend/index.html) run; used for live preview.
@@ -159,6 +160,8 @@ export default defineConfig({
   plugins: [
     // AI assistants (Claude, Cursor…) at /api/cms/mcp, with an API key.
     mcpPlugin(),
+    // Redirects under Settings; the frontend asks /api/cms/resolve-redirect?path=… for them.
+    redirectsPlugin(),
     seoPlugin({
       collections: ['posts'],
       globals: ['site'],

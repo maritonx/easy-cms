@@ -130,7 +130,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `preview` | `({ doc, locale }) => string \| null` | — | The page showing a document, for [live preview](/guide/live-preview). |
 | `access` | `{ read?, create?, update?, delete? }` | logged in | [Access control](/guide/access-control) |
 | `hooks` | `CollectionHooks` | — | See [hooks](#hooks). |
-| `admin` | `ContainerAdmin` | — | See [admin components](#admin-components). |
+| `admin` | `CollectionAdmin` | — | See [admin components](#admin-components). |
 
 <!-- api: VersionsConfig -->
 ### versions
@@ -155,12 +155,13 @@ Each is a list of functions. [Hooks](/guide/hooks)
 
 Every hook also gets `user`, `cms` and `slug`.
 
-<!-- api: ContainerAdmin -->
+<!-- api: CollectionAdmin -->
 ### Admin components
 
 | Option | Type | |
 |---|---|---|
 | `sidebar` | `AdminComponent[]` | Panels in the edit page's side column. [Admin components](/guide/plugins#admin-components) |
+| `group` | `'settings'` | List the collection under Settings in the menu, with Users and API keys. |
 
 <!-- api: GlobalConfig -->
 ## globals

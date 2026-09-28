@@ -1,0 +1,48 @@
+{
+  "name": "@easy-cms/plugin-redirects",
+  "version": "0.18.0",
+  "description": "Redirects for Easy CMS: 301s managed in the admin, automatic redirects when a page's address changes",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "@easy-cms/core": "workspace:^"
+  },
+  "devDependencies": {
+    "@easy-cms/core": "workspace:^",
+    "@easy-cms/db-sqlite": "workspace:^"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maritonx/easy-cms.git",
+    "directory": "packages/plugin-redirects"
+  },
+  "keywords": [
+    "easy-cms",
+    "easy-cms-plugin",
+    "redirects",
+    "301",
+    "seo"
+  ]
+}

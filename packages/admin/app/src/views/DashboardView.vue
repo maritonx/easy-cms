@@ -20,10 +20,8 @@ const greeting = t(
   hour < 12 ? 'dashboard.morning' : hour < 18 ? 'dashboard.afternoon' : 'dashboard.evening',
 )
 const name = session.user?.name || session.user?.email || ''
-/** Content people write: not the user accounts or the media library. */
-const content = collections.filter(
-  (c) => c.slug !== 'users' && c.slug !== 'api-keys' && c.slug !== 'media',
-)
+/** Content people write: not the settings (users, API keys…) or the media library. */
+const content = collections.filter((c) => c.group !== 'settings' && c.slug !== 'media')
 // The shortcut creates in the main content collection: one with drafts, else the first.
 const creatable =
   content.find((c) => c.permissions.create && c.drafts) ?? content.find((c) => c.permissions.create)

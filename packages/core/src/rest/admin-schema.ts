@@ -1,10 +1,14 @@
 import type { Access, AuthUser } from '../access.js'
 import { evaluateAccess, FieldAccessChecker } from '../access-control.js'
-import { INTERNAL_COLLECTIONS } from '../builtins.js'
+import { API_KEYS } from '../api-keys.js'
+import { INTERNAL_COLLECTIONS, USERS } from '../builtins.js'
 import type { AdminLocale, CollectionConfig, GlobalConfig } from '../config.js'
 import type { AdminComponent, Field, Label } from '../fields.js'
 import type { EasyCMS } from '../local-api.js'
 import { adminModuleUrls } from './admin-modules.js'
+
+/** Built-in collections listed under Settings in the menu. */
+const SETTINGS = new Set([USERS, API_KEYS])
 
 /** A Web Component from an admin module, with its `props` (plain JSON). */
 export interface AdminComponentRef {
@@ -59,6 +63,8 @@ export interface AdminCollection {
   fields: AdminField[]
   /** Panels from admin modules in the edit page's side column. */
   sidebar?: AdminComponentRef[]
+  /** Listed under Settings in the menu (users, API keys, `admin.group: 'settings'`). */
+  group?: 'settings'
   permissions: { read: boolean; create: boolean; update: boolean; delete: boolean }
 }
 
@@ -203,6 +209,7 @@ async function collection(
   if (config.useAsTitle) result.useAsTitle = config.useAsTitle
   if (config.icon) result.icon = config.icon
   if (config.admin?.sidebar?.length) result.sidebar = config.admin.sidebar.map(componentRef)
+  if (config.admin?.group === 'settings' || SETTINGS.has(config.slug)) result.group = 'settings'
   // Drafts, history and preview need the whole page.
   if (config.editIn === 'drawer' && !result.drafts && !result.versions && !result.preview)
     result.editIn = 'drawer'

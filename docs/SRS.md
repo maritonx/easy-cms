@@ -1,9 +1,9 @@
 # Software Requirements Specification — Easy CMS
 
-- **เวอร์ชันเอกสาร:** 2.2
+- **เวอร์ชันเอกสาร:** 2.3
 - **วันที่:** 2026-09-28
 - **ผู้เขียน:** Kanawoot K.
-- **ครอบคลุม:** v0.1 (baseline) ถึง v0.18
+- **ครอบคลุม:** v0.1 (baseline) ถึง v0.19
 - **สถานะ:** Living document (อัปเดตทุกครั้งที่เพิ่มฟีเจอร์)
 - **เอกสารที่เกี่ยวข้อง:** [DESIGN.md](DESIGN.md), [ADRs](adr/)
 
@@ -25,7 +25,7 @@ Easy CMS เป็น Headless CMS แบบ open source (MIT) ที่ติ�
 - Adapter สำหรับ Nuxt, Next.js และโหมด standalone
 - Database adapter (SQLite, PostgreSQL) และ storage adapter (local disk, S3-compatible)
 - CLI สำหรับติดตั้ง, migration, generate types, สำรองและย้ายข้อมูล
-- Official plugins: `@easy-cms/plugin-seo` และ `@easy-cms/plugin-mcp`
+- Official plugins: `@easy-cms/plugin-seo`, `@easy-cms/plugin-mcp` และ `@easy-cms/plugin-redirects`
 
 **นอกขอบเขต (ปัจจุบัน):** UI สร้าง content type, GraphQL, Edge runtime, MySQL, auth ภายนอก (OAuth/SSO), ลืมรหัสผ่านผ่าน email, MCP แบบ stdio, หน้าเต็มและ widget บน dashboard จาก plugin, BreadcrumbList, บริการ hosting
 
@@ -384,6 +384,17 @@ AI assistant ► /api/cms/mcp ──┘                     └──► Webhook
 | FR-SEO-12 | `indexNow: { key }` ต้องส่ง URL (ทุกภาษา) เมื่อหน้าถูกเผยแพร่ แก้ไขขณะเผยแพร่ ยกเลิกเผยแพร่ หรือลบ รวมเป็นชุด ส่งเฉพาะ URL `https` สาธารณะ และเสิร์ฟไฟล์ key ที่ `/<key>.txt` | 0.18 | SHOULD |
 | FR-SEO-08 | `seoMeta` ต้องสร้าง hreflang (รวม `x-default`), `og:locale`, `og:type: article` พร้อมเวลาเผยแพร่/แก้ไข และ JSON-LD (BlogPosting/WebPage) ส่วน `siteJsonLd()` ต้องสร้าง Organization + WebSite และ `jsonLdScript()` ต้อง escape ให้ปลอดภัยใน `<script>` | 0.17 | MUST |
 
+### 3.23b Redirects plugin (RDR) — [ADR-0022](adr/0022-redirects-plugin.md)
+
+| ID | ความต้องการ | ตั้งแต่ | ระดับ |
+|---|---|---|---|
+| FR-RDR-01 | `redirectsPlugin()` ต้องเพิ่ม collection `redirects` (from, to หรือเอกสาร, type 301/302/307/308) ใต้ตั้งค่าในหน้า Admin แก้ไขใน drawer | 0.19 | MUST |
+| FR-RDR-02 | `from` ต้อง normalize เป็น pathname ที่ไม่มี `/` ท้ายและไม่ซ้ำ และ redirect ต้องมีปลายทางอย่างเดียวพอดี | 0.19 | MUST |
+| FR-RDR-03 | `resolveRedirect(cms, url)` ต้องคืนปลายทางจาก cache ในหน่วยความจำ ล้างทันทีเมื่อมีการแก้ไขบน server เดียวกัน หมดอายุตาม `cacheTTL` และส่งต่อ query string | 0.19 | MUST |
+| FR-RDR-04 | เมื่อที่อยู่ของเอกสารที่เผยแพร่อยู่ใน `collections` เปลี่ยน ต้องสร้าง redirect จากที่อยู่เดิม (ทุกภาษา) ไปยังเอกสาร โดยไม่ต่อกันเป็นทอดและไม่วนกลับ ปิดได้ด้วย `autoRedirect: false` | 0.19 | MUST |
+| FR-RDR-05 | ต้องมี `GET <api>/resolve-redirect?path=` สำหรับ frontend อื่น | 0.19 | SHOULD |
+| FR-ADM-19 | Collection ที่ตั้ง `admin.group: 'settings'` ต้องแสดงใต้ตั้งค่าในเมนู | 0.19 | SHOULD |
+
 ### 3.24 API keys (KEY) — [ADR-0019](adr/0019-api-keys-and-mcp.md)
 
 | ID | ความต้องการ | ตั้งแต่ | ระดับ |
@@ -645,6 +656,7 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 0.16.1 | Next.js: instance เดียวต่อ server | FR-LAPI-07 | — |
 | 0.17 | SEO: sitemap, robots.txt, noindex, hreflang, JSON-LD; root endpoints | FR-SEO-05..08, FR-PLG-08 | [0020](adr/0020-seo-sitemap-robots-root-endpoints.md) |
 | 0.18 | SEO สำหรับ AI: crawler ของ AI, llms.txt, Markdown, IndexNow | FR-SEO-09..12 | [0021](adr/0021-seo-for-ai.md) |
+| 0.19 | Redirects plugin, `admin.group: 'settings'` | FR-RDR-*, FR-ADM-19 | [0022](adr/0022-redirects-plugin.md) |
 
 ---
 
@@ -658,6 +670,7 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 1.3 | 2026-09-25 | M5: FR-REST-08 (อัปโหลด/ไฟล์), FR-CFG-07 (`routes.api`, `serverURL`), ระบุว่า drafts ใน v0.1 ไม่มี version แยก |
 | 1.4 | 2026-09-25 | M6: ผลวัด NFR-PERF-01/02 บน Postgres 17 (Local API p95 2.7 ms, REST p95 4.3 ms), Next.js adapter ใช้ `getEasyCMS(config)` |
 | 1.5 | 2026-09-25 | M7: ผลตรวจรับ v0.1 (7.1) |
+| 2.3 | 2026-09-28 | 0.19: FR-RDR-*, FR-ADM-19 |
 | 2.2 | 2026-09-28 | 0.18: FR-SEO-09..12 |
 | 2.1 | 2026-09-28 | 0.17: FR-SEO-05..08, FR-PLG-08 |
 | 2.0 | 2026-09-28 | ครอบคลุมถึง 0.16: ปรับขอบเขตและ FR เดิมให้ตรงกับปัจจุบัน (FR-DRF-06, FR-ADP-03, NFR-DOC-01, NFR-USE-03), เพิ่ม STA, S3, VER, PRV, LOC, BLK, WHK/SCH, PLG, SEO, KEY, MCP, OPS, ADM-14..18, NFR ใหม่, ตารางภายใน, เกณฑ์ตรวจรับ 7.2 และ traceability ของ release |

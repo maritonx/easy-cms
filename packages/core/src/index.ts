@@ -23,6 +23,7 @@ export type {
   BeforeChangeHook,
   BeforeDeleteHook,
   BeforeValidateHook,
+  CollectionAdmin,
   CollectionConfig,
   CollectionHooks,
   ContainerAdmin,

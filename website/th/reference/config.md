@@ -129,7 +129,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `preview` | `({ doc, locale }) => string \| null` | — | หน้าที่แสดงเอกสาร สำหรับ[ตัวอย่างสด](/th/guide/live-preview) |
 | `access` | `{ read?, create?, update?, delete? }` | ต้อง login | [การควบคุมสิทธิ์](/th/guide/access-control) |
 | `hooks` | `CollectionHooks` | — | ดู [hooks](#hooks) |
-| `admin` | `ContainerAdmin` | — | ดู [admin components](#admin-components) |
+| `admin` | `CollectionAdmin` | — | ดู [admin components](#admin-components) |
 
 <!-- api: VersionsConfig -->
 ### versions {#versions}
@@ -154,12 +154,13 @@ export default defineConfig({ secret, db, collections, /* … */ })
 
 ทุก hook ได้ `user`, `cms` และ `slug` ด้วย
 
-<!-- api: ContainerAdmin -->
+<!-- api: CollectionAdmin -->
 ### Admin components {#admin-components}
 
 | ตัวเลือก | Type | |
 |---|---|---|
 | `sidebar` | `AdminComponent[]` | กล่องในแถบข้างของหน้าแก้ไข [Admin components](/th/guide/plugins#admin-components) |
+| `group` | `'settings'` | แสดง collection ใต้ตั้งค่าในเมนู คู่กับ Users และ API keys |
 
 <!-- api: GlobalConfig -->
 ## globals {#globals}
