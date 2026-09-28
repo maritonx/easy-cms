@@ -1,5 +1,11 @@
 # @easy-cms/drizzle
 
+## 0.13.1
+
+### Patch Changes
+
+- @easy-cms/core@0.13.1
+
 ## 0.13.0
 
 ### Patch Changes

@@ -1,5 +1,12 @@
 # @easy-cms/nuxt
 
+## 0.13.1
+
+### Patch Changes
+
+- @easy-cms/admin@0.13.1
+  - @easy-cms/core@0.13.1
+
 ## 0.13.0
 
 ### Minor Changes
