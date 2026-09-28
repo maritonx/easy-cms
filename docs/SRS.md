@@ -1,9 +1,9 @@
 # Software Requirements Specification — Easy CMS
 
-- **เวอร์ชันเอกสาร:** 2.1
+- **เวอร์ชันเอกสาร:** 2.2
 - **วันที่:** 2026-09-28
 - **ผู้เขียน:** Kanawoot K.
-- **ครอบคลุม:** v0.1 (baseline) ถึง v0.17
+- **ครอบคลุม:** v0.1 (baseline) ถึง v0.18
 - **สถานะ:** Living document (อัปเดตทุกครั้งที่เพิ่มฟีเจอร์)
 - **เอกสารที่เกี่ยวข้อง:** [DESIGN.md](DESIGN.md), [ADRs](adr/)
 
@@ -367,7 +367,7 @@ AI assistant ► /api/cms/mcp ──┘                     └──► Webhook
 | FR-PLG-07 | `applyPlugins(config)` ต้องรัน plugin โดยไม่ตรวจ config เพื่อให้เครื่องมือตอน build อ่านสิ่งที่ plugin เพิ่มได้ | 0.13 | MUST |
 | FR-PLG-08 | Endpoint ที่ตั้ง `root: true` ต้องเสิร์ฟจาก root ของเว็บใน standalone server (`createRootEndpointHandler`) ด้วย auth และ CSRF เดียวกัน และ path ต้องไม่ชนกับ `routes.api`, `admin.path` หรือ `/healthz` | 0.17 | MUST |
 
-### 3.23 SEO plugin (SEO) — [ADR-0018](adr/0018-plugin-endpoints-admin-components.md), [ADR-0020](adr/0020-seo-sitemap-robots-root-endpoints.md)
+### 3.23 SEO plugin (SEO) — [ADR-0018](adr/0018-plugin-endpoints-admin-components.md), [ADR-0020](adr/0020-seo-sitemap-robots-root-endpoints.md), [ADR-0021](adr/0021-seo-for-ai.md)
 
 | ID | ความต้องการ | ตั้งแต่ | ระดับ |
 |---|---|---|---|
@@ -378,6 +378,10 @@ AI assistant ► /api/cms/mcp ──┘                     └──► Webhook
 | FR-SEO-05 | `sitemap(cms)` และ `sitemapXml(cms)` ต้องรวมเฉพาะหน้าที่ผู้เข้าชมเห็นได้ (อ่านแบบไม่ login), มี URL จาก `generateURL` และไม่ได้ตั้ง noindex พร้อม `lastmod`, `xhtml:link` ของทุกภาษา และแบ่งเป็น index เมื่อเกิน 50,000 URL | 0.17 | MUST |
 | FR-SEO-06 | `robotsTxt()` ต้องกัน crawler จาก admin และ API (ยกเว้นไฟล์อัปโหลด) และชี้ไปที่ sitemap มี `disallowAll` สำหรับ staging | 0.17 | MUST |
 | FR-SEO-07 | Field `meta.noindex` ต้องทำให้หน้ามี `robots: noindex` และไม่อยู่ใน sitemap | 0.17 | MUST |
+| FR-SEO-09 | `robotsTxt()` ต้องตั้ง crawler ของ AI เป็นกลุ่มได้ (`training`, `search`, `user`) โดยอนุญาตทั้งหมดเป็นค่าเริ่มต้น และทุกกลุ่มต้องได้กฎของ admin และ API | 0.18 | MUST |
+| FR-SEO-10 | `llmsTxt()` ต้องสร้าง llms.txt จากหน้าชุดเดียวกับ sitemap ในภาษาเดียว และ `llmsFullTxt()` ต้องรวม Markdown ของทุกหน้าโดยหยุดที่ประมาณ 5 MB | 0.18 | MUST |
+| FR-SEO-11 | `docMarkdown()` ต้องสร้าง Markdown ของเอกสารจากชื่อ คำอธิบาย วันที่ rich text ข้อความยาว และข้อความใน blocks/array และเขียนเองต่อ collection ได้ ส่วน `renderMarkdown()` ของ `@easy-cms/richtext` ต้อง escape และตัด URL ที่ไม่ปลอดภัย | 0.18 | MUST |
+| FR-SEO-12 | `indexNow: { key }` ต้องส่ง URL (ทุกภาษา) เมื่อหน้าถูกเผยแพร่ แก้ไขขณะเผยแพร่ ยกเลิกเผยแพร่ หรือลบ รวมเป็นชุด ส่งเฉพาะ URL `https` สาธารณะ และเสิร์ฟไฟล์ key ที่ `/<key>.txt` | 0.18 | SHOULD |
 | FR-SEO-08 | `seoMeta` ต้องสร้าง hreflang (รวม `x-default`), `og:locale`, `og:type: article` พร้อมเวลาเผยแพร่/แก้ไข และ JSON-LD (BlogPosting/WebPage) ส่วน `siteJsonLd()` ต้องสร้าง Organization + WebSite และ `jsonLdScript()` ต้อง escape ให้ปลอดภัยใน `<script>` | 0.17 | MUST |
 
 ### 3.24 API keys (KEY) — [ADR-0019](adr/0019-api-keys-and-mcp.md)
@@ -640,6 +644,7 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 0.16 | MCP plugin | FR-MCP-*, NFR-SEC-09 | [0019](adr/0019-api-keys-and-mcp.md) |
 | 0.16.1 | Next.js: instance เดียวต่อ server | FR-LAPI-07 | — |
 | 0.17 | SEO: sitemap, robots.txt, noindex, hreflang, JSON-LD; root endpoints | FR-SEO-05..08, FR-PLG-08 | [0020](adr/0020-seo-sitemap-robots-root-endpoints.md) |
+| 0.18 | SEO สำหรับ AI: crawler ของ AI, llms.txt, Markdown, IndexNow | FR-SEO-09..12 | [0021](adr/0021-seo-for-ai.md) |
 
 ---
 
@@ -653,5 +658,6 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 1.3 | 2026-09-25 | M5: FR-REST-08 (อัปโหลด/ไฟล์), FR-CFG-07 (`routes.api`, `serverURL`), ระบุว่า drafts ใน v0.1 ไม่มี version แยก |
 | 1.4 | 2026-09-25 | M6: ผลวัด NFR-PERF-01/02 บน Postgres 17 (Local API p95 2.7 ms, REST p95 4.3 ms), Next.js adapter ใช้ `getEasyCMS(config)` |
 | 1.5 | 2026-09-25 | M7: ผลตรวจรับ v0.1 (7.1) |
+| 2.2 | 2026-09-28 | 0.18: FR-SEO-09..12 |
 | 2.1 | 2026-09-28 | 0.17: FR-SEO-05..08, FR-PLG-08 |
 | 2.0 | 2026-09-28 | ครอบคลุมถึง 0.16: ปรับขอบเขตและ FR เดิมให้ตรงกับปัจจุบัน (FR-DRF-06, FR-ADP-03, NFR-DOC-01, NFR-USE-03), เพิ่ม STA, S3, VER, PRV, LOC, BLK, WHK/SCH, PLG, SEO, KEY, MCP, OPS, ADM-14..18, NFR ใหม่, ตารางภายใน, เกณฑ์ตรวจรับ 7.2 และ traceability ของ release |

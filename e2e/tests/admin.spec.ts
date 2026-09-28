@@ -585,6 +585,40 @@ test.describe('logged in as admin', () => {
     await page.waitForLoadState('load')
   })
 
+  test('opens the site to AI assistants: llms.txt, Markdown and crawler rules', async ({
+    page,
+  }) => {
+    const get = async (path: string) => {
+      const response = await page.request.get(path)
+      return { status: response.status(), text: await response.text() }
+    }
+    // Training crawlers are kept out; AI search crawlers are not named, so they may read.
+    const robots = (await get('/robots.txt')).text
+    expect(robots).toMatch(/User-agent: GPTBot\n(User-agent: .+\n)*Disallow: \/\n/)
+    expect(robots).not.toContain('OAI-SearchBot')
+    // The IndexNow key file.
+    expect(await get('/e2e-indexnow-key.txt')).toEqual({ status: 200, text: 'e2e-indexnow-key' })
+
+    const llms = await get('/llms.txt')
+    expect(llms.status).toBe(200)
+    expect(llms.text).toMatch(/^# /)
+    expect(llms.text).not.toContain('Hidden page')
+    const full = await get('/llms-full.txt')
+    expect(full.text).toContain('# Custom SEO title')
+    if (standalone()) {
+      // The frontend has no Markdown pages: llms.txt links to the frontend's addresses.
+      expect(llms.text).toContain('](http://localhost:3103/?post=')
+      return
+    }
+    const origin = test.info().project.use.baseURL as string
+    expect(llms.text).toContain(`- [Custom SEO title](${origin}/posts/plugins-work.md)`)
+    const markdown = await get('/posts/plugins-work.md')
+    expect(markdown.status).toBe(200)
+    expect(markdown.text).toContain('# Custom SEO title')
+    expect(markdown.text).toContain(`URL: ${origin}/posts/plugins-work`)
+    expect((await get('/posts/hidden-page.md')).status).toBe(404)
+  })
+
   test('creates an API key that scripts can use (apiKeys)', async ({ page }) => {
     await page
       .getByRole('navigation', { name: 'Main' })

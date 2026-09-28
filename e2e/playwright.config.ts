@@ -72,6 +72,8 @@ export default defineConfig({
         // Standalone example: live preview opens the frontend, which calls this server.
         FRONTEND_URL: FRONTEND,
         CMS_URL: `http://localhost:${app.port}`,
+        // The key file is served; nothing is sent, as localhost isn't a public site.
+        INDEXNOW_KEY: 'e2e-indexnow-key',
       },
     })),
     // The standalone example's frontend, on its own origin.

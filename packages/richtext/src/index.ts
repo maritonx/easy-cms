@@ -162,3 +162,133 @@ export function richTextToPlainText(doc: RichTextInput | null | undefined): stri
     .replace(/\n{2,}/g, '\n')
     .trim()
 }
+
+export interface MarkdownOptions {
+  /** Override or add node renderers. Receives the node and its rendered children. */
+  nodes?: Record<string, (node: RichTextNode, children: string) => string>
+}
+
+/** Escapes characters Markdown would read as formatting. */
+function escapeMarkdown(text: string): string {
+  return text.replace(/[\\`*_[\]<>|]/g, (c) => `\\${c}`)
+}
+
+/** Keeps a line that starts like a heading, quote or list item as plain text. */
+function escapeLineStart(text: string): string {
+  return text.replace(
+    /^(\s*)(#{1,6}\s|>|[-+]\s|\d+[.)]\s)/gm,
+    (_, space: string, start: string) => `${space}\\${start}`,
+  )
+}
+
+function markdownMarks(text: string, marks: RichTextNode['marks']): string {
+  let md = escapeMarkdown(text)
+  if (md.trim() === '') return md
+  for (const mark of marks ?? []) {
+    switch (mark.type) {
+      case 'bold':
+        md = `**${md}**`
+        break
+      case 'italic':
+        md = `*${md}*`
+        break
+      case 'strike':
+        md = `~~${md}~~`
+        break
+      case 'code':
+        md = `\`${text.replace(/`/g, "'")}\``
+        break
+      case 'link': {
+        const href = safeUrl(mark.attrs?.href)
+        if (href) md = `[${md}](${href.replace(/[()\s]/g, urlChar)})`
+        break
+      }
+    }
+  }
+  return md
+}
+
+/** Percent-encodes characters that would end a Markdown link's URL. */
+const urlChar = (c: string) => `%${c.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0')}`
+
+/** Indents every line after the first, for nested list items. */
+const indent = (text: string, by: string) => text.replace(/\n(?!\n|$)/g, `\n${by}`)
+
+function markdownNode(node: RichTextNode, options: MarkdownOptions): string {
+  if (!node || typeof node !== 'object') return ''
+  if (node.type === 'text') return markdownMarks(String(node.text ?? ''), node.marks)
+  const content = Array.isArray(node.content) ? node.content : []
+  const inline = () => content.map((c) => markdownNode(c, options)).join('')
+  const blocks = () =>
+    content
+      .map((c) => markdownNode(c, options))
+      .filter((b) => b.trim() !== '')
+      .join('\n\n')
+
+  const custom = options.nodes?.[node.type]
+  if (custom) return custom(node, blocks())
+
+  switch (node.type) {
+    case 'doc':
+      return blocks()
+    case 'paragraph':
+      return escapeLineStart(inline())
+    case 'heading': {
+      const level = Math.min(6, Math.max(1, Number(node.attrs?.level) || 2))
+      return `${'#'.repeat(level)} ${inline().replace(/\n/g, ' ')}`
+    }
+    case 'bulletList':
+    case 'orderedList': {
+      const start = Number(node.attrs?.start)
+      let n = Number.isInteger(start) ? start : 1
+      return content
+        .map((item) => {
+          const marker = node.type === 'orderedList' ? `${n++}.` : '-'
+          const body = markdownNode(item, options)
+          return `${marker} ${indent(body, ' '.repeat(marker.length + 1))}`
+        })
+        .join('\n')
+    }
+    case 'listItem':
+      return content
+        .map((c) => markdownNode(c, options))
+        .filter((b) => b.trim() !== '')
+        .join('\n')
+    case 'blockquote':
+      return blocks()
+        .split('\n')
+        .map((line) => (line ? `> ${line}` : '>'))
+        .join('\n')
+    case 'codeBlock': {
+      const language = typeof node.attrs?.language === 'string' ? node.attrs.language : ''
+      const code = content.map((c) => String(c.text ?? '')).join('')
+      const fence = code.includes('```') ? '~~~~' : '```'
+      return `${fence}${language}\n${code}\n${fence}`
+    }
+    case 'hardBreak':
+      return '  \n'
+    case 'horizontalRule':
+      return '---'
+    case 'image': {
+      const src = safeUrl(node.attrs?.src)
+      if (!src) return ''
+      const alt = typeof node.attrs?.alt === 'string' ? escapeMarkdown(node.attrs.alt) : ''
+      return `![${alt}](${src.replace(/[()\s]/g, urlChar)})`
+    }
+    default:
+      // Unknown nodes keep their content but no markup.
+      return content.some((c) => c.type === 'text') ? inline() : blocks()
+  }
+}
+
+/**
+ * Renders a rich text document to Markdown, e.g. for `llms.txt` or `.md` versions of pages.
+ * Text that looks like Markdown is escaped, and unsafe URLs are removed.
+ */
+export function renderMarkdown(
+  doc: RichTextInput | null | undefined,
+  options: MarkdownOptions = {},
+): string {
+  if (!doc) return ''
+  return markdownNode(doc as RichTextNode, options).trim()
+}

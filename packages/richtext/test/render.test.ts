@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { type RichTextNode, renderRichText, richTextToPlainText, safeUrl } from '../src/index.js'
+import {
+  type RichTextNode,
+  renderMarkdown,
+  renderRichText,
+  richTextToPlainText,
+  safeUrl,
+} from '../src/index.js'
 
 const doc = (...content: RichTextNode[]): RichTextNode => ({ type: 'doc', content })
 const p = (...content: RichTextNode[]): RichTextNode => ({ type: 'paragraph', content })
@@ -127,5 +133,78 @@ describe('richTextToPlainText', () => {
         ),
       ),
     ).toBe('สวัสดี\nB\nc\nd')
+  })
+})
+
+describe('renderMarkdown', () => {
+  const doc = (...content: unknown[]) => ({ type: 'doc', content })
+  const p = (...content: unknown[]) => ({ type: 'paragraph', content })
+  const t = (text: string, ...marks: string[]) => ({
+    type: 'text',
+    text,
+    ...(marks.length ? { marks: marks.map((type) => ({ type })) } : {}),
+  })
+
+  it('renders blocks, marks and lists', () => {
+    const md = renderMarkdown(
+      doc(
+        { type: 'heading', attrs: { level: 2 }, content: [t('สวัสดี')] },
+        p(t('Plain, '), t('bold', 'bold'), t(' and '), t('code', 'code'), t('.')),
+        p({
+          type: 'text',
+          text: 'a link',
+          marks: [{ type: 'link', attrs: { href: 'https://x.test/a (b)' } }],
+        }),
+        {
+          type: 'bulletList',
+          content: [
+            {
+              type: 'listItem',
+              content: [
+                p(t('one')),
+                { type: 'bulletList', content: [{ type: 'listItem', content: [p(t('nested'))] }] },
+              ],
+            },
+            { type: 'listItem', content: [p(t('two'))] },
+          ],
+        },
+        {
+          type: 'orderedList',
+          attrs: { start: 3 },
+          content: [{ type: 'listItem', content: [p(t('three'))] }],
+        },
+        { type: 'blockquote', content: [p(t('quoted')), p(t('again'))] },
+        { type: 'codeBlock', attrs: { language: 'ts' }, content: [t('const a = 1 * 2')] },
+        { type: 'image', attrs: { src: '/cover.png', alt: 'A [cover]' } },
+        { type: 'horizontalRule' },
+      ),
+    )
+    expect(md).toBe(
+      [
+        '## สวัสดี',
+        'Plain, **bold** and `code`.',
+        '[a link](https://x.test/a%20%28b%29)',
+        '- one\n  - nested\n- two',
+        '3. three',
+        '> quoted\n>\n> again',
+        '```ts\nconst a = 1 * 2\n```',
+        '![A \\[cover\\]](/cover.png)',
+        '---',
+      ].join('\n\n'),
+    )
+  })
+
+  it('escapes text that looks like Markdown and drops unsafe URLs', () => {
+    expect(renderMarkdown(doc(p(t('# not a heading *or* [link]'))))).toBe(
+      '\\# not a heading \\*or\\* \\[link\\]',
+    )
+    expect(renderMarkdown(doc(p(t('1. not a list'))))).toBe('\\1. not a list')
+    const bad = {
+      type: 'text',
+      text: 'x',
+      marks: [{ type: 'link', attrs: { href: 'javascript:alert(1)' } }],
+    }
+    expect(renderMarkdown(doc(p(bad)))).toBe('x')
+    expect(renderMarkdown(null)).toBe('')
   })
 })

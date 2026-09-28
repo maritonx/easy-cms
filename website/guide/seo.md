@@ -69,6 +69,9 @@ checkbox is a new column too, so create a migration after updating.
 | `localized` | with `localization` | One value per [content locale](./localization). |
 | `label` | `'SEO'` | Label of the group. |
 | `robots` | `{}` | Options of [`robots.txt`](#robots-txt) for the standalone server, or `false` for none. |
+| `llms` | `{}` | [`llms.txt`](./ai-search#llms-txt) for AI assistants: title, summary, limit, Markdown links. `false` turns off the standalone server's routes. |
+| `markdown` | — | `{ [slug]: (doc) => markdown }`: your own [Markdown version](./ai-search#markdown-versions-of-pages) of a collection's pages. |
+| `indexNow` | — | `{ key }`: tell search engines about changed pages with [IndexNow](./ai-search#indexnow). |
 
 Generators receive `{ doc, id, locale, collection | global, cms, user }` and may be async. Return
 `null` when there is nothing to suggest.
@@ -267,6 +270,8 @@ export function GET() {
 | `sitemap` | The sitemap's address, or `false` for no `Sitemap:` line. |
 | `disallow` | More paths to keep out, e.g. `['/search']`. |
 | `disallowAll` | Keep crawlers out of the whole site, e.g. on staging. |
+| `ai` | `{ training?, search?, user? }`: allow or block [AI crawlers](./ai-search#choose-which-ai-crawlers-may-read) by group. All allowed by default. |
+| `rules` | `[{ userAgent, allow?, disallow? }]` for other crawlers. |
 
 ::: warning Staging
 `disallowAll` is not turned on by `NODE_ENV`: staging servers usually run in production mode
@@ -302,6 +307,7 @@ Check the result with Google's [Rich Results Test](https://search.google.com/tes
 ## Next steps
 
 - [Localization](./localization): SEO fields per language.
+- [AI search](./ai-search): AI crawlers, `llms.txt`, Markdown pages and IndexNow.
 - [Get your site ready for search engines](./recipes/search-engines): the steps in order, and how
   to check them.
 - [Migrations & deployment](./deployment): migrate the new columns.

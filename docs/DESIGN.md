@@ -3,7 +3,7 @@
 - **สถานะ:** Accepted (living document)
 - **วันที่:** 2026-09-28 (ฉบับแรก 2026-09-25)
 - **ผู้เขียน:** Kanawoot K.
-- **ครอบคลุม:** v0.1 ถึง v0.17
+- **ครอบคลุม:** v0.1 ถึง v0.18
 - **Requirements:** [SRS.md](SRS.md)
 
 ---
@@ -104,9 +104,9 @@ Plugin ยังเป็น `(config) => config` เหมือน v0.1 คว
 | `@easy-cms/drizzle` | Drizzle layer ที่ใช้ร่วมกัน: schema, where → SQL, CRUD, migrator, transfer | 0.1 |
 | `@easy-cms/db-sqlite` | Drizzle + SQLite (libSQL) | 0.1 |
 | `@easy-cms/db-postgres` | Drizzle + Postgres (postgres.js หรือ PGlite) | 0.1 |
-| `@easy-cms/richtext` | `renderRichText()` แปลง Tiptap JSON → HTML | 0.1 |
+| `@easy-cms/richtext` | `renderRichText()` แปลง Tiptap JSON → HTML และ `renderMarkdown()` (0.18) | 0.1 |
 | `@easy-cms/storage-s3` | S3 / R2 / MinIO | 0.2 |
-| `@easy-cms/plugin-seo` | field `meta`, ตัวนับความยาว, ตัวอย่างผลการค้นหา, `seoMeta()`, sitemap, robots.txt, hreflang, JSON-LD (0.17) | 0.13 |
+| `@easy-cms/plugin-seo` | field `meta`, ตัวนับความยาว, ตัวอย่างผลการค้นหา, `seoMeta()`, sitemap, robots.txt, hreflang, JSON-LD (0.17), crawler ของ AI, llms.txt, Markdown, IndexNow (0.18) | 0.13 |
 | `@easy-cms/plugin-mcp` | MCP server สำหรับผู้ช่วย AI | 0.16 |
 | `easy-cms` (bin) | CLI และโหมด standalone | 0.1 |
 | `create-easy-cms` | ตัว scaffold (Nuxt, Next, standalone) | 0.1 |
@@ -248,6 +248,7 @@ Endpoint ของ plugin อยู่ใต้ `routes.api` เดียวก�
 | API keys | 0.15 | [0019](adr/0019-api-keys-and-mcp.md) |
 | MCP plugin | 0.16 | [0019](adr/0019-api-keys-and-mcp.md) |
 | SEO: sitemap, robots.txt, noindex, hreflang, JSON-LD | 0.17 | [0020](adr/0020-seo-sitemap-robots-root-endpoints.md) |
+| SEO สำหรับ AI: crawler ของ AI, llms.txt, Markdown, IndexNow | 0.18 | [0021](adr/0021-seo-for-ai.md) |
 
 ## 12. CLI และ DX
 
@@ -304,13 +305,13 @@ CI รัน lint, typecheck, build และ test บน Linux, macOS และ
 | **M7** CLI + Docs + Release | `create-easy-cms`, `generate:types`, VitePress, publish v0.1 |
 
 ### 15.2 หลัง v0.1 (เสร็จแล้ว)
-0.2 standalone + S3 → 0.3 versions → 0.4–0.5 live preview, localization → 0.6–0.9 blocks, webhooks, การตั้งเวลา → 0.10 backup → 0.11–0.12 admin redesign → 0.13 plugin ecosystem + SEO → 0.14 copy → 0.15 API keys → 0.16 MCP → 0.17 SEO ระดับทั้งเว็บ (รายละเอียดใน [SRS §8.2](SRS.md#82-releases-หลัง-v01))
+0.2 standalone + S3 → 0.3 versions → 0.4–0.5 live preview, localization → 0.6–0.9 blocks, webhooks, การตั้งเวลา → 0.10 backup → 0.11–0.12 admin redesign → 0.13 plugin ecosystem + SEO → 0.14 copy → 0.15 API keys → 0.16 MCP → 0.17 SEO ระดับทั้งเว็บ → 0.18 SEO สำหรับ AI (รายละเอียดใน [SRS §8.2](SRS.md#82-releases-หลัง-v01))
 
 ### 15.3 แนวคิดถัดไป (ยังไม่ได้ตัดสินใจ)
 - MCP แบบ stdio (`easy-cms mcp`) และ OAuth สำหรับ client ที่ส่ง header ไม่ได้
 - อัปโหลดจาก URL พร้อม `allowedHosts`
-- SEO: BreadcrumbList, ตรวจคุณภาพเนื้อหา, IndexNow
-- `@easy-cms/plugin-redirects` (0.18)
+- SEO: BreadcrumbList, FAQPage JSON-LD, ตรวจคุณภาพเนื้อหา
+- `@easy-cms/plugin-redirects` (0.19)
 - Plugin: หน้าเต็มในหน้า Admin และ widget บน dashboard
 - `auth.strategy` สำหรับ auth ภายนอก, ลืมรหัสผ่านผ่าน email
 
@@ -348,3 +349,4 @@ CI รัน lint, typecheck, build และ test บน Linux, macOS และ
 - [ADR-0018](adr/0018-plugin-endpoints-admin-components.md) — Endpoint ของ plugin, admin components และ plugin SEO
 - [ADR-0019](adr/0019-api-keys-and-mcp.md) — API keys และ plugin MCP
 - [ADR-0020](adr/0020-seo-sitemap-robots-root-endpoints.md) — Sitemap, robots.txt, hreflang และ JSON-LD ใน plugin SEO และ root endpoints
+- [ADR-0021](adr/0021-seo-for-ai.md) — SEO สำหรับ AI: crawler ของ AI, llms.txt, Markdown และ IndexNow

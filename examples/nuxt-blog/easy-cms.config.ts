@@ -168,6 +168,14 @@ export default defineConfig({
             ? `/posts/${doc.slug}${locale === 'en' ? '?locale=en' : ''}`
             : null
           : '/',
+      // /llms.txt for AI assistants: a summary, then posts linked to their Markdown versions.
+      llms: {
+        description: 'A demo blog built with Easy CMS, in Thai and English.',
+        markdownURL: ({ doc, collection }) =>
+          collection === 'posts' && doc.slug ? `/posts/${doc.slug}.md` : null,
+      },
+      // Tell Bing and other IndexNow engines about published changes (public https sites only).
+      ...(process.env.INDEXNOW_KEY ? { indexNow: { key: process.env.INDEXNOW_KEY } } : {}),
     }),
   ],
 })

@@ -352,6 +352,10 @@ importers:
         version: link:../db-sqlite
 
   packages/plugin-seo:
+    dependencies:
+      '@easy-cms/richtext':
+        specifier: workspace:^
+        version: link:../richtext
     devDependencies:
       '@easy-cms/core':
         specifier: workspace:^

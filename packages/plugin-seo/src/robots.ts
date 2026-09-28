@@ -12,7 +12,43 @@ export interface RobotsTxtOptions {
   readonly disallowAll?: boolean
   /** More paths to keep out of search, e.g. `['/search']`. */
   readonly disallow?: readonly string[]
+  /**
+   * AI crawlers by what they do (all allowed by default): `training` collects text to train
+   * models, `search` indexes pages for AI search and answers that cite them, `user` opens a
+   * page when someone asks an assistant to. E.g. `{ training: false }` keeps your content out
+   * of training but lets AI answers link to you.
+   */
+  readonly ai?: { readonly training?: boolean; readonly search?: boolean; readonly user?: boolean }
+  /** Rules for other crawlers. The admin and API rules are added to each one. */
+  readonly rules?: readonly RobotsRule[]
 }
+
+export interface RobotsRule {
+  /** One crawler's user agent, or several. */
+  readonly userAgent: string | readonly string[]
+  readonly allow?: readonly string[]
+  /** Paths to keep it out of; `['/']` for the whole site. */
+  readonly disallow?: readonly string[]
+}
+
+/**
+ * Known AI crawlers, by what they do, from each company's documentation. Updated in each
+ * release; add others with `rules`.
+ */
+export const AI_CRAWLERS = {
+  training: [
+    'GPTBot',
+    'ClaudeBot',
+    'Google-Extended',
+    'Applebot-Extended',
+    'CCBot',
+    'Meta-ExternalAgent',
+    'Bytespider',
+    'cohere-training-data-crawler',
+  ],
+  search: ['OAI-SearchBot', 'Claude-SearchBot', 'PerplexityBot'],
+  user: ['ChatGPT-User', 'Claude-User', 'Perplexity-User'],
+} as const
 
 /**
  * A `robots.txt` that keeps search engines out of the admin and the API (except uploaded
@@ -24,12 +60,33 @@ export function robotsTxt(options: RobotsTxtOptions = {}): string {
   const admin = trim(config?.admin?.path ?? '/admin')
   const api = trim(config?.routes?.api ?? '/api/cms')
   const site = options.siteUrl ?? (config?.admin?.siteUrl || config?.serverURL)
-  const lines = ['User-agent: *']
-  if (options.disallowAll) {
-    lines.push('Disallow: /')
-  } else {
-    lines.push(`Allow: ${api}/media/file/`, `Disallow: ${admin}/`, `Disallow: ${api}/`)
-    for (const path of options.disallow ?? []) lines.push(`Disallow: ${path}`)
+  // A crawler follows only the most specific group that names it, so every group gets the
+  // admin and API rules.
+  const base = options.disallowAll
+    ? ['Disallow: /']
+    : [
+        `Allow: ${api}/media/file/`,
+        `Disallow: ${admin}/`,
+        `Disallow: ${api}/`,
+        ...(options.disallow ?? []).map((path) => `Disallow: ${path}`),
+      ]
+  const lines = ['User-agent: *', ...base]
+  const group = (agents: readonly string[], rules: string[]) => {
+    lines.push('', ...agents.map((agent) => `User-agent: ${agent}`), ...rules)
+  }
+  if (!options.disallowAll) {
+    const blocked = (['training', 'search', 'user'] as const).flatMap((kind) =>
+      options.ai?.[kind] === false ? AI_CRAWLERS[kind] : [],
+    )
+    if (blocked.length > 0) group(blocked, ['Disallow: /'])
+    for (const rule of options.rules ?? []) {
+      const agents = typeof rule.userAgent === 'string' ? [rule.userAgent] : rule.userAgent
+      group(agents, [
+        ...(rule.allow ?? []).map((path) => `Allow: ${path}`),
+        ...(rule.disallow ?? []).map((path) => `Disallow: ${path}`),
+        ...base,
+      ])
+    }
   }
   const sitemap =
     options.sitemap === false

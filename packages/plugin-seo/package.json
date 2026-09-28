@@ -21,6 +21,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
+  "dependencies": {
+    "@easy-cms/richtext": "workspace:^"
+  },
   "peerDependencies": {
     "@easy-cms/core": "workspace:^"
   },

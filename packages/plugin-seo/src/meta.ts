@@ -1,5 +1,5 @@
 import { META_FIELD } from './shared.js'
-import { absolute } from './sitemap.js'
+import { absolute } from './source.js'
 
 type Doc = Record<string, unknown>
 type Value = string | null | undefined

@@ -99,6 +99,8 @@ describe('seoPlugin config', () => {
       'get /seo/sitemap.xml',
       'get /sitemap.xml (root)',
       'get /robots.txt (root)',
+      'get /llms.txt (root)',
+      'get /llms-full.txt (root)',
     ])
   })
 
@@ -377,5 +379,245 @@ Sitemap: https://blog.test/sitemap.xml
       'User-agent: *\nAllow: /api/media/file/\nDisallow: /cms/\nDisallow: /api/\nDisallow: /search\n',
     )
     expect(robotsTxt({ disallowAll: true })).toBe('User-agent: *\nDisallow: /\n')
+  })
+})
+
+describe('AI crawlers in robots.txt', () => {
+  it('blocks groups of AI crawlers and adds custom rules', async () => {
+    const { robotsTxt, AI_CRAWLERS } = await import('../src/index.js')
+    const text = robotsTxt({
+      ai: { training: false },
+      rules: [{ userAgent: 'SomeBot', disallow: ['/private/'] }],
+      sitemap: false,
+    })
+    expect(text).toContain(
+      `${AI_CRAWLERS.training.map((a) => `User-agent: ${a}`).join('\n')}\nDisallow: /\n`,
+    )
+    expect(text).not.toContain('User-agent: OAI-SearchBot')
+    // A crawler follows only its own group, so it gets the admin and API rules too.
+    expect(text).toContain(
+      'User-agent: SomeBot\nDisallow: /private/\nAllow: /api/cms/media/file/\nDisallow: /admin/\nDisallow: /api/cms/\n',
+    )
+    // Default: no AI groups at all.
+    expect(robotsTxt({ sitemap: false })).not.toContain('GPTBot')
+  })
+})
+
+describe('llms.txt and Markdown', () => {
+  const blog = (extra: Partial<Parameters<typeof seoPlugin>[0]> = {}) =>
+    base(
+      [
+        seoPlugin({
+          collections: ['posts'],
+          globals: ['site'],
+          generateURL: ({ doc, collection }) =>
+            collection ? (doc.slug ? `/posts/${doc.slug}` : null) : '/',
+          llms: {
+            description: 'A blog about Easy CMS.',
+            markdownURL: ({ doc, collection }) => (collection ? `/posts/${doc.slug}.md` : null),
+          },
+          ...extra,
+        }),
+      ],
+      {
+        collections: [
+          {
+            slug: 'posts',
+            labels: { plural: { en: 'Posts', th: 'บทความ' } },
+            useAsTitle: 'title',
+            drafts: true,
+            access: { read: ({ user }) => (user ? true : { status: { equals: 'published' } }) },
+            fields: [
+              { name: 'title', type: 'text' },
+              { name: 'slug', type: 'slug', from: 'title' },
+              { name: 'excerpt', type: 'textarea' },
+              { name: 'body', type: 'richText' },
+              {
+                name: 'sections',
+                type: 'blocks',
+                blocks: [{ slug: 'quote', fields: [{ name: 'text', type: 'text' }] }],
+              },
+            ],
+          },
+        ],
+        globals: [
+          {
+            slug: 'site',
+            access: { read: () => true },
+            fields: [{ name: 'siteName', type: 'text' }],
+          },
+        ],
+      },
+    )
+  const body = {
+    type: 'doc',
+    content: [
+      { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Why' }] },
+      { type: 'paragraph', content: [{ type: 'text', text: 'Because *it* works.' }] },
+    ],
+  }
+
+  it('indexes visible pages and renders them as Markdown', async () => {
+    const { llmsTxt, llmsFullTxt, docMarkdown } = await import('../src/index.js')
+    const cms = await open(blog())
+    try {
+      await cms.updateGlobal('site', { siteName: 'Easy Blog' })
+      await cms.create('posts', {
+        title: 'Hello',
+        excerpt: 'First post.',
+        body,
+        sections: [{ blockType: 'quote', text: 'A quote' }],
+        status: 'published',
+        meta: { description: 'All about hello.' },
+      })
+      await cms.create('posts', { title: 'Draft', status: 'draft' })
+      await cms.create('posts', { title: 'Hidden', status: 'published', meta: { noindex: true } })
+
+      expect(await llmsTxt(cms)).toBe(`# Easy Blog
+
+> A blog about Easy CMS.
+
+## Posts
+
+- [Hello](https://blog.test/posts/hello.md): All about hello.
+
+## Pages
+
+- [Easy Blog](https://blog.test/)
+`)
+      const post = (await cms.find('posts', { where: { slug: { equals: 'hello' } } })).docs[0]
+      const markdown = docMarkdown(cms, {
+        collection: 'posts',
+        doc: post as never,
+        url: 'https://blog.test/posts/hello',
+      })
+      expect(markdown).toContain(
+        '# Hello\n\n> All about hello.\n\nURL: https://blog.test/posts/hello  \nPublished: ',
+      )
+      expect(markdown).toContain('## Why\n\nBecause \\*it\\* works.\n\nA quote\n')
+
+      const full = await llmsFullTxt(cms)
+      expect(full.startsWith('# Easy Blog\n\n> A blog about Easy CMS.\n\n---\n\n# Hello')).toBe(
+        true,
+      )
+      expect(full).not.toContain('Draft')
+      expect(full).not.toContain('Hidden')
+      const cut = await llmsFullTxt(cms, { maxBytes: 80 })
+      expect(cut).toContain('More pages are listed in /llms.txt')
+
+      // The standalone server serves them from the root.
+      const { createRootEndpointHandler } = await import('@easy-cms/core')
+      const root = createRootEndpointHandler(cms)
+      const served = await root(new Request('http://cms.test/llms.txt'))
+      expect(served?.headers.get('content-type')).toContain('text/markdown')
+      expect(await served?.text()).toContain('# Easy Blog')
+    } finally {
+      await cms.destroy()
+    }
+  })
+
+  it('takes a Markdown function per collection', async () => {
+    const { docMarkdown } = await import('../src/index.js')
+    const cms = await open(blog({ markdown: { posts: (doc) => `# ${doc.title}!` } }))
+    try {
+      expect(docMarkdown(cms, { collection: 'posts', doc: { title: 'Custom' } })).toBe(
+        '# Custom!\n',
+      )
+    } finally {
+      await cms.destroy()
+    }
+  })
+})
+
+describe('IndexNow', () => {
+  it('sends published, unpublished and deleted pages in batches, only for public sites', async () => {
+    const sent: { url: string; body: Record<string, unknown> }[] = []
+    const fake = (async (url: string, init: RequestInit) => {
+      sent.push({ url, body: JSON.parse(String(init.body)) })
+      return new Response(null, { status: 202 })
+    }) as typeof fetch
+    const key = 'a1b2c3d4-key'
+    const config = base(
+      [
+        seoPlugin({
+          collections: ['posts'],
+          generateURL: ({ doc }) => (doc.slug ? `/posts/${doc.slug}` : null),
+          indexNow: { key, delay: 10, fetch: fake },
+        }),
+      ],
+      {
+        admin: { siteUrl: 'https://blog.example.org' },
+        collections: [
+          {
+            slug: 'posts',
+            drafts: true,
+            versions: true,
+            fields: [
+              { name: 'title', type: 'text' },
+              { name: 'slug', type: 'slug', from: 'title' },
+            ],
+          },
+        ],
+      },
+    )
+    const cms = await open(config)
+    const wait = () => new Promise((r) => setTimeout(r, 60))
+    try {
+      const draft = await cms.create('posts', { title: 'Hello', status: 'draft' })
+      await wait()
+      expect(sent).toEqual([])
+
+      await cms.update('posts', draft.id, { status: 'published' })
+      const second = await cms.create('posts', { title: 'Second', status: 'published' })
+      await wait()
+      expect(sent).toEqual([
+        {
+          url: 'https://api.indexnow.org/indexnow',
+          body: {
+            host: 'blog.example.org',
+            key,
+            keyLocation: `https://blog.example.org/${key}.txt`,
+            urlList: [
+              'https://blog.example.org/posts/hello',
+              'https://blog.example.org/posts/second',
+            ],
+          },
+        },
+      ])
+
+      // A draft over the published post leaves the page as it is.
+      sent.length = 0
+      await cms.update('posts', draft.id, { title: 'Hello again', status: 'draft' })
+      await wait()
+      expect(sent).toEqual([])
+      await cms.unpublish('posts', draft.id)
+      await wait()
+      expect(sent.map((s) => s.body.urlList)).toEqual([['https://blog.example.org/posts/hello']])
+      sent.length = 0
+      await cms.delete('posts', second.id)
+      await wait()
+      expect(sent.map((s) => s.body.urlList)).toEqual([['https://blog.example.org/posts/second']])
+
+      // The key file, for the standalone server and for apps.
+      const { indexNowKeyFile } = await import('../src/index.js')
+      expect(indexNowKeyFile(cms, `/${key}.txt`)).toBe(key)
+      expect(indexNowKeyFile(cms, '/other.txt')).toBeUndefined()
+    } finally {
+      await cms.destroy()
+    }
+
+    // Local sites send nothing.
+    sent.length = 0
+    const local = await open({ ...config, admin: { siteUrl: 'http://localhost:3000' } })
+    try {
+      await local.create('posts', { title: 'Local', status: 'published' })
+      await wait()
+      expect(sent).toEqual([])
+    } finally {
+      await local.destroy()
+    }
+    await expect(
+      resolveConfig(base([seoPlugin({ collections: ['posts'], indexNow: { key: 'short' } })])),
+    ).rejects.toThrow('indexNow.key')
   })
 })

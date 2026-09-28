@@ -100,6 +100,18 @@ import { richTextToPlainText } from '@easy-cms/richtext'
 const excerpt = richTextToPlainText(post.body).slice(0, 160) // meta descriptions, search
 ```
 
+## Markdown
+
+`renderMarkdown(doc)` turns rich text into Markdown, e.g. for AI assistants
+([AI search](./ai-search)), emails or exports. Text that looks like Markdown is escaped and
+unsafe URLs are dropped, as with HTML. Pass `nodes` to render your own node types.
+
+```ts
+import { renderMarkdown } from '@easy-cms/richtext'
+
+const markdown = renderMarkdown(post.body) // "## Heading\n\nA paragraph with **bold** text."
+```
+
 ## Customizing the output
 
 Replace or add the renderer of any node. It receives the node and its rendered children:

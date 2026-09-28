@@ -1,47 +1,4 @@
-import { META_FIELD } from './shared.js'
-
-type Doc = Record<string, unknown>
-
-/** What `sitemap()` needs from the plugin's options; kept on the plugin's endpoint handler. */
-export interface SitemapSource {
-  readonly collections: readonly string[]
-  readonly globals: readonly string[]
-  readonly generateURL:
-    | ((args: {
-        doc: Doc
-        id: string | number | null
-        locale: string | null
-        collection?: string
-        global?: string
-        cms: never
-        user: null
-      }) => unknown)
-    | undefined
-}
-
-/**
- * A key in the global symbol registry, not a module-level WeakMap: Next.js bundles the plugin
- * once per server layer, and the instance may come from the other layer's copy.
- */
-export const SITEMAP_SOURCE = Symbol.for('easy-cms.plugin-seo.sitemap')
-
-/** The part of the Local API `sitemap()` uses; a structural type, so core isn't imported. */
-interface SitemapCMS {
-  readonly config: {
-    readonly admin: { readonly siteUrl?: string }
-    readonly serverURL?: string
-    readonly localization: {
-      readonly locales: readonly string[]
-      readonly defaultLocale: string
-    } | null
-    readonly endpoints: readonly { readonly handler: unknown }[]
-  }
-  find(
-    collection: string,
-    options: Record<string, unknown>,
-  ): Promise<{ docs: Doc[]; hasNextPage: boolean }>
-  findGlobal(global: string, options: Record<string, unknown>): Promise<Doc>
-}
+import { findSource, type SeoCMS, siteOf, visiblePages } from './source.js'
 
 /** One page in the sitemap, in the shape of Next.js `MetadataRoute.Sitemap`. */
 export interface SitemapEntry {
@@ -69,78 +26,32 @@ export interface SitemapXmlOptions extends SitemapOptions {
 
 /** Google's limit of URLs in one sitemap file. */
 export const SITEMAP_LIMIT = 50_000
-const BATCH = 500
 
 /**
  * Every page with SEO fields that a visitor can see: documents read without a login (so only
  * published ones, as the read access allows), with a URL from `generateURL` and not hidden with
  * "noindex". Returns the shape Next.js `app/sitemap.ts` expects.
  */
-export async function sitemap(
-  cms: SitemapCMS,
-  options: SitemapOptions = {},
-): Promise<SitemapEntry[]> {
-  const source = findSource(cms)
-  const site = options.siteUrl ?? (cms.config.admin.siteUrl || cms.config.serverURL)
+export async function sitemap(cms: SeoCMS, options: SitemapOptions = {}): Promise<SitemapEntry[]> {
+  const source = findSource(cms, 'sitemap')
+  const site = siteOf(cms, options.siteUrl)
   const localization = cms.config.localization
   const locales: (string | null)[] = localization ? [...localization.locales] : [null]
-  const generateURL = source.generateURL
-  if (!generateURL) return []
 
-  /** Pages by key (`c:<slug>:<id>` or `g:<slug>`), each with its URL per locale. */
+  /** Pages by key, each with its URL per locale. */
   type Page = { urls: Map<string | null, string>; lastModified?: string }
   const pages = new Map<string, Page>()
-  const add = async (key: string, doc: Doc, locale: string | null, target: object) => {
-    if ((doc[META_FIELD] as Doc | undefined)?.noindex === true) return
-    const id = (doc.id as string | number | undefined) ?? null
-    const url = await generateURL({
-      doc,
-      id,
+  for (const locale of locales) {
+    await visiblePages(cms, source, {
       locale,
-      cms: cms as never,
-      user: null,
-      ...target,
+      site,
+      each: ({ key, doc, url }) => {
+        const page: Page = pages.get(key) ?? { urls: new Map() }
+        page.urls.set(locale, url)
+        if (typeof doc.updatedAt === 'string') page.lastModified = doc.updatedAt
+        pages.set(key, page)
+      },
     })
-    if (typeof url !== 'string' || url.trim() === '') return
-    const page: Page = pages.get(key) ?? { urls: new Map() }
-    page.urls.set(locale, absolute(url.trim(), site))
-    if (typeof doc.updatedAt === 'string') page.lastModified = doc.updatedAt
-    pages.set(key, page)
-  }
-
-  for (const collection of source.collections) {
-    for (const locale of locales) {
-      for (let page = 1; ; page++) {
-        const result = await visitor(() =>
-          cms.find(collection, {
-            overrideAccess: false,
-            user: null,
-            depth: 0,
-            sort: 'id',
-            limit: BATCH,
-            page,
-            ...(locale ? { locale } : {}),
-          }),
-        )
-        if (!result) break
-        for (const doc of result.docs)
-          await add(`c:${collection}:${doc.id}`, doc, locale, { collection })
-        if (!result.hasNextPage) break
-      }
-    }
-  }
-  for (const global of source.globals) {
-    for (const locale of locales) {
-      const doc = await visitor(() =>
-        cms.findGlobal(global, {
-          overrideAccess: false,
-          user: null,
-          depth: 0,
-          ...(locale ? { locale } : {}),
-        }),
-      )
-      if (doc && doc.status !== 'draft') await add(`g:${global}`, doc, locale, { global })
-    }
   }
 
   const entries: SitemapEntry[] = []
@@ -171,14 +82,11 @@ export async function sitemap(
  * The sitemap as XML. Over 50,000 URLs, it is an index of pages `<base>?page=1`, `?page=2`…,
  * and `page` renders one of them.
  */
-export async function sitemapXml(
-  cms: SitemapCMS,
-  options: SitemapXmlOptions = {},
-): Promise<string> {
+export async function sitemapXml(cms: SeoCMS, options: SitemapXmlOptions = {}): Promise<string> {
   const entries = await sitemap(cms, options)
   const page = Number(options.page ?? 0)
   if (entries.length > SITEMAP_LIMIT && !(page >= 1)) {
-    const site = options.siteUrl ?? (cms.config.admin.siteUrl || cms.config.serverURL) ?? ''
+    const site = siteOf(cms, options.siteUrl) ?? ''
     const base = options.base ?? `${site.replace(/\/+$/, '')}/sitemap.xml`
     const pages = Math.ceil(entries.length / SITEMAP_LIMIT)
     const items = Array.from(
@@ -211,31 +119,6 @@ ${items.join('\n')}
 ${urls.join('\n')}
 </urlset>
 `
-}
-
-function findSource(cms: SitemapCMS): SitemapSource {
-  for (const endpoint of cms.config.endpoints) {
-    const source = (endpoint.handler as { [SITEMAP_SOURCE]?: SitemapSource })[SITEMAP_SOURCE]
-    if (source) return source
-  }
-  throw new Error('sitemap: add seoPlugin() to the plugins in your Easy CMS config')
-}
-
-/** Runs a read as a visitor; `undefined` when visitors may not read it at all. */
-async function visitor<T>(read: () => Promise<T>): Promise<T | undefined> {
-  try {
-    return await read()
-  } catch (error) {
-    const status = (error as { status?: number }).status
-    if (status === 401 || status === 403 || status === 404) return undefined
-    throw error
-  }
-}
-
-/** Joins a path to the site's address; leaves absolute URLs, and paths when there is no site. */
-export function absolute(url: string, site: string | undefined): string {
-  if (/^https?:\/\//.test(url) || !site || !/^https?:\/\//.test(site)) return url
-  return `${site.replace(/\/+$/, '')}/${url.replace(/^\/+/, '')}`
 }
 
 const xml = (value: string) =>

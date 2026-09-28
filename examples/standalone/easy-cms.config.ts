@@ -170,6 +170,9 @@ export default defineConfig({
       // The frontend shows a post by id (see `preview` above).
       generateURL: ({ id, collection }) =>
         collection === 'posts' && id !== null ? `${frontendURL}/?post=${id}` : `${frontendURL}/`,
+      // /robots.txt from this server: AI training crawlers stay out, AI search may cite posts.
+      robots: { ai: { training: false } },
+      ...(process.env.INDEXNOW_KEY ? { indexNow: { key: process.env.INDEXNOW_KEY } } : {}),
     }),
   ],
 })

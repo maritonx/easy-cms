@@ -67,6 +67,9 @@ group นี้เพิ่มคอลัมน์ในตารางขอ�
 | `localized` | ตาม `localization` | เก็บค่าแยกตาม[ภาษาของเนื้อหา](./localization) |
 | `label` | `'SEO'` | ชื่อของ group |
 | `robots` | `{}` | ตัวเลือกของ [`robots.txt`](#robots-txt) สำหรับ standalone server หรือ `false` ถ้าไม่ต้องการ |
+| `llms` | `{}` | [`llms.txt`](./ai-search#llms-txt) สำหรับผู้ช่วย AI: ชื่อ คำสรุป จำนวน และลิงก์ Markdown `false` ปิด route ของ standalone server |
+| `markdown` | — | `{ [slug]: (doc) => markdown }`: [หน้าแบบ Markdown](./ai-search#markdown-versions-of-pages) ที่เขียนเองของ collection |
+| `indexNow` | — | `{ key }`: แจ้งเครื่องมือค้นหาเมื่อหน้าเปลี่ยนด้วย [IndexNow](./ai-search#indexnow) |
 
 generator ได้รับ `{ doc, id, locale, collection | global, cms, user }` และเป็น async ได้ คืน `null`
 เมื่อไม่มีอะไรจะเสนอ
@@ -260,6 +263,8 @@ export function GET() {
 | `sitemap` | ที่อยู่ของ sitemap หรือ `false` ถ้าไม่ต้องการบรรทัด `Sitemap:` |
 | `disallow` | path อื่นที่ไม่ให้ crawler เข้า เช่น `['/search']` |
 | `disallowAll` | ไม่ให้ crawler เข้าทั้งเว็บ เช่น บน staging |
+| `ai` | `{ training?, search?, user? }`: อนุญาตหรือปิด[crawler ของ AI](./ai-search#choose-which-ai-crawlers-may-read)เป็นกลุ่ม ค่าเริ่มต้นคืออนุญาตทั้งหมด |
+| `rules` | `[{ userAgent, allow?, disallow? }]` สำหรับ crawler อื่น |
 
 ::: warning Staging
 `disallowAll` ไม่เปิดเองตาม `NODE_ENV` เพราะ server staging ส่วนใหญ่ก็รันแบบ production ให้ตั้งจากตัวแปรของคุณเอง
@@ -294,5 +299,6 @@ standalone server เสิร์ฟ `/robots.txt` เอง ปรับได�
 ## ขั้นต่อไป {#next-steps}
 
 - [หลายภาษา (localization)](./localization): field SEO แยกภาษา
+- [SEO สำหรับ AI](./ai-search): crawler ของ AI, `llms.txt`, หน้า Markdown และ IndexNow
 - [เตรียมเว็บให้เครื่องมือค้นหา](./recipes/search-engines): ขั้นตอนตามลำดับ และวิธีตรวจ
 - [Migration และการ deploy](./deployment): migration สำหรับคอลัมน์ใหม่

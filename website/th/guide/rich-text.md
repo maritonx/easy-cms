@@ -98,6 +98,18 @@ import { richTextToPlainText } from '@easy-cms/richtext'
 const excerpt = richTextToPlainText(post.body).slice(0, 160) // meta description, ระบบค้นหา
 ```
 
+## Markdown {#markdown}
+
+`renderMarkdown(doc)` แปลง rich text เป็น Markdown เช่น สำหรับผู้ช่วย AI ([SEO สำหรับ AI](./ai-search)),
+อีเมล หรือการ export ข้อความที่ดูเหมือน Markdown จะถูก escape และ URL ที่ไม่ปลอดภัยจะถูกตัดทิ้งเหมือนตอนแปลงเป็น HTML
+ส่ง `nodes` เพื่อกำหนดวิธีแปลง node ชนิดของคุณเอง
+
+```ts
+import { renderMarkdown } from '@easy-cms/richtext'
+
+const markdown = renderMarkdown(post.body) // "## หัวข้อ\n\nย่อหน้าที่มีตัว **หนา**"
+```
+
 ## ปรับแต่งผลลัพธ์ {#customizing-the-output}
 
 เปลี่ยนหรือเพิ่มตัวแสดงผลของ node ใดก็ได้ ฟังก์ชันจะได้ node และ children ที่แปลงแล้ว:
