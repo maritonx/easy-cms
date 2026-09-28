@@ -1,5 +1,17 @@
 # easy-cms
 
+## 0.14.0
+
+### Minor Changes
+
+- 6c7eb74: `easy-cms copy --from <config>` copies every document, version, user and global from one database into another, for example from SQLite to Postgres (or back). Ids stay the same, so relationships, history and logins keep working. Both configs must have the same collections and fields, and the target must be empty. Also available as `copyDatabase(source.db, target.db)` from `@easy-cms/core`.
+
+### Patch Changes
+
+- Updated dependencies [6c7eb74]
+  - @easy-cms/core@0.14.0
+  - @easy-cms/admin@0.14.0
+
 ## 0.13.1
 
 ### Patch Changes
