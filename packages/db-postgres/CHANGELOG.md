@@ -1,5 +1,12 @@
 # @easy-cms/db-postgres
 
+## 0.16.0
+
+### Patch Changes
+
+- @easy-cms/core@0.16.0
+  - @easy-cms/drizzle@0.16.0
+
 ## 0.15.0
 
 ### Patch Changes
