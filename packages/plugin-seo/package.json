@@ -1,6 +1,6 @@
 {
   "name": "@easy-cms/plugin-seo",
-  "version": "0.16.1",
+  "version": "0.17.0",
   "description": "SEO for Easy CMS: meta fields, length meters, a search result preview, generators and page metadata",
   "license": "MIT",
   "type": "module",
