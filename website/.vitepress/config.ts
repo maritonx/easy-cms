@@ -5,13 +5,29 @@ const base = process.env.DOCS_BASE ?? '/'
 
 type Labels = Record<string, string>
 
+const RECIPES = [
+  'own-posts',
+  'rebuild-on-publish',
+  'reading-time',
+  'landing-page',
+  'navigation-menu',
+  'vercel',
+  'sqlite-to-postgres',
+  'automate-backups',
+]
+
 /** The same pages in every language; `prefix` is '' for English and '/th' for Thai. */
 function sidebar(prefix: string, t: Labels): DefaultTheme.SidebarItem[] {
   const page = (slug: string) => ({ text: t[slug] as string, link: `${prefix}/guide/${slug}` })
+  const at = (path: string, key: string) => ({ text: t[key] as string, link: `${prefix}/${path}` })
   return [
     {
       text: t.introduction,
-      items: ['what-is-easy-cms', 'getting-started', 'nuxt', 'next', 'standalone'].map(page),
+      items: [
+        ...['what-is-easy-cms', 'getting-started'].map(page),
+        page('tutorial'),
+        ...['nuxt', 'next', 'standalone'].map(page),
+      ],
     },
     {
       text: t.content,
@@ -28,7 +44,7 @@ function sidebar(prefix: string, t: Labels): DefaultTheme.SidebarItem[] {
     },
     {
       text: t.using,
-      items: ['local-api', 'rest-api', 'typescript', 'rich-text', 'live-preview'].map(page),
+      items: ['local-api', 'typescript', 'rich-text', 'live-preview'].map(page),
     },
     {
       text: t.plugins,
@@ -36,7 +52,25 @@ function sidebar(prefix: string, t: Labels): DefaultTheme.SidebarItem[] {
     },
     {
       text: t.operations,
-      items: ['databases', 'deployment', 'backups', 'webhooks', 'cli', 'security'].map(page),
+      items: ['databases', 'deployment', 'backups', 'webhooks', 'security'].map(page),
+    },
+    {
+      text: t.recipes,
+      collapsed: true,
+      items: [
+        at('guide/recipes/', 'recipes-all'),
+        ...RECIPES.map((slug) => at(`guide/recipes/${slug}`, `recipe-${slug}`)),
+      ],
+    },
+    {
+      text: t.reference,
+      items: [
+        at('reference/config', 'ref-config'),
+        at('reference/fields', 'ref-fields'),
+        at('reference/local-api', 'ref-local-api'),
+        page('rest-api'),
+        page('cli'),
+      ],
     },
   ]
 }
@@ -47,6 +81,21 @@ const en: Labels = {
   using: 'Using content',
   plugins: 'Plugins',
   operations: 'Operations',
+  recipes: 'Recipes',
+  reference: 'Reference',
+  tutorial: 'Tutorial: build a blog',
+  'recipes-all': 'All recipes',
+  'recipe-own-posts': 'Authors edit only their own posts',
+  'recipe-rebuild-on-publish': 'Rebuild a static site on publish',
+  'recipe-reading-time': 'Reading time with a hook',
+  'recipe-landing-page': 'A landing page from blocks',
+  'recipe-navigation-menu': 'A navigation menu in a global',
+  'recipe-vercel': 'Deploy on Vercel',
+  'recipe-sqlite-to-postgres': 'Move from SQLite to Postgres',
+  'recipe-automate-backups': 'Automate backups',
+  'ref-config': 'Config',
+  'ref-fields': 'Fields',
+  'ref-local-api': 'Local API',
   'what-is-easy-cms': 'What is Easy CMS?',
   'getting-started': 'Getting started',
   nuxt: 'Nuxt',
@@ -80,6 +129,21 @@ const th: Labels = {
   using: 'การใช้เนื้อหา',
   plugins: 'Plugins',
   operations: 'การดูแลระบบ',
+  recipes: 'สูตรสำเร็จ',
+  reference: 'อ้างอิง',
+  tutorial: 'บทเรียน: สร้างบล็อก',
+  'recipes-all': 'สูตรทั้งหมด',
+  'recipe-own-posts': 'ผู้เขียนแก้ได้เฉพาะบทความของตัวเอง',
+  'recipe-rebuild-on-publish': 'build เว็บ static ใหม่เมื่อเผยแพร่',
+  'recipe-reading-time': 'เวลาอ่านด้วย hook',
+  'recipe-landing-page': 'หน้า landing page จาก blocks',
+  'recipe-navigation-menu': 'เมนูนำทางใน global',
+  'recipe-vercel': 'Deploy บน Vercel',
+  'recipe-sqlite-to-postgres': 'ย้ายจาก SQLite ไป Postgres',
+  'recipe-automate-backups': 'สำรองข้อมูลอัตโนมัติ',
+  'ref-config': 'Config',
+  'ref-fields': 'Fields',
+  'ref-local-api': 'Local API',
   'what-is-easy-cms': 'Easy CMS คืออะไร',
   'getting-started': 'เริ่มใช้งาน',
   nuxt: 'Nuxt',
@@ -121,7 +185,9 @@ export default defineConfig({
       themeConfig: {
         nav: [
           { text: 'Guide', link: '/guide/getting-started' },
-          { text: 'Reference', link: '/guide/configuration' },
+          { text: 'Tutorial', link: '/guide/tutorial' },
+          { text: 'Recipes', link: '/guide/recipes/' },
+          { text: 'Reference', link: '/reference/config' },
         ],
         sidebar: sidebar('', en),
         editLink: {
@@ -139,7 +205,9 @@ export default defineConfig({
       themeConfig: {
         nav: [
           { text: 'คู่มือ', link: '/th/guide/getting-started' },
-          { text: 'อ้างอิง', link: '/th/guide/configuration' },
+          { text: 'บทเรียน', link: '/th/guide/tutorial' },
+          { text: 'สูตรสำเร็จ', link: '/th/guide/recipes/' },
+          { text: 'อ้างอิง', link: '/th/reference/config' },
         ],
         sidebar: sidebar('/th', th),
         editLink: {

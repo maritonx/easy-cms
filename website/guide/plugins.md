@@ -78,7 +78,7 @@ endpoints: [
     method: 'get',
     handler: async ({ params, user, cms }) => {
       if (!user) throw new UnauthorizedError()
-      const { totalDocs } = await cms.find(params.collection, { limit: 0, user, overrideAccess: false })
+      const totalDocs = await cms.count(params.collection, { user, overrideAccess: false })
       return { totalDocs }
     },
   },
@@ -211,8 +211,8 @@ admin's to match its light and dark themes: `--text`, `--text-muted`, `--surface
 
 - Admin modules run with the rights of whoever is logged in. Install plugins you trust, as you
   would any dependency.
-- Nuxt copies the module files into its build. With Next.js `output: 'standalone'`, add them to
-  `outputFileTracingIncludes`.
+- The Nuxt module and `withEasyCMS()` for Next.js include the module files in the server build
+  (since 0.13.1 for Next.js), so they load on Vercel and in standalone output too.
 
 ## Next steps
 

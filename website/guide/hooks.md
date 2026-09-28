@@ -106,7 +106,7 @@ import { ForbiddenError } from '@easy-cms/core'
 // On the categories collection
 beforeDelete: [
   async ({ id, cms }) => {
-    const { totalDocs } = await cms.find('posts', { where: { category: { equals: id } }, limit: 0 })
+    const totalDocs = await cms.count('posts', { where: { category: { equals: id } } })
     if (totalDocs > 0) throw new ForbiddenError(`${totalDocs} posts still use this category`)
   },
 ],

@@ -76,7 +76,7 @@ endpoints: [
     method: 'get',
     handler: async ({ params, user, cms }) => {
       if (!user) throw new UnauthorizedError()
-      const { totalDocs } = await cms.find(params.collection, { limit: 0, user, overrideAccess: false })
+      const totalDocs = await cms.count(params.collection, { user, overrideAccess: false })
       return { totalDocs }
     },
   },
@@ -205,8 +205,8 @@ customElements.define('ecms-color-picker', ColorPicker)
 ### ความปลอดภัยและการ deploy {#security-and-deployment}
 
 - admin module ทำงานด้วยสิทธิ์ของผู้ที่ login อยู่ ติดตั้งเฉพาะ plugin ที่เชื่อถือได้ เหมือน dependency อื่น ๆ
-- Nuxt คัดลอกไฟล์ module เข้าไปใน build ให้เอง ถ้าใช้ Next.js แบบ `output: 'standalone'`
-  ให้เพิ่มไฟล์เหล่านี้ใน `outputFileTracingIncludes`
+- Nuxt module และ `withEasyCMS()` ของ Next.js รวมไฟล์ module เข้าไปใน build ของ server ให้เอง
+  (Next.js ตั้งแต่ 0.13.1) จึงโหลดได้ทั้งบน Vercel และ output แบบ standalone
 
 ## ขั้นต่อไป {#next-steps}
 

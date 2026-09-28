@@ -102,7 +102,7 @@ import { ForbiddenError } from '@easy-cms/core'
 // ใน collection categories
 beforeDelete: [
   async ({ id, cms }) => {
-    const { totalDocs } = await cms.find('posts', { where: { category: { equals: id } }, limit: 0 })
+    const totalDocs = await cms.count('posts', { where: { category: { equals: id } } })
     if (totalDocs > 0) throw new ForbiddenError(`ยังมี ${totalDocs} บทความใช้หมวดหมู่นี้`)
   },
 ],
