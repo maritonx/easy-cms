@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
 
 const CORE = join(dirname(fileURLToPath(import.meta.url)), '../../packages/core/src')
+/** TypeScript reports file names with `/`, also on Windows. */
+const CORE_POSIX = CORE.replace(/\\/g, '/')
 
 /** Interfaces whose properties are config options, by the reference page that documents them. */
 export const CONFIG_INTERFACES = [
@@ -54,7 +56,7 @@ function load() {
 /** Own property names of an interface (not inherited ones), in declaration order. */
 export function properties(name: string): string[] {
   for (const file of load().getSourceFiles()) {
-    if (!file.fileName.startsWith(CORE)) continue
+    if (!file.fileName.startsWith(CORE_POSIX)) continue
     for (const statement of file.statements) {
       if (ts.isInterfaceDeclaration(statement) && statement.name.text === name) {
         return statement.members.flatMap((m) =>
