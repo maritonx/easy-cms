@@ -3,11 +3,13 @@ import { createRequire } from 'node:module'
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { renderShell, SECURITY_HEADERS, SHELL_FILE } from '@easy-cms/admin'
 import {
+  applyPlugins,
   CONFIG_FILE_NAMES,
   type Config,
   DEFAULT_ADMIN_PATH,
   DEFAULT_API_PATH,
   importConfig,
+  resolveAdminModule,
 } from '@easy-cms/core'
 import {
   addImports,
@@ -170,7 +172,16 @@ export const headers = ${JSON.stringify(SECURITY_HEADERS)}
 
     // Ship files the database adapter loads dynamically (e.g. libsql's native binary),
     // which Nitro's output tracing cannot find on its own.
-    const traceInclude = rawConfig?.db?.bundle?.traceInclude ?? []
+    const traceInclude = [...(rawConfig?.db?.bundle?.traceInclude ?? [])]
+    // Admin modules (`admin.modules`, often added by plugins) are read from disk at runtime.
+    if (rawConfig) {
+      const withPlugins = await applyPlugins(rawConfig).catch(() => rawConfig)
+      for (const specifier of withPlugins?.admin?.modules ?? []) {
+        const file = resolveAdminModule(specifier, rootDir)
+        if (file) traceInclude.push(file)
+        else logger.warn(`Admin module "${specifier}" not found from ${rootDir}.`)
+      }
+    }
     if (traceInclude.length > 0) {
       const externals = nitro.externals ?? {}
       nitro.externals = {

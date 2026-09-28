@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { seoMeta } from '@easy-cms/plugin-seo'
 import { renderRichText } from '@easy-cms/richtext'
 
 const route = useRoute()
@@ -7,6 +8,11 @@ const { data: post, error } = await useFetch(`/api/posts/${route.params.slug}`, 
 })
 // In the admin's live preview the post follows the form as you type, unsaved.
 useLivePreview(post)
+
+// Search and share metadata from the post's SEO fields, rendered on the server.
+const seo = seoMeta(post.value ?? {}, { siteUrl: useRequestURL().origin, url: route.path })
+useSeoMeta(seo.nuxt)
+useHead({ link: seo.canonical ? [{ rel: 'canonical', href: seo.canonical }] : [] })
 
 const cover = computed(() => {
   const c = post.value?.cover

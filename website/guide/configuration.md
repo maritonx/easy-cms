@@ -47,11 +47,13 @@ and how to fix it.
 | `admin.siteUrl` | `/` (Nuxt, Next.js) | The public site, for the admin's "View site" button: a path or an `https://` URL. |
 | `admin.menu` | config order | Order of collections in the admin menu by slug, e.g. `['posts', 'categories', 'media']`; others follow, the media library last. User accounts are under Settings. |
 | `admin.brand` | — | `{ name, logo, color }`: your or your client's brand in the admin. See [Branding the admin](#branding-the-admin). |
+| `admin.modules` | `[]` | JavaScript modules with Web Components for the admin, by package export or path; usually added by [plugins](./plugins#admin-components). |
 | `auth` | | See [Users & auth](./auth). |
 | `upload` | | See [Uploads & media](./uploads). |
 | `collections` | `[]` | See below. |
 | `globals` | `[]` | See below. |
-| `plugins` | `[]` | Functions `(config) => config`, run in order before validation. |
+| `endpoints` | `[]` | Custom REST endpoints: `{ path, method, handler }`. See [Plugins](./plugins#endpoints). |
+| `plugins` | `[]` | Functions `(config) => config`, run in order before validation. See [Plugins](./plugins). |
 
 ## Collections
 
@@ -68,6 +70,7 @@ A collection is a type of content with many documents: posts, products, pages.
 | `drafts` | Adds `status` (`draft` \| `published`). See [Drafts](./drafts). |
 | `versions` | `true` or `{ max }`: keep a version of every save, with history and restore; with `drafts`, drafts of published documents are kept separately. See [Versions](./drafts#versions). |
 | `preview` | `({ doc }) => url`: the page that shows a document, for [live preview](./live-preview). |
+| `admin.sidebar` | Panels from [admin components](./plugins#admin-components) in the edit page's side column. |
 | `schedule` | Publish and unpublish at a set time (needs `drafts`). See [Scheduled publishing](./drafts#scheduled-publishing). |
 | `access` | `{ read, create, update, delete }`. See [Access control](./access-control). |
 | `hooks` | See [Hooks](./hooks). |
@@ -98,7 +101,7 @@ globals: [
 ],
 ```
 
-Globals accept `fields`, `label`, `icon`, `drafts`, `versions`, `preview`, `access` (`read`, `update`) and `hooks`
+Globals accept `fields`, `label`, `icon`, `drafts`, `versions`, `preview`, `admin`, `access` (`read`, `update`) and `hooks`
 (`beforeChange`, `afterChange`, `afterRead`).
 
 ## Branding the admin
@@ -127,16 +130,13 @@ Icons ([Lucide](https://lucide.dev)): `file-text`, `newspaper`, `book-open`, `no
 
 ## Plugins
 
-A plugin receives the config and returns a new one:
+A plugin receives the config and returns a new one, so it can add fields, collections,
+[endpoints](./plugins#endpoints) and [admin components](./plugins#admin-components):
 
 ```ts
-const seo = (): Plugin => (config) => ({
-  ...config,
-  collections: config.collections?.map((c) => ({
-    ...c,
-    fields: [...c.fields, { name: 'metaDescription', type: 'textarea', maxLength: 160 }],
-  })),
-})
+import { seoPlugin } from '@easy-cms/plugin-seo'
 
-export default defineConfig({ /* … */ plugins: [seo()] })
+export default defineConfig({ /* … */ plugins: [seoPlugin({ collections: ['posts'] })] })
 ```
+
+See [Plugins](./plugins) for the official plugins and how to write your own.

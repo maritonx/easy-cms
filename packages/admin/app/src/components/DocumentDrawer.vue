@@ -1,16 +1,18 @@
 <script setup lang="ts">
 import { Maximize2, Trash2, X } from '@lucide/vue'
-import { computed, onMounted, ref, useId } from 'vue'
+import { computed, onMounted, provide, ref, useId } from 'vue'
 import FieldList from '../fields/FieldList.vue'
 import { ApiError, api, type Doc } from '../lib/api'
 import { contentLocale, localeQuery, setContentLocale } from '../lib/content-locale'
 import { initialValues, snapshot, titleOf, toFormValues } from '../lib/fields'
 import { label, singularize, t } from '../lib/i18n'
+import { FORM, setPath } from '../lib/plugins'
 import { findCollection, session } from '../lib/session'
 import { notify } from '../lib/toast'
 import { missingLocales } from '../lib/translation'
 import ConfirmDialog from './ConfirmDialog.vue'
 import LocaleSwitcher from './LocaleSwitcher.vue'
+import PluginElement from './PluginElement.vue'
 
 /**
  * Creates or edits one document in a panel over the page: from a list of a small collection
@@ -60,6 +62,15 @@ const heading = computed(() =>
 const localized = computed(
   () => !!contentLocale() && (collection?.fields.some((f) => f.localized) ?? false),
 )
+// Components from admin modules read the form and may set any field.
+provide(FORM, {
+  doc: form,
+  setField: (path, value) => {
+    form.value = setPath(form.value, path, value)
+  },
+  collection: props.slug,
+  id: computed(() => props.id),
+})
 const fullPage = computed(() => `/collections/${props.slug}/${props.id ?? 'new'}`)
 
 function reset(values: Record<string, unknown>) {
@@ -220,6 +231,7 @@ onMounted(() => {
         <template v-else-if="collection">
           <p v-if="!canSave" class="notice notice-warning">{{ t('edit.readOnly') }}</p>
           <FieldList v-model="form" :fields="collection.fields" :errors="errors" :read-only="!canSave" />
+          <PluginElement v-for="(panel, i) in collection.sidebar ?? []" :key="`${i}-${panel.tag}`" :component="panel" :read-only="!canSave" />
           <label v-if="isUsers && canSave" class="field">
             <span class="field-label">
               {{ id ? t('edit.newPassword') : t('edit.password') }}<span v-if="!id" class="field-required" aria-hidden="true">*</span>

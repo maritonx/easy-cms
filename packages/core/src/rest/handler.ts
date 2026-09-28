@@ -13,6 +13,7 @@ import {
 } from '../errors.js'
 import type { EasyCMS } from '../local-api.js'
 import { EXTENSIONS } from '../media.js'
+import { readAdminModule } from './admin-modules.js'
 import { adminSchema } from './admin-schema.js'
 import { parseDepth, parseListQuery } from './query.js'
 
@@ -85,7 +86,9 @@ export function createRestHandler<C extends Config>(
       const method = request.method.toUpperCase()
       if (method !== 'GET' && method !== 'HEAD') checkCsrf(cms, ctx)
 
-      const result = await route(cms, ctx, method, segments, options)
+      const result =
+        (await customEndpoint(cms, ctx, method, segments)) ??
+        (await route(cms, ctx, method, segments, options))
       if (result.body instanceof Response) return result.body
       return new Response(JSON.stringify(result.body), { status: result.status ?? 200, headers })
     } catch (error) {
@@ -134,6 +137,58 @@ function withHeaders(response: Response, extra: Headers): Response {
 interface Result {
   body: unknown
   status?: number
+}
+
+/** Runs the config's endpoint matching the request, if any (`endpoints` in the config). */
+async function customEndpoint(
+  cms: EasyCMS,
+  ctx: Context,
+  method: string,
+  segments: string[],
+): Promise<Result | undefined> {
+  let pathMatched = false
+  // A fixed segment beats a parameter: `/stats/summary` wins over `/stats/:collection`.
+  const endpoints = [...cms.config.endpoints].sort((a, b) => fixedSegments(b) - fixedSegments(a))
+  for (const endpoint of endpoints) {
+    const params = matchPath(endpoint.path, segments)
+    if (!params) continue
+    pathMatched = true
+    // HEAD is answered by GET handlers, without a body.
+    const verb = endpoint.method.toUpperCase()
+    if (verb !== method && !(verb === 'GET' && method === 'HEAD')) continue
+    const body = await endpoint.handler({
+      request: ctx.request,
+      url: ctx.url,
+      params,
+      user: ctx.user,
+      cms,
+      json: () => readJson(ctx.request),
+    })
+    return { body: body === undefined ? null : body }
+  }
+  if (pathMatched) {
+    const allow = cms.config.endpoints
+      .filter((e) => matchPath(e.path, segments))
+      .map((e) => e.method.toUpperCase())
+    throw methodNotAllowed(ctx, [...new Set(allow)].join(', '))
+  }
+  return undefined
+}
+
+const fixedSegments = (endpoint: { path: string }) =>
+  endpoint.path.split('/').filter((s) => s && !s.startsWith(':')).length
+
+/** `{ id: '5' }` for `/stats/:id` and `['stats', '5']`; `undefined` when it does not match. */
+function matchPath(path: string, segments: string[]): Record<string, string> | undefined {
+  const parts = path.split('/').filter(Boolean)
+  if (parts.length !== segments.length) return undefined
+  const params: Record<string, string> = {}
+  for (const [i, part] of parts.entries()) {
+    const segment = segments[i] as string
+    if (part.startsWith(':')) params[part.slice(1)] = segment
+    else if (part !== segment) return undefined
+  }
+  return params
 }
 
 async function route(
@@ -215,6 +270,21 @@ async function route(
     if (!ctx.user) throw new UnauthorizedError()
     if (second === 'schema' && third === undefined)
       return { body: await adminSchema(cms, ctx.user) }
+    // /admin/modules/:n.js → an admin module's code (`admin.modules`)
+    if (second === 'modules' && third !== undefined && segments.length === 3) {
+      const index = /^(\d+)\.js$/.exec(third)?.[1]
+      const file = index === undefined ? undefined : await readAdminModule(cms, Number(index))
+      if (!file) throw new HttpError('Not found', 404)
+      const headers = {
+        'content-type': 'text/javascript; charset=utf-8',
+        'cache-control': 'private, no-cache',
+        etag: file.etag,
+        'x-content-type-options': 'nosniff',
+      }
+      if (ctx.request.headers.get('if-none-match') === file.etag)
+        return { body: new Response(null, { status: 304, headers }) }
+      return { body: new Response(file.body, { headers }) }
+    }
     // /admin/scheduled → the next scheduled publishes the user may manage (dashboard)
     if (second === 'scheduled' && third === undefined)
       return { body: await cms.upcomingJobs({ user: ctx.user, overrideAccess: false }) }

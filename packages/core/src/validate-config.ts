@@ -78,6 +78,8 @@ export function validateConfig(config: Config): ConfigIssue[] {
     checkSlug(global, `globals[${i}]`, seenGlobals, add)
   })
 
+  validateEndpoints(config, collectionSlugs, add)
+
   collections.forEach((collection, i) => {
     const path = `collections.${collection.slug ?? `[${i}]`}`
     validateContainer(collection, path, collectionSlugs, add)
@@ -140,6 +142,24 @@ function validateAdmin(config: Config, add: Add) {
       'must be a path starting with "/" or an http(s) URL',
       "e.g. siteUrl: 'https://example.com'",
     )
+  }
+  const modules: unknown = admin.modules
+  if (modules !== undefined) {
+    if (!Array.isArray(modules)) {
+      add('admin.modules', 'must be an array', "e.g. modules: ['@easy-cms/plugin-seo/admin']")
+    } else {
+      for (const [i, module] of modules.entries()) {
+        if (typeof module !== 'string' || module.trim() === '') {
+          add(`admin.modules[${i}]`, 'must be a package export or a file path')
+        } else if (/^[a-z][a-z0-9+.-]*:/i.test(module) || module.startsWith('//')) {
+          add(
+            `admin.modules[${i}]`,
+            'must be a package export or a file path, not a URL',
+            "admin modules are served from your server, e.g. '@easy-cms/plugin-seo/admin'",
+          )
+        }
+      }
+    }
   }
   const brand: unknown = admin.brand
   if (brand === undefined) return
@@ -406,6 +426,15 @@ function validateContainer(
       'preview: ({ doc }) => `/posts/${doc.slug}`',
     )
   }
+  const admin: unknown = container.admin
+  if (admin !== undefined) {
+    if (typeof admin !== 'object' || admin === null) {
+      add(`${path}.admin`, 'must be an object', "e.g. admin: { sidebar: ['ecms-my-panel'] }")
+    } else {
+      const sidebar: unknown = (admin as { sidebar?: unknown }).sidebar
+      if (sidebar !== undefined) validateComponents(sidebar, `${path}.admin.sidebar`, add)
+    }
+  }
   const reserved = new Set(SYSTEM_FIELD_NAMES)
   if (container.drafts) reserved.add('status')
   validateFields(container.fields, `${path}.fields`, reserved, collectionSlugs, add)
@@ -461,6 +490,16 @@ function validateField(
   const position: unknown = field.position
   if (position !== undefined && position !== 'sidebar') {
     add(`${path}.position`, `must be "sidebar" (got ${JSON.stringify(position)})`)
+  }
+  const admin: unknown = field.admin
+  if (admin !== undefined) {
+    if (typeof admin !== 'object' || admin === null) {
+      add(`${path}.admin`, 'must be an object', "e.g. admin: { component: 'ecms-color-picker' }")
+    } else {
+      const { component, after } = admin as { component?: unknown; after?: unknown }
+      if (component !== undefined) validateComponent(component, `${path}.admin.component`, add)
+      if (after !== undefined) validateComponents(after, `${path}.admin.after`, add)
+    }
   }
   switch (field.type) {
     case 'text':
@@ -540,6 +579,103 @@ function validateField(
       break
     }
   }
+}
+
+/** Custom element names from admin modules: `ecms-` plus lowercase letters, digits and `-`. */
+export const ADMIN_COMPONENT_TAG = /^ecms-[a-z0-9]+(-[a-z0-9]+)*$/
+
+function validateComponent(component: unknown, path: string, add: Add) {
+  const tag =
+    typeof component === 'object' && component !== null
+      ? (component as { tag?: unknown }).tag
+      : component
+  if (typeof tag !== 'string' || !ADMIN_COMPONENT_TAG.test(tag)) {
+    add(
+      path,
+      `must be a custom element name starting with "ecms-" (got ${JSON.stringify(tag)})`,
+      "e.g. 'ecms-color-picker' or { tag: 'ecms-color-picker', props: { palette: 'brand' } }",
+    )
+    return
+  }
+  if (typeof component === 'object' && component !== null) {
+    const props: unknown = (component as { props?: unknown }).props
+    if (
+      props !== undefined &&
+      (typeof props !== 'object' || props === null || Array.isArray(props))
+    )
+      add(`${path}.props`, 'must be an object of plain JSON values')
+  }
+}
+
+function validateComponents(components: unknown, path: string, add: Add) {
+  if (!Array.isArray(components)) {
+    add(path, 'must be an array of components', "e.g. ['ecms-seo-preview']")
+    return
+  }
+  for (const [i, component] of components.entries()) {
+    validateComponent(component, `${path}[${i}]`, add)
+  }
+}
+
+const ENDPOINT_METHODS = ['get', 'post', 'put', 'patch', 'delete']
+const ENDPOINT_SEGMENT = /^(:[A-Za-z_][A-Za-z0-9_]*|[A-Za-z0-9._~-]+)$/
+/** First path segments the built-in REST API uses besides collection slugs. */
+const RESERVED_ENDPOINT_ROOTS = new Set(['users', 'globals', 'admin', 'jobs', 'media'])
+
+function validateEndpoints(config: Config, collectionSlugs: ReadonlySet<string>, add: Add) {
+  const endpoints: unknown = config.endpoints
+  if (endpoints === undefined) return
+  if (!Array.isArray(endpoints)) {
+    add(
+      'endpoints',
+      'must be an array',
+      "e.g. endpoints: [{ path: '/hello', method: 'get', handler }]",
+    )
+    return
+  }
+  const seen = new Set<string>()
+  endpoints.forEach((endpoint: unknown, i) => {
+    const path = `endpoints[${i}]`
+    if (typeof endpoint !== 'object' || endpoint === null) {
+      add(path, 'must be an object { path, method, handler }')
+      return
+    }
+    const { path: route, method, handler } = endpoint as Record<string, unknown>
+    const segments = typeof route === 'string' ? route.split('/').slice(1) : []
+    if (
+      typeof route !== 'string' ||
+      !route.startsWith('/') ||
+      segments.length === 0 ||
+      !segments.every((s) => ENDPOINT_SEGMENT.test(s))
+    ) {
+      add(`${path}.path`, `must be a path like "/seo/generate" (got ${JSON.stringify(route)})`)
+    } else {
+      const root = segments[0] as string
+      if (root.startsWith(':')) {
+        add(`${path}.path`, 'must start with a fixed segment, not a parameter')
+      } else if (RESERVED_ENDPOINT_ROOTS.has(root) || collectionSlugs.has(root)) {
+        add(
+          `${path}.path`,
+          `"/${root}" is used by the built-in API`,
+          'start the path with your plugin or feature name, e.g. "/seo/generate"',
+        )
+      }
+    }
+    const verb = typeof method === 'string' ? method.toLowerCase() : method
+    if (typeof verb !== 'string' || !ENDPOINT_METHODS.includes(verb)) {
+      add(
+        `${path}.method`,
+        `must be one of ${ENDPOINT_METHODS.join(', ')} (got ${JSON.stringify(method)})`,
+      )
+    }
+    if (typeof handler !== 'function') add(`${path}.handler`, 'must be a function')
+    if (typeof route === 'string' && typeof verb === 'string') {
+      // Parameters match anything, so "/a/:x" and "/a/:y" are the same route.
+      const key = `${verb} ${route.replace(/:[A-Za-z_][A-Za-z0-9_]*/g, ':')}`
+      if (seen.has(key)) add(`${path}.path`, `duplicate endpoint ${verb.toUpperCase()} ${route}`)
+      seen.add(key)
+    }
+  })
 }
 
 function checkRange(

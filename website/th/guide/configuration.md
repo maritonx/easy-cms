@@ -47,11 +47,13 @@ export default defineConfig({
 | `admin.siteUrl` | `/` (Nuxt, Next.js) | เว็บไซต์สาธารณะ สำหรับปุ่ม "ดูเว็บไซต์" ในหน้า admin: path หรือ URL แบบ `https://` |
 | `admin.menu` | ตามลำดับใน config | ลำดับ collection ในเมนูของหน้า admin ตาม slug เช่น `['posts', 'categories', 'media']` ที่ไม่ได้ระบุจะตามมา และคลังสื่ออยู่ท้ายสุด ส่วนผู้ใช้อยู่ในหมวดตั้งค่า |
 | `admin.brand` | — | `{ name, logo, color }`: แบรนด์ของคุณหรือลูกค้าในหน้า admin ดู[ใส่แบรนด์ให้หน้า admin](#branding-the-admin) |
+| `admin.modules` | `[]` | ไฟล์ JavaScript ที่มี Web Components สำหรับหน้า admin ระบุเป็น export ของแพ็กเกจหรือ path ส่วนใหญ่ [plugin](./plugins#admin-components) เป็นคนเพิ่มให้ |
 | `auth` | | ดู [ผู้ใช้และการยืนยันตัวตน](./auth) |
 | `upload` | | ดู [การอัปโหลดและ media](./uploads) |
 | `collections` | `[]` | ดูด้านล่าง |
 | `globals` | `[]` | ดูด้านล่าง |
-| `plugins` | `[]` | ฟังก์ชัน `(config) => config` ทำงานตามลำดับก่อนการตรวจสอบ |
+| `endpoints` | `[]` | REST endpoint ของคุณเอง: `{ path, method, handler }` ดู [Plugins](./plugins#endpoints) |
+| `plugins` | `[]` | ฟังก์ชัน `(config) => config` ทำงานตามลำดับก่อนการตรวจสอบ ดู [Plugins](./plugins) |
 
 ## Collections {#collections}
 
@@ -68,6 +70,7 @@ collection คือประเภทของเนื้อหาที่ม
 | `drafts` | เพิ่ม `status` (`draft` \| `published`) ดู [ฉบับร่าง (draft)](./drafts) |
 | `versions` | `true` หรือ `{ max }`: เก็บเวอร์ชันของการบันทึกทุกครั้ง พร้อมประวัติและการกู้คืน ถ้ามี `drafts` ด้วย ฉบับร่างของเอกสารที่เผยแพร่แล้วจะถูกเก็บแยก ดู [เวอร์ชัน](./drafts#versions) |
 | `preview` | `({ doc }) => url`: หน้าที่แสดงเอกสาร สำหรับ [ตัวอย่างสด](./live-preview) |
+| `admin.sidebar` | กล่องจาก [admin components](./plugins#admin-components) ในแถบข้างของหน้าแก้ไข |
 | `schedule` | เผยแพร่และยกเลิกการเผยแพร่ตามเวลาที่ตั้งไว้ (ต้องมี `drafts`) ดู [การตั้งเวลาเผยแพร่](./drafts#scheduled-publishing) |
 | `access` | `{ read, create, update, delete }` ดู [การควบคุมสิทธิ์](./access-control) |
 | `hooks` | ดู [Hooks](./hooks) |
@@ -98,7 +101,7 @@ globals: [
 ],
 ```
 
-global รองรับ `fields`, `label`, `icon`, `drafts`, `versions`, `preview`, `access` (`read`, `update`) และ `hooks`
+global รองรับ `fields`, `label`, `icon`, `drafts`, `versions`, `preview`, `admin`, `access` (`read`, `update`) และ `hooks`
 (`beforeChange`, `afterChange`, `afterRead`)
 
 ## ใส่แบรนด์ให้หน้า admin {#branding-the-admin}
@@ -126,16 +129,13 @@ globals: [{ slug: 'site', icon: 'house', fields: [/* … */] }],
 
 ## Plugins {#plugins}
 
-plugin รับ config เข้ามาและคืนค่า config ใหม่:
+plugin รับ config เข้ามาและคืนค่า config ใหม่ จึงเพิ่ม field, collection,
+[endpoint](./plugins#endpoints) และ [admin components](./plugins#admin-components) ได้:
 
 ```ts
-const seo = (): Plugin => (config) => ({
-  ...config,
-  collections: config.collections?.map((c) => ({
-    ...c,
-    fields: [...c.fields, { name: 'metaDescription', type: 'textarea', maxLength: 160 }],
-  })),
-})
+import { seoPlugin } from '@easy-cms/plugin-seo'
 
-export default defineConfig({ /* … */ plugins: [seo()] })
+export default defineConfig({ /* … */ plugins: [seoPlugin({ collections: ['posts'] })] })
 ```
+
+ดู plugin ทางการและวิธีเขียน plugin เองได้ที่ [Plugins](./plugins)

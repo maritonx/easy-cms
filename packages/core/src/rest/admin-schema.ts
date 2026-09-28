@@ -2,8 +2,15 @@ import type { Access, AuthUser } from '../access.js'
 import { evaluateAccess, FieldAccessChecker } from '../access-control.js'
 import { INTERNAL_COLLECTIONS } from '../builtins.js'
 import type { AdminLocale, CollectionConfig, GlobalConfig } from '../config.js'
-import type { Field, Label } from '../fields.js'
+import type { AdminComponent, Field, Label } from '../fields.js'
 import type { EasyCMS } from '../local-api.js'
+import { adminModuleUrls } from './admin-modules.js'
+
+/** A Web Component from an admin module, with its `props` (plain JSON). */
+export interface AdminComponentRef {
+  tag: string
+  props?: Record<string, unknown>
+}
 
 /** A field as the admin UI sees it: plain JSON, no functions. */
 export interface AdminField {
@@ -32,6 +39,8 @@ export interface AdminField {
   localized?: boolean
   /** Shown in the edit page's side panel. */
   position?: 'sidebar'
+  /** Components from admin modules: instead of the input, and below the field. */
+  admin?: { component?: AdminComponentRef; after?: AdminComponentRef[] }
 }
 
 export interface AdminCollection {
@@ -48,6 +57,8 @@ export interface AdminCollection {
   /** Publishing can be scheduled. */
   schedule: boolean
   fields: AdminField[]
+  /** Panels from admin modules in the edit page's side column. */
+  sidebar?: AdminComponentRef[]
   permissions: { read: boolean; create: boolean; update: boolean; delete: boolean }
 }
 
@@ -62,6 +73,8 @@ export interface AdminGlobal {
   /** Publishing can be scheduled. */
   schedule: boolean
   fields: AdminField[]
+  /** Panels from admin modules in the edit page's side column. */
+  sidebar?: AdminComponentRef[]
   permissions: { read: boolean; update: boolean }
 }
 
@@ -73,6 +86,16 @@ export interface AdminSchema {
   localization: { locales: string[]; defaultLocale: string } | null
   collections: AdminCollection[]
   globals: AdminGlobal[]
+  /** URLs under the API of the admin modules to load (`admin.modules`). */
+  modules: string[]
+}
+
+/** Props go to the browser as JSON; a round trip drops functions and other non-JSON values. */
+function componentRef(component: AdminComponent): AdminComponentRef {
+  if (typeof component === 'string') return { tag: component }
+  return component.props
+    ? { tag: component.tag, props: JSON.parse(JSON.stringify(component.props)) }
+    : { tag: component.tag }
 }
 
 /** A `where` result means "some documents", so the action is offered and the server decides per document. */
@@ -96,6 +119,12 @@ async function serializeFields(
     if (!(await update.allows(field))) f.readOnly = true
     if (field.localized && localized) f.localized = true
     if (field.position === 'sidebar') f.position = 'sidebar'
+    if (field.admin?.component || field.admin?.after?.length) {
+      f.admin = {
+        ...(field.admin.component ? { component: componentRef(field.admin.component) } : {}),
+        ...(field.admin.after?.length ? { after: field.admin.after.map(componentRef) } : {}),
+      }
+    }
     switch (field.type) {
       case 'text':
       case 'textarea':
@@ -173,6 +202,7 @@ async function collection(
   if (config.labels) result.labels = config.labels
   if (config.useAsTitle) result.useAsTitle = config.useAsTitle
   if (config.icon) result.icon = config.icon
+  if (config.admin?.sidebar?.length) result.sidebar = config.admin.sidebar.map(componentRef)
   // Drafts, history and preview need the whole page.
   if (config.editIn === 'drawer' && !result.drafts && !result.versions && !result.preview)
     result.editIn = 'drawer'
@@ -202,6 +232,7 @@ async function global(
   }
   if (config.label !== undefined) result.label = config.label
   if (config.icon) result.icon = config.icon
+  if (config.admin?.sidebar?.length) result.sidebar = config.admin.sidebar.map(componentRef)
   return result
 }
 
@@ -218,5 +249,6 @@ export async function adminSchema(cms: EasyCMS, user: AuthUser): Promise<AdminSc
       : null,
     collections: await Promise.all(collections.map((c) => collection(c, user, localized))),
     globals: await Promise.all(cms.config.globals.map((g) => global(g, user, localized))),
+    modules: adminModuleUrls(cms),
   }
 }

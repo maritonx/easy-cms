@@ -1,0 +1,267 @@
+import type {
+  AuthUser,
+  BeforeChangeHook,
+  CollectionConfig,
+  Config,
+  EasyCMS,
+  Endpoint,
+  Field,
+  GlobalConfig,
+  Label,
+  Plugin,
+} from '@easy-cms/core'
+import {
+  DEFAULT_DESCRIPTION_LENGTH,
+  DEFAULT_TITLE_LENGTH,
+  GENERATE_KINDS,
+  GENERATE_PATH,
+  type GenerateKind,
+  type ImageProps,
+  META_FIELD,
+  type MeterProps,
+  type PreviewProps,
+} from './shared.js'
+
+type MaybePromise<T> = T | Promise<T>
+
+export interface GenerateArgs {
+  /** The document as edited in the admin (not saved yet), or as saved with `autoGenerate`. */
+  readonly doc: Record<string, unknown>
+  /** The document's id; `null` while it is being created. */
+  readonly id: string | number | null
+  /** The content locale being edited; `null` without localization or when saving. */
+  readonly locale: string | null
+  /** Slug of the collection, when the document is in one. */
+  readonly collection?: string
+  /** Slug of the global, when the document is a global. */
+  readonly global?: string
+  readonly cms: EasyCMS
+  readonly user: AuthUser | null
+}
+
+export type Generate<T> = (args: GenerateArgs) => MaybePromise<T | null | undefined>
+
+export interface SeoPluginOptions {
+  /** Collections that get SEO fields, by slug. */
+  readonly collections?: readonly string[]
+  /** Globals that get SEO fields, by slug. */
+  readonly globals?: readonly string[]
+  /** `main`: below the other fields (room for the search preview). `sidebar`: the side column. Default `main`. */
+  readonly position?: 'main' | 'sidebar'
+  /** Suggests a meta title, e.g. `({ doc }) => \`${doc.title} | My Blog\``. Adds a Generate button. */
+  readonly generateTitle?: Generate<string>
+  /** Suggests a meta description, e.g. from an excerpt. Adds a Generate button. */
+  readonly generateDescription?: Generate<string>
+  /** Suggests a share image: the id of a media document, e.g. the post's cover. */
+  readonly generateImage?: Generate<string | number>
+  /** The page's address (absolute, or a path on `admin.siteUrl`), shown in the search preview. */
+  readonly generateURL?: Generate<string>
+  /** Fill empty meta fields with the generators when a document is saved. Default false. */
+  readonly autoGenerate?: boolean
+  /** Changes the fields of the group, e.g. `(defaults) => [...defaults, noindexField]`. */
+  readonly fields?: (defaults: Field[]) => Field[]
+  /** Length the admin marks as good for titles. Default 50–60 characters. */
+  readonly titleLength?: { readonly min: number; readonly max: number }
+  /** Length the admin marks as good for descriptions. Default 100–150 characters. */
+  readonly descriptionLength?: { readonly min: number; readonly max: number }
+  /** One value per content locale. Default: true when the config has `localization`. */
+  readonly localized?: boolean
+  /** Label of the group. Default "SEO". */
+  readonly label?: Label
+}
+
+const ADMIN_MODULE = '@easy-cms/plugin-seo/admin'
+
+/** Text fields (and their generator) the plugin checks and fills. */
+const TEXT_KINDS = ['title', 'description'] as const
+
+/**
+ * Adds a `meta` group (title, description, image) to the chosen collections and globals,
+ * with length meters, a search result preview and Generate buttons in the admin.
+ */
+export function seoPlugin(options: SeoPluginOptions = {}): Plugin {
+  return (config: Config): Config => {
+    const collections = options.collections ?? []
+    const globals = options.globals ?? []
+    const known = (
+      list: readonly { slug: string }[] | undefined,
+      slugs: readonly string[],
+      kind: string,
+    ) => {
+      const missing = slugs.filter((slug) => !list?.some((c) => c.slug === slug))
+      if (missing.length > 0)
+        throw new Error(`seoPlugin: unknown ${kind} ${missing.map((s) => `"${s}"`).join(', ')}`)
+    }
+    known(config.collections, collections, 'collection')
+    known(config.globals, globals, 'global')
+
+    const localized = options.localized ?? !!config.localization
+    const generators = {
+      title: options.generateTitle,
+      description: options.generateDescription,
+      image: options.generateImage,
+      url: options.generateURL,
+    }
+
+    const group = (titleField: string | null): Field => {
+      const meter = (kind: MeterProps['kind'], range: { min: number; max: number }) => ({
+        tag: 'ecms-seo-meter',
+        props: {
+          kind,
+          min: range.min,
+          max: range.max,
+          generate: !!generators[kind],
+        } satisfies MeterProps,
+      })
+      const defaults: Field[] = [
+        {
+          name: 'title',
+          type: 'text',
+          label: { en: 'Meta title', th: 'ชื่อสำหรับค้นหา' },
+          ...(localized ? { localized: true } : {}),
+          admin: { after: [meter('title', options.titleLength ?? DEFAULT_TITLE_LENGTH)] },
+        },
+        {
+          name: 'description',
+          type: 'textarea',
+          label: { en: 'Meta description', th: 'คำอธิบายสำหรับค้นหา' },
+          ...(localized ? { localized: true } : {}),
+          admin: {
+            after: [meter('description', options.descriptionLength ?? DEFAULT_DESCRIPTION_LENGTH)],
+          },
+        },
+        {
+          name: 'image',
+          type: 'upload',
+          label: { en: 'Share image', th: 'รูปสำหรับแชร์' },
+          ...(generators.image
+            ? {
+                admin: {
+                  after: [
+                    { tag: 'ecms-seo-image', props: { generate: true } satisfies ImageProps },
+                  ],
+                },
+              }
+            : {}),
+        },
+      ]
+      return {
+        name: META_FIELD,
+        type: 'group',
+        label: options.label ?? 'SEO',
+        ...(options.position === 'sidebar' ? { position: 'sidebar' as const } : {}),
+        fields: options.fields ? options.fields(defaults) : defaults,
+        admin: {
+          after: [
+            {
+              tag: 'ecms-seo-preview',
+              props: {
+                titleField,
+                url: !!generators.url,
+                siteUrl: config.admin?.siteUrl ?? '',
+              } satisfies PreviewProps,
+            },
+          ],
+        },
+      }
+    }
+
+    const hook: BeforeChangeHook | undefined = options.autoGenerate
+      ? async ({ data, operation, originalDoc, cms, user, slug }) => {
+          // A partial update without meta keeps the saved values.
+          if (operation === 'update' && data[META_FIELD] === undefined) return data
+          const saved = (originalDoc?.[META_FIELD] ?? {}) as Record<string, unknown>
+          const meta = { ...saved, ...((data[META_FIELD] ?? {}) as Record<string, unknown>) }
+          const doc = { ...originalDoc, ...data }
+          const target = globals.includes(slug) ? { global: slug } : { collection: slug }
+          for (const kind of [...TEXT_KINDS, 'image'] as const) {
+            const generate = generators[kind]
+            if (!generate || !isEmpty(meta[kind])) continue
+            const id = (originalDoc?.id as string | number | undefined) ?? null
+            const value = await generate({ doc, id, locale: null, cms, user, ...target })
+            if (value !== null && value !== undefined && value !== '') meta[kind] = value
+          }
+          return { ...data, [META_FIELD]: meta }
+        }
+      : undefined
+
+    const withSeo = <T extends CollectionConfig | GlobalConfig>(
+      container: T,
+      titleField: string | null,
+    ): T => {
+      if (container.fields.some((f) => f.name === META_FIELD))
+        throw new Error(`seoPlugin: "${container.slug}" already has a field named "${META_FIELD}"`)
+      return {
+        ...container,
+        fields: [...container.fields, group(titleField)],
+        ...(hook
+          ? {
+              hooks: {
+                ...container.hooks,
+                beforeChange: [...(container.hooks?.beforeChange ?? []), hook],
+              },
+            }
+          : {}),
+      }
+    }
+
+    const endpoint: Endpoint = {
+      path: GENERATE_PATH,
+      method: 'post',
+      handler: async ({ json, user, cms }) => {
+        if (!user) return error(401, 'Log in to generate SEO values')
+        const body = await json()
+        const kind = body.kind as GenerateKind
+        if (!GENERATE_KINDS.includes(kind))
+          return error(400, `kind must be one of ${GENERATE_KINDS.join(', ')}`)
+        const collection = typeof body.collection === 'string' ? body.collection : undefined
+        const global = typeof body.global === 'string' ? body.global : undefined
+        if (
+          !(collection && collections.includes(collection)) &&
+          !(global && globals.includes(global))
+        )
+          return error(404, 'No SEO fields on this collection or global')
+        const generate = generators[kind]
+        if (!generate) return error(404, `No generator for "${kind}"`)
+        const doc =
+          typeof body.doc === 'object' && body.doc !== null
+            ? (body.doc as Record<string, unknown>)
+            : {}
+        const locale = typeof body.locale === 'string' ? body.locale : null
+        const id = typeof body.id === 'string' || typeof body.id === 'number' ? body.id : null
+        const value = await generate({
+          doc,
+          id,
+          locale,
+          cms,
+          user,
+          ...(collection ? { collection } : { global: global as string }),
+        })
+        return { value: value ?? null }
+      },
+    }
+
+    return {
+      ...config,
+      collections: (config.collections ?? []).map((c) =>
+        collections.includes(c.slug) ? withSeo(c, c.useAsTitle ?? null) : c,
+      ),
+      globals: (config.globals ?? []).map((g) => (globals.includes(g.slug) ? withSeo(g, null) : g)),
+      admin: {
+        ...config.admin,
+        modules: [...new Set([...(config.admin?.modules ?? []), ADMIN_MODULE])],
+      },
+      endpoints: [...(config.endpoints ?? []), endpoint],
+    }
+  }
+}
+
+const isEmpty = (value: unknown) => value === null || value === undefined || value === ''
+
+/**
+ * An error in the REST API's format. Not Easy CMS's error classes: importing core at runtime
+ * would pull server code into pages that only import `seoMeta`.
+ */
+function error(status: number, message: string): Response {
+  return Response.json({ errors: [{ message }] }, { status })
+}

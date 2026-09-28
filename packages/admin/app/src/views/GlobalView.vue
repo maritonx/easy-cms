@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { CalendarClock, Eye, EyeOff } from '@lucide/vue'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, provide, ref } from 'vue'
 import { onBeforeRouteLeave, useRoute } from 'vue-router'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import LivePreview from '../components/LivePreview.vue'
 import LocaleSwitcher from '../components/LocaleSwitcher.vue'
+import PluginElement from '../components/PluginElement.vue'
 import ScheduleControl from '../components/ScheduleControl.vue'
 import VersionHistory from '../components/VersionHistory.vue'
 import FieldList from '../fields/FieldList.vue'
@@ -12,6 +13,7 @@ import { ApiError, api } from '../lib/api'
 import { contentLocale, localeQuery, setContentLocale } from '../lib/content-locale'
 import { snapshot, toFormValues } from '../lib/fields'
 import { formatDate, label, t } from '../lib/i18n'
+import { FORM, setPath } from '../lib/plugins'
 import { findGlobal, session } from '../lib/session'
 import { showMessages } from '../lib/toast'
 import { missingLocales } from '../lib/translation'
@@ -52,6 +54,15 @@ const mainFields = computed(() => global?.fields.filter((f) => f.position !== 's
 function undoChanges() {
   form.value = JSON.parse(baseline.value) as Data
 }
+// Components from admin modules read the form and may set any field.
+provide(FORM, {
+  doc: form,
+  setField: (path, value) => {
+    form.value = setPath(form.value, path, value)
+  },
+  global: slug,
+  id: computed(() => null),
+})
 const side = computed(() =>
   readOnly.value ? null : previewing.value ? 'preview' : global?.versions ? 'history' : null,
 )
@@ -257,6 +268,9 @@ onBeforeRouteLeave(() => (dirty.value ? window.confirm(t('edit.unsaved')) : true
         <section v-if="sideFields.length" class="card side-card" :aria-label="t('edit.details')">
           <h2>{{ t('edit.details') }}</h2>
           <FieldList v-model="form" :fields="sideFields" :errors="errors" :read-only="readOnly" />
+        </section>
+        <section v-for="(panel, i) in global.sidebar ?? []" :key="`${i}-${panel.tag}`" class="card side-card">
+          <PluginElement :component="panel" :read-only="readOnly" />
         </section>
         <VersionHistory
           v-if="side === 'history'"

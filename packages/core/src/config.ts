@@ -1,6 +1,6 @@
 import type { AuthUser, CollectionAccess, GlobalAccess, ID } from './access.js'
 import type { DatabaseAdapter } from './database.js'
-import type { Field, Label } from './fields.js'
+import type { AdminComponent, Field, Label } from './fields.js'
 import type { EasyCMS } from './local-api.js'
 import type { StorageAdapter } from './storage.js'
 import type { WebhookConfig } from './webhooks.js'
@@ -76,6 +76,12 @@ export interface VersionsConfig {
   readonly max?: number
 }
 
+/** Custom admin components for a collection's or global's edit page. */
+export interface ContainerAdmin {
+  /** Panels in the edit page's side column, below publishing (components from admin modules). */
+  readonly sidebar?: readonly AdminComponent[]
+}
+
 export interface CollectionConfig {
   /** URL and table name. Lowercase letters, digits, `-` and `_`. */
   readonly slug: string
@@ -105,6 +111,8 @@ export interface CollectionConfig {
   readonly preview?: PreviewURL
   readonly access?: CollectionAccess
   readonly hooks?: CollectionHooks
+  /** Custom admin components. */
+  readonly admin?: ContainerAdmin
 }
 
 export interface GlobalConfig {
@@ -122,6 +130,8 @@ export interface GlobalConfig {
   readonly preview?: PreviewURL
   readonly access?: GlobalAccess
   readonly hooks?: GlobalHooks
+  /** Custom admin components. */
+  readonly admin?: ContainerAdmin
 }
 
 export type AdminLocale = 'en' | 'th'
@@ -206,6 +216,14 @@ export interface AdminConfig {
    * Collections not listed follow in config order, with the media library last.
    */
   readonly menu?: readonly string[]
+  /**
+   * JavaScript modules the admin loads after login, which define Web Components used by
+   * fields (`admin.component`, `admin.after`) and edit pages (`admin.sidebar`). Each entry is a
+   * package export (`'@easy-cms/plugin-seo/admin'`) or a file path relative to the project root
+   * (`'./admin/color-picker.js'`), resolved on the server. A module must be one self-contained ES
+   * module file. Remote URLs are not allowed.
+   */
+  readonly modules?: readonly string[]
 }
 
 export interface ImageSize {
@@ -251,6 +269,38 @@ export interface AuthConfig {
   readonly trustedOrigins?: readonly string[]
 }
 
+/** What an endpoint's handler receives. */
+export interface EndpointRequest {
+  readonly request: Request
+  readonly url: URL
+  /** Values of `:name` segments in the endpoint's path. */
+  readonly params: Readonly<Record<string, string>>
+  /** The logged-in user (session cookie or Bearer token), or `null`. */
+  readonly user: AuthUser | null
+  /** The Local API. Pass `{ user, overrideAccess: false }` to apply the user's access rules. */
+  readonly cms: EasyCMS
+  /** The request's JSON body, which must be an object (at most 1 MB). */
+  json(): Promise<Record<string, unknown>>
+}
+
+/**
+ * A custom REST endpoint, served under `routes.api`. Writes from the browser pass the same
+ * CSRF check as the built-in endpoints.
+ */
+export interface Endpoint {
+  /**
+   * Path under the API, e.g. `/seo/generate` or `/stats/:collection`. The first segment must
+   * not be a collection slug or one of `users`, `globals`, `admin`, `jobs`.
+   */
+  readonly path: string
+  readonly method: 'get' | 'post' | 'put' | 'patch' | 'delete'
+  /**
+   * Returns a `Response`, or a value that is sent as JSON. Throw an Easy CMS error
+   * (`UnauthorizedError`, `ForbiddenError`, `ValidationError`, `NotFoundError`) for error responses.
+   */
+  readonly handler: (request: EndpointRequest) => MaybePromise<unknown>
+}
+
 /** Receives the config and returns a modified copy. Runs before validation. */
 export type Plugin = (config: Config) => MaybePromise<Config>
 
@@ -289,6 +339,8 @@ export interface Config {
    */
   readonly collections?: readonly CollectionConfig[]
   readonly globals?: readonly GlobalConfig[]
+  /** Custom REST endpoints, e.g. from plugins. */
+  readonly endpoints?: readonly Endpoint[]
   readonly plugins?: readonly Plugin[]
 }
 
@@ -304,6 +356,7 @@ export interface ResolvedConfig
     | 'auth'
     | 'collections'
     | 'globals'
+    | 'endpoints'
     | 'plugins'
   > {
   readonly cors: readonly string[] | '*'
@@ -315,6 +368,7 @@ export interface ResolvedConfig
   readonly auth: Required<AuthConfig>
   readonly collections: readonly CollectionConfig[]
   readonly globals: readonly GlobalConfig[]
+  readonly endpoints: readonly Endpoint[]
 }
 
 /**

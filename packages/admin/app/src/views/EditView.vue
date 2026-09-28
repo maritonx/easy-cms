@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { CalendarClock, ChevronDown, ChevronLeft, Eye, EyeOff, Link2, Trash2 } from '@lucide/vue'
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import LivePreview from '../components/LivePreview.vue'
 import LocaleSwitcher from '../components/LocaleSwitcher.vue'
 import MediaThumb from '../components/MediaThumb.vue'
+import PluginElement from '../components/PluginElement.vue'
 import ScheduleControl from '../components/ScheduleControl.vue'
 import VersionHistory from '../components/VersionHistory.vue'
 import FieldList from '../fields/FieldList.vue'
@@ -13,6 +14,7 @@ import { ApiError, api, type Doc } from '../lib/api'
 import { contentLocale, localeQuery, setContentLocale } from '../lib/content-locale'
 import { initialValues, snapshot, titleOf, toFormValues } from '../lib/fields'
 import { formatBytes, formatDate, label, singularize, t } from '../lib/i18n'
+import { FORM, setPath } from '../lib/plugins'
 import { findCollection, loadSession, session, setFlash, takeFlash } from '../lib/session'
 import { showMessages } from '../lib/toast'
 import { missingLocales } from '../lib/translation'
@@ -51,7 +53,11 @@ const side = computed(() =>
 
 // The right-hand column: publishing and actions for a saved document, and its history.
 const hasSidebar = computed(
-  () => !!doc.value || side.value === 'history' || sideFields.value.length > 0,
+  () =>
+    !!doc.value ||
+    side.value === 'history' ||
+    sideFields.value.length > 0 ||
+    (collection?.sidebar?.length ?? 0) > 0,
 )
 
 const form = ref<Record<string, unknown>>(collection ? initialValues(collection.fields) : {})
@@ -99,6 +105,15 @@ const mainFields = computed(() =>
     (f) => f !== titleField.value && f !== slugField.value && f.position !== 'sidebar',
   ),
 )
+// Components from admin modules read the form and may set any field.
+provide(FORM, {
+  doc: form,
+  setField: (path, value) => {
+    form.value = setPath(form.value, path, value)
+  },
+  collection: slug,
+  id: computed(() => id ?? null),
+})
 const splitOpen = ref(false)
 /** Replaces the form (like FieldList does), so watchers see the change. */
 function setField(name: string, value: string) {
@@ -528,6 +543,9 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
         <section v-if="sideFields.length" class="card side-card" :aria-label="t('edit.details')">
           <h2>{{ t('edit.details') }}</h2>
           <FieldList v-model="form" :fields="sideFields" :errors="errors" :read-only="readOnly" />
+        </section>
+        <section v-for="(panel, i) in collection.sidebar ?? []" :key="`${i}-${panel.tag}`" class="card side-card">
+          <PluginElement :component="panel" :read-only="readOnly" />
         </section>
         <VersionHistory
           v-if="side === 'history' && id"

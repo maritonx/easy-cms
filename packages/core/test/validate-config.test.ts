@@ -125,6 +125,61 @@ describe('validateConfig', () => {
     ])
   })
 
+  it('checks admin modules, components and endpoints', () => {
+    const handler = () => ({ ok: true })
+    const issues = validateConfig(
+      baseConfig({
+        admin: { modules: ['@easy-cms/plugin-seo/admin', './admin/x.js', 'https://cdn.test/x.js'] },
+        collections: [
+          {
+            slug: 'posts',
+            admin: { sidebar: ['ecms-panel', { tag: 'div' }] },
+            fields: [
+              {
+                name: 'a',
+                type: 'text',
+                admin: { component: 'ecms-color', after: ['ecms-meter'] },
+              },
+              { name: 'b', type: 'text', admin: { component: { tag: 'ecms-x', props: { n: 1 } } } },
+              { name: 'c', type: 'text', admin: { component: 'color-picker' } },
+              // @ts-expect-error props is an object
+              { name: 'd', type: 'text', admin: { after: [{ tag: 'ecms-y', props: [1] }] } },
+            ],
+          },
+        ],
+        globals: [
+          { slug: 'site', admin: { sidebar: ['ecms-ok'] }, fields: [{ name: 'n', type: 'text' }] },
+        ],
+        endpoints: [
+          { path: '/seo/generate', method: 'post', handler },
+          { path: '/stats/:collection', method: 'get', handler },
+          { path: '/stats/:other', method: 'get', handler },
+          { path: '/posts/count', method: 'get', handler },
+          { path: '/users/x', method: 'get', handler },
+          { path: '/:x', method: 'get', handler },
+          { path: 'nope', method: 'get', handler },
+          // @ts-expect-error unknown method
+          { path: '/ok', method: 'fetch', handler },
+          // @ts-expect-error handler is a function
+          { path: '/ok2', method: 'get', handler: 'x' },
+        ],
+      }),
+    )
+    expect(issues.map((i) => i.path)).toEqual([
+      'admin.modules[2]',
+      'endpoints[2].path',
+      'endpoints[3].path',
+      'endpoints[4].path',
+      'endpoints[5].path',
+      'endpoints[6].path',
+      'endpoints[7].method',
+      'endpoints[8].handler',
+      'collections.posts.admin.sidebar[1]',
+      'collections.posts.fields.c.admin.component',
+      'collections.posts.fields.d.admin.after[0].props',
+    ])
+  })
+
   it('checks auth options', () => {
     const issues = validateConfig(
       baseConfig({

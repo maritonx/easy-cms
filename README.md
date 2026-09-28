@@ -87,6 +87,7 @@ Design notes: [docs/DESIGN.md](docs/DESIGN.md) · Requirements: [docs/SRS.md](do
 | [`@easy-cms/storage-s3`](packages/storage-s3) | Upload storage on S3, Cloudflare R2 or MinIO |
 | [`@easy-cms/admin`](packages/admin) | Admin UI (Vue 3 SPA) served at `/admin` |
 | [`@easy-cms/richtext`](packages/richtext) | `renderRichText()`: Tiptap JSON → safe HTML |
+| [`@easy-cms/plugin-seo`](packages/plugin-seo) | SEO fields, search preview and page metadata |
 | [`@easy-cms/nuxt`](packages/nuxt) | Nuxt 4 module: REST API, admin, typed `useEasyCMS()` |
 | [`@easy-cms/next`](packages/next) | Next.js adapter: route handlers, typed `getEasyCMS()` |
 | [`easy-cms`](packages/cli) | CLI: migrations, `generate:types`, `create-admin`, standalone `serve` |

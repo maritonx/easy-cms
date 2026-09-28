@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { AdminField } from '@easy-cms/core'
 import { computed, defineAsyncComponent, ref } from 'vue'
+import PluginElement from '../components/PluginElement.vue'
 import { contentLocale } from '../lib/content-locale'
 import { fromLocalInput, toLocalInput } from '../lib/fields'
 import { label, t } from '../lib/i18n'
@@ -60,7 +61,28 @@ function onNumber(value: string) {
 </script>
 
 <template>
-  <fieldset v-if="field.type === 'group'" class="group">
+  <div class="field-slot">
+  <!-- A component from an admin module instead of the input; the label and errors stay ours. -->
+  <div v-if="field.admin?.component" class="field">
+    <span :id="`${id}-label`" class="field-label">
+      {{ text }}<span v-if="field.required" class="field-required" aria-hidden="true">*</span>
+      <span v-if="field.localized" class="field-locale" :title="t('locale.localized')" aria-hidden="true">{{ contentLocale()?.toUpperCase() }}</span>
+    </span>
+    <PluginElement
+      :component="field.admin.component"
+      :value="modelValue ?? null"
+      :path="path"
+      :field="field"
+      :label="text"
+      :read-only="readOnly"
+      :role="field.type === 'group' ? 'group' : undefined"
+      :aria-labelledby="`${id}-label`"
+      @change="set"
+    />
+    <p v-for="m in messages" :id="errorId" :key="m" class="field-error">{{ m }}</p>
+  </div>
+
+  <fieldset v-else-if="field.type === 'group'" class="group">
     <legend class="field-label">{{ text }}</legend>
     <FieldList
       :fields="field.fields ?? []"
@@ -239,9 +261,27 @@ function onNumber(value: string) {
     <p v-if="jsonError" :id="errorId" class="field-error">{{ t('field.invalidJson') }}</p>
     <p v-for="m in messages" :id="errorId" :key="m" class="field-error">{{ m }}</p>
   </div>
+
+  <PluginElement
+    v-for="(component, i) in field.admin?.after ?? []"
+    :key="`${i}-${component.tag}`"
+    :component="component"
+    :value="modelValue ?? null"
+    :path="path"
+    :field="field"
+    :label="text"
+    :read-only="readOnly"
+  />
+  </div>
 </template>
 
 <style scoped>
+.field-slot {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
 .group {
   padding: 1rem;
   border: 1px solid var(--border);

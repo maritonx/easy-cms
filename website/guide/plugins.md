@@ -1,0 +1,209 @@
+# Plugins
+
+A plugin is a function that receives your config and returns a new one. It can add fields,
+collections, hooks, [REST endpoints](#endpoints) and [admin components](#admin-components).
+
+```ts
+import { seoPlugin } from '@easy-cms/plugin-seo'
+
+export default defineConfig({
+  // …
+  plugins: [seoPlugin({ collections: ['posts'] })],
+})
+```
+
+Plugins run in order, before the config is validated, so a plugin's mistakes are reported like
+your own.
+
+## Official plugins
+
+| Package | |
+|---|---|
+| [`@easy-cms/plugin-seo`](./seo) | Meta title, description and share image, with length meters, a search preview and Generate buttons in the admin, and page metadata for Nuxt and Next.js. |
+
+Plugins from others are named `easy-cms-plugin-*` and have the npm keyword `easy-cms-plugin`.
+
+## Writing a plugin
+
+Take options, return `(config) => config`, and add to what is there instead of replacing it:
+
+```ts
+import type { Field, Plugin } from '@easy-cms/core'
+
+const minutes = (text: unknown) => Math.ceil(String(text ?? '').split(/\s+/).length / 200)
+
+export function readingTime(options: { collections: string[] }): Plugin {
+  const field: Field = { name: 'readingTime', type: 'number', position: 'sidebar' }
+  return (config) => ({
+    ...config,
+    collections: config.collections?.map((c) =>
+      options.collections.includes(c.slug)
+        ? {
+            ...c,
+            fields: [...c.fields, field],
+            hooks: {
+              ...c.hooks,
+              beforeChange: [
+                ...(c.hooks?.beforeChange ?? []),
+                ({ data }) => ({ ...data, readingTime: minutes(data.excerpt) }),
+              ],
+            },
+          }
+        : c,
+    ),
+  })
+}
+```
+
+Throw an `Error` for wrong options (an unknown slug, a field name that is taken): it stops
+startup with your message.
+
+## Endpoints
+
+`endpoints` adds routes to the REST API, under `routes.api` (`/api/cms`):
+
+```ts
+import { UnauthorizedError } from '@easy-cms/core'
+
+// in the config, or added by a plugin
+endpoints: [
+  {
+    path: '/stats/:collection',
+    method: 'get',
+    handler: async ({ params, user, cms }) => {
+      if (!user) throw new UnauthorizedError()
+      const { totalDocs } = await cms.find(params.collection, { limit: 0, user, overrideAccess: false })
+      return { totalDocs }
+    },
+  },
+],
+```
+
+The handler receives:
+
+| | |
+|---|---|
+| `request`, `url` | The Web `Request` and its URL. |
+| `params` | Values of `:name` segments. |
+| `user` | The logged-in user (session cookie or Bearer token), or `null`. |
+| `cms` | The [Local API](./local-api). Pass `{ user, overrideAccess: false }` to apply the user's access rules. |
+| `json()` | The JSON body; it must be an object of at most 1 MB. |
+
+Return a value to send it as JSON, or a `Response` for anything else. Throw `UnauthorizedError`,
+`ForbiddenError`, `NotFoundError` or `ValidationError` from `@easy-cms/core` for error responses in the
+API's format.
+
+- Writes from the browser pass the same [CSRF check](./security) as the built-in API.
+- The first segment can't be a collection slug or `users`, `globals`, `admin`, `jobs`, `media`.
+  Start with your plugin's name: `/seo/generate`.
+- A fixed segment wins over a parameter: `/stats/summary` before `/stats/:collection`.
+- A path with the wrong method gets `405` with an `Allow` header.
+
+## Admin components
+
+The admin is a prebuilt app, so plugins extend it with **Web Components**: custom elements the
+admin creates and passes the edit page's state to. They work with any framework (or none) and
+keep working when the admin's own code changes.
+
+Use them in three places:
+
+```ts
+fields: [
+  // Instead of the input; the admin keeps the label and error messages.
+  { name: 'color', type: 'text', admin: { component: 'ecms-color-picker' } },
+  // Below the field.
+  { name: 'summary', type: 'textarea', admin: { after: [{ tag: 'ecms-word-count', props: { max: 80 } }] } },
+],
+// Panels in the edit page's side column (collections and globals).
+admin: { sidebar: ['ecms-checklist'] },
+```
+
+A component is a tag name starting with `ecms-`, or `{ tag, props }`. `props` must be plain JSON;
+the element receives them as `options`.
+
+### The module
+
+Put the elements in one self-contained ES module (no imports) and list it in `admin.modules`, by
+package export or by path from the project root:
+
+```ts
+admin: { modules: ['./admin/color-picker.js'] }            // your own
+admin: { modules: ['@acme/easy-cms-plugin-color/admin'] }  // from a package
+```
+
+A plugin adds its module itself:
+`admin: { ...config.admin, modules: [...(config.admin?.modules ?? []), '@acme/easy-cms-plugin-color/admin'] }`.
+
+The server finds the file (a package export needs the `default` condition) and serves it to
+logged-in users at `<api>/admin/modules/<n>.js`; the admin imports every module after login.
+URLs of other sites are not allowed. If a module fails to load, the admin works without it and
+shows which component is missing.
+
+```js
+// admin/color-picker.js
+class ColorPicker extends HTMLElement {
+  #input = document.createElement('input')
+
+  constructor() {
+    super()
+    this.#input.type = 'color'
+    // `change` with the new value as `detail` sets the field.
+    this.#input.addEventListener('input', () =>
+      this.dispatchEvent(new CustomEvent('change', { detail: this.#input.value })),
+    )
+    this.attachShadow({ mode: 'open' }).append(this.#input)
+  }
+
+  set value(value) {
+    this.#input.value = value ?? '#000000'
+  }
+
+  set readOnly(readOnly) {
+    this.#input.disabled = readOnly
+  }
+}
+customElements.define('ecms-color-picker', ColorPicker)
+```
+
+### What the element receives
+
+The admin sets these properties, and sets them again whenever the form changes:
+
+| Property | |
+|---|---|
+| `apiVersion` | `1`. Raised only for changes that break components. |
+| `value` | The field's value (field components). |
+| `path` | The field's path, e.g. `meta.title` (field components). |
+| `field` | The field as the admin sees it: `name`, `type`, `label`, `maxLength`… |
+| `label` | The field's label in the admin's language. |
+| `doc` | The whole form as edited, not saved yet (a copy). |
+| `collection` / `global` | Slug of what is being edited. |
+| `id` | The document's id; `null` while creating one. |
+| `locale` | The content locale being edited, or `null` without localization. |
+| `uiLocale` | The admin's language: `en` or `th`. |
+| `readOnly` | The user may not change it. |
+| `options` | The component's `props`. |
+| `api(method, path, body?)` | Calls the REST API as the logged-in user (cookies and CSRF included), e.g. your plugin's endpoint. |
+
+And listens for two events:
+
+| Event | `detail` | |
+|---|---|---|
+| `change` | the new value | Sets the field (field components). |
+| `set-field` | `{ path, value }` | Sets any field of the form, e.g. `meta.title` from a Generate button. |
+
+Changes are not saved until the editor saves.
+
+### Styling
+
+Styles inside a shadow root don't leak in or out, and CSS variables pass through, so use the
+admin's to match its light and dark themes: `--text`, `--text-muted`, `--surface`, `--surface-2`,
+`--border`, `--border-strong`, `--brand`, `--accent-soft`, `--danger`, `--ok`, `--warning-text`,
+`--info`, `--focus`, `--radius`, `--radius-sm`.
+
+### Security and deployment
+
+- Admin modules run with the rights of whoever is logged in. Install plugins you trust, as you
+  would any dependency.
+- Nuxt copies the module files into its build. With Next.js `output: 'standalone'`, add them to
+  `outputFileTracingIncludes`.

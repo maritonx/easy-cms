@@ -1,6 +1,7 @@
 import type { AdminCollection, AdminGlobal, AdminSchema } from '@easy-cms/core'
 import { reactive } from 'vue'
 import { api } from './api'
+import { loadModules } from './plugins'
 
 export interface User {
   id: number | string
@@ -29,6 +30,8 @@ export async function loadSession(): Promise<void> {
   session.user = me.user
   if (me.user) {
     session.schema = await api<AdminSchema>('GET', '/admin/schema')
+    // Components from admin modules; views wait for the ones they show.
+    void loadModules(session.schema.modules ?? [])
   } else {
     session.schema = null
     session.hasUsers = (await api<{ hasUsers: boolean }>('GET', '/users/init')).hasUsers

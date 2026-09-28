@@ -15,6 +15,22 @@ export type FieldValidate<TValue> = (
   ctx: FieldValidateContext,
 ) => true | string | Promise<true | string>
 
+/**
+ * A Web Component from an admin module (`admin.modules`), by its tag name, which must start
+ * with `ecms-`. `props` (plain JSON) reach the element as its `options` property.
+ */
+export type AdminComponent =
+  | string
+  | { readonly tag: string; readonly props?: Readonly<Record<string, unknown>> }
+
+/** How the admin shows a field, with components from admin modules. */
+export interface FieldAdmin {
+  /** Shown instead of the field's input; the admin keeps the label and error messages. */
+  readonly component?: AdminComponent
+  /** Shown below the field, e.g. a length meter or a preview. */
+  readonly after?: readonly AdminComponent[]
+}
+
 interface BaseField<TType extends string, TValue> {
   readonly type: TType
   readonly name: string
@@ -34,6 +50,8 @@ interface BaseField<TType extends string, TValue> {
   readonly localized?: boolean
   /** `sidebar`: shown in the edit page's side panel instead of the main form (top-level fields). */
   readonly position?: 'sidebar'
+  /** Custom admin components for this field. */
+  readonly admin?: FieldAdmin
 }
 
 export interface TextField extends BaseField<'text', string> {

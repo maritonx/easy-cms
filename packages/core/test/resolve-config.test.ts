@@ -11,6 +11,7 @@ describe('resolveConfig', () => {
       brand: {},
       siteUrl: '',
       menu: [],
+      modules: [],
     })
     expect(config.upload).toEqual({
       dir: 'uploads',
@@ -33,6 +34,7 @@ describe('resolveConfig', () => {
     ])
     expect(config.routes).toEqual({ api: '/api/cms' })
     expect(config.globals).toEqual([])
+    expect(config.endpoints).toEqual([])
     expect(config).not.toHaveProperty('plugins')
   })
 
@@ -46,6 +48,7 @@ describe('resolveConfig', () => {
       brand: { name: 'Acme' },
       siteUrl: '',
       menu: [],
+      modules: [],
     })
   })
 

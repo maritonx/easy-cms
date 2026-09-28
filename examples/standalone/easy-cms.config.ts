@@ -1,5 +1,6 @@
 import { defineConfig } from '@easy-cms/core'
 import { sqlite } from '@easy-cms/db-sqlite'
+import { seoPlugin } from '@easy-cms/plugin-seo'
 
 // Where this server and the frontend (frontend/index.html) run; used for live preview.
 const cmsURL = process.env.CMS_URL ?? 'http://localhost:4000'
@@ -150,5 +151,20 @@ export default defineConfig({
         { name: 'tagline', type: 'text', label: { en: 'Tagline', th: 'คำโปรย' }, localized: true },
       ],
     },
+  ],
+  // SEO fields on posts and the site, with a search preview and Generate buttons in the admin.
+  plugins: [
+    seoPlugin({
+      collections: ['posts'],
+      globals: ['site'],
+      // Posts: "Title | Easy CMS Blog"; the site: its name.
+      generateTitle: ({ doc, collection }) =>
+        collection ? (doc.title ? `${doc.title} | Easy CMS Blog` : null) : (doc.siteName as string),
+      generateDescription: ({ doc }) => (doc.excerpt as string | undefined) ?? null,
+      generateImage: ({ doc }) => (doc.cover as number | undefined) ?? null,
+      // The frontend shows a post by id (see `preview` above).
+      generateURL: ({ id, collection }) =>
+        collection === 'posts' && id !== null ? `${frontendURL}/?post=${id}` : `${frontendURL}/`,
+    }),
   ],
 })

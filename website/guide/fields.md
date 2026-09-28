@@ -14,6 +14,7 @@ Every field has a `name` and a `type`. Common options:
 | `hidden` | Stored, but never returned by the API nor accepted as input. |
 | `localized` | One value per locale; see [Localization](./localization). |
 | `position` | `'sidebar'`: shown in the edit page's side panel (for top-level fields such as a category, tags or a date). |
+| `admin` | `{ component, after }`: [admin components](./plugins#admin-components) instead of the input, and below the field. |
 
 ## Types
 

@@ -15,6 +15,9 @@ export type {
   BeforeValidateHook,
   CollectionConfig,
   CollectionHooks,
+  ContainerAdmin,
+  Endpoint,
+  EndpointRequest,
   GlobalConfig,
   GlobalHooks,
   ImageSize,
@@ -82,14 +85,17 @@ export { consoleLogger, type Logger, silentLogger } from './logger.js'
 export { EXTENSIONS, imageDimensions, mimeAllowed, sniffMimeType } from './media.js'
 export { DEFAULT_DEPTH, MAX_DEPTH, populate } from './populate.js'
 export {
+  applyPlugins,
   DEFAULT_ADMIN_PATH,
   DEFAULT_API_PATH,
   DEFAULT_MAX_FILE_SIZE,
   DEFAULT_TOKEN_EXPIRATION,
   resolveConfig,
 } from './resolve-config.js'
+export { resolveAdminModule } from './rest/admin-modules.js'
 export type {
   AdminCollection,
+  AdminComponentRef,
   AdminField,
   AdminGlobal,
   AdminSchema,

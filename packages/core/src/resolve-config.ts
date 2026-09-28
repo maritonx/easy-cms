@@ -19,18 +19,27 @@ export const DEFAULT_TOKEN_EXPIRATION = 7 * 24 * 60 * 60
 const resolved = new WeakSet<object>()
 
 /**
+ * Runs the config's plugins in order, without validating the result. Build tools use it to
+ * read what plugins add (e.g. `admin.modules`) when the config is not complete yet.
+ */
+export async function applyPlugins(input: Config): Promise<Config> {
+  let config = input
+  const plugins = Array.isArray(config?.plugins) ? config.plugins : []
+  for (const plugin of plugins) {
+    if (typeof plugin !== 'function') break // reported by validateConfig
+    config = await plugin(config)
+  }
+  return config
+}
+
+/**
  * Runs plugins in order, adds the built-in collections, validates the result
  * and fills in defaults. Throws `ConfigError`. Resolving twice is a no-op.
  */
 export async function resolveConfig(input: Config | ResolvedConfig): Promise<ResolvedConfig> {
   if (resolved.has(input)) return input as ResolvedConfig
 
-  let config = input as Config
-  const plugins = Array.isArray(config?.plugins) ? config.plugins : []
-  for (const plugin of plugins) {
-    if (typeof plugin !== 'function') break // reported by validateConfig
-    config = await plugin(config)
-  }
+  let config = await applyPlugins(input as Config)
   if (typeof config === 'object' && config !== null && Array.isArray(config.collections ?? [])) {
     config = withMedia(withUsers(config))
   }
@@ -56,6 +65,7 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
       brand: config.admin?.brand ?? {},
       siteUrl: config.admin?.siteUrl ?? '',
       menu: config.admin?.menu ?? [],
+      modules: config.admin?.modules ?? [],
     },
     upload: {
       dir: config.upload?.dir ?? 'uploads',
@@ -79,6 +89,7 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
       ...((config.webhooks?.length ?? 0) > 0 ? [webhookDeliveriesCollection] : []),
     ],
     globals: config.globals ?? [],
+    endpoints: config.endpoints ?? [],
   }
   resolved.add(result)
   return result

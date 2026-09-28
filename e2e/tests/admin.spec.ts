@@ -207,7 +207,8 @@ test.describe('logged in as admin', () => {
     // Pick it as the cover of the published post.
     await page.goto('/admin/collections/posts?q=Hello')
     await page.getByRole('link', { name: 'Hello from Playwright' }).click()
-    await page.getByRole('button', { name: 'Choose from media library' }).click()
+    // The first upload field is the cover; the SEO plugin's share image comes later.
+    await page.getByRole('button', { name: 'Choose from media library' }).first().click()
     const picker = page.getByRole('dialog', { name: 'Choose a file' })
     await picker.getByRole('button', { name: 'A green circle' }).click()
     await expect(picker).toBeHidden()
@@ -216,7 +217,7 @@ test.describe('logged in as admin', () => {
     // Insert the same image into the body from the toolbar.
     await page.locator('.rte-content').click()
     await page.keyboard.press('End')
-    await page.getByRole('button', { name: 'Image' }).click()
+    await page.getByRole('button', { name: 'Image', exact: true }).click()
     await picker.getByRole('button', { name: 'A green circle' }).click()
     await expect(page.locator('.rte-content img')).toHaveAttribute('alt', 'A green circle')
     await shot(page, '06-post-with-media')
@@ -495,6 +496,47 @@ test.describe('logged in as admin', () => {
     await expect(page.getByRole('status')).toHaveText('Saved')
     await publicSite(page)
     await expect(page.getByText('Tested end to end')).toBeVisible()
+  })
+
+  test('fills SEO fields with the SEO plugin (admin modules, endpoints)', async ({ page }) => {
+    await page.goto('/admin/collections/posts/new')
+    await page.getByRole('textbox', { name: 'Title', exact: true }).fill('Plugins work')
+    await page.getByLabel('Excerpt').fill('Web Components from the SEO plugin, end to end.')
+
+    // The plugin's components: length meters with Generate buttons, and a search preview.
+    const metaTitle = page.getByRole('textbox', { name: 'Meta title' })
+    const generate = page.getByRole('button', { name: 'Generate', exact: true })
+    await expect(generate).toHaveCount(2)
+    await expect(page.getByText('0 / 60 characters')).toBeVisible()
+    await generate.first().click()
+    await expect(metaTitle).toHaveValue('Plugins work | Easy CMS Blog')
+    await expect(page.getByText('28 / 60 characters')).toBeVisible()
+    await generate.last().click()
+    await expect(page.getByRole('textbox', { name: 'Meta description' })).toHaveValue(
+      'Web Components from the SEO plugin, end to end.',
+    )
+    const preview = page.getByRole('region', { name: 'Search result preview' })
+    await expect(preview).toContainText('Plugins work | Easy CMS Blog')
+    await metaTitle.fill('Custom SEO title')
+    await expect(preview).toContainText('Custom SEO title')
+    await shot(page, '13-seo-plugin')
+
+    await page.getByRole('button', { name: 'Publish', exact: true }).click()
+    await expect(page.getByRole('status')).toHaveText('Created')
+    await page.reload()
+    await expect(metaTitle).toHaveValue('Custom SEO title')
+
+    // Nuxt and Next pages use seoMeta() for their metadata.
+    if (!standalone()) {
+      await page.goto('/posts/plugins-work')
+      await expect(page).toHaveTitle('Custom SEO title')
+      await expect(page.locator('meta[property="og:title"]')).toHaveAttribute(
+        'content',
+        'Custom SEO title',
+      )
+      // Next.js streams metadata; let the response finish before the test closes the page.
+      await page.waitForLoadState('load')
+    }
   })
 
   test('edits small collections in a drawer, and creates related documents in place', async ({

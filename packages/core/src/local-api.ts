@@ -158,7 +158,7 @@ export async function createEasyCMS<const C extends Config>(
     logger,
     interactive: options.interactive ?? false,
   })
-  const cms = new EasyCMS<C>(resolved, db, logger, storage)
+  const cms = new EasyCMS<C>(resolved, db, logger, storage, cwd)
   const scheduling =
     [...resolved.collections, ...resolved.globals].some((c) => c.schedule) ||
     (resolved.webhooks?.length ?? 0) > 0
@@ -200,6 +200,8 @@ export class EasyCMS<C extends Config = Config> {
   readonly auth: Auth
   /** Where uploaded files are stored. */
   readonly storage: StorageAdapter
+  /** Project root: relative paths in the config (e.g. `admin.modules`) start here. */
+  readonly cwd: string
   private readonly versions: VersionStore
   private readonly webhooks: Webhooks
 
@@ -208,11 +210,13 @@ export class EasyCMS<C extends Config = Config> {
     db: Database,
     logger: Logger = consoleLogger,
     storage: StorageAdapter = localStorage({ dir: config.upload.dir }),
+    cwd: string = process.cwd(),
   ) {
     this.config = config
     this.db = db
     this.logger = logger
     this.storage = storage
+    this.cwd = cwd
     this.versions = new VersionStore(db)
     this.webhooks = new Webhooks(
       config.webhooks ?? [],
