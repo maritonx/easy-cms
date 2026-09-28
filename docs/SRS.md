@@ -1,9 +1,10 @@
-# Software Requirements Specification — Easy CMS v0.1
+# Software Requirements Specification — Easy CMS
 
-- **เวอร์ชันเอกสาร:** 1.0
-- **วันที่:** 2026-09-25
+- **เวอร์ชันเอกสาร:** 2.0
+- **วันที่:** 2026-09-28
 - **ผู้เขียน:** Kanawoot K.
-- **สถานะ:** Draft for review
+- **ครอบคลุม:** v0.1 (baseline) ถึง v0.16
+- **สถานะ:** Living document (อัปเดตทุกครั้งที่เพิ่มฟีเจอร์)
 - **เอกสารที่เกี่ยวข้อง:** [DESIGN.md](DESIGN.md), [ADRs](adr/)
 
 ---
@@ -11,36 +12,53 @@
 ## 1. บทนำ
 
 ### 1.1 วัตถุประสงค์
-เอกสารนี้กำหนดความต้องการของซอฟต์แวร์ Easy CMS เวอร์ชัน 0.1 ทั้งด้านฟังก์ชันและด้านที่ไม่ใช่ฟังก์ชัน ใช้เป็นเกณฑ์สำหรับการพัฒนา การทดสอบ และการตรวจรับ
-ส่วน *วิธี* สร้างระบบอยู่ใน [DESIGN.md](DESIGN.md)
+เอกสารนี้กำหนดความต้องการของซอฟต์แวร์ Easy CMS ทั้งด้านฟังก์ชันและด้านที่ไม่ใช่ฟังก์ชัน ใช้เป็นเกณฑ์สำหรับการพัฒนา การทดสอบ และการตรวจรับ
+ส่วน *วิธี* สร้างระบบอยู่ใน [DESIGN.md](DESIGN.md) และเหตุผลของการตัดสินใจแต่ละเรื่องอยู่ใน [ADRs](adr/)
+
+หัวข้อ 3.1–3.14 คือความต้องการของ v0.1 (ปรับให้ตรงกับพฤติกรรมปัจจุบันแล้ว) ส่วนหัวข้อ 3.15 เป็นต้นไปคือฟีเจอร์ที่เพิ่มหลัง v0.1 แต่ละข้อระบุเวอร์ชันที่เริ่มมี
 
 ### 1.2 ขอบเขต
-Easy CMS เป็น Headless CMS แบบ open source (MIT) ที่ติดตั้งผ่าน npm และฝังเข้าไปในแอป Nuxt หรือ Next.js ของผู้ใช้ ระบบประกอบด้วย:
+Easy CMS เป็น Headless CMS แบบ open source (MIT) ที่ติดตั้งผ่าน npm แล้วฝังเข้าไปในแอป Nuxt หรือ Next.js ของผู้ใช้ หรือรันเป็น server ของตัวเอง (standalone) ระบบประกอบด้วย:
 - Core library สำหรับนิยาม content แบบ code-first และจัดการข้อมูล
 - Local API, REST API และการสร้าง TypeScript types
 - หน้า Admin สำหรับ editor
-- CLI สำหรับติดตั้ง, migration และ generate types
+- Adapter สำหรับ Nuxt, Next.js และโหมด standalone
+- Database adapter (SQLite, PostgreSQL) และ storage adapter (local disk, S3-compatible)
+- CLI สำหรับติดตั้ง, migration, generate types, สำรองและย้ายข้อมูล
+- Official plugins: `@easy-cms/plugin-seo` และ `@easy-cms/plugin-mcp`
 
-**นอกขอบเขต v0.1:** UI สร้าง content type, GraphQL, Edge runtime, localization ของ content, version history, blocks, webhooks, โหมด standalone, S3 storage, บริการ hosting
+**นอกขอบเขต (ปัจจุบัน):** UI สร้าง content type, GraphQL, Edge runtime, MySQL, auth ภายนอก (OAuth/SSO), ลืมรหัสผ่านผ่าน email, MCP แบบ stdio, หน้าเต็มและ widget บน dashboard จาก plugin, sitemap/robots, บริการ hosting
 
 ### 1.3 คำศัพท์
 
 | คำ | ความหมาย |
 |---|---|
 | **Host app** | แอป Nuxt หรือ Next.js ของผู้ใช้ที่ติดตั้ง Easy CMS ไว้ |
+| **Standalone** | Easy CMS ที่รันเป็น server ของตัวเอง (`easy-cms serve`) ให้ frontend ใดก็ได้เรียกผ่าน REST |
 | **Collection** | ประเภท content ที่มีได้หลายรายการ เช่น `posts` |
 | **Global** | Content แบบมีรายการเดียว เช่น `site` settings |
 | **Document** | ข้อมูล 1 รายการใน collection หรือ global |
 | **Field** | คุณสมบัติหนึ่งของ document เช่น `title` |
+| **Block** | แถวหนึ่งใน field `blocks` ที่มีชนิด (`blockType`) และ field ของชนิดนั้น |
 | **Local API** | ฟังก์ชันที่เรียกได้ตรงใน server ของ host app โดยไม่ผ่าน HTTP |
-| **Adapter** | Package ที่เชื่อม Easy CMS กับ framework ของ host app |
+| **Adapter** | Package ที่เชื่อม Easy CMS กับ framework, database หรือ storage |
 | **Access function** | ฟังก์ชันใน config ที่ตัดสินว่าผู้ใช้ทำ operation หนึ่งได้หรือไม่ |
 | **Draft / Published** | สถานะของ document ก่อนและหลังการเผยแพร่ |
+| **Version** | สำเนาของ document ที่ถูกบันทึกไว้ในประวัติ (เมื่อเปิด `versions`) |
+| **Locale** | ภาษาของเนื้อหา (เมื่อเปิด `localization`) แยกจากภาษาของหน้า Admin |
+| **Webhook** | HTTP POST ที่ระบบส่งไปยัง URL ภายนอกเมื่อเนื้อหาเปลี่ยน |
+| **Plugin** | ฟังก์ชัน `(config) => config` ที่เพิ่ม field, hook, endpoint หรือ admin component |
+| **Endpoint** | REST route ที่ developer หรือ plugin เพิ่มใต้ `routes.api` |
+| **Admin component** | Web Component (tag ขึ้นต้นด้วย `ecms-`) ที่ plugin ใส่ลงในหน้า Admin |
+| **API key** | Token ถาวรที่ทำงานในนามผู้ใช้หนึ่งคน โดยมีสิทธิ์เท่าที่ key กำหนด |
+| **MCP** | Model Context Protocol ช่องทางที่ผู้ช่วย AI ใช้เรียก tool ของระบบ |
 
 ### 1.4 ระดับความสำคัญ
-- **MUST**: ต้องมีใน v0.1
-- **SHOULD**: ควรมีใน v0.1 แต่เลื่อนได้ถ้ามีเหตุผล
+- **MUST**: ต้องมี
+- **SHOULD**: ควรมี แต่เลื่อนได้ถ้ามีเหตุผล
 - **MAY**: มีก็ดี ไม่บังคับ
+
+ในหัวข้อ 3.1–3.14 ระดับความสำคัญอ้างอิงกับ v0.1 ส่วนหัวข้อ 3.15 เป็นต้นไปอ้างอิงกับเวอร์ชันที่ฟีเจอร์นั้นเริ่มมี (คอลัมน์ "ตั้งแต่")
 
 ---
 
@@ -48,37 +66,45 @@ Easy CMS เป็น Headless CMS แบบ open source (MIT) ที่ติ�
 
 ### 2.1 บริบทของผลิตภัณฑ์
 Easy CMS ทำงานภายใน process ของ host app ใช้ database เดียวกันหรือแยกกันก็ได้ และเสิร์ฟหน้า Admin กับ REST API ผ่าน route ของ host app
+ในโหมด standalone ระบบเสิร์ฟ Admin และ REST API เอง ส่วน frontend อยู่คนละ origin และเรียกผ่าน CORS
 
 ```
-Editor ──► /admin ─┐
-Browser ─► /api/cms ┼─► Adapter ─► Easy CMS Core ─► Database / Local storage
-Host app ─► Local API ┘
+Editor ─────► /admin ─────────┐
+Browser ────► /api/cms ───────┤
+Host app ───► Local API ──────┼─► Adapter ─► Easy CMS Core ─► Database (SQLite / Postgres)
+Script ─────► REST + API key ─┤                     │        └► Storage (Local / S3)
+AI assistant ► /api/cms/mcp ──┘                     └──► Webhooks ─► บริการภายนอก
 ```
 
 ### 2.2 กลุ่มผู้ใช้
 
 | กลุ่ม | คำอธิบาย | ทักษะ |
 |---|---|---|
-| **Developer** | ติดตั้ง, เขียน config, กำหนดสิทธิ์, deploy | TypeScript, Nuxt หรือ Next.js |
-| **Admin** | Editor ที่มีสิทธิ์สูงสุด จัดการ user ได้ | ไม่จำเป็นต้องมีทักษะเทคนิค |
-| **Editor** | สร้าง แก้ไข และเผยแพร่ content | ไม่จำเป็นต้องมีทักษะเทคนิค |
-| **Public visitor** | ผู้เข้าชมเว็บที่อ่าน content ผ่าน host app | — |
+| **Developer** | ติดตั้ง, เขียน config, กำหนดสิทธิ์, ติดตั้ง plugin, deploy | TypeScript, Nuxt, Next.js หรือ frontend อื่น |
+| **Admin** | Editor ที่มีสิทธิ์สูงสุด จัดการ user และ API key ของทุกคนได้ | ไม่จำเป็นต้องมีทักษะเทคนิค |
+| **Editor** | สร้าง แก้ไข แปล ตั้งเวลา และเผยแพร่ content | ไม่จำเป็นต้องมีทักษะเทคนิค |
+| **Script / แอปอื่น** | ระบบอัตโนมัติที่อ่านหรือเขียนเนื้อหาผ่าน REST ด้วย API key | — |
+| **ผู้ช่วย AI** | Claude, Cursor, VS Code และอื่นๆ ที่เชื่อมผ่าน MCP ด้วย API key | — |
+| **Public visitor** | ผู้เข้าชมเว็บที่อ่าน content ผ่าน host app หรือ frontend | — |
 
 ### 2.3 สภาพแวดล้อมการทำงาน
-- Node.js ≥ 22.12 (22 Maintenance LTS, 24 Active LTS)
-- Nuxt ≥ 3 หรือ Next.js ≥ 14 (App Router) — เวอร์ชันที่แน่นอนระบุใน `peerDependencies`
-- SQLite หรือ PostgreSQL ≥ 14
+- Node.js ≥ 22.12 (22 Maintenance LTS, 24 Active LTS) บน Linux, macOS และ Windows
+- Nuxt ≥ 3 หรือ Next.js ≥ 14 (App Router) ส่วนเวอร์ชันที่แน่นอนระบุใน `peerDependencies` หรือ frontend ใดก็ได้เมื่อใช้โหมด standalone
+- SQLite (ไฟล์หรือ Turso ผ่าน libSQL) หรือ PostgreSQL ≥ 14 (หรือ PGlite สำหรับ dev/test)
+- Storage: local disk หรือบริการที่เข้ากันได้กับ S3 (AWS S3, Cloudflare R2, MinIO)
 - Browser สำหรับหน้า Admin: Chrome, Edge, Firefox, Safari (2 เวอร์ชันล่าสุด)
 
 ### 2.4 ข้อจำกัด
 - **C-1** ผู้พัฒนามีคนเดียวและทำเป็นงานเสริม (~10–15 ชม./สัปดาห์)
 - **C-2** License MIT, dependency ทุกตัวต้องมี license ที่เข้ากันได้กับ MIT
 - **C-3** ไม่รองรับ Edge runtime
-- **C-4** Host app ต้องมี server-side runtime (ใช้กับ SPA ล้วนไม่ได้ใน v0.1)
+- **C-4** ต้องมี server-side runtime: SPA หรือเว็บ static ต้องใช้โหมด standalone เป็น backend
+- **C-5** Package ทุกตัวใช้เวอร์ชันเดียวกัน (Changesets fixed group)
 
 ### 2.5 สมมติฐาน
 - **A-1** Developer มีสิทธิ์รันคำสั่ง migration บน environment ที่ deploy
-- **A-2** Host app deploy บน server ที่มี filesystem ถาวร (เพราะ v0.1 เก็บไฟล์ที่ local disk เท่านั้น)
+- **A-2** ถ้าใช้ local storage ต้อง deploy บน server ที่มี filesystem ถาวร ส่วน serverless ต้องใช้ S3 storage คู่กับ Postgres ภายนอก
+- **A-3** Plugin ที่ติดตั้งเป็นโค้ดที่เชื่อถือได้ เหมือน dependency ทั่วไป (admin module ทำงานด้วยสิทธิ์ของผู้ที่ login)
 
 ---
 
@@ -88,7 +114,7 @@ Host app ─► Local API ┘
 
 | ID | ความต้องการ | ระดับ |
 |---|---|---|
-| FR-INS-01 | `npx create-easy-cms` ต้องตรวจได้ว่าโปรเจกต์ปัจจุบันเป็น Nuxt หรือ Next.js และแจ้ง error ถ้าไม่ใช่ทั้งสองแบบ | MUST |
+| FR-INS-01 | `npx create-easy-cms` ต้องตรวจได้ว่าโปรเจกต์ปัจจุบันเป็น Nuxt หรือ Next.js ถ้าเป็นโฟลเดอร์ใหม่หรือว่างให้ตั้งเป็น standalone ส่วนโปรเจกต์อื่นต้องใส่ `--standalone` หรือยืนยันใน terminal | MUST |
 | FR-INS-02 | `create-easy-cms` ต้องติดตั้ง package ที่จำเป็น, สร้าง `easy-cms.config.ts` ตัวอย่าง และลงทะเบียน route `/admin` กับ `/api/cms` | MUST |
 | FR-INS-03 | `create-easy-cms` ต้องถามชนิด database (SQLite/Postgres) และเพิ่ม `EASY_CMS_SECRET` ที่สุ่มขึ้นมาลงใน `.env` ถ้ายังไม่มี | MUST |
 | FR-INS-04 | `easy-cms create-admin` ต้องสร้าง user ที่มี role `admin` จาก email และ password ที่รับเข้ามา | MUST |
@@ -96,13 +122,16 @@ Host app ─► Local API ┘
 | FR-INS-06 | `easy-cms migrate:create <name>` ต้องสร้าง migration file จากส่วนต่างระหว่าง config กับ schema ปัจจุบัน | MUST |
 | FR-INS-07 | `easy-cms migrate` ต้องรัน migration ที่ยังไม่ได้รันตามลำดับ และบันทึกผลไว้ใน DB | MUST |
 | FR-INS-08 | ทุกคำสั่งต้องมี `--help` และคืน exit code ≠ 0 เมื่อเกิด error | MUST |
+| FR-INS-09 | `easy-cms migrate:status` ต้องแสดง migration ทั้งหมดและบอกว่ารันแล้วหรือยัง | SHOULD |
+
+คำสั่ง `serve`, `run-scheduled`, `backup` และ `copy` อยู่ในหัวข้อ 3.15, 3.21 และ 3.26
 
 ### 3.2 Configuration (CFG)
 
 | ID | ความต้องการ | ระดับ |
 |---|---|---|
 | FR-CFG-01 | ระบบต้องอ่าน config จาก `easy-cms.config.ts` ที่ export `defineConfig({...})` | MUST |
-| FR-CFG-02 | Config ต้องกำหนดได้: `secret`, `db`, `admin`, `collections`, `globals`, `plugins`, `upload` | MUST |
+| FR-CFG-02 | Config ต้องกำหนดได้: `secret`, `db`, `admin`, `collections`, `globals`, `plugins`, `upload`, `auth`, `routes`, `serverURL` และตัวเลือกของฟีเจอร์ที่เพิ่มภายหลัง (`cors`, `localization`, `webhooks`, `cronSecret`, `endpoints`, `apiKeys`) | MUST |
 | FR-CFG-03 | ระบบต้องตรวจ config ตอน start และแจ้ง error ที่ระบุตำแหน่งชัดเจน เช่น slug ซ้ำ, field name ซ้ำ, relationship ชี้ไป collection ที่ไม่มี | MUST |
 | FR-CFG-04 | ระบบต้องไม่ start ถ้าไม่มี `secret` หรือ secret สั้นกว่า 32 ตัวอักษร | MUST |
 | FR-CFG-05 | Plugin คือฟังก์ชัน `(config) => config` และต้องรันตามลำดับก่อนการตรวจ config | MUST |
@@ -113,11 +142,11 @@ Host app ─► Local API ┘
 
 | ID | ความต้องการ | ระดับ |
 |---|---|---|
-| FR-MOD-01 | ต้องรองรับ field types: `text, textarea, number, boolean, date, select, slug, email, json, richText, upload, relationship, array, group` | MUST |
+| FR-MOD-01 | ต้องรองรับ field types: `text, textarea, number, boolean, date, select, slug, email, json, richText, upload, relationship, array, group` (และ `blocks` ตั้งแต่ 0.6 ดู FR-BLK) | MUST |
 | FR-MOD-02 | ทุก field ต้องรองรับ option `name`, `label`, `required`, `defaultValue` | MUST |
 | FR-MOD-03 | `text`/`textarea` รองรับ `minLength`, `maxLength` ส่วน `number` รองรับ `min`, `max` | MUST |
 | FR-MOD-04 | `select` ต้องรองรับ `options` และ `hasMany` | MUST |
-| FR-MOD-05 | `slug` ต้องสร้างค่าจาก field ที่ระบุใน `from` ได้อัตโนมัติ และต้องไม่ซ้ำกันภายใน collection | MUST |
+| FR-MOD-05 | `slug` ต้องสร้างค่าจาก field ที่ระบุใน `from` ได้อัตโนมัติ และต้องไม่ซ้ำกันภายใน collection (แยกตามภาษาเมื่อ localized) | MUST |
 | FR-MOD-06 | `relationship` ต้องรองรับ `to` (collection เดียว) และ `hasMany` | MUST |
 | FR-MOD-07 | `array` และ `group` ต้องซ้อน field อื่นได้ | MUST |
 | FR-MOD-08 | Field ต้องรองรับ `unique` และ `index` | SHOULD |
@@ -134,18 +163,19 @@ Host app ─► Local API ┘
 | FR-DAT-04 | Migration ต้องแตะเฉพาะตารางที่มี prefix ของ Easy CMS | MUST |
 | FR-DAT-05 | ทุก document ต้องมี `id`, `createdAt`, `updatedAt` อัตโนมัติ | MUST |
 | FR-DAT-06 | ต้องรองรับ SQLite และ PostgreSQL | MUST |
+| FR-DAT-07 | ตารางภายในของฟีเจอร์เสริม (versions, scheduled jobs, webhook deliveries, API keys) ต้องถูกสร้างเฉพาะเมื่อเปิดฟีเจอร์นั้น โปรเจกต์ที่ไม่ใช้จึงไม่ต้องสร้าง migration ใหม่ | MUST |
 
 ### 3.5 Local API (LAPI)
 
 | ID | ความต้องการ | ระดับ |
 |---|---|---|
-| FR-LAPI-01 | ต้องมี `find`, `findById`, `create`, `update`, `delete`, `count` สำหรับ collection และ `findGlobal`, `updateGlobal` สำหรับ global | MUST |
+| FR-LAPI-01 | ต้องมี `find`, `findById`, `create`, `update`, `delete`, `count` สำหรับ collection และ `findGlobal`, `updateGlobal` สำหรับ global (คำสั่งของฟีเจอร์ที่เพิ่มภายหลังอยู่ในหัวข้อของฟีเจอร์นั้น) | MUST |
 | FR-LAPI-02 | `find` ต้องรองรับ `where` (`equals, not_equals, in, not_in, gt, gte, lt, lte, like, exists`, `and`, `or`), `sort`, `limit`, `page` | MUST |
 | FR-LAPI-03 | `find` ต้องคืนผลพร้อมข้อมูล pagination: `docs, totalDocs, page, totalPages, hasNextPage` | MUST |
 | FR-LAPI-04 | ต้องรองรับ `depth` สำหรับดึงข้อมูลของ relationship และ upload มาด้วย (default 1, สูงสุด 3) | MUST |
 | FR-LAPI-05 | Type ของค่าที่คืนต้องอนุมานจาก config ได้โดยไม่ต้อง generate types | MUST |
 | FR-LAPI-06 | Local API ต้องข้ามการตรวจ access เป็น default และต้องมี option `overrideAccess: false, user` สำหรับบังคับตรวจ | MUST |
-| FR-LAPI-07 | Adapter ต้องให้ host app เข้าถึง instance ของ CMS ได้ Nuxt ผ่าน `useEasyCMS()` ฝั่ง server และ Next ผ่าน `getEasyCMS()` | MUST |
+| FR-LAPI-07 | Adapter ต้องให้ host app เข้าถึง instance ของ CMS ได้ Nuxt ผ่าน `useEasyCMS()` ฝั่ง server และ Next ผ่าน `getEasyCMS()` โดยทั้ง server ต้องมี instance เดียว (ข้าม HMR และข้าม server layer ของ Next.js) | MUST |
 
 ### 3.6 REST API (REST)
 
@@ -154,11 +184,11 @@ Host app ─► Local API ┘
 | FR-REST-01 | ต้องมี endpoints ต่อไปนี้ภายใต้ `/api/cms`: `GET/POST /:collection`, `GET/PATCH/DELETE /:collection/:id`, `GET/POST /globals/:slug` | MUST |
 | FR-REST-02 | Query string ต้องรองรับ `where`, `sort`, `limit`, `page`, `depth` ให้มีความหมายเดียวกับ Local API | MUST |
 | FR-REST-03 | REST ต้องตรวจ access ทุก request เสมอ | MUST |
-| FR-REST-04 | Error ต้องคืน JSON รูปแบบ `{ errors: [{ message, field? }] }` พร้อม status code ที่เหมาะสม (400, 401, 403, 404, 409, 413, 429, 500) | MUST |
+| FR-REST-04 | Error ต้องคืน JSON รูปแบบ `{ errors: [{ message, field? }] }` พร้อม status code ที่เหมาะสม (400, 401, 403, 404, 405, 409, 413, 429, 500) | MUST |
 | FR-REST-05 | ต้องมี auth endpoints: `POST /users/login`, `POST /users/logout`, `GET /users/me`, `GET /users/init` (มี user แล้วหรือยัง), `POST /users/first-register` (สร้าง admin คนแรก) | MUST |
-| FR-REST-07 | ต้องรับ `Authorization: Bearer <token>` สำหรับ client ที่ไม่ใช่ browser (ไม่ต้องใช้ CSRF token) | SHOULD |
-| FR-REST-08 | `POST /media` (multipart, field `file`) สำหรับอัปโหลด และ `GET /media/file/:key` สำหรับเสิร์ฟไฟล์แบบ public พร้อม CSP `sandbox` | MUST |
 | FR-REST-06 | Error 500 ต้องไม่ส่ง stack trace กลับไปใน production | MUST |
+| FR-REST-07 | ต้องรับ `Authorization: Bearer <token>` สำหรับ client ที่ไม่ใช่ browser (ไม่ต้องใช้ CSRF token) ทั้ง session token และ API key (FR-KEY) | SHOULD |
+| FR-REST-08 | `POST /media` (multipart, field `file`) สำหรับอัปโหลด และ `GET /media/file/:key` สำหรับเสิร์ฟไฟล์แบบ public พร้อม CSP `sandbox` | MUST |
 
 ### 3.7 Authentication (AUTH)
 
@@ -169,11 +199,11 @@ Host app ─► Local API ┘
 | FR-AUTH-03 | เมื่อ login สำเร็จ ระบบต้องออก session cookie แบบ httpOnly, Secure (ใน production), SameSite=Lax ที่ลงนามด้วย `secret` | MUST |
 | FR-AUTH-04 | Session ต้องหมดอายุตามค่าที่กำหนด (default 7 วัน) และ logout ต้องทำให้ session ใช้ไม่ได้ทันที | MUST |
 | FR-AUTH-05 | ต้องจำกัดจำนวนครั้งที่ login ผิด (default 5 ครั้งต่อ 15 นาทีต่อ email + IP) และคืน 429 เมื่อเกิน IP มาจาก adapter (`getClientIp`) ถ้าไม่มีจะนับตาม email อย่างเดียว | MUST |
-| FR-AUTH-10 | Role กำหนดได้ผ่าน `auth.roles` (ต้องมี `admin`) และระบบต้องไม่ยอมให้ลด role, ปิดใช้งาน หรือลบ admin คนสุดท้ายที่ยังใช้งานอยู่ | MUST |
 | FR-AUTH-06 | Password ต้องยาวอย่างน้อย 8 ตัวอักษร | MUST |
 | FR-AUTH-07 | Admin ต้องสร้าง, แก้ไข, ปิดการใช้งานและรีเซ็ต password ของ user อื่นได้ผ่านหน้า Admin | MUST |
 | FR-AUTH-08 | User ต้องเปลี่ยน password ของตัวเองได้ | MUST |
-| FR-AUTH-09 | ลืมรหัสผ่านผ่าน email | MAY |
+| FR-AUTH-09 | ลืมรหัสผ่านผ่าน email | MAY (ยังไม่มี) |
+| FR-AUTH-10 | Role กำหนดได้ผ่าน `auth.roles` (ต้องมี `admin`) และระบบต้องไม่ยอมให้ลด role, ปิดใช้งาน หรือลบ admin คนสุดท้ายที่ยังใช้งานอยู่ | MUST |
 
 ### 3.8 Access Control (ACL)
 
@@ -195,19 +225,19 @@ Host app ─► Local API ┘
 | FR-DRF-03 | Publish ต้องตรวจ validation ครบทุกข้อ | MUST |
 | FR-DRF-04 | Local API และ REST ต้องรองรับ `draft: true` เพื่อดึงข้อมูลที่รวม draft และ default ต้องคืนเฉพาะ `published` เมื่อไม่ได้ login | MUST |
 | FR-DRF-05 | ต้อง unpublish (เปลี่ยนกลับเป็น draft) ได้ | MUST |
-| FR-DRF-06 | ใน v0.1 เอกสารมีฉบับเดียว: ถ้าบันทึกเอกสารที่ published เป็น draft จะเท่ากับ unpublish (version history อยู่ใน v2) | MUST |
+| FR-DRF-06 | ถ้า**ไม่ได้**เปิด `versions` เอกสารมีฉบับเดียว การบันทึกเอกสารที่ published เป็น draft จึงเท่ากับ unpublish ถ้าเปิด `versions` ฉบับร่างจะแยกจากฉบับที่เผยแพร่ (FR-VER-03) | MUST |
 
 ### 3.10 Media / Upload (UPL)
 
 | ID | ความต้องการ | ระดับ |
 |---|---|---|
 | FR-UPL-01 | ต้องมี collection `media` ในตัว เก็บ `filename, mimeType, filesize, width, height, alt, url` | MUST |
-| FR-UPL-02 | ไฟล์ต้องเก็บไว้ที่ local disk ใน directory ที่กำหนดได้ | MUST |
+| FR-UPL-02 | ไฟล์ต้องเก็บไว้ที่ local disk ใน directory ที่กำหนดได้ หรือใน S3 storage (FR-S3) | MUST |
 | FR-UPL-03 | ต้องตรวจ MIME type จากเนื้อหาไฟล์ (ไม่ใช่นามสกุล) เทียบกับ allowlist ที่กำหนดได้ | MUST |
 | FR-UPL-04 | ต้องจำกัดขนาดไฟล์ (default 10 MB) และคืน 413 เมื่อเกิน | MUST |
 | FR-UPL-05 | ชื่อไฟล์ที่บันทึกต้องผ่านการ sanitize และไม่ซ้ำกัน เพื่อป้องกัน path traversal และการเขียนทับ | MUST |
 | FR-UPL-06 | ถ้าติดตั้ง `sharp` ไว้ ระบบต้องสร้าง thumbnail ตาม `imageSizes` ที่กำหนด | SHOULD |
-| FR-UPL-07 | Storage ต้องเป็น interface (`put/get/delete/url`) เพื่อเพิ่ม adapter อื่นใน v0.2 ได้ | MUST |
+| FR-UPL-07 | Storage ต้องเป็น interface (`put/get/delete/url`) เพื่อเพิ่ม adapter อื่นได้ | MUST |
 
 ### 3.11 Rich Text (RTX)
 
@@ -224,7 +254,7 @@ Host app ─► Local API ┘
 | FR-HOOK-01 | Collection ต้องรองรับ hooks: `beforeValidate`, `beforeChange`, `afterChange`, `beforeDelete`, `afterDelete`, `afterRead` | MUST |
 | FR-HOOK-02 | Hooks ต้องเป็น async ได้ และรันตามลำดับใน array | MUST |
 | FR-HOOK-03 | `beforeChange` ต้องแก้ข้อมูลที่จะบันทึกได้ และถ้า throw ต้องยกเลิก operation | MUST |
-| FR-HOOK-04 | Hooks ต้องทำงานเหมือนกันไม่ว่าจะเรียกผ่าน Local API, REST หรือหน้า Admin | MUST |
+| FR-HOOK-04 | Hooks ต้องทำงานเหมือนกันไม่ว่าจะเรียกผ่าน Local API, REST, หน้า Admin, API key หรือ MCP | MUST |
 | FR-HOOK-05 | Global ต้องรองรับ `beforeChange`, `afterChange`, `afterRead` | MUST |
 
 ### 3.13 หน้า Admin (ADM)
@@ -245,14 +275,147 @@ Host app ─► Local API ┘
 | FR-ADM-12 | Label ใน config ต้องกำหนดแยกต่อภาษาได้ เช่น `label: { th: 'ชื่อเรื่อง', en: 'Title' }` | SHOULD |
 | FR-ADM-13 | ต้องมีหน้า Account สำหรับเปลี่ยน password ของตัวเอง | MUST |
 
+ความต้องการของหน้า Admin ที่เพิ่มหลัง v0.1 อยู่ในหัวข้อ 3.27
+
 ### 3.14 Adapters (ADP)
 
 | ID | ความต้องการ | ระดับ |
 |---|---|---|
 | FR-ADP-01 | `@easy-cms/nuxt` ต้องเป็น Nuxt module ที่ลงทะเบียน server routes สำหรับ REST และเสิร์ฟหน้า Admin | MUST |
 | FR-ADP-02 | `@easy-cms/next` ต้องมี route handler สำหรับ App Router ที่ประกาศ `runtime = 'nodejs'` | MUST |
-| FR-ADP-03 | ทั้งสอง adapter ต้องผ่านชุด E2E test เดียวกันทั้งหมด | MUST |
+| FR-ADP-03 | ทุก adapter (Nuxt, Next และ standalone) ต้องผ่านชุด E2E test เดียวกันทั้งหมด | MUST |
 | FR-ADP-04 | Adapter ต้องไม่มี business logic และเรียกใช้ core handler เท่านั้น | MUST |
+| FR-ADP-05 | Adapter ต้องรวมไฟล์ที่ต้องใช้ตอนรัน (admin app, migrations, admin modules ของ plugin) ไว้ใน build output ของ framework | MUST |
+
+### 3.15 Standalone และ CORS (STA) — [ADR-0011](adr/0011-standalone-mode.md)
+
+| ID | ความต้องการ | ตั้งแต่ | ระดับ |
+|---|---|---|---|
+| FR-STA-01 | `easy-cms serve` ต้องเสิร์ฟ REST API (`routes.api`), หน้า Admin (`admin.path`), `/healthz` และ redirect `/` ไปหน้า Admin โดยไม่ต้องมี Nuxt หรือ Next | 0.2 | MUST |
+| FR-STA-02 | `--port`, `--host` กำหนดที่อยู่ได้ และ `--watch` ต้องสร้าง instance ใหม่เมื่อไฟล์ `.ts/.js` เปลี่ยน ถ้า config ใหม่ผิดให้ใช้ของเดิมต่อ | 0.2 | MUST |
+| FR-STA-03 | `--trust-proxy` ต้องใช้ `X-Forwarded-For` (rate limit) และ `X-Forwarded-Proto` (cookie `Secure`) | 0.2 | MUST |
+| FR-STA-04 | `cors` ใน config ต้องเปิดให้ origin ที่ระบุเรียกแบบไม่มี cookie ได้ ส่วน origin ใน `auth.trustedOrigins` ต้องได้ `allow-credentials` และ preflight ต้องตอบก่อนตรวจ auth | 0.2 | MUST |
+| FR-STA-05 | Handler ของ standalone ต้องเป็น Web-standard (`createStandaloneHandler`) เพื่อนำไปใช้กับ runtime อื่นได้ | 0.2 | SHOULD |
+
+### 3.16 S3 Storage (S3) — [ADR-0010](adr/0010-s3-storage.md)
+
+| ID | ความต้องการ | ตั้งแต่ | ระดับ |
+|---|---|---|---|
+| FR-S3-01 | `@easy-cms/storage-s3` ต้องเก็บไฟล์บน AWS S3, Cloudflare R2, MinIO และบริการที่เข้ากันได้กับ S3 | 0.2 | MUST |
+| FR-S3-02 | Credentials ต้องอ่านตอน `init()` (ไม่ใช่ตอนสร้าง adapter) และมีค่า default จาก `AWS_*` | 0.2 | MUST |
+| FR-S3-03 | Default ต้องเสิร์ฟไฟล์ผ่าน API จาก bucket แบบ private พร้อม header เดียวกับ local storage ส่วน `publicUrl` ต้องชี้ไป CDN หรือ bucket โดยตรงได้ | 0.2 | MUST |
+
+### 3.17 Version history (VER) — [ADR-0012](adr/0012-versions.md)
+
+| ID | ความต้องการ | ตั้งแต่ | ระดับ |
+|---|---|---|---|
+| FR-VER-01 | `versions: true \| { max }` ต่อ collection/global ต้องเก็บเวอร์ชันทุกครั้งที่บันทึก (default สูงสุด 50 เวอร์ชันต่อเอกสาร) โดยไม่เก็บ field ที่ `hidden` | 0.3 | MUST |
+| FR-VER-02 | ต้องมี `findVersions`, `findVersion`, `restoreVersion` (และชุดเดียวกันของ global) โดยอ่านเวอร์ชันได้เฉพาะผู้ที่มีสิทธิ์ `update` เอกสารนั้น การกู้คืนต้องผ่านสิทธิ์, hooks และ validation เหมือน `update` | 0.3 | MUST |
+| FR-VER-03 | เมื่อมีทั้ง `drafts` และ `versions` การบันทึกฉบับร่างของเอกสารที่เผยแพร่อยู่ต้องไม่เปลี่ยนสิ่งที่ผู้เข้าชมเห็นจนกว่าจะ publish และการอ่านแบบ `draft: true` ต้องได้ฉบับร่างนั้น | 0.3 | MUST |
+| FR-VER-04 | ต้องมี `unpublish` และ `discardDraft` ทั้ง Local API และ REST (`/unpublish`, `/discard-draft`, `/versions[/:v[/restore]]`) | 0.3 | MUST |
+| FR-VER-05 | หน้า Admin ต้องมีแผง History (ดูแบบอ่านอย่างเดียวและกู้คืน), badge "Unpublished changes" และปุ่ม Publish changes / Save draft / Discard changes / Unpublish | 0.3 | MUST |
+
+### 3.18 Live preview (PRV) — [ADR-0013](adr/0013-live-preview.md)
+
+| ID | ความต้องการ | ตั้งแต่ | ระดับ |
+|---|---|---|---|
+| FR-PRV-01 | `preview: ({ doc, locale }) => url \| null` ต่อ collection/global ต้องเพิ่มแผง Preview ในหน้า edit ที่แสดงหน้าเว็บจริง | 0.4 | MUST |
+| FR-PRV-02 | Preview ต้องอัปเดตตามฟอร์มโดยไม่บันทึก (`cms.preview`, `previewGlobal`, `POST …/preview`) และได้เอกสารรูปเดียวกับการอ่านปกติ (populate, afterRead, สิทธิ์ของ field) | 0.4 | MUST |
+| FR-PRV-03 | ข้อมูลต้องส่งผ่าน `postMessage` ที่ระบุ targetOrigin และ helper ฝั่งหน้าเว็บ (`@easy-cms/core/live-preview`, `useLivePreview` ของ Nuxt และ Next) ต้องตรวจ origin ของผู้ส่ง | 0.4 | MUST |
+| FR-PRV-04 | Preview token ต้องเปิดฉบับร่างของเอกสารเดียว (หรือ global เดียว) ได้โดยไม่ต้อง login ลงลายเซ็นด้วย `secret` และหมดอายุใน 1 ชั่วโมง | 0.5 | MUST |
+
+### 3.19 Localization (LOC) — [ADR-0014](adr/0014-localization.md), [ADR-0016](adr/0016-blocks-and-localized-lists.md), [ADR-0017](adr/0017-durable-webhooks-block-queries-locale-moves.md)
+
+| ID | ความต้องการ | ตั้งแต่ | ระดับ |
+|---|---|---|---|
+| FR-LOC-01 | `localization: { locales, defaultLocale, fallback }` และ `localized: true` บน field ต้องเก็บค่าแยกต่อภาษาในเอกสารเดียว | 0.5 | MUST |
+| FR-LOC-02 | Local API และ REST ต้องรองรับ `locale` (รวมถึง `'all'`) และ `fallbackLocale` และ where/sort ต้องใช้ค่าของภาษาที่เลือก | 0.5 | MUST |
+| FR-LOC-03 | `required` และ validate ต้องตรวจเฉพาะภาษาที่กำลังเขียน ส่วน slug และ `unique` ต้องแยกตามภาษา | 0.5 | MUST |
+| FR-LOC-04 | Array, hasMany และ blocks ต้องตั้ง `localized` ได้ (หนึ่ง list ต่อภาษา) และค้นหาตามภาษาได้ เช่น `tags.en` | 0.6 | MUST |
+| FR-LOC-05 | การเปิด localized กับ field เดิมและการเปลี่ยน `defaultLocale` ต้องไม่ทำให้ข้อมูลหาย (migration ย้ายค่าให้) | 0.5 / 0.7 | MUST |
+| FR-LOC-06 | หน้า Admin ต้องมีตัวสลับภาษาของเนื้อหา (แยกจากภาษา UI) และแสดงว่า field ไหนยังไม่ได้แปล | 0.5 | MUST |
+
+### 3.20 Blocks (BLK) — [ADR-0016](adr/0016-blocks-and-localized-lists.md), [ADR-0017](adr/0017-durable-webhooks-block-queries-locale-moves.md)
+
+| ID | ความต้องการ | ตั้งแต่ | ระดับ |
+|---|---|---|---|
+| FR-BLK-01 | Field `blocks` (`blocks: [{ slug, labels, fields }]`) ต้องเก็บแถวต่างชนิดกันตามลำดับ (`{ id, blockType, ...fields }`) พร้อม validate, populate และ type แบบ union | 0.6 | MUST |
+| FR-BLK-02 | หน้า Admin ต้องเพิ่ม ลบ และเรียงลำดับบล็อกได้ | 0.6 | MUST |
+| FR-BLK-03 | `where` ต้องค้นข้างในบล็อกได้ (`layout.blockType`, `layout.<field>`, `layout.<group>.<field>`, `layout.<field>.<locale>`, `layout: { exists }`) รวมถึง list ที่ซ้อนอยู่ในบล็อก และ sort ตาม field ในบล็อกได้ | 0.7 / 0.9 | SHOULD |
+
+### 3.21 Webhooks และการตั้งเวลา (WHK) — [ADR-0015](adr/0015-webhooks-and-scheduling.md), [ADR-0017](adr/0017-durable-webhooks-block-queries-locale-moves.md)
+
+| ID | ความต้องการ | ตั้งแต่ | ระดับ |
+|---|---|---|---|
+| FR-WHK-01 | `webhooks: [{ url, events?, collections?, globals?, secret?, headers? }]` ต้องส่ง POST เมื่อเกิด event `create`, `update`, `delete`, `publish`, `unpublish`, `draft` | 0.6 | MUST |
+| FR-WHK-02 | Body ต้องลงลายเซ็น `x-easy-cms-signature: sha256=<HMAC>` และมี `x-easy-cms-delivery` ที่เหมือนเดิมทุกครั้งที่ส่งซ้ำ | 0.6 | MUST |
+| FR-WHK-03 | การส่งต้องไม่ทำให้การบันทึกช้าหรือล้ม และต้องบันทึกลงคิวในฐานข้อมูลก่อนส่งครั้งแรก ส่งซ้ำเมื่อล้มนานประมาณหนึ่งวันแล้วจึงเป็น `failed` | 0.6 / 0.7 / 0.8 | MUST |
+| FR-WHK-04 | `flushWebhooks()` และ `destroy()` ต้องรอการส่งที่ค้างอยู่ สำหรับ serverless | 0.6 | MUST |
+| FR-SCH-01 | `schedule: true` บน collection/global ที่มี drafts ต้องตั้งเวลาเผยแพร่หรือยกเลิกได้ (`cms.schedule`, ปุ่ม Schedule ในหน้า Admin) และงานต้องผ่าน hooks, versions และ webhooks ปกติ | 0.6 | MUST |
+| FR-SCH-02 | Server ที่รันต่อเนื่องต้องรันงานที่ถึงเวลาทุกนาที ส่วน serverless ต้องเรียก `GET <api>/jobs/run` ด้วย `Bearer <cronSecret \| CRON_SECRET>` หรือ `easy-cms run-scheduled` ได้ | 0.6 | MUST |
+
+### 3.22 Plugin endpoints และ admin components (PLG) — [ADR-0018](adr/0018-plugin-endpoints-admin-components.md)
+
+| ID | ความต้องการ | ตั้งแต่ | ระดับ |
+|---|---|---|---|
+| FR-PLG-01 | `endpoints: [{ path, method, handler }]` ต้องเพิ่ม route ใต้ `routes.api` ที่ได้ auth, CSRF, CORS และรูปแบบ error เดียวกับ API ในตัว handler ได้ `{ request, url, params, user, cms, json() }` | 0.13 | MUST |
+| FR-PLG-02 | Path ของ endpoint ต้องไม่ชนกับ API ในตัวหรือ slug ของ collection (ตรวจตอน start) segment ที่ตายตัวต้องชนะ parameter และ method ที่ผิดต้องได้ 405 พร้อม `Allow` | 0.13 | MUST |
+| FR-PLG-03 | `admin.modules` ต้องโหลด ES module จาก export ของแพ็กเกจหรือ path ในโปรเจกต์ (ห้ามเป็น URL) และเสิร์ฟที่ `<api>/admin/modules/<n>.js` เฉพาะผู้ที่ login พร้อม ETag | 0.13 | MUST |
+| FR-PLG-04 | Web Component (tag ขึ้นต้นด้วย `ecms-`) ต้องวางได้ที่ `admin.component` (แทนช่องกรอก), `admin.after` (ต่อท้าย field) และ `admin.sidebar` ของ collection/global | 0.13 | MUST |
+| FR-PLG-05 | สัญญาเวอร์ชัน 1 ต้องส่ง property `apiVersion, value, path, field, label, doc, collection, global, id, locale, uiLocale, readOnly, options, api` และรับ event `change` กับ `set-field` การเปลี่ยนแบบไม่เข้ากันได้ต้องเพิ่ม `apiVersion` | 0.13 | MUST |
+| FR-PLG-06 | ถ้า module โหลดไม่ได้หรือไม่มี tag ที่ระบุ หน้า Admin ต้องแสดงข้อความแทนที่ว่าง | 0.13 | MUST |
+| FR-PLG-07 | `applyPlugins(config)` ต้องรัน plugin โดยไม่ตรวจ config เพื่อให้เครื่องมือตอน build อ่านสิ่งที่ plugin เพิ่มได้ | 0.13 | MUST |
+
+### 3.23 SEO plugin (SEO) — [ADR-0018](adr/0018-plugin-endpoints-admin-components.md)
+
+| ID | ความต้องการ | ตั้งแต่ | ระดับ |
+|---|---|---|---|
+| FR-SEO-01 | `seoPlugin()` ต้องเพิ่ม group `meta` (title, description, image) ท้าย field หรือในแถบข้าง และเป็น `localized` เมื่อเปิด localization | 0.13 | MUST |
+| FR-SEO-02 | หน้า Admin ต้องแสดงตัวนับความยาว (นับเป็น grapheme สำหรับภาษาไทย) และตัวอย่างผลการค้นหา | 0.13 | MUST |
+| FR-SEO-03 | ปุ่ม Generate ต้องเรียก `POST <api>/seo/generate` ด้วยค่าในฟอร์มที่ยังไม่บันทึก และ `autoGenerate` ต้องเติมช่องว่างตอนบันทึก | 0.13 | SHOULD |
+| FR-SEO-04 | `seoMeta(doc)` ต้องคืนค่าสำหรับ `useSeoMeta` ของ Nuxt และ `generateMetadata` ของ Next โดยไม่ดึงโค้ด server เข้า bundle | 0.13 | MUST |
+
+### 3.24 API keys (KEY) — [ADR-0019](adr/0019-api-keys-and-mcp.md)
+
+| ID | ความต้องการ | ตั้งแต่ | ระดับ |
+|---|---|---|---|
+| FR-KEY-01 | `apiKeys: true` ต้องเพิ่ม collection `api-keys` ที่ **ตั้งค่า → API keys** ในหน้า Admin โดยแสดง key ครั้งเดียวตอนสร้าง (`cms.createApiKey`, `POST <api>/api-keys`) | 0.15 | MUST |
+| FR-KEY-02 | Key ต้องมีรูปแบบ `ecms_<prefix>_<secret>` และเก็บแค่ SHA-256 ของ secret (เทียบแบบเวลาคงที่) | 0.15 | MUST |
+| FR-KEY-03 | Key ต้องทำงานในนามเจ้าของ โดยได้สิทธิ์เท่ากับส่วนที่ซ้อนกันระหว่างสิทธิ์ของ key กับสิทธิ์ของเจ้าของ แยกตาม collection/global และการกระทำ `read, create, update, delete, publish` (`create` ของ media คือการอัปโหลด) | 0.15 | MUST |
+| FR-KEY-04 | การตรวจสิทธิ์ของ key ต้องอยู่ใน Local API ทุกช่องทางที่ส่ง `{ user, overrideAccess: false }` (REST, MCP, โค้ดของผู้ใช้) จึงได้กฎเดียวกัน | 0.15 | MUST |
+| FR-KEY-05 | Key ต้องเข้าถึง `users` และ `api-keys` ไม่ได้และสร้าง key ไม่ได้ ผู้ใช้ต้องเห็นเฉพาะ key ของตัวเอง ส่วน admin เห็นทั้งหมด | 0.15 | MUST |
+| FR-KEY-06 | Key ที่ผิด หมดอายุ ถูกลบ หรือเจ้าของถูกปิดใช้งาน ต้องได้ 401 (ไม่ถือเป็นผู้ที่ไม่ได้ login) การเพิกถอนคือการลบ key | 0.15 | MUST |
+| FR-KEY-07 | `lastUsedAt` ต้องอัปเดตอย่างมากนาทีละครั้ง และ key ตั้ง `expiresAt` ได้ | 0.15 | SHOULD |
+
+### 3.25 MCP plugin (MCP) — [ADR-0019](adr/0019-api-keys-and-mcp.md)
+
+| ID | ความต้องการ | ตั้งแต่ | ระดับ |
+|---|---|---|---|
+| FR-MCP-01 | `mcpPlugin()` ต้องเปิด MCP server ที่ `POST <api>/mcp` (Streamable HTTP แบบ stateless) และต้องใช้ `apiKeys: true` | 0.16 | MUST |
+| FR-MCP-02 | ต้องเชื่อมต่อด้วย API key เท่านั้น (session cookie ใช้ไม่ได้) และ tool ที่แสดงต้องมีเฉพาะที่ key อนุญาต: `find_`, `get_`, `create_`, `update_`, `delete_`, `publish_`/`unpublish_`, `schedule_`, `upload_media`, `get_global_`, `update_global_`, `publish_global_` | 0.16 | MUST |
+| FR-MCP-03 | Input schema ของ tool ต้องสร้างจาก field ของ collection/global | 0.16 | MUST |
+| FR-MCP-04 | ใน collection ที่มี drafts `create_` และ `update_` ต้องบันทึกเป็นฉบับร่างเสมอ มีแต่ `publish_` ที่ทำให้ขึ้นเว็บ | 0.16 | MUST |
+| FR-MCP-05 | Rich text ต้องรับข้อความธรรมดาได้ และ upload ต้องรับเฉพาะ base64 (ห้ามดาวน์โหลด URL) | 0.16 | MUST |
+| FR-MCP-06 | Error ต้องกลับเป็นข้อความที่ผู้ช่วยนำไปแก้ได้ (เช่น field ที่ validation ไม่ผ่าน) และต้องไม่มี tool ของ users, api-keys หรือการแก้ schema | 0.16 | MUST |
+| FR-MCP-07 | ตัวเลือก `path`, `name`, `instructions`, `collections`, `globals` ต้องปรับ server ได้ | 0.16 | SHOULD |
+
+### 3.26 สำรองและย้ายข้อมูล (OPS)
+
+| ID | ความต้องการ | ตั้งแต่ | ระดับ |
+|---|---|---|---|
+| FR-OPS-01 | `easy-cms backup <file>` ต้องสำเนาฐานข้อมูล SQLite ที่สอดคล้องกันได้ขณะที่ CMS ยังทำงาน (`db.backup`) ส่วน Postgres ใช้ `pg_dump` | 0.10 | MUST |
+| FR-OPS-02 | `easy-cms copy --from <config>` ต้องคัดลอกเอกสาร เวอร์ชัน ผู้ใช้ และ global ทั้งหมดข้ามฐานข้อมูล (เช่น SQLite → Postgres) โดย id คงเดิม | 0.14 | MUST |
+| FR-OPS-03 | `copy` ต้องปฏิเสธเมื่อ schema ของสองฝั่งไม่ตรงกันหรือปลายทางไม่ว่าง และต้องตั้ง sequence ของ Postgres ต่อจาก id ที่คัดลอกมา | 0.14 | MUST |
+
+### 3.27 หน้า Admin หลัง v0.1 (ADM)
+
+| ID | ความต้องการ | ตั้งแต่ | ระดับ |
+|---|---|---|---|
+| FR-ADM-14 | ต้องมีธีม light / dark / system และปรับแบรนด์ได้ (`admin.brand`) | 0.11 | SHOULD |
+| FR-ADM-15 | หน้า list ต้องกรองตามสถานะและ field แบบ select, เลือกคอลัมน์ และ publish / unpublish / ลบหลายรายการพร้อมกันได้ | 0.11 | SHOULD |
+| FR-ADM-16 | เมนูและหน้า list ต้องใช้งานบนมือถือได้ | 0.11 | SHOULD |
+| FR-ADM-17 | Collection ที่ตั้ง `editIn: 'drawer'` ต้องสร้างและแก้ไขเอกสารในแผงเหนือหน้า list ได้ โดย back และ reload ยังทำงาน | 0.12 | MAY |
+| FR-ADM-18 | Dashboard ต้องแสดงจำนวนเอกสารในเมนูและลิงก์ "View site" (`admin.siteUrl`) และหน้า list/edit ต้องมี breadcrumb | 0.12 | MAY |
 
 ---
 
@@ -264,22 +427,26 @@ Host app ─► Local API ┘
 |---|---|---|
 | NFR-PERF-01 | Local API `find` (limit 10, depth 1) บน Postgres ที่มีข้อมูล 10,000 รายการ ต้องตอบภายใน p95 < 50 ms (ไม่รวมเวลาเครือข่าย) | SHOULD |
 | NFR-PERF-02 | REST `GET /:collection` ต้องตอบภายใน p95 < 150 ms ภายใต้เงื่อนไขเดียวกัน | SHOULD |
-
-> ผลวัดจริง (M6, `pnpm --filter easy-cms-integration-tests bench`): Postgres 17 ได้ Local API p95 2.7 ms และ REST p95 4.3 ms, PGlite ได้ 3.5 / 4.0 ms, SQLite ได้ 0.4 / 0.4 ms
 | NFR-PERF-03 | Bundle ของหน้า Admin (gzip) โหลดครั้งแรกต้อง < 500 KB โดย Rich text editor ต้อง lazy-load | SHOULD |
 | NFR-PERF-04 | การเพิ่ม Easy CMS ต้องทำให้เวลา cold start ของ host app เพิ่มขึ้นไม่เกิน 300 ms | SHOULD |
+| NFR-PERF-05 | ฟีเจอร์ที่ไม่ได้เปิด (versions, localization, webhooks, schedule, API keys) ต้องไม่เพิ่มงานต่อ request | SHOULD |
+
+> ผลวัดจริง (M6, `pnpm --filter easy-cms-integration-tests bench`): Postgres 17 ได้ Local API p95 2.7 ms และ REST p95 4.3 ms, PGlite ได้ 3.5 / 4.0 ms, SQLite ได้ 0.4 / 0.4 ms
 
 ### 4.2 Security (SEC)
 
 | ID | ความต้องการ | ระดับ |
 |---|---|---|
-| NFR-SEC-01 | Request ที่เปลี่ยนแปลงข้อมูลด้วย cookie auth ต้องผ่านการป้องกัน CSRF (ตรวจ `Origin` + CSRF token) | MUST |
+| NFR-SEC-01 | Request ที่เปลี่ยนแปลงข้อมูลด้วย cookie auth ต้องผ่านการป้องกัน CSRF (ตรวจ `Origin` + CSRF token) รวมถึง endpoint ของ plugin | MUST |
 | NFR-SEC-02 | Query ทุกตัวต้องใช้ parameterized query ผ่าน Drizzle ห้ามต่อ string เป็น SQL | MUST |
-| NFR-SEC-03 | Input จาก REST ต้องผ่าน validation ตาม config ก่อนถึง DB | MUST |
-| NFR-SEC-04 | หน้า Admin ต้องส่ง header `Content-Security-Policy`, `X-Frame-Options: DENY`, `Referrer-Policy` | MUST |
-| NFR-SEC-05 | Secret, password hash และ session token ต้องไม่ปรากฏใน log หรือ error response | MUST |
+| NFR-SEC-03 | Input จาก REST และ MCP ต้องผ่าน validation ตาม config ก่อนถึง DB | MUST |
+| NFR-SEC-04 | หน้า Admin ต้องส่ง header `Content-Security-Policy`, `X-Frame-Options: DENY`, `Referrer-Policy` และ admin module ของ plugin ต้องโหลดจาก origin เดียวกัน (`script-src 'self'`) | MUST |
+| NFR-SEC-05 | Secret, password hash, session token และ API key ต้องไม่ปรากฏใน log หรือ error response | MUST |
 | NFR-SEC-06 | ต้องมี `SECURITY.md` ที่ระบุช่องทางรายงานช่องโหว่ | MUST |
 | NFR-SEC-07 | CI ต้องสแกนหา dependency ที่มีช่องโหว่ (`pnpm audit` หรือเทียบเท่า) | SHOULD |
+| NFR-SEC-08 | Token ที่ออกให้ภายนอก (API key, preview token, `cronSecret`) ต้องจำกัดขอบเขตและตรวจแบบเวลาคงที่ ส่วน API key และ session เก็บเป็น hash เท่านั้น | MUST |
+| NFR-SEC-09 | Server ต้องไม่ดาวน์โหลด URL ที่ได้รับจาก client หรือผู้ช่วย AI (กัน SSRF) | MUST |
+| NFR-SEC-10 | Webhook ต้องลงลายเซ็น HMAC เพื่อให้ปลายทางตรวจได้ว่ามาจากระบบจริง | MUST |
 
 ### 4.3 Usability (USE)
 
@@ -287,7 +454,7 @@ Host app ─► Local API ┘
 |---|---|---|
 | NFR-USE-01 | Developer ที่รู้จัก Nuxt หรือ Next ต้องติดตั้งจนถึง login หน้า Admin ได้ภายใน 2 นาทีด้วย SQLite | MUST |
 | NFR-USE-02 | Error message ของ config และ CLI ต้องบอกสาเหตุและวิธีแก้ | MUST |
-| NFR-USE-03 | หน้า Admin ต้องใช้งานได้บนหน้าจอกว้างตั้งแต่ 768 px ขึ้นไป | MUST |
+| NFR-USE-03 | หน้า Admin ต้องใช้งานได้บนหน้าจอกว้างตั้งแต่ 768 px ขึ้นไป และงานหลัก (เมนู, list, edit) ต้องใช้บนมือถือได้ตั้งแต่ 0.11 | MUST |
 | NFR-USE-04 | หน้า Admin ต้องผ่านเกณฑ์ WCAG 2.1 AA สำหรับ contrast, การใช้งานด้วย keyboard และ label ของฟอร์ม | SHOULD |
 
 ### 4.4 Reliability (REL)
@@ -297,6 +464,9 @@ Host app ─► Local API ┘
 | NFR-REL-01 | Operation ที่เขียนข้อมูลหลายตาราง (เช่น array, hasMany) ต้องทำใน transaction เดียว | MUST |
 | NFR-REL-02 | Migration ที่ล้มเหลวต้อง rollback และไม่ถูกบันทึกว่ารันแล้ว | MUST |
 | NFR-REL-03 | ถ้า `afterChange` hook throw ข้อมูลต้องยังถูกบันทึก และ error ต้องถูก log | MUST |
+| NFR-REL-04 | Webhook ต้องไม่หายเมื่อ process ดับหรือ serverless หยุด (คิวในฐานข้อมูล) | MUST |
+| NFR-REL-05 | การเขียน SQLite พร้อมกันทั้งใน process เดียวและข้าม process ต้องไม่ล้มด้วย `SQLITE_BUSY` ในงานปกติ (คิวการเขียนต่อไฟล์ และ busy timeout) | MUST |
+| NFR-REL-06 | งานตั้งเวลาและคิว webhook ต้องไม่ถูกส่งพร้อมกันจากหลาย process (จองรายการก่อนส่ง) | SHOULD |
 
 ### 4.5 Maintainability (MNT)
 
@@ -306,22 +476,25 @@ Host app ─► Local API ┘
 | NFR-MNT-02 | `@easy-cms/core` ต้องมี test coverage ≥ 80% (lines) | SHOULD |
 | NFR-MNT-03 | ทุก package ต้องใช้ semver และมี changelog ที่สร้างจาก Changesets | MUST |
 | NFR-MNT-04 | `@easy-cms/core` ต้องไม่ import จาก Nuxt, Next หรือ Vue | MUST |
+| NFR-MNT-05 | สัญญาสาธารณะของ plugin (config, endpoint, admin component `apiVersion`) ต้องเปลี่ยนแบบเข้ากันได้ หรือเพิ่มเวอร์ชันของสัญญา | MUST |
 
 ### 4.6 Compatibility และ Portability (CMP)
 
 | ID | ความต้องการ | ระดับ |
 |---|---|---|
-| NFR-CMP-01 | ต้องทำงานบน Node.js 22 และ 24 ทั้งบน Linux, macOS และ Windows | MUST |
+| NFR-CMP-01 | ต้องทำงานบน Node.js 22 และ 24 ทั้งบน Linux, macOS และ Windows (CI รันทั้งสามระบบ) | MUST |
 | NFR-CMP-02 | ต้อง publish เป็น ESM พร้อม type declarations | MUST |
 | NFR-CMP-03 | ควรทำงานบน Bun ได้ (best-effort ไม่บังคับใน CI) | MAY |
+| NFR-CMP-04 | Migration files ต้องใช้ได้ข้ามเวอร์ชัน การเปิดฟีเจอร์ใหม่ต้องมีแค่ migration เพิ่ม ไม่ต้องสร้างใหม่ทั้งหมด | MUST |
 
 ### 4.7 Documentation (DOC)
 
 | ID | ความต้องการ | ระดับ |
 |---|---|---|
-| NFR-DOC-01 | ต้องมีเว็บ docs (VitePress, ภาษาอังกฤษ) ครอบคลุม: Getting started (Nuxt/Next), Config reference, Field types, Access control, Hooks, Local API, REST API, CLI, Deployment | MUST |
-| NFR-DOC-02 | ต้องมี `examples/nuxt-blog` และ `examples/next-blog` ที่รันได้ | MUST |
+| NFR-DOC-01 | ต้องมีเว็บ docs (VitePress) ภาษาอังกฤษและไทย ครอบคลุม: Getting started (Nuxt/Next/Standalone), tutorial, คู่มือทุกฟีเจอร์และ plugin, recipes, Deployment, Backups, และ API Reference (config, fields, Local API, CLI) | MUST |
+| NFR-DOC-02 | ต้องมี `examples/nuxt-blog`, `examples/next-blog` และ `examples/standalone` ที่รันได้ | MUST |
 | NFR-DOC-03 | Public API ทุกตัวต้องมี TSDoc | SHOULD |
+| NFR-DOC-04 | หน้า API Reference ต้องมี test ที่เทียบกับ type ของ core และคำสั่งของ CLI เพื่อไม่ให้เอกสารล้าสมัย | SHOULD |
 
 ---
 
@@ -329,21 +502,29 @@ Host app ─► Local API ┘
 
 ### 5.1 User Interface
 - หน้า Admin เป็น Vue 3 SPA เสิร์ฟที่ `admin.path`
-- หน้าหลัก: Login, สร้าง admin คนแรก, Dashboard, List, Edit, Global edit, Media library, Account
+- หน้าหลัก: Login, สร้าง admin คนแรก, Dashboard, List, Edit (พร้อมแผง History และ Preview), Global edit, Media library, Account, ตั้งค่า (Users, API keys)
+- ส่วนขยายจาก plugin: Web Components ใน field และแถบข้าง
 
 ### 5.2 Software Interfaces
 
 | Interface | รายละเอียด |
 |---|---|
 | Nuxt | Nuxt module (`modules: ['@easy-cms/nuxt']`) |
-| Next.js | Route handler ใน App Router + helper `getEasyCMS()` |
-| SQLite | ผ่าน Drizzle + `better-sqlite3` หรือ `libsql` |
-| PostgreSQL | ผ่าน Drizzle + `postgres` / `pg` |
+| Next.js | Route handler ใน App Router + helper `getEasyCMS()` และ `withEasyCMS()` |
+| Standalone | `easy-cms serve` (Node `http`) หรือ `createStandaloneHandler` แบบ Web-standard |
+| SQLite | ผ่าน Drizzle + `@libsql/client` |
+| PostgreSQL | ผ่าน Drizzle + postgres.js หรือ PGlite |
+| S3-compatible | `@easy-cms/storage-s3` ผ่าน aws4fetch |
 | sharp | Optional peer dependency |
+| MCP | `@modelcontextprotocol/sdk` (Streamable HTTP) |
 
 ### 5.3 Communication Interfaces
 - REST ผ่าน HTTP(S), JSON (UTF-8), upload ผ่าน `multipart/form-data`
-- Auth ด้วย session cookie
+- Auth ด้วย session cookie หรือ `Authorization: Bearer` (session token หรือ API key)
+- CORS สำหรับ frontend ที่อยู่คนละ origin
+- Webhook: HTTP POST ออกไปยัง URL ที่กำหนด พร้อม HMAC signature
+- Live preview: `window.postMessage` ระหว่างหน้า Admin กับ iframe ของหน้าเว็บ
+- MCP: JSON-RPC ผ่าน Streamable HTTP ที่ `<api>/mcp`
 
 ---
 
@@ -351,23 +532,31 @@ Host app ─► Local API ┘
 
 ### 6.1 ตารางในตัว
 
-| ตาราง | คำอธิบาย |
-|---|---|
-| `ecms_users` | ผู้ใช้หลังบ้าน: email (unique), password hash, role, active, createdAt, updatedAt |
-| `ecms_sessions` | session ที่ยังใช้ได้ สำหรับ logout/revoke |
-| `ecms_media` | metadata ของไฟล์ |
-| `ecms_migrations` | ประวัติ migration ที่รันแล้ว |
-| `ecms_globals` | ข้อมูลของ globals |
-| `ecms_<collection>` | 1 ตารางต่อ collection + ตารางย่อยสำหรับ array/hasMany |
+| ตาราง | คำอธิบาย | มีเมื่อ |
+|---|---|---|
+| `ecms_users` | ผู้ใช้หลังบ้าน: email (unique), password hash, role, active, createdAt, updatedAt | เสมอ |
+| `ecms_sessions` | session ที่ยังใช้ได้ สำหรับ logout/revoke | เสมอ |
+| `ecms_login_attempts` | การ login ที่ผิด สำหรับ rate limit | เสมอ |
+| `ecms_media` | metadata ของไฟล์ | เสมอ |
+| `ecms_migrations` | ประวัติ migration ที่รันแล้ว | เสมอ |
+| `ecms_globals` | ข้อมูลของ globals | เสมอ |
+| `ecms_<collection>` | 1 ตารางต่อ collection + ตารางย่อยสำหรับ array/hasMany (คอลัมน์ `<column>__<locale>` และ `_locale` เมื่อ localized) | เสมอ |
+| `ecms_document_versions` | snapshot ของแต่ละเวอร์ชัน | มี `versions` |
+| `ecms_scheduled_jobs` | งานเผยแพร่/ยกเลิกที่ตั้งเวลาไว้ | มี `schedule` |
+| `ecms_webhook_deliveries` | คิวการส่ง webhook | มี `webhooks` |
+| `ecms_api_keys` | API key (เก็บ hash), สิทธิ์ เจ้าของ วันหมดอายุ | `apiKeys: true` |
 
 ### 6.2 การเก็บรักษาข้อมูล
-- ลบ document แล้วต้องลบออกจาก DB จริง (ยังไม่มี soft delete ใน v0.1)
+- ลบ document แล้วต้องลบออกจาก DB จริง (ยังไม่มี soft delete) เวอร์ชันเก่ายังอยู่ในประวัติจนถึงขีดจำกัด `max`
 - ลบ media แล้วต้องลบไฟล์และ thumbnail ออกจาก storage ด้วย
 - Session ที่หมดอายุต้องถูกล้างออกเป็นระยะ
+- Webhook ที่ส่งสำเร็จต้องถูกลบออกจากคิว และรายการของ URL ที่ถูกลบจาก config ต้องถูกล้างทิ้ง
 
 ---
 
-## 7. เกณฑ์ตรวจรับ v0.1
+## 7. เกณฑ์ตรวจรับ
+
+### 7.1 เกณฑ์ตรวจรับ v0.1
 
 v0.1 ผ่านการตรวจรับเมื่อครบทุกข้อต่อไปนี้:
 
@@ -384,7 +573,7 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 4. NFR-USE-01 (ติดตั้งจนถึง login ภายใน 2 นาที) ผ่านการทดสอบด้วยมือบน macOS และ Linux
 5. เว็บ docs ครบตาม NFR-DOC-01 และ publish ทุก package ขึ้น npm ได้
 
-### 7.1 ผลการตรวจรับ (2026-09-25)
+**ผลการตรวจรับ v0.1 (2026-09-25)**
 
 | เกณฑ์ | ผล |
 |---|---|
@@ -392,11 +581,30 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 2. สถานการณ์ E2E บน Nuxt และ Next | ✅ Playwright ชุดเดียวกัน 13 ข้อ × 2 (Nuxt + SQLite, Next + Postgres/PGlite) ครอบทั้งการสร้าง admin คนแรก, draft/publish, global, สิทธิ์ของ editor, upload และ rich text |
 | 3. Integration บน SQLite และ PostgreSQL | ✅ รวมถึง Postgres 17 จริง (CI job `postgres`) |
 | 4. NFR-USE-01 ติดตั้งจนถึง login ภายใน 2 นาที | ✅ ทดสอบด้วยมือบน macOS กับโปรเจกต์ Nuxt และ Next ที่สร้างใหม่: 6–7 วินาที (package อยู่ใน cache แล้ว ถ้าดาวน์โหลดจริงจะขึ้นกับความเร็วของ npm) ส่วน Linux ยังไม่ได้ทดสอบด้วยมือ แต่ CI รัน e2e บน Linux |
-| 5. เว็บ docs และ publish ได้ | ✅ เว็บ docs ครบตาม NFR-DOC-01 (`website/`), ทุก package ผ่าน `publint` และมี changeset v0.1.0 พร้อมแล้ว ⏳ ยังไม่ได้ publish จริง (ต้องใช้สิทธิ์ของเจ้าของ npm) |
+| 5. เว็บ docs และ publish ได้ | ✅ เว็บ docs ครบตาม NFR-DOC-01 (`website/`) และทุก package ผ่าน `publint` (publish 0.1.0 ขึ้น npm ภายหลังแล้ว) |
+
+### 7.2 เกณฑ์สำหรับทุก release หลัง v0.1
+
+1. ทุก requirement ระดับ MUST ของฟีเจอร์ใหม่มี test (unit หรือ integration บน SQLite, PGlite และ Postgres 17)
+2. Playwright E2E ชุดเดียวกันผ่านบนทั้งสามแอป: Nuxt + SQLite, Next (production build) + Postgres/PGlite และ standalone + frontend คนละ origin
+3. CI ผ่านบน Linux, macOS และ Windows (lint, typecheck, build, test)
+4. มี changeset, เอกสาร EN/TH ของฟีเจอร์ใหม่ และ ADR เมื่อเป็นการตัดสินใจเชิงสถาปัตยกรรม
+5. ทุก package publish ผ่าน npm Trusted Publishing ด้วยเวอร์ชันเดียวกัน
+
+**สถานะ ณ 0.16.0 (2026-09-28)**
+
+| เกณฑ์ | ผล |
+|---|---|
+| E2E | ✅ 22 ข้อ × 3 แอป (66 ข้อ) รวม SEO, API keys และ MCP |
+| Test ของ plugin | ✅ `plugin-seo` และ `plugin-mcp` มี test ของตัวเอง (MCP ทดสอบด้วย MCP client จริง) |
+| เอกสาร | ✅ EN/TH ครบทุกฟีเจอร์ พร้อม tutorial, recipes 8 หน้า และ API Reference ที่มี test |
+| Publish | ✅ ทุก package อยู่ที่ 0.16.0 บน npm |
 
 ---
 
-## 8. Traceability กับ Milestones
+## 8. Traceability
+
+### 8.1 Milestones ของ v0.1
 
 | Milestone | Requirements |
 |---|---|
@@ -404,10 +612,28 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | M1 Core + DB | FR-MOD-*, FR-DAT-*, FR-LAPI-*, FR-INS-06..07, NFR-REL-01..02 |
 | M2 Auth + Access + REST | FR-AUTH-*, FR-ACL-01..05, FR-REST-*, FR-CFG-06, NFR-SEC-01..05 |
 | M3 Nuxt adapter | FR-ADP-01, FR-ADP-04 |
-| M4 Admin UI | FR-ADM-*, FR-ACL-06, FR-RTX-*, NFR-PERF-03, NFR-USE-03..04 |
+| M4 Admin UI | FR-ADM-01..13, FR-ACL-06, FR-RTX-*, NFR-PERF-03, NFR-USE-03..04 |
 | M5 Upload + Drafts + Hooks | FR-UPL-*, FR-DRF-*, FR-HOOK-*, NFR-REL-03 |
 | M6 Next adapter + Postgres | FR-ADP-02..03, FR-DAT-06 |
 | M7 CLI + Docs + Release | FR-INS-01..05, FR-INS-08, NFR-DOC-*, NFR-USE-01..02, NFR-SEC-06 |
+
+### 8.2 Releases หลัง v0.1
+
+| เวอร์ชัน | เนื้อหา | Requirements | ADR |
+|---|---|---|---|
+| 0.2 | Standalone, CORS, S3 storage | FR-STA-*, FR-S3-*, FR-INS-01 | [0010](adr/0010-s3-storage.md), [0011](adr/0011-standalone-mode.md) |
+| 0.3 | Version history | FR-VER-*, FR-DRF-06 | [0012](adr/0012-versions.md) |
+| 0.4–0.5 | Live preview, preview token | FR-PRV-* | [0013](adr/0013-live-preview.md) |
+| 0.5 | Localization | FR-LOC-01..03, 05, 06 | [0014](adr/0014-localization.md) |
+| 0.6 | Blocks, localized lists, webhooks, การตั้งเวลา | FR-BLK-01..02, FR-LOC-04, FR-WHK-*, FR-SCH-* | [0015](adr/0015-webhooks-and-scheduling.md), [0016](adr/0016-blocks-and-localized-lists.md) |
+| 0.7–0.9 | Webhook ที่ไม่หาย, ค้นในบล็อก, ย้ายภาษาเริ่มต้น, SQLite write queue | FR-BLK-03, FR-LOC-05, FR-WHK-03, NFR-REL-04..06 | [0017](adr/0017-durable-webhooks-block-queries-locale-moves.md) |
+| 0.10 | `easy-cms backup` | FR-OPS-01 | — |
+| 0.11–0.12 | Admin redesign, drawer | FR-ADM-14..18, NFR-USE-03 | — |
+| 0.13 | Plugin endpoints, admin components, SEO plugin | FR-PLG-*, FR-SEO-*, FR-ADP-05 | [0018](adr/0018-plugin-endpoints-admin-components.md) |
+| 0.14 | `easy-cms copy` | FR-OPS-02..03 | — |
+| 0.15 | API keys | FR-KEY-*, NFR-SEC-08 | [0019](adr/0019-api-keys-and-mcp.md) |
+| 0.16 | MCP plugin | FR-MCP-*, NFR-SEC-09 | [0019](adr/0019-api-keys-and-mcp.md) |
+| 0.16.1 (รอ release) | Next.js: instance เดียวต่อ server | FR-LAPI-07 | — |
 
 ---
 
@@ -419,5 +645,6 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 1.1 | 2026-09-25 | เปลี่ยน Node ขั้นต่ำเป็น 22.12 เพราะ Node 20 EOL แล้ว |
 | 1.2 | 2026-09-25 | M2: เพิ่ม FR-REST-05 (init, first-register), FR-REST-07 (Bearer), FR-AUTH-10 (roles, admin คนสุดท้าย) |
 | 1.3 | 2026-09-25 | M5: FR-REST-08 (อัปโหลด/ไฟล์), FR-CFG-07 (`routes.api`, `serverURL`), ระบุว่า drafts ใน v0.1 ไม่มี version แยก |
-| 1.5 | 2026-09-25 | M7: ผลตรวจรับ v0.1 (7.1) |
 | 1.4 | 2026-09-25 | M6: ผลวัด NFR-PERF-01/02 บน Postgres 17 (Local API p95 2.7 ms, REST p95 4.3 ms), Next.js adapter ใช้ `getEasyCMS(config)` |
+| 1.5 | 2026-09-25 | M7: ผลตรวจรับ v0.1 (7.1) |
+| 2.0 | 2026-09-28 | ครอบคลุมถึง 0.16: ปรับขอบเขตและ FR เดิมให้ตรงกับปัจจุบัน (FR-DRF-06, FR-ADP-03, NFR-DOC-01, NFR-USE-03), เพิ่ม STA, S3, VER, PRV, LOC, BLK, WHK/SCH, PLG, SEO, KEY, MCP, OPS, ADM-14..18, NFR ใหม่, ตารางภายใน, เกณฑ์ตรวจรับ 7.2 และ traceability ของ release |
