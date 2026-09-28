@@ -643,7 +643,9 @@ function validateEndpoints(config: Config, collectionSlugs: ReadonlySet<string>,
       add(path, 'must be an object { path, method, handler }')
       return
     }
-    const { path: route, method, handler } = endpoint as Record<string, unknown>
+    const { path: route, method, handler, root } = endpoint as Record<string, unknown>
+    if (root !== undefined && typeof root !== 'boolean')
+      add(`${path}.root`, 'must be true or false')
     const segments = typeof route === 'string' ? route.split('/').slice(1) : []
     if (
       typeof route !== 'string' ||
@@ -653,13 +655,26 @@ function validateEndpoints(config: Config, collectionSlugs: ReadonlySet<string>,
     ) {
       add(`${path}.path`, `must be a path like "/seo/generate" (got ${JSON.stringify(route)})`)
     } else {
-      const root = segments[0] as string
-      if (root.startsWith(':')) {
+      const first = segments[0] as string
+      if (first.startsWith(':')) {
         add(`${path}.path`, 'must start with a fixed segment, not a parameter')
-      } else if (RESERVED_ENDPOINT_ROOTS.has(root) || collectionSlugs.has(root)) {
+      } else if (root === true) {
+        const taken = [
+          config.routes?.api ?? '/api/cms',
+          `/${(config.admin?.path ?? '/admin').replace(/^\/+|\/+$/g, '')}`,
+          '/healthz',
+        ]
+          .map((p) => p.replace(/\/+$/, ''))
+          .find((p) => route === p || route.startsWith(`${p}/`) || p.startsWith(`${route}/`))
+        if (taken)
+          add(
+            `${path}.path`,
+            `"${route}" is served by ${taken === '/healthz' ? 'the standalone server' : `"${taken}"`}`,
+          )
+      } else if (RESERVED_ENDPOINT_ROOTS.has(first) || collectionSlugs.has(first)) {
         add(
           `${path}.path`,
-          `"/${root}" is used by the built-in API`,
+          `"/${first}" is used by the built-in API`,
           'start the path with your plugin or feature name, e.g. "/seo/generate"',
         )
       }
@@ -674,7 +689,7 @@ function validateEndpoints(config: Config, collectionSlugs: ReadonlySet<string>,
     if (typeof handler !== 'function') add(`${path}.handler`, 'must be a function')
     if (typeof route === 'string' && typeof verb === 'string') {
       // Parameters match anything, so "/a/:x" and "/a/:y" are the same route.
-      const key = `${verb} ${route.replace(/:[A-Za-z_][A-Za-z0-9_]*/g, ':')}`
+      const key = `${root === true ? 'root ' : ''}${verb} ${route.replace(/:[A-Za-z_][A-Za-z0-9_]*/g, ':')}`
       if (seen.has(key)) add(`${path}.path`, `duplicate endpoint ${verb.toUpperCase()} ${route}`)
       seen.add(key)
     }

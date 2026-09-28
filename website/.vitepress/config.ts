@@ -14,6 +14,7 @@ const RECIPES = [
   'vercel',
   'sqlite-to-postgres',
   'automate-backups',
+  'search-engines',
 ]
 
 /** The same pages in every language; `prefix` is '' for English and '/th' for Thai. */
@@ -94,6 +95,7 @@ const en: Labels = {
   'recipe-vercel': 'Deploy on Vercel',
   'recipe-sqlite-to-postgres': 'Move from SQLite to Postgres',
   'recipe-automate-backups': 'Automate backups',
+  'recipe-search-engines': 'Get ready for search engines',
   'ref-config': 'Config',
   'ref-fields': 'Fields',
   'ref-local-api': 'Local API',
@@ -144,6 +146,7 @@ const th: Labels = {
   'recipe-vercel': 'Deploy บน Vercel',
   'recipe-sqlite-to-postgres': 'ย้ายจาก SQLite ไป Postgres',
   'recipe-automate-backups': 'สำรองข้อมูลอัตโนมัติ',
+  'recipe-search-engines': 'เตรียมเว็บให้เครื่องมือค้นหา',
   'ref-config': 'Config',
   'ref-fields': 'Fields',
   'ref-local-api': 'Local API',

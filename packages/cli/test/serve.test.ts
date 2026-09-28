@@ -21,6 +21,7 @@ export default defineConfig({
   secret: '${'s'.repeat(32)}',
   db: sqlite({ url: 'file:./cms.db' }),
   cors: ['http://frontend.test'],
+  endpoints: [{ path: '/robots.txt', method: 'get', root: true, handler: () => new Response('User-agent: *') }],
   collections: [{ slug: 'posts', access: { read: () => true }, fields: [{ name: 'title', type: 'text' }] }],
 })
 `,
@@ -57,6 +58,8 @@ describe('easy-cms serve (FR-STD-01)', () => {
 
     expect(await (await fetch(`${server.url}/healthz`)).text()).toBe('ok')
     expect((await fetch(`${server.url}/elsewhere`)).status).toBe(404)
+    // Endpoints marked root are served from the root.
+    expect(await (await fetch(`${server.url}/robots.txt`)).text()).toBe('User-agent: *')
     expect(await (await fetch(`${server.url}/api/cms/posts`)).json()).toMatchObject({ docs: [] })
   })
 

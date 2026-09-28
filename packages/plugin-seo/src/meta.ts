@@ -1,6 +1,8 @@
 import { META_FIELD } from './shared.js'
+import { absolute } from './sitemap.js'
 
 type Doc = Record<string, unknown>
+type Value = string | null | undefined
 
 export interface SeoMetaOptions {
   /**
@@ -8,16 +10,43 @@ export interface SeoMetaOptions {
    * `https://example.com`. Default: `config.admin.siteUrl`, then `config.serverURL`.
    */
   readonly siteUrl?: string
-  /** Your Easy CMS config, to read `admin.siteUrl` (and `serverURL`) from. */
-  readonly config?: { readonly admin?: { readonly siteUrl?: string }; readonly serverURL?: string }
-  /** The page's canonical address: absolute, or a path on the site. */
-  readonly url?: string | ((doc: Doc) => string | null | undefined)
+  /** Your Easy CMS config, to read `admin.siteUrl`, `serverURL` and `localization` from. */
+  readonly config?: object
+  /**
+   * The page's canonical address: absolute, or a path on the site. As a function it gets the
+   * locale too, which adds `hreflang` links to the page in every locale.
+   */
+  readonly url?: string | ((doc: Doc, locale?: string) => Value)
+  /** The page's content locale, e.g. `en`. Shown as `og:locale`. */
+  readonly locale?: string
+  /** All content locales, for `hreflang`. Default: `config.localization.locales`. */
+  readonly locales?: readonly string[]
+  /** The locale for `x-default`. Default: `config.localization.defaultLocale`, then the first. */
+  readonly defaultLocale?: string
   /** The title when `meta.title` is empty. Default: the document's `title`. */
-  readonly title?: (doc: Doc) => string | null | undefined
+  readonly title?: (doc: Doc) => Value
   /** The description when `meta.description` is empty. Default: `excerpt`, then `description`. */
-  readonly description?: (doc: Doc) => string | null | undefined
+  readonly description?: (doc: Doc) => Value
   /** Shown as `og:site_name`. */
   readonly siteName?: string
+  /** `article` for posts: adds the published and modified times, and BlogPosting JSON-LD. */
+  readonly type?: 'website' | 'article'
+  /** When the article was published. Default: `publishedAt`, then `createdAt`. */
+  readonly publishedTime?: (doc: Doc) => Value
+  /** The article's author, e.g. `(post) => post.author?.name`. */
+  readonly author?: string | ((doc: Doc) => Value)
+  /** Schema.org type of an article's JSON-LD. Default `BlogPosting`. */
+  readonly articleType?: 'Article' | 'BlogPosting' | 'NewsArticle'
+}
+
+/** What `seoMeta` reads from an Easy CMS config (raw or resolved). */
+interface MetaConfig {
+  readonly admin?: { readonly siteUrl?: string }
+  readonly serverURL?: string
+  readonly localization?: {
+    readonly locales: readonly string[]
+    readonly defaultLocale?: string
+  } | null
 }
 
 export interface SeoImage {
@@ -31,33 +60,51 @@ export interface SeoImage {
 export interface NuxtSeoMeta {
   title?: string
   description?: string
+  robots?: string
   ogTitle?: string
   ogDescription?: string
   ogUrl?: string
-  ogType?: 'website'
+  ogType?: 'website' | 'article'
   ogSiteName?: string
+  ogLocale?: string
+  ogLocaleAlternate?: string[]
   ogImage?: string
   ogImageAlt?: string
   ogImageWidth?: number
   ogImageHeight?: number
+  articlePublishedTime?: string
+  articleModifiedTime?: string
+  articleAuthor?: string[]
   twitterCard?: 'summary' | 'summary_large_image'
   twitterTitle?: string
   twitterDescription?: string
   twitterImage?: string
 }
 
+/** Input for Nuxt's `useHead()`: the canonical and hreflang links, and the JSON-LD script. */
+export interface NuxtSeoHead {
+  link: { rel: 'canonical' | 'alternate'; href: string; hreflang?: string }[]
+  script: { type: 'application/ld+json'; innerHTML: string }[]
+}
+
 /** The part of Next.js `Metadata` that `seoMeta` fills. */
 export interface NextSeoMetadata {
   title?: string
   description?: string
-  alternates?: { canonical: string }
+  robots?: { index: false }
+  alternates?: { canonical?: string; languages?: Record<string, string> }
   openGraph: {
-    type: 'website'
+    type: 'website' | 'article'
     title?: string
     description?: string
     url?: string
     siteName?: string
+    locale?: string
+    alternateLocale?: string[]
     images?: SeoImage[]
+    publishedTime?: string
+    modifiedTime?: string
+    authors?: string[]
   }
   twitter: {
     card: 'summary' | 'summary_large_image'
@@ -67,45 +114,77 @@ export interface NextSeoMetadata {
   }
 }
 
+export type JsonLd = Record<string, unknown>
+
 export interface SeoMeta {
   readonly title: string | undefined
   readonly description: string | undefined
   readonly canonical: string | undefined
   readonly image: SeoImage | undefined
-  /** For Nuxt's `useSeoMeta()`. Add the canonical link with `useHead()`. */
+  /** The editor ticked "Hide from search engines". */
+  readonly noindex: boolean
+  /** The page in each locale, and `x-default`; `undefined` without locales. */
+  readonly alternates: Readonly<Record<string, string>> | undefined
+  /** Schema.org data for the page: BlogPosting (or `articleType`) for articles, else WebPage. */
+  readonly jsonLd: JsonLd
+  /** For Nuxt's `useSeoMeta()`. */
   readonly nuxt: NuxtSeoMeta
-  /** For Next.js `generateMetadata()`. */
+  /** For Nuxt's `useHead()`: canonical and hreflang links, and the JSON-LD script. */
+  readonly head: NuxtSeoHead
+  /** For Next.js `generateMetadata()`. Render `jsonLd` with `jsonLdScript()` in the page. */
   readonly next: NextSeoMetadata
 }
 
 const text = (value: unknown): string | undefined =>
   typeof value === 'string' && value.trim() !== '' ? value.trim() : undefined
 
-/** Joins a path to the site's address; leaves absolute URLs, and paths when there is no site. */
-function absolute(url: string, site: string | undefined): string {
-  if (/^https?:\/\//.test(url) || !site || !/^https?:\/\//.test(site)) return url
-  return `${site.replace(/\/+$/, '')}/${url.replace(/^\/+/, '')}`
-}
+/** `th-TH` → `th_TH`, the form Open Graph uses. */
+const ogLocale = (locale: string) => locale.replace('-', '_')
+
+const defined = <T extends Record<string, unknown>>(record: T) =>
+  Object.fromEntries(Object.entries(record).filter(([, v]) => v !== undefined)) as {
+    [K in keyof T]: Exclude<T[K], undefined>
+  }
 
 /**
  * Page metadata from a document with SEO fields: the meta values, or fallbacks from the
  * document. Fetch the document with `depth` 1 or more so the share image has its URL.
  *
  * ```ts
- * const meta = seoMeta(post, { config, url: `/posts/${post.slug}` })
- * useSeoMeta(meta.nuxt)          // Nuxt
- * return meta.next               // Next.js generateMetadata()
+ * const meta = seoMeta(post, { config, locale, url: (p, l) => `/${l}/posts/${p.slug}`, type: 'article' })
+ * useSeoMeta(meta.nuxt); useHead(meta.head)   // Nuxt
+ * return meta.next                             // Next.js generateMetadata()
  * ```
  */
 export function seoMeta(doc: Doc, options: SeoMetaOptions = {}): SeoMeta {
+  const config = options.config as MetaConfig | undefined
   const meta = (doc[META_FIELD] ?? {}) as Doc
-  const site = options.siteUrl ?? options.config?.admin?.siteUrl ?? options.config?.serverURL
+  const site = options.siteUrl ?? (config?.admin?.siteUrl || config?.serverURL)
   const title = text(meta.title) ?? text((options.title ?? ((d) => d.title as string))(doc))
   const description =
     text(meta.description) ??
     text((options.description ?? ((d) => (d.excerpt ?? d.description) as string))(doc))
-  const url = typeof options.url === 'function' ? options.url(doc) : options.url
-  const canonical = text(url) ? absolute(text(url) as string, site) : undefined
+  const noindex = meta.noindex === true
+  const article = options.type === 'article'
+
+  const locale = options.locale
+  const locales = options.locales ?? config?.localization?.locales ?? []
+  const urlFor = (l: string | undefined) => {
+    const url = typeof options.url === 'function' ? options.url(doc, l) : options.url
+    return text(url) ? absolute(text(url) as string, site) : undefined
+  }
+  const canonical = urlFor(locale)
+  let alternates: Record<string, string> | undefined
+  if (typeof options.url === 'function' && locales.length > 1) {
+    alternates = {}
+    for (const l of locales) {
+      const url = urlFor(l)
+      if (url) alternates[l] = url
+    }
+    const fallback = options.defaultLocale ?? config?.localization?.defaultLocale ?? locales[0]
+    if (fallback && alternates[fallback]) alternates['x-default'] = alternates[fallback]
+    if (Object.keys(alternates).length === 0) alternates = undefined
+  }
 
   const media = meta.image
   const image: SeoImage | undefined =
@@ -122,29 +201,77 @@ export function seoMeta(doc: Doc, options: SeoMetaOptions = {}): SeoMeta {
         }
       : undefined
 
-  const defined = <T extends Record<string, unknown>>(record: T) =>
-    Object.fromEntries(Object.entries(record).filter(([, v]) => v !== undefined)) as {
-      [K in keyof T]: Exclude<T[K], undefined>
-    }
+  const publishedTime = article
+    ? text((options.publishedTime ?? ((d) => (d.publishedAt ?? d.createdAt) as string))(doc))
+    : undefined
+  const modifiedTime = article ? text(doc.updatedAt) : undefined
+  const author = article
+    ? text(typeof options.author === 'function' ? options.author(doc) : options.author)
+    : undefined
+  const otherLocales = locale ? locales.filter((l) => l !== locale).map(ogLocale) : []
+
   const card = image ? ('summary_large_image' as const) : ('summary' as const)
+  const type = article ? ('article' as const) : ('website' as const)
+
+  const jsonLd: JsonLd = article
+    ? defined({
+        '@context': 'https://schema.org',
+        '@type': options.articleType ?? 'BlogPosting',
+        headline: title,
+        description,
+        image: image ? [image.url] : undefined,
+        datePublished: publishedTime,
+        dateModified: modifiedTime,
+        author: author ? { '@type': 'Person', name: author } : undefined,
+        mainEntityOfPage: canonical,
+        url: canonical,
+        inLanguage: locale,
+      })
+    : defined({
+        '@context': 'https://schema.org',
+        '@type': 'WebPage',
+        name: title,
+        description,
+        url: canonical,
+        primaryImageOfPage: image ? image.url : undefined,
+        inLanguage: locale,
+      })
+
+  const link: NuxtSeoHead['link'] = []
+  if (canonical) link.push({ rel: 'canonical', href: canonical })
+  for (const [hreflang, href] of Object.entries(alternates ?? {}))
+    link.push({ rel: 'alternate', hreflang, href })
 
   return {
     title,
     description,
     canonical,
     image,
+    noindex,
+    alternates,
+    jsonLd,
+    head: {
+      link,
+      script: [{ type: 'application/ld+json', innerHTML: jsonLdScript(jsonLd) }],
+    },
     nuxt: defined({
       title,
       description,
+      robots: noindex ? 'noindex' : undefined,
       ogTitle: title,
       ogDescription: description,
       ogUrl: canonical,
-      ogType: 'website' as const,
+      ogType: type,
       ogSiteName: options.siteName,
+      ogLocale: locale ? ogLocale(locale) : undefined,
+      ogLocaleAlternate: otherLocales.length > 0 ? otherLocales : undefined,
       ogImage: image?.url,
       ogImageAlt: image?.alt,
       ogImageWidth: image?.width,
       ogImageHeight: image?.height,
+      articlePublishedTime: publishedTime,
+      articleModifiedTime: modifiedTime,
+      articleAuthor: author ? [author] : undefined,
       twitterCard: card,
       twitterTitle: title,
       twitterDescription: description,
@@ -153,14 +280,23 @@ export function seoMeta(doc: Doc, options: SeoMetaOptions = {}): SeoMeta {
     next: defined({
       title,
       description,
-      alternates: canonical ? { canonical } : undefined,
+      robots: noindex ? ({ index: false } as const) : undefined,
+      alternates:
+        canonical || alternates
+          ? defined({ canonical, languages: alternates ? { ...alternates } : undefined })
+          : undefined,
       openGraph: defined({
         title,
         description,
         url: canonical,
         siteName: options.siteName,
-        type: 'website' as const,
+        locale: locale ? ogLocale(locale) : undefined,
+        alternateLocale: otherLocales.length > 0 ? otherLocales : undefined,
+        type,
         images: image ? [image] : undefined,
+        publishedTime,
+        modifiedTime,
+        authors: author ? [author] : undefined,
       }),
       twitter: defined({
         card,
@@ -170,4 +306,54 @@ export function seoMeta(doc: Doc, options: SeoMetaOptions = {}): SeoMeta {
       }),
     }),
   }
+}
+
+export interface SiteJsonLdOptions {
+  /** The organization or site name. */
+  readonly name: string
+  /** The site's address, e.g. `https://example.com`. */
+  readonly url: string
+  /** Address of the logo image. */
+  readonly logo?: string
+  /** Profiles elsewhere, e.g. Facebook or LinkedIn pages. */
+  readonly sameAs?: readonly string[]
+  /** The site's main language, e.g. `th`. */
+  readonly inLanguage?: string
+}
+
+/** Organization and WebSite JSON-LD for the site's layout, once per page. */
+export function siteJsonLd(options: SiteJsonLdOptions): JsonLd {
+  const url = options.url.replace(/\/+$/, '')
+  return {
+    '@context': 'https://schema.org',
+    '@graph': [
+      defined({
+        '@type': 'Organization',
+        '@id': `${url}/#organization`,
+        name: options.name,
+        url: `${url}/`,
+        logo: options.logo,
+        sameAs: options.sameAs && options.sameAs.length > 0 ? [...options.sameAs] : undefined,
+      }),
+      defined({
+        '@type': 'WebSite',
+        '@id': `${url}/#website`,
+        name: options.name,
+        url: `${url}/`,
+        inLanguage: options.inLanguage,
+        publisher: { '@id': `${url}/#organization` },
+      }),
+    ],
+  }
+}
+
+/**
+ * JSON-LD as text for a `<script type="application/ld+json">`, safe to put in HTML: `<` and
+ * line separators are escaped, so content can't close the script tag.
+ */
+export function jsonLdScript(value: JsonLd): string {
+  return JSON.stringify(value)
+    .replace(/</g, '\\u003c')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029')
 }

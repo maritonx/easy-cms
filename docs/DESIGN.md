@@ -3,7 +3,7 @@
 - **สถานะ:** Accepted (living document)
 - **วันที่:** 2026-09-28 (ฉบับแรก 2026-09-25)
 - **ผู้เขียน:** Kanawoot K.
-- **ครอบคลุม:** v0.1 ถึง v0.16
+- **ครอบคลุม:** v0.1 ถึง v0.17
 - **Requirements:** [SRS.md](SRS.md)
 
 ---
@@ -84,6 +84,7 @@ Plugin ยังเป็น `(config) => config` เหมือน v0.1 คว
 - **`admin.modules`**: ES module ที่ลงทะเบียน Web Components (`ecms-*`) เสิร์ฟผ่าน `<api>/admin/modules/<n>.js`
   วางได้ที่ `admin.component`, `admin.after` ของ field และ `admin.sidebar` ของ collection/global สัญญาเวอร์ชัน 1 คือ property เข้า event (`change`, `set-field`) ออก
 - เลือก Web Components แทนการแชร์ Vue เพราะสัญญาเล็กและคงที่ เปลี่ยนภายในหน้า admin ได้โดย plugin ไม่พัง
+- **root endpoints** (0.17): `root: true` เสิร์ฟจาก root ของเว็บใน standalone (เช่น `/robots.txt`) ส่วนแอป Nuxt/Next ใช้ helper ของ plugin ใน route ของตัวเอง → ดู [ADR-0020](adr/0020-seo-sitemap-robots-root-endpoints.md)
 
 ### 4.5 API keys และ MCP (0.15–0.16)
 - **API keys** อยู่ใน core (`apiKeys: true`): key ทำงานในนามเจ้าของ ได้สิทธิ์ส่วนที่ซ้อนกันของ key กับเจ้าของ ตรวจใน Local API จุดเดียว
@@ -105,7 +106,7 @@ Plugin ยังเป็น `(config) => config` เหมือน v0.1 คว
 | `@easy-cms/db-postgres` | Drizzle + Postgres (postgres.js หรือ PGlite) | 0.1 |
 | `@easy-cms/richtext` | `renderRichText()` แปลง Tiptap JSON → HTML | 0.1 |
 | `@easy-cms/storage-s3` | S3 / R2 / MinIO | 0.2 |
-| `@easy-cms/plugin-seo` | field `meta`, ตัวนับความยาว, ตัวอย่างผลการค้นหา, `seoMeta()` | 0.13 |
+| `@easy-cms/plugin-seo` | field `meta`, ตัวนับความยาว, ตัวอย่างผลการค้นหา, `seoMeta()`, sitemap, robots.txt, hreflang, JSON-LD (0.17) | 0.13 |
 | `@easy-cms/plugin-mcp` | MCP server สำหรับผู้ช่วย AI | 0.16 |
 | `easy-cms` (bin) | CLI และโหมด standalone | 0.1 |
 | `create-easy-cms` | ตัว scaffold (Nuxt, Next, standalone) | 0.1 |
@@ -202,7 +203,7 @@ export default defineConfig({
 Local API อนุมาน type จาก config ได้เองแม้ยังไม่ได้ generate
 Endpoint ของ plugin อยู่ใต้ `routes.api` เดียวกัน GraphQL ยังไม่มีแผน
 
-**Next.js:** config ถูก bundle แยกตาม server layer (route handler กับ RSC) จึงได้ object ต่างกัน `getEasyCMS()` เทียบ config ด้วยโครงสร้าง (`configSignature()`, นับ function เป็นค่าเดียวกัน) เพื่อให้ทั้ง server มี instance เดียว (0.16.1, รอ release)
+**Next.js:** config ถูก bundle แยกตาม server layer (route handler กับ RSC) จึงได้ object ต่างกัน `getEasyCMS()` เทียบ config ด้วยโครงสร้าง (`configSignature()`, นับ function เป็นค่าเดียวกัน) เพื่อให้ทั้ง server มี instance เดียว (0.16.1)
 
 ## 9. Auth และ Access Control
 
@@ -246,6 +247,7 @@ Endpoint ของ plugin อยู่ใต้ `routes.api` เดียวก�
 | Plugin endpoints, admin components, SEO plugin | 0.13 | [0018](adr/0018-plugin-endpoints-admin-components.md) |
 | API keys | 0.15 | [0019](adr/0019-api-keys-and-mcp.md) |
 | MCP plugin | 0.16 | [0019](adr/0019-api-keys-and-mcp.md) |
+| SEO: sitemap, robots.txt, noindex, hreflang, JSON-LD | 0.17 | [0020](adr/0020-seo-sitemap-robots-root-endpoints.md) |
 
 ## 12. CLI และ DX
 
@@ -302,12 +304,13 @@ CI รัน lint, typecheck, build และ test บน Linux, macOS และ
 | **M7** CLI + Docs + Release | `create-easy-cms`, `generate:types`, VitePress, publish v0.1 |
 
 ### 15.2 หลัง v0.1 (เสร็จแล้ว)
-0.2 standalone + S3 → 0.3 versions → 0.4–0.5 live preview, localization → 0.6–0.9 blocks, webhooks, การตั้งเวลา → 0.10 backup → 0.11–0.12 admin redesign → 0.13 plugin ecosystem + SEO → 0.14 copy → 0.15 API keys → 0.16 MCP (รายละเอียดใน [SRS §8.2](SRS.md#82-releases-หลัง-v01))
+0.2 standalone + S3 → 0.3 versions → 0.4–0.5 live preview, localization → 0.6–0.9 blocks, webhooks, การตั้งเวลา → 0.10 backup → 0.11–0.12 admin redesign → 0.13 plugin ecosystem + SEO → 0.14 copy → 0.15 API keys → 0.16 MCP → 0.17 SEO ระดับทั้งเว็บ (รายละเอียดใน [SRS §8.2](SRS.md#82-releases-หลัง-v01))
 
 ### 15.3 แนวคิดถัดไป (ยังไม่ได้ตัดสินใจ)
 - MCP แบบ stdio (`easy-cms mcp`) และ OAuth สำหรับ client ที่ส่ง header ไม่ได้
 - อัปโหลดจาก URL พร้อม `allowedHosts`
-- SEO: sitemap และ robots
+- SEO: BreadcrumbList, ตรวจคุณภาพเนื้อหา, IndexNow
+- `@easy-cms/plugin-redirects` (0.18)
 - Plugin: หน้าเต็มในหน้า Admin และ widget บน dashboard
 - `auth.strategy` สำหรับ auth ภายนอก, ลืมรหัสผ่านผ่าน email
 
@@ -344,3 +347,4 @@ CI รัน lint, typecheck, build และ test บน Linux, macOS และ
 - [ADR-0017](adr/0017-durable-webhooks-block-queries-locale-moves.md) — Webhook ที่ไม่หาย, ค้นหาข้างในบล็อก และย้ายข้อมูลเมื่อเปลี่ยนภาษาเริ่มต้น
 - [ADR-0018](adr/0018-plugin-endpoints-admin-components.md) — Endpoint ของ plugin, admin components และ plugin SEO
 - [ADR-0019](adr/0019-api-keys-and-mcp.md) — API keys และ plugin MCP
+- [ADR-0020](adr/0020-seo-sitemap-robots-root-endpoints.md) — Sitemap, robots.txt, hreflang และ JSON-LD ใน plugin SEO และ root endpoints

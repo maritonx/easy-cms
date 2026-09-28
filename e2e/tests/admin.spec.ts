@@ -539,6 +539,52 @@ test.describe('logged in as admin', () => {
     }
   })
 
+  test('publishes a sitemap, robots.txt, hreflang and JSON-LD (SEO plugin)', async ({ page }) => {
+    // A post hidden from search engines.
+    await page.goto('/admin/collections/posts/new')
+    await page.getByRole('textbox', { name: 'Title', exact: true }).fill('Hidden page')
+    await page.getByRole('checkbox', { name: 'Hide from search engines' }).check()
+    await expect(page.getByRole('region', { name: 'Search result preview' })).toContainText(
+      'Hidden from search engines',
+    )
+    await page.getByRole('button', { name: 'Publish', exact: true }).click()
+    await expect(page.getByRole('status')).toHaveText('Created')
+    const hiddenId = page.url().split('/').pop()
+
+    const origin = new URL(page.url()).origin
+    const sitemap = await (await page.request.get('/sitemap.xml')).text()
+    const robots = await (await page.request.get('/robots.txt')).text()
+    expect(robots).toContain('Disallow: /admin/')
+    expect(robots).toContain(`Sitemap: ${origin}/sitemap.xml`)
+
+    if (standalone()) {
+      // The standalone server serves both from its root; posts link to the frontend.
+      expect(sitemap).toContain('<loc>http://localhost:3103/?post=')
+      expect(sitemap).not.toContain(`?post=${hiddenId}<`)
+      return
+    }
+    // Published posts in both languages, with hreflang; not the hidden one.
+    expect(sitemap).toContain(`<loc>${origin}/posts/plugins-work</loc>`)
+    expect(sitemap).toContain(
+      `<xhtml:link rel="alternate" hreflang="en" href="${origin}/posts/plugins-work?locale=en"/>`,
+    )
+    expect(sitemap).not.toContain('hidden-page')
+
+    await page.goto('/posts/plugins-work')
+    await expect(page.locator('link[rel="alternate"][hreflang="en"]')).toHaveAttribute(
+      'href',
+      `${origin}/posts/plugins-work?locale=en`,
+    )
+    await expect(page.locator('meta[property="og:type"]')).toHaveAttribute('content', 'article')
+    const jsonLd = await page.locator('script[type="application/ld+json"]').allTextContents()
+    expect(jsonLd.map((text) => JSON.parse(text)['@type'] ?? 'graph')).toEqual(
+      expect.arrayContaining(['BlogPosting', 'graph']),
+    )
+    await page.goto('/posts/hidden-page')
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', /noindex/)
+    await page.waitForLoadState('load')
+  })
+
   test('creates an API key that scripts can use (apiKeys)', async ({ page }) => {
     await page
       .getByRole('navigation', { name: 'Main' })

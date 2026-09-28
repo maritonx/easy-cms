@@ -8,6 +8,7 @@ import {
   type Config,
   createEasyCMS,
   createRestHandler,
+  createRootEndpointHandler,
   type EasyCMS,
   type Logger,
   type ResolvedConfig,
@@ -22,13 +23,16 @@ type Handler = (request: Request, clientIp?: string) => Promise<Response>
 
 /**
  * One Web-standard handler for the whole standalone server: the REST API at `routes.api`, the
- * admin at `admin.path`, and `/healthz` for load balancers. `/` redirects to the admin.
+ * admin at `admin.path`, `/healthz` for load balancers, and endpoints marked `root` (such as a
+ * plugin's `/robots.txt`). `/` redirects to the admin.
  */
 export function createStandaloneHandler<C extends Config>(cms: EasyCMS<C>): Handler {
   const config = cms.config
   const adminPath = `/${config.admin.path.replace(/^\/+|\/+$/g, '')}`
   const clientIps = new WeakMap<Request, string | undefined>()
-  const api = createRestHandler(cms, { getClientIp: (request) => clientIps.get(request) })
+  const getClientIp = (request: Request) => clientIps.get(request)
+  const api = createRestHandler(cms, { getClientIp })
+  const rootEndpoints = createRootEndpointHandler(cms, { getClientIp })
   const admin = createAdminHandler({
     basePath: adminPath,
     apiPath: config.routes.api,
@@ -47,6 +51,9 @@ export function createStandaloneHandler<C extends Config>(cms: EasyCMS<C>): Hand
     if (under(pathname, adminPath)) return admin(request)
     if (pathname === '/healthz')
       return new Response('ok', { headers: { 'cache-control': 'no-store' } })
+    clientIps.set(request, clientIp)
+    const endpoint = await rootEndpoints(request)
+    if (endpoint) return endpoint
     if (pathname === '/')
       return new Response(null, { status: 302, headers: { location: `${adminPath}/` } })
     return Response.json({ message: 'Not found' }, { status: 404 })

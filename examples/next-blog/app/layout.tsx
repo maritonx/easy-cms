@@ -1,4 +1,6 @@
 import { getEasyCMS } from '@easy-cms/next'
+import { jsonLdScript, siteJsonLd } from '@easy-cms/plugin-seo'
+import { headers } from 'next/headers'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import config from '@/easy-cms.config'
@@ -16,9 +18,18 @@ export async function generateMetadata() {
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const cms = await getEasyCMS(config)
   const site = await cms.findGlobal('site')
+  const request = await headers()
+  const origin = `${request.get('x-forwarded-proto') ?? 'http'}://${request.get('host')}`
+  // Who publishes the site, for search engines: Organization and WebSite JSON-LD.
+  const organization = siteJsonLd({ name: site.siteName ?? 'Blog', url: origin })
   return (
     <html lang="en">
       <body>
+        <script
+          type="application/ld+json"
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: jsonLdScript escapes "<"
+          dangerouslySetInnerHTML={{ __html: jsonLdScript(organization) }}
+        />
         <div className="page">
           <header>
             <Link href="/" className="brand">

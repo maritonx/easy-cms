@@ -196,6 +196,7 @@ Every hook also gets `user`, `cms` and `slug`.
 | `path` | `string` | Under `routes.api`, e.g. `/seo/generate` or `/stats/:collection`. |
 | `method` | `'get' \| 'post' \| 'put' \| 'patch' \| 'delete'` | |
 | `handler` | `(request: EndpointRequest) => unknown` | Returns a `Response`, or a value sent as JSON. [Endpoints](/guide/plugins#endpoints) |
+| `root` | `boolean` | Serve the path from the site's root (standalone server only), e.g. `/robots.txt`. Default `false`. |
 
 <!-- api: EndpointRequest -->
 ### EndpointRequest

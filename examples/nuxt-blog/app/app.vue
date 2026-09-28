@@ -1,6 +1,19 @@
 <script setup lang="ts">
+import { jsonLdScript, siteJsonLd } from '@easy-cms/plugin-seo'
+
 const { data: site } = await useFetch('/api/site')
-useHead({ title: () => site.value?.siteName ?? 'Blog' })
+const origin = useRequestURL().origin
+useHead({
+  title: () => site.value?.siteName ?? 'Blog',
+  // Who publishes the site, for search engines: Organization and WebSite JSON-LD.
+  script: [
+    {
+      type: 'application/ld+json',
+      innerHTML: () =>
+        jsonLdScript(siteJsonLd({ name: site.value?.siteName ?? 'Blog', url: origin })),
+    },
+  ],
+})
 </script>
 
 <template>

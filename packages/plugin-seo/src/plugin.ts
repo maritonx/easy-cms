@@ -10,6 +10,7 @@ import type {
   Label,
   Plugin,
 } from '@easy-cms/core'
+import { type RobotsTxtOptions, robotsTxt } from './robots.js'
 import {
   DEFAULT_DESCRIPTION_LENGTH,
   DEFAULT_TITLE_LENGTH,
@@ -21,6 +22,7 @@ import {
   type MeterProps,
   type PreviewProps,
 } from './shared.js'
+import { SITEMAP_SOURCE, type SitemapSource, sitemapXml } from './sitemap.js'
 
 type MaybePromise<T> = T | Promise<T>
 
@@ -68,6 +70,11 @@ export interface SeoPluginOptions {
   readonly localized?: boolean
   /** Label of the group. Default "SEO". */
   readonly label?: Label
+  /**
+   * `robots.txt` for the standalone server (`easy-cms serve`), or `false` for none. Nuxt and
+   * Next.js apps serve their own with `robotsTxt()`.
+   */
+  readonly robots?: Omit<RobotsTxtOptions, 'config'> | false
 }
 
 const ADMIN_MODULE = '@easy-cms/plugin-seo/admin'
@@ -143,6 +150,11 @@ export function seoPlugin(options: SeoPluginOptions = {}): Plugin {
                 },
               }
             : {}),
+        },
+        {
+          name: 'noindex',
+          type: 'boolean',
+          label: { en: 'Hide from search engines', th: 'ซ่อนจากเครื่องมือค้นหา' },
         },
       ]
       return {
@@ -241,6 +253,60 @@ export function seoPlugin(options: SeoPluginOptions = {}): Plugin {
       },
     }
 
+    const source: SitemapSource = {
+      collections,
+      globals,
+      generateURL: generators.url as SitemapSource['generateURL'],
+    }
+    const xmlResponse = (body: string) =>
+      new Response(body, {
+        headers: {
+          'content-type': 'application/xml; charset=utf-8',
+          'cache-control': 'public, max-age=600',
+        },
+      })
+    const api = config.routes?.api ?? '/api/cms'
+    const sitemapHandler = (base: (origin: string) => string): Endpoint['handler'] =>
+      Object.assign(
+        async ({ url, cms }: Parameters<Endpoint['handler']>[0]) => {
+          const site = config.admin?.siteUrl || config.serverURL || url.origin
+          return xmlResponse(
+            await sitemapXml(cms as never, {
+              siteUrl: site,
+              page: url.searchParams.get('page'),
+              base: base(url.origin),
+            }),
+          )
+        },
+        // Lets `sitemap(cms)` find these options from the resolved config.
+        { [SITEMAP_SOURCE]: source },
+      )
+    const siteEndpoints: Endpoint[] = [
+      {
+        path: '/seo/sitemap.xml',
+        method: 'get',
+        handler: sitemapHandler((origin) => `${origin}${api}/seo/sitemap.xml`),
+      },
+      {
+        path: '/sitemap.xml',
+        method: 'get',
+        root: true,
+        handler: sitemapHandler((origin) => `${origin}/sitemap.xml`),
+      },
+    ]
+    if (options.robots !== false) {
+      const robots = options.robots ?? {}
+      siteEndpoints.push({
+        path: '/robots.txt',
+        method: 'get',
+        root: true,
+        handler: ({ url }) =>
+          new Response(robotsTxt({ sitemap: `${url.origin}/sitemap.xml`, ...robots, config }), {
+            headers: { 'content-type': 'text/plain; charset=utf-8' },
+          }),
+      })
+    }
+
     return {
       ...config,
       collections: (config.collections ?? []).map((c) =>
@@ -251,7 +317,7 @@ export function seoPlugin(options: SeoPluginOptions = {}): Plugin {
         ...config.admin,
         modules: [...new Set([...(config.admin?.modules ?? []), ADMIN_MODULE])],
       },
-      endpoints: [...(config.endpoints ?? []), endpoint],
+      endpoints: [...(config.endpoints ?? []), endpoint, ...siteEndpoints],
     }
   }
 }

@@ -156,8 +156,14 @@ export default defineConfig({
         collection ? (doc.title ? `${doc.title} | Easy CMS Blog` : null) : (doc.siteName as string),
       generateDescription: ({ doc }) => (doc.excerpt as string | undefined) ?? null,
       generateImage: ({ doc }) => (doc.cover as number | undefined) ?? null,
-      generateURL: ({ doc, collection }) =>
-        collection === 'posts' ? `/posts/${doc.slug ?? ''}` : '/',
+      // A post's page (English at ?locale=en), for the search preview, the sitemap and
+      // hreflang links. Posts without a slug have no page yet.
+      generateURL: ({ doc, collection, locale }) =>
+        collection === 'posts'
+          ? doc.slug
+            ? `/posts/${doc.slug}${locale === 'en' ? '?locale=en' : ''}`
+            : null
+          : '/',
     }),
   ],
 })

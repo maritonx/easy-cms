@@ -3,16 +3,27 @@ import { seoMeta } from '@easy-cms/plugin-seo'
 import { renderRichText } from '@easy-cms/richtext'
 
 const route = useRoute()
+const locale = computed(() => (route.query.locale === 'en' ? 'en' : 'th'))
 const { data: post, error } = await useFetch(`/api/posts/${route.params.slug}`, {
+  query: { locale },
   headers: useRequestHeaders(['cookie']),
 })
 // In the admin's live preview the post follows the form as you type, unsaved.
 useLivePreview(post)
 
-// Search and share metadata from the post's SEO fields, rendered on the server.
-const seo = seoMeta(post.value ?? {}, { siteUrl: useRequestURL().origin, url: route.path })
+// Search and share metadata from the post's SEO fields, rendered on the server: title,
+// description, Open Graph, "noindex", the canonical and hreflang links, and JSON-LD.
+const seo = seoMeta(post.value ?? {}, {
+  siteUrl: useRequestURL().origin,
+  locale: locale.value,
+  locales: ['th', 'en'],
+  defaultLocale: 'th',
+  // The same address as generateURL in easy-cms.config.ts.
+  url: (p, l) => `/posts/${p.slug}${l === 'en' ? '?locale=en' : ''}`,
+  type: 'article',
+})
 useSeoMeta(seo.nuxt)
-useHead({ link: seo.canonical ? [{ rel: 'canonical', href: seo.canonical }] : [] })
+useHead(seo.head)
 
 const cover = computed(() => {
   const c = post.value?.cover

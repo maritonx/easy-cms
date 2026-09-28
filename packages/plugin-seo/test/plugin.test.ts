@@ -80,6 +80,7 @@ describe('seoPlugin config', () => {
         ['title', 'text', true],
         ['description', 'textarea', true],
         ['image', 'upload', undefined],
+        ['noindex', 'boolean', undefined],
       ],
     )
     expect(meta?.type === 'group' && meta.fields[0]?.admin?.after).toEqual([
@@ -93,7 +94,12 @@ describe('seoPlugin config', () => {
     ])
     expect(config.globals[0]?.fields.at(-1)?.name).toBe('meta')
     expect(config.admin.modules).toEqual(['@easy-cms/plugin-seo/admin'])
-    expect(config.endpoints.map((e) => `${e.method} ${e.path}`)).toEqual(['post /seo/generate'])
+    expect(config.endpoints.map((e) => `${e.method} ${e.path}${e.root ? ' (root)' : ''}`)).toEqual([
+      'post /seo/generate',
+      'get /seo/sitemap.xml',
+      'get /sitemap.xml (root)',
+      'get /robots.txt (root)',
+    ])
   })
 
   it('takes options for position, lengths, fields and localization', async () => {
@@ -105,14 +111,22 @@ describe('seoPlugin config', () => {
           titleLength: { min: 30, max: 70 },
           localized: false,
           label: { en: 'Search', th: 'ค้นหา' },
-          fields: (defaults) => [...defaults, { name: 'noindex', type: 'boolean' }],
+          fields: (defaults) => [...defaults, { name: 'keywords', type: 'text' }],
+          robots: false,
         }),
       ]),
     )
     const meta = config.collections.find((c) => c.slug === 'posts')?.fields.at(-1)
     expect(meta).toMatchObject({ position: 'sidebar', label: { en: 'Search', th: 'ค้นหา' } })
     if (meta?.type !== 'group') throw new Error('expected a group')
-    expect(meta.fields.map((f) => f.name)).toEqual(['title', 'description', 'image', 'noindex'])
+    expect(meta.fields.map((f) => f.name)).toEqual([
+      'title',
+      'description',
+      'image',
+      'noindex',
+      'keywords',
+    ])
+    expect(config.endpoints.some((e) => e.path === '/robots.txt')).toBe(false)
     expect(meta.fields[0]?.localized).toBeUndefined()
     expect(meta.fields[0]?.admin?.after?.[0]).toMatchObject({
       props: { min: 30, max: 70, generate: false },
@@ -208,5 +222,160 @@ describe('autoGenerate', () => {
     } finally {
       await cms.destroy()
     }
+  })
+})
+
+describe('sitemap', () => {
+  const site = (extra: Partial<Config> = {}) =>
+    base(
+      [
+        seoPlugin({
+          collections: ['posts'],
+          globals: ['site'],
+          generateURL: ({ doc, collection, locale }) =>
+            collection
+              ? doc.slug
+                ? `/${locale ?? 'th'}/posts/${doc.slug}`
+                : null
+              : `/${locale ?? 'th'}`,
+        }),
+      ],
+      {
+        collections: [
+          {
+            slug: 'posts',
+            drafts: true,
+            access: { read: ({ user }) => (user ? true : { status: { equals: 'published' } }) },
+            fields: [
+              { name: 'title', type: 'text' },
+              { name: 'slug', type: 'slug', from: 'title' },
+            ],
+          },
+          { slug: 'private', fields: [{ name: 'title', type: 'text' }] },
+        ],
+        globals: [
+          { slug: 'site', access: { read: () => true }, fields: [{ name: 'name', type: 'text' }] },
+        ],
+        ...extra,
+      },
+    )
+
+  it('lists published pages visitors can see, with every locale', async () => {
+    const { sitemap, sitemapXml } = await import('../src/index.js')
+    const cms = await open(site({ localization: { locales: ['th', 'en'], defaultLocale: 'th' } }))
+    try {
+      await cms.create('posts', { title: 'Hello', status: 'published' })
+      await cms.create('posts', { title: 'Draft', status: 'draft' })
+      await cms.create('posts', { title: 'Hidden', status: 'published', meta: { noindex: true } })
+      const entries = await sitemap(cms)
+      expect(entries.map((e) => e.url)).toEqual([
+        'https://blog.test/th/posts/hello',
+        'https://blog.test/en/posts/hello',
+        'https://blog.test/th',
+        'https://blog.test/en',
+      ])
+      expect(entries[0]?.alternates?.languages).toEqual({
+        th: 'https://blog.test/th/posts/hello',
+        en: 'https://blog.test/en/posts/hello',
+        'x-default': 'https://blog.test/th/posts/hello',
+      })
+      expect(entries[0]?.lastModified).toMatch(/^\d{4}-/)
+
+      const xml = await sitemapXml(cms)
+      expect(xml).toContain('<loc>https://blog.test/th/posts/hello</loc>')
+      expect(xml).toContain(
+        '<xhtml:link rel="alternate" hreflang="en" href="https://blog.test/en/posts/hello"/>',
+      )
+      expect(xml).not.toContain('draft')
+      expect(xml).not.toContain('hidden')
+
+      // The same through the API, and from the root for the standalone server.
+      const { createRootEndpointHandler } = await import('@easy-cms/core')
+      const api = await createRestHandler(cms)(
+        new Request('http://cms.test/api/cms/seo/sitemap.xml'),
+      )
+      expect(api.headers.get('content-type')).toContain('application/xml')
+      expect(await api.text()).toBe(xml)
+      const root = createRootEndpointHandler(cms)
+      expect(await (await root(new Request('http://cms.test/sitemap.xml')))?.text()).toBe(xml)
+      expect(await (await root(new Request('http://cms.test/robots.txt')))?.text()).toContain(
+        'Sitemap: http://cms.test/sitemap.xml',
+      )
+    } finally {
+      await cms.destroy()
+    }
+  })
+
+  it('needs absolute URLs, and the plugin', async () => {
+    const { sitemap } = await import('../src/index.js')
+    const cms = await open(site({ admin: {} }))
+    try {
+      await cms.create('posts', { title: 'Hello', status: 'published' })
+      await expect(sitemap(cms)).rejects.toThrow('not an absolute URL')
+      expect((await sitemap(cms, { siteUrl: 'https://x.test' })).map((e) => e.url)).toEqual([
+        'https://x.test/th/posts/hello',
+        'https://x.test/th',
+      ])
+    } finally {
+      await cms.destroy()
+    }
+    const plain = await open(base([]))
+    try {
+      await expect(sitemap(plain)).rejects.toThrow('add seoPlugin()')
+    } finally {
+      await plain.destroy()
+    }
+  })
+
+  it('splits more than 50,000 URLs into an index', async () => {
+    const { sitemapXml } = await import('../src/index.js')
+    const entries = Array.from({ length: 50_001 }, (_, i) => ({ id: i, updatedAt: '2026-01-01' }))
+    const cms = {
+      config: {
+        admin: { siteUrl: 'https://big.test' },
+        localization: null,
+        endpoints: (
+          await resolveConfig(
+            base([seoPlugin({ collections: ['posts'], generateURL: ({ id }) => `/p/${id}` })]),
+          )
+        ).endpoints,
+      },
+      find: async (_: string, options: Record<string, unknown>) => {
+        const page = options.page as number
+        const docs = entries.slice((page - 1) * 500, page * 500)
+        return { docs, hasNextPage: page * 500 < entries.length }
+      },
+      findGlobal: async () => ({}),
+    }
+    const index = await sitemapXml(cms)
+    expect(index).toContain('<sitemapindex')
+    expect(index).toContain('<loc>https://big.test/sitemap.xml?page=2</loc>')
+    const second = await sitemapXml(cms, { page: '2' })
+    expect(second.match(/<url>/g)).toHaveLength(1)
+    expect(second).toContain('https://big.test/p/50000')
+  })
+})
+
+describe('robotsTxt', () => {
+  it('keeps crawlers out of the admin and API, but not uploads', async () => {
+    const { robotsTxt } = await import('../src/index.js')
+    expect(robotsTxt({ config: { admin: { siteUrl: 'https://blog.test/' } } })).toBe(
+      `User-agent: *
+Allow: /api/cms/media/file/
+Disallow: /admin/
+Disallow: /api/cms/
+Sitemap: https://blog.test/sitemap.xml
+`.replace('Disallow: /api/cms/\n', 'Disallow: /api/cms/\n\n'),
+    )
+    expect(
+      robotsTxt({
+        config: { admin: { path: 'cms' }, routes: { api: '/api/' } },
+        disallow: ['/search'],
+        sitemap: false,
+      }),
+    ).toBe(
+      'User-agent: *\nAllow: /api/media/file/\nDisallow: /cms/\nDisallow: /api/\nDisallow: /search\n',
+    )
+    expect(robotsTxt({ disallowAll: true })).toBe('User-agent: *\nDisallow: /\n')
   })
 })

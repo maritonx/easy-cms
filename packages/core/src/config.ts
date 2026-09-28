@@ -291,10 +291,17 @@ export interface EndpointRequest {
 export interface Endpoint {
   /**
    * Path under the API, e.g. `/seo/generate` or `/stats/:collection`. The first segment must
-   * not be a collection slug or one of `users`, `globals`, `admin`, `jobs`.
+   * not be a collection slug or one of `users`, `globals`, `admin`, `jobs`. With `root`, the
+   * path from the site's root, outside the API and the admin.
    */
   readonly path: string
   readonly method: 'get' | 'post' | 'put' | 'patch' | 'delete'
+  /**
+   * Serve the path from the site's root instead of under `routes.api`, e.g. `/robots.txt`.
+   * Only the standalone server (`easy-cms serve`) serves these; a Nuxt or Next.js app owns its
+   * root, so plugins also offer a helper to use in the app's own route. Default false.
+   */
+  readonly root?: boolean
   /**
    * Returns a `Response`, or a value that is sent as JSON. Throw an Easy CMS error
    * (`UnauthorizedError`, `ForbiddenError`, `ValidationError`, `NotFoundError`) for error responses.

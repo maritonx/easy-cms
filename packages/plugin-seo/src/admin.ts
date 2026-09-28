@@ -56,6 +56,7 @@ const MESSAGES = {
     preview: 'Search result preview',
     noTitle: 'Page title',
     noDescription: 'Add a description to control the text under the title.',
+    hidden: 'Hidden from search engines: the page gets "noindex" and is left out of the sitemap.',
   },
   th: {
     characters: '{n} / {max} ตัวอักษร',
@@ -71,6 +72,7 @@ const MESSAGES = {
     preview: 'ตัวอย่างผลการค้นหา',
     noTitle: 'ชื่อหน้า',
     noDescription: 'เพิ่มคำอธิบายเพื่อกำหนดข้อความใต้ชื่อหน้า',
+    hidden: 'ซ่อนจากเครื่องมือค้นหาอยู่: หน้านี้มี "noindex" และไม่อยู่ใน sitemap',
   },
 } as const
 
@@ -312,6 +314,7 @@ class SeoPreview extends SeoElement {
       .title { margin: 0.15rem 0; font-size: 1.15rem; line-height: 1.3; color: var(--info); }
       .description { margin: 0; font-size: 0.875rem; line-height: 1.5; color: var(--text-muted); }
       .placeholder { font-style: italic; opacity: 0.75; }
+      .noindex { margin: 0.6rem 0 0; font-size: 0.8rem; color: var(--warning, var(--text-muted)); }
     `
   }
 
@@ -331,6 +334,7 @@ class SeoPreview extends SeoElement {
         ${address ? `<p class="url">${esc(address)}</p>` : ''}
         <p class="title ${title ? '' : 'placeholder'}">${esc(truncate(title ?? this.t('noTitle'), 60))}</p>
         <p class="description ${description ? '' : 'placeholder'}">${esc(description ? truncate(description, 160) : this.t('noDescription'))}</p>
+        ${meta.noindex === true ? `<p class="noindex">${esc(this.t('hidden'))}</p>` : ''}
       </section>
     `
   }

@@ -12,3 +12,4 @@
 | [Deploy บน Vercel ด้วย Postgres และ R2](./vercel) | serverless: Postgres, Cloudflare R2 สำหรับไฟล์ และ cron สำหรับบทความที่ตั้งเวลา |
 | [ย้ายจาก SQLite ไป Postgres](./sqlite-to-postgres) | เปลี่ยนฐานข้อมูลก่อนเปิดตัว หรือย้ายพร้อมข้อมูล |
 | [สำรองข้อมูลอัตโนมัติ](./automate-backups) | สำรองฐานข้อมูลและไฟล์อัปโหลดทุกวัน และซ้อมกู้คืน |
+| [เตรียมเว็บให้เครื่องมือค้นหา](./search-engines) | meta tag, sitemap, robots.txt, hreflang และข้อมูลแบบมีโครงสร้าง แล้วส่งให้ Search Console |

@@ -6,6 +6,7 @@ import {
   type AdminSchema,
   type Config,
   createRestHandler,
+  createRootEndpointHandler,
   defineConfig,
   ForbiddenError,
   type RestHandler,
@@ -39,6 +40,13 @@ const statsPlugin = (config: Config): Config => ({
       path: '/stats/echo',
       method: 'post',
       handler: async ({ json, url }) => ({ got: await json(), q: url.searchParams.get('q') }),
+    },
+    {
+      path: '/stats.txt',
+      method: 'get',
+      root: true,
+      handler: ({ user }) =>
+        new Response(user ? 'hello admin' : 'hello', { headers: { 'content-type': 'text/plain' } }),
     },
     {
       path: '/stats/raw',
@@ -163,6 +171,24 @@ describe('custom endpoints', () => {
     expect(wrong.status).toBe(405)
     // GET /stats/echo would match /stats/:collection.
     expect(wrong.headers.get('allow')).toBe('GET, POST')
+  })
+})
+
+describe('root endpoints', () => {
+  it('serves them from the root only, with the same auth', async () => {
+    const root = createRootEndpointHandler(cms)
+    const anonymous = await root(new Request('http://cms.test/stats.txt'))
+    expect(anonymous?.status).toBe(200)
+    expect(await anonymous?.text()).toBe('hello')
+    const { cookie } = await login()
+    const admin = await root(new Request('http://cms.test/stats.txt', { headers: { cookie } }))
+    expect(await admin?.text()).toBe('hello admin')
+    // Other paths are left to the server; the API doesn't serve root endpoints.
+    expect(await root(new Request('http://cms.test/stats/raw'))).toBeUndefined()
+    expect(await root(new Request('http://cms.test/%E0%A4%A'))).toBeUndefined()
+    expect((await call('/stats.txt')).status).toBe(404)
+    const post = await root(new Request('http://cms.test/stats.txt', { method: 'POST' }))
+    expect(post?.status).toBe(405)
   })
 })
 

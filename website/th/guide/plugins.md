@@ -102,6 +102,10 @@ handler ได้รับ:
   ให้ขึ้นต้นด้วยชื่อ plugin เช่น `/seo/generate`
 - segment ที่ตายตัวชนะ parameter: `/stats/summary` มาก่อน `/stats/:collection`
 - path ที่ถูกแต่ method ผิดจะได้ `405` พร้อม header `Allow`
+- `root: true` เสิร์ฟ path จาก root ของเว็บแทน เช่น `/robots.txt` มีแต่[standalone server](./standalone)ที่เสิร์ฟ
+  endpoint แบบนี้ เพราะแอป Nuxt หรือ Next.js เป็นเจ้าของ root เอง plugin ที่มี root endpoint จึงควรมี helper
+  ให้แอปใช้ใน route ของตัวเองด้วย (แบบ[plugin SEO](./seo#robots-txt)) path แบบ root อยู่ใต้ `routes.api`,
+  หน้า admin หรือ `/healthz` ไม่ได้
 
 ## Admin components {#admin-components}
 

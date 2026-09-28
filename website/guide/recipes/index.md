@@ -12,3 +12,4 @@ Short, complete answers for common tasks. Each one is a few steps you can copy i
 | [Deploy on Vercel with Postgres and R2](./vercel) | Serverless: Postgres, Cloudflare R2 for files, and a cron for scheduled posts. |
 | [Move from SQLite to Postgres](./sqlite-to-postgres) | Switch databases before launch, or with your data. |
 | [Automate backups](./automate-backups) | Daily copies of the database and uploads, and restore drills. |
+| [Get your site ready for search engines](./search-engines) | Meta tags, a sitemap, robots.txt, hreflang and structured data, then Search Console. |

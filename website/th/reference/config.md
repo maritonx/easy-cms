@@ -195,6 +195,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `path` | `string` | ใต้ `routes.api` เช่น `/seo/generate` หรือ `/stats/:collection` |
 | `method` | `'get' \| 'post' \| 'put' \| 'patch' \| 'delete'` | |
 | `handler` | `(request: EndpointRequest) => unknown` | คืน `Response` หรือค่าที่ส่งเป็น JSON [Endpoints](/th/guide/plugins#endpoints) |
+| `root` | `boolean` | เสิร์ฟ path จาก root ของเว็บ (เฉพาะ standalone server) เช่น `/robots.txt` ค่าเริ่มต้น `false` |
 
 <!-- api: EndpointRequest -->
 ### EndpointRequest {#endpointrequest}

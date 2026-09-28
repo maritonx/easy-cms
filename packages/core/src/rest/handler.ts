@@ -53,7 +53,60 @@ export function createRestHandler<C extends Config>(
   const cms = instance as unknown as EasyCMS
   const basePath = (options.basePath ?? cms.config.routes.api).replace(/\/+$/, '')
   const production = process.env.NODE_ENV === 'production'
+  return withCors(cms, (request) => {
+    const url = new URL(request.url)
+    const inside = url.pathname === basePath || url.pathname.startsWith(`${basePath}/`)
+    return respond(
+      cms,
+      request,
+      url,
+      inside ? url.pathname.slice(basePath.length) : null,
+      false,
+      options,
+      production,
+    )
+  })
+}
 
+/**
+ * Serves the endpoints marked `root: true` (e.g. `/robots.txt`), with the same auth, CSRF and
+ * errors as the REST API. Resolves to `undefined` when no root endpoint has the request's path,
+ * so a server can go on to its other routes. Nuxt and Next.js apps own their root and don't
+ * use it; the standalone server does.
+ */
+export function createRootEndpointHandler<C extends Config>(
+  instance: EasyCMS<C>,
+  options: Pick<RestHandlerOptions, 'getClientIp'> = {},
+): (request: Request) => Promise<Response | undefined> {
+  const cms = instance as unknown as EasyCMS
+  const production = process.env.NODE_ENV === 'production'
+  const handler = withCors(cms, (request) => {
+    const url = new URL(request.url)
+    return respond(cms, request, url, url.pathname, true, options, production)
+  })
+  return async (request) => {
+    let segments: string[]
+    try {
+      segments = pathSegments(new URL(request.url).pathname)
+    } catch {
+      return undefined // A malformed path is not one of ours.
+    }
+    const matched = cms.config.endpoints.some((e) => e.root && matchPath(e.path, segments))
+    return matched ? handler(request) : undefined
+  }
+}
+
+function pathSegments(path: string): string[] {
+  return path
+    .split('/')
+    .filter(Boolean)
+    .map((s) => decodeURIComponent(s))
+}
+
+function withCors(
+  cms: EasyCMS,
+  handle: (request: Request) => Promise<Response>,
+): (request: Request) => Promise<Response> {
   return async (request) => {
     const cors = corsHeaders(cms, request)
     if (request.method.toUpperCase() === 'OPTIONS') {
@@ -62,42 +115,45 @@ export function createRestHandler<C extends Config>(
     }
     return withHeaders(await handle(request), cors)
   }
+}
 
-  async function handle(request: Request): Promise<Response> {
-    const headers = new Headers({
-      'content-type': 'application/json; charset=utf-8',
-      'cache-control': 'no-store',
-      'x-content-type-options': 'nosniff',
-    })
-    try {
-      const url = new URL(request.url)
-      if (url.pathname !== basePath && !url.pathname.startsWith(`${basePath}/`)) {
-        throw new HttpError('Not found', 404)
-      }
-      const segments = url.pathname
-        .slice(basePath.length)
-        .split('/')
-        .filter(Boolean)
-        .map((s) => decodeURIComponent(s))
+/** One request: `path` is the path under the API (or from the root), `null` when outside. */
+async function respond(
+  cms: EasyCMS,
+  request: Request,
+  url: URL,
+  path: string | null,
+  root: boolean,
+  options: RestHandlerOptions,
+  production: boolean,
+): Promise<Response> {
+  const headers = new Headers({
+    'content-type': 'application/json; charset=utf-8',
+    'cache-control': 'no-store',
+    'x-content-type-options': 'nosniff',
+  })
+  try {
+    if (path === null) throw new HttpError('Not found', 404)
+    const segments = pathSegments(path)
+    const { token, via } = readToken(request)
+    const user = token ? await cms.auth.verify(token) : null
+    // A script sending a bad key should hear so, not get anonymous access.
+    if (!user && via === 'bearer' && token?.startsWith('ecms_'))
+      throw new UnauthorizedError('Invalid or expired API key')
+    const ctx: Context = { request, url, user, via: user ? via : null, token, headers }
 
-      const { token, via } = readToken(request)
-      const user = token ? await cms.auth.verify(token) : null
-      // A script sending a bad key should hear so, not get anonymous access.
-      if (!user && via === 'bearer' && token?.startsWith('ecms_'))
-        throw new UnauthorizedError('Invalid or expired API key')
-      const ctx: Context = { request, url, user, via: user ? via : null, token, headers }
+    const method = request.method.toUpperCase()
+    if (method !== 'GET' && method !== 'HEAD') checkCsrf(cms, ctx)
 
-      const method = request.method.toUpperCase()
-      if (method !== 'GET' && method !== 'HEAD') checkCsrf(cms, ctx)
-
-      const result =
-        (await customEndpoint(cms, ctx, method, segments)) ??
-        (await route(cms, ctx, method, segments, options))
-      if (result.body instanceof Response) return result.body
-      return new Response(JSON.stringify(result.body), { status: result.status ?? 200, headers })
-    } catch (error) {
-      return errorResponse(cms, error, headers, production)
-    }
+    const result = root
+      ? await customEndpoint(cms, ctx, method, segments, true)
+      : ((await customEndpoint(cms, ctx, method, segments, false)) ??
+        (await route(cms, ctx, method, segments, options)))
+    if (!result) throw new HttpError('Not found', 404)
+    if (result.body instanceof Response) return result.body
+    return new Response(JSON.stringify(result.body), { status: result.status ?? 200, headers })
+  } catch (error) {
+    return errorResponse(cms, error, headers, production)
   }
 }
 
@@ -149,10 +205,12 @@ async function customEndpoint(
   ctx: Context,
   method: string,
   segments: string[],
+  root: boolean,
 ): Promise<Result | undefined> {
   let pathMatched = false
+  const own = cms.config.endpoints.filter((e) => !!e.root === root)
   // A fixed segment beats a parameter: `/stats/summary` wins over `/stats/:collection`.
-  const endpoints = [...cms.config.endpoints].sort((a, b) => fixedSegments(b) - fixedSegments(a))
+  const endpoints = [...own].sort((a, b) => fixedSegments(b) - fixedSegments(a))
   for (const endpoint of endpoints) {
     const params = matchPath(endpoint.path, segments)
     if (!params) continue
@@ -171,9 +229,7 @@ async function customEndpoint(
     return { body: body === undefined ? null : body }
   }
   if (pathMatched) {
-    const allow = cms.config.endpoints
-      .filter((e) => matchPath(e.path, segments))
-      .map((e) => e.method.toUpperCase())
+    const allow = own.filter((e) => matchPath(e.path, segments)).map((e) => e.method.toUpperCase())
     throw methodNotAllowed(ctx, [...new Set(allow)].join(', '))
   }
   return undefined

@@ -116,6 +116,7 @@ export {
   CSRF_COOKIE,
   CSRF_HEADER,
   createRestHandler,
+  createRootEndpointHandler,
   type RestHandler,
   type RestHandlerOptions,
   readCookie,

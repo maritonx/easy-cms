@@ -162,6 +162,12 @@ describe('validateConfig', () => {
           { path: '/ok', method: 'fetch', handler },
           // @ts-expect-error handler is a function
           { path: '/ok2', method: 'get', handler: 'x' },
+          // Root endpoints may reuse API names, but not the API's or the admin's paths.
+          { path: '/users/robots.txt', method: 'get', handler, root: true },
+          { path: '/api/cms/x', method: 'get', handler, root: true },
+          { path: '/admin', method: 'get', handler, root: true },
+          { path: '/healthz', method: 'get', handler, root: true },
+          { path: '/seo/generate', method: 'post', handler, root: true },
         ],
       }),
     )
@@ -174,6 +180,9 @@ describe('validateConfig', () => {
       'endpoints[6].path',
       'endpoints[7].method',
       'endpoints[8].handler',
+      'endpoints[10].path',
+      'endpoints[11].path',
+      'endpoints[12].path',
       'collections.posts.admin.sidebar[1]',
       'collections.posts.fields.c.admin.component',
       'collections.posts.fields.d.admin.after[0].props',

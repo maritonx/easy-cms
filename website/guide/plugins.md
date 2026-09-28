@@ -105,6 +105,11 @@ API's format.
   Start with your plugin's name: `/seo/generate`.
 - A fixed segment wins over a parameter: `/stats/summary` before `/stats/:collection`.
 - A path with the wrong method gets `405` with an `Allow` header.
+- `root: true` serves the path from the site's root instead, e.g. `/robots.txt`. Only the
+  [standalone server](./standalone) serves these: a Nuxt or Next.js app owns its root, so a
+  plugin with a root endpoint should also offer a helper for the app's own route (as the
+  [SEO plugin](./seo#robots-txt) does). Root paths can't be under `routes.api`, the admin or
+  `/healthz`.
 
 ## Admin components
 
