@@ -26,6 +26,7 @@ your own.
 | Package | |
 |---|---|
 | [`@easy-cms/plugin-seo`](./seo) | Meta title, description and share image, with length meters, a search preview and Generate buttons in the admin, and page metadata for Nuxt and Next.js. |
+| [`@easy-cms/plugin-mcp`](./mcp) | An MCP server, so AI assistants (Claude, Cursor, VS Code) read and write content with an API key. |
 
 Plugins from others are named `easy-cms-plugin-*` and have the npm keyword `easy-cms-plugin`.
 

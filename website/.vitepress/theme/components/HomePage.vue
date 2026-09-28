@@ -11,7 +11,7 @@ const { isDark } = useData()
 
 const COPY = {
   en: {
-    badge: 'New in 0.13: plugins and SEO',
+    badge: 'New in 0.15: API keys and MCP for AI assistants',
     title: 'Your CMS,',
     titleAccent: 'inside your app',
     tagline:
@@ -95,8 +95,8 @@ const COPY = {
         name: 'MCP',
         pkg: '@easy-cms/plugin-mcp',
         text: 'Let AI assistants read and write your content through the Model Context Protocol, with API keys and per-collection permissions.',
-        link: '',
-        status: 'Coming in 0.14',
+        link: '/guide/mcp',
+        status: 'Available',
       },
     ],
     pluginsWrite: 'Write your own plugin',
@@ -130,7 +130,7 @@ const COPY = {
     ctaGuide: 'Read the guide',
   },
   th: {
-    badge: 'ใหม่ใน 0.13: plugin และ SEO',
+    badge: 'ใหม่ใน 0.15: API key และ MCP สำหรับผู้ช่วย AI',
     title: 'CMS ที่อยู่',
     titleAccent: 'ในแอปของคุณ',
     tagline: 'กำหนดเนื้อหาด้วย TypeScript ได้หน้า admin, API ที่มี type และ plugin โดยไม่ต้องดูแล server แยก',
@@ -191,8 +191,8 @@ const COPY = {
         name: 'MCP',
         pkg: '@easy-cms/plugin-mcp',
         text: 'ให้ผู้ช่วย AI อ่านและเขียนเนื้อหาผ่าน Model Context Protocol โดยใช้ API key และสิทธิ์แยกตาม collection',
-        link: '',
-        status: 'มาใน 0.14',
+        link: '/th/guide/mcp',
+        status: 'พร้อมใช้',
       },
     ],
     pluginsWrite: 'เขียน plugin เอง',
@@ -257,7 +257,7 @@ const ICONS = [
     <!-- Hero -->
     <section class="hero container">
       <div class="hero-text">
-        <a class="badge" :href="guide('plugins')">{{ t.badge }} <span aria-hidden="true">→</span></a>
+        <a class="badge" :href="guide('mcp')">{{ t.badge }} <span aria-hidden="true">→</span></a>
         <h1>
           {{ t.title }} <span class="accent">{{ t.titleAccent }}</span>
         </h1>

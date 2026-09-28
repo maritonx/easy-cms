@@ -24,6 +24,7 @@ plugin ทำงานตามลำดับก่อนการตรวจ�
 
 | แพ็กเกจ | |
 |---|---|
+| [`@easy-cms/plugin-mcp`](./mcp) | MCP server ให้ผู้ช่วย AI (Claude, Cursor, VS Code) อ่านและเขียนเนื้อหาด้วย API key |
 | [`@easy-cms/plugin-seo`](./seo) | ชื่อ คำอธิบาย และรูปสำหรับแชร์ พร้อมตัวนับความยาว ตัวอย่างผลการค้นหา และปุ่มสร้างให้ในหน้า admin และ metadata ของหน้าเว็บสำหรับ Nuxt และ Next.js |
 
 plugin จากคนอื่นตั้งชื่อว่า `easy-cms-plugin-*` และมี keyword `easy-cms-plugin` บน npm

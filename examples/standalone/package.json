@@ -11,6 +11,7 @@
   "dependencies": {
     "@easy-cms/core": "workspace:^",
     "@easy-cms/db-sqlite": "workspace:^",
+    "@easy-cms/plugin-mcp": "workspace:^",
     "@easy-cms/plugin-seo": "workspace:^",
     "easy-cms": "workspace:^"
   }

@@ -568,6 +568,19 @@ test.describe('logged in as admin', () => {
     expect((await created.json()).status).toBe('draft')
     const denied = await page.request.get(`${api}/api/cms/categories`, { headers })
     expect(denied.status()).toBe(403)
+
+    // The same key connects AI assistants to the MCP plugin: tools for what it allows.
+    const mcp = await page.request.post(`${api}/api/cms/mcp`, {
+      headers: { ...headers, accept: 'application/json, text/event-stream' },
+      data: { jsonrpc: '2.0', id: 1, method: 'tools/list' },
+    })
+    expect(mcp.status()).toBe(200)
+    const { result } = await mcp.json()
+    expect(result.tools.map((t: { name: string }) => t.name).sort()).toEqual([
+      'create_posts',
+      'find_posts',
+      'get_posts',
+    ])
   })
 
   test('edits small collections in a drawer, and creates related documents in place', async ({

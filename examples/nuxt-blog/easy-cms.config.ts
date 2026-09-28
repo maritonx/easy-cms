@@ -1,5 +1,6 @@
 import { defineConfig } from '@easy-cms/core'
 import { sqlite } from '@easy-cms/db-sqlite'
+import { mcpPlugin } from '@easy-cms/plugin-mcp'
 import { seoPlugin } from '@easy-cms/plugin-seo'
 
 export default defineConfig({
@@ -149,6 +150,8 @@ export default defineConfig({
   ],
   // SEO fields on posts and the site, with a search preview and Generate buttons in the admin.
   plugins: [
+    // AI assistants (Claude, Cursor…) at /api/cms/mcp, with an API key.
+    mcpPlugin(),
     seoPlugin({
       collections: ['posts'],
       globals: ['site'],

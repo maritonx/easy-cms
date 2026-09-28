@@ -49,7 +49,7 @@ function sidebar(prefix: string, t: Labels): DefaultTheme.SidebarItem[] {
     },
     {
       text: t.plugins,
-      items: ['plugins', 'seo'].map(page),
+      items: ['plugins', 'seo', 'mcp'].map(page),
     },
     {
       text: t.operations,
@@ -117,6 +117,7 @@ const en: Labels = {
   'rich-text': 'Rich text',
   'live-preview': 'Live preview',
   seo: 'SEO',
+  mcp: 'MCP (AI assistants)',
   databases: 'Databases',
   deployment: 'Migrations & deployment',
   backups: 'Backups & upgrades',
@@ -166,6 +167,7 @@ const th: Labels = {
   'rich-text': 'Rich text',
   'live-preview': 'ตัวอย่างสด (live preview)',
   seo: 'SEO',
+  mcp: 'MCP (ผู้ช่วย AI)',
   databases: 'ฐานข้อมูล',
   deployment: 'Migration และการ deploy',
   backups: 'Backup และการอัปเกรด',
