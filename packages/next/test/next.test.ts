@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { defineConfig } from '@easy-cms/core'
@@ -84,6 +84,26 @@ describe('withEasyCMS', () => {
       expect.arrayContaining(['mine', ...SERVER_EXTERNAL_PACKAGES]),
     )
     expect(result.outputFileTracingIncludes?.['/**']).toContain('easy-cms/migrations/**')
+  })
+
+  it('traces admin modules that plugins add', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'easy-cms-next-'))
+    const file = join(dir, 'easy-cms.config.mjs')
+    // Any file the project can resolve stands in for a plugin's admin module.
+    writeFileSync(
+      file,
+      `export default { plugins: [(c) => ({ ...c, admin: { modules: ['@easy-cms/admin/package.json'] } })] }`,
+    )
+    try {
+      const result = await withEasyCMS({}, { configPath: file })('phase-production-build', {
+        defaultConfig: {},
+      })
+      expect(result.outputFileTracingIncludes['/**']).toEqual(
+        expect.arrayContaining([expect.stringMatching(/admin\/package\.json$/)]),
+      )
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 
   it('accepts a config function', async () => {

@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
-import { CONFIG_FILE_NAMES, importConfig } from '@easy-cms/core'
+import { applyPlugins, CONFIG_FILE_NAMES, importConfig, resolveAdminModule } from '@easy-cms/core'
 
 /** The subset of Next's config this helper reads and sets. */
 interface NextConfigLike {
@@ -102,6 +102,13 @@ async function tracedFiles(root: string, configPath: string | undefined): Promis
     try {
       const config = await importConfig(file)
       for (const path of config?.db?.bundle?.traceInclude ?? []) files.push(toGlob(path))
+      // Admin modules (`admin.modules`, often added by plugins) are read from disk at runtime.
+      const withPlugins = config ? await applyPlugins(config).catch(() => config) : undefined
+      for (const specifier of withPlugins?.admin?.modules ?? []) {
+        const module = resolveAdminModule(specifier, root)
+        if (module) files.push(toGlob(module))
+        else console.warn(`[easy-cms] Admin module "${specifier}" not found from ${root}.`)
+      }
     } catch (error) {
       console.warn(`[easy-cms] Could not read ${file} at build time: ${(error as Error).message}`)
     }
