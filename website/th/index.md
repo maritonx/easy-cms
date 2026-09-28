@@ -1,23 +1,67 @@
 ---
 layout: home
-hero:
-  name: Easy CMS
-  text: ระบบหลังบ้านที่อยู่ในแอปของคุณ
-  tagline: Headless CMS แบบ code-first ที่ฝังอยู่ใน Nuxt และ Next.js กำหนดเนื้อหาด้วย TypeScript แล้วได้หน้า admin, Local API แบบมี type และ REST API
-  actions:
-    - theme: brand
-      text: เริ่มใช้งาน
-      link: /th/guide/getting-started
-    - theme: alt
-      text: Easy CMS คืออะไร
-      link: /th/guide/what-is-easy-cms
-features:
-  - title: ใช้ได้ทั้ง Nuxt และ Next.js
-    details: Core เดียวกับ adapter บางๆ ทั้ง Nuxt module และ route handler ของ Next.js ให้หน้า admin, API และ type ชุดเดียวกัน หรือจะรันเป็น standalone server ก็ได้
-  - title: Code-first และมี type
-    details: Collection, field, สิทธิ์ และ hook อยู่ใน easy-cms.config.ts และ type ของเอกสารสร้างจาก config นั้นโดยอัตโนมัติ
-  - title: SQLite หรือ Postgres
-    details: เริ่มจากไฟล์ SQLite หรือ PGlite แล้ว deploy บน Postgres การเปลี่ยน schema จะอัปเดตเองในช่วงพัฒนา และออกเป็น migration ใน production
-  - title: หน้า admin ภาษาไทยและอังกฤษ
-    details: หน้า admin ขนาดเล็กที่ build มาพร้อมใช้ มี rich text, คลัง media, ฉบับร่าง และสิทธิ์ระดับเอกสาร
+title: Easy CMS
+titleTemplate: CMS ที่อยู่ในแอปของคุณ
 ---
+
+<HomePage lang="th">
+<template #config>
+
+```ts [easy-cms.config.ts]
+import { defineConfig } from '@easy-cms/core'
+import { sqlite } from '@easy-cms/db-sqlite'
+
+export default defineConfig({
+  secret: process.env.EASY_CMS_SECRET,
+  db: sqlite({ url: 'file:./cms.db' }),
+  collections: [
+    {
+      slug: 'posts',
+      drafts: true,
+      fields: [
+        { name: 'title', type: 'text', required: true },
+        { name: 'slug', type: 'slug', from: 'title' },
+        { name: 'body', type: 'richText' },
+      ],
+    },
+  ],
+})
+```
+
+</template>
+<template #nuxt>
+
+```ts [server/api/posts.get.ts]
+export default defineEventHandler(async () => {
+  const cms = await useEasyCMS()
+  // type มาจาก config: post.title เป็น string
+  const { docs } = await cms.find('posts', { sort: '-createdAt' })
+  return docs
+})
+```
+
+</template>
+<template #next>
+
+```tsx [app/page.tsx]
+import { getEasyCMS } from '@easy-cms/next'
+import config from '@/easy-cms.config'
+
+export default async function Home() {
+  const cms = await getEasyCMS(config)
+  const { docs } = await cms.find('posts', { sort: '-createdAt' })
+  return docs.map((post) => <h2 key={post.id}>{post.title}</h2>)
+}
+```
+
+</template>
+<template #plugin>
+
+```ts
+import { seoPlugin } from '@easy-cms/plugin-seo'
+
+plugins: [seoPlugin({ collections: ['posts'] })]
+```
+
+</template>
+</HomePage>

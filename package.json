@@ -15,7 +15,8 @@
     "changeset": "changeset",
     "version-packages": "changeset version",
     "release": "turbo run build && changeset publish",
-    "test:e2e": "pnpm --filter easy-cms-e2e test:e2e"
+    "test:e2e": "pnpm --filter easy-cms-e2e test:e2e",
+    "docs:screenshots": "pnpm --filter easy-cms-e2e screenshots"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",

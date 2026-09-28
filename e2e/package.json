@@ -3,10 +3,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "screenshots": "node screenshots.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
-    "example-nuxt-blog": "workspace:*"
+    "example-nuxt-blog": "workspace:*",
+    "sharp": "^0.35.4"
   }
 }
