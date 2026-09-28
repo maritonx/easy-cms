@@ -4,6 +4,7 @@ import { createAdminHandler } from '@easy-cms/admin'
 import {
   type AuthUser,
   type Config,
+  configSignature,
   createEasyCMS,
   createRestHandler,
   type EasyCMS,
@@ -15,7 +16,8 @@ import {
 type Handler = (request: Request) => Promise<Response>
 
 interface Cached {
-  config: Config
+  /** `configSignature()` of the config the instance was made from. */
+  signature: string
   promise: Promise<unknown>
 }
 
@@ -28,10 +30,16 @@ const store = globalThis as unknown as { [KEY]?: Cached }
  */
 export function getEasyCMS<const C extends Config>(config: C): Promise<EasyCMS<C>> {
   const cached = store[KEY]
-  if (cached?.config === config) return cached.promise as Promise<EasyCMS<C>>
+  // By structure, not identity: Next.js bundles the config into each server layer (route
+  // handlers, Server Components), so every layer has its own config object. Replacing the
+  // instance whenever the layer changed closed the database under requests still using it.
+  // In development, a change to fields or options recreates it; a change to a hook's code
+  // alone needs a restart.
+  const signature = configSignature(config)
+  if (cached?.signature === signature) return cached.promise as Promise<EasyCMS<C>>
   if (cached) void (cached.promise as Promise<EasyCMS>).then((cms) => cms.destroy()).catch(() => {})
   const promise = createEasyCMS(config)
-  store[KEY] = { config, promise }
+  store[KEY] = { signature, promise }
   promise.catch(() => {
     // Let the next call retry instead of caching the failure.
     if (store[KEY]?.promise === promise) delete store[KEY]

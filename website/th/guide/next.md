@@ -72,6 +72,8 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
 - `createRouteHandlers(config, { trustProxy: true })` ใช้ `X-Forwarded-For` สำหรับจำกัดอัตรา
   การเข้าสู่ระบบ ให้เปิดใช้เมื่ออยู่หลัง proxy ที่เชื่อถือได้ เช่น Vercel
 - Next.js ตัดเครื่องหมาย slash ท้าย URL ออก หน้า admin จึงอยู่ที่ `/admin` (ไม่ใช่ `/admin/`)
+- ระหว่าง `next dev` การแก้ field หรือตัวเลือกจะโหลด CMS ใหม่ให้เอง แต่ถ้าแก้แค่โค้ดของ hook กฎสิทธิ์ หรือฟังก์ชันอื่นใน
+  config ให้รีสตาร์ต dev server
 
 ดู[ตัวอย่าง Next.js](https://github.com/maritonx/easy-cms/tree/main/examples/next-blog)
 

@@ -72,6 +72,8 @@ in Server Components, Route Handlers and Server Actions.
 - `createRouteHandlers(config, { trustProxy: true })` uses `X-Forwarded-For` for login rate
   limiting; enable it behind a proxy you trust, such as Vercel.
 - Next.js removes trailing slashes, so the admin lives at `/admin` (not `/admin/`).
+- In `next dev`, changing fields or options reloads the CMS; after changing only the code of a
+  hook, access rule or other function in the config, restart the dev server.
 
 See the [Next.js example](https://github.com/maritonx/easy-cms/tree/main/examples/next-blog).
 

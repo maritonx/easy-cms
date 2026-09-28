@@ -36,6 +36,30 @@ describe('getEasyCMS', () => {
     const note = await a.create('notes', { text: 'hi' })
     expect(note.text).toBe('hi')
   })
+
+  it('shares the instance between copies of the same config, as Next.js server layers load it', async () => {
+    const a = await getEasyCMS(config)
+    // Another layer's copy: equal content, other objects, functions compiled anew.
+    const copy = {
+      ...config,
+      collections: [{ ...config.collections[0], access: { read: () => true } }],
+    } as typeof config
+    const b = await getEasyCMS(copy)
+    expect(b).toBe(a)
+    // Still open: the first layer's instance was not closed under it.
+    expect((await a.find('notes')).totalDocs).toBe(1)
+  })
+
+  it('makes a new instance when the structure changes (a development edit)', async () => {
+    const a = await getEasyCMS(config)
+    const edited = defineConfig({
+      ...config,
+      collections: [{ ...config.collections[0], fields: [{ name: 'text', type: 'textarea' }] }],
+    })
+    const b = await getEasyCMS(edited)
+    expect(b).not.toBe(a)
+    expect((await b.find('notes')).totalDocs).toBe(1)
+  })
 })
 
 describe('createRouteHandlers', () => {
