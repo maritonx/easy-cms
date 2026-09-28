@@ -17,9 +17,17 @@ const SECRET = 'x'.repeat(32)
 const PASSWORD = 'password123'
 const dirs: string[] = []
 afterEach(() => {
-  for (const dir of dirs.splice(0))
-    rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
+  for (const dir of dirs.splice(0)) removeTemp(dir)
 })
+
+/** Windows may still hold the SQLite file for a moment after close; retry, then leave it. */
+function removeTemp(path: string) {
+  try {
+    rmSync(path, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
+  } catch {
+    // The OS cleans its temp directory.
+  }
+}
 
 const base = (plugins: NonNullable<Config['plugins']>, extra: Partial<Config> = {}): Config =>
   defineConfig({

@@ -105,7 +105,10 @@ beforeAll(async () => {
 })
 afterAll(async () => {
   await cms.destroy()
-  rmSync(cwd, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
+  // Windows may still hold the SQLite file for a moment after close; the OS cleans temp.
+  try {
+    rmSync(cwd, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
+  } catch {}
 })
 
 async function call(path: string, init: RequestInit = {}) {
