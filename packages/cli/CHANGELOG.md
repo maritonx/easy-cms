@@ -1,5 +1,12 @@
 # easy-cms
 
+## 0.16.0
+
+### Patch Changes
+
+- @easy-cms/admin@0.16.0
+  - @easy-cms/core@0.16.0
+
 ## 0.15.0
 
 ### Patch Changes
