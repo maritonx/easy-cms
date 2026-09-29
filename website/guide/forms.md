@@ -7,6 +7,8 @@ get an email for each submission, and keep bots out.
 **Before this page:** [Plugins](./plugins) and [Email](./email).
 :::
 
+<Screenshot name="forms" alt="A contact form in the admin, with its submissions panel" />
+
 `@easy-cms/plugin-form-builder` adds **Forms** to the admin. Editors put fields together from
 blocks, choose what happens after sending, and who gets an email. Your pages show a form with
 one element, `<easy-form>`, or render it themselves from the API.
@@ -50,6 +52,8 @@ The form's side panel shows how many submissions it has, links to them, exports 
 (with a byte-order mark, so Excel reads Thai text), and gives the snippet for a page.
 
 ## On your pages
+
+<Screenshot name="form-page" alt="The form on the site, rendered by <easy-form>" />
 
 `<easy-form>` is a Web Component: it loads the form, renders it, checks it with the server and
 shows the confirmation. It renders in the light DOM, so your site's CSS styles it (classes

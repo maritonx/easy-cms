@@ -7,6 +7,8 @@ the admin, and automatic ones when a page's address changes.
 **Before this page:** [Plugins](./plugins).
 :::
 
+<Screenshot name="redirects" alt="Redirects under Settings, one open in a panel" />
+
 When a page moves, its old address should answer with a **301** to the new one: visitors and
 old links keep working, and search engines move the page's ranking to the new address instead of
 dropping it. `@easy-cms/plugin-redirects` adds a **Redirects** list under **Settings** in the

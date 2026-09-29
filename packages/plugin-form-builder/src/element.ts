@@ -59,21 +59,47 @@ let count = 0
 
 export class EasyFormElement extends HTMLElement {
   static observedAttributes = ['form', 'api', 'locale']
-  private form: PublicForm | null = null
+  private loaded: PublicForm | null = null
   private turnstileToken = ''
   private turnstileId: string | undefined
   private readonly uid = `easy-form-${++count}`
 
-  private get api() {
+  // Properties mirror the attributes: Vue and React set properties on custom elements when
+  // they exist, attributes otherwise.
+  get form(): string | null {
+    return this.getAttribute('form')
+  }
+  set form(value: string | null) {
+    this.reflect('form', value)
+  }
+  get api(): string | null {
+    return this.getAttribute('api')
+  }
+  set api(value: string | null) {
+    this.reflect('api', value)
+  }
+  get locale(): string | null {
+    return this.getAttribute('locale')
+  }
+  set locale(value: string | null) {
+    this.reflect('locale', value)
+  }
+
+  private reflect(name: string, value: string | null | undefined) {
+    if (value === null || value === undefined || value === '') this.removeAttribute(name)
+    else this.setAttribute(name, String(value))
+  }
+
+  private get apiBase() {
     return this.getAttribute('api') || '/api/cms'
   }
 
-  private get locale() {
+  private get contentLocale() {
     return this.getAttribute('locale') || document.documentElement.lang || null
   }
 
   private t(key: keyof (typeof MESSAGES)['en']) {
-    const locale = this.form?.locale ?? this.locale
+    const locale = this.loaded?.locale ?? this.contentLocale
     return (locale?.startsWith('th') ? MESSAGES.th : MESSAGES.en)[key]
   }
 
@@ -91,15 +117,15 @@ export class EasyFormElement extends HTMLElement {
     if (!slug) return
     this.innerHTML = `<p class="easy-form__status" role="status">${esc(this.t('loading'))}</p>`
     try {
-      this.form = await getForm(slug, { api: this.api, locale: this.locale })
+      this.loaded = await getForm(slug, { api: this.apiBase, locale: this.contentLocale })
     } catch {
-      this.form = null
+      this.loaded = null
     }
-    if (!this.form) {
+    if (!this.loaded) {
       this.innerHTML = `<p class="easy-form__status easy-form__status--error" role="alert">${esc(this.t('missing'))}</p>`
       return
     }
-    this.render(this.form)
+    this.render(this.loaded)
   }
 
   private render(form: PublicForm) {
@@ -210,7 +236,7 @@ export class EasyFormElement extends HTMLElement {
   /** The form's values by field name. */
   private values(element: HTMLFormElement): Record<string, unknown> {
     const data: Record<string, unknown> = {}
-    for (const field of this.form?.fields ?? []) {
+    for (const field of this.loaded?.fields ?? []) {
       if (field.kind === 'message') continue
       const inputs = [
         ...element.querySelectorAll<HTMLInputElement>(`[name="${CSS.escape(field.name)}"]`),
@@ -231,7 +257,7 @@ export class EasyFormElement extends HTMLElement {
   }
 
   private async submit(element: HTMLFormElement) {
-    const form = this.form
+    const form = this.loaded
     if (!form) return
     const button = element.querySelector<HTMLButtonElement>('.easy-form__submit')
     if (button) button.disabled = true
@@ -252,7 +278,7 @@ export class EasyFormElement extends HTMLElement {
           ...(form.turnstile ? { turnstile: this.turnstileToken } : {}),
           [form.honeypot]: honeypot?.value ?? '',
         },
-        { api: this.api },
+        { api: this.apiBase },
       )
     } catch {
       result = { ok: false, status: 0, errors: [{ message: this.t('failed') }] }

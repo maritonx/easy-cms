@@ -11,7 +11,8 @@ const { isDark } = useData()
 
 const COPY = {
   en: {
-    badge: 'New in 0.15: API keys and MCP for AI assistants',
+    badge: 'New in 0.20: forms and email',
+    badgeLink: 'forms',
     title: 'Your CMS,',
     titleAccent: 'inside your app',
     tagline:
@@ -66,6 +67,20 @@ const COPY = {
           ],
         ],
       },
+      {
+        name: 'Connect',
+        items: [
+          [
+            'API keys',
+            'Keys for scripts, other apps and AI assistants, limited to the collections they need.',
+          ],
+          [
+            'Webhooks',
+            'Signed events on publish and change, retried for a day, to rebuild a static site.',
+          ],
+          ['Email', 'SMTP or your own adapter, queued and retried, for forms and your hooks.'],
+        ],
+      },
     ],
     stepsTitle: 'From config to content in three steps',
     steps: [
@@ -85,22 +100,45 @@ const COPY = {
       'A plugin is a function over your config. It can add fields, REST endpoints and admin components.',
     plugins: [
       {
+        id: 'seo',
         name: 'SEO',
         pkg: '@easy-cms/plugin-seo',
-        text: 'Meta title, description and share image, with length meters, a search preview and Generate buttons. seoMeta() fills your page metadata.',
+        text: 'Meta tags with length meters and a search preview, a sitemap, robots.txt, hreflang and structured data, and llms.txt for AI search.',
         link: '/guide/seo',
-        status: 'Available',
+        shot: 'seo',
+        alt: 'The SEO plugin in the post editor',
       },
       {
+        id: 'forms',
+        name: 'Form builder',
+        pkg: '@easy-cms/plugin-form-builder',
+        text: 'Editors build forms in the admin. Submissions are checked, stored and emailed over SMTP, bots are kept out, and <easy-form> shows a form on any page.',
+        link: '/guide/forms',
+        shot: 'forms',
+        alt: 'A contact form in the admin, with its submissions',
+      },
+      {
+        id: 'redirects',
+        name: 'Redirects',
+        pkg: '@easy-cms/plugin-redirects',
+        text: '301s editors manage under Settings, and a redirect by itself when a published page gets a new slug.',
+        link: '/guide/redirects',
+        shot: 'redirects',
+        alt: 'Redirects under Settings, one open in a panel',
+      },
+      {
+        id: 'mcp',
         name: 'MCP',
         pkg: '@easy-cms/plugin-mcp',
-        text: 'Let AI assistants read and write your content through the Model Context Protocol, with API keys and per-collection permissions.',
+        text: 'Let AI assistants read and write your content through the Model Context Protocol, with an API key that limits what they can do.',
         link: '/guide/mcp',
-        status: 'Available',
+        shot: 'api-keys',
+        alt: 'An API key for an assistant, with its permissions',
       },
     ],
+    pluginsShow: 'Show',
+    pluginsGuide: 'Guide',
     pluginsWrite: 'Write your own plugin',
-    seoAlt: 'The SEO plugin in the post editor',
     compareTitle: 'Why embedded?',
     compareCols: ['SaaS headless CMS', 'Separate CMS server', 'Easy CMS'],
     compareRows: [
@@ -130,7 +168,8 @@ const COPY = {
     ctaGuide: 'Read the guide',
   },
   th: {
-    badge: 'ใหม่ใน 0.15: API key และ MCP สำหรับผู้ช่วย AI',
+    badge: 'ใหม่ใน 0.20: ฟอร์มและอีเมล',
+    badgeLink: 'forms',
     title: 'CMS ที่อยู่',
     titleAccent: 'ในแอปของคุณ',
     tagline: 'กำหนดเนื้อหาด้วย TypeScript ได้หน้า admin, API ที่มี type และ plugin โดยไม่ต้องดูแล server แยก',
@@ -169,6 +208,14 @@ const COPY = {
           ['ภาษาไทยและอังกฤษ', 'หน้า admin สองภาษา และเนื้อหาได้หลายภาษาตามต้องการ'],
         ],
       },
+      {
+        name: 'เชื่อมต่อ',
+        items: [
+          ['API keys', 'key สำหรับสคริปต์ แอปอื่น และผู้ช่วย AI จำกัดเฉพาะ collection ที่ต้องใช้'],
+          ['Webhooks', 'event ที่ลงลายเซ็นเมื่อเผยแพร่หรือแก้ไข ส่งซ้ำได้นานหนึ่งวัน ใช้ build เว็บ static ใหม่'],
+          ['อีเมล', 'ผ่าน SMTP หรือ adapter ของคุณเอง มีคิวและส่งซ้ำ ใช้กับฟอร์มและ hook ของคุณ'],
+        ],
+      },
     ],
     stepsTitle: 'จาก config ถึงเนื้อหาใน 3 ขั้น',
     steps: [
@@ -181,22 +228,45 @@ const COPY = {
     pluginsLead: 'plugin คือฟังก์ชันที่ปรับ config เพิ่ม field, REST endpoint และ component ในหน้า admin ได้',
     plugins: [
       {
+        id: 'seo',
         name: 'SEO',
         pkg: '@easy-cms/plugin-seo',
-        text: 'ชื่อ คำอธิบาย และรูปสำหรับแชร์ พร้อมตัวนับความยาว ตัวอย่างผลการค้นหา และปุ่มสร้างให้ ส่วน seoMeta() เติม metadata ให้หน้าเว็บ',
+        text: 'meta tag พร้อมตัวนับความยาวและตัวอย่างผลการค้นหา sitemap, robots.txt, hreflang ข้อมูลแบบมีโครงสร้าง และ llms.txt สำหรับการค้นหาด้วย AI',
         link: '/th/guide/seo',
-        status: 'พร้อมใช้',
+        shot: 'seo',
+        alt: 'plugin SEO ในหน้าแก้ไขบทความ',
       },
       {
+        id: 'forms',
+        name: 'Form builder',
+        pkg: '@easy-cms/plugin-form-builder',
+        text: 'ผู้แก้เนื้อหาสร้างฟอร์มเองในหน้า admin ข้อมูลที่ส่งมาผ่านการตรวจ ถูกเก็บ และแจ้งทางอีเมลผ่าน SMTP กันบอทได้ และ <easy-form> แสดงฟอร์มในหน้าเว็บใดก็ได้',
+        link: '/th/guide/forms',
+        shot: 'forms',
+        alt: 'ฟอร์มติดต่อในหน้า admin พร้อมข้อมูลที่ส่งมา',
+      },
+      {
+        id: 'redirects',
+        name: 'Redirects',
+        pkg: '@easy-cms/plugin-redirects',
+        text: 'redirect 301 ที่ผู้แก้จัดการเองใต้ตั้งค่า และสร้างให้เองเมื่อ slug ของหน้าที่เผยแพร่แล้วเปลี่ยน',
+        link: '/th/guide/redirects',
+        shot: 'redirects',
+        alt: 'รายการ redirect ใต้ตั้งค่า เปิดแก้หนึ่งรายการในแผงด้านข้าง',
+      },
+      {
+        id: 'mcp',
         name: 'MCP',
         pkg: '@easy-cms/plugin-mcp',
-        text: 'ให้ผู้ช่วย AI อ่านและเขียนเนื้อหาผ่าน Model Context Protocol โดยใช้ API key และสิทธิ์แยกตาม collection',
+        text: 'ให้ผู้ช่วย AI อ่านและเขียนเนื้อหาผ่าน Model Context Protocol ด้วย API key ที่จำกัดว่าทำอะไรได้บ้าง',
         link: '/th/guide/mcp',
-        status: 'พร้อมใช้',
+        shot: 'api-keys',
+        alt: 'API key ของผู้ช่วย AI พร้อมสิทธิ์ที่ติ๊กไว้',
       },
     ],
+    pluginsShow: 'ดูตัวอย่าง',
+    pluginsGuide: 'คู่มือ',
     pluginsWrite: 'เขียน plugin เอง',
-    seoAlt: 'plugin SEO ในหน้าแก้ไขบทความ',
     compareTitle: 'ทำไมต้องฝังในแอป',
     compareCols: ['Headless CMS แบบ SaaS', 'CMS ที่แยก server', 'Easy CMS'],
     compareRows: [
@@ -237,6 +307,16 @@ async function copy() {
 }
 
 const tab = ref<'nuxt' | 'next'>('nuxt')
+/** The plugin whose screenshot and code show next to the cards. */
+const shown = ref(0)
+function show(i: number) {
+  shown.value = i
+  // One column (phones): the example is below the cards, so bring it into view.
+  if (window.matchMedia('(max-width: 960px)').matches)
+    document
+      .getElementById('plugin-example')
+      ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
 
 /** Lucide paths (MIT) for the feature cards, in the order of the groups above. */
 const ICONS = [
@@ -249,6 +329,9 @@ const ICONS = [
   'M16 18l6-6-6-6M8 6l-6 6 6 6',
   'M3 5c0-1.7 4-3 9-3s9 1.3 9 3-4 3-9 3-9-1.3-9-3M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5M3 12c0 1.7 4 3 9 3s9-1.3 9-3',
   'M5 8l6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6',
+  'M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4zM16.5 7.5a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1',
+  'M18 16.98h-5.99c-1.1 0-1.95.94-2.48 1.9A4 4 0 0 1 2 17c.01-.7.2-1.4.57-2M6 17l3.13-5.78c.53-.97.1-2.18-.5-3.1a4 4 0 1 1 6.89-4.06M12 6l3.13 5.73C15.66 12.7 16.9 13 18 13a4 4 0 0 1 0 8',
+  'M22 7l-8.99 5.73a2 2 0 0 1-2.02 0L2 7M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z',
 ]
 </script>
 
@@ -257,7 +340,7 @@ const ICONS = [
     <!-- Hero -->
     <section class="hero container">
       <div class="hero-text">
-        <a class="badge" :href="guide('mcp')">{{ t.badge }} <span aria-hidden="true">→</span></a>
+        <a class="badge" :href="guide(t.badgeLink)">{{ t.badge }} <span aria-hidden="true">→</span></a>
         <h1>
           {{ t.title }} <span class="accent">{{ t.titleAccent }}</span>
         </h1>
@@ -352,27 +435,48 @@ const ICONS = [
       <p class="lead">{{ t.pluginsLead }}</p>
       <div class="plugins">
         <div class="plugin-cards">
-          <component
-            :is="plugin.link ? 'a' : 'div'"
-            v-for="plugin in t.plugins"
-            :key="plugin.name"
+          <div
+            v-for="(plugin, i) in t.plugins"
+            :key="plugin.id"
             class="plugin"
-            :class="{ soon: !plugin.link }"
-            :href="plugin.link ? withBase(plugin.link) : undefined"
+            :class="{ active: shown === i }"
           >
             <div class="plugin-head">
               <h3>{{ plugin.name }}</h3>
-              <span class="status">{{ plugin.status }}</span>
+              <button
+                type="button"
+                class="show"
+                :aria-pressed="shown === i"
+                :aria-label="`${t.pluginsShow}: ${plugin.name}`"
+                aria-controls="plugin-example"
+                @click="show(i)"
+              >
+                {{ t.pluginsShow }}
+              </button>
             </div>
             <code>{{ plugin.pkg }}</code>
             <p>{{ plugin.text }}</p>
-          </component>
-          <div class="vp-doc code"><slot name="plugin" /></div>
+            <a class="guide-link" :href="withBase(plugin.link)">{{ t.pluginsGuide }} →</a>
+          </div>
           <a class="more" :href="guide('plugins')">{{ t.pluginsWrite }} →</a>
         </div>
-        <figure class="frame">
-          <img :src="shot('seo')" :alt="t.seoAlt" width="1440" height="900" loading="lazy" />
-        </figure>
+        <div id="plugin-example" class="plugin-example" aria-live="polite">
+          <figure class="frame">
+            <img
+              :src="shot(t.plugins[shown].shot)"
+              :alt="t.plugins[shown].alt"
+              width="1440"
+              height="900"
+              loading="lazy"
+            />
+          </figure>
+          <div class="vp-doc code">
+            <div v-show="shown === 0"><slot name="plugin-seo" /></div>
+            <div v-show="shown === 1"><slot name="plugin-forms" /></div>
+            <div v-show="shown === 2"><slot name="plugin-redirects" /></div>
+            <div v-show="shown === 3"><slot name="plugin-mcp" /></div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -604,7 +708,7 @@ p {
 
 .groups {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 24px;
   margin-top: 40px;
 }
@@ -726,11 +830,9 @@ p {
   text-decoration: none;
   transition: border-color 0.2s;
 }
-a.plugin:hover {
+.plugin.active {
   border-color: var(--vp-c-brand-1);
-}
-.plugin.soon {
-  border-style: dashed;
+  box-shadow: 0 0 0 1px var(--vp-c-brand-1);
 }
 .plugin-head {
   display: flex;
@@ -741,17 +843,41 @@ a.plugin:hover {
 .plugin h3 {
   font-size: 18px;
 }
-.status {
-  padding: 2px 10px;
+.show {
+  padding: 4px 12px;
+  border: 1px solid var(--vp-c-divider);
   border-radius: 999px;
-  background: var(--vp-c-brand-soft);
-  color: var(--vp-c-brand-1);
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-2);
   font-size: 12px;
   font-weight: 600;
+  cursor: pointer;
 }
-.soon .status {
-  background: var(--vp-c-default-soft);
-  color: var(--vp-c-text-2);
+.show:hover,
+.show[aria-pressed='true'] {
+  border-color: var(--vp-c-brand-1);
+  background: var(--vp-c-brand-soft);
+  color: var(--vp-c-brand-1);
+}
+.show:focus-visible,
+.guide-link:focus-visible {
+  outline: 2px solid var(--vp-c-brand-1);
+  outline-offset: 2px;
+}
+.guide-link {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--vp-c-brand-1);
+  text-decoration: none;
+}
+.plugin-example {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: sticky;
+  top: calc(var(--vp-nav-height, 64px) + 24px);
 }
 .plugin code {
   display: inline-block;
@@ -839,6 +965,9 @@ td {
   }
   .groups {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .plugin-example {
+    position: static;
   }
   .section {
     margin-top: 80px;

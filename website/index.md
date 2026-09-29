@@ -55,12 +55,57 @@ export default async function Home() {
 ```
 
 </template>
-<template #plugin>
+<template #plugin-seo>
 
 ```ts
 import { seoPlugin } from '@easy-cms/plugin-seo'
 
-plugins: [seoPlugin({ collections: ['posts'] })]
+plugins: [
+  seoPlugin({
+    collections: ['posts'],
+    generateURL: ({ doc }) => `/posts/${doc.slug}`,
+  }),
+]
+// Pages: seoMeta(post), sitemap(cms), robotsTxt(), llmsTxt(cms)
+```
+
+</template>
+<template #plugin-forms>
+
+```ts
+import { formBuilderPlugin } from '@easy-cms/plugin-form-builder'
+import { smtp } from '@easy-cms/email-smtp'
+
+email: smtp({ from: 'My Site <no-reply@example.com>' }),
+plugins: [formBuilderPlugin({ defaultTo: 'hello@example.com' })]
+// Pages: <easy-form form="contact"></easy-form>
+```
+
+</template>
+<template #plugin-redirects>
+
+```ts
+import { redirectsPlugin } from '@easy-cms/plugin-redirects'
+
+plugins: [
+  redirectsPlugin({
+    collections: ['posts'],
+    url: ({ doc }) => `/posts/${doc.slug}`,
+  }),
+]
+// Middleware: await resolveRedirect(cms, url)
+```
+
+</template>
+<template #plugin-mcp>
+
+```ts
+import { mcpPlugin } from '@easy-cms/plugin-mcp'
+
+apiKeys: true,
+plugins: [mcpPlugin()]
+// claude mcp add --transport http easy-cms https://example.com/api/cms/mcp \
+//   --header "Authorization: Bearer ecms_…"
 ```
 
 </template>

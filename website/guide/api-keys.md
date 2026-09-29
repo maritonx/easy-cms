@@ -7,6 +7,8 @@ the collections and actions they need.
 **Before this page:** [Users & auth](./auth) and [REST API](./rest-api).
 :::
 
+<Screenshot name="api-keys" alt="A new API key with its permissions ticked" />
+
 A person logs in with a password and gets a session. A script shouldn't use someone's
 password: give it an API key instead. A key belongs to a user and never does more than that
 user may, and it can be limited further, e.g. "read and create posts, nothing else".

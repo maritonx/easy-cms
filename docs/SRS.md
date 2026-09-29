@@ -626,6 +626,7 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 3. CI ผ่านบน Linux, macOS และ Windows (lint, typecheck, build, test)
 4. มี changeset, เอกสาร EN/TH ของฟีเจอร์ใหม่ และ ADR เมื่อเป็นการตัดสินใจเชิงสถาปัตยกรรม
 5. ทุก package publish ผ่าน npm Trusted Publishing ด้วยเวอร์ชันเดียวกัน
+6. หน้าแรกของเว็บ docs (EN/TH) ตรงกับ release: badge "ใหม่ใน 0.x" การ์ดของ plugin ทางการทุกตัว และรูปที่ถ่ายใหม่ด้วย `pnpm docs:screenshots`
 
 **สถานะ ณ 0.16.0 (2026-09-28)**
 

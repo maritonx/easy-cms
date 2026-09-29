@@ -7,6 +7,8 @@
 **ควรอ่านก่อน:** [Plugins](./plugins) และ[อีเมล](./email)
 :::
 
+<Screenshot name="forms" alt="ฟอร์มติดต่อในหน้า admin พร้อมแถบข้อมูลที่ส่งมา" />
+
 `@easy-cms/plugin-form-builder` เพิ่มเมนู **ฟอร์ม** ในหน้า admin ผู้แก้เนื้อหาต่อช่องกรอกจาก block เลือกว่าหลังส่งจะเกิดอะไร
 และใครจะได้อีเมล ส่วนหน้าเว็บแสดงฟอร์มด้วย element เดียวคือ `<easy-form>` หรือวาดเองจาก API
 
@@ -46,6 +48,8 @@ plugin เพิ่ม collection `forms` และ `form-submissions` ให้
 และโค้ดสำหรับใส่ในหน้าเว็บ
 
 ## ในหน้าเว็บ {#on-your-pages}
+
+<Screenshot name="form-page" alt="ฟอร์มบนหน้าเว็บ แสดงด้วย <easy-form>" />
 
 `<easy-form>` เป็น Web Component ที่โหลดฟอร์ม แสดง ส่งให้ server ตรวจ และแสดงข้อความหลังส่ง render ใน light DOM
 CSS ของเว็บจึงปรับหน้าตาได้ (class `easy-form__field`, `easy-form__input`, `easy-form__error`…) ส่วน `element.css`

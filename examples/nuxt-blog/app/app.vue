@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { jsonLdScript, siteJsonLd } from '@easy-cms/plugin-seo'
 
-const { data: site } = await useFetch('/api/site')
+const route = useRoute()
+const { data: site } = await useFetch('/api/site', {
+  query: { locale: computed(() => (route.query.locale === 'en' ? 'en' : 'th')) },
+})
 const origin = useRequestURL().origin
 useHead({
   title: () => site.value?.siteName ?? 'Blog',

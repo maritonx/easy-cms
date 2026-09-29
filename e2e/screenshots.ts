@@ -104,6 +104,29 @@ async function main() {
         await page.getByRole('dialog').waitFor()
         await shot('drawer')
 
+        // Plugins: a form with its submissions panel, redirects under Settings, a new API key.
+        await page.goto(`${ORIGIN}/admin/collections/forms/${ids.form}`)
+        await page.getByRole('region', { name: t.submissions }).getByText(/\d/).waitFor()
+        await shot('forms')
+
+        await page.goto(`${ORIGIN}/admin/collections/redirects?edit=${ids.redirect}`)
+        await page.getByRole('dialog').waitFor()
+        await shot('redirects')
+
+        await page.goto(`${ORIGIN}/admin/collections/api-keys/new`)
+        await page.getByRole('textbox').first().fill(t.keyName)
+        // Posts: read, create and update; media: read and create.
+        const boxes = page.getByRole('checkbox')
+        await boxes.first().waitFor()
+        for (const name of t.keyChecks)
+          await page.getByRole('checkbox', { name, exact: true }).check()
+        await shot('api-keys')
+
+        // The form on the site, as visitors see it (the example blog has no dark theme).
+        await page.goto(`${ORIGIN}/contact${locale === 'en' ? '?locale=en' : ''}`)
+        await page.locator('easy-form form').waitFor()
+        await shot('form-page')
+
         await context.close()
       }
     }
@@ -117,8 +140,19 @@ const EN = {
   same: 'English',
   other: 'Thai',
   showPreview: 'Preview',
+  submissions: 'Submissions',
+  keyName: 'Writing assistant',
+  keyChecks: ['Posts: Read', 'Posts: Create', 'Posts: Update', 'Media: Read', 'Media: Upload'],
 }
-const TH = { preview: 'ตัวอย่างผลการค้นหา', same: 'ไทย', other: 'อังกฤษ', showPreview: 'ดูตัวอย่าง' }
+const TH = {
+  preview: 'ตัวอย่างผลการค้นหา',
+  same: 'ไทย',
+  other: 'อังกฤษ',
+  showPreview: 'ดูตัวอย่าง',
+  submissions: 'ข้อมูลที่ส่งมา',
+  keyName: 'ผู้ช่วยเขียนบทความ',
+  keyChecks: ['บทความ: อ่าน', 'บทความ: สร้าง', 'บทความ: แก้ไข', 'คลังสื่อ: อ่าน', 'คลังสื่อ: อัปโหลด'],
+}
 
 async function login(page: Page) {
   await page.goto(`${ORIGIN}/admin/login`)
@@ -333,7 +367,73 @@ async function seed() {
     siteName: 'Easy CMS Blog',
     tagline: 'Notes from the team',
   })
-  return { featured, category: guides.id }
+  // A contact form in both languages, with a few messages sent through the public endpoint.
+  const text = (name: string, th: string, en: string, extra = {}) => ({
+    th: { name, label: th, ...extra },
+    en: { label: en },
+  })
+  const fields = [
+    text('name', 'ชื่อ', 'Name', { blockType: 'text', required: true, width: 'half' }),
+    text('email', 'อีเมล', 'Email', { blockType: 'email', required: true, width: 'half' }),
+    text('topic', 'เรื่อง', 'Topic', {
+      blockType: 'select',
+      options: [
+        { label: 'สอบถามทั่วไป', value: 'general' },
+        { label: 'ร่วมงานกับเรา', value: 'work' },
+      ],
+    }),
+    text('message', 'ข้อความ', 'Message', { blockType: 'textarea', required: true }),
+    text('agree', 'ยินยอมให้ติดต่อกลับ', 'You may contact me back', {
+      blockType: 'checkbox',
+      required: true,
+    }),
+  ]
+  const form = await call('POST', '/forms?locale=th', {
+    title: 'ติดต่อเรา',
+    slug: 'contact',
+    status: 'published',
+    submitLabel: 'ส่งข้อความ',
+    fields: fields.map((f) => f.th),
+    confirmationMessage: doc(paragraph('ขอบคุณ เราจะตอบกลับภายในหนึ่งวันทำการ')),
+    emails: [{ subject: 'ข้อความใหม่จาก {{name}}', replyTo: '{{email}}' }],
+  })
+  const saved = (form.fields as { id: string }[]) ?? []
+  await call('PATCH', `/forms/${form.id}?locale=en`, {
+    title: 'Contact us',
+    status: 'published',
+    submitLabel: 'Send message',
+    fields: saved.map((row, i) => ({ ...row, ...fields[i]?.en })),
+    confirmationMessage: doc(paragraph('Thank you, we reply within one working day.')),
+  })
+  const pub = (await (await fetch(`${API}/form/contact`)).json()) as { token: string }
+  // Forms sent sooner than 2 seconds after loading count as bots.
+  await new Promise((resolve) => setTimeout(resolve, 2_100))
+  for (const [name, email, message] of [
+    ['สมชาย', 'somchai@example.com', 'อยากใช้ Easy CMS กับเว็บบริษัท'],
+    ['Anna', 'anna@example.com', 'Do you support Postgres on Vercel?'],
+    ['วิภา', 'wipa@example.com', 'สนใจร่วมงานครับ'],
+  ]) {
+    const sent = await fetch(`${API}/form/contact/submit`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', origin: ORIGIN },
+      body: JSON.stringify({
+        data: { name, email, message, topic: 'general', agree: true },
+        token: pub.token,
+      }),
+    })
+    if (!sent.ok) throw new Error(`submit: ${sent.status} ${await sent.text()}`)
+  }
+
+  // Redirects: an old address to a post, and one to another site.
+  await call('POST', '/redirects', { from: '/blog/hello', to_posts: featured })
+  const redirect = await call('POST', '/redirects', {
+    from: '/old-docs',
+    to: 'https://maritonx.github.io/easy-cms/',
+    type: '302',
+  })
+  await call('POST', '/redirects', { from: '/start', to: '/posts/get-started' })
+
+  return { featured, category: guides.id, form: form.id, redirect: redirect.id }
 }
 
 try {

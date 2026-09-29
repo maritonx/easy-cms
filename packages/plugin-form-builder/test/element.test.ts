@@ -110,4 +110,14 @@ describe('<easy-form>', () => {
     expect(error?.textContent).toBe('must be an email address')
     expect(element.querySelector('[name="email"]')?.getAttribute('aria-invalid')).toBe('true')
   })
+
+  it('takes properties as well as attributes (Vue and React set properties)', async () => {
+    const { element } = await mount(() => Response.json({}))
+    const el = element as HTMLElement & { locale: string | null; form: string | null }
+    expect(el.form).toBe('contact')
+    el.locale = 'th'
+    expect(el.getAttribute('locale')).toBe('th')
+    el.locale = null
+    expect(el.hasAttribute('locale')).toBe(false)
+  })
 })
