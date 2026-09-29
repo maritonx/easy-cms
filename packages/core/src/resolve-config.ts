@@ -1,6 +1,7 @@
 import { apiKeysCollection } from './api-keys.js'
 import {
   DEFAULT_ROLES,
+  emailDeliveriesCollection,
   internalCollections,
   scheduledJobsCollection,
   versionsCollection,
@@ -89,6 +90,7 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
       ...(usesSchedule(config) ? [scheduledJobsCollection] : []),
       ...((config.webhooks?.length ?? 0) > 0 ? [webhookDeliveriesCollection] : []),
       ...(config.apiKeys ? [apiKeysCollection] : []),
+      ...(config.email ? [emailDeliveriesCollection] : []),
     ],
     globals: config.globals ?? [],
     endpoints: config.endpoints ?? [],

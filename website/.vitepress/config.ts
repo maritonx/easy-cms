@@ -50,11 +50,11 @@ function sidebar(prefix: string, t: Labels): DefaultTheme.SidebarItem[] {
     },
     {
       text: t.plugins,
-      items: ['plugins', 'seo', 'ai-search', 'redirects', 'mcp'].map(page),
+      items: ['plugins', 'seo', 'ai-search', 'redirects', 'forms', 'mcp'].map(page),
     },
     {
       text: t.operations,
-      items: ['databases', 'deployment', 'backups', 'webhooks', 'security'].map(page),
+      items: ['databases', 'deployment', 'backups', 'email', 'webhooks', 'security'].map(page),
     },
     {
       text: t.recipes,
@@ -121,6 +121,8 @@ const en: Labels = {
   seo: 'SEO',
   'ai-search': 'AI search',
   redirects: 'Redirects',
+  forms: 'Forms',
+  email: 'Email',
   mcp: 'MCP (AI assistants)',
   databases: 'Databases',
   deployment: 'Migrations & deployment',
@@ -174,6 +176,8 @@ const th: Labels = {
   seo: 'SEO',
   'ai-search': 'SEO สำหรับ AI',
   redirects: 'Redirects',
+  forms: 'ฟอร์ม',
+  email: 'อีเมล',
   mcp: 'MCP (ผู้ช่วย AI)',
   databases: 'ฐานข้อมูล',
   deployment: 'Migration และการ deploy',

@@ -1,5 +1,7 @@
-import { defineConfig } from '@easy-cms/core'
+import { consoleEmail, defineConfig } from '@easy-cms/core'
 import { sqlite } from '@easy-cms/db-sqlite'
+import { smtp } from '@easy-cms/email-smtp'
+import { formBuilderPlugin } from '@easy-cms/plugin-form-builder'
 import { mcpPlugin } from '@easy-cms/plugin-mcp'
 import { redirectsPlugin } from '@easy-cms/plugin-redirects'
 import { seoPlugin } from '@easy-cms/plugin-seo'
@@ -150,7 +152,11 @@ export default defineConfig({
     },
   ],
   // SEO fields on posts and the site, with a search preview and Generate buttons in the admin.
+  // Form notifications: SMTP when SMTP_HOST is set, else printed in the server's log.
+  email: process.env.SMTP_HOST ? smtp() : consoleEmail({ from: 'Easy CMS Blog <blog@localhost>' }),
   plugins: [
+    // Forms editors build in the admin (Forms), shown on the site with <easy-form>.
+    formBuilderPlugin({ defaultTo: process.env.FORMS_TO ?? 'owner@localhost' }),
     // AI assistants (Claude, Cursor…) at /api/cms/mcp, with an API key.
     mcpPlugin(),
     // Redirects under Settings in the admin; a post whose slug changes redirects from its old

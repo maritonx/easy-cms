@@ -1,9 +1,9 @@
 # Software Requirements Specification — Easy CMS
 
-- **เวอร์ชันเอกสาร:** 2.3
+- **เวอร์ชันเอกสาร:** 2.4
 - **วันที่:** 2026-09-28
 - **ผู้เขียน:** Kanawoot K.
-- **ครอบคลุม:** v0.1 (baseline) ถึง v0.19
+- **ครอบคลุม:** v0.1 (baseline) ถึง v0.20
 - **สถานะ:** Living document (อัปเดตทุกครั้งที่เพิ่มฟีเจอร์)
 - **เอกสารที่เกี่ยวข้อง:** [DESIGN.md](DESIGN.md), [ADRs](adr/)
 
@@ -25,7 +25,8 @@ Easy CMS เป็น Headless CMS แบบ open source (MIT) ที่ติ�
 - Adapter สำหรับ Nuxt, Next.js และโหมด standalone
 - Database adapter (SQLite, PostgreSQL) และ storage adapter (local disk, S3-compatible)
 - CLI สำหรับติดตั้ง, migration, generate types, สำรองและย้ายข้อมูล
-- Official plugins: `@easy-cms/plugin-seo`, `@easy-cms/plugin-mcp` และ `@easy-cms/plugin-redirects`
+- Official plugins: `@easy-cms/plugin-seo`, `@easy-cms/plugin-mcp`, `@easy-cms/plugin-redirects` และ `@easy-cms/plugin-form-builder`
+- Email adapter: `@easy-cms/email-smtp`
 
 **นอกขอบเขต (ปัจจุบัน):** UI สร้าง content type, GraphQL, Edge runtime, MySQL, auth ภายนอก (OAuth/SSO), ลืมรหัสผ่านผ่าน email, MCP แบบ stdio, หน้าเต็มและ widget บน dashboard จาก plugin, BreadcrumbList, บริการ hosting
 
@@ -395,6 +396,21 @@ AI assistant ► /api/cms/mcp ──┘                     └──► Webhook
 | FR-RDR-05 | ต้องมี `GET <api>/resolve-redirect?path=` สำหรับ frontend อื่น | 0.19 | SHOULD |
 | FR-ADM-19 | Collection ที่ตั้ง `admin.group: 'settings'` ต้องแสดงใต้ตั้งค่าในเมนู | 0.19 | SHOULD |
 
+### 3.23c Email และ Form builder (EML, FRM) — [ADR-0023](adr/0023-email-and-form-builder.md)
+
+| ID | ความต้องการ | ตั้งแต่ | ระดับ |
+|---|---|---|---|
+| FR-EML-01 | `email: EmailAdapter` ต้องส่งอีเมลให้ plugin และโค้ดของผู้ใช้ผ่าน `cms.sendEmail()` และมี `consoleEmail()` สำหรับ dev | 0.20 | MUST |
+| FR-EML-02 | อีเมลต้องถูกบันทึกลงคิวก่อนส่ง ส่งไม่สำเร็จต้องลองใหม่ผ่าน `runJobs()` และ `flushEmails()` ต้องรอการส่งที่ค้างอยู่ | 0.20 | MUST |
+| FR-EML-03 | `@easy-cms/email-smtp` ต้องส่งผ่าน SMTP โดยอ่านค่าตอนส่งฉบับแรก | 0.20 | MUST |
+| FR-FRM-01 | `formBuilderPlugin()` ต้องเพิ่ม `forms` (ช่องกรอกเป็น blocks 9 ชนิด, drafts, หลายภาษา, ข้อความหรือ redirect หลังส่ง, อีเมลแจ้งเตือน) และ `form-submissions` | 0.20 | MUST |
+| FR-FRM-02 | การส่งฟอร์มต้องผ่าน endpoint `POST <api>/form/:slug/submit` เท่านั้น ตรวจข้อมูลตามนิยามของฟอร์มฝั่ง server และไม่เก็บ IP | 0.20 | MUST |
+| FR-FRM-03 | ต้องกันสแปมด้วย honeypot, เวลาขั้นต่ำ, rate limit ต่อผู้เข้าชมต่อฟอร์ม และ Turnstile แบบเลือกเปิด บอทต้องได้คำตอบเหมือนสำเร็จโดยไม่บันทึกข้อมูล | 0.20 | MUST |
+| FR-FRM-04 | อีเมลที่ส่งไปที่อยู่ของผู้ส่งฟอร์มต้องใส่ได้เฉพาะช่องสั้นและไม่มีตารางของทุกช่อง | 0.20 | MUST |
+| FR-FRM-05 | `<easy-form>` ต้องแสดงฟอร์ม ส่ง และแสดง error ต่อช่องได้ใน Nuxt, Next และหน้า static และ CMS ต้องเสิร์ฟ element ที่ `/form/element.js` | 0.20 | MUST |
+| FR-FRM-06 | ต้อง export ข้อมูลเป็น CSV ต่อฟอร์ม (BOM, กัน CSV injection) และมี `retentionDays` ลบข้อมูลเก่า | 0.20 | SHOULD |
+| FR-STA-06 | request ที่ไม่มี session cookie จาก origin ใน `cors` ต้องผ่านการตรวจ CSRF ได้ | 0.20 | MUST |
+
 ### 3.24 API keys (KEY) — [ADR-0019](adr/0019-api-keys-and-mcp.md)
 
 | ID | ความต้องการ | ตั้งแต่ | ระดับ |
@@ -657,6 +673,7 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 0.17 | SEO: sitemap, robots.txt, noindex, hreflang, JSON-LD; root endpoints | FR-SEO-05..08, FR-PLG-08 | [0020](adr/0020-seo-sitemap-robots-root-endpoints.md) |
 | 0.18 | SEO สำหรับ AI: crawler ของ AI, llms.txt, Markdown, IndexNow | FR-SEO-09..12 | [0021](adr/0021-seo-for-ai.md) |
 | 0.19 | Redirects plugin, `admin.group: 'settings'` | FR-RDR-*, FR-ADM-19 | [0022](adr/0022-redirects-plugin.md) |
+| 0.20 | อีเมลใน core, email-smtp, form builder | FR-EML-*, FR-FRM-*, FR-STA-06 | [0023](adr/0023-email-and-form-builder.md) |
 
 ---
 
@@ -670,6 +687,7 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 1.3 | 2026-09-25 | M5: FR-REST-08 (อัปโหลด/ไฟล์), FR-CFG-07 (`routes.api`, `serverURL`), ระบุว่า drafts ใน v0.1 ไม่มี version แยก |
 | 1.4 | 2026-09-25 | M6: ผลวัด NFR-PERF-01/02 บน Postgres 17 (Local API p95 2.7 ms, REST p95 4.3 ms), Next.js adapter ใช้ `getEasyCMS(config)` |
 | 1.5 | 2026-09-25 | M7: ผลตรวจรับ v0.1 (7.1) |
+| 2.4 | 2026-09-29 | 0.20: FR-EML-*, FR-FRM-*, FR-STA-06 |
 | 2.3 | 2026-09-28 | 0.19: FR-RDR-*, FR-ADM-19 |
 | 2.2 | 2026-09-28 | 0.18: FR-SEO-09..12 |
 | 2.1 | 2026-09-28 | 0.17: FR-SEO-05..08, FR-PLG-08 |

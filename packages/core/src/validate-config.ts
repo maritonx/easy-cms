@@ -307,6 +307,18 @@ function validateLocalization(config: Config, add: Add) {
 }
 
 function validateWebhooks(config: Config, add: Add) {
+  const email: unknown = config.email
+  if (
+    email !== undefined &&
+    (typeof email !== 'object' ||
+      email === null ||
+      typeof (email as { send?: unknown }).send !== 'function')
+  )
+    add(
+      'email',
+      'must be an email adapter with a send() function',
+      'e.g. email: consoleEmail() or smtp({ … }) from @easy-cms/email-smtp',
+    )
   const hooks = config.webhooks
   if (hooks === undefined) return
   if (!Array.isArray(hooks)) {

@@ -134,7 +134,11 @@ const filterValue = (name: string) => {
   return typeof value === 'string' ? value : ''
 }
 const activeFilters = computed(
-  () => filterFields.value.filter((f) => filterValue(f.name)).length + (statusFilter.value ? 1 : 0),
+  () =>
+    (collection?.fields ?? []).filter(
+      (f) =>
+        (f.type === 'select' || (f.type === 'relationship' && !f.hasMany)) && filterValue(f.name),
+    ).length + (statusFilter.value ? 1 : 0),
 )
 
 function whereOf() {
@@ -143,6 +147,11 @@ function whereOf() {
   if (statusFilter.value) parts.push({ status: { equals: statusFilter.value } })
   for (const f of filterFields.value) {
     const value = filterValue(f.name)
+    if (value) parts.push({ [f.name]: { equals: value } })
+  }
+  // Links can narrow the list to one related document, e.g. a form's submissions (?f_form=3).
+  for (const f of collection?.fields ?? []) {
+    const value = f.type === 'relationship' && !f.hasMany ? filterValue(f.name) : ''
     if (value) parts.push({ [f.name]: { equals: value } })
   }
   return parts.length === 0 ? undefined : parts.length === 1 ? parts[0] : { and: parts }

@@ -30,6 +30,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `globals` | `GlobalConfig[]` | `[]` | See [globals](#globals). |
 | `endpoints` | `Endpoint[]` | `[]` | See [endpoints](#endpoints). |
 | `apiKeys` | `boolean` | `false` | API keys under Settings, for scripts and other apps. [API keys](/guide/api-keys) |
+| `email` | `EmailAdapter` | — | Sends email for plugins, e.g. `smtp()` or `consoleEmail()`. [Email](/guide/email) |
 | `plugins` | `Plugin[]` | `[]` | `(config) => config`, run in order before validation. [Plugins](/guide/plugins) |
 
 <!-- api: RoutesConfig -->
@@ -208,5 +209,6 @@ Every hook also gets `user`, `cms` and `slug`.
 | `url` | `URL` | Its URL. |
 | `params` | `Record<string, string>` | Values of `:name` segments. |
 | `user` | `AuthUser \| null` | The logged-in user. |
+| `ip` | `string \| undefined` | The client's IP address, when the adapter knows it. |
 | `cms` | `EasyCMS` | The [Local API](./local-api). |
 | `json` | `() => Promise<object>` | The JSON body (an object, at most 1 MB). |

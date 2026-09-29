@@ -1,0 +1,59 @@
+{
+  "name": "@easy-cms/plugin-form-builder",
+  "version": "0.19.0",
+  "description": "Forms for Easy CMS: build forms in the admin, collect submissions, email notifications, spam protection and an <easy-form> element",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "default": "./dist/client.js"
+    },
+    "./element": "./dist/element.js",
+    "./element.css": "./dist/element.css",
+    "./admin": "./dist/admin.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@easy-cms/richtext": "workspace:^"
+  },
+  "peerDependencies": {
+    "@easy-cms/core": "workspace:^"
+  },
+  "devDependencies": {
+    "@easy-cms/core": "workspace:^",
+    "@easy-cms/db-sqlite": "workspace:^",
+    "happy-dom": "^20.14.5"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maritonx/easy-cms.git",
+    "directory": "packages/plugin-form-builder"
+  },
+  "keywords": [
+    "easy-cms",
+    "easy-cms-plugin",
+    "forms",
+    "form-builder",
+    "contact-form"
+  ]
+}

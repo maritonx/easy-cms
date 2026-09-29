@@ -9,6 +9,7 @@ export const LOGIN_ATTEMPTS = 'login-attempts'
 export const VERSIONS = 'document-versions'
 export const SCHEDULED_JOBS = 'scheduled-jobs'
 export const WEBHOOK_DELIVERIES = 'webhook-deliveries'
+export const EMAIL_DELIVERIES = 'email-deliveries'
 
 /** Collections Easy CMS uses internally. Not exposed over REST or in the admin UI. */
 export const INTERNAL_COLLECTIONS: ReadonlySet<string> = new Set([
@@ -17,6 +18,7 @@ export const INTERNAL_COLLECTIONS: ReadonlySet<string> = new Set([
   VERSIONS,
   SCHEDULED_JOBS,
   WEBHOOK_DELIVERIES,
+  EMAIL_DELIVERIES,
 ])
 
 export const DEFAULT_ROLES = ['admin', 'editor'] as const
@@ -261,6 +263,21 @@ export const webhookDeliveriesCollection: CollectionConfig = {
     // The JSON body as first sent: retries are byte-for-byte the same, signature included.
     { name: 'body', type: 'textarea', required: true },
     { name: 'delivery', type: 'text', required: true },
+    { name: 'attempts', type: 'number', required: true },
+    { name: 'nextAttemptAt', type: 'text', required: true, index: true },
+    // pending | failed
+    { name: 'state', type: 'text', required: true, index: true },
+    { name: 'error', type: 'text' },
+  ],
+}
+
+/** Emails until they are sent; added only when `email` is set. */
+export const emailDeliveriesCollection: CollectionConfig = {
+  slug: EMAIL_DELIVERIES,
+  access: { read: nobody, create: nobody, update: nobody, delete: nobody },
+  fields: [
+    // The message as JSON.
+    { name: 'message', type: 'textarea', required: true },
     { name: 'attempts', type: 'number', required: true },
     { name: 'nextAttemptAt', type: 'text', required: true, index: true },
     // pending | failed

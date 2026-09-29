@@ -61,6 +61,11 @@ export {
   validateFields,
 } from './document.js'
 export {
+  consoleEmail,
+  type EmailAdapter,
+  type EmailMessage,
+} from './email.js'
+export {
   ConfigError,
   type ConfigIssue,
   EasyCMSError,

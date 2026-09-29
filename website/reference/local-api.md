@@ -97,6 +97,8 @@ to apply them, as the REST API does.
 | `retryWebhooks(now?)` | `{ sent, failed }` | Only the due webhook retries. |
 | `startScheduler(interval?)` | — | Runs `runJobs` every `interval` ms (default one minute). `createEasyCMS` starts it when something is scheduled or webhooks are set. |
 | `flushWebhooks()` | — | Waits for deliveries in progress; call before a serverless function returns. |
+| `sendEmail(message)` | — | Queues an email for the config's `email` adapter and sends it in the background. [Email](/guide/email) |
+| `flushEmails()` | — | Waits for emails being sent; call before a serverless function returns. |
 
 ### Other
 

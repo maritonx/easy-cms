@@ -26,7 +26,9 @@ What Easy CMS protects for you, what stays your job, and a checklist before goin
   `auth.trustedOrigins`. Cross-site requests without an `Origin` are refused. Requests with a
   Bearer token skip the token check (a browser never sends one on its own).
 - **CORS** is closed by default. `cors` lists origins whose browser code may call the API;
-  only `auth.trustedOrigins` may send cookies.
+  only `auth.trustedOrigins` may send cookies. Origins in `cors` may also write **without** a
+  session cookie (e.g. a public [form](./forms)): there is no session to forge, and the
+  collection's access rules still decide.
 - **Request bodies** are limited to 1 MB (JSON) and `upload.maxFileSize` (files, 10 MB).
 - **Errors** show their details in development only; in production unexpected errors answer
   `Internal Server Error` and are logged on the server.

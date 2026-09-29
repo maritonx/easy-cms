@@ -11,6 +11,7 @@
       listed in `cors` (default http://localhost:5173), e.g. `npx serve -l 5173 frontend`.
       `?api=` points it at another CMS (default http://localhost:4000/api/cms).
       `?post=<id>` shows one post: the admin's live preview opens it with a preview token.
+      `?contact` shows the "contact" form from the CMS.
     -->
     <main id="app"></main>
     <script type="module">
@@ -33,6 +34,15 @@
           ? el('img', { src: new URL(post.cover.url, origin).href, alt: post.cover.alt ?? '', width: 120 })
           : ''
 
+      // A form built in the admin under Forms: the CMS serves the <easy-form> element too.
+      async function contact() {
+        await import(`${api}/form/element.js`)
+        const form = el('easy-form')
+        form.setAttribute('form', 'contact')
+        form.setAttribute('api', api)
+        app.replaceChildren(el('h1', { textContent: 'Contact' }), form)
+      }
+
       async function list() {
         const site = await get('/globals/site')
         // Anonymous requests only see published posts (the collection's read access).
@@ -40,6 +50,7 @@
         app.replaceChildren(
           el('h1', { textContent: site.siteName }),
           el('p', { textContent: site.tagline ?? '' }),
+          el('p', {}, el('a', { href: `?contact&api=${encodeURIComponent(api)}`, textContent: 'Contact' })),
           el('ul', {}, ...docs.map((post) =>
             el('li', {}, coverOf(post), el('a', { href: `?post=${post.id}`, textContent: post.title })),
           )),
@@ -75,7 +86,7 @@
       }
 
       const post = params.get('post')
-      await (post ? single(post) : list())
+      await (params.has('contact') ? contact() : post ? single(post) : list())
     </script>
   </body>
 </html>

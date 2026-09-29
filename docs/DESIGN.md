@@ -3,7 +3,7 @@
 - **สถานะ:** Accepted (living document)
 - **วันที่:** 2026-09-28 (ฉบับแรก 2026-09-25)
 - **ผู้เขียน:** Kanawoot K.
-- **ครอบคลุม:** v0.1 ถึง v0.19
+- **ครอบคลุม:** v0.1 ถึง v0.20
 - **Requirements:** [SRS.md](SRS.md)
 
 ---
@@ -109,6 +109,8 @@ Plugin ยังเป็น `(config) => config` เหมือน v0.1 คว
 | `@easy-cms/plugin-seo` | field `meta`, ตัวนับความยาว, ตัวอย่างผลการค้นหา, `seoMeta()`, sitemap, robots.txt, hreflang, JSON-LD (0.17), crawler ของ AI, llms.txt, Markdown, IndexNow (0.18) | 0.13 |
 | `@easy-cms/plugin-mcp` | MCP server สำหรับผู้ช่วย AI | 0.16 |
 | `@easy-cms/plugin-redirects` | redirect ในหน้า admin, redirect อัตโนมัติเมื่อที่อยู่เปลี่ยน, `resolveRedirect()` | 0.19 |
+| `@easy-cms/plugin-form-builder` | ฟอร์มในหน้า admin, submissions, อีเมลแจ้งเตือน, กันสแปม, `<easy-form>` | 0.20 |
+| `@easy-cms/email-smtp` | email adapter ผ่าน SMTP (nodemailer) | 0.20 |
 | `easy-cms` (bin) | CLI และโหมด standalone | 0.1 |
 | `create-easy-cms` | ตัว scaffold (Nuxt, Next, standalone) | 0.1 |
 
@@ -117,7 +119,7 @@ Repo: **pnpm workspaces + Turborepo + Changesets + Biome**
 ```
 easy-cms/
 ├── packages/   core, admin, nuxt, next, drizzle, db-sqlite, db-postgres, richtext, storage-s3,
-│               plugin-seo, plugin-mcp, plugin-redirects, cli, create-easy-cms, integration (test เท่านั้น)
+│               plugin-seo, plugin-mcp, plugin-redirects, plugin-form-builder, email-smtp, cli, create-easy-cms, integration (test เท่านั้น)
 ├── examples/   nuxt-blog, next-blog, standalone   (ใช้เป็น fixture ของ E2E ด้วย)
 ├── e2e/        Playwright ชุดเดียวสำหรับทั้งสามแอป + สคริปต์ถ่าย screenshot ของเอกสาร
 ├── website/    VitePress (EN + TH)
@@ -251,6 +253,7 @@ Endpoint ของ plugin อยู่ใต้ `routes.api` เดียวก�
 | SEO: sitemap, robots.txt, noindex, hreflang, JSON-LD | 0.17 | [0020](adr/0020-seo-sitemap-robots-root-endpoints.md) |
 | SEO สำหรับ AI: crawler ของ AI, llms.txt, Markdown, IndexNow | 0.18 | [0021](adr/0021-seo-for-ai.md) |
 | Redirects plugin, กลุ่มตั้งค่าในเมนู | 0.19 | [0022](adr/0022-redirects-plugin.md) |
+| อีเมลใน core และ form builder | 0.20 | [0023](adr/0023-email-and-form-builder.md) |
 
 ## 12. CLI และ DX
 
@@ -307,7 +310,7 @@ CI รัน lint, typecheck, build และ test บน Linux, macOS และ
 | **M7** CLI + Docs + Release | `create-easy-cms`, `generate:types`, VitePress, publish v0.1 |
 
 ### 15.2 หลัง v0.1 (เสร็จแล้ว)
-0.2 standalone + S3 → 0.3 versions → 0.4–0.5 live preview, localization → 0.6–0.9 blocks, webhooks, การตั้งเวลา → 0.10 backup → 0.11–0.12 admin redesign → 0.13 plugin ecosystem + SEO → 0.14 copy → 0.15 API keys → 0.16 MCP → 0.17 SEO ระดับทั้งเว็บ → 0.18 SEO สำหรับ AI → 0.19 redirects (รายละเอียดใน [SRS §8.2](SRS.md#82-releases-หลัง-v01))
+0.2 standalone + S3 → 0.3 versions → 0.4–0.5 live preview, localization → 0.6–0.9 blocks, webhooks, การตั้งเวลา → 0.10 backup → 0.11–0.12 admin redesign → 0.13 plugin ecosystem + SEO → 0.14 copy → 0.15 API keys → 0.16 MCP → 0.17 SEO ระดับทั้งเว็บ → 0.18 SEO สำหรับ AI → 0.19 redirects → 0.20 อีเมลและฟอร์ม (รายละเอียดใน [SRS §8.2](SRS.md#82-releases-หลัง-v01))
 
 ### 15.3 แนวคิดถัดไป (ยังไม่ได้ตัดสินใจ)
 - MCP แบบ stdio (`easy-cms mcp`) และ OAuth สำหรับ client ที่ส่ง header ไม่ได้
@@ -353,3 +356,4 @@ CI รัน lint, typecheck, build และ test บน Linux, macOS และ
 - [ADR-0020](adr/0020-seo-sitemap-robots-root-endpoints.md) — Sitemap, robots.txt, hreflang และ JSON-LD ใน plugin SEO และ root endpoints
 - [ADR-0021](adr/0021-seo-for-ai.md) — SEO สำหรับ AI: crawler ของ AI, llms.txt, Markdown และ IndexNow
 - [ADR-0022](adr/0022-redirects-plugin.md) — Plugin redirects และกลุ่มตั้งค่าในเมนู
+- [ADR-0023](adr/0023-email-and-form-builder.md) — ระบบอีเมลใน core และ plugin form builder

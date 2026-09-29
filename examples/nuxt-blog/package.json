@@ -14,7 +14,9 @@
   "dependencies": {
     "@easy-cms/core": "workspace:^",
     "@easy-cms/db-sqlite": "workspace:^",
+    "@easy-cms/email-smtp": "workspace:^",
     "@easy-cms/nuxt": "workspace:^",
+    "@easy-cms/plugin-form-builder": "workspace:^",
     "@easy-cms/plugin-mcp": "workspace:^",
     "@easy-cms/plugin-redirects": "workspace:^",
     "@easy-cms/plugin-seo": "workspace:^",

@@ -95,6 +95,8 @@ Local API เชื่อผู้เรียกและข้ามกฎส�
 | `retryWebhooks(now?)` | `{ sent, failed }` | เฉพาะ webhook ที่ถึงเวลาส่งซ้ำ |
 | `startScheduler(interval?)` | — | รัน `runJobs` ทุก `interval` ms (ค่าเริ่มต้น 1 นาที) `createEasyCMS` เริ่มให้เองเมื่อมีการตั้งเวลาหรือมี webhook |
 | `flushWebhooks()` | — | รอให้การส่ง webhook ที่กำลังทำอยู่เสร็จ เรียกก่อนฟังก์ชัน serverless จะจบ |
+| `sendEmail(message)` | — | เข้าคิวอีเมลให้ adapter `email` ใน config แล้วส่งเบื้องหลัง [อีเมล](/th/guide/email) |
+| `flushEmails()` | — | รอให้อีเมลที่กำลังส่งเสร็จ เรียกก่อนฟังก์ชัน serverless จะจบ |
 
 ### อื่นๆ {#other}
 

@@ -1,5 +1,6 @@
 import type { AuthUser, CollectionAccess, GlobalAccess, ID } from './access.js'
 import type { DatabaseAdapter } from './database.js'
+import type { EmailAdapter } from './email.js'
 import type { AdminComponent, Field, Label } from './fields.js'
 import type { EasyCMS } from './local-api.js'
 import type { StorageAdapter } from './storage.js'
@@ -286,6 +287,8 @@ export interface EndpointRequest {
   readonly params: Readonly<Record<string, string>>
   /** The logged-in user (session cookie or Bearer token), or `null`. */
   readonly user: AuthUser | null
+  /** The client's IP address, when the adapter knows it (e.g. to rate-limit a public form). */
+  readonly ip: string | undefined
   /** The Local API. Pass `{ user, overrideAccess: false }` to apply the user's access rules. */
   readonly cms: EasyCMS
   /** The request's JSON body, which must be an object (at most 1 MB). */
@@ -362,6 +365,12 @@ export interface Config {
    * under Settings. A key acts as its owner, limited to the collections and operations it lists.
    */
   readonly apiKeys?: boolean
+  /**
+   * Sends email for plugins such as the form builder, e.g. `smtp()` from
+   * `@easy-cms/email-smtp`, or `consoleEmail()` in development. Emails are queued in the
+   * database and retried until sent.
+   */
+  readonly email?: EmailAdapter
   readonly plugins?: readonly Plugin[]
 }
 

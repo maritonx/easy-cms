@@ -39,7 +39,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           </header>
           <main>{children}</main>
           <footer>
-            Powered by Easy CMS · <a href="/api/cms/posts">REST API</a>
+            Powered by Easy CMS · <a href="/api/cms/posts">REST API</a> ·{' '}
+            <Link href="/contact">Contact</Link>
           </footer>
         </div>
       </body>

@@ -146,8 +146,8 @@ async function respond(
     if (method !== 'GET' && method !== 'HEAD') checkCsrf(cms, ctx)
 
     const result = root
-      ? await customEndpoint(cms, ctx, method, segments, true)
-      : ((await customEndpoint(cms, ctx, method, segments, false)) ??
+      ? await customEndpoint(cms, ctx, method, segments, true, options)
+      : ((await customEndpoint(cms, ctx, method, segments, false, options)) ??
         (await route(cms, ctx, method, segments, options)))
     if (!result) throw new HttpError('Not found', 404)
     if (result.body instanceof Response) return result.body
@@ -206,6 +206,7 @@ async function customEndpoint(
   method: string,
   segments: string[],
   root: boolean,
+  options: Pick<RestHandlerOptions, 'getClientIp'>,
 ): Promise<Result | undefined> {
   let pathMatched = false
   const own = cms.config.endpoints.filter((e) => !!e.root === root)
@@ -223,6 +224,7 @@ async function customEndpoint(
       url: ctx.url,
       params,
       user: ctx.user,
+      ip: options.getClientIp?.(ctx.request),
       cms,
       json: () => readJson(ctx.request),
     })
@@ -705,9 +707,15 @@ export function readCookie(request: Request, name: string): string | undefined {
 function checkCsrf(cms: EasyCMS, ctx: Context) {
   const origin = ctx.request.headers.get('origin')
   const fetchSite = ctx.request.headers.get('sec-fetch-site')
+  // Without a session cookie there is nothing to forge, so origins allowed by `cors` may write
+  // too (e.g. a public form on a frontend elsewhere); cookie requests need a trusted origin.
+  const cookie = ctx.via === 'cookie' && ctx.token !== undefined
+  const { cors } = cms.config
   const trusted =
     origin !== null &&
-    (origin === ctx.url.origin || cms.config.auth.trustedOrigins.includes(origin))
+    (origin === ctx.url.origin ||
+      cms.config.auth.trustedOrigins.includes(origin) ||
+      (!cookie && (cors === '*' || cors.includes(origin))))
   if (origin !== null && !trusted) throw new ForbiddenError('CSRF check failed: untrusted origin')
   if (origin === null && fetchSite === 'cross-site')
     throw new ForbiddenError('CSRF check failed: cross-site request')

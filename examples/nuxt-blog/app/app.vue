@@ -23,7 +23,7 @@ useHead({
       <p v-if="site?.tagline">{{ site.tagline }}</p>
     </header>
     <main><NuxtPage /></main>
-    <footer>Powered by Easy CMS · <a href="/api/cms/posts">REST API</a></footer>
+    <footer>Powered by Easy CMS · <a href="/api/cms/posts">REST API</a> · <NuxtLink to="/contact">Contact</NuxtLink></footer>
   </div>
 </template>
 

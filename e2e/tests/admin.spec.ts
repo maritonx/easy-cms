@@ -705,6 +705,71 @@ test.describe('logged in as admin', () => {
     await page.waitForLoadState('load')
   })
 
+  test('builds a form, takes submissions on the site and exports them (form builder)', async ({
+    page,
+  }) => {
+    // A published form through the REST API, as the logged-in admin.
+    await page.goto('/admin/')
+    const me = (await (await page.request.get('/api/cms/users/me')).json()) as { csrfToken: string }
+    const created = await page.request.post('/api/cms/forms', {
+      headers: { 'x-csrf-token': me.csrfToken, origin: new URL(page.url()).origin },
+      data: {
+        title: 'Contact',
+        status: 'published',
+        submitLabel: 'Send message',
+        fields: [
+          { blockType: 'text', name: 'name', label: 'Your name', required: true, width: 'half' },
+          { blockType: 'email', name: 'email', label: 'Your email', required: true, width: 'half' },
+          { blockType: 'textarea', name: 'message', label: 'Message' },
+        ],
+        confirmationMessage: {
+          type: 'doc',
+          content: [
+            { type: 'paragraph', content: [{ type: 'text', text: 'Thanks, we will reply soon.' }] },
+          ],
+        },
+      },
+    })
+    expect(created.status()).toBe(201)
+    const form = (await created.json()) as { id: number }
+
+    // The form's side panel: no submissions yet, and the snippet for a page.
+    await page.goto(`/admin/collections/forms/${form.id}`)
+    const panel = page.getByRole('region', { name: 'Submissions' })
+    await expect(panel).toContainText('None yet')
+    await expect(panel).toContainText('<easy-form form="contact"></easy-form>')
+
+    if (standalone()) {
+      const api = new URL('/api/cms', test.info().project.use.baseURL).href
+      await page.goto(`http://localhost:3103/?contact&api=${encodeURIComponent(api)}`)
+    } else {
+      await page.goto('/contact')
+    }
+    const send = page.getByRole('button', { name: 'Send message' })
+    await expect(send).toBeVisible()
+    await send.click()
+    // The form's messages follow the page's language (the Nuxt example's default is Thai).
+    await expect(
+      page.getByText(/Please check the fields marked below\.|โปรดตรวจช่องที่มีเครื่องหมายด้านล่าง/),
+    ).toBeVisible()
+    await expect(page.getByText(/^(is required|ต้องกรอก)$/).first()).toBeVisible()
+    await page.getByLabel('Your name').fill('Somchai')
+    await page.getByLabel('Your email').fill('somchai@example.test')
+    await page.getByLabel('Message').fill('Hello from the e2e test')
+    // People take a moment: forms sent sooner than 2 seconds after loading are treated as bots.
+    await page.waitForTimeout(2_100)
+    await send.click()
+    await expect(page.getByText('Thanks, we will reply soon.')).toBeVisible()
+
+    // The submission in the admin, and as CSV.
+    await page.goto(`/admin/collections/forms/${form.id}`)
+    await expect(panel).toContainText('1 received')
+    await panel.getByRole('link', { name: 'View submissions' }).click()
+    await expect(page.getByRole('row', { name: /Somchai/ })).toBeVisible()
+    const csv = await page.request.get('/api/cms/form/contact/submissions.csv')
+    expect(await csv.text()).toContain('Somchai,somchai@example.test,Hello from the e2e test')
+  })
+
   test('edits small collections in a drawer, and creates related documents in place', async ({
     page,
   }) => {

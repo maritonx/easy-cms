@@ -60,7 +60,7 @@ Commands:
   generate:types          Write TypeScript types for your collections and globals
   create-admin            Create an admin user
   serve                   Run the CMS as its own server (admin + REST API)
-  run-scheduled           Run due scheduled publishes and webhook retries
+  run-scheduled           Run due scheduled publishes, webhook and email retries
   backup <file>           Copy a SQLite database to a file while the CMS runs
   copy --from <config>    Copy all content from another config's database into this one
 
@@ -213,11 +213,15 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
           return 0
         }
         case 'run-scheduled': {
-          const { ran, failed, webhooks } = await cms.runJobs()
+          const { ran, failed, webhooks, emails } = await cms.runJobs()
           io.out(`Ran ${ran} scheduled job(s)${failed ? `, ${failed} failed` : ''}.`)
           if (webhooks.sent || webhooks.failed)
             io.out(
               `Retried webhooks: ${webhooks.sent} sent${webhooks.failed ? `, ${webhooks.failed} gave up` : ''}.`,
+            )
+          if (emails.sent || emails.failed)
+            io.out(
+              `Retried emails: ${emails.sent} sent${emails.failed ? `, ${emails.failed} gave up` : ''}.`,
             )
           return failed ? 1 : 0
         }

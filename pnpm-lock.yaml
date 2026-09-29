@@ -50,9 +50,15 @@ importers:
       '@easy-cms/db-postgres':
         specifier: workspace:^
         version: link:../../packages/db-postgres
+      '@easy-cms/email-smtp':
+        specifier: workspace:^
+        version: link:../../packages/email-smtp
       '@easy-cms/next':
         specifier: workspace:^
         version: link:../../packages/next
+      '@easy-cms/plugin-form-builder':
+        specifier: workspace:^
+        version: link:../../packages/plugin-form-builder
       '@easy-cms/plugin-mcp':
         specifier: workspace:^
         version: link:../../packages/plugin-mcp
@@ -96,9 +102,15 @@ importers:
       '@easy-cms/db-sqlite':
         specifier: workspace:^
         version: link:../../packages/db-sqlite
+      '@easy-cms/email-smtp':
+        specifier: workspace:^
+        version: link:../../packages/email-smtp
       '@easy-cms/nuxt':
         specifier: workspace:^
         version: link:../../packages/nuxt
+      '@easy-cms/plugin-form-builder':
+        specifier: workspace:^
+        version: link:../../packages/plugin-form-builder
       '@easy-cms/plugin-mcp':
         specifier: workspace:^
         version: link:../../packages/plugin-mcp
@@ -130,6 +142,12 @@ importers:
       '@easy-cms/db-sqlite':
         specifier: workspace:^
         version: link:../../packages/db-sqlite
+      '@easy-cms/email-smtp':
+        specifier: workspace:^
+        version: link:../../packages/email-smtp
+      '@easy-cms/plugin-form-builder':
+        specifier: workspace:^
+        version: link:../../packages/plugin-form-builder
       '@easy-cms/plugin-mcp':
         specifier: workspace:^
         version: link:../../packages/plugin-mcp
@@ -270,6 +288,19 @@ importers:
         specifier: workspace:^
         version: link:../core
 
+  packages/email-smtp:
+    dependencies:
+      nodemailer:
+        specifier: ^10.0.12
+        version: 10.0.12
+    devDependencies:
+      '@easy-cms/core':
+        specifier: workspace:^
+        version: link:../core
+      '@types/nodemailer':
+        specifier: ^8.0.2
+        version: 8.0.2
+
   packages/integration:
     devDependencies:
       '@easy-cms/core':
@@ -346,6 +377,22 @@ importers:
       vue:
         specifier: ^3.5.0
         version: 3.5.43(typescript@6.0.3)
+
+  packages/plugin-form-builder:
+    dependencies:
+      '@easy-cms/richtext':
+        specifier: workspace:^
+        version: link:../richtext
+    devDependencies:
+      '@easy-cms/core':
+        specifier: workspace:^
+        version: link:../core
+      '@easy-cms/db-sqlite':
+        specifier: workspace:^
+        version: link:../db-sqlite
+      happy-dom:
+        specifier: ^20.14.5
+        version: 20.14.5
 
   packages/plugin-mcp:
     dependencies:
@@ -2622,6 +2669,9 @@ packages:
   '@types/node@22.20.4':
     resolution: {integrity: sha512-zJRE40jpHtKqE/C4fgHrAKQLJuSpzEnP9ff9Y7YtoR3Wd2pwqzlekDeEuUQXjRd+QCYnVnNwuJYmhdk9XV8gvA==}
 
+  '@types/nodemailer@8.0.2':
+    resolution: {integrity: sha512-c7M5ox8p0nEOfbJ2E9Qcmt8/QCu/VzsiAhzBiZbvky2PhKZDHpKB3sQHBM5MEZNkCfBOaS6S9//AGPRTNB7IaA==}
+
   '@types/react-dom@19.3.0':
     resolution: {integrity: sha512-ZI7bU42mZXXKHn/qNLEw2IrbiINU7X5+vfgdixBHkCNpYWXjKgfQ/P+uyGb5CjOLB9UcnTeg3rylQtV2hym44Q==}
     peerDependencies:
@@ -4426,6 +4476,10 @@ packages:
   node-releases@2.0.57:
     resolution: {integrity: sha512-kQK9LGGFiHtrWiNhZtA7Qbw17AQz+dmsEKODRIVTXA9+e5MS/2gZEBhYJt13GrAz5/IOZKddH/0Z3TP/Zgo+yw==}
     engines: {node: '>=18'}
+
+  nodemailer@10.0.12:
+    resolution: {integrity: sha512-PQ46oNbNMuH/Sno7B5IWIU9etytwrO0xdTFvWXpIQFRXhBAXtzD48243AS+BCbQQTPD8y3fqUrgLn0tSo77gvg==}
+    engines: {node: '>=20.0.0'}
 
   nopt@10.0.1:
     resolution: {integrity: sha512-df3sBr/6ax9hSGuC3CspvLlbnX8cP5L5nZwXF8cGN8l0zSWR6BvzmQ6jPUKjvo6+/xdpkNvEcucBNUdBeeV13g==}
@@ -8268,6 +8322,10 @@ snapshots:
     dependencies:
       undici-types: 6.21.0
 
+  '@types/nodemailer@8.0.2':
+    dependencies:
+      '@types/node': 22.20.4
+
   '@types/react-dom@19.3.0(@types/react@19.3.0)':
     dependencies:
       '@types/react': 19.3.0
@@ -10204,6 +10262,8 @@ snapshots:
   node-mock-http@1.0.5: {}
 
   node-releases@2.0.57: {}
+
+  nodemailer@10.0.12: {}
 
   nopt@10.0.1:
     dependencies:

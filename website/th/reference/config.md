@@ -29,6 +29,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `globals` | `GlobalConfig[]` | `[]` | ดู [globals](#globals) |
 | `endpoints` | `Endpoint[]` | `[]` | ดู [endpoints](#endpoints) |
 | `apiKeys` | `boolean` | `false` | API key ใต้ตั้งค่า สำหรับสคริปต์และแอปอื่น [API keys](/th/guide/api-keys) |
+| `email` | `EmailAdapter` | — | ส่งอีเมลให้ plugin เช่น `smtp()` หรือ `consoleEmail()` [อีเมล](/th/guide/email) |
 | `plugins` | `Plugin[]` | `[]` | `(config) => config` ทำงานตามลำดับก่อนตรวจ config [Plugins](/th/guide/plugins) |
 
 <!-- api: RoutesConfig -->
@@ -207,5 +208,6 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `url` | `URL` | URL ของ request |
 | `params` | `Record<string, string>` | ค่าของ segment แบบ `:name` |
 | `user` | `AuthUser \| null` | ผู้ใช้ที่ login อยู่ |
+| `ip` | `string \| undefined` | IP ของ client ถ้า adapter รู้ |
 | `cms` | `EasyCMS` | [Local API](./local-api) |
 | `json` | `() => Promise<object>` | body แบบ JSON (ต้องเป็น object ขนาดไม่เกิน 1 MB) |

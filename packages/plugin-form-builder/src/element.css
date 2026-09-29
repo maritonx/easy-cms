@@ -1,0 +1,86 @@
+/* Optional defaults for <easy-form>. Override with your own CSS, or leave this file out. */
+.easy-form {
+  --easy-form-gap: 1rem;
+  --easy-form-border: #d0d7de;
+  --easy-form-radius: 8px;
+  --easy-form-accent: #2f6f5e;
+  --easy-form-error: #cf222e;
+  display: grid;
+  gap: var(--easy-form-gap);
+  font: inherit;
+}
+.easy-form__fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--easy-form-gap);
+}
+.easy-form__field,
+.easy-form__message {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.easy-form__field--half {
+  grid-column: span 1;
+}
+@media (max-width: 480px) {
+  .easy-form__field--half {
+    grid-column: 1 / -1;
+  }
+}
+.easy-form__label {
+  font-weight: 600;
+}
+.easy-form__required {
+  color: var(--easy-form-error);
+}
+.easy-form__input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--easy-form-border);
+  border-radius: var(--easy-form-radius);
+  font: inherit;
+  background: #fff;
+  color: inherit;
+}
+.easy-form__input:focus {
+  outline: 2px solid var(--easy-form-accent);
+  outline-offset: 1px;
+}
+.easy-form__input[aria-invalid="true"] {
+  border-color: var(--easy-form-error);
+}
+.easy-form__check,
+.easy-form__choice {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+.easy-form__error,
+.easy-form__status--error {
+  margin: 0;
+  color: var(--easy-form-error);
+  font-size: 0.875rem;
+}
+.easy-form__status:empty {
+  display: none;
+}
+.easy-form__submit {
+  justify-self: start;
+  padding: 0.6rem 1.2rem;
+  border: 0;
+  border-radius: var(--easy-form-radius);
+  background: var(--easy-form-accent);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.easy-form__submit:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

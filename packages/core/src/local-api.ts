@@ -18,6 +18,7 @@ import { Auth } from './auth/auth.js'
 import { hashPassword, MIN_PASSWORD_LENGTH } from './auth/password.js'
 import { signPreviewToken, verifyPreviewToken } from './auth/tokens.js'
 import {
+  EMAIL_DELIVERIES,
   INTERNAL_COLLECTIONS,
   MEDIA,
   SCHEDULED_JOBS,
@@ -35,6 +36,7 @@ import {
   type Reference,
   validateFields,
 } from './document.js'
+import { type EmailMessage, type EmailQueue, Mailer, type QueuedEmail } from './email.js'
 import {
   type FieldError,
   ForbiddenError,
@@ -168,7 +170,8 @@ export async function createEasyCMS<const C extends Config>(
   const cms = new EasyCMS<C>(resolved, db, logger, storage, cwd)
   const scheduling =
     [...resolved.collections, ...resolved.globals].some((c) => c.schedule) ||
-    (resolved.webhooks?.length ?? 0) > 0
+    (resolved.webhooks?.length ?? 0) > 0 ||
+    resolved.email !== undefined
   if (scheduling && options.scheduler !== false) cms.startScheduler()
   return cms
 }
@@ -211,6 +214,7 @@ export class EasyCMS<C extends Config = Config> {
   readonly cwd: string
   private readonly versions: VersionStore
   private readonly webhooks: Webhooks
+  private readonly mailer: Mailer
 
   constructor(
     config: ResolvedConfig,
@@ -231,6 +235,11 @@ export class EasyCMS<C extends Config = Config> {
       config.collections.some((c) => c.slug === WEBHOOK_DELIVERIES)
         ? this.webhookQueue()
         : undefined,
+    )
+    this.mailer = new Mailer(
+      config.email,
+      logger,
+      config.collections.some((c) => c.slug === EMAIL_DELIVERIES) ? this.emailQueue() : undefined,
     )
     this.auth = new Auth(this as unknown as EasyCMS)
   }
@@ -1068,10 +1077,60 @@ export class EasyCMS<C extends Config = Config> {
     return this.webhooks.flush()
   }
 
+  /**
+   * Sends an email with the config's `email` adapter, e.g. from a hook or plugin. Resolves once
+   * the email is queued; it is sent in the background and retried from the queue if sending
+   * fails. Without `email` in the config, the email is skipped with a warning.
+   */
+  sendEmail(message: EmailMessage): Promise<void> {
+    return this.mailer.send(message)
+  }
+
+  /** Waits for emails being sent, e.g. before a serverless function returns. */
+  flushEmails(): Promise<void> {
+    return this.mailer.flush()
+  }
+
+  /** Emails queued until sent, stored in `email-deliveries`. */
+  private emailQueue(): EmailQueue {
+    const collection = EMAIL_DELIVERIES
+    const toRow = (email: QueuedEmail, createdAt?: string) => {
+      const now = new Date().toISOString()
+      return { ...email, createdAt: createdAt ?? now, updatedAt: now } as unknown as Data
+    }
+    return {
+      add: async (email) => (await this.db.create({ collection, data: toRow(email) })).id,
+      update: async (id, email) => {
+        const current = await this.db.findById({ collection, id })
+        await this.db.update({
+          collection,
+          id,
+          data: toRow(email, current?.createdAt as string | undefined),
+        })
+      },
+      remove: async (id) => {
+        await this.db.delete({ collection, id })
+      },
+      due: async (now, limit) => {
+        const { docs } = await this.db.find({
+          collection,
+          where: {
+            and: [{ state: { equals: 'pending' } }, { nextAttemptAt: { lte: now.toISOString() } }],
+          },
+          sort: ['nextAttemptAt'],
+          limit,
+          page: 1,
+        })
+        return docs as unknown as (QueuedEmail & { id: ID })[]
+      },
+    }
+  }
+
   async destroy(): Promise<void> {
     if (this.schedulerTimer) clearInterval(this.schedulerTimer)
     await this.running
     await this.webhooks.flush()
+    await this.mailer.flush()
     await this.db.destroy()
   }
 
@@ -1101,9 +1160,14 @@ export class EasyCMS<C extends Config = Config> {
     ran: number
     failed: number
     webhooks: { sent: number; failed: number }
+    emails: { sent: number; failed: number }
   }> {
     const scheduled = await this.runScheduled(now)
-    return { ...scheduled, webhooks: await this.retryWebhooks(now) }
+    return {
+      ...scheduled,
+      webhooks: await this.retryWebhooks(now),
+      emails: await this.mailer.retry(now),
+    }
   }
 
   /**

@@ -24,7 +24,8 @@ Easy CMS ป้องกันอะไรให้บ้าง อะไรย�
   request ข้ามเว็บที่ไม่มี `Origin` จะถูกปฏิเสธ ส่วน request ที่ใช้ Bearer token ไม่ต้องใช้ CSRF token
   (browser ไม่ส่ง Bearer token ไปเอง)
 - **CORS** ปิดเป็นค่าเริ่มต้น `cors` ระบุ origin ที่โค้ดใน browser เรียก API ได้ และมีเฉพาะ
-  `auth.trustedOrigins` ที่ส่ง cookie ได้
+  `auth.trustedOrigins` ที่ส่ง cookie ได้ origin ใน `cors` เขียนข้อมูลได้ด้วยถ้า**ไม่มี** session cookie
+  (เช่น [ฟอร์ม](./forms)สาธารณะ) เพราะไม่มี session ให้ปลอม และกฎสิทธิ์ของ collection ยังเป็นตัวตัดสิน
 - **ขนาด body** จำกัดที่ 1 MB (JSON) และ `upload.maxFileSize` (ไฟล์ ค่าเริ่มต้น 10 MB)
 - **error** แสดงรายละเอียดเฉพาะตอนพัฒนา บน production error ที่ไม่คาดคิดจะตอบ `Internal Server Error`
   และบันทึก log ไว้ที่ server
