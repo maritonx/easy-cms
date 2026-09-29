@@ -1,5 +1,13 @@
 # @easy-cms/plugin-form-builder
 
+## 0.20.1
+
+### Patch Changes
+
+- b48e524: `<easy-form>` takes `form`, `api` and `locale` as properties as well as attributes. Vue and React set properties on custom elements that have them, so `<easy-form :locale="locale">` in Vue (and `locale={locale}` in React) was ignored before.
+- @easy-cms/core@0.20.1
+  - @easy-cms/richtext@0.20.1
+
 ## 0.20.0
 
 ### Minor Changes
