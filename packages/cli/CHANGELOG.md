@@ -1,5 +1,13 @@
 # easy-cms
 
+## 0.20.0
+
+### Patch Changes
+
+- Updated dependencies [b7564cb]
+  - @easy-cms/core@0.20.0
+  - @easy-cms/admin@0.20.0
+
 ## 0.19.0
 
 ### Patch Changes
