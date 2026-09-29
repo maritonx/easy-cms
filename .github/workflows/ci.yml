@@ -35,8 +35,12 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm typecheck
-      # --continue: report failures in every package, not just the first.
-      - run: pnpm turbo run test --continue
+      # --continue: report failures in every package, not just the first. The output is kept so
+      # the next step can annotate failures: annotations are public, job logs need a login.
+      - run: pnpm turbo run test --continue 2>&1 | tee test-output.log
+        shell: bash
+      - if: failure()
+        run: node .github/scripts/annotate-failures.mjs test-output.log "Tests failed (${{ matrix.os }}, Node ${{ matrix.node }})"
 
   postgres:
     # The shared integration suites against a real Postgres server (SQLite and PGlite run in "test").

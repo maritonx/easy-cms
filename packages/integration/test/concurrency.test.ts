@@ -44,7 +44,8 @@ describe('concurrent writes', () => {
     const setup = await open(config, cwd) // creates the tables first
     await setup.destroy()
     const writer = fileURLToPath(new URL('./fixtures/sqlite-writer.mjs', import.meta.url))
-    const startAt = String(Date.now() + 2_000)
+    // Every process starts writing at this moment; Windows can take seconds to start one.
+    const startAt = String(Date.now() + 5_000)
     await Promise.all(
       ['a', 'b', 'c'].map((name) =>
         promisify(execFile)(process.execPath, [writer, cwd, name, startAt]),

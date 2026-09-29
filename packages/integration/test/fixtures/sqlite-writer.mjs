@@ -6,7 +6,8 @@ const [cwd, name, startAt] = process.argv.slice(2)
 const cms = await createEasyCMS(
   {
     secret: 'x'.repeat(32),
-    db: sqlite({ url: 'file:./cms.db', tablePrefix: 'ecms_' }),
+    // A slow CI machine (Windows) can hold the lock longer than the default 10 s wait.
+    db: sqlite({ url: 'file:./cms.db', tablePrefix: 'ecms_', busyTimeout: 60_000 }),
     collections: [
       {
         slug: 'notes',
@@ -17,7 +18,8 @@ const cms = await createEasyCMS(
       },
     ],
   },
-  { cwd, logger: silentLogger, scheduler: false },
+  // The test made the tables: no schema work (and no writes) at start-up.
+  { cwd, logger: silentLogger, scheduler: false, schema: 'skip' },
 )
 // Every process starts writing at the same moment.
 await new Promise((resolve) => setTimeout(resolve, Number(startAt) - Date.now()))
