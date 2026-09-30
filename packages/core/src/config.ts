@@ -89,6 +89,17 @@ export interface CollectionAdmin extends ContainerAdmin {
    * instead of with the content, e.g. for redirects or forms settings.
    */
   readonly group?: 'settings'
+  readonly list?: CollectionListAdmin
+}
+
+export interface CollectionListAdmin {
+  /**
+   * Show the list as a tree: the name of a relationship field to this same collection (e.g.
+   * `parent`). Top-level documents come first; their children open below them.
+   */
+  readonly tree?: string
+  /** The list's default order, e.g. `title` or `-updatedAt` (the default). */
+  readonly sort?: string
 }
 
 export interface CollectionConfig {
@@ -299,6 +310,23 @@ export interface EndpointRequest {
  * A custom REST endpoint, served under `routes.api`. Writes from the browser pass the same
  * CSRF check as the built-in endpoints.
  */
+/** An `easy-cms <name> [args…]` command. Built-in commands keep their names. */
+export interface CliCommand {
+  /** Lowercase, e.g. `nested:rebuild`. */
+  readonly name: string
+  /** One line for `easy-cms --help`. */
+  readonly description: string
+  /** Shown by `easy-cms <name> --help`. */
+  readonly help?: string
+  /** Runs with the CMS open (no schema push); return a non-zero exit code on failure. */
+  readonly run: (args: {
+    readonly cms: EasyCMS
+    /** Positional arguments after the command name. */
+    readonly args: readonly string[]
+    readonly log: (line: string) => void
+  }) => MaybePromise<number | undefined>
+}
+
 export interface Endpoint {
   /**
    * Path under the API, e.g. `/seo/generate` or `/stats/:collection`. The first segment must
@@ -360,6 +388,8 @@ export interface Config {
   readonly globals?: readonly GlobalConfig[]
   /** Custom REST endpoints, e.g. from plugins. */
   readonly endpoints?: readonly Endpoint[]
+  /** Extra `easy-cms <name>` CLI commands, e.g. from plugins. */
+  readonly commands?: readonly CliCommand[]
   /**
    * API keys for scripts and other apps (`Authorization: Bearer ecms_…`), managed in the admin
    * under Settings. A key acts as its owner, limited to the collections and operations it lists.
@@ -399,6 +429,7 @@ export interface ResolvedConfig
   readonly collections: readonly CollectionConfig[]
   readonly globals: readonly GlobalConfig[]
   readonly endpoints: readonly Endpoint[]
+  readonly commands: readonly CliCommand[]
 }
 
 /**

@@ -262,3 +262,40 @@ export default { ...config, db: sqlite({ url: 'file:./cms.db' }) }
     expect(result.err).toContain('Invalid Easy CMS config')
   })
 })
+
+describe('commands from the config', () => {
+  it('runs them with the CMS open', async () => {
+    const dir = project()
+    writeFileSync(
+      join(dir, 'easy-cms.config.ts'),
+      `import { defineConfig } from '@easy-cms/core'
+import { sqlite } from '@easy-cms/db-sqlite'
+
+export default defineConfig({
+  secret: '${'s'.repeat(32)}',
+  db: sqlite({ url: 'file:./cms.db' }),
+  collections: [{ slug: 'posts', fields: [{ name: 'title', type: 'text' }] }],
+  commands: [
+    {
+      name: 'posts:hello',
+      description: 'Says hello',
+      run: ({ cms, args, log }) => {
+        log(\`hello \${args.join(' ')} \${cms.config.collections.some((c) => c.slug === 'posts')}\`)
+        return args.includes('fail') ? 2 : undefined
+      },
+    },
+  ],
+})
+`,
+    )
+    expect(await cli('posts:hello', 'there', '--cwd', dir)).toMatchObject({
+      code: 0,
+      out: 'hello there true',
+    })
+    expect((await cli('posts:hello', 'fail', '--cwd', dir)).code).toBe(2)
+    expect((await cli('posts:hello', '--help', '--cwd', dir)).out).toContain('Says hello')
+    const unknown = await cli('posts:nope', '--cwd', dir)
+    expect(unknown.code).toBe(1)
+    expect(unknown.err).toContain('posts:hello')
+  })
+})

@@ -16,6 +16,7 @@ import type { EasyCMS } from '../local-api.js'
 import { EXTENSIONS } from '../media.js'
 import { readAdminModule } from './admin-modules.js'
 import { adminSchema } from './admin-schema.js'
+import { pickerFilter } from './filter-options.js'
 import { parseDepth, parseListQuery } from './query.js'
 
 export const SESSION_COOKIE = 'ecms-session'
@@ -442,6 +443,8 @@ async function route(
   if (second === undefined) {
     if (method === 'GET') {
       const query = parseListQuery(ctx.url)
+      const filter = await pickerFilter(cms, ctx.url, collection, ctx.user)
+      if (filter) query.where = query.where ? { and: [query.where, filter] } : filter
       return { body: await cms.find(collection, { ...access, ...query, draft }) }
     }
     if (method === 'POST') {

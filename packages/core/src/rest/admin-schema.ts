@@ -31,6 +31,8 @@ export interface AdminField {
   options?: { label: Label; value: string }[]
   hasMany?: boolean
   to?: string
+  /** A relationship with `filterOptions`: the picker asks the server which documents fit. */
+  filtered?: boolean
   from?: string
   minRows?: number
   maxRows?: number
@@ -65,6 +67,10 @@ export interface AdminCollection {
   sidebar?: AdminComponentRef[]
   /** Listed under Settings in the menu (users, API keys, `admin.group: 'settings'`). */
   group?: 'settings'
+  /** The list is a tree along this relationship field (`admin.list.tree`). */
+  tree?: string
+  /** The list's default order (`admin.list.sort`). */
+  defaultSort?: string
   permissions: { read: boolean; create: boolean; update: boolean; delete: boolean }
 }
 
@@ -153,6 +159,7 @@ async function serializeFields(
       case 'relationship':
         f.to = field.to
         if (field.hasMany) f.hasMany = true
+        if (field.filterOptions) f.filtered = true
         break
       case 'upload':
         f.to = 'media'
@@ -210,6 +217,8 @@ async function collection(
   if (config.icon) result.icon = config.icon
   if (config.admin?.sidebar?.length) result.sidebar = config.admin.sidebar.map(componentRef)
   if (config.admin?.group === 'settings' || SETTINGS.has(config.slug)) result.group = 'settings'
+  if (config.admin?.list?.tree) result.tree = config.admin.list.tree
+  if (config.admin?.list?.sort) result.defaultSort = config.admin.list.sort
   // Drafts, history and preview need the whole page.
   if (config.editIn === 'drawer' && !result.drafts && !result.versions && !result.preview)
     result.editIn = 'drawer'

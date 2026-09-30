@@ -705,6 +705,100 @@ test.describe('logged in as admin', () => {
     await page.waitForLoadState('load')
   })
 
+  test('nests pages: a tree, breadcrumbs and paths that follow a move (nested docs plugin)', async ({
+    page,
+  }) => {
+    // Pages through the REST API, as the logged-in admin.
+    await page.goto('/admin/')
+    const me = (await (await page.request.get('/api/cms/users/me')).json()) as { csrfToken: string }
+    const headers = { 'x-csrf-token': me.csrfToken, origin: new URL(page.url()).origin }
+    const create = async (data: Record<string, unknown>) => {
+      const response = await page.request.post('/api/cms/pages', {
+        headers,
+        data: { status: 'published', ...data },
+      })
+      expect(response.status()).toBe(201)
+      return (await response.json()) as { id: number; path: string }
+    }
+    const about = await create({ title: 'About', slug: 'about' })
+    const team = await create({ title: 'Team', slug: 'team', parent: about.id })
+    await create({ title: 'History', slug: 'history', parent: about.id })
+    await create({ title: 'Services', slug: 'services' })
+    expect(team.path).toBe('/about/team')
+
+    // The list is a tree: pages under About open below it.
+    await page.goto('/admin/collections/pages')
+    await expect(page.getByRole('link', { name: 'About', exact: true })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Team', exact: true })).toBeHidden()
+    await page.getByRole('button', { name: 'Show pages under About' }).click()
+    await expect(page.getByRole('link', { name: 'Team', exact: true })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'History', exact: true })).toBeVisible()
+    // Searching lists the matches flat.
+    await page.getByPlaceholder('Search Title').fill('Tea')
+    await expect(page.getByRole('link', { name: 'About', exact: true })).toBeHidden()
+    await expect(page.getByRole('link', { name: 'Team', exact: true })).toBeVisible()
+
+    // A page shows where it sits.
+    await page.goto(`/admin/collections/pages/${team.id}`)
+    const trail = page.getByRole('list', { name: 'Where this page sits' })
+    await expect(trail).toContainText('About')
+    await expect(trail).toContainText('Team')
+    await expect(page.getByRole('textbox', { name: 'Path', exact: true })).toHaveValue(
+      '/about/team',
+    )
+
+    // About's parent can't be About or a page under it.
+    await page.goto(`/admin/collections/pages/${about.id}`)
+    await expect(page.getByText('2 pages under it')).toBeVisible()
+    await page.getByLabel('Parent page').click()
+    await expect(page.getByRole('option', { name: 'Services' })).toBeVisible()
+    await expect(page.getByRole('option', { name: 'Team' })).toHaveCount(0)
+    await expect(page.getByRole('option', { name: 'About' })).toHaveCount(0)
+    await page.keyboard.press('Escape')
+
+    // A new slug for About moves the pages under it.
+    await page.getByRole('textbox', { name: 'Slug', exact: true }).fill('about-us')
+    await page
+      .getByRole('button', { name: /^Publish/ })
+      .first()
+      .click()
+    await expect(page.getByRole('status')).toHaveText(/Published|Saved/)
+    const moved = await page.request.get(`/api/cms/pages/${team.id}?depth=0`)
+    expect(((await moved.json()) as { path: string }).path).toBe('/about-us/team')
+
+    // Deleting a page with pages under it is refused.
+    const refused = await page.request.delete(`/api/cms/pages/${about.id}`, { headers })
+    expect(refused.status()).toBe(400)
+    expect(await refused.text()).toContain('2 pages under it')
+
+    // The site: the page with its breadcrumbs, the menu, and the old address redirected.
+    if (standalone()) {
+      const api = new URL('/api/cms', test.info().project.use.baseURL).href
+      await page.goto(`http://localhost:3103/?page=/about-us/team&api=${encodeURIComponent(api)}`)
+      await expect(page.getByRole('heading', { level: 1, name: 'Team' })).toBeVisible()
+      await expect(
+        page.getByRole('navigation', { name: 'Breadcrumb' }).getByRole('link', { name: 'About' }),
+      ).toBeVisible()
+      return
+    }
+    await page.goto('/p/about/team')
+    await expect(page).toHaveURL(/\/p\/about-us\/team$/)
+    await expect(page.getByRole('heading', { level: 1, name: 'Team' })).toBeVisible()
+    const breadcrumb = page.getByRole('navigation', { name: 'Breadcrumb' })
+    await breadcrumb.getByRole('link', { name: 'About' }).click()
+    await expect(page).toHaveURL(/\/p\/about-us$/)
+    await expect(page.getByRole('heading', { level: 1, name: 'About' })).toBeVisible()
+    const menu = page.getByRole('navigation', { name: 'Pages' })
+    await expect(menu.getByRole('link', { name: 'History' })).toHaveAttribute(
+      'href',
+      '/p/about-us/history',
+    )
+    // BreadcrumbList JSON-LD for search results.
+    const jsonLd = await page.locator('script[type="application/ld+json"]').allTextContents()
+    expect(jsonLd.some((text) => text.includes('"BreadcrumbList"'))).toBe(true)
+    await page.waitForLoadState('load')
+  })
+
   test('builds a form, takes submissions on the site and exports them (form builder)', async ({
     page,
   }) => {

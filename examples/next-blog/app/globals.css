@@ -47,3 +47,31 @@ a {
 .callout.warning {
   background: #fdf1d8;
 }
+
+.menu ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.menu li ul {
+  display: inline-flex;
+  margin: 0 0 0 0.5rem;
+  font-size: 0.875rem;
+}
+.breadcrumbs ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.875rem;
+  color: #656d76;
+}
+.breadcrumbs li + li::before {
+  content: "›";
+  margin-right: 0.4rem;
+}

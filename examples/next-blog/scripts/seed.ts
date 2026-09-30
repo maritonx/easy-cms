@@ -38,6 +38,23 @@ if ((await cms.count('users')) > 0) {
     publishedAt: new Date(Date.now() - 86_400_000),
   })
   await cms.create('posts', { title: 'Work in progress', author: admin.id })
+  // Pages inside pages: /p/about and /p/about/team (English at ?locale=en).
+  const about = await cms.create('pages', {
+    title: 'เกี่ยวกับเรา',
+    slug: 'about',
+    body: { type: 'doc', content: [paragraph('บล็อกตัวอย่างของ Easy CMS')] },
+    status: 'published',
+  })
+  await cms.update('pages', about.id, { title: 'About us' }, { locale: 'en' })
+  // `parent` is added by the plugin, so the config's inferred types don't list it.
+  const under = { parent: about.id }
+  const team = await cms.create('pages', {
+    title: 'ทีมงาน',
+    slug: 'team',
+    ...under,
+    status: 'published',
+  })
+  await cms.update('pages', team.id, { title: 'Our team' }, { locale: 'en' })
   await cms.updateGlobal('site', { tagline: 'Built with Easy CMS' })
   console.log('Seeded. Log in as admin@example.com / change-me-please')
 }

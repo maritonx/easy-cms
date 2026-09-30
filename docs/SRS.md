@@ -1,9 +1,9 @@
 # Software Requirements Specification — Easy CMS
 
-- **เวอร์ชันเอกสาร:** 2.4
-- **วันที่:** 2026-09-28
+- **เวอร์ชันเอกสาร:** 2.5
+- **วันที่:** 2026-09-30
 - **ผู้เขียน:** Kanawoot K.
-- **ครอบคลุม:** v0.1 (baseline) ถึง v0.20
+- **ครอบคลุม:** v0.1 (baseline) ถึง v0.21
 - **สถานะ:** Living document (อัปเดตทุกครั้งที่เพิ่มฟีเจอร์)
 - **เอกสารที่เกี่ยวข้อง:** [DESIGN.md](DESIGN.md), [ADRs](adr/)
 
@@ -411,6 +411,24 @@ AI assistant ► /api/cms/mcp ──┘                     └──► Webhook
 | FR-FRM-06 | ต้อง export ข้อมูลเป็น CSV ต่อฟอร์ม (BOM, กัน CSV injection) และมี `retentionDays` ลบข้อมูลเก่า | 0.20 | SHOULD |
 | FR-STA-06 | request ที่ไม่มี session cookie จาก origin ใน `cors` ต้องผ่านการตรวจ CSRF ได้ | 0.20 | MUST |
 
+### 3.23d หน้าย่อย / Nested docs (NST) — [ADR-0024](adr/0024-nested-docs.md)
+
+| ID | Requirement | Release | Priority |
+|---|---|---|---|
+| FR-NST-01 | `nestedDocsPlugin({ collections })` ต้องเพิ่ม `parent` (relationship ไปหา collection เดียวกัน), `path` และ `breadcrumbs` ให้แต่ละ collection และใช้ `parent` เดิมถ้ามีอยู่แล้ว | 0.21 | MUST |
+| FR-NST-02 | `path` และ `breadcrumbs` ต้องคำนวณจากหน้าแม่ที่เผยแพร่อยู่และ slug ของหน้า แยกตามภาษาเมื่อ slug เป็น localized | 0.21 | MUST |
+| FR-NST-03 | เมื่อ slug, ชื่อ หรือหน้าแม่ของหน้าที่เผยแพร่เปลี่ยน หน้าลูกหลานทุกหน้าต้องได้ค่าใหม่ draft ของหน้าแม่ต้องไม่เปลี่ยนหน้าลูก และ draft ที่ค้างของหน้าลูกต้องยังค้างอยู่ | 0.21 | MUST |
+| FR-NST-04 | ต้องไม่ให้เลือกหน้าตัวเองหรือหน้าลูกหลานเป็นหน้าแม่ ต้องจำกัดความลึก (`maxDepth`) และ path ต้องไม่ซ้ำ | 0.21 | MUST |
+| FR-NST-05 | การลบหน้าที่มีหน้าลูกต้องถูกปฏิเสธเป็นค่าเริ่มต้น หรือย้ายหน้าลูกขึ้นระดับบนเมื่อตั้ง `onDeleteParent: 'orphan'` | 0.21 | MUST |
+| FR-NST-06 | ต้องมี `findByPath()`, `getTree()` และ `GET <api>/tree/:collection` (เฉพาะหน้าที่เผยแพร่ ตามสิทธิ์อ่าน) | 0.21 | MUST |
+| FR-NST-07 | ต้องมี `rebuildNestedDocs()` และคำสั่ง `easy-cms nested:rebuild` สำหรับข้อมูลเดิมและการซ่อม | 0.21 | SHOULD |
+| FR-MOD-11 | Relationship ต้องรองรับ `filterOptions` ที่ทำงานฝั่ง server: ช่องเลือกใน admin แสดงเฉพาะเอกสารที่ผ่าน และการบันทึกต้องปฏิเสธเอกสารที่ไม่ผ่าน | 0.21 | MUST |
+| FR-MOD-12 | Slug ต้องรองรับ `uniqueWithin` ห้ามซ้ำเฉพาะเอกสารที่มีค่าของอีก field เหมือนกัน | 0.21 | MUST |
+| FR-ADM-20 | Collection ที่ตั้ง `admin.list.tree` ต้องแสดงหน้ารายการเป็นต้นไม้ (ขยายทีละระดับ) และกลับเป็นรายการแบนเมื่อค้นหาหรือกรอง `admin.list.sort` ต้องกำหนดลำดับเริ่มต้น | 0.21 | MUST |
+| FR-LAPI-08 | `update(…, { live: true })` ต้องแก้เวอร์ชันที่เผยแพร่อยู่โดยไม่แตะ draft ที่ค้าง ไม่เปลี่ยน status และไม่เพิ่ม version | 0.21 | MUST |
+| FR-INS-10 | CLI ต้องรันคำสั่งจาก `commands` ใน config (เช่นจาก plugin) โดยคำสั่งในตัวมาก่อน | 0.21 | SHOULD |
+| FR-SEO-13 | `seoMeta({ breadcrumbs })` ต้องสร้าง BreadcrumbList JSON-LD | 0.21 | SHOULD |
+
 ### 3.24 API keys (KEY) — [ADR-0019](adr/0019-api-keys-and-mcp.md)
 
 | ID | ความต้องการ | ตั้งแต่ | ระดับ |
@@ -675,6 +693,7 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 0.18 | SEO สำหรับ AI: crawler ของ AI, llms.txt, Markdown, IndexNow | FR-SEO-09..12 | [0021](adr/0021-seo-for-ai.md) |
 | 0.19 | Redirects plugin, `admin.group: 'settings'` | FR-RDR-*, FR-ADM-19 | [0022](adr/0022-redirects-plugin.md) |
 | 0.20 | อีเมลใน core, email-smtp, form builder | FR-EML-*, FR-FRM-*, FR-STA-06 | [0023](adr/0023-email-and-form-builder.md) |
+| 0.21 | หน้าย่อย (nested docs), `filterOptions`, `uniqueWithin`, tree list, `live`, `commands`, BreadcrumbList | FR-NST-*, FR-MOD-11..12, FR-ADM-20, FR-LAPI-08, FR-INS-10, FR-SEO-13 | [0024](adr/0024-nested-docs.md) |
 
 ---
 
@@ -688,6 +707,7 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 1.3 | 2026-09-25 | M5: FR-REST-08 (อัปโหลด/ไฟล์), FR-CFG-07 (`routes.api`, `serverURL`), ระบุว่า drafts ใน v0.1 ไม่มี version แยก |
 | 1.4 | 2026-09-25 | M6: ผลวัด NFR-PERF-01/02 บน Postgres 17 (Local API p95 2.7 ms, REST p95 4.3 ms), Next.js adapter ใช้ `getEasyCMS(config)` |
 | 1.5 | 2026-09-25 | M7: ผลตรวจรับ v0.1 (7.1) |
+| 2.5 | 2026-09-30 | 0.21: FR-NST-*, FR-MOD-11..12, FR-ADM-20, FR-LAPI-08, FR-INS-10, FR-SEO-13 |
 | 2.4 | 2026-09-29 | 0.20: FR-EML-*, FR-FRM-*, FR-STA-06 |
 | 2.3 | 2026-09-28 | 0.19: FR-RDR-*, FR-ADM-19 |
 | 2.2 | 2026-09-28 | 0.18: FR-SEO-09..12 |

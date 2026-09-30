@@ -164,6 +164,7 @@ export default async function Page({ params }) {
 | `publishedTime` | `(doc) => date` ค่าเริ่มต้นคือ `publishedAt` แล้วตามด้วย `createdAt` |
 | `author` | ชื่อผู้เขียน หรือ `(doc) => name` |
 | `articleType` | `'BlogPosting'` (ค่าเริ่มต้น), `'Article'` หรือ `'NewsArticle'` |
+| `breadcrumbs` | `[{ name, url }]` เรียงจากระดับบนสุด: เพิ่ม BreadcrumbList JSON-LD (`breadcrumbList`) ดู [หน้าย่อย](./nested-docs#when-pages-move) |
 | `title`, `description` | `(doc) => text`: ค่าที่ใช้แทนเมื่อ field meta ว่าง |
 | `siteName` | `og:site_name` |
 
@@ -279,6 +280,8 @@ standalone server เสิร์ฟ `/robots.txt` เอง ปรับได�
 
 - `seoMeta(...).jsonLd` เป็นข้อมูลของหน้า: `BlogPosting` (หรือ `articleType`) เมื่อ `type: 'article'` นอกนั้นเป็น
   `WebPage` Nuxt ได้ผ่าน `useHead(seo.head)`
+- `seoMeta(...).breadcrumbList` เป็น `BreadcrumbList` จาก option `breadcrumbs` เพื่อให้ผลการค้นหาแสดง
+  ตำแหน่งของหน้า `seo.head` มีให้ด้วย ส่วน Next.js ให้ render แบบเดียวกับ `jsonLd`
 - `siteJsonLd({ name, url, logo?, sameAs? })` เป็น `Organization` และ `WebSite` ของเว็บ ให้ใส่ใน layout
   หน้าละครั้ง
 - `jsonLdScript(data)` แปลงข้อมูลเป็นข้อความสำหรับ `<script type="application/ld+json">` โดย escape

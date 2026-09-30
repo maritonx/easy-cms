@@ -83,6 +83,7 @@
 | ตัวเลือก | Type | |
 |---|---|---|
 | `from` | `string` | field แบบ `text` ข้างเคียงที่ใช้สร้าง slug เมื่อยังว่าง |
+| `uniqueWithin` | `string` | field ข้างเคียง (เช่น `parent`): slug ห้ามซ้ำเฉพาะเอกสารที่มีค่าใน field นั้นเหมือนกัน |
 
 <!-- api: RelationshipField -->
 ### relationship {#relationship}
@@ -91,6 +92,7 @@
 |---|---|---|
 | `to` | `string` | **จำเป็น** slug ของ collection ปลายทาง |
 | `hasMany` | `boolean` | หลายเอกสาร ค่าเป็น array |
+| `filterOptions` | `({ id, user, cms }) => Where \| true` | เอกสารใดที่เลือกได้ ช่องเลือกใน admin แสดงเฉพาะเอกสารเหล่านี้ และตรวจซ้ำตอนบันทึก |
 
 <!-- api: ArrayField -->
 ### array {#array}

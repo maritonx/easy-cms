@@ -46,6 +46,7 @@ import {
   UnauthorizedError,
   ValidationError,
 } from './errors.js'
+import type { FilterOptions } from './fields.js'
 import type {
   CollectionDocument,
   CollectionSlug,
@@ -113,6 +114,15 @@ export interface DepthOptions extends AccessOptions {
    * the default locale. `'all'` reads (and writes) localized fields as `{ [locale]: value }`.
    */
   readonly locale?: string
+}
+
+export interface UpdateOptions extends DepthOptions {
+  /**
+   * Upkeep of the live document, e.g. values a plugin keeps up to date (a page's path): with
+   * drafts and versions a pending draft stays as it is (edits go to it by default), the status
+   * stays, and no version is added to the history.
+   */
+  readonly live?: boolean
 }
 
 export interface ReadOptions extends DepthOptions {
@@ -460,7 +470,7 @@ export class EasyCMS<C extends Config = Config> {
     collection: S,
     id: ID,
     data: Update<C, S>,
-    options: DepthOptions = {},
+    options: UpdateOptions = {},
   ): Promise<Doc<C, S>> {
     return (await this.updateDocument(collection, id, asObject(data, collection), options)) as Doc<
       C,
@@ -735,7 +745,7 @@ export class EasyCMS<C extends Config = Config> {
     collection: string,
     id: ID,
     raw: Data,
-    options: DepthOptions,
+    options: UpdateOptions,
     mode: 'save' | 'unpublish' | 'restore' = 'save',
   ): Promise<RawDocument> {
     const config = this.collection(collection)
@@ -748,7 +758,13 @@ export class EasyCMS<C extends Config = Config> {
     if (config.drafts && (mode === 'unpublish' || raw.status === 'published'))
       this.checkKey(guard, { collection }, 'publish')
     // With separate drafts, edits apply to the pending draft when there is one.
-    const [current] = (await this.withDrafts(config, [existing])) as [RawDocument]
+    const [drafted] = (await this.withDrafts(config, [existing])) as [RawDocument]
+    const live = options.live === true && mode === 'save'
+    const current = live ? existing : drafted
+    if (live && Object.hasOwn(raw, 'status')) {
+      const { status: _status, ...rest } = raw
+      raw = rest
+    }
 
     const { input, password } = splitPassword(config, raw)
     const filtered = await filterInput(
@@ -775,6 +791,7 @@ export class EasyCMS<C extends Config = Config> {
       'update',
       parsed,
       options,
+      guard.user,
     )
     prepared = await this.transform(
       config.hooks?.beforeChange,
@@ -820,7 +837,8 @@ export class EasyCMS<C extends Config = Config> {
       id: parsed,
       data: { ...prepared, createdAt: existing.createdAt, updatedAt: now },
     })
-    await this.saveVersion(config, collectionParent(collection), parsed, doc, guard)
+    // Upkeep, not an edit: no version (which would also hide a pending draft behind it).
+    if (!live) await this.saveVersion(config, collectionParent(collection), parsed, doc, guard)
     // A new password signs the user out everywhere.
     if (password !== undefined) await this.auth.revokeSessions(parsed)
     await this.notify(config.hooks?.afterChange, 'afterChange', config.slug, {
@@ -1005,7 +1023,7 @@ export class EasyCMS<C extends Config = Config> {
     )
     if (config.drafts) merged.status = input.status ?? current.status ?? 'draft'
     const base = this.hookArgs(config, guard)
-    let prepared = await this.prepare(config, merged, 'update', undefined, options)
+    let prepared = await this.prepare(config, merged, 'update', undefined, options, guard.user)
     prepared = await this.transform(
       config.hooks?.beforeChange,
       'data',
@@ -1618,6 +1636,7 @@ export class EasyCMS<C extends Config = Config> {
       'create',
       undefined,
       options,
+      (hookGuard ?? guard).user,
     )
     prepared = await this.transform(
       config.hooks?.beforeChange,
@@ -1867,6 +1886,7 @@ export class EasyCMS<C extends Config = Config> {
     operation: 'create' | 'update',
     selfId: ID | undefined,
     options: { locale?: string } = {},
+    user: AuthUser | null = null,
   ): Promise<Data> {
     const isDraft = config.drafts === true && (data.status ?? 'draft') === 'draft'
     const locale = this.localeOf(options)
@@ -1894,6 +1914,8 @@ export class EasyCMS<C extends Config = Config> {
       errors.push(...(await this.checkUnique(config as CollectionConfig, clean, selfId)))
     }
     errors.push(...(await this.checkReferences(result.references)))
+    if (errors.length === 0)
+      errors.push(...(await this.checkFilterOptions(result.references, selfId, user)))
 
     if (errors.length > 0) throw new ValidationError(config.slug, errors)
     return clean
@@ -1922,15 +1944,20 @@ export class EasyCMS<C extends Config = Config> {
   }
 
   private async makeSlugsUnique(config: CollectionConfig, data: Data, selfId: ID | undefined) {
-    const unique = async (path: string, base: string) => {
-      let candidate = base
-      for (let n = 2; await this.isTaken(config.slug, path, candidate, selfId); n++) {
-        candidate = `${base}-${n}`
-      }
-      return candidate
-    }
     for (const field of config.fields) {
       if (field.type !== 'slug') continue
+      // Only among documents with the same value of `uniqueWithin` (e.g. the same parent).
+      const scope: Where | undefined =
+        field.uniqueWithin === undefined
+          ? undefined
+          : { [field.uniqueWithin]: { equals: data[field.uniqueWithin] ?? null } }
+      const unique = async (path: string, base: string) => {
+        let candidate = base
+        for (let n = 2; await this.isTaken(config.slug, path, candidate, selfId, scope); n++) {
+          candidate = `${base}-${n}`
+        }
+        return candidate
+      }
       const value = data[field.name]
       if (field.localized && value && typeof value === 'object') {
         // Unique per locale: each locale has its own column.
@@ -1975,12 +2002,51 @@ export class EasyCMS<C extends Config = Config> {
     return errors
   }
 
-  private async isTaken(collection: string, field: string, value: unknown, selfId: ID | undefined) {
-    const where: Where =
-      selfId === undefined
-        ? { [field]: { equals: value } }
-        : { and: [{ [field]: { equals: value } }, { id: { not_equals: selfId } }] }
+  private async isTaken(
+    collection: string,
+    field: string,
+    value: unknown,
+    selfId: ID | undefined,
+    scope?: Where,
+  ) {
+    const where: Where = {
+      and: [
+        { [field]: { equals: value } },
+        ...(selfId === undefined ? [] : [{ id: { not_equals: selfId } }]),
+        ...(scope ? [scope] : []),
+      ],
+    }
     return (await this.db.count({ collection, where })) > 0
+  }
+
+  /** Each reference is one its relationship's `filterOptions` allow. */
+  private async checkFilterOptions(
+    references: readonly Reference[],
+    selfId: ID | undefined,
+    user: AuthUser | null,
+  ): Promise<FieldError[]> {
+    const errors: FieldError[] = []
+    const cms = this as unknown as EasyCMS
+    const allowed = new Map<FilterOptions, Where | true>()
+    for (const ref of references) {
+      const filter = ref.filterOptions
+      if (!filter) continue
+      if (!allowed.has(filter)) allowed.set(filter, await filter({ id: selfId, user, cms }))
+      const where = allowed.get(filter) as Where | true
+      if (where === true) continue
+      const target = this.config.collections.find((c) => c.slug === ref.collection)
+      const localization = this.config.localization
+      const scoped = target
+        ? this.whereFor(target, where, localization ? { locale: localization.defaultLocale } : {})
+        : where
+      const count = await this.db.count({
+        collection: ref.collection,
+        where: { and: [{ id: { equals: ref.id } }, ...(scoped ? [scoped] : [])] },
+      })
+      if (count === 0)
+        errors.push({ field: ref.field, message: 'is not one of the allowed choices' })
+    }
+    return errors
   }
 
   private async checkReferences(references: readonly Reference[]): Promise<FieldError[]> {

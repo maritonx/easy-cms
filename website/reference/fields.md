@@ -83,6 +83,7 @@ An `AdminComponent` is a tag name starting with `ecms-`, or `{ tag, props }`.
 | Option | Type | |
 |---|---|---|
 | `from` | `string` | A sibling `text` field to make the slug from when it is empty. |
+| `uniqueWithin` | `string` | A sibling field (e.g. `parent`): slugs only differ among documents with the same value there. |
 
 <!-- api: RelationshipField -->
 ### relationship
@@ -91,6 +92,7 @@ An `AdminComponent` is a tag name starting with `ecms-`, or `{ tag, props }`.
 |---|---|---|
 | `to` | `string` | **Required**. Slug of the target collection. |
 | `hasMany` | `boolean` | Several documents; the value is an array. |
+| `filterOptions` | `({ id, user, cms }) => Where \| true` | Which documents it may point to; the admin's picker offers only these and saving checks them. |
 
 <!-- api: ArrayField -->
 ### array

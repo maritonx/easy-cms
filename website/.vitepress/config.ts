@@ -50,7 +50,7 @@ function sidebar(prefix: string, t: Labels): DefaultTheme.SidebarItem[] {
     },
     {
       text: t.plugins,
-      items: ['plugins', 'seo', 'ai-search', 'redirects', 'forms', 'mcp'].map(page),
+      items: ['plugins', 'seo', 'ai-search', 'redirects', 'nested-docs', 'forms', 'mcp'].map(page),
     },
     {
       text: t.operations,
@@ -121,6 +121,7 @@ const en: Labels = {
   seo: 'SEO',
   'ai-search': 'AI search',
   redirects: 'Redirects',
+  'nested-docs': 'Nested pages',
   forms: 'Forms',
   email: 'Email',
   mcp: 'MCP (AI assistants)',
@@ -176,6 +177,7 @@ const th: Labels = {
   seo: 'SEO',
   'ai-search': 'SEO สำหรับ AI',
   redirects: 'Redirects',
+  'nested-docs': 'หน้าย่อย',
   forms: 'ฟอร์ม',
   email: 'อีเมล',
   mcp: 'MCP (ผู้ช่วย AI)',

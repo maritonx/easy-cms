@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { Plus, X } from '@lucide/vue'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, inject, onMounted, ref, watch } from 'vue'
 import DocumentDrawer from '../components/DocumentDrawer.vue'
 import { api, type Doc, type Paginated, toQuery } from '../lib/api'
 import { titleOf } from '../lib/fields'
 import { label, singularize, t } from '../lib/i18n'
+import { FORM } from '../lib/plugins'
 import { findCollection } from '../lib/session'
 
 type Id = number | string
@@ -13,6 +14,8 @@ const props = defineProps<{
   id: string
   to: string
   hasMany: boolean
+  /** The field's path, when its `filterOptions` limit the choices. */
+  filterPath?: string | undefined
   modelValue: unknown
   readOnly: boolean
   invalid: boolean
@@ -50,13 +53,27 @@ const options = ref<Doc[]>([])
 const active = ref(0)
 let timer: ReturnType<typeof setTimeout> | undefined
 
+const form = inject(FORM, null)
+/** The server applies the field's `filterOptions` for this document. */
+function filterQuery() {
+  if (!props.filterPath || !form) return ''
+  const params = new URLSearchParams(
+    form.collection
+      ? { filterFor: `${form.collection}.${props.filterPath}` }
+      : { filterForGlobal: `${form.global}.${props.filterPath}` },
+  )
+  const id = form.id.value
+  if (id !== null && id !== undefined) params.set('filterId', String(id))
+  return `&${params}`
+}
+
 async function search() {
   const field = target?.useAsTitle
   const where = query.value && field ? { [field]: { like: query.value } } : undefined
   try {
     const result = await api<Paginated<Doc>>(
       'GET',
-      `/${props.to}${toQuery({ where, limit: 10, depth: 0, draft: true, sort: field ?? '-updatedAt' })}`,
+      `/${props.to}${toQuery({ where, limit: 10, depth: 0, draft: true, sort: field ?? '-updatedAt' })}${filterQuery()}`,
     )
     options.value = result.docs.filter((d) => !selectedIds.value.includes(d.id))
     for (const doc of result.docs) titles.value[String(doc.id)] = titleOf(target, doc)

@@ -48,7 +48,9 @@ const titleLabel = computed(() => {
 const search = ref(typeof route.query.q === 'string' ? route.query.q : '')
 const page = computed(() => Math.max(1, Number(route.query.page) || 1))
 const sort = computed(() =>
-  typeof route.query.sort === 'string' ? route.query.sort : '-updatedAt',
+  typeof route.query.sort === 'string'
+    ? route.query.sort
+    : (collection?.defaultSort ?? (collection?.tree && titleField ? titleField : '-updatedAt')),
 )
 const statusFilter = computed(() =>
   route.query.status === 'published' || route.query.status === 'draft' ? route.query.status : '',
@@ -157,6 +159,70 @@ function whereOf() {
   return parts.length === 0 ? undefined : parts.length === 1 ? parts[0] : { and: parts }
 }
 
+// --- Tree (`admin.list.tree`) -----------------------------------------------------------------
+
+const treeField = collection?.tree
+/** A tree while nothing narrows the list: a search or filter lists the matches flat. */
+const treeMode = computed(() => !!treeField && !route.query.q && activeFilters.value === 0)
+/** Children by parent id, for the documents whose children are loaded. */
+const children = ref<Map<string, Doc[]>>(new Map())
+const expanded = ref<Set<string>>(new Set())
+/** All documents, when the tree shows only the top level in `result`. */
+const treeTotal = ref<number | null>(null)
+
+interface Row {
+  doc: Doc
+  depth: number
+}
+const rows = computed<Row[]>(() => {
+  const docs = result.value?.docs ?? []
+  if (!treeMode.value) return docs.map((doc) => ({ doc, depth: 0 }))
+  const out: Row[] = []
+  const walk = (list: Doc[], depth: number) => {
+    for (const doc of list) {
+      out.push({ doc, depth })
+      if (expanded.value.has(String(doc.id)))
+        walk(children.value.get(String(doc.id)) ?? [], depth + 1)
+    }
+  }
+  walk(docs, 0)
+  return out
+})
+const hasChildren = (doc: Doc) => (children.value.get(String(doc.id))?.length ?? 0) > 0
+
+/** Loads the children of these documents, one request per level. */
+async function loadChildren(ids: Doc['id'][]) {
+  if (!treeField) return
+  const pending = ids.filter((id) => !children.value.has(String(id)))
+  if (pending.length === 0) return
+  const next = new Map(children.value)
+  for (const id of pending) next.set(String(id), [])
+  // The API returns at most 100 at a time.
+  for (let pageNumber = 1; ; pageNumber++) {
+    const found = await fetchDocs({ [treeField]: { in: pending.join(',') } }, 100, pageNumber)
+    for (const doc of found.docs) next.get(String(doc[treeField]))?.push(doc)
+    if (!found.hasNextPage) break
+  }
+  children.value = next
+}
+async function toggleNode(doc: Doc) {
+  const key = String(doc.id)
+  const next = new Set(expanded.value)
+  if (next.has(key)) {
+    next.delete(key)
+    expanded.value = next
+    return
+  }
+  next.add(key)
+  expanded.value = next
+  // Their own children, so each shows whether it opens.
+  try {
+    await loadChildren((children.value.get(key) ?? []).map((d) => d.id))
+  } catch (e) {
+    notify('error', (e as Error).message)
+  }
+}
+
 // --- Loading ----------------------------------------------------------------------------------
 
 const result = ref<Paginated<Doc> | null>(null)
@@ -175,31 +241,51 @@ const liveIds = ref<Set<string>>(new Set())
 const confirming = ref(false)
 const busy = ref(false)
 
+/** One page of documents in the default language, noting translations and live versions. */
+async function fetchDocs(where: unknown, limit: number, pageNumber = 1): Promise<Paginated<Doc>> {
+  const found = await api<Paginated<Doc>>(
+    'GET',
+    `/${slug}${toQuery({ where, sort: sort.value, limit, page: pageNumber, depth: 0, draft: true })}${localized ? '&locale=all' : ''}`,
+  )
+  let docs = found.docs
+  if (localized && localization && collection) {
+    const { locales, defaultLocale } = localization
+    const next = new Map(missing.value)
+    for (const d of docs)
+      next.set(String(d.id), missingLocales(collection.fields, d, locales, defaultLocale))
+    missing.value = next
+    docs = docs.map((d) => inLocale(collection.fields, d, defaultLocale, locales) as Doc)
+  }
+  if (separateDrafts) {
+    const live = await loadLive(docs)
+    if (live.size) liveIds.value = new Set([...liveIds.value, ...live])
+  }
+  return { ...found, docs }
+}
+
 async function load() {
   if (!collection) return
   loading.value = true
   error.value = ''
   try {
-    result.value = await api<Paginated<Doc>>(
-      'GET',
-      `/${slug}${toQuery({ where: whereOf(), sort: sort.value, limit: PAGE_SIZE, page: page.value, depth: 0, draft: true })}${localized ? '&locale=all' : ''}`,
-    )
-    if (localized && localization && collection) {
-      const { locales, defaultLocale } = localization
-      const raw = result.value.docs
-      missing.value = new Map(
-        raw.map((d) => [
-          String(d.id),
-          missingLocales(collection.fields, d, locales, defaultLocale),
-        ]),
+    missing.value = new Map()
+    liveIds.value = new Set()
+    const tree = treeMode.value && treeField
+    const where = tree ? { [treeField]: { exists: false } } : whereOf()
+    const found = await fetchDocs(where, PAGE_SIZE, page.value)
+    children.value = new Map()
+    if (tree) {
+      await loadChildren(found.docs.map((d) => d.id))
+      const all = await api<Paginated<Doc>>(
+        'GET',
+        `/${slug}${toQuery({ limit: 1, depth: 0, draft: true })}`,
       )
-      result.value = {
-        ...result.value,
-        docs: raw.map((d) => inLocale(collection.fields, d, defaultLocale, locales) as Doc),
-      }
+      treeTotal.value = all.totalDocs
+    } else {
+      treeTotal.value = null
     }
+    result.value = found
     selected.value = new Set()
-    liveIds.value = separateDrafts ? await loadLive(result.value.docs) : new Set()
   } catch (e) {
     error.value =
       e instanceof ApiError && e.status === 403
@@ -312,10 +398,10 @@ const range = computed(() => {
 // --- Selection and bulk actions ---------------------------------------------------------------
 
 const allSelected = computed(
-  () => !!result.value?.docs.length && result.value.docs.every((d) => selected.value.has(d.id)),
+  () => rows.value.length > 0 && rows.value.every((r) => selected.value.has(r.doc.id)),
 )
 function toggleAll() {
-  selected.value = allSelected.value ? new Set() : new Set(result.value?.docs.map((d) => d.id))
+  selected.value = allSelected.value ? new Set() : new Set(rows.value.map((r) => r.doc.id))
 }
 function toggle(id: Doc['id']) {
   const next = new Set(selected.value)
@@ -395,7 +481,7 @@ async function deleteSelected() {
     <header class="toolbar">
       <div class="heading">
         <h1>{{ label(collection.labels?.plural, collection.slug) }}</h1>
-        <span v-if="result" class="count">{{ t(result.totalDocs === 1 ? 'list.countOne' : 'list.count', { count: result.totalDocs }) }}</span>
+        <span v-if="result" class="count">{{ t((treeTotal ?? result.totalDocs) === 1 ? 'list.countOne' : 'list.count', { count: treeTotal ?? result.totalDocs }) }}</span>
       </div>
       <div class="toolbar-actions">
         <!-- Media is created by uploading, below. -->
@@ -495,7 +581,7 @@ async function deleteSelected() {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="doc in result?.docs ?? []" :key="doc.id" :class="{ selected: selected.has(doc.id) }">
+          <tr v-for="{ doc, depth } in rows" :key="doc.id" :class="{ selected: selected.has(doc.id) }">
             <td class="check">
               <input
                 type="checkbox"
@@ -506,7 +592,21 @@ async function deleteSelected() {
             </td>
             <td v-if="isMedia" class="preview"><MediaThumb :media="doc" /></td>
             <td class="title-cell">
-              <RouterLink :to="docLink(doc.id)" class="title-link">{{ titleOf(collection, doc) }}</RouterLink>
+              <span v-if="treeMode" class="tree" :style="{ '--depth': depth }">
+                <button
+                  v-if="hasChildren(doc)"
+                  type="button"
+                  class="tree-toggle"
+                  :aria-expanded="expanded.has(String(doc.id))"
+                  :aria-label="t(expanded.has(String(doc.id)) ? 'list.collapse' : 'list.expand', { title: titleOf(collection, doc) })"
+                  @click="toggleNode(doc)"
+                >
+                  <ChevronRight :size="15" aria-hidden="true" />
+                </button>
+                <span v-else class="tree-toggle" aria-hidden="true" />
+                <RouterLink :to="docLink(doc.id)" class="title-link">{{ titleOf(collection, doc) }}</RouterLink>
+              </span>
+              <RouterLink v-else :to="docLink(doc.id)" class="title-link">{{ titleOf(collection, doc) }}</RouterLink>
             </td>
             <td v-for="f in extraColumns" :key="f.name" class="muted value-cell" :data-label="label(f.label, humanize(f.name))">
               {{ cell(f, doc[f.name]) }}
@@ -892,6 +992,34 @@ tr.selected td {
 }
 .sort:hover {
   color: var(--text);
+}
+.tree {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding-inline-start: calc(var(--depth, 0) * 22px);
+}
+.tree-toggle {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+button.tree-toggle:hover {
+  background: var(--surface-2);
+}
+.tree-toggle svg {
+  transition: transform 0.15s;
+}
+.tree-toggle[aria-expanded='true'] svg {
+  transform: rotate(90deg);
 }
 .title-link {
   color: var(--text);

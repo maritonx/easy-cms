@@ -11,8 +11,8 @@ const { isDark } = useData()
 
 const COPY = {
   en: {
-    badge: 'New in 0.20: forms and email',
-    badgeLink: 'forms',
+    badge: 'New in 0.21: nested pages',
+    badgeLink: 'nested-docs',
     title: 'Your CMS,',
     titleAccent: 'inside your app',
     tagline:
@@ -127,6 +127,15 @@ const COPY = {
         alt: 'Redirects under Settings, one open in a panel',
       },
       {
+        id: 'nested-docs',
+        name: 'Nested pages',
+        pkg: '@easy-cms/plugin-nested-docs',
+        text: 'Pages inside pages: a parent for each page, its full path and breadcrumbs kept right when a page above moves, and a tree in the admin.',
+        link: '/guide/nested-docs',
+        shot: 'nested-docs',
+        alt: 'Pages as a tree in the admin',
+      },
+      {
         id: 'mcp',
         name: 'MCP',
         pkg: '@easy-cms/plugin-mcp',
@@ -168,8 +177,8 @@ const COPY = {
     ctaGuide: 'Read the guide',
   },
   th: {
-    badge: 'ใหม่ใน 0.20: ฟอร์มและอีเมล',
-    badgeLink: 'forms',
+    badge: 'ใหม่ใน 0.21: หน้าย่อย',
+    badgeLink: 'nested-docs',
     title: 'CMS ที่อยู่',
     titleAccent: 'ในแอปของคุณ',
     tagline: 'กำหนดเนื้อหาด้วย TypeScript ได้หน้า admin, API ที่มี type และ plugin โดยไม่ต้องดูแล server แยก',
@@ -253,6 +262,15 @@ const COPY = {
         link: '/th/guide/redirects',
         shot: 'redirects',
         alt: 'รายการ redirect ใต้ตั้งค่า เปิดแก้หนึ่งรายการในแผงด้านข้าง',
+      },
+      {
+        id: 'nested-docs',
+        name: 'หน้าย่อย',
+        pkg: '@easy-cms/plugin-nested-docs',
+        text: 'หน้าซ้อนในหน้า: แต่ละหน้ามีหน้าแม่ path เต็มและ breadcrumbs ที่ถูกต้องเสมอเมื่อหน้าด้านบนย้ายที่ และแสดงเป็นต้นไม้ในหน้า admin',
+        link: '/th/guide/nested-docs',
+        shot: 'nested-docs',
+        alt: 'หน้าต่าง ๆ แสดงเป็นต้นไม้ในหน้า admin',
       },
       {
         id: 'mcp',
@@ -474,7 +492,8 @@ const ICONS = [
             <div v-show="shown === 0"><slot name="plugin-seo" /></div>
             <div v-show="shown === 1"><slot name="plugin-forms" /></div>
             <div v-show="shown === 2"><slot name="plugin-redirects" /></div>
-            <div v-show="shown === 3"><slot name="plugin-mcp" /></div>
+            <div v-show="shown === 3"><slot name="plugin-nested-docs" /></div>
+            <div v-show="shown === 4"><slot name="plugin-mcp" /></div>
           </div>
         </div>
       </div>

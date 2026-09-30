@@ -3,6 +3,7 @@ import { sqlite } from '@easy-cms/db-sqlite'
 import { smtp } from '@easy-cms/email-smtp'
 import { formBuilderPlugin } from '@easy-cms/plugin-form-builder'
 import { mcpPlugin } from '@easy-cms/plugin-mcp'
+import { nestedDocsPlugin } from '@easy-cms/plugin-nested-docs'
 import { redirectsPlugin } from '@easy-cms/plugin-redirects'
 import { seoPlugin } from '@easy-cms/plugin-seo'
 
@@ -14,7 +15,7 @@ export default defineConfig({
   secret: process.env.EASY_CMS_SECRET ?? '',
   db: sqlite({ url: process.env.DATABASE_URL ?? 'file:./cms.db' }),
   // The admin menu: posts first; users are listed under Settings.
-  admin: { locale: 'th', menu: ['posts', 'categories', 'media'] },
+  admin: { locale: 'th', menu: ['posts', 'pages', 'categories', 'media'] },
   // API keys for scripts and AI assistants, managed under Settings → API keys.
   apiKeys: true,
   // Posts and the site name in Thai and English; the slug and other fields are shared.
@@ -139,6 +140,36 @@ export default defineConfig({
         },
       ],
     },
+    {
+      slug: 'pages',
+      labels: { singular: { en: 'Page', th: 'หน้า' }, plural: { en: 'Pages', th: 'หน้า' } },
+      icon: 'file-text',
+      drafts: true,
+      versions: true,
+      useAsTitle: 'title',
+      access: {
+        read: ({ user }) => (user ? true : { status: { equals: 'published' } }),
+      },
+      // A parent, breadcrumbs and the full path (/about/team) come from nestedDocsPlugin below.
+      fields: [
+        {
+          name: 'title',
+          type: 'text',
+          label: { en: 'Title', th: 'ชื่อหน้า' },
+          required: true,
+          localized: true,
+        },
+        // One slug per language, so the English path can differ: /about/team, /เกี่ยวกับ/ทีม.
+        {
+          name: 'slug',
+          type: 'slug',
+          from: 'title',
+          label: { en: 'Slug', th: 'Slug' },
+          localized: true,
+        },
+        { name: 'body', type: 'richText', label: { en: 'Body', th: 'เนื้อหา' }, localized: true },
+      ],
+    },
   ],
   globals: [
     {
@@ -166,6 +197,8 @@ export default defineConfig({
     formBuilderPlugin({ defaultTo: process.env.FORMS_TO ?? 'owner@localhost' }),
     // AI assistants (Claude, Cursor…) at /api/cms/mcp, with an API key.
     mcpPlugin(),
+    // Pages inside pages (About → Team): a tree in the admin, paths kept up to date.
+    nestedDocsPlugin({ collections: ['pages'] }),
     // Redirects under Settings; the frontend asks /api/cms/resolve-redirect?path=… for them.
     redirectsPlugin(),
     seoPlugin({

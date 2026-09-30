@@ -72,7 +72,7 @@ collection คือประเภทของเนื้อหาที่ม
 | `labels` | `{ singular, plural }` แต่ละค่าเป็น string หรือ `{ en, th }` |
 | `useAsTitle` | field ระดับบนสุดที่แสดงเป็นชื่อเอกสารในหน้า admin |
 | `editIn` | `'drawer'`: สร้างและแก้ไขในแผงเลื่อนทับหน้ารายการ เหมาะกับ collection เล็กอย่างหมวดหมู่ และช่อง relationship ที่ชี้มาจะมีปุ่ม "สร้าง" ที่เปิดแผงเดียวกัน ส่วน collection ที่มี drafts, versions หรือ preview จะใช้หน้าเต็มเสมอ |
-| `admin` | `{ group: 'settings' }` แสดง collection ใต้ตั้งค่าในเมนู (คู่กับ Users และ API keys) แทนที่จะอยู่กับเนื้อหา ส่วน `{ sidebar }` เพิ่ม[admin components](./plugins#admin-components) |
+| `admin` | `{ group: 'settings' }` แสดง collection ใต้ตั้งค่าในเมนู (คู่กับ Users และ API keys) แทนที่จะอยู่กับเนื้อหา ส่วน `{ sidebar }` เพิ่ม[admin components](./plugins#admin-components) และ `{ list: { tree: 'parent', sort: 'title' } }` แสดงรายการเป็นต้นไม้ตาม relationship ไปหา collection เดียวกัน พร้อมกำหนดลำดับเริ่มต้น |
 | `icon` | ไอคอนในเมนูของหน้า admin (ค่าเริ่มต้น `file-text`) เลือกจากรายชื่อใน[ใส่แบรนด์ให้หน้า admin](#branding-the-admin) |
 | `drafts` | เพิ่ม `status` (`draft` \| `published`) ดู [ฉบับร่าง (draft)](./drafts) |
 | `versions` | `true` หรือ `{ max }`: เก็บเวอร์ชันของการบันทึกทุกครั้ง พร้อมประวัติและการกู้คืน ถ้ามี `drafts` ด้วย ฉบับร่างของเอกสารที่เผยแพร่แล้วจะถูกเก็บแยก ดู [เวอร์ชัน](./drafts#versions) |

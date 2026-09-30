@@ -1,7 +1,14 @@
 import { randomUUID } from 'node:crypto'
 import type { ID } from './access.js'
 import type { FieldError } from './errors.js'
-import { type BlocksField, type Field, hasRows, rowFields, type SelectField } from './fields.js'
+import {
+  type BlocksField,
+  type Field,
+  type FilterOptions,
+  hasRows,
+  rowFields,
+  type SelectField,
+} from './fields.js'
 import type { Localization } from './localization.js'
 
 type Data = Record<string, unknown>
@@ -153,6 +160,8 @@ export interface Reference {
   readonly field: string
   readonly collection: string
   readonly id: ID
+  /** The relationship's `filterOptions`, checked when saving. */
+  readonly filterOptions?: FilterOptions
 }
 
 export interface ValidateOptions {
@@ -349,7 +358,14 @@ async function normalizeValue(
         if (id === undefined)
           return fail(`must be ${many ? 'ids' : 'an id'} of "${target}" documents`)
         ids.push(id)
-        references.push({ field: path, collection: target, id })
+        references.push({
+          field: path,
+          collection: target,
+          id,
+          ...(field.type === 'relationship' && field.filterOptions
+            ? { filterOptions: field.filterOptions }
+            : {}),
+        })
       }
       return many ? ids : ids[0]
     }

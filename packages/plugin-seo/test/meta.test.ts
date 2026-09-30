@@ -166,6 +166,34 @@ describe('seoMeta', () => {
     expect(page.alternates).toBeUndefined()
   })
 
+  it('adds BreadcrumbList JSON-LD from breadcrumbs', () => {
+    const meta = seoMeta(
+      { title: 'Team' },
+      {
+        siteUrl: 'https://site.test',
+        url: '/p/about/team',
+        breadcrumbs: [
+          { name: 'About', url: '/p/about' },
+          { name: '', url: '/skipped' },
+          { name: 'Team', url: '/p/about/team' },
+        ],
+      },
+    )
+    expect(meta.breadcrumbList).toEqual({
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'About', item: 'https://site.test/p/about' },
+        { '@type': 'ListItem', position: 2, name: 'Team', item: 'https://site.test/p/about/team' },
+      ],
+    })
+    expect(meta.head.script.map((s) => JSON.parse(s.innerHTML)['@type'])).toEqual([
+      'WebPage',
+      'BreadcrumbList',
+    ])
+    expect(seoMeta({ title: 'x' }).breadcrumbList).toBeUndefined()
+  })
+
   it('makes site JSON-LD and escapes it for a script tag', () => {
     expect(
       siteJsonLd({ name: 'Blog', url: 'https://blog.test/', logo: 'https://blog.test/l.png' }),

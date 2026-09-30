@@ -12,6 +12,7 @@
       `?api=` points it at another CMS (default http://localhost:4000/api/cms).
       `?post=<id>` shows one post: the admin's live preview opens it with a preview token.
       `?contact` shows the "contact" form from the CMS.
+      `?page=/about/team` shows a page by its full path (the nested docs plugin).
     -->
     <main id="app"></main>
     <script type="module">
@@ -43,13 +44,41 @@
         app.replaceChildren(el('h1', { textContent: 'Contact' }), form)
       }
 
+      const pageLink = (path) =>
+        el('a', { href: `?page=${encodeURIComponent(path ?? '/')}&api=${encodeURIComponent(api)}` })
+
+      // The menu: published pages and the pages under them (nested docs plugin: GET /tree/:collection).
+      const menuOf = (nodes) =>
+        el('ul', { className: 'menu' }, ...nodes.map((node) => {
+          const link = Object.assign(pageLink(node.path), { textContent: node.title })
+          return el('li', {}, link, node.children.length ? menuOf(node.children) : '')
+        }))
+
+      // A page by its full path, with its breadcrumbs.
+      async function page(path) {
+        const { docs } = await get(`/pages?where[path][equals]=${encodeURIComponent(path)}&limit=1`)
+        const found = docs[0]
+        if (!found) return app.replaceChildren(el('p', { textContent: 'Page not found.' }))
+        const trail = found.breadcrumbs ?? []
+        app.replaceChildren(
+          el('nav', { ariaLabel: 'Breadcrumb' }, el('ol', {}, ...trail.map((crumb, i) =>
+            el('li', {}, i < trail.length - 1
+              ? Object.assign(pageLink(crumb.url), { textContent: crumb.label })
+              : el('span', { textContent: crumb.label })),
+          ))),
+          el('h1', { textContent: found.title }),
+        )
+      }
+
       async function list() {
         const site = await get('/globals/site')
         // Anonymous requests only see published posts (the collection's read access).
         const { docs } = await get('/posts?sort=-createdAt&depth=1&limit=20')
+        const menu = await get('/tree/pages?depth=2')
         app.replaceChildren(
           el('h1', { textContent: site.siteName }),
           el('p', { textContent: site.tagline ?? '' }),
+          menu.length ? el('nav', { ariaLabel: 'Pages' }, menuOf(menu)) : '',
           el('p', {}, el('a', { href: `?contact&api=${encodeURIComponent(api)}`, textContent: 'Contact' })),
           el('ul', {}, ...docs.map((post) =>
             el('li', {}, coverOf(post), el('a', { href: `?post=${post.id}`, textContent: post.title })),
@@ -86,7 +115,13 @@
       }
 
       const post = params.get('post')
-      await (params.has('contact') ? contact() : post ? single(post) : list())
+      await (params.has('contact')
+        ? contact()
+        : params.has('page')
+          ? page(params.get('page'))
+          : post
+            ? single(post)
+            : list())
     </script>
   </body>
 </html>

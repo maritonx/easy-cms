@@ -23,9 +23,11 @@ export type {
   BeforeChangeHook,
   BeforeDeleteHook,
   BeforeValidateHook,
+  CliCommand,
   CollectionAdmin,
   CollectionConfig,
   CollectionHooks,
+  CollectionListAdmin,
   ContainerAdmin,
   Endpoint,
   EndpointRequest,
@@ -98,6 +100,7 @@ export {
   type LivePreview,
   type ReadOptions,
   type ScheduledJob,
+  type UpdateOptions,
 } from './local-api.js'
 export { consoleLogger, type Logger, silentLogger } from './logger.js'
 export { EXTENSIONS, imageDimensions, mimeAllowed, sniffMimeType } from './media.js'

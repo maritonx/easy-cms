@@ -1,4 +1,5 @@
-import type { FieldAccess } from './access.js'
+import type { AuthUser, FieldAccess, ID, Where } from './access.js'
+import type { EasyCMS } from './local-api.js'
 
 /** A label shown in the admin UI. Either one string or one string per admin locale. */
 export type Label = string | { readonly [locale: string]: string }
@@ -88,6 +89,11 @@ export interface SelectField extends BaseField<'select', string | readonly strin
 export interface SlugField extends BaseField<'slug', string> {
   /** Name of a sibling `text` field to generate the slug from. */
   readonly from?: string
+  /**
+   * Name of a sibling field (e.g. `parent`): slugs then only need to differ among documents
+   * with the same value there, so `/about/team` and `/careers/team` can both be `team`.
+   */
+  readonly uniqueWithin?: string
 }
 
 /** Tiptap / ProseMirror JSON document. */
@@ -101,10 +107,24 @@ export interface RichTextField extends BaseField<'richText', RichTextDocument> {
 /** References a document in the built-in `media` collection. */
 export interface UploadField extends BaseField<'upload', never> {}
 
+export interface FilterOptionsArgs {
+  /** The document being edited; `undefined` while it is being created. */
+  readonly id: ID | undefined
+  readonly user: AuthUser | null
+  readonly cms: EasyCMS
+}
+
+/**
+ * Which documents a relationship may point to: a `where` on the target collection, or `true`
+ * for any. Runs on the server: the admin's picker offers only these, and saving checks them.
+ */
+export type FilterOptions = (args: FilterOptionsArgs) => Where | true | Promise<Where | true>
+
 export interface RelationshipField extends BaseField<'relationship', never> {
   /** Slug of the target collection. */
   readonly to: string
   readonly hasMany?: boolean
+  readonly filterOptions?: FilterOptions
 }
 
 export interface ArrayField extends BaseField<'array', never> {

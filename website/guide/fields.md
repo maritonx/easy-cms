@@ -58,6 +58,9 @@ Every field has a `name` and a `type`. Common options:
 Filled from `title` when empty. Letters of any script are kept (`สวัสดี ชาวโลก` →
 `สวัสดี-ชาวโลก`); duplicates get `-2`, `-3`. Changing the title later does not change the slug.
 
+`uniqueWithin: 'parent'` makes slugs unique only among documents with the same value of another
+field, e.g. pages under the same parent (as the [nested pages](./nested-docs) plugin does).
+
 ### relationship
 
 ```ts
@@ -68,6 +71,19 @@ Filled from `title` when empty. Letters of any script are kept (`สวัสด
 Ids are checked to exist when saving. Reads populate related documents to `depth` levels
 (default 1, max 3); at depth 0 you get ids. Deleted or unreadable documents become `null`, or
 are dropped from `hasMany` lists.
+
+`filterOptions` limits which documents a relationship may point to. It runs on the server with
+the document's id (`undefined` while creating) and the user, and returns a `where` on the target
+collection, or `true` for any. The admin's picker offers only those, and saving checks them:
+
+```ts
+{
+  name: 'manager',
+  type: 'relationship',
+  to: 'users',
+  filterOptions: ({ id }) => ({ role: { equals: 'admin' } }),
+}
+```
 
 ### array and group
 

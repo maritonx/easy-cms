@@ -72,7 +72,7 @@ A collection is a type of content with many documents: posts, products, pages.
 | `labels` | `{ singular, plural }`, each a string or `{ en, th }`. |
 | `useAsTitle` | Top-level field shown as the document title in the admin. |
 | `editIn` | `'drawer'`: create and edit in a panel over the list, for small collections such as categories; relationship fields to it get a "Create" button that opens the same panel. Collections with drafts, versions or preview always use the full page. |
-| `admin` | `{ group: 'settings' }` lists the collection under Settings in the menu (with Users and API keys) instead of with the content; `{ sidebar }` adds [admin components](./plugins#admin-components). |
+| `admin` | `{ group: 'settings' }` lists the collection under Settings in the menu (with Users and API keys) instead of with the content; `{ sidebar }` adds [admin components](./plugins#admin-components); `{ list: { tree: 'parent', sort: 'title' } }` shows the list as a tree along a relationship to the same collection, and sets its default order. |
 | `icon` | Icon in the admin menu (default `file-text`); one of the names under [Branding the admin](#branding-the-admin). |
 | `drafts` | Adds `status` (`draft` \| `published`). See [Drafts](./drafts). |
 | `versions` | `true` or `{ max }`: keep a version of every save, with history and restore; with `drafts`, drafts of published documents are kept separately. See [Versions](./drafts#versions). |

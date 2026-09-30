@@ -113,6 +113,15 @@ async function main() {
         await page.getByRole('dialog').waitFor()
         await shot('redirects')
 
+        // Nested pages: the tree with About open, and a page's side panel.
+        await page.goto(`${ORIGIN}/admin/collections/pages`)
+        await page.getByRole('button', { name: t.expandAbout }).click()
+        await page.getByRole('link', { name: t.team, exact: true }).waitFor()
+        await shot('nested-docs')
+        await page.goto(`${ORIGIN}/admin/collections/pages/${ids.team}`)
+        await page.getByRole('list', { name: t.trail }).waitFor()
+        await shot('nested-docs-page')
+
         await page.goto(`${ORIGIN}/admin/collections/api-keys/new`)
         await page.getByRole('textbox').first().fill(t.keyName)
         // Posts: read, create and update; media: read and create.
@@ -143,6 +152,10 @@ const EN = {
   submissions: 'Submissions',
   keyName: 'Writing assistant',
   keyChecks: ['Posts: Read', 'Posts: Create', 'Posts: Update', 'Media: Read', 'Media: Upload'],
+  // Lists show the default language (Thai).
+  expandAbout: 'Show pages under เกี่ยวกับเรา',
+  team: 'ทีมงาน',
+  trail: 'Where this page sits',
 }
 const TH = {
   preview: 'ตัวอย่างผลการค้นหา',
@@ -152,6 +165,9 @@ const TH = {
   submissions: 'ข้อมูลที่ส่งมา',
   keyName: 'ผู้ช่วยเขียนบทความ',
   keyChecks: ['บทความ: อ่าน', 'บทความ: สร้าง', 'บทความ: แก้ไข', 'คลังสื่อ: อ่าน', 'คลังสื่อ: อัปโหลด'],
+  expandAbout: 'แสดงหน้าย่อยของ เกี่ยวกับเรา',
+  team: 'ทีมงาน',
+  trail: 'ตำแหน่งของหน้านี้',
 }
 
 async function login(page: Page) {
@@ -433,7 +449,27 @@ async function seed() {
   })
   await call('POST', '/redirects', { from: '/start', to: '/posts/get-started' })
 
-  return { featured, category: guides.id, form: form.id, redirect: redirect.id }
+  // Pages inside pages, in both languages.
+  const addPage = async (th: string, en: string, slug: string, parent?: number) => {
+    const created = await call('POST', '/pages', {
+      title: th,
+      slug,
+      status: 'published',
+      ...(parent ? { parent } : {}),
+    })
+    await call('PATCH', `/pages/${created.id}?locale=en`, { title: en, slug })
+    return created.id as number
+  }
+  const about = await addPage('เกี่ยวกับเรา', 'About us', 'about')
+  const team = await addPage('ทีมงาน', 'Our team', 'team', about)
+  await addPage('ประวัติ', 'Our story', 'story', about)
+  await addPage('ร่วมงานกับเรา', 'Careers', 'careers', about)
+  const services = await addPage('บริการ', 'Services', 'services')
+  await addPage('ออกแบบเว็บไซต์', 'Web design', 'web-design', services)
+  await addPage('ที่ปรึกษา', 'Consulting', 'consulting', services)
+  await addPage('ติดต่อเรา', 'Contact', 'contact')
+
+  return { featured, category: guides.id, form: form.id, redirect: redirect.id, team }
 }
 
 try {

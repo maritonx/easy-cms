@@ -97,6 +97,18 @@ plugins: [
 ```
 
 </template>
+<template #plugin-nested-docs>
+
+```ts
+import { findByPath, nestedDocsPlugin } from '@easy-cms/plugin-nested-docs'
+
+plugins: [nestedDocsPlugin({ collections: ['pages'] })]
+
+// /about/team → the page, with its breadcrumbs
+const page = await findByPath(cms, 'pages', '/about/team')
+```
+
+</template>
 <template #plugin-mcp>
 
 ```ts

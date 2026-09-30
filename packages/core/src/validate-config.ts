@@ -80,6 +80,7 @@ export function validateConfig(config: Config): ConfigIssue[] {
   })
 
   validateEndpoints(config, collectionSlugs, add)
+  validateCommands(config, add)
   const apiKeys: unknown = config.apiKeys
   if (apiKeys !== undefined && typeof apiKeys !== 'boolean') add('apiKeys', 'must be true or false')
 
@@ -451,6 +452,8 @@ function validateContainer(
       const group: unknown = (admin as { group?: unknown }).group
       if (group !== undefined && group !== 'settings')
         add(`${path}.admin.group`, `must be 'settings' (got ${JSON.stringify(group)})`)
+      const list: unknown = (admin as { list?: unknown }).list
+      if (list !== undefined) validateList(list, container, `${path}.admin.list`, add)
     }
   }
   const reserved = new Set(SYSTEM_FIELD_NAMES)
@@ -498,6 +501,35 @@ function validateFields(
   }
 }
 
+function validateList(
+  list: unknown,
+  container: CollectionConfig | GlobalConfig,
+  path: string,
+  add: Add,
+) {
+  if (typeof list !== 'object' || list === null) {
+    add(path, 'must be an object', "e.g. list: { tree: 'parent' }")
+    return
+  }
+  const { tree, sort } = list as { tree?: unknown; sort?: unknown }
+  if (sort !== undefined && (typeof sort !== 'string' || !sort.replace(/^-/, '')))
+    add(`${path}.sort`, 'must be a field name, with - for descending', "e.g. sort: 'title'")
+  if (tree === undefined) return
+  const field = container.fields.find((f) => f.name === tree)
+  if (
+    field?.type !== 'relationship' ||
+    field.to !== container.slug ||
+    field.hasMany ||
+    field.localized
+  ) {
+    add(
+      `${path}.tree`,
+      `must name a relationship field to "${container.slug}" (not hasMany or localized)`,
+      `e.g. { name: 'parent', type: 'relationship', to: '${container.slug}' }`,
+    )
+  }
+}
+
 function validateField(
   field: Field,
   path: string,
@@ -537,6 +569,21 @@ function validateField(
           add(`${path}.from`, `no sibling field named "${field.from}"`)
         } else if (source.type !== 'text') {
           add(`${path}.from`, `"${field.from}" must be a text field (got ${source.type})`)
+        }
+      }
+      if (field.uniqueWithin !== undefined) {
+        const scope = siblings.get(field.uniqueWithin)
+        if (!scope || scope === field) {
+          add(`${path}.uniqueWithin`, `no sibling field named "${field.uniqueWithin}"`)
+        } else if (
+          !['relationship', 'select', 'text', 'number'].includes(scope.type) ||
+          ('hasMany' in scope && scope.hasMany) ||
+          scope.localized
+        ) {
+          add(
+            `${path}.uniqueWithin`,
+            `"${field.uniqueWithin}" must be a single, unlocalized relationship, select, text or number field`,
+          )
         }
       }
       break
@@ -639,6 +686,26 @@ const ENDPOINT_METHODS = ['get', 'post', 'put', 'patch', 'delete']
 const ENDPOINT_SEGMENT = /^(:[A-Za-z_][A-Za-z0-9_]*|[A-Za-z0-9._~-]+)$/
 /** First path segments the built-in REST API uses besides collection slugs. */
 const RESERVED_ENDPOINT_ROOTS = new Set(['users', 'globals', 'admin', 'jobs', 'media', 'api-keys'])
+
+function validateCommands(config: Config, add: Add) {
+  const commands: unknown = config.commands
+  if (commands === undefined) return
+  if (!Array.isArray(commands)) {
+    add('commands', 'must be an array', "e.g. commands: [{ name: 'my:task', description, run }]")
+    return
+  }
+  const seen = new Set<string>()
+  commands.forEach((command: unknown, i) => {
+    const path = `commands[${i}]`
+    const { name, description, run } = (command ?? {}) as Record<string, unknown>
+    if (typeof name !== 'string' || !/^[a-z][a-z0-9-]*(:[a-z0-9-]+)*$/.test(name))
+      add(`${path}.name`, 'must be lowercase letters, digits, - and :', "e.g. 'nested:rebuild'")
+    else if (seen.has(name)) add(`${path}.name`, `"${name}" is already used by another command`)
+    else seen.add(name)
+    if (typeof description !== 'string') add(`${path}.description`, 'must be a string')
+    if (typeof run !== 'function') add(`${path}.run`, 'must be a function')
+  })
+}
 
 function validateEndpoints(config: Config, collectionSlugs: ReadonlySet<string>, add: Add) {
   const endpoints: unknown = config.endpoints

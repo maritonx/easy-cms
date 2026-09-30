@@ -332,11 +332,16 @@ function buildTable(
                   defaultLocale: locale === localization?.defaultLocale,
                 },
           )
-          if (topLevel && kind === 'root' && (field.unique || field.type === 'slug')) {
+          if (
+            topLevel &&
+            kind === 'root' &&
+            (field.unique || (field.type === 'slug' && field.uniqueWithin === undefined))
+          ) {
             indexes.push({ column, unique: true })
           } else if (
             field.index ||
             field.unique ||
+            field.type === 'slug' ||
             field.type === 'relationship' ||
             field.type === 'upload'
           ) {

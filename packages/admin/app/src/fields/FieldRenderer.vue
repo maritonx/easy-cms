@@ -253,6 +253,7 @@ function onNumber(value: string) {
       :id="id"
       :to="field.to ?? ''"
       :has-many="field.hasMany === true"
+      :filter-path="field.filtered ? path : undefined"
       :model-value="modelValue"
       :read-only="readOnly"
       :invalid="invalid"

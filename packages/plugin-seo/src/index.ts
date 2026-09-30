@@ -13,6 +13,7 @@ export {
   type NextSeoMetadata,
   type NuxtSeoHead,
   type NuxtSeoMeta,
+  type SeoBreadcrumb,
   type SeoImage,
   type SeoMeta,
   type SeoMetaOptions,

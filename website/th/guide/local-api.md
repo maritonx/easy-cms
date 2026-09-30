@@ -70,6 +70,7 @@ await cms.flushWebhooks() // wait for webhook deliveries (serverless)
 | `fallbackLocale` | `true` | ค่าที่ localized แล้วว่างจะใช้ค่าของภาษาเริ่มต้นแทน |
 | `overrideAccess` | `true` | `false` จะใช้ [กฎการควบคุมสิทธิ์](./access-control) กับ `user` |
 | `user` | `null` | ผู้ใช้ที่จะตรวจสอบสิทธิ์ |
+| `live` | `false` | เฉพาะ `update`: ดูแลค่าของเวอร์ชันที่เผยแพร่อยู่ สำหรับค่าที่ plugin ดูแลให้เป็นปัจจุบัน draft ที่ค้างไว้ยังค้างอยู่ และไม่เพิ่ม version ในประวัติ |
 
 ## where {#where}
 

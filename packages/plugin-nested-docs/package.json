@@ -1,0 +1,51 @@
+{
+  "name": "@easy-cms/plugin-nested-docs",
+  "version": "0.20.1",
+  "description": "Nested pages for Easy CMS: a parent for each page, breadcrumbs and full paths kept up to date, and a tree in the admin",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./admin": "./dist/admin.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "@easy-cms/core": "workspace:^"
+  },
+  "devDependencies": {
+    "@easy-cms/core": "workspace:^",
+    "@easy-cms/db-sqlite": "workspace:^",
+    "@easy-cms/plugin-redirects": "workspace:^"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maritonx/easy-cms.git",
+    "directory": "packages/plugin-nested-docs"
+  },
+  "keywords": [
+    "easy-cms",
+    "easy-cms-plugin",
+    "nested-docs",
+    "breadcrumbs",
+    "hierarchy",
+    "pages"
+  ]
+}

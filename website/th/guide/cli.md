@@ -157,6 +157,27 @@ npx easy-cms serve --watch          # ตอนพัฒนา: โหลดใ�
 บน production (`NODE_ENV=production`) ถ้ามี migration ค้าง server จะไม่เริ่มทำงาน
 ดู [Standalone server](./standalone)
 
+### คำสั่งจาก plugin {#commands-from-plugins}
+
+Plugin เพิ่มคำสั่งเองได้ เช่น `easy-cms nested:rebuild` จาก plugin [หน้าย่อย](./nested-docs)
+ถ้าพิมพ์คำสั่งที่ไม่รู้จัก `npx easy-cms` จะแสดงคำสั่งที่ config ของคุณมี config ของคุณก็เพิ่มคำสั่งเองได้
+
+```ts
+export default defineConfig({
+  // …
+  commands: [
+    {
+      name: 'posts:count',
+      description: 'Print how many posts there are',
+      run: async ({ cms, args, log }) => log(String(await cms.count('posts'))),
+    },
+  ],
+})
+```
+
+`run` ได้รับ CMS (schema ตามที่เป็นอยู่ ให้รัน `migrate` ก่อน) คำที่ตามหลังชื่อคำสั่ง และ `log`
+คืนตัวเลขเพื่อใช้เป็น exit code
+
 ## ขั้นต่อไป {#next-steps}
 
 - [Migration และการ deploy](./deployment): ควรรันคำสั่งไหนเมื่อไหร่

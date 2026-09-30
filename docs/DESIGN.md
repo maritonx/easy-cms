@@ -1,9 +1,9 @@
 # Easy CMS — Design Document
 
 - **สถานะ:** Accepted (living document)
-- **วันที่:** 2026-09-28 (ฉบับแรก 2026-09-25)
+- **วันที่:** 2026-09-30 (ฉบับแรก 2026-09-25)
 - **ผู้เขียน:** Kanawoot K.
-- **ครอบคลุม:** v0.1 ถึง v0.20
+- **ครอบคลุม:** v0.1 ถึง v0.21
 - **Requirements:** [SRS.md](SRS.md)
 
 ---
@@ -85,6 +85,7 @@ Plugin ยังเป็น `(config) => config` เหมือน v0.1 คว
   วางได้ที่ `admin.component`, `admin.after` ของ field และ `admin.sidebar` ของ collection/global สัญญาเวอร์ชัน 1 คือ property เข้า event (`change`, `set-field`) ออก
 - เลือก Web Components แทนการแชร์ Vue เพราะสัญญาเล็กและคงที่ เปลี่ยนภายในหน้า admin ได้โดย plugin ไม่พัง
 - **root endpoints** (0.17): `root: true` เสิร์ฟจาก root ของเว็บใน standalone (เช่น `/robots.txt`) ส่วนแอป Nuxt/Next ใช้ helper ของ plugin ใน route ของตัวเอง → ดู [ADR-0020](adr/0020-seo-sitemap-robots-root-endpoints.md)
+- **`commands`** (0.21): คำสั่ง `easy-cms <name>` จาก plugin และ **`filterOptions`**, **`admin.list.tree`**, **`update({ live })`** ที่ plugin nested docs ใช้ → ดู [ADR-0024](adr/0024-nested-docs.md)
 
 ### 4.5 API keys และ MCP (0.15–0.16)
 - **API keys** อยู่ใน core (`apiKeys: true`): key ทำงานในนามเจ้าของ ได้สิทธิ์ส่วนที่ซ้อนกันของ key กับเจ้าของ ตรวจใน Local API จุดเดียว
@@ -111,6 +112,7 @@ Plugin ยังเป็น `(config) => config` เหมือน v0.1 คว
 | `@easy-cms/plugin-redirects` | redirect ในหน้า admin, redirect อัตโนมัติเมื่อที่อยู่เปลี่ยน, `resolveRedirect()` | 0.19 |
 | `@easy-cms/plugin-form-builder` | ฟอร์มในหน้า admin, submissions, อีเมลแจ้งเตือน, กันสแปม, `<easy-form>` | 0.20 |
 | `@easy-cms/email-smtp` | email adapter ผ่าน SMTP (nodemailer) | 0.20 |
+| `@easy-cms/plugin-nested-docs` | หน้าแม่/ลูก, path และ breadcrumbs ที่ไล่อัปเดตเอง, `findByPath()`, `getTree()`, `nested:rebuild` | 0.21 |
 | `easy-cms` (bin) | CLI และโหมด standalone | 0.1 |
 | `create-easy-cms` | ตัว scaffold (Nuxt, Next, standalone) | 0.1 |
 
@@ -119,7 +121,8 @@ Repo: **pnpm workspaces + Turborepo + Changesets + Biome**
 ```
 easy-cms/
 ├── packages/   core, admin, nuxt, next, drizzle, db-sqlite, db-postgres, richtext, storage-s3,
-│               plugin-seo, plugin-mcp, plugin-redirects, plugin-form-builder, email-smtp, cli, create-easy-cms, integration (test เท่านั้น)
+│               plugin-seo, plugin-mcp, plugin-redirects, plugin-form-builder, plugin-nested-docs, email-smtp, cli,
+│               create-easy-cms, integration (test เท่านั้น)
 ├── examples/   nuxt-blog, next-blog, standalone   (ใช้เป็น fixture ของ E2E ด้วย)
 ├── e2e/        Playwright ชุดเดียวสำหรับทั้งสามแอป + สคริปต์ถ่าย screenshot ของเอกสาร
 ├── website/    VitePress (EN + TH)
@@ -254,6 +257,7 @@ Endpoint ของ plugin อยู่ใต้ `routes.api` เดียวก�
 | SEO สำหรับ AI: crawler ของ AI, llms.txt, Markdown, IndexNow | 0.18 | [0021](adr/0021-seo-for-ai.md) |
 | Redirects plugin, กลุ่มตั้งค่าในเมนู | 0.19 | [0022](adr/0022-redirects-plugin.md) |
 | อีเมลใน core และ form builder | 0.20 | [0023](adr/0023-email-and-form-builder.md) |
+| หน้าย่อย (nested docs), `filterOptions`, `uniqueWithin`, tree list, `update({ live })`, คำสั่ง CLI จาก plugin | 0.21 | [0024](adr/0024-nested-docs.md) |
 
 ## 12. CLI และ DX
 
@@ -268,6 +272,7 @@ easy-cms serve [--watch]       # standalone
 easy-cms run-scheduled         # งานตั้งเวลาและ webhook ที่ต้องส่งซ้ำ (สำหรับ cron)
 easy-cms backup <file>         # สำรอง SQLite ขณะที่ระบบทำงาน
 easy-cms copy --from <config>  # ย้ายข้อมูลข้ามฐานข้อมูล เช่น SQLite → Postgres
+easy-cms <plugin command>      # คำสั่งจาก `commands` ใน config เช่น nested:rebuild (0.21)
 ```
 
 ## 13. Runtime และ Security
@@ -310,12 +315,13 @@ CI รัน lint, typecheck, build และ test บน Linux, macOS และ
 | **M7** CLI + Docs + Release | `create-easy-cms`, `generate:types`, VitePress, publish v0.1 |
 
 ### 15.2 หลัง v0.1 (เสร็จแล้ว)
-0.2 standalone + S3 → 0.3 versions → 0.4–0.5 live preview, localization → 0.6–0.9 blocks, webhooks, การตั้งเวลา → 0.10 backup → 0.11–0.12 admin redesign → 0.13 plugin ecosystem + SEO → 0.14 copy → 0.15 API keys → 0.16 MCP → 0.17 SEO ระดับทั้งเว็บ → 0.18 SEO สำหรับ AI → 0.19 redirects → 0.20 อีเมลและฟอร์ม (รายละเอียดใน [SRS §8.2](SRS.md#82-releases-หลัง-v01))
+0.2 standalone + S3 → 0.3 versions → 0.4–0.5 live preview, localization → 0.6–0.9 blocks, webhooks, การตั้งเวลา → 0.10 backup → 0.11–0.12 admin redesign → 0.13 plugin ecosystem + SEO → 0.14 copy → 0.15 API keys → 0.16 MCP → 0.17 SEO ระดับทั้งเว็บ → 0.18 SEO สำหรับ AI → 0.19 redirects → 0.20 อีเมลและฟอร์ม → 0.21 หน้าย่อย (รายละเอียดใน [SRS §8.2](SRS.md#82-releases-หลัง-v01))
 
 ### 15.3 แนวคิดถัดไป (ยังไม่ได้ตัดสินใจ)
 - MCP แบบ stdio (`easy-cms mcp`) และ OAuth สำหรับ client ที่ส่ง header ไม่ได้
 - อัปโหลดจาก URL พร้อม `allowedHosts`
-- SEO: BreadcrumbList, FAQPage JSON-LD, ตรวจคุณภาพเนื้อหา
+- SEO: FAQPage JSON-LD, ตรวจคุณภาพเนื้อหา
+- หน้าย่อย: ลากวางเพื่อย้ายหรือเรียงหน้า, ไล่อัปเดตผ่าน job queue สำหรับต้นไม้ขนาดใหญ่
 - redirects: export เป็น `_redirects`/`vercel.json`, นำเข้าจาก CSV, pattern/wildcard
 - Plugin: หน้าเต็มในหน้า Admin และ widget บน dashboard
 - `auth.strategy` สำหรับ auth ภายนอก, ลืมรหัสผ่านผ่าน email
@@ -357,3 +363,4 @@ CI รัน lint, typecheck, build และ test บน Linux, macOS และ
 - [ADR-0021](adr/0021-seo-for-ai.md) — SEO สำหรับ AI: crawler ของ AI, llms.txt, Markdown และ IndexNow
 - [ADR-0022](adr/0022-redirects-plugin.md) — Plugin redirects และกลุ่มตั้งค่าในเมนู
 - [ADR-0023](adr/0023-email-and-form-builder.md) — ระบบอีเมลใน core และ plugin form builder
+- [ADR-0024](adr/0024-nested-docs.md) — หน้าย่อย (plugin nested docs) และความสามารถของ core ที่รองรับ

@@ -94,6 +94,7 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
     ],
     globals: config.globals ?? [],
     endpoints: config.endpoints ?? [],
+    commands: config.commands ?? [],
   }
   resolved.add(result)
   return result

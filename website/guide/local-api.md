@@ -70,6 +70,7 @@ throw `NotFoundError`.
 | `fallbackLocale` | `true` | Empty localized values fall back to the default locale |
 | `overrideAccess` | `true` | `false` applies [access rules](./access-control) for `user` |
 | `user` | `null` | The user to check access for |
+| `live` | `false` | `update` only: upkeep of the live version, for values a plugin keeps up to date. A pending draft stays pending, and no version is added to the history |
 
 ## where
 

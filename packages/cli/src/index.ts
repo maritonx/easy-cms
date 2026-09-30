@@ -7,6 +7,7 @@ import {
   ConfigError,
   copyDatabase,
   createEasyCMS,
+  type EasyCMS,
   EasyCMSError,
   generateTypes,
   type Logger,
@@ -63,6 +64,7 @@ Commands:
   run-scheduled           Run due scheduled publishes, webhook and email retries
   backup <file>           Copy a SQLite database to a file while the CMS runs
   copy --from <config>    Copy all content from another config's database into this one
+  <plugin command>        Commands from your config's plugins, e.g. nested:rebuild
 
 Options:
   --config <file>         Config file (default: easy-cms.config.ts)
@@ -151,11 +153,7 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
     ;(values.help ? io.out : io.err)(HELP)
     return values.help ? 0 : 1
   }
-  if (!(command in COMMAND_HELP)) {
-    io.err(`Unknown command "${command}".\n`)
-    io.err(HELP)
-    return 1
-  }
+  if (!(command in COMMAND_HELP)) return await pluginCommand(command, rest, values, io)
   if (values.help) {
     io.out(COMMAND_HELP[command] as string)
     return 0
@@ -297,6 +295,63 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
       await cms.destroy()
     }
   } catch (error) {
+    const known = error instanceof ConfigError || error instanceof EasyCMSError
+    if (error instanceof Error)
+      io.err(!known && process.env.DEBUG ? (error.stack ?? error.message) : error.message)
+    else io.err(String(error))
+    return 1
+  }
+}
+
+/** A command from the config's `commands` (e.g. added by a plugin). */
+async function pluginCommand(
+  command: string,
+  args: readonly string[],
+  values: ReturnType<typeof parse>['values'],
+  io: IO,
+): Promise<number> {
+  const cwd = values.cwd ?? process.cwd()
+  loadDotEnv(cwd)
+  const logger: Logger = { info: io.out, warn: (m) => io.err(`warning: ${m}`), error: io.err }
+  const unknown = (note?: string) => {
+    io.err(`Unknown command "${command}".\n`)
+    io.err(HELP)
+    if (note) io.err(note)
+    return 1
+  }
+  let config: Awaited<ReturnType<typeof loadConfig>>
+  try {
+    config = await loadConfig({ cwd, ...(values.config ? { configFile: values.config } : {}) })
+  } catch (error) {
+    return unknown(`(Commands from the config were not loaded: ${(error as Error).message})`)
+  }
+  try {
+    const found = config.commands.find((c) => c.name === command)
+    if (!found) {
+      const extra = config.commands.map((c) => `  ${c.name.padEnd(24)}${c.description}`)
+      return unknown(extra.length ? `Commands from your config:\n${extra.join('\n')}\n` : undefined)
+    }
+    if (values.help) {
+      io.out(found.help ?? `Usage: easy-cms ${found.name}\n\n${found.description}\n`)
+      return 0
+    }
+    const cms = await createEasyCMS(config, {
+      cwd,
+      schema: 'skip',
+      logger,
+      interactive: io.interactive,
+      scheduler: false,
+    })
+    try {
+      return (await found.run({ cms: cms as unknown as EasyCMS, args, log: io.out })) ?? 0
+    } finally {
+      await cms.destroy()
+    }
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      for (const e of error.errors) io.err(`${e.field}: ${e.message}`)
+      return 1
+    }
     const known = error instanceof ConfigError || error instanceof EasyCMSError
     if (error instanceof Error)
       io.err(!known && process.env.DEBUG ? (error.stack ?? error.message) : error.message)

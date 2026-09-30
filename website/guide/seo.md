@@ -168,6 +168,7 @@ export default async function Page({ params }) {
 | `publishedTime` | `(doc) => date`. Default: `publishedAt`, then `createdAt`. |
 | `author` | The article's author, or `(doc) => name`. |
 | `articleType` | `'BlogPosting'` (default), `'Article'` or `'NewsArticle'`. |
+| `breadcrumbs` | `[{ name, url }]`, top level first: adds BreadcrumbList JSON-LD (`breadcrumbList`). See [Nested pages](./nested-docs#when-pages-move). |
 | `title`, `description` | `(doc) => text`: fallbacks when the meta fields are empty. |
 | `siteName` | `og:site_name`. |
 
@@ -287,6 +288,8 @@ Search engines read [schema.org](https://schema.org) data to show richer results
 
 - `seoMeta(...).jsonLd` is the page's: `BlogPosting` (or `articleType`) with `type: 'article'`,
   otherwise `WebPage`. Nuxt gets it through `useHead(seo.head)`.
+- `seoMeta(...).breadcrumbList` is a `BreadcrumbList` from the `breadcrumbs` option, so search
+  results can show where the page sits. `seo.head` has it too; in Next.js render it like `jsonLd`.
 - `siteJsonLd({ name, url, logo?, sameAs? })` is the site's `Organization` and `WebSite`: put it
   in the layout, once per page.
 - `jsonLdScript(data)` turns either into text for a `<script type="application/ld+json">`,

@@ -163,6 +163,28 @@ Runs Easy CMS without Nuxt or Next.js: the admin at `/admin`, the REST API at `/
 In production (`NODE_ENV=production`) pending migrations stop the server from starting. See
 [Standalone server](./standalone).
 
+### Commands from plugins
+
+Plugins can add commands, e.g. `easy-cms nested:rebuild` from the [nested pages](./nested-docs)
+plugin. `npx easy-cms --help` for an unknown command lists the ones your config has. Your own
+config can add them too:
+
+```ts
+export default defineConfig({
+  // …
+  commands: [
+    {
+      name: 'posts:count',
+      description: 'Print how many posts there are',
+      run: async ({ cms, args, log }) => log(String(await cms.count('posts'))),
+    },
+  ],
+})
+```
+
+`run` gets the CMS (its schema as it is: run `migrate` first), the words after the command name,
+and `log`. Return a number to exit with it.
+
 ## Next steps
 
 - [Migrations & deployment](./deployment): when to run which command.

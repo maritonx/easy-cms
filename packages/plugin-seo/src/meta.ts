@@ -37,6 +37,17 @@ export interface SeoMetaOptions {
   readonly author?: string | ((doc: Doc) => Value)
   /** Schema.org type of an article's JSON-LD. Default `BlogPosting`. */
   readonly articleType?: 'Article' | 'BlogPosting' | 'NewsArticle'
+  /**
+   * The trail to the page, top level first and the page last, for BreadcrumbList JSON-LD
+   * (search results can show it). URLs are absolute or paths on the site, e.g. from the nested
+   * docs plugin: `page.breadcrumbs.map((b) => ({ name: b.label, url: \`/p${b.url}\` }))`.
+   */
+  readonly breadcrumbs?: readonly SeoBreadcrumb[]
+}
+
+export interface SeoBreadcrumb {
+  readonly name: string
+  readonly url?: string | null
 }
 
 /** What `seoMeta` reads from an Easy CMS config (raw or resolved). */
@@ -127,11 +138,16 @@ export interface SeoMeta {
   readonly alternates: Readonly<Record<string, string>> | undefined
   /** Schema.org data for the page: BlogPosting (or `articleType`) for articles, else WebPage. */
   readonly jsonLd: JsonLd
+  /** BreadcrumbList JSON-LD from `breadcrumbs`; `undefined` without them. */
+  readonly breadcrumbList: JsonLd | undefined
   /** For Nuxt's `useSeoMeta()`. */
   readonly nuxt: NuxtSeoMeta
   /** For Nuxt's `useHead()`: canonical and hreflang links, and the JSON-LD script. */
   readonly head: NuxtSeoHead
-  /** For Next.js `generateMetadata()`. Render `jsonLd` with `jsonLdScript()` in the page. */
+  /**
+   * For Next.js `generateMetadata()`. Render `jsonLd` (and `breadcrumbList`) with
+   * `jsonLdScript()` in the page.
+   */
   readonly next: NextSeoMetadata
 }
 
@@ -237,6 +253,24 @@ export function seoMeta(doc: Doc, options: SeoMetaOptions = {}): SeoMeta {
         inLanguage: locale,
       })
 
+  const trail = (options.breadcrumbs ?? []).filter((b) => text(b.name))
+  const breadcrumbList: JsonLd | undefined =
+    trail.length > 0
+      ? {
+          '@context': 'https://schema.org',
+          '@type': 'BreadcrumbList',
+          itemListElement: trail.map((b, i) =>
+            defined({
+              '@type': 'ListItem',
+              position: i + 1,
+              name: text(b.name),
+              // The last step is the page itself: Google takes its URL from the page.
+              item: text(b.url) ? absolute(text(b.url) as string, site) : undefined,
+            }),
+          ),
+        }
+      : undefined
+
   const link: NuxtSeoHead['link'] = []
   if (canonical) link.push({ rel: 'canonical', href: canonical })
   for (const [hreflang, href] of Object.entries(alternates ?? {}))
@@ -250,9 +284,13 @@ export function seoMeta(doc: Doc, options: SeoMetaOptions = {}): SeoMeta {
     noindex,
     alternates,
     jsonLd,
+    breadcrumbList,
     head: {
       link,
-      script: [{ type: 'application/ld+json', innerHTML: jsonLdScript(jsonLd) }],
+      script: [jsonLd, ...(breadcrumbList ? [breadcrumbList] : [])].map((value) => ({
+        type: 'application/ld+json' as const,
+        innerHTML: jsonLdScript(value),
+      })),
     },
     nuxt: defined({
       title,
