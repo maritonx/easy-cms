@@ -5,6 +5,7 @@ import { type ChildProcess, spawn } from 'node:child_process'
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { stripVTControlCharacters } from 'node:util'
 
 const PM = process.argv[2] as 'npm' | 'pnpm' | 'yarn' | 'bun'
 const REGISTRY = process.argv[3] ?? 'http://localhost:4873'
@@ -23,26 +24,54 @@ const env: NodeJS.ProcessEnv = {
   YARN_UNSAFE_HTTP_WHITELIST: 'localhost',
   YARN_ENABLE_IMMUTABLE_INSTALLS: 'false',
   YARN_ENABLE_GLOBAL_CACHE: 'false',
+  // Yarn 4.10+ waits a day before installing a new version; these were published a minute ago.
+  YARN_NPM_MINIMAL_AGE_GATE: '0',
   npm_config_user_agent: undefined,
   EASY_CMS_ADMIN_PASSWORD: 'smoke-admin-password',
 }
 // Bun reads its registry from bunfig or .npmrc; the env var covers `bun create`'s install.
 writeFileSync(join(root, '.npmrc'), `registry=${REGISTRY}\n`)
 
+/** The last lines a command printed, for the error annotation (CI logs need a login). */
+let lastOutput: string[] = []
+
 function run(command: string, args: string[], cwd: string, extra: NodeJS.ProcessEnv = {}) {
   console.log(`\n$ ${command} ${args.join(' ')}`)
+  lastOutput = []
   return new Promise<void>((done, fail) => {
     const child = spawn(command, args, {
       cwd,
       env: { ...env, ...extra },
-      stdio: 'inherit',
+      stdio: ['inherit', 'pipe', 'pipe'],
       shell: windows,
     })
+    const keep = (chunk: Buffer, to: NodeJS.WriteStream) => {
+      to.write(chunk)
+      lastOutput = [...lastOutput, ...String(chunk).split('\n')].slice(-20)
+    }
+    child.stdout?.on('data', (chunk: Buffer) => keep(chunk, process.stdout))
+    child.stderr?.on('data', (chunk: Buffer) => keep(chunk, process.stderr))
     child.on('error', fail)
     child.on('close', (code) =>
       code === 0 ? done() : fail(new Error(`${command} ${args.join(' ')} exited with ${code}`)),
     )
   })
+}
+
+process.on('uncaughtException', report)
+process.on('unhandledRejection', report)
+function report(error: unknown) {
+  const message = [
+    String((error as Error)?.message ?? error),
+    ...lastOutput.map((line) => stripVTControlCharacters(line)).filter((line) => line.trim()),
+  ].join('\n')
+  console.error(message)
+  // biome-ignore lint/suspicious/noUndeclaredEnvVars: set by GitHub Actions, not a Turborepo input
+  if (process.env.GITHUB_ACTIONS)
+    console.log(
+      `::error title=smoke (${PM})::${message.replace(/%/g, '%25').replace(/\r?\n/g, '%0A')}`,
+    )
+  process.exit(1)
 }
 
 // 1. `npm create easy-cms`, `pnpm create easy-cms`…: the package manager runs create-easy-cms,
