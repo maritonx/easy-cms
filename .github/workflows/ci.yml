@@ -151,7 +151,8 @@ jobs:
           corepack enable --install-directory "$RUNNER_TEMP/corepack" yarn
           echo "$RUNNER_TEMP/corepack" >> "$GITHUB_PATH"
           corepack prepare yarn@${{ matrix.yarn }} --activate
-          PATH="$RUNNER_TEMP/corepack:$PATH" yarn --version
+          # Outside the repo: its package.json says pnpm, and Corepack's yarn refuses to run there.
+          cd "$RUNNER_TEMP" && PATH="$RUNNER_TEMP/corepack:$PATH" yarn --version
       - name: Start a local registry
         shell: bash
         run: |
