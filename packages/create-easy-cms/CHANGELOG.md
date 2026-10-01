@@ -1,5 +1,11 @@
 # create-easy-cms
 
+## 0.22.1
+
+### Patch Changes
+
+- d742afc: Package READMEs: what each package does, how to install it with npm, pnpm, Yarn or Bun, a short example and links to its guide.
+
 ## 0.22.0
 
 ### Minor Changes
