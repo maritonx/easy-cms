@@ -1,10 +1,16 @@
 # @easy-cms/nuxt
 
-Nuxt 4 module for [Easy CMS](https://github.com/maritonx/easy-cms).
+Nuxt 4 module for Easy CMS: the REST API, the admin UI and a typed `useEasyCMS()` inside your Nuxt app. Part of [Easy CMS](https://github.com/maritonx/easy-cms), the embedded, code-first headless CMS for Nuxt and Next.js.
+
+## Install
 
 ```bash
-pnpm add @easy-cms/nuxt @easy-cms/core @easy-cms/db-sqlite
+npm install @easy-cms/nuxt @easy-cms/core @easy-cms/db-sqlite
 ```
+
+Or `pnpm add`, `yarn add` or `bun add`.
+
+## Usage
 
 ```ts
 // nuxt.config.ts
@@ -41,3 +47,9 @@ With `easy-cms.config.ts` in the project root you get:
   paths and the migrations folder resolve from the working directory).
 - The module tells Nitro to ship files the database adapter loads dynamically (libsql's native
   binary), so `.output` runs on its own. Build on the same OS/architecture you deploy to.
+
+## Links
+
+[Nuxt](https://maritonx.github.io/easy-cms/guide/nuxt) · [Documentation](https://maritonx.github.io/easy-cms/) ([ภาษาไทย](https://maritonx.github.io/easy-cms/th/)) · [GitHub](https://github.com/maritonx/easy-cms)
+
+MIT License

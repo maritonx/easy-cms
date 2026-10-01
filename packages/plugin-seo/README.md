@@ -1,8 +1,16 @@
 # @easy-cms/plugin-seo
 
-SEO for [Easy CMS](https://maritonx.github.io/easy-cms/): a `meta` group (title, description,
-share image) on the collections and globals you choose, with length meters, a search result
-preview and Generate buttons in the admin, and page metadata for Nuxt and Next.js.
+SEO for Easy CMS: meta fields with length meters, a search preview and Generate buttons in the admin; page metadata, sitemaps, robots.txt, hreflang, JSON-LD and llms.txt for your site. Part of [Easy CMS](https://github.com/maritonx/easy-cms), the embedded, code-first headless CMS for Nuxt and Next.js.
+
+## Install
+
+```bash
+npm install @easy-cms/plugin-seo
+```
+
+Or `pnpm add`, `yarn add` or `bun add`.
+
+## Usage
 
 ```ts
 import { seoPlugin } from '@easy-cms/plugin-seo'
@@ -26,4 +34,8 @@ useSeoMeta(seoMeta(post, { url: `/posts/${post.slug}` }).nuxt) // Nuxt
 return seoMeta(post, { config, url: `/posts/${post.slug}` }).next // Next.js generateMetadata()
 ```
 
-See [SEO](https://maritonx.github.io/easy-cms/guide/seo).
+## Links
+
+[SEO](https://maritonx.github.io/easy-cms/guide/seo) · [Documentation](https://maritonx.github.io/easy-cms/) ([ภาษาไทย](https://maritonx.github.io/easy-cms/th/)) · [GitHub](https://github.com/maritonx/easy-cms)
+
+MIT License

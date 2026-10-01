@@ -1,6 +1,6 @@
 # Software Requirements Specification — Easy CMS
 
-- **เวอร์ชันเอกสาร:** 2.6
+- **เวอร์ชันเอกสาร:** 2.7
 - **วันที่:** 2026-10-01
 - **ผู้เขียน:** Kanawoot K.
 - **ครอบคลุม:** v0.1 (baseline) ถึง v0.22
@@ -648,6 +648,7 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 4. มี changeset, เอกสาร EN/TH ของฟีเจอร์ใหม่ และ ADR เมื่อเป็นการตัดสินใจเชิงสถาปัตยกรรม
 5. ทุก package publish ผ่าน npm Trusted Publishing ด้วยเวอร์ชันเดียวกัน
 6. หน้าแรกของเว็บ docs (EN/TH) ตรงกับ release: badge "ใหม่ใน 0.x" การ์ดของ plugin ทางการทุกตัว และรูปที่ถ่ายใหม่ด้วย `pnpm docs:screenshots`
+7. `README.md` และ README ของทุกแพ็กเกจตรงกับ release: ตาราง packages และ official plugins, features และคำสั่งติดตั้ง
 
 **สถานะ ณ 0.16.0 (2026-09-28)**
 
@@ -711,6 +712,7 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 1.3 | 2026-09-25 | M5: FR-REST-08 (อัปโหลด/ไฟล์), FR-CFG-07 (`routes.api`, `serverURL`), ระบุว่า drafts ใน v0.1 ไม่มี version แยก |
 | 1.4 | 2026-09-25 | M6: ผลวัด NFR-PERF-01/02 บน Postgres 17 (Local API p95 2.7 ms, REST p95 4.3 ms), Next.js adapter ใช้ `getEasyCMS(config)` |
 | 1.5 | 2026-09-25 | M7: ผลตรวจรับ v0.1 (7.1) |
+| 2.7 | 2026-10-01 | 7.2 ข้อ 7: README ตรงกับ release |
 | 2.6 | 2026-10-01 | 0.22: FR-INS-11..13 |
 | 2.5 | 2026-09-30 | 0.21: FR-NST-*, FR-MOD-11..12, FR-ADM-20, FR-LAPI-08, FR-INS-10, FR-SEO-13 |
 | 2.4 | 2026-09-29 | 0.20: FR-EML-*, FR-FRM-*, FR-STA-06 |

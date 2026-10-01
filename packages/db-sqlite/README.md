@@ -1,6 +1,16 @@
 # @easy-cms/db-sqlite
 
-SQLite / libSQL (Turso) adapter for [Easy CMS](https://github.com/maritonx/easy-cms).
+SQLite and libSQL (Turso) database adapter for Easy CMS. Part of [Easy CMS](https://github.com/maritonx/easy-cms), the embedded, code-first headless CMS for Nuxt and Next.js.
+
+## Install
+
+```bash
+npm install @easy-cms/db-sqlite
+```
+
+Or `pnpm add`, `yarn add` or `bun add`.
+
+## Usage
 
 ```ts
 import { sqlite } from '@easy-cms/db-sqlite'
@@ -19,3 +29,9 @@ export default defineConfig({
 | `migrationDir` | `easy-cms/migrations` | Where migration files are written |
 
 In-memory databases (`:memory:`) are not supported because transactions open a second connection.
+
+## Links
+
+[Databases](https://maritonx.github.io/easy-cms/guide/databases) · [Documentation](https://maritonx.github.io/easy-cms/) ([ภาษาไทย](https://maritonx.github.io/easy-cms/th/)) · [GitHub](https://github.com/maritonx/easy-cms)
+
+MIT License

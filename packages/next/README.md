@@ -1,10 +1,16 @@
 # @easy-cms/next
 
-Next.js (App Router, 15+) adapter for [Easy CMS](https://github.com/maritonx/easy-cms).
+Next.js adapter for Easy CMS (App Router, 15 or later): route handlers for the REST API and the admin UI, and a typed `getEasyCMS()` for Server Components. Part of [Easy CMS](https://github.com/maritonx/easy-cms), the embedded, code-first headless CMS for Nuxt and Next.js.
+
+## Install
 
 ```bash
-pnpm add @easy-cms/next @easy-cms/core @easy-cms/db-postgres
+npm install @easy-cms/next @easy-cms/core @easy-cms/db-postgres
 ```
+
+Or `pnpm add`, `yarn add` or `bun add`.
+
+## Usage
 
 **1. Wrap `next.config.ts`** so the server build keeps the admin UI and database drivers:
 
@@ -50,3 +56,9 @@ tries to query the database while prerendering.
 
 `createRouteHandlers(config, { trustProxy: true })` uses `X-Forwarded-For` for login rate limiting;
 enable it behind a proxy you trust, such as Vercel.
+
+## Links
+
+[Next.js](https://maritonx.github.io/easy-cms/guide/next) · [Documentation](https://maritonx.github.io/easy-cms/) ([ภาษาไทย](https://maritonx.github.io/easy-cms/th/)) · [GitHub](https://github.com/maritonx/easy-cms)
+
+MIT License

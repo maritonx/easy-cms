@@ -1,8 +1,16 @@
 # @easy-cms/plugin-form-builder
 
-Forms for [Easy CMS](https://maritonx.github.io/easy-cms/): editors build them in the admin from
-field blocks; visitors' submissions are validated, stored and emailed; honeypot, timing, rate
-limits and Cloudflare Turnstile keep bots out; `<easy-form>` puts a form on any page.
+Forms for Easy CMS: editors build them in the admin, submissions are validated, stored and emailed, bots are kept out (honeypot, timing, rate limits, Cloudflare Turnstile), and `<easy-form>` puts a form on any page. Part of [Easy CMS](https://github.com/maritonx/easy-cms), the embedded, code-first headless CMS for Nuxt and Next.js.
+
+## Install
+
+```bash
+npm install @easy-cms/plugin-form-builder
+```
+
+Or `pnpm add`, `yarn add` or `bun add`.
+
+## Usage
 
 ```ts
 import { formBuilderPlugin } from '@easy-cms/plugin-form-builder'
@@ -19,4 +27,8 @@ export default defineConfig({
 <easy-form form="contact"></easy-form>
 ```
 
-See [Forms](https://maritonx.github.io/easy-cms/guide/forms).
+## Links
+
+[Forms](https://maritonx.github.io/easy-cms/guide/forms) · [Documentation](https://maritonx.github.io/easy-cms/) ([ภาษาไทย](https://maritonx.github.io/easy-cms/th/)) · [GitHub](https://github.com/maritonx/easy-cms)
+
+MIT License

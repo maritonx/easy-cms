@@ -1,14 +1,16 @@
 # @easy-cms/admin
 
-The prebuilt admin UI of [Easy CMS](https://github.com/maritonx/easy-cms): a Vue 3 single-page app
-that talks to the Easy CMS REST API. Framework adapters (`@easy-cms/nuxt`, `@easy-cms/next`) serve it
-for you; you normally don't install this package directly.
+The admin UI of Easy CMS, a prebuilt Vue 3 app that talks to the REST API. Part of
+[Easy CMS](https://github.com/maritonx/easy-cms), the embedded, code-first headless CMS for Nuxt
+and Next.js.
 
-- Login, first-admin setup, dashboard
-- Lists with search, sorting, pagination and bulk delete
-- Forms generated from your config for every field type, including rich text (Tiptap), relationships and arrays
-- Drafts (Save draft / Publish), unsaved-changes warning, per-document permissions
-- Thai and English
+**Internal:** the framework adapters (`@easy-cms/nuxt`, `@easy-cms/next`) and `easy-cms serve`
+install and serve it at `/admin`. You don't need to install it yourself.
+
+- Dashboard, lists with search, filters, columns, bulk actions and tree views
+- Forms for every field type, rich text (Tiptap), relationships, blocks and the media library
+- Drafts, version history, live preview, scheduled publishing and translations
+- English and Thai, light and dark themes, plugin components
 
 ## Serving it yourself
 
@@ -28,3 +30,9 @@ For static hosting, serve `dist/app` at the admin path and answer every other ad
 pnpm --dir examples/nuxt-blog dev   # an Easy CMS API on :3000
 pnpm --dir packages/admin dev       # Vite on :5173, proxies /api/cms to :3000
 ```
+
+## Links
+
+[Documentation](https://maritonx.github.io/easy-cms/) ([ภาษาไทย](https://maritonx.github.io/easy-cms/th/)) · [GitHub](https://github.com/maritonx/easy-cms)
+
+MIT License
