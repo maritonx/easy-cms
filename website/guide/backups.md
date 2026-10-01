@@ -28,7 +28,7 @@ The database runs in WAL mode, so copying `cms.db` while the server runs can giv
 Use `easy-cms backup` instead: it reads your config and writes a consistent copy while the CMS
 keeps running.
 
-```bash
+```bash [pm]
 npx easy-cms backup backups/cms-$(date +%F).db
 ```
 
@@ -71,7 +71,7 @@ them together.
 1. Read the changelog of the versions in between
    (`packages/core/CHANGELOG.md` on GitHub, or `npm view @easy-cms/core --json`).
 2. Upgrade every package to the same version:
-   ```bash
+   ```bash [pm]
    npm install @easy-cms/core@latest @easy-cms/nuxt@latest @easy-cms/db-sqlite@latest easy-cms@latest
    ```
 3. Run `npx easy-cms migrate:create upgrade`. A release sometimes adds internal tables

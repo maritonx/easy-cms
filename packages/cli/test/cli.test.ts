@@ -86,7 +86,7 @@ describe('easy-cms CLI (FR-INS-06..08)', () => {
     dirs.push(empty)
     const result = await cli('migrate', '--cwd', empty)
     expect(result.code).toBe(1)
-    expect(result.err).toContain('npx create-easy-cms')
+    expect(result.err).toContain('create easy-cms')
     expect(result.err).not.toContain('    at ') // no stack trace
   })
 

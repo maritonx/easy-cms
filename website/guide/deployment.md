@@ -21,7 +21,7 @@ when the data matters.
 In production nothing changes automatically. The server refuses to start when migrations are
 pending or the config changed without one, and tells you what to run.
 
-```bash
+```bash [pm]
 npx easy-cms migrate:create init     # after your first model, and after every change
 git add easy-cms/migrations          # review the SQL, then commit
 npx easy-cms migrate                 # where you deploy, before starting the new version

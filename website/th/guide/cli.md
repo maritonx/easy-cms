@@ -7,8 +7,8 @@
 
 ## create-easy-cms {#create-easy-cms}
 
-```bash
-npx create-easy-cms [dir] [--db sqlite|postgres] [--standalone] [--yes] [--skip-install]
+```bash [pm]
+npx create-easy-cms [dir] [--db sqlite|postgres] [--pm npm|pnpm|yarn|bun] [--standalone] [--yes] [--skip-install]
 ```
 
 เพิ่ม Easy CMS ให้โปรเจกต์:
@@ -22,9 +22,14 @@ npx create-easy-cms [dir] [--db sqlite|postgres] [--standalone] [--yes] [--skip-
 |---|---|
 | `dir` | ตำแหน่งที่จะตั้งค่า ค่าเริ่มต้นคือโฟลเดอร์ปัจจุบัน |
 | `--db` | `sqlite` (ไฟล์) หรือ `postgres` (PGlite ในเครื่อง, server บน production) ถ้าไม่ระบุจะถาม และใช้ `sqlite` เมื่อมี `--yes` |
+| `--pm` | `npm`, `pnpm`, `yarn` หรือ `bun` ค่าเริ่มต้นคือตัวที่โปรเจกต์ใช้ (ช่อง `packageManager` แล้วตามด้วย lockfile) ไม่อย่างนั้นใช้ตัวที่คุณใช้เรียกคำสั่งนี้ |
 | `--standalone` | ตั้งค่า standalone server แม้อยู่ในโปรเจกต์ Nuxt หรือ Next.js |
 | `--yes` | ใช้ค่าเริ่มต้นโดยไม่ถาม |
 | `--skip-install` | เขียนไฟล์อย่างเดียว คุณติดตั้งแพ็กเกจเอง |
+
+คำสั่งนี้ติดตั้งและแสดงขั้นต่อไปด้วย package manager ตัวนั้น (`pnpm exec easy-cms …`, `yarn easy-cms …`,
+`bunx easy-cms …`) ถ้าเป็น Yarn 2 ขึ้นไปจะเขียน `.yarnrc.yml` ที่ตั้ง `nodeLinker: node-modules` ให้
+เพราะยังไม่รองรับ Plug'n'Play ส่วน Bun ใช้ติดตั้งแพ็กเกจได้ แต่ตัว CMS ยังรันบน Node.js
 
 ดูขั้นต่อจากนี้ได้ที่ [เริ่มใช้งาน](./getting-started)
 
@@ -33,7 +38,7 @@ npx create-easy-cms [dir] [--db sqlite|postgres] [--standalone] [--yes] [--skip-
 ติดตั้งเป็น dev dependency (เป็น dependency ปกติสำหรับ standalone server) ทุกคำสั่งโหลด `.env`
 จาก root ของโปรเจกต์และอ่าน `easy-cms.config.ts`
 
-```bash
+```bash [pm]
 npx easy-cms <command> [--config <file>] [--cwd <dir>]
 ```
 
@@ -55,7 +60,7 @@ npx easy-cms <command> [--config <file>] [--cwd <dir>]
 
 ### migrate {#migrate}
 
-```bash
+```bash [pm]
 npx easy-cms migrate
 ```
 
@@ -65,7 +70,7 @@ npx easy-cms migrate
 
 ### migrate:create {#migrate-create}
 
-```bash
+```bash [pm]
 npx easy-cms migrate:create add-author-bio
 ```
 
@@ -75,7 +80,7 @@ npx easy-cms migrate:create add-author-bio
 
 ### migrate:status {#migrate-status}
 
-```bash
+```bash [pm]
 npx easy-cms migrate:status
 # ✓ applied  20260925091723_init
 # • pending  20260928040614_seo
@@ -83,7 +88,7 @@ npx easy-cms migrate:status
 
 ### create-admin {#create-admin}
 
-```bash
+```bash [pm]
 npx easy-cms create-admin --email ann@example.com --name Ann
 npx easy-cms create-admin --email bob@example.com --role editor
 ```
@@ -93,7 +98,7 @@ npx easy-cms create-admin --email bob@example.com --role editor
 
 ### generate:types {#generate-types}
 
-```bash
+```bash [pm]
 npx easy-cms generate:types --out ../web/src/cms-types.ts
 ```
 
@@ -102,7 +107,7 @@ frontend ใน repo อื่นจึงใช้ได้ ส่วนแอ�
 
 ### backup {#backup}
 
-```bash
+```bash [pm]
 npx easy-cms backup backups/cms-2026-09-28.db
 ```
 
@@ -112,7 +117,7 @@ npx easy-cms backup backups/cms-2026-09-28.db
 
 ### copy {#copy}
 
-```bash
+```bash [pm]
 npx easy-cms copy --from easy-cms.old.config.ts
 ```
 
@@ -129,7 +134,7 @@ npx easy-cms copy --from easy-cms.old.config.ts
 
 ### run-scheduled {#run-scheduled}
 
-```bash
+```bash [pm]
 npx easy-cms run-scheduled
 ```
 
@@ -139,7 +144,7 @@ npx easy-cms run-scheduled
 
 ### serve {#serve}
 
-```bash
+```bash [pm]
 npx easy-cms serve --port 4000
 npx easy-cms serve --watch          # ตอนพัฒนา: โหลดใหม่เมื่อ config เปลี่ยน
 ```

@@ -80,7 +80,7 @@ In development the database follows the config: save the file and the tables cha
 
 ## 3. Open the admin
 
-```bash
+```bash [pm]
 npm run dev
 ```
 
@@ -153,7 +153,7 @@ config: try misspelling it.
 
 Install the rich text renderer:
 
-```bash
+```bash [pm]
 npm install @easy-cms/richtext
 ```
 
@@ -276,7 +276,7 @@ Press **Preview** in the editor: the real page appears next to the form and chan
 
 ## 8. SEO
 
-```bash
+```bash [pm]
 npm install @easy-cms/plugin-seo
 ```
 
@@ -303,7 +303,7 @@ Posts now have an SEO group with length meters, a search preview and Generate bu
 
 1. **Create the first migration.** Production never changes the database on its own:
 
-   ```bash
+   ```bash [pm]
    npx easy-cms migrate:create init
    git add easy-cms/migrations && git commit -m "CMS schema"
    ```
@@ -317,7 +317,7 @@ Posts now have an SEO group with length meters, a search preview and Generate bu
 
 4. **Migrate, then start**, on every deploy:
 
-   ```bash
+   ```bash [pm]
    npx easy-cms migrate
    npm run build && npm start
    ```

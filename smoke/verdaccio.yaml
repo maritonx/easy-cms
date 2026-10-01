@@ -1,0 +1,27 @@
+# A local registry for the smoke test: Easy CMS packages come from this repo (published here),
+# everything else from npmjs.
+storage: ./.registry/storage
+auth:
+  htpasswd:
+    file: ./.registry/htpasswd
+    max_users: 100
+uplinks:
+  npmjs:
+    url: https://registry.npmjs.org/
+packages:
+  '@easy-cms/*':
+    access: $all
+    publish: $authenticated
+  'easy-cms':
+    access: $all
+    publish: $authenticated
+  'create-easy-cms':
+    access: $all
+    publish: $authenticated
+  '**':
+    access: $all
+    proxy: npmjs
+server:
+  keepAliveTimeout: 60
+max_body_size: 100mb
+log: { type: stdout, format: pretty, level: warn }

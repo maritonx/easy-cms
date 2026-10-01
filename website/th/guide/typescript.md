@@ -86,7 +86,7 @@ const { data } = await useFetch('/api/posts') // data.value.docs เป็น Po
 
 สำหรับ frontend ที่ import config ไม่ได้ เช่น แอป Vite ใน repo อื่นที่เรียก REST API:
 
-```bash
+```bash [pm]
 npx easy-cms generate:types              # เขียน easy-cms-types.ts
 npx easy-cms generate:types --out ../web/src/cms.ts
 ```
@@ -102,7 +102,7 @@ const { docs }: { docs: Post[] } = await res.json()
 
 รันใหม่หลังเปลี่ยน config หรือใน CI เพื่อตรวจว่าไฟล์ยังตรงกับ config:
 
-```bash
+```bash [pm]
 npx easy-cms generate:types && git diff --exit-code easy-cms-types.ts
 ```
 

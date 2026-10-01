@@ -14,7 +14,7 @@ validation, hooks and access rules as the admin.
 
 ## Set it up
 
-```bash
+```bash [pm]
 npm install @easy-cms/plugin-mcp
 ```
 

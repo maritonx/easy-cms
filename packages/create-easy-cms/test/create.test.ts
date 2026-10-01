@@ -1,9 +1,17 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import pkg from '../package.json' with { type: 'json' }
-import { detectPackageManager, type IO, packagesFor, run } from '../src/index.js'
+import {
+  detectPackageManager,
+  type IO,
+  isYarnBerry,
+  packagesFor,
+  run,
+  translateCommands,
+  translateLine,
+} from '../src/index.js'
 
 /** The version range the CLI installs: its own version once released. */
 const V = pkg.version === '0.0.0' ? 'latest' : `^${pkg.version}`
@@ -33,6 +41,10 @@ function project(files: Record<string, string>) {
 }
 
 async function create(dir: string, ...args: string[]) {
+  return createWith({}, dir, ...args)
+}
+
+async function createWith(extra: Partial<IO>, dir: string, ...args: string[]) {
   const out: string[] = []
   const err: string[] = []
   const commands: string[] = []
@@ -44,6 +56,9 @@ async function create(dir: string, ...args: string[]) {
       commands.push(`${command} ${argv.join(' ')}`)
       return 0
     },
+    // No Yarn on the machine unless a test says so.
+    capture: async () => null,
+    ...extra,
   }
   const code = await run([dir, ...args], io)
   return { code, out: out.join('\n'), err: err.join('\n'), commands }
@@ -228,10 +243,163 @@ describe('create-easy-cms (FR-INS-01..03)', () => {
   })
 })
 
+describe('package managers', () => {
+  it('installs and prints the next steps in the chosen package manager', async () => {
+    const steps = async (pm: string) => {
+      const dir = join(project({}), 'my-cms')
+      const result = await create(dir, '--yes', '--pm', pm)
+      expect(result.code).toBe(0)
+      return result
+    }
+    const npm = await steps('npm')
+    expect(npm.commands[0]).toMatch(/^npm install @easy-cms\/core@/)
+    expect(npm.out).toMatch(/my-cms && npm run dev/)
+    expect(npm.out).toContain('npx easy-cms create-admin')
+    expect(npm.out).toContain('NODE_ENV=production npm run start')
+
+    const pnpm = await steps('pnpm')
+    expect(pnpm.commands[0]).toMatch(/^pnpm add @easy-cms\/core@/)
+    expect(pnpm.out).toMatch(/my-cms && pnpm dev/)
+    expect(pnpm.out).toContain('pnpm exec easy-cms migrate:create init')
+
+    const yarn = await steps('yarn')
+    expect(yarn.out).toContain('yarn easy-cms migrate')
+    expect(yarn.out).toContain('NODE_ENV=production yarn start')
+
+    const bun = await steps('bun')
+    expect(bun.commands[0]).toMatch(/^bun add @easy-cms\/core@/)
+    expect(bun.out).toMatch(/my-cms && bun run dev/)
+    expect(bun.out).toContain('bunx easy-cms create-admin')
+    expect(bun.out).not.toContain('npx')
+
+    expect((await create(join(project({}), 'x'), '--pm', 'deno')).code).toBe(1)
+  })
+
+  it('uses node_modules with Yarn 2+', async () => {
+    const dir = join(project({}), 'my-cms')
+    const result = await createWith({ capture: async () => '4.9.1' }, dir, '--yes', '--pm', 'yarn')
+    expect(result.code).toBe(0)
+    expect(read(dir, '.yarnrc.yml')).toBe('nodeLinker: node-modules\n')
+    const classic = join(project({}), 'my-cms')
+    await createWith({ capture: async () => '1.22.22' }, classic, '--yes', '--pm', 'yarn')
+    expect(() => read(classic, '.yarnrc.yml')).toThrow()
+  })
+
+  it('says how to get a package manager that is not installed', async () => {
+    const dir = join(project({}), 'my-cms')
+    const result = await createWith({ exec: async () => 127 }, dir, '--yes', '--pm', 'pnpm')
+    expect(result.code).toBe(1)
+    expect(result.err).toContain('pnpm is not installed')
+    expect(result.err).toContain('corepack enable')
+    expect(result.err).toContain('pnpm add @easy-cms/core@')
+  })
+})
+
+describe('translating npm commands', () => {
+  const all = (line: string) =>
+    (['pnpm', 'yarn', 'bun'] as const).map((pm) => translateLine(line, pm))
+
+  it('installs, runs scripts and binaries', () => {
+    expect(all('npm install @easy-cms/plugin-seo')).toEqual([
+      'pnpm add @easy-cms/plugin-seo',
+      'yarn add @easy-cms/plugin-seo',
+      'bun add @easy-cms/plugin-seo',
+    ])
+    expect(all('npm install -D easy-cms')).toEqual([
+      'pnpm add -D easy-cms',
+      'yarn add -D easy-cms',
+      'bun add --dev easy-cms',
+    ])
+    expect(all('npm install')).toEqual(['pnpm install', 'yarn install', 'bun install'])
+    expect(all('npm run dev')).toEqual(['pnpm dev', 'yarn dev', 'bun run dev'])
+    expect(all('npm run migrate:create -- init')).toEqual([
+      'pnpm migrate:create init',
+      'yarn migrate:create init',
+      'bun run migrate:create init',
+    ])
+    expect(all('npx easy-cms migrate')).toEqual([
+      'pnpm exec easy-cms migrate',
+      'yarn easy-cms migrate',
+      'bunx easy-cms migrate',
+    ])
+    expect(all('npx nuxi init my-app')[0]).toBe('pnpm exec nuxi init my-app')
+    expect(all('npx @modelcontextprotocol/inspector')).toEqual([
+      'pnpm dlx @modelcontextprotocol/inspector',
+      'yarn dlx @modelcontextprotocol/inspector',
+      'bunx @modelcontextprotocol/inspector',
+    ])
+  })
+
+  it('creates projects', () => {
+    expect(all('npx create-easy-cms')).toEqual([
+      'pnpm create easy-cms',
+      'yarn create easy-cms',
+      'bun create easy-cms',
+    ])
+    expect(all('npm create easy-cms@latest my-cms')).toEqual([
+      'pnpm create easy-cms my-cms',
+      'yarn create easy-cms my-cms',
+      'bun create easy-cms my-cms',
+    ])
+    expect(all('npx create-next-app@latest my-app')[2]).toBe('bun create next-app my-app')
+  })
+
+  it('keeps everything around the command', () => {
+    expect(translateLine('NODE_ENV=production npm start   # serve', 'pnpm')).toBe(
+      'NODE_ENV=production pnpm start   # serve',
+    )
+    expect(translateLine('cd my-cms && npm run dev', 'bun')).toBe('cd my-cms && bun run dev')
+    expect(translateLine('# npm install', 'pnpm')).toBe('# npm install')
+    expect(translateLine('pg_dump --format=custom', 'yarn')).toBe('pg_dump --format=custom')
+    expect(translateLine('npm audit', 'pnpm')).toBeNull()
+    expect(translateCommands('npm install\nnpm run dev', 'yarn')).toBe('yarn install\nyarn dev')
+    expect(translateCommands('npm install\nnpm audit', 'yarn')).toBeNull()
+  })
+})
+
 describe('helpers', () => {
-  it('detects the package manager from lockfiles', () => {
-    expect(detectPackageManager(project({ 'yarn.lock': '' }))).toBe('yarn')
-    expect(detectPackageManager(project({ 'bun.lock': '' }))).toBe('bun')
+  it('detects the package manager: --pm, packageManager, lockfile, then the caller', () => {
+    vi.stubEnv('npm_config_user_agent', 'bun/1.3.0 npm/? node/v24.0.0 darwin arm64')
+    try {
+      expect(detectPackageManager(project({ 'yarn.lock': '' }))).toBe('yarn')
+      expect(detectPackageManager(project({ 'bun.lock': '' }))).toBe('bun')
+      expect(detectPackageManager(project({ 'bun.lockb': '' }))).toBe('bun')
+      expect(detectPackageManager(project({ 'package-lock.json': '{}' }))).toBe('npm')
+      expect(detectPackageManager(project({ 'pnpm-lock.yaml': '' }), 'npm')).toBe('npm')
+      const corepack = project({
+        'package.json': '{"packageManager":"pnpm@10.12.1"}',
+        'package-lock.json': '{}',
+      })
+      expect(detectPackageManager(corepack)).toBe('pnpm')
+      // No lockfile: the package manager that runs create-easy-cms.
+      expect(detectPackageManager(project({}))).toBe('bun')
+      vi.stubEnv('npm_config_user_agent', 'pnpm/10.12.1 npm/? node/v24.0.0')
+      expect(detectPackageManager(project({}))).toBe('pnpm')
+      vi.stubEnv('npm_config_user_agent', '')
+      expect(detectPackageManager(project({}))).toBe('npm')
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
+
+  it('tells Yarn 1 from Yarn 2+', async () => {
+    const io = (version: string | null): IO => ({
+      out: () => {},
+      err: () => {},
+      interactive: false,
+      capture: async () => version,
+    })
+    expect(await isYarnBerry(project({}), io('1.22.22'))).toBe(false)
+    expect(await isYarnBerry(project({}), io('4.9.1'))).toBe(true)
+    expect(
+      await isYarnBerry(project({ 'yarn.lock': '__metadata:\n  version: 8\n' }), io(null)),
+    ).toBe(true)
+    expect(await isYarnBerry(project({ 'yarn.lock': '# yarn lockfile v1\n' }), io('4.9.1'))).toBe(
+      false,
+    )
+    expect(
+      await isYarnBerry(project({ 'package.json': '{"packageManager":"yarn@4.9.1"}' }), io(null)),
+    ).toBe(true)
   })
 
   it('lists packages per framework and database', () => {

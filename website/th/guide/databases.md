@@ -8,7 +8,7 @@ SQLite, Turso, Postgres และ PGlite: การเชื่อมต่อ �
 
 ## SQLite {#sqlite}
 
-```bash
+```bash [pm]
 npm install @easy-cms/db-sqlite
 ```
 
@@ -31,7 +31,7 @@ db: sqlite({ url: 'file:./cms.db', busyTimeout: 5_000 })
 
 ## Postgres {#postgres}
 
-```bash
+```bash [pm]
 npm install @easy-cms/db-postgres
 ```
 

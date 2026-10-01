@@ -1,4 +1,5 @@
 import { type DefaultTheme, defineConfig } from 'vitepress'
+import { packageManagerPlugin } from './package-managers.ts'
 
 // GitHub Pages serves the site under /<repo>/; the deploy workflow sets DOCS_BASE.
 const base = process.env.DOCS_BASE ?? '/'
@@ -194,6 +195,8 @@ export default defineConfig({
   title: 'Easy CMS',
   cleanUrls: true,
   lastUpdated: true,
+  // ```sh [pm] blocks: the command for npm, pnpm, Yarn and Bun.
+  markdown: { config: packageManagerPlugin },
   head: [['link', { rel: 'icon', href: `${base}logo.svg` }]],
   locales: {
     root: {

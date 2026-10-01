@@ -13,7 +13,9 @@
       "!**/next-env.d.ts",
       "!**/.tmp",
       "!**/test-results",
-      "!**/easy-cms/migrations"
+      "!**/easy-cms/migrations",
+      "!**/.registry",
+      "!**/.vitepress/cache"
     ]
   },
   "formatter": {

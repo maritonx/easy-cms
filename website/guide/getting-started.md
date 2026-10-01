@@ -15,7 +15,7 @@ Run Easy CMS as a [standalone server](./standalone).
 
 In your project directory:
 
-```bash
+```bash [pm]
 npx create-easy-cms
 ```
 
@@ -28,11 +28,11 @@ It detects Nuxt or Next.js, asks which database to use, installs the packages an
 - **Next.js:** creates `app/api/cms/[[...path]]/route.ts` and `app/admin/[[...path]]/route.ts`
   and wraps `next.config.ts` in `withEasyCMS()`
 
-Options: `--db sqlite|postgres`, `--yes` (accept defaults), `--skip-install`. Running it again is safe.
+Options: `--db sqlite|postgres`, `--pm npm|pnpm|yarn|bun`, `--yes` (accept defaults), `--skip-install`. Running it again is safe. Commands on these pages have a tab for each package manager; the one you pick is kept.
 
 ## Run it
 
-```bash
+```bash [pm]
 npm run dev
 ```
 

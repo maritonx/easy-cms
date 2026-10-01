@@ -11,7 +11,7 @@ frontend ที่สร้างด้วย Vite, React, Vue, Svelte หรื
 
 ## สร้างโปรเจกต์ {#create-a-project}
 
-```bash
+```bash [pm]
 npm create easy-cms@latest my-cms
 cd my-cms
 npm run dev
@@ -80,7 +80,7 @@ easy-cms serve [--port <n>] [--host <host>] [--watch] [--trust-proxy]
 เหมือนกับ adapter: สร้างและรัน migration จากนั้นเริ่ม server ด้วย `NODE_ENV=production` ซึ่ง
 จะไม่ยอมเริ่มทำงานหากยังมี migration ค้างอยู่ ดู [Migration และการ deploy](./deployment)
 
-```bash
+```bash [pm]
 npx easy-cms migrate
 NODE_ENV=production npx easy-cms serve --trust-proxy
 ```

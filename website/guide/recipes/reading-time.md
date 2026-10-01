@@ -22,7 +22,7 @@ Field access only filters what people send; hooks can still set the value.
 
 ## 2. The hook
 
-```bash
+```bash [pm]
 npm install @easy-cms/richtext
 ```
 

@@ -1,9 +1,9 @@
 # Easy CMS — Design Document
 
 - **สถานะ:** Accepted (living document)
-- **วันที่:** 2026-09-30 (ฉบับแรก 2026-09-25)
+- **วันที่:** 2026-10-01 (ฉบับแรก 2026-09-25)
 - **ผู้เขียน:** Kanawoot K.
-- **ครอบคลุม:** v0.1 ถึง v0.21
+- **ครอบคลุม:** v0.1 ถึง v0.22
 - **Requirements:** [SRS.md](SRS.md)
 
 ---
@@ -263,6 +263,7 @@ Endpoint ของ plugin อยู่ใต้ `routes.api` เดียวก�
 
 ```bash
 npx create-easy-cms            # ตรวจ Nuxt/Next อัตโนมัติ หรือสร้าง standalone ในโฟลเดอร์ว่าง
+                               # npm, pnpm, yarn, bun: --pm หรือตรวจจาก packageManager/lockfile (0.22)
 easy-cms create-admin          # สร้าง admin คนแรก
 easy-cms generate:types
 easy-cms migrate:create <name>
@@ -315,12 +316,13 @@ CI รัน lint, typecheck, build และ test บน Linux, macOS และ
 | **M7** CLI + Docs + Release | `create-easy-cms`, `generate:types`, VitePress, publish v0.1 |
 
 ### 15.2 หลัง v0.1 (เสร็จแล้ว)
-0.2 standalone + S3 → 0.3 versions → 0.4–0.5 live preview, localization → 0.6–0.9 blocks, webhooks, การตั้งเวลา → 0.10 backup → 0.11–0.12 admin redesign → 0.13 plugin ecosystem + SEO → 0.14 copy → 0.15 API keys → 0.16 MCP → 0.17 SEO ระดับทั้งเว็บ → 0.18 SEO สำหรับ AI → 0.19 redirects → 0.20 อีเมลและฟอร์ม → 0.21 หน้าย่อย (รายละเอียดใน [SRS §8.2](SRS.md#82-releases-หลัง-v01))
+0.2 standalone + S3 → 0.3 versions → 0.4–0.5 live preview, localization → 0.6–0.9 blocks, webhooks, การตั้งเวลา → 0.10 backup → 0.11–0.12 admin redesign → 0.13 plugin ecosystem + SEO → 0.14 copy → 0.15 API keys → 0.16 MCP → 0.17 SEO ระดับทั้งเว็บ → 0.18 SEO สำหรับ AI → 0.19 redirects → 0.20 อีเมลและฟอร์ม → 0.21 หน้าย่อย → 0.22 npm, pnpm, Yarn และ Bun (รายละเอียดใน [SRS §8.2](SRS.md#82-releases-หลัง-v01))
 
 ### 15.3 แนวคิดถัดไป (ยังไม่ได้ตัดสินใจ)
 - MCP แบบ stdio (`easy-cms mcp`) และ OAuth สำหรับ client ที่ส่ง header ไม่ได้
 - อัปโหลดจาก URL พร้อม `allowedHosts`
 - SEO: FAQPage JSON-LD, ตรวจคุณภาพเนื้อหา
+- Bun runtime (`bun --bun easy-cms serve`), Yarn Plug'n'Play
 - หน้าย่อย: ลากวางเพื่อย้ายหรือเรียงหน้า, ไล่อัปเดตผ่าน job queue สำหรับต้นไม้ขนาดใหญ่
 - redirects: export เป็น `_redirects`/`vercel.json`, นำเข้าจาก CSV, pattern/wildcard
 - Plugin: หน้าเต็มในหน้า Admin และ widget บน dashboard
@@ -364,3 +366,4 @@ CI รัน lint, typecheck, build และ test บน Linux, macOS และ
 - [ADR-0022](adr/0022-redirects-plugin.md) — Plugin redirects และกลุ่มตั้งค่าในเมนู
 - [ADR-0023](adr/0023-email-and-form-builder.md) — ระบบอีเมลใน core และ plugin form builder
 - [ADR-0024](adr/0024-nested-docs.md) — หน้าย่อย (plugin nested docs) และความสามารถของ core ที่รองรับ
+- [ADR-0025](adr/0025-package-managers.md) — รองรับ npm, pnpm, Yarn และ Bun

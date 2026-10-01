@@ -32,7 +32,7 @@ describe('loadConfig (FR-CFG-01)', () => {
 
   it('explains how to create a config when none exists', async () => {
     const empty = mkdtempSync(join(tmpdir(), 'easy-cms-'))
-    await expect(loadConfig({ cwd: empty })).rejects.toThrow(/npx create-easy-cms/)
+    await expect(loadConfig({ cwd: empty })).rejects.toThrow(/create-easy-cms/)
   })
 
   it('requires a default export', async () => {

@@ -42,7 +42,7 @@ JSON ทำให้เนื้อหาไม่ผูกกับวิธี
 
 ติดตั้งตัวแปลง:
 
-```bash
+```bash [pm]
 npm install @easy-cms/richtext
 ```
 

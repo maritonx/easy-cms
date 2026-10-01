@@ -16,7 +16,7 @@ breadcrumbs ของตัวเอง และให้ค่าเหล่�
 - **Breadcrumbs**: เส้นทางจากหน้าระดับบนสุดลงมาถึงหน้านั้น แต่ละขั้นมีชื่อและ path เช่น
   เกี่ยวกับเรา (`/about`) › ทีมงาน (`/about/team`)
 
-```bash
+```bash [pm]
 npm install @easy-cms/plugin-nested-docs
 ```
 
@@ -177,7 +177,7 @@ const seo = seoMeta(page, {
 เมื่อเพิ่ม plugin ให้ collection ที่มีหน้าอยู่แล้ว path ของหน้าเหล่านั้นจะว่างจนกว่าจะบันทึก
 คำนวณทั้งหมดในครั้งเดียวด้วย
 
-```bash
+```bash [pm]
 npx easy-cms nested:rebuild
 ```
 

@@ -13,7 +13,7 @@ hook และกฎสิทธิ์ชุดเดียวกับหน้
 
 ## ติดตั้ง {#set-it-up}
 
-```bash
+```bash [pm]
 npm install @easy-cms/plugin-mcp
 ```
 

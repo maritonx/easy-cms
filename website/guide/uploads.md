@@ -78,7 +78,7 @@ filesystem. On serverless hosts (Vercel, Netlify) and in containers without a vo
 
 ## S3, Cloudflare R2 and MinIO
 
-```bash
+```bash [pm]
 npm install @easy-cms/storage-s3
 ```
 

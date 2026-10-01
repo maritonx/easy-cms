@@ -78,7 +78,7 @@ export default defineConfig({
 
 ## 3. เปิดหน้า admin {#3-open-the-admin}
 
-```bash
+```bash [pm]
 npm run dev
 ```
 
@@ -149,7 +149,7 @@ const { data: posts } = await useFetch('/api/posts')
 
 ติดตั้งตัวแปลง rich text:
 
-```bash
+```bash [pm]
 npm install @easy-cms/richtext
 ```
 
@@ -272,7 +272,7 @@ export function PostView({ post: initial }: { post: { title: string } }) {
 
 ## 8. SEO {#8-seo}
 
-```bash
+```bash [pm]
 npm install @easy-cms/plugin-seo
 ```
 
@@ -298,7 +298,7 @@ export default defineConfig({
 
 1. **สร้าง migration แรก** เพราะบน production ฐานข้อมูลจะไม่เปลี่ยนเอง:
 
-   ```bash
+   ```bash [pm]
    npx easy-cms migrate:create init
    git add easy-cms/migrations && git commit -m "CMS schema"
    ```
@@ -311,7 +311,7 @@ export default defineConfig({
 
 4. **migrate แล้วค่อยเริ่ม** ทุกครั้งที่ deploy:
 
-   ```bash
+   ```bash [pm]
    npx easy-cms migrate
    npm run build && npm start
    ```

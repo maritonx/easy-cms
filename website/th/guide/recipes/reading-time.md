@@ -22,7 +22,7 @@
 
 ## 2. Hook {#2-the-hook}
 
-```bash
+```bash [pm]
 npm install @easy-cms/richtext
 ```
 

@@ -62,7 +62,7 @@ const module: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       : CONFIG_FILE_NAMES.map((name) => join(rootDir, name)).find((path) => existsSync(path))
     if (!configPath || !existsSync(configPath)) {
       logger.warn(
-        `No Easy CMS config found in ${rootDir}. Create easy-cms.config.ts (or run \`npx create-easy-cms\`). The module is disabled.`,
+        `No Easy CMS config found in ${rootDir}. Create easy-cms.config.ts (or run create-easy-cms: \`npm create easy-cms\`, or pnpm, yarn or bun create easy-cms). The module is disabled.`,
       )
       return
     }

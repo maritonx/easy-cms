@@ -78,7 +78,7 @@ upload: {
 
 ## S3, Cloudflare R2 และ MinIO {#s3-cloudflare-r2-and-minio}
 
-```bash
+```bash [pm]
 npm install @easy-cms/storage-s3
 ```
 

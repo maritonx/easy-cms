@@ -13,7 +13,7 @@ get an email for each submission, and keep bots out.
 blocks, choose what happens after sending, and who gets an email. Your pages show a form with
 one element, `<easy-form>`, or render it themselves from the API.
 
-```bash
+```bash [pm]
 npm install @easy-cms/plugin-form-builder
 ```
 

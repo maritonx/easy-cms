@@ -46,7 +46,7 @@ export async function loadConfig(options: LoadConfigOptions = {}): Promise<Resol
   if (!file || !existsSync(file)) {
     const looked = options.configFile ?? CONFIG_FILE_NAMES.join(', ')
     throw new Error(
-      `Easy CMS config not found in ${cwd} (looked for ${looked}).\n    → run \`npx create-easy-cms\` to create one`,
+      `Easy CMS config not found in ${cwd} (looked for ${looked}).\n    → create one with create-easy-cms (\`npm create easy-cms\`, or pnpm, yarn or bun create easy-cms)`,
     )
   }
 

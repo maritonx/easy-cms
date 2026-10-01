@@ -21,7 +21,7 @@ config ตอนเริ่มทำงาน: field ใหม่จะกล�
 ใน production จะไม่มีการเปลี่ยนแปลงใดเกิดขึ้นอัตโนมัติ server จะไม่ยอมเริ่มทำงานเมื่อมี migration
 ค้างอยู่หรือ config เปลี่ยนโดยไม่มี migration และจะบอกว่าต้องรันคำสั่งอะไร
 
-```bash
+```bash [pm]
 npx easy-cms migrate:create init     # after your first model, and after every change
 git add easy-cms/migrations          # review the SQL, then commit
 npx easy-cms migrate                 # where you deploy, before starting the new version

@@ -12,7 +12,7 @@ function แบบ serverless ไม่มีดิสก์ที่อยู�
 
 สร้างฐานข้อมูลบน Postgres แบบ host ไว้ที่ไหนก็ได้ (Neon, Supabase, marketplace ของ Vercel…) แล้วคัดลอก connection string
 
-```bash
+```bash [pm]
 npm install @easy-cms/db-postgres
 ```
 
@@ -40,7 +40,7 @@ export default defineConfig({
 
 สร้าง bucket และ API token (Object Read & Write) ใน Cloudflare แล้ว:
 
-```bash
+```bash [pm]
 npm install @easy-cms/storage-s3
 ```
 
@@ -65,7 +65,7 @@ upload: {
 
 สร้าง migration ในเครื่อง (ใช้ PGlite ไม่ต้องมี `DATABASE_URL`) แล้ว commit:
 
-```bash
+```bash [pm]
 npx easy-cms migrate:create init
 git add easy-cms/migrations
 ```

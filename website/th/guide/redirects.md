@@ -13,7 +13,7 @@
 แทนที่จะตัดหน้าทิ้ง `@easy-cms/plugin-redirects` เพิ่มรายการ **Redirects** ใต้ **ตั้งค่า** ในหน้า admin และสร้าง redirect
 ให้เองเมื่อ slug ของบทความที่เผยแพร่แล้วเปลี่ยน
 
-```bash
+```bash [pm]
 npm install @easy-cms/plugin-redirects
 ```
 

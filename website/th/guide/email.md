@@ -14,7 +14,7 @@ Easy CMS ไม่ส่งอีเมลจนกว่าคุณจะใ�
 `@easy-cms/email-smtp` ส่งผ่าน SMTP server ใดก็ได้: Gmail หรือ Google Workspace, Amazon SES, Resend, Mailgun,
 Postmark หรือ server ของคุณเอง
 
-```bash
+```bash [pm]
 npm install @easy-cms/email-smtp
 ```
 

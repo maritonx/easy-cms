@@ -15,7 +15,7 @@ as the form builder then use it, and so can your own code with `cms.sendEmail()`
 `@easy-cms/email-smtp` sends through any SMTP server: Gmail or Google Workspace, Amazon SES,
 Resend, Mailgun, Postmark, or your own.
 
-```bash
+```bash [pm]
 npm install @easy-cms/email-smtp
 ```
 

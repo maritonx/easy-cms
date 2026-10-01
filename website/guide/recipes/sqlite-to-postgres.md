@@ -12,7 +12,7 @@ serverless, run several servers, or your host offers managed Postgres with backu
 
 If the content so far is test content, switch the adapter and recreate it:
 
-```bash
+```bash [pm]
 npm install @easy-cms/db-postgres @electric-sql/pglite
 ```
 
@@ -26,7 +26,7 @@ db: process.env.DATABASE_URL
 
 Migrations are written in one database's SQL, so replace the SQLite ones:
 
-```bash
+```bash [pm]
 rm -r easy-cms/migrations
 npx easy-cms migrate:create init
 ```
@@ -57,7 +57,7 @@ scheduled jobs. Ids stay the same, so relationships still point to the right doc
    its `DATABASE_URL` first.
 5. **Copy**, while nobody is editing:
 
-   ```bash
+   ```bash [pm]
    npx easy-cms copy --from easy-cms.old.config.ts
    # Copying from sqlite (easy-cms.old.config.ts) to postgres…
    #   ecms_users: 3

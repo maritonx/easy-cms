@@ -15,7 +15,7 @@
 
 ในไดเรกทอรีโปรเจกต์ของคุณ:
 
-```bash
+```bash [pm]
 npx create-easy-cms
 ```
 
@@ -28,11 +28,11 @@ npx create-easy-cms
 - **Next.js:** สร้าง `app/api/cms/[[...path]]/route.ts` และ `app/admin/[[...path]]/route.ts`
   และครอบ `next.config.ts` ด้วย `withEasyCMS()`
 
-ตัวเลือก: `--db sqlite|postgres`, `--yes` (ใช้ค่าเริ่มต้น), `--skip-install` รันซ้ำได้อย่างปลอดภัย
+ตัวเลือก: `--db sqlite|postgres`, `--pm npm|pnpm|yarn|bun`, `--yes` (ใช้ค่าเริ่มต้น), `--skip-install` รันซ้ำได้อย่างปลอดภัย คำสั่งในเอกสารมีแท็บของแต่ละ package manager และจำตัวที่คุณเลือกไว้
 
 ## รันระบบ {#run-it}
 
-```bash
+```bash [pm]
 npm run dev
 ```
 

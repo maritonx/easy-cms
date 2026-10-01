@@ -12,7 +12,7 @@
 `@easy-cms/plugin-form-builder` เพิ่มเมนู **ฟอร์ม** ในหน้า admin ผู้แก้เนื้อหาต่อช่องกรอกจาก block เลือกว่าหลังส่งจะเกิดอะไร
 และใครจะได้อีเมล ส่วนหน้าเว็บแสดงฟอร์มด้วย element เดียวคือ `<easy-form>` หรือวาดเองจาก API
 
-```bash
+```bash [pm]
 npm install @easy-cms/plugin-form-builder
 ```
 

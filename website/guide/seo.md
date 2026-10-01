@@ -13,7 +13,7 @@ publish a sitemap, robots.txt and structured data.
 and globals you choose. Editors see how long each text is, a preview of the search result, and
 Generate buttons; your pages get their metadata from one function.
 
-```bash
+```bash [pm]
 npm install @easy-cms/plugin-seo
 ```
 

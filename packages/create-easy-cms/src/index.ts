@@ -6,21 +6,36 @@ import { basename, dirname, join, relative, resolve } from 'node:path'
 import { createInterface } from 'node:readline/promises'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
+import {
+  createCommand,
+  dlx,
+  execBin,
+  installArgs,
+  isPackageManager,
+  PACKAGE_MANAGERS,
+  type PackageManager,
+  runScript,
+} from './commands.js'
 import { configTemplate, type DatabaseChoice, nextAdminRoute, nextApiRoute } from './templates.js'
+
+export * from './commands.js'
 
 export type Framework = 'nuxt' | 'next'
 /** Where Easy CMS runs: inside a Nuxt or Next.js app, or as its own server. */
 export type Target = Framework | 'standalone'
-export type PackageManager = 'pnpm' | 'npm' | 'yarn' | 'bun'
 
 export interface IO {
   readonly out: (line: string) => void
   readonly err: (line: string) => void
   readonly interactive: boolean
   readonly prompt?: (question: string) => Promise<string>
-  /** Runs a command (the package manager). Returns the exit code. */
+  /** Runs a command (the package manager). Returns the exit code; 127 when it isn't installed. */
   readonly exec?: (command: string, args: string[], cwd: string) => Promise<number>
+  /** Runs a command and returns what it printed, or `null` if it failed. */
+  readonly capture?: (command: string, args: string[], cwd: string) => Promise<string | null>
 }
+
+const NOT_FOUND = 127
 
 const defaultIO: IO = {
   out: (line) => console.log(line),
@@ -42,7 +57,19 @@ const defaultIO: IO = {
         shell: process.platform === 'win32',
       })
       child.on('close', (code) => done(code ?? 1))
-      child.on('error', () => done(1))
+      child.on('error', (error) =>
+        done((error as NodeJS.ErrnoException).code === 'ENOENT' ? NOT_FOUND : 1),
+      )
+    }),
+  capture: (command, args, cwd) =>
+    new Promise((done) => {
+      const child = spawn(command, args, { cwd, shell: process.platform === 'win32' })
+      let output = ''
+      child.stdout?.on('data', (chunk) => {
+        output += String(chunk)
+      })
+      child.on('close', (code) => done(code === 0 ? output.trim() : null))
+      child.on('error', () => done(null))
     }),
 }
 
@@ -56,6 +83,7 @@ Options:
   --standalone            Set up a standalone server even in an existing project
   --db <sqlite|postgres>  Database (default: ask, or sqlite with --yes)
   --yes, -y               Accept the defaults without asking
+  --pm <npm|pnpm|yarn|bun>  Package manager (default: the project's, or the one running this)
   --skip-install          Write files only; install the packages yourself
   -h, --help              Show help
 `
@@ -71,15 +99,48 @@ export function detectFramework(pkg: Record<string, unknown>): Framework | undef
   return undefined
 }
 
-/** Detects the package manager from the lockfile, falling back to the one running us. */
-export function detectPackageManager(dir: string): PackageManager {
+/**
+ * The package manager to use: `--pm`, then package.json's `packageManager` (Corepack), then the
+ * lockfile, then the one running this (`npm create`, `pnpm create`…), else npm.
+ */
+export function detectPackageManager(dir: string, explicit?: PackageManager): PackageManager {
+  if (explicit) return explicit
+  const declared = packageManagerField(dir)
+  if (declared) return declared
   if (existsSync(join(dir, 'pnpm-lock.yaml'))) return 'pnpm'
   if (existsSync(join(dir, 'yarn.lock'))) return 'yarn'
   if (existsSync(join(dir, 'bun.lock')) || existsSync(join(dir, 'bun.lockb'))) return 'bun'
   if (existsSync(join(dir, 'package-lock.json'))) return 'npm'
   const agent = process.env.npm_config_user_agent ?? ''
-  for (const pm of ['pnpm', 'yarn', 'bun'] as const) if (agent.startsWith(pm)) return pm
+  for (const pm of ['pnpm', 'yarn', 'bun'] as const) if (agent.startsWith(`${pm}/`)) return pm
   return 'npm'
+}
+
+function readPackage(dir: string): Record<string, unknown> | undefined {
+  try {
+    return JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'))
+  } catch {
+    return undefined
+  }
+}
+
+/** `"packageManager": "pnpm@10.12.1"` → `pnpm`. */
+function packageManagerField(dir: string): PackageManager | undefined {
+  const field = readPackage(dir)?.packageManager
+  const name = typeof field === 'string' ? field.split('@')[0] : undefined
+  return isPackageManager(name) ? name : undefined
+}
+
+/** Yarn 2 or later ("Berry"), whose default Plug'n'Play install Easy CMS does not support yet. */
+export async function isYarnBerry(dir: string, io: IO): Promise<boolean> {
+  const field = readPackage(dir)?.packageManager
+  if (typeof field === 'string' && field.startsWith('yarn@'))
+    return Number.parseInt(field.slice(5), 10) >= 2
+  if (existsSync(join(dir, '.yarnrc.yml'))) return true
+  const lock = join(dir, 'yarn.lock')
+  if (existsSync(lock)) return readFileSync(lock, 'utf8').includes('__metadata:')
+  const version = io.capture ? await io.capture('yarn', ['--version'], dir) : null
+  return version !== null && Number.parseInt(version, 10) >= 2
 }
 
 function ownVersion(): string {
@@ -108,17 +169,12 @@ export function packagesFor(
   return { deps, devDeps: target === 'standalone' ? [] : [`easy-cms@${v}`] }
 }
 
-function installArgs(pm: PackageManager, packages: string[], dev: boolean): string[] {
-  const add = pm === 'npm' ? 'install' : 'add'
-  const devFlag = pm === 'npm' ? '--save-dev' : pm === 'bun' ? '--dev' : '-D'
-  return [add, ...(dev ? [devFlag] : []), ...packages]
-}
-
 /** Runs create-easy-cms and returns the exit code. */
 export async function run(argv: readonly string[], io: IO = defaultIO): Promise<number> {
   let values: {
     db?: string
     yes?: boolean
+    pm?: string
     standalone?: boolean
     'skip-install'?: boolean
     help?: boolean
@@ -131,6 +187,7 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
       options: {
         db: { type: 'string' },
         yes: { type: 'boolean', short: 'y' },
+        pm: { type: 'string' },
         standalone: { type: 'boolean' },
         'skip-install': { type: 'boolean' },
         help: { type: 'boolean', short: 'h' },
@@ -146,7 +203,12 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
     return 0
   }
 
+  if (values.pm !== undefined && !isPackageManager(values.pm)) {
+    io.err(`--pm must be one of ${PACKAGE_MANAGERS.join(', ')} (got "${values.pm}")`)
+    return 1
+  }
   const dir = resolve(positionals[0] ?? process.cwd())
+  const pm = detectPackageManager(dir, values.pm as PackageManager | undefined)
   const pkgFile = join(dir, 'package.json')
   const hasPackage = existsSync(pkgFile)
   const framework = hasPackage
@@ -165,7 +227,7 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
     if (!yes) {
       io.err('This does not look like a Nuxt or Next.js project (no "nuxt" or "next" dependency).')
       io.err(
-        'Create one first (`npx nuxi init my-app`, `npx create-next-app my-app`), or run with --standalone.',
+        `Create one first (\`${dlx(pm, 'nuxi init my-app')}\`, \`${createCommand(pm, 'next-app', 'my-app')}\`), or run with --standalone.`,
       )
       return 1
     }
@@ -237,10 +299,16 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
   else if (target === 'next') await setupNext(dir, changes, notes)
   else await setupStandalone(dir, changes)
 
+  // Yarn 2+: node_modules instead of Plug'n'Play, which native packages (libsql) and the
+  // frameworks don't fully work with.
+  if (pm === 'yarn' && !existsSync(join(dir, '.yarnrc.yml')) && (await isYarnBerry(dir, io))) {
+    await writeFile(join(dir, '.yarnrc.yml'), 'nodeLinker: node-modules\n')
+    changes.push("created .yarnrc.yml (nodeLinker: node-modules; Plug'n'Play is not supported)")
+  }
+
   for (const change of changes) io.out(`  ✓ ${change}`)
   for (const note of notes) io.out(`  • ${note}`)
 
-  const pm = detectPackageManager(dir)
   const { deps, devDeps } = packagesFor(target, db)
   if (values['skip-install']) {
     io.out('\nInstall the packages:')
@@ -252,38 +320,50 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
       (await io.exec(pm, installArgs(pm, deps, false), dir)) ||
       (devDeps.length ? await io.exec(pm, installArgs(pm, devDeps, true), dir) : 0)
     if (code !== 0) {
-      io.err(
-        `\nInstalling failed. Run it yourself:\n  ${pm} ${installArgs(pm, deps, false).join(' ')}`,
-      )
+      const missing =
+        code === NOT_FOUND
+          ? `\n${pm} is not installed. ${INSTALL_HINT[pm]}, or choose another with --pm.`
+          : '\nInstalling failed.'
+      io.err(`${missing} Run it yourself:`)
+      io.err(`  ${pm} ${installArgs(pm, deps, false).join(' ')}`)
+      if (devDeps.length) io.err(`  ${pm} ${installArgs(pm, devDeps, true).join(' ')}`)
       return 1
     }
   }
 
-  const devCommand = pm === 'npm' ? 'npm run dev' : `${pm} dev`
+  const devCommand = runScript(pm, 'dev')
+  const cms = (command: string) => execBin(pm, `easy-cms ${command}`)
   if (target === 'standalone') {
     const cd = relative(process.cwd(), dir)
     io.out(`
 Done. Next:
   1. ${cd ? `cd ${cd} && ` : ''}${devCommand}   (http://localhost:4000/admin)
-  2. Create the first admin there (or run: npx easy-cms create-admin)
+  2. Create the first admin there (or run: ${cms('create-admin')})
   3. Point your frontend at http://localhost:4000/api/cms and list its origin in \`cors\`
      in easy-cms.config.ts.
-  4. Before deploying: npx easy-cms migrate:create init, commit easy-cms/migrations,
-     run npx easy-cms migrate, then NODE_ENV=production ${pm === 'npm' ? 'npm start' : `${pm} start`}.`)
+  4. Before deploying: ${cms('migrate:create init')}, commit easy-cms/migrations,
+     run ${cms('migrate')}, then NODE_ENV=production ${runScript(pm, 'start')}.`)
     return 0
   }
   io.out(`
 Done. Next:
   1. ${devCommand}
-  2. Open /admin and create the first admin (or run: npx easy-cms create-admin)
-  3. Before deploying: npx easy-cms migrate:create init, commit easy-cms/migrations,
-     and run npx easy-cms migrate where you deploy.
+  2. Open /admin and create the first admin (or run: ${cms('create-admin')})
+  3. Before deploying: ${cms('migrate:create init')}, commit easy-cms/migrations,
+     and run ${cms('migrate')} where you deploy.
   4. Set EASY_CMS_SECRET in the production environment.${
     target === 'nuxt'
       ? `\n     Nuxt's production server does not read .env: set it on the host, or start with\n     node --env-file=.env .output/server/index.mjs`
       : ''
   }`)
   return 0
+}
+
+const INSTALL_HINT: Record<PackageManager, string> = {
+  npm: 'Install Node.js from https://nodejs.org',
+  pnpm: 'Install it with `npm install -g pnpm` (or `corepack enable`)',
+  yarn: 'Install it with `npm install -g yarn` (or `corepack enable`)',
+  bun: 'Install it from https://bun.sh',
 }
 
 const STANDALONE_SCRIPTS: Record<string, string> = {

@@ -17,7 +17,7 @@ collection, and keeps two values up to date for your pages:
 - **Breadcrumbs**: the trail from the top-level page down to the page itself, each step with its
   label and path, e.g. About (`/about`) › Team (`/about/team`).
 
-```bash
+```bash [pm]
 npm install @easy-cms/plugin-nested-docs
 ```
 
@@ -180,7 +180,7 @@ language. Pass the `locale` to `findByPath` and `getTree`.
 Adding the plugin to a collection that has pages leaves their paths empty until they are saved.
 Work them all out at once:
 
-```bash
+```bash [pm]
 npx easy-cms nested:rebuild
 ```
 

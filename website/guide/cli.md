@@ -7,8 +7,8 @@ migrations, users, types, backups, scheduled jobs and the standalone server.
 
 ## create-easy-cms
 
-```bash
-npx create-easy-cms [dir] [--db sqlite|postgres] [--standalone] [--yes] [--skip-install]
+```bash [pm]
+npx create-easy-cms [dir] [--db sqlite|postgres] [--pm npm|pnpm|yarn|bun] [--standalone] [--yes] [--skip-install]
 ```
 
 Adds Easy CMS to a project:
@@ -23,9 +23,15 @@ Adds Easy CMS to a project:
 |---|---|
 | `dir` | Where to set up. Default: the current directory. |
 | `--db` | `sqlite` (a file) or `postgres` (PGlite locally, a server in production). Asks when not given; `sqlite` with `--yes`. |
+| `--pm` | `npm`, `pnpm`, `yarn` or `bun`. Default: the project's (its `packageManager` field, then its lockfile), else the one you ran it with. |
 | `--standalone` | A standalone server even inside a Nuxt or Next.js project. |
 | `--yes` | Accept the defaults without asking. |
 | `--skip-install` | Only write files; run your package manager yourself. |
+
+It installs and prints the next steps with that package manager (`pnpm exec easy-cms …`,
+`yarn easy-cms …`, `bunx easy-cms …`). With Yarn 2 or later it writes `.yarnrc.yml` with
+`nodeLinker: node-modules`: Plug'n'Play is not supported. Bun installs the packages; the CMS
+still runs on Node.js.
 
 See [Getting started](./getting-started) for what happens next.
 
@@ -34,7 +40,7 @@ See [Getting started](./getting-started) for what happens next.
 Installed as a dev dependency (a regular dependency for standalone servers). Every command
 loads `.env` from the project root and reads `easy-cms.config.ts`.
 
-```bash
+```bash [pm]
 npx easy-cms <command> [--config <file>] [--cwd <dir>]
 ```
 
@@ -56,7 +62,7 @@ they work in CI and deploy scripts. Set `DEBUG=1` to see stack traces.
 
 ### migrate
 
-```bash
+```bash [pm]
 npx easy-cms migrate
 ```
 
@@ -66,7 +72,7 @@ before the new version starts. See [Migrations & deployment](./deployment).
 
 ### migrate:create
 
-```bash
+```bash [pm]
 npx easy-cms migrate:create add-author-bio
 ```
 
@@ -77,7 +83,7 @@ dropped. Review the SQL, then commit both files.
 
 ### migrate:status
 
-```bash
+```bash [pm]
 npx easy-cms migrate:status
 # ✓ applied  20260925091723_init
 # • pending  20260928040614_seo
@@ -85,7 +91,7 @@ npx easy-cms migrate:status
 
 ### create-admin
 
-```bash
+```bash [pm]
 npx easy-cms create-admin --email ann@example.com --name Ann
 npx easy-cms create-admin --email bob@example.com --role editor
 ```
@@ -96,7 +102,7 @@ when the first admin can't be created in the browser, or to recover access.
 
 ### generate:types
 
-```bash
+```bash [pm]
 npx easy-cms generate:types --out ../web/src/cms-types.ts
 ```
 
@@ -106,7 +112,7 @@ need it: their types are [inferred](./typescript).
 
 ### backup
 
-```bash
+```bash [pm]
 npx easy-cms backup backups/cms-2026-09-28.db
 ```
 
@@ -116,7 +122,7 @@ bucket separately. For Postgres use `pg_dump`. See [Backups](./backups).
 
 ### copy
 
-```bash
+```bash [pm]
 npx easy-cms copy --from easy-cms.old.config.ts
 ```
 
@@ -135,7 +141,7 @@ See [Move from SQLite to Postgres](./recipes/sqlite-to-postgres).
 
 ### run-scheduled
 
-```bash
+```bash [pm]
 npx easy-cms run-scheduled
 ```
 
@@ -145,7 +151,7 @@ own; use this command from a cron job where no server process keeps running (ser
 
 ### serve
 
-```bash
+```bash [pm]
 npx easy-cms serve --port 4000
 npx easy-cms serve --watch          # development: reload on config changes
 ```

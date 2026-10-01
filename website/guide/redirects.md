@@ -14,7 +14,7 @@ old links keep working, and search engines move the page's ranking to the new ad
 dropping it. `@easy-cms/plugin-redirects` adds a **Redirects** list under **Settings** in the
 admin, and adds a redirect by itself when a published post's slug changes.
 
-```bash
+```bash [pm]
 npm install @easy-cms/plugin-redirects
 ```
 

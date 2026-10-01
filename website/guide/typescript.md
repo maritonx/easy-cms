@@ -89,7 +89,7 @@ const { data } = await useFetch('/api/posts') // data.value.docs is Post[]
 For a frontend that can't import your config, such as a Vite app in another repository calling
 the REST API:
 
-```bash
+```bash [pm]
 npx easy-cms generate:types              # writes easy-cms-types.ts
 npx easy-cms generate:types --out ../web/src/cms.ts
 ```
@@ -106,7 +106,7 @@ const { docs }: { docs: Post[] } = await res.json()
 
 Run it again after changing the config, or in CI to check the file is up to date:
 
-```bash
+```bash [pm]
 npx easy-cms generate:types && git diff --exit-code easy-cms-types.ts
 ```
 

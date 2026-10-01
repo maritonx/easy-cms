@@ -12,7 +12,7 @@ SQLite เหมาะกับ server เครื่องเดียวท�
 
 ถ้าเนื้อหาที่มีเป็นแค่เนื้อหาทดสอบ ให้เปลี่ยน adapter แล้วสร้างเนื้อหาใหม่:
 
-```bash
+```bash [pm]
 npm install @easy-cms/db-postgres @electric-sql/pglite
 ```
 
@@ -26,7 +26,7 @@ db: process.env.DATABASE_URL
 
 migration เขียนด้วย SQL ของฐานข้อมูลแบบใดแบบหนึ่ง จึงต้องสร้างใหม่แทนของ SQLite:
 
-```bash
+```bash [pm]
 rm -r easy-cms/migrations
 npx easy-cms migrate:create init
 ```
@@ -56,7 +56,7 @@ id ยังเหมือนเดิม relationship จึงยังชี
    ถ้าเป็นฐานข้อมูล production ให้รัน `NODE_ENV=production npx easy-cms migrate` พร้อม `DATABASE_URL` ของมันก่อน
 5. **คัดลอก** ในช่วงที่ไม่มีใครแก้เนื้อหา:
 
-   ```bash
+   ```bash [pm]
    npx easy-cms copy --from easy-cms.old.config.ts
    # Copying from sqlite (easy-cms.old.config.ts) to postgres…
    #   ecms_users: 3

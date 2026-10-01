@@ -1,9 +1,9 @@
 # Software Requirements Specification — Easy CMS
 
-- **เวอร์ชันเอกสาร:** 2.5
-- **วันที่:** 2026-09-30
+- **เวอร์ชันเอกสาร:** 2.6
+- **วันที่:** 2026-10-01
 - **ผู้เขียน:** Kanawoot K.
-- **ครอบคลุม:** v0.1 (baseline) ถึง v0.21
+- **ครอบคลุม:** v0.1 (baseline) ถึง v0.22
 - **สถานะ:** Living document (อัปเดตทุกครั้งที่เพิ่มฟีเจอร์)
 - **เอกสารที่เกี่ยวข้อง:** [DESIGN.md](DESIGN.md), [ADRs](adr/)
 
@@ -427,6 +427,9 @@ AI assistant ► /api/cms/mcp ──┘                     └──► Webhook
 | FR-ADM-20 | Collection ที่ตั้ง `admin.list.tree` ต้องแสดงหน้ารายการเป็นต้นไม้ (ขยายทีละระดับ) และกลับเป็นรายการแบนเมื่อค้นหาหรือกรอง `admin.list.sort` ต้องกำหนดลำดับเริ่มต้น | 0.21 | MUST |
 | FR-LAPI-08 | `update(…, { live: true })` ต้องแก้เวอร์ชันที่เผยแพร่อยู่โดยไม่แตะ draft ที่ค้าง ไม่เปลี่ยน status และไม่เพิ่ม version | 0.21 | MUST |
 | FR-INS-10 | CLI ต้องรันคำสั่งจาก `commands` ใน config (เช่นจาก plugin) โดยคำสั่งในตัวมาก่อน | 0.21 | SHOULD |
+| FR-INS-11 | `create-easy-cms` ต้องรองรับ npm, pnpm, Yarn (1 และ 2+ แบบ node-modules) และ Bun: เลือกจาก `--pm`, `packageManager`, lockfile หรือ user agent ติดตั้งและแสดงขั้นต่อไปด้วยคำสั่งของตัวนั้น และบอกวิธีติดตั้งเมื่อไม่พบ | 0.22 | MUST |
+| FR-INS-12 | CI ต้องทดสอบการสร้างโปรเจกต์ ติดตั้ง migrate และรัน server ด้วยทั้ง 4 ตัวจาก registry จำลอง | 0.22 | MUST |
+| FR-INS-13 | บล็อกคำสั่งในเอกสารต้องมีแท็บ npm, pnpm, Yarn และ Bun ที่แปลงด้วยกฎเดียวกับ CLI และจำตัวที่เลือก | 0.22 | SHOULD |
 | FR-SEO-13 | `seoMeta({ breadcrumbs })` ต้องสร้าง BreadcrumbList JSON-LD | 0.21 | SHOULD |
 
 ### 3.24 API keys (KEY) — [ADR-0019](adr/0019-api-keys-and-mcp.md)
@@ -693,6 +696,7 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 0.18 | SEO สำหรับ AI: crawler ของ AI, llms.txt, Markdown, IndexNow | FR-SEO-09..12 | [0021](adr/0021-seo-for-ai.md) |
 | 0.19 | Redirects plugin, `admin.group: 'settings'` | FR-RDR-*, FR-ADM-19 | [0022](adr/0022-redirects-plugin.md) |
 | 0.20 | อีเมลใน core, email-smtp, form builder | FR-EML-*, FR-FRM-*, FR-STA-06 | [0023](adr/0023-email-and-form-builder.md) |
+| 0.22 | npm, pnpm, Yarn และ Bun: `--pm`, คำสั่งตาม package manager, แท็บในเอกสาร, smoke test | FR-INS-11..13 | [0025](adr/0025-package-managers.md) |
 | 0.21 | หน้าย่อย (nested docs), `filterOptions`, `uniqueWithin`, tree list, `live`, `commands`, BreadcrumbList | FR-NST-*, FR-MOD-11..12, FR-ADM-20, FR-LAPI-08, FR-INS-10, FR-SEO-13 | [0024](adr/0024-nested-docs.md) |
 
 ---
@@ -707,6 +711,7 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 1.3 | 2026-09-25 | M5: FR-REST-08 (อัปโหลด/ไฟล์), FR-CFG-07 (`routes.api`, `serverURL`), ระบุว่า drafts ใน v0.1 ไม่มี version แยก |
 | 1.4 | 2026-09-25 | M6: ผลวัด NFR-PERF-01/02 บน Postgres 17 (Local API p95 2.7 ms, REST p95 4.3 ms), Next.js adapter ใช้ `getEasyCMS(config)` |
 | 1.5 | 2026-09-25 | M7: ผลตรวจรับ v0.1 (7.1) |
+| 2.6 | 2026-10-01 | 0.22: FR-INS-11..13 |
 | 2.5 | 2026-09-30 | 0.21: FR-NST-*, FR-MOD-11..12, FR-ADM-20, FR-LAPI-08, FR-INS-10, FR-SEO-13 |
 | 2.4 | 2026-09-29 | 0.20: FR-EML-*, FR-FRM-*, FR-STA-06 |
 | 2.3 | 2026-09-28 | 0.19: FR-RDR-*, FR-ADM-19 |

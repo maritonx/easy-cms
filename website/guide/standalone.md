@@ -11,7 +11,7 @@ a Vite, React, Vue, Svelte or static frontend, or when the CMS should live on it
 
 ## Create a project
 
-```bash
+```bash [pm]
 npm create easy-cms@latest my-cms
 cd my-cms
 npm run dev
@@ -80,7 +80,7 @@ easy-cms serve [--port <n>] [--host <host>] [--watch] [--trust-proxy]
 Same as the adapters: create and apply migrations, then start with `NODE_ENV=production`, which
 refuses to start while migrations are pending. See [Migrations & deployment](./deployment).
 
-```bash
+```bash [pm]
 npx easy-cms migrate
 NODE_ENV=production npx easy-cms serve --trust-proxy
 ```

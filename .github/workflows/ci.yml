@@ -113,3 +113,43 @@ jobs:
         with:
           name: playwright-results
           path: e2e/test-results
+
+  # A user's path with each package manager: `<pm> create easy-cms`, install, migrate, serve.
+  # The packages come from this commit, published to a local registry (Verdaccio).
+  smoke:
+    name: smoke (${{ matrix.pm }}, ${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, pm: npm }
+          - { os: ubuntu-latest, pm: pnpm }
+          - { os: ubuntu-latest, pm: yarn }
+          - { os: ubuntu-latest, pm: bun }
+          - { os: windows-latest, pm: npm }
+          - { os: windows-latest, pm: pnpm }
+    runs-on: ${{ matrix.os }}
+    env:
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: '0'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo run build --filter="./packages/*"
+      - if: matrix.pm == 'bun'
+        uses: oven-sh/setup-bun@v2
+      - if: matrix.pm == 'yarn'
+        run: corepack enable yarn && corepack prepare yarn@stable --activate && yarn --version
+      - name: Start a local registry
+        shell: bash
+        run: |
+          mkdir -p smoke/.registry
+          npx -y verdaccio@6 --config smoke/verdaccio.yaml --listen 4873 > smoke/.registry/verdaccio.log 2>&1 &
+          for i in $(seq 1 90); do curl -sf http://localhost:4873/-/ping > /dev/null && exit 0; sleep 2; done
+          cat smoke/.registry/verdaccio.log; exit 1
+      - run: node smoke/publish.ts
+      - run: node smoke/scaffold.ts ${{ matrix.pm }}

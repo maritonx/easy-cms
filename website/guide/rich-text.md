@@ -43,7 +43,7 @@ text for a search index, or your own components.
 
 Install the renderer:
 
-```bash
+```bash [pm]
 npm install @easy-cms/richtext
 ```
 

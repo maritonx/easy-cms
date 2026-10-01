@@ -26,7 +26,7 @@ Easy CMS เก็บข้อมูลไว้สองที่: **ฐาน�
 ฐานข้อมูลทำงานในโหมด WAL การคัดลอก `cms.db` ขณะ server ทำงานอาจได้ไฟล์ที่เสีย ให้ใช้ `easy-cms backup` แทน
 คำสั่งนี้อ่าน config ของโปรเจกต์แล้วเขียนสำเนาที่สมบูรณ์ได้ขณะ CMS ทำงานอยู่
 
-```bash
+```bash [pm]
 npx easy-cms backup backups/cms-$(date +%F).db
 ```
 
@@ -64,7 +64,7 @@ backup ที่ไม่เคยลองกู้คืนก็ยังไ�
 
 1. อ่าน changelog ของเวอร์ชันที่อยู่ระหว่างทาง (`packages/core/CHANGELOG.md` บน GitHub หรือ `npm view @easy-cms/core --json`)
 2. อัปเกรดทุกแพ็กเกจเป็นเวอร์ชันเดียวกัน:
-   ```bash
+   ```bash [pm]
    npm install @easy-cms/core@latest @easy-cms/nuxt@latest @easy-cms/db-sqlite@latest easy-cms@latest
    ```
 3. รัน `npx easy-cms migrate:create upgrade` บางเวอร์ชันเพิ่มตารางภายใน (0.7 เพิ่ม `webhook-deliveries`)

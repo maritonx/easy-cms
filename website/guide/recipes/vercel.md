@@ -14,7 +14,7 @@ Use Postgres and S3-compatible storage instead.
 Create a database on any hosted Postgres (Neon, Supabase, Vercel's marketplace…) and copy its
 connection string.
 
-```bash
+```bash [pm]
 npm install @easy-cms/db-postgres
 ```
 
@@ -42,7 +42,7 @@ prepared statements the driver uses; if you switch to one, test it first.
 
 Create a bucket and an API token (Object Read & Write) in Cloudflare, then:
 
-```bash
+```bash [pm]
 npm install @easy-cms/storage-s3
 ```
 
@@ -67,7 +67,7 @@ Files are served through the CMS API unless you give the bucket a public URL (`p
 
 Create the migrations locally (with PGlite, no `DATABASE_URL`) and commit them:
 
-```bash
+```bash [pm]
 npx easy-cms migrate:create init
 git add easy-cms/migrations
 ```

@@ -11,8 +11,8 @@ const { isDark } = useData()
 
 const COPY = {
   en: {
-    badge: 'New in 0.21: nested pages',
-    badgeLink: 'nested-docs',
+    badge: 'New in 0.22: npm, pnpm, Yarn and Bun',
+    badgeLink: 'cli#create-easy-cms',
     title: 'Your CMS,',
     titleAccent: 'inside your app',
     tagline:
@@ -177,8 +177,8 @@ const COPY = {
     ctaGuide: 'Read the guide',
   },
   th: {
-    badge: 'ใหม่ใน 0.21: หน้าย่อย',
-    badgeLink: 'nested-docs',
+    badge: 'ใหม่ใน 0.22: npm, pnpm, Yarn และ Bun',
+    badgeLink: 'cli#create-easy-cms',
     title: 'CMS ที่อยู่',
     titleAccent: 'ในแอปของคุณ',
     tagline: 'กำหนดเนื้อหาด้วย TypeScript ได้หน้า admin, API ที่มี type และ plugin โดยไม่ต้องดูแล server แยก',
