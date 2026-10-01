@@ -1,5 +1,14 @@
 # @easy-cms/db-sqlite
 
+## 0.22.1
+
+### Patch Changes
+
+- d742afc: Package READMEs: what each package does, how to install it with npm, pnpm, Yarn or Bun, a short example and links to its guide.
+- Updated dependencies [d742afc]
+  - @easy-cms/core@0.22.1
+  - @easy-cms/drizzle@0.22.1
+
 ## 0.22.0
 
 ### Patch Changes
