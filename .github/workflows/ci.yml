@@ -117,14 +117,15 @@ jobs:
   # A user's path with each package manager: `<pm> create easy-cms`, install, migrate, serve.
   # The packages come from this commit, published to a local registry (Verdaccio).
   smoke:
-    name: smoke (${{ matrix.pm }}, ${{ matrix.os }})
+    name: smoke (${{ matrix.pm }}${{ matrix.yarn && format(' {0}', matrix.yarn) || '' }}, ${{ matrix.os }})
     strategy:
       fail-fast: false
       matrix:
         include:
           - { os: ubuntu-latest, pm: npm }
           - { os: ubuntu-latest, pm: pnpm }
-          - { os: ubuntu-latest, pm: yarn }
+          - { os: ubuntu-latest, pm: yarn, yarn: stable }
+          - { os: ubuntu-latest, pm: yarn, yarn: '1.22.22' }
           - { os: ubuntu-latest, pm: bun }
           - { os: windows-latest, pm: npm }
           - { os: windows-latest, pm: pnpm }
@@ -142,8 +143,15 @@ jobs:
       - run: pnpm turbo run build --filter="./packages/*"
       - if: matrix.pm == 'bun'
         uses: oven-sh/setup-bun@v2
+      # Corepack's yarn in its own directory, ahead of the runner's preinstalled Yarn 1.
       - if: matrix.pm == 'yarn'
-        run: corepack enable yarn && corepack prepare yarn@stable --activate && yarn --version
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/corepack"
+          corepack enable --install-directory "$RUNNER_TEMP/corepack" yarn
+          echo "$RUNNER_TEMP/corepack" >> "$GITHUB_PATH"
+          corepack prepare yarn@${{ matrix.yarn }} --activate
+          PATH="$RUNNER_TEMP/corepack:$PATH" yarn --version
       - name: Start a local registry
         shell: bash
         run: |
