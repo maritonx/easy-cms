@@ -20,13 +20,18 @@ const env: NodeJS.ProcessEnv = {
   npm_config_registry: REGISTRY,
   NPM_CONFIG_REGISTRY: REGISTRY,
   BUN_CONFIG_REGISTRY: REGISTRY,
-  YARN_NPM_REGISTRY_SERVER: REGISTRY,
+  YARN_NPM_REGISTRY_SERVER: REGISTRY, // Yarn 2+
+  YARN_REGISTRY: REGISTRY, // Yarn 1, which reads neither npm_config_registry nor a parent .npmrc
   YARN_UNSAFE_HTTP_WHITELIST: 'localhost',
   YARN_ENABLE_IMMUTABLE_INSTALLS: 'false',
   YARN_ENABLE_GLOBAL_CACHE: 'false',
   // Yarn 4.10+ waits a day before installing a new version; these were published a minute ago.
   YARN_NPM_MINIMAL_AGE_GATE: '0',
   npm_config_user_agent: undefined,
+  // Fresh caches: package lists cached from an earlier run would miss this run's versions.
+  npm_config_cache: join(root, '.cache', 'npm'),
+  BUN_INSTALL_CACHE_DIR: join(root, '.cache', 'bun'),
+  npm_config_store_dir: join(root, '.cache', 'pnpm'),
   EASY_CMS_ADMIN_PASSWORD: 'smoke-admin-password',
 }
 // Bun reads its registry from bunfig or .npmrc; the env var covers `bun create`'s install.
@@ -99,7 +104,14 @@ const lock = lockfiles[PM].find((file) => {
   }
 })
 if (!lock) throw new Error(`installed without ${PM}: no ${lockfiles[PM].join(' or ')}`)
-console.log(`\n✓ installed with ${PM} (${lock})`)
+// The packages from this commit (smoke/publish.ts gave them a version npmjs doesn't have).
+const expected = readFileSync(join(import.meta.dirname, '.registry', 'version'), 'utf8').trim()
+const installed = JSON.parse(
+  readFileSync(join(project, 'node_modules', '@easy-cms', 'core', 'package.json'), 'utf8'),
+).version
+if (installed !== expected)
+  throw new Error(`installed @easy-cms/core ${installed}, not ${expected} from ${REGISTRY}`)
+console.log(`\n✓ installed ${expected} with ${PM} (${lock})`)
 
 // 2. The CLI, as the next steps say to run it.
 const exec: Record<typeof PM, [string, string[]]> = {

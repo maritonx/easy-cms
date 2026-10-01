@@ -18,15 +18,35 @@ if (!token) throw new Error(`no registry token (${response.status})`)
 const npmrc = join(ROOT, 'smoke', '.registry', '.npmrc')
 writeFileSync(npmrc, `//${new URL(REGISTRY).host}/:_authToken=${token}\n`)
 
-for (const name of readdirSync(join(ROOT, 'packages'))) {
-  const dir = join(ROOT, 'packages', name)
-  const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'))
-  if (pkg.private) continue
-  // pnpm turns `workspace:^` into the version, like the real release.
-  execFileSync('pnpm', ['publish', '--registry', REGISTRY, '--no-git-checks', '--tag', 'latest'], {
-    cwd: dir,
-    stdio: 'inherit',
-    shell: process.platform === 'win32',
-    env: { ...process.env, npm_config_userconfig: npmrc },
-  })
+// A version npmjs doesn't have, so a package manager that reads another registry fails instead
+// of quietly installing the released packages.
+const dirs = readdirSync(join(ROOT, 'packages'))
+  .map((name) => join(ROOT, 'packages', name))
+  .filter((dir) => !JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')).private)
+const original = new Map(dirs.map((dir) => [dir, readFileSync(join(dir, 'package.json'), 'utf8')]))
+const base = JSON.parse(original.get(join(ROOT, 'packages', 'core')) as string).version
+const version = `${base}-smoke.${Date.now()}`
+writeFileSync(join(ROOT, 'smoke', '.registry', 'version'), version)
+try {
+  for (const [dir, text] of original)
+    writeFileSync(
+      join(dir, 'package.json'),
+      text.replace(/"version": "[^"]+"/, `"version": "${version}"`),
+    )
+  for (const dir of dirs) {
+    // pnpm turns `workspace:^` into `^<version>`, like the real release.
+    execFileSync(
+      'pnpm',
+      ['publish', '--registry', REGISTRY, '--no-git-checks', '--tag', 'latest'],
+      {
+        cwd: dir,
+        stdio: 'inherit',
+        shell: process.platform === 'win32',
+        env: { ...process.env, npm_config_userconfig: npmrc },
+      },
+    )
+  }
+} finally {
+  for (const [dir, text] of original) writeFileSync(join(dir, 'package.json'), text)
 }
+console.log(`Published ${dirs.length} packages as ${version}`)

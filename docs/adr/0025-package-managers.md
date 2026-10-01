@@ -49,6 +49,14 @@ CLI และเว็บ docs ใช้ไฟล์เดียวกัน ค
 ใช้ทั้ง 4 ตัวบน ubuntu และ npm กับ pnpm บน windows ส่วน registry ใช้ env (`npm_config_registry`,
 `BUN_CONFIG_REGISTRY`, `YARN_NPM_REGISTRY_SERVER`) โดยไม่เขียน `.yarnrc.yml` เอง เพื่อทดสอบว่า scaffold เขียนให้จริง
 
+**บทเรียนหลัง release (0.22.0–0.22.1):**
+- Yarn 1 ไม่อ่าน `npm_config_registry` และ `.npmrc` ของโฟลเดอร์แม่ ต้องใช้ `YARN_REGISTRY` ไม่อย่างนั้นจะติดตั้งจาก npmjs เงียบๆ
+  และล้มเฉพาะตอนที่ CI รันพร้อมการ release
+- Yarn 4.10 ขึ้นไปไม่ติดตั้งเวอร์ชันที่อายุไม่ถึง 1 วัน (`npmMinimalAgeGate`) จึงต้องปิดใน smoke test
+- smoke test จึง publish ด้วยเวอร์ชัน `x.y.z-smoke.<เวลา>` ที่ npmjs ไม่มี และตรวจว่าเวอร์ชันที่ติดตั้งตรงกัน
+  ถ้า package manager ตัวไหนอ่าน registry ผิดจะล้มทันที แต่ละรอบใช้ cache ใหม่
+- ถ้าขั้นไหนล้ม จะส่ง log ท้ายออกเป็น annotation ของ GitHub เพราะ log ของ job ต้อง login ถึงจะอ่านได้
+
 ## ผลที่ตามมา
 
 - ✅ ผู้ใช้ทั้ง 4 ตัวได้คำสั่งในรูปแบบที่คุ้น ทั้งใน terminal และเอกสาร
