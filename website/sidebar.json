@@ -1,0 +1,391 @@
+{
+  "$comment": "The docs navigation, shared by this VitePress site and easy-cms.io. `path` is the markdown file under website/ (website/th/ for Thai), without .md.",
+  "groups": [
+    {
+      "title": {
+        "en": "Introduction",
+        "th": "เริ่มต้น"
+      },
+      "items": [
+        {
+          "path": "guide/what-is-easy-cms",
+          "title": {
+            "en": "What is Easy CMS?",
+            "th": "Easy CMS คืออะไร"
+          }
+        },
+        {
+          "path": "guide/getting-started",
+          "title": {
+            "en": "Getting started",
+            "th": "เริ่มใช้งาน"
+          }
+        },
+        {
+          "path": "guide/tutorial",
+          "title": {
+            "en": "Tutorial: build a blog",
+            "th": "บทเรียน: สร้างบล็อก"
+          }
+        },
+        {
+          "path": "guide/nuxt",
+          "title": {
+            "en": "Nuxt",
+            "th": "Nuxt"
+          }
+        },
+        {
+          "path": "guide/next",
+          "title": {
+            "en": "Next.js",
+            "th": "Next.js"
+          }
+        },
+        {
+          "path": "guide/standalone",
+          "title": {
+            "en": "Standalone server",
+            "th": "Standalone server"
+          }
+        }
+      ]
+    },
+    {
+      "title": {
+        "en": "Content",
+        "th": "เนื้อหา"
+      },
+      "items": [
+        {
+          "path": "guide/configuration",
+          "title": {
+            "en": "Configuration",
+            "th": "การตั้งค่า"
+          }
+        },
+        {
+          "path": "guide/fields",
+          "title": {
+            "en": "Fields",
+            "th": "Fields"
+          }
+        },
+        {
+          "path": "guide/access-control",
+          "title": {
+            "en": "Access control",
+            "th": "การควบคุมสิทธิ์"
+          }
+        },
+        {
+          "path": "guide/hooks",
+          "title": {
+            "en": "Hooks",
+            "th": "Hooks"
+          }
+        },
+        {
+          "path": "guide/drafts",
+          "title": {
+            "en": "Drafts, versions & scheduling",
+            "th": "ฉบับร่าง เวอร์ชัน และการตั้งเวลา"
+          }
+        },
+        {
+          "path": "guide/localization",
+          "title": {
+            "en": "Localization",
+            "th": "หลายภาษา (localization)"
+          }
+        },
+        {
+          "path": "guide/uploads",
+          "title": {
+            "en": "Uploads & media",
+            "th": "อัปโหลดและ media"
+          }
+        },
+        {
+          "path": "guide/auth",
+          "title": {
+            "en": "Users & auth",
+            "th": "ผู้ใช้และการยืนยันตัวตน"
+          }
+        },
+        {
+          "path": "guide/api-keys",
+          "title": {
+            "en": "API keys",
+            "th": "API keys"
+          }
+        }
+      ]
+    },
+    {
+      "title": {
+        "en": "Using content",
+        "th": "การใช้เนื้อหา"
+      },
+      "items": [
+        {
+          "path": "guide/local-api",
+          "title": {
+            "en": "Local API",
+            "th": "Local API"
+          }
+        },
+        {
+          "path": "guide/typescript",
+          "title": {
+            "en": "TypeScript",
+            "th": "TypeScript"
+          }
+        },
+        {
+          "path": "guide/rich-text",
+          "title": {
+            "en": "Rich text",
+            "th": "Rich text"
+          }
+        },
+        {
+          "path": "guide/live-preview",
+          "title": {
+            "en": "Live preview",
+            "th": "ตัวอย่างสด (live preview)"
+          }
+        }
+      ]
+    },
+    {
+      "title": {
+        "en": "Plugins",
+        "th": "Plugins"
+      },
+      "items": [
+        {
+          "path": "guide/plugins",
+          "title": {
+            "en": "Plugins",
+            "th": "Plugins"
+          }
+        },
+        {
+          "path": "guide/seo",
+          "title": {
+            "en": "SEO",
+            "th": "SEO"
+          }
+        },
+        {
+          "path": "guide/ai-search",
+          "title": {
+            "en": "AI search",
+            "th": "SEO สำหรับ AI"
+          }
+        },
+        {
+          "path": "guide/redirects",
+          "title": {
+            "en": "Redirects",
+            "th": "Redirects"
+          }
+        },
+        {
+          "path": "guide/nested-docs",
+          "title": {
+            "en": "Nested pages",
+            "th": "หน้าย่อย"
+          }
+        },
+        {
+          "path": "guide/forms",
+          "title": {
+            "en": "Forms",
+            "th": "ฟอร์ม"
+          }
+        },
+        {
+          "path": "guide/mcp",
+          "title": {
+            "en": "MCP (AI assistants)",
+            "th": "MCP (ผู้ช่วย AI)"
+          }
+        }
+      ]
+    },
+    {
+      "title": {
+        "en": "Operations",
+        "th": "การดูแลระบบ"
+      },
+      "items": [
+        {
+          "path": "guide/databases",
+          "title": {
+            "en": "Databases",
+            "th": "ฐานข้อมูล"
+          }
+        },
+        {
+          "path": "guide/deployment",
+          "title": {
+            "en": "Migrations & deployment",
+            "th": "Migration และการ deploy"
+          }
+        },
+        {
+          "path": "guide/backups",
+          "title": {
+            "en": "Backups & upgrades",
+            "th": "Backup และการอัปเกรด"
+          }
+        },
+        {
+          "path": "guide/email",
+          "title": {
+            "en": "Email",
+            "th": "อีเมล"
+          }
+        },
+        {
+          "path": "guide/webhooks",
+          "title": {
+            "en": "Webhooks",
+            "th": "Webhooks"
+          }
+        },
+        {
+          "path": "guide/security",
+          "title": {
+            "en": "Security",
+            "th": "ความปลอดภัย"
+          }
+        }
+      ]
+    },
+    {
+      "title": {
+        "en": "Recipes",
+        "th": "สูตรสำเร็จ"
+      },
+      "collapsed": true,
+      "items": [
+        {
+          "path": "guide/recipes/index",
+          "title": {
+            "en": "All recipes",
+            "th": "สูตรทั้งหมด"
+          }
+        },
+        {
+          "path": "guide/recipes/own-posts",
+          "title": {
+            "en": "Authors edit only their own posts",
+            "th": "ผู้เขียนแก้ได้เฉพาะบทความของตัวเอง"
+          }
+        },
+        {
+          "path": "guide/recipes/rebuild-on-publish",
+          "title": {
+            "en": "Rebuild a static site on publish",
+            "th": "build เว็บ static ใหม่เมื่อเผยแพร่"
+          }
+        },
+        {
+          "path": "guide/recipes/reading-time",
+          "title": {
+            "en": "Reading time with a hook",
+            "th": "เวลาอ่านด้วย hook"
+          }
+        },
+        {
+          "path": "guide/recipes/landing-page",
+          "title": {
+            "en": "A landing page from blocks",
+            "th": "หน้า landing page จาก blocks"
+          }
+        },
+        {
+          "path": "guide/recipes/navigation-menu",
+          "title": {
+            "en": "A navigation menu in a global",
+            "th": "เมนูนำทางใน global"
+          }
+        },
+        {
+          "path": "guide/recipes/vercel",
+          "title": {
+            "en": "Deploy on Vercel",
+            "th": "Deploy บน Vercel"
+          }
+        },
+        {
+          "path": "guide/recipes/sqlite-to-postgres",
+          "title": {
+            "en": "Move from SQLite to Postgres",
+            "th": "ย้ายจาก SQLite ไป Postgres"
+          }
+        },
+        {
+          "path": "guide/recipes/automate-backups",
+          "title": {
+            "en": "Automate backups",
+            "th": "สำรองข้อมูลอัตโนมัติ"
+          }
+        },
+        {
+          "path": "guide/recipes/search-engines",
+          "title": {
+            "en": "Get ready for search engines",
+            "th": "เตรียมเว็บให้เครื่องมือค้นหา"
+          }
+        }
+      ]
+    },
+    {
+      "title": {
+        "en": "Reference",
+        "th": "อ้างอิง"
+      },
+      "items": [
+        {
+          "path": "reference/config",
+          "title": {
+            "en": "Config",
+            "th": "Config"
+          }
+        },
+        {
+          "path": "reference/fields",
+          "title": {
+            "en": "Fields",
+            "th": "Fields"
+          }
+        },
+        {
+          "path": "reference/local-api",
+          "title": {
+            "en": "Local API",
+            "th": "Local API"
+          }
+        },
+        {
+          "path": "guide/rest-api",
+          "title": {
+            "en": "REST API",
+            "th": "REST API"
+          }
+        },
+        {
+          "path": "guide/cli",
+          "title": {
+            "en": "CLI",
+            "th": "CLI"
+          }
+        }
+      ]
+    }
+  ]
+}

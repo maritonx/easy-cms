@@ -1,193 +1,25 @@
 import { type DefaultTheme, defineConfig } from 'vitepress'
+import navigation from '../sidebar.json' with { type: 'json' }
 import { packageManagerPlugin } from './package-managers.ts'
 
 // GitHub Pages serves the site under /<repo>/; the deploy workflow sets DOCS_BASE.
 const base = process.env.DOCS_BASE ?? '/'
 
-type Labels = Record<string, string>
+type Locale = 'en' | 'th'
 
-const RECIPES = [
-  'own-posts',
-  'rebuild-on-publish',
-  'reading-time',
-  'landing-page',
-  'navigation-menu',
-  'vercel',
-  'sqlite-to-postgres',
-  'automate-backups',
-  'search-engines',
-]
-
-/** The same pages in every language; `prefix` is '' for English and '/th' for Thai. */
-function sidebar(prefix: string, t: Labels): DefaultTheme.SidebarItem[] {
-  const page = (slug: string) => ({ text: t[slug] as string, link: `${prefix}/guide/${slug}` })
-  const at = (path: string, key: string) => ({ text: t[key] as string, link: `${prefix}/${path}` })
-  return [
-    {
-      text: t.introduction,
-      items: [
-        ...['what-is-easy-cms', 'getting-started'].map(page),
-        page('tutorial'),
-        ...['nuxt', 'next', 'standalone'].map(page),
-      ],
-    },
-    {
-      text: t.content,
-      items: [
-        'configuration',
-        'fields',
-        'access-control',
-        'hooks',
-        'drafts',
-        'localization',
-        'uploads',
-        'auth',
-        'api-keys',
-      ].map(page),
-    },
-    {
-      text: t.using,
-      items: ['local-api', 'typescript', 'rich-text', 'live-preview'].map(page),
-    },
-    {
-      text: t.plugins,
-      items: ['plugins', 'seo', 'ai-search', 'redirects', 'nested-docs', 'forms', 'mcp'].map(page),
-    },
-    {
-      text: t.operations,
-      items: ['databases', 'deployment', 'backups', 'email', 'webhooks', 'security'].map(page),
-    },
-    {
-      text: t.recipes,
-      collapsed: true,
-      items: [
-        at('guide/recipes/', 'recipes-all'),
-        ...RECIPES.map((slug) => at(`guide/recipes/${slug}`, `recipe-${slug}`)),
-      ],
-    },
-    {
-      text: t.reference,
-      items: [
-        at('reference/config', 'ref-config'),
-        at('reference/fields', 'ref-fields'),
-        at('reference/local-api', 'ref-local-api'),
-        page('rest-api'),
-        page('cli'),
-      ],
-    },
-  ]
-}
-
-const en: Labels = {
-  introduction: 'Introduction',
-  content: 'Content',
-  using: 'Using content',
-  plugins: 'Plugins',
-  operations: 'Operations',
-  recipes: 'Recipes',
-  reference: 'Reference',
-  tutorial: 'Tutorial: build a blog',
-  'recipes-all': 'All recipes',
-  'recipe-own-posts': 'Authors edit only their own posts',
-  'recipe-rebuild-on-publish': 'Rebuild a static site on publish',
-  'recipe-reading-time': 'Reading time with a hook',
-  'recipe-landing-page': 'A landing page from blocks',
-  'recipe-navigation-menu': 'A navigation menu in a global',
-  'recipe-vercel': 'Deploy on Vercel',
-  'recipe-sqlite-to-postgres': 'Move from SQLite to Postgres',
-  'recipe-automate-backups': 'Automate backups',
-  'recipe-search-engines': 'Get ready for search engines',
-  'ref-config': 'Config',
-  'ref-fields': 'Fields',
-  'ref-local-api': 'Local API',
-  'what-is-easy-cms': 'What is Easy CMS?',
-  'getting-started': 'Getting started',
-  nuxt: 'Nuxt',
-  next: 'Next.js',
-  standalone: 'Standalone server',
-  configuration: 'Configuration',
-  fields: 'Fields',
-  'access-control': 'Access control',
-  hooks: 'Hooks',
-  drafts: 'Drafts, versions & scheduling',
-  localization: 'Localization',
-  uploads: 'Uploads & media',
-  auth: 'Users & auth',
-  'api-keys': 'API keys',
-  'local-api': 'Local API',
-  'rest-api': 'REST API',
-  typescript: 'TypeScript',
-  'rich-text': 'Rich text',
-  'live-preview': 'Live preview',
-  seo: 'SEO',
-  'ai-search': 'AI search',
-  redirects: 'Redirects',
-  'nested-docs': 'Nested pages',
-  forms: 'Forms',
-  email: 'Email',
-  mcp: 'MCP (AI assistants)',
-  databases: 'Databases',
-  deployment: 'Migrations & deployment',
-  backups: 'Backups & upgrades',
-  webhooks: 'Webhooks',
-  cli: 'CLI',
-  security: 'Security',
-}
-
-const th: Labels = {
-  introduction: 'เริ่มต้น',
-  content: 'เนื้อหา',
-  using: 'การใช้เนื้อหา',
-  plugins: 'Plugins',
-  operations: 'การดูแลระบบ',
-  recipes: 'สูตรสำเร็จ',
-  reference: 'อ้างอิง',
-  tutorial: 'บทเรียน: สร้างบล็อก',
-  'recipes-all': 'สูตรทั้งหมด',
-  'recipe-own-posts': 'ผู้เขียนแก้ได้เฉพาะบทความของตัวเอง',
-  'recipe-rebuild-on-publish': 'build เว็บ static ใหม่เมื่อเผยแพร่',
-  'recipe-reading-time': 'เวลาอ่านด้วย hook',
-  'recipe-landing-page': 'หน้า landing page จาก blocks',
-  'recipe-navigation-menu': 'เมนูนำทางใน global',
-  'recipe-vercel': 'Deploy บน Vercel',
-  'recipe-sqlite-to-postgres': 'ย้ายจาก SQLite ไป Postgres',
-  'recipe-automate-backups': 'สำรองข้อมูลอัตโนมัติ',
-  'recipe-search-engines': 'เตรียมเว็บให้เครื่องมือค้นหา',
-  'ref-config': 'Config',
-  'ref-fields': 'Fields',
-  'ref-local-api': 'Local API',
-  'what-is-easy-cms': 'Easy CMS คืออะไร',
-  'getting-started': 'เริ่มใช้งาน',
-  nuxt: 'Nuxt',
-  next: 'Next.js',
-  standalone: 'Standalone server',
-  configuration: 'การตั้งค่า',
-  fields: 'Fields',
-  'access-control': 'การควบคุมสิทธิ์',
-  hooks: 'Hooks',
-  drafts: 'ฉบับร่าง เวอร์ชัน และการตั้งเวลา',
-  localization: 'หลายภาษา (localization)',
-  uploads: 'อัปโหลดและ media',
-  auth: 'ผู้ใช้และการยืนยันตัวตน',
-  'api-keys': 'API keys',
-  'local-api': 'Local API',
-  'rest-api': 'REST API',
-  typescript: 'TypeScript',
-  'rich-text': 'Rich text',
-  'live-preview': 'ตัวอย่างสด (live preview)',
-  seo: 'SEO',
-  'ai-search': 'SEO สำหรับ AI',
-  redirects: 'Redirects',
-  'nested-docs': 'หน้าย่อย',
-  forms: 'ฟอร์ม',
-  email: 'อีเมล',
-  mcp: 'MCP (ผู้ช่วย AI)',
-  databases: 'ฐานข้อมูล',
-  deployment: 'Migration และการ deploy',
-  backups: 'Backup และการอัปเกรด',
-  webhooks: 'Webhooks',
-  cli: 'CLI',
-  security: 'ความปลอดภัย',
+/**
+ * The same pages in every language, from sidebar.json (which easy-cms.io reads too);
+ * `prefix` is '' for English and '/th' for Thai.
+ */
+function sidebar(prefix: string, locale: Locale): DefaultTheme.SidebarItem[] {
+  return navigation.groups.map((group) => ({
+    text: group.title[locale],
+    ...('collapsed' in group ? { collapsed: group.collapsed } : {}),
+    items: group.items.map((item) => ({
+      text: item.title[locale],
+      link: `${prefix}/${item.path.replace(/(^|\/)index$/, '$1')}`,
+    })),
+  }))
 }
 
 export default defineConfig({
@@ -210,7 +42,7 @@ export default defineConfig({
           { text: 'Recipes', link: '/guide/recipes/' },
           { text: 'Reference', link: '/reference/config' },
         ],
-        sidebar: sidebar('', en),
+        sidebar: sidebar('', 'en'),
         editLink: {
           pattern: 'https://github.com/maritonx/easy-cms/edit/main/website/:path',
           text: 'Edit this page on GitHub',
@@ -230,7 +62,7 @@ export default defineConfig({
           { text: 'สูตรสำเร็จ', link: '/th/guide/recipes/' },
           { text: 'อ้างอิง', link: '/th/reference/config' },
         ],
-        sidebar: sidebar('/th', th),
+        sidebar: sidebar('/th', 'th'),
         editLink: {
           pattern: 'https://github.com/maritonx/easy-cms/edit/main/website/:path',
           text: 'แก้ไขหน้านี้บน GitHub',
