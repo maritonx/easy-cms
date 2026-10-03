@@ -79,3 +79,53 @@ export function verifyPreviewToken(
     return null
   }
 }
+
+/** Why a password link was sent: a forgotten password, or an invitation to a new account. */
+export type PasswordPurpose = 'reset' | 'invite'
+
+/**
+ * What ties a password link to the password it replaces: a link stops working once the password
+ * changes, so each link works once without being stored.
+ */
+export function passwordFingerprint(passwordHash: unknown): string {
+  return createHash('sha256')
+    .update(typeof passwordHash === 'string' ? passwordHash : 'no-password')
+    .digest('base64url')
+    .slice(0, 22)
+}
+
+/** A link token to set a user's password: `<payload>.<signature>`, the payload base64url JSON. */
+export function signPasswordToken(
+  secret: string,
+  args: { userId: string; purpose: PasswordPurpose; expiresAt: number; fingerprint: string },
+): string {
+  const payload = Buffer.from(
+    JSON.stringify({ u: args.userId, p: args.purpose, e: args.expiresAt }),
+  ).toString('base64url')
+  return `${payload}.${hmac(secret, `password:${payload}:${args.fingerprint}`)}`
+}
+
+/** The token's claims, before the signature is checked against the user's current password. */
+export function readPasswordToken(
+  token: string,
+): { userId: string; purpose: PasswordPurpose; expiresAt: number; payload: string } | null {
+  const dot = token.lastIndexOf('.')
+  if (dot <= 0) return null
+  const payload = token.slice(0, dot)
+  try {
+    const data = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'))
+    if (typeof data.u !== 'string' || typeof data.e !== 'number') return null
+    if (data.p !== 'reset' && data.p !== 'invite') return null
+    return { userId: data.u, purpose: data.p, expiresAt: data.e, payload }
+  } catch {
+    return null
+  }
+}
+
+/** Whether the token's signature matches the user's current password (and the secret). */
+export function passwordTokenMatches(secret: string, token: string, fingerprint: string): boolean {
+  const dot = token.lastIndexOf('.')
+  if (dot <= 0) return false
+  const payload = token.slice(0, dot)
+  return safeEqual(token.slice(dot + 1), hmac(secret, `password:${payload}:${fingerprint}`))
+}

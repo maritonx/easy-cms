@@ -3,7 +3,7 @@
 - **สถานะ:** Accepted (living document)
 - **วันที่:** 2026-10-01 (ฉบับแรก 2026-09-25)
 - **ผู้เขียน:** Kanawoot K.
-- **ครอบคลุม:** v0.1 ถึง v0.23
+- **ครอบคลุม:** v0.1 ถึง v0.24
 - **Requirements:** [SRS.md](SRS.md)
 
 ---
@@ -316,7 +316,7 @@ CI รัน lint, typecheck, build และ test บน Linux, macOS และ
 | **M7** CLI + Docs + Release | `create-easy-cms`, `generate:types`, VitePress, publish v0.1 |
 
 ### 15.2 หลัง v0.1 (เสร็จแล้ว)
-0.2 standalone + S3 → 0.3 versions → 0.4–0.5 live preview, localization → 0.6–0.9 blocks, webhooks, การตั้งเวลา → 0.10 backup → 0.11–0.12 admin redesign → 0.13 plugin ecosystem + SEO → 0.14 copy → 0.15 API keys → 0.16 MCP → 0.17 SEO ระดับทั้งเว็บ → 0.18 SEO สำหรับ AI → 0.19 redirects → 0.20 อีเมลและฟอร์ม → 0.21 หน้าย่อย → 0.22 npm, pnpm, Yarn และ Bun → 0.23 แกลเลอรี (upload หลายไฟล์) (รายละเอียดใน [SRS §8.2](SRS.md#82-releases-หลัง-v01))
+0.2 standalone + S3 → 0.3 versions → 0.4–0.5 live preview, localization → 0.6–0.9 blocks, webhooks, การตั้งเวลา → 0.10 backup → 0.11–0.12 admin redesign → 0.13 plugin ecosystem + SEO → 0.14 copy → 0.15 API keys → 0.16 MCP → 0.17 SEO ระดับทั้งเว็บ → 0.18 SEO สำหรับ AI → 0.19 redirects → 0.20 อีเมลและฟอร์ม → 0.21 หน้าย่อย → 0.22 npm, pnpm, Yarn และ Bun → 0.23 แกลเลอรี (upload หลายไฟล์) → 0.24 ลืมรหัสผ่านและคำเชิญ (รายละเอียดใน [SRS §8.2](SRS.md#82-releases-หลัง-v01))
 
 ### 15.3 แนวคิดถัดไป (ยังไม่ได้ตัดสินใจ)
 - MCP แบบ stdio (`easy-cms mcp`) และ OAuth สำหรับ client ที่ส่ง header ไม่ได้
@@ -326,7 +326,7 @@ CI รัน lint, typecheck, build และ test บน Linux, macOS และ
 - หน้าย่อย: ลากวางเพื่อย้ายหรือเรียงหน้า, ไล่อัปเดตผ่าน job queue สำหรับต้นไม้ขนาดใหญ่
 - redirects: export เป็น `_redirects`/`vercel.json`, นำเข้าจาก CSV, pattern/wildcard
 - Plugin: หน้าเต็มในหน้า Admin และ widget บน dashboard
-- `auth.strategy` สำหรับ auth ภายนอก, ลืมรหัสผ่านผ่าน email
+- `auth.strategy` สำหรับ auth ภายนอก (OAuth/SSO)
 
 ## 16. ความเสี่ยง
 
@@ -368,3 +368,4 @@ CI รัน lint, typecheck, build และ test บน Linux, macOS และ
 - [ADR-0024](adr/0024-nested-docs.md) — หน้าย่อย (plugin nested docs) และความสามารถของ core ที่รองรับ
 - [ADR-0025](adr/0025-package-managers.md) — รองรับ npm, pnpm, Yarn และ Bun
 - [ADR-0026](adr/0026-upload-has-many.md) — upload หลายไฟล์ (`hasMany`) และการจำกัดชนิดไฟล์
+- [ADR-0027](adr/0027-password-links.md) — ลืมรหัสผ่านและคำเชิญทางอีเมล

@@ -1,4 +1,5 @@
 import type { AuthUser, CollectionAccess, GlobalAccess, ID } from './access.js'
+import type { PasswordEmailFn } from './auth/emails.js'
 import type { DatabaseAdapter } from './database.js'
 import type { EmailAdapter } from './email.js'
 import type { AdminComponent, Field, Label } from './fields.js'
@@ -288,6 +289,19 @@ export interface AuthConfig {
    * Needed when the admin or frontend is served from another origin, or behind a proxy that rewrites the host.
    */
   readonly trustedOrigins?: readonly string[]
+  /**
+   * How long a "forgot password" link works, in seconds. Default 1 hour. Links work once: setting
+   * the password ends them. Needs `email` and, in production, `serverURL` for the link.
+   */
+  readonly resetPasswordExpiration?: number
+  /** How long an invitation link works, in seconds. Default 7 days. */
+  readonly inviteExpiration?: number
+  /** Your own text for the password emails, e.g. in your brand's voice. Default: English or Thai. */
+  readonly emails?: {
+    readonly resetPassword?: PasswordEmailFn
+    readonly invite?: PasswordEmailFn
+    readonly passwordChanged?: PasswordEmailFn
+  }
 }
 
 /** What an endpoint's handler receives. */

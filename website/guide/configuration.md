@@ -42,7 +42,7 @@ and how to fix it.
 |---|---|---|
 | `secret` | — | **Required**, at least 32 characters. Signs sessions. Read it from an env var. |
 | `db` | — | **Required**. A database adapter: `sqlite()` or `postgres()`. See [Databases](./databases). |
-| `serverURL` | — | Public origin such as `https://example.com`. Makes media URLs absolute. |
+| `serverURL` | — | Public origin such as `https://example.com`. Makes media URLs absolute, and is where password links point (needed for them in production). |
 | `webhooks` | `[]` | Endpoints notified when content changes. See [Webhooks](./webhooks). |
 | `cronSecret` | `CRON_SECRET` | Lets a cron run [scheduled jobs](./drafts#scheduled-publishing) at `<api>/jobs/run`. |
 | `localization` | — | `{ locales, defaultLocale?, fallback? }`: content in several languages. See [Localization](./localization). |

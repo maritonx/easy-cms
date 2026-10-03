@@ -11,8 +11,8 @@ const { isDark } = useData()
 
 const COPY = {
   en: {
-    badge: 'New in 0.23: image galleries',
-    badgeLink: 'uploads#several-files-galleries',
+    badge: 'New in 0.24: forgot password and invitations',
+    badgeLink: 'auth#forgotten-passwords-and-invitations',
     title: 'Your CMS,',
     titleAccent: 'inside your app',
     tagline:
@@ -177,8 +177,8 @@ const COPY = {
     ctaGuide: 'Read the guide',
   },
   th: {
-    badge: 'ใหม่ใน 0.23: แกลเลอรีรูปภาพ',
-    badgeLink: 'uploads#several-files-galleries',
+    badge: 'ใหม่ใน 0.24: ลืมรหัสผ่านและคำเชิญ',
+    badgeLink: 'auth#forgotten-passwords-and-invitations',
     title: 'CMS ที่อยู่',
     titleAccent: 'ในแอปของคุณ',
     tagline: 'กำหนดเนื้อหาด้วย TypeScript ได้หน้า admin, API ที่มี type และ plugin โดยไม่ต้องดูแล server แยก',

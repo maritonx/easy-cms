@@ -9,7 +9,13 @@ export {
   type ApiKeyPermissions,
   keyAllows,
 } from './api-keys.js'
-export { Auth, type LoginArgs, type Session } from './auth/auth.js'
+export { Auth, type LoginArgs, type PasswordLinkOptions, type Session } from './auth/auth.js'
+export {
+  DEFAULT_PASSWORD_EMAILS,
+  type PasswordEmail,
+  type PasswordEmailArgs,
+  type PasswordEmailFn,
+} from './auth/emails.js'
 export { hashPassword, MIN_PASSWORD_LENGTH, verifyPassword } from './auth/password.js'
 export type { PreviewTarget } from './auth/tokens.js'
 export { INTERNAL_COLLECTIONS, MEDIA } from './builtins.js'

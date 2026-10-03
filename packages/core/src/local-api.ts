@@ -1609,10 +1609,8 @@ export class EasyCMS<C extends Config = Config> {
       if (!allowed) throw deny(guard.user)
     }
 
+    // A user without a password can't log in until they set one from an invitation link.
     const { input, password } = splitPassword(config, raw)
-    if (config.slug === USERS && password === undefined) {
-      throw new ValidationError(collection, [{ field: 'password', message: 'is required' }])
-    }
     const filtered = await filterInput(
       config.fields,
       input,

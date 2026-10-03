@@ -72,6 +72,9 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `maxLoginAttempts` | `number` | `5` | Failed logins allowed per email (and IP) within `lockWindow`. |
 | `lockWindow` | `number` | `900` (15 minutes) | In seconds. |
 | `trustedOrigins` | `string[]` | `[]` | Other origins that may send cookie-authenticated requests. |
+| `resetPasswordExpiration` | `number` | `3600` | Seconds a "forgot password" link works. Links need `email`, and `serverURL` in production. [Forgotten passwords](/guide/auth#forgotten-passwords-and-invitations) |
+| `inviteExpiration` | `number` | `604800` | Seconds an invitation link works. |
+| `emails` | `{ resetPassword?, invite?, passwordChanged? }` | — | Functions `({ user, url, locale, expiresAt }) => { subject, text, html? }` for your own email text. |
 
 <!-- api: UploadConfig -->
 ## upload

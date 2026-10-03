@@ -77,6 +77,50 @@ await cms.create('users', { email: 'ann@example.com', password: 'at least 8 char
 
 รหัสผ่าน hash ด้วย scrypt และไม่ถูกส่งคืน
 
+## ลืมรหัสผ่านและคำเชิญ {#forgotten-passwords-and-invitations}
+
+<Screenshot name="reset-password" alt="ตั้งรหัสผ่านใหม่จากลิงก์ในอีเมล" />
+
+เมื่อตั้งค่า [อีเมล](./email) แล้ว CMS จะส่งลิงก์สำหรับตั้งรหัสผ่านได้
+
+- **ลืมรหัสผ่าน?** ในหน้า login ส่งลิงก์ที่ใช้ได้ครั้งเดียวภายใน 1 ชั่วโมง หน้านี้ตอบเหมือนกันทุกครั้ง
+  ไม่ว่าอีเมลนั้นจะมีบัญชีหรือไม่ จึงใช้ตรวจไม่ได้ว่าใครมีบัญชี และรับคำขอได้ไม่กี่ครั้งต่ออีเมลและ IP
+  ที่เกินจะถูกเพิกเฉย
+- **คำเชิญ:** admin สร้างผู้ใช้โดยเว้นรหัสผ่านว่างไว้ ผู้ใช้จะได้อีเมลให้ตั้งรหัสผ่านเอง (ลิงก์ใช้ได้ 7 วัน)
+  จึงไม่มีใครอื่นรู้รหัส
+- **ส่งลิงก์ตั้งรหัสผ่านทางอีเมล** ในหน้าของผู้ใช้ จะส่งคำเชิญ หรือส่งลิงก์ตั้งรหัสใหม่ถ้ามีรหัสผ่านแล้ว
+
+การตั้งรหัสผ่านจะออกจากระบบทุกเครื่องของบัญชีนั้น และ login ให้ในเบราว์เซอร์นี้ ส่วนการตั้งรหัสใหม่
+จะตามด้วยอีเมลแจ้งว่า "รหัสผ่านของคุณถูกเปลี่ยนแล้ว"
+
+ลิงก์จะชี้ไปที่ `serverURL` (เช่น `https://cms.example.com`) ซึ่ง production ต้องตั้ง เพราะ Host ของ
+request ปลอมได้ และลิงก์ที่สร้างจาก Host อาจส่ง token ไปให้คนอื่น ตอนพัฒนาจะใช้ที่อยู่ของ request เอง
+ถ้าไม่มี `email` หรือเป็น production ที่ไม่มี `serverURL` หน้า admin จะไม่แสดงลิงก์เหล่านี้ admin ตั้งรหัสให้เอง
+
+```ts
+export default defineConfig({
+  serverURL: 'https://cms.example.com',
+  email: smtp(),
+  auth: {
+    resetPasswordExpiration: 60 * 60, // วินาที ค่าเริ่มต้น 1 ชั่วโมง
+    inviteExpiration: 7 * 24 * 60 * 60, // ค่าเริ่มต้น 7 วัน
+    // ข้อความของคุณเอง ค่าเริ่มต้นเป็นภาษาอังกฤษหรือไทย (ตามภาษาของหน้า admin)
+    emails: {
+      invite: ({ user, url }) => ({
+        subject: 'ยินดีต้อนรับสู่ทีมเนื้อหาของ Acme',
+        text: `สวัสดี ${user.name ?? user.email} ตั้งรหัสผ่านได้ที่: ${url}`,
+      }),
+    },
+  },
+})
+```
+
+ผ่าน REST: `POST /api/cms/users/forgot-password` พร้อม `{ email }` แล้ว
+`POST /api/cms/users/reset-password` พร้อม `{ token, password }` (ซึ่ง login ให้ด้วย)
+ส่วน `GET /api/cms/users/reset-password?token=…` ใช้ตรวจลิงก์ก่อน admin ส่งลิงก์ด้วย
+`POST /api/cms/users/:id/password-link` ในโค้ดใช้ `cms.auth.requestPasswordReset({ email })` และ
+`cms.auth.sendPasswordLink(userId)`
+
 ## Session {#sessions}
 
 การ login จะสร้าง session:
@@ -132,6 +176,9 @@ const { docs } = await cms.find('posts', { user, overrideAccess: false, draft: u
 | `auth.maxLoginAttempts` | `5` | จำนวนครั้งที่ login ผิดได้ภายใน `lockWindow` |
 | `auth.lockWindow` | 15 นาที | เป็นวินาที |
 | `auth.trustedOrigins` | `[]` | origin อื่นที่ส่ง request ด้วย cookie ได้ |
+| `auth.resetPasswordExpiration` | 1 ชั่วโมง | ลิงก์ "ลืมรหัสผ่าน" ใช้ได้นานเท่าไร หน่วยวินาที |
+| `auth.inviteExpiration` | 7 วัน | ลิงก์คำเชิญใช้ได้นานเท่าไร หน่วยวินาที |
+| `auth.emails` | — | `{ resetPassword, invite, passwordChanged }`: ข้อความอีเมลของคุณเอง |
 
 ## ขั้นต่อไป {#next-steps}
 

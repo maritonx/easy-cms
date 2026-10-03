@@ -207,11 +207,35 @@ function validateAuth(config: Config, add: Add) {
       add('auth.roles', 'must include "admin"', "e.g. roles: ['admin', 'editor']")
     }
   }
-  for (const key of ['tokenExpiration', 'maxLoginAttempts', 'lockWindow'] as const) {
+  for (const key of [
+    'tokenExpiration',
+    'maxLoginAttempts',
+    'lockWindow',
+    'resetPasswordExpiration',
+    'inviteExpiration',
+  ] as const) {
     const value = auth[key]
     if (value !== undefined && !(Number.isInteger(value) && value > 0)) {
       add(`auth.${key}`, 'must be a positive integer')
     }
+  }
+  if (auth.emails !== undefined) {
+    const emails: unknown = auth.emails
+    if (typeof emails !== 'object' || emails === null) add('auth.emails', 'must be an object')
+    else
+      for (const [name, fn] of Object.entries(emails)) {
+        if (!['resetPassword', 'invite', 'passwordChanged'].includes(name))
+          add(
+            `auth.emails.${name}`,
+            'unknown email',
+            'use resetPassword, invite or passwordChanged',
+          )
+        else if (typeof fn !== 'function')
+          add(
+            `auth.emails.${name}`,
+            'must be a function ({ user, url, locale }) => { subject, text }',
+          )
+      }
   }
   if (auth.trustedOrigins !== undefined) {
     for (const [i, origin] of auth.trustedOrigins.entries()) {

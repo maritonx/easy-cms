@@ -250,7 +250,10 @@ type StatusInput<T> = T extends { readonly drafts: true }
   ? { status?: 'draft' | 'published' }
   : unknown
 
-/** Users are created with a password, which is hashed and never returned. */
+/**
+ * A user's password, hashed and never returned. Optional when creating: a user without one sets
+ * it from an invitation link.
+ */
 type PasswordInput<S, Required extends boolean> = S extends 'users'
   ? Required extends true
     ? { password: string }
@@ -261,7 +264,7 @@ type PasswordInput<S, Required extends boolean> = S extends 'users'
 export type CreateInput<C extends Config, S extends CollectionSlug<C>> = Simplify<
   FieldsInput<CollectionBySlug<C, S>['fields']> &
     StatusInput<CollectionBySlug<C, S>> &
-    PasswordInput<S, true>
+    PasswordInput<S, false>
 >
 
 /** Data accepted by `update`: any subset of `CreateInput`. */

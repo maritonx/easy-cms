@@ -42,7 +42,7 @@ export default defineConfig({
 |---|---|---|
 | `secret` | — | **จำเป็น** อย่างน้อย 32 ตัวอักษร ใช้ลงนาม session ควรอ่านค่าจาก env var |
 | `db` | — | **จำเป็น** database adapter: `sqlite()` หรือ `postgres()` ดู [ฐานข้อมูล](./databases) |
-| `serverURL` | — | origin สาธารณะ เช่น `https://example.com` ทำให้ URL ของ media เป็นแบบ absolute |
+| `serverURL` | — | origin สาธารณะ เช่น `https://example.com` ทำให้ URL ของ media เป็นแบบ absolute และเป็นที่ที่ลิงก์ตั้งรหัสผ่านชี้ไป (production ต้องตั้งถ้าจะใช้ลิงก์นี้) |
 | `webhooks` | `[]` | endpoint ที่จะได้รับแจ้งเมื่อเนื้อหาเปลี่ยนแปลง ดู [Webhooks](./webhooks) |
 | `cronSecret` | `CRON_SECRET` | ให้ cron รัน[งานที่ตั้งเวลาไว้](./drafts#scheduled-publishing)ที่ `<api>/jobs/run` ได้ |
 | `localization` | — | `{ locales, defaultLocale?, fallback? }`: เนื้อหาหลายภาษา ดู [หลายภาษา](./localization) |

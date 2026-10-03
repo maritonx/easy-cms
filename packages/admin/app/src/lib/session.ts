@@ -14,6 +14,8 @@ interface SessionState {
   loaded: boolean
   user: User | null
   hasUsers: boolean
+  /** The login page offers "Forgot password?" (the CMS can email links). */
+  passwordReset: boolean
   schema: AdminSchema | null
 }
 
@@ -21,6 +23,7 @@ export const session = reactive<SessionState>({
   loaded: false,
   user: null,
   hasUsers: true,
+  passwordReset: false,
   schema: null,
 })
 
@@ -34,13 +37,26 @@ export async function loadSession(): Promise<void> {
     void loadModules(session.schema.modules ?? [])
   } else {
     session.schema = null
-    session.hasUsers = (await api<{ hasUsers: boolean }>('GET', '/users/init')).hasUsers
+    const init = await api<{ hasUsers: boolean; passwordReset?: boolean }>('GET', '/users/init')
+    session.hasUsers = init.hasUsers
+    session.passwordReset = init.passwordReset === true
   }
   session.loaded = true
 }
 
 export async function login(email: string, password: string): Promise<void> {
   await api('POST', '/users/login', { email, password })
+  await loadSession()
+}
+
+/** Asks for a link to set a new password; the answer is the same whether the email exists. */
+export async function forgotPassword(email: string, locale: string): Promise<void> {
+  await api('POST', '/users/forgot-password', { email, locale })
+}
+
+/** Sets the password from a link and signs in. */
+export async function resetPassword(token: string, password: string, locale: string) {
+  await api('POST', '/users/reset-password', { token, password, locale })
   await loadSession()
 }
 

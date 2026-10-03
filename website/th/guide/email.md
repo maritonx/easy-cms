@@ -1,13 +1,13 @@
 # อีเมล {#email}
 
 ::: info หน้านี้สอนอะไร
-Easy CMS ส่งอีเมลอย่างไร (สำหรับ[ฟอร์ม](./forms)และ hook ของคุณเอง) วิธีเชื่อม SMTP และจะเกิดอะไรขึ้นเมื่อส่งไม่สำเร็จ
+Easy CMS ส่งอีเมลอย่างไร (สำหรับ[ลิงก์ตั้งรหัสผ่าน](./auth#forgotten-passwords-and-invitations) [ฟอร์ม](./forms) และ hook ของคุณเอง) วิธีเชื่อม SMTP และจะเกิดอะไรขึ้นเมื่อส่งไม่สำเร็จ
 
 **ควรอ่านก่อน:** [การตั้งค่า](./configuration)
 :::
 
-Easy CMS ไม่ส่งอีเมลจนกว่าคุณจะใส่ **email adapter** ใน config จากนั้น plugin อย่าง form builder จะใช้ adapter นั้น
-และโค้ดของคุณก็ใช้ได้ผ่าน `cms.sendEmail()`
+Easy CMS ไม่ส่งอีเมลจนกว่าคุณจะใส่ **email adapter** ใน config จากนั้น CMS จะใช้ส่งลิงก์ลืมรหัสผ่านและคำเชิญ
+plugin อย่าง form builder ใช้ส่งการแจ้งเตือน และโค้ดของคุณก็ใช้ได้ผ่าน `cms.sendEmail()`
 
 ## SMTP {#smtp}
 

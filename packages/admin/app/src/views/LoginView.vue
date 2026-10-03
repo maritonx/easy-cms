@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import AuthCard from '../components/AuthCard.vue'
 import { ApiError } from '../lib/api'
 import { t } from '../lib/i18n'
-import { login } from '../lib/session'
+import { login, session } from '../lib/session'
 
 const router = useRouter()
 const route = useRoute()
@@ -44,6 +44,9 @@ async function submit() {
         <input v-model="password" class="input" type="password" autocomplete="current-password" required />
       </label>
       <button class="btn btn-primary" type="submit" :disabled="busy">{{ t('login.submit') }}</button>
+      <RouterLink v-if="session.passwordReset" :to="{ name: 'forgot-password' }" class="forgot">
+        {{ t('login.forgot') }}
+      </RouterLink>
     </form>
   </AuthCard>
 </template>
@@ -53,5 +56,9 @@ async function submit() {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+.forgot {
+  align-self: center;
+  font-size: 0.875rem;
 }
 </style>

@@ -71,6 +71,9 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `maxLoginAttempts` | `number` | `5` | จำนวนครั้งที่ login ผิดได้ต่อ email (และ IP) ภายใน `lockWindow` |
 | `lockWindow` | `number` | `900` (15 นาที) | เป็นวินาที |
 | `trustedOrigins` | `string[]` | `[]` | origin อื่นที่ส่ง request ด้วย cookie ได้ |
+| `resetPasswordExpiration` | `number` | `3600` | ลิงก์ "ลืมรหัสผ่าน" ใช้ได้กี่วินาที ต้องมี `email` และ `serverURL` บน production [ลืมรหัสผ่าน](/th/guide/auth#forgotten-passwords-and-invitations) |
+| `inviteExpiration` | `number` | `604800` | ลิงก์คำเชิญใช้ได้กี่วินาที |
+| `emails` | `{ resetPassword?, invite?, passwordChanged? }` | — | ฟังก์ชัน `({ user, url, locale, expiresAt }) => { subject, text, html? }` สำหรับข้อความอีเมลของคุณเอง |
 
 <!-- api: UploadConfig -->
 ## upload {#upload}

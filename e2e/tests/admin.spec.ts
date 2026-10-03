@@ -1,3 +1,4 @@
+import { createHash, createHmac } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { expect, type Page, test } from '@playwright/test'
@@ -55,6 +56,23 @@ const standalone = () => test.info().project.name === 'standalone'
 /** A status badge next to the document's title. */
 const badge = (page: Page, text: string) =>
   page.locator('.editor-header .title-row').getByText(text, { exact: true })
+
+/**
+ * A password link's token, signed like the CMS does with the e2e secret: only for accounts
+ * without a password (an invitation), whose fingerprint is known.
+ */
+function passwordToken(userId: string, purpose: 'invite' | 'reset') {
+  const payload = Buffer.from(
+    JSON.stringify({ u: userId, p: purpose, e: Date.now() + 3_600_000 }),
+  ).toString('base64url')
+  const fingerprint = createHash('sha256').update('no-password').digest('base64url').slice(0, 22)
+  const signature = createHmac('sha256', E2E_SECRET)
+    .update(`password:${payload}:${fingerprint}`)
+    .digest('base64url')
+  return `${payload}.${signature}`
+}
+/** The secret in playwright.config.ts. */
+const E2E_SECRET = 'e2e-secret-e2e-secret-e2e-secret-e2e'
 
 async function shot(page: Page, name: string) {
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/${name}.png`, fullPage: true })
@@ -938,6 +956,59 @@ test.describe('logged in as admin', () => {
     await inline.getByRole('button', { name: 'Save' }).click()
     await expect(page.getByRole('dialog')).toHaveCount(0)
     await expect(page.getByRole('link', { name: 'Travel' })).toBeVisible()
+  })
+
+  test('invites a user by email and resets forgotten passwords (password links)', async ({
+    page,
+    browser,
+  }) => {
+    // Next.js runs as a production build without serverURL: links could point anywhere, so
+    // the admin doesn't offer them. The other examples run in development.
+    const links = test.info().project.name !== 'next'
+    await page.goto('/admin/collections/users/new')
+    await page.getByLabel('Email').fill('invitee@e2e.test')
+    await page.getByLabel('Role').selectOption('editor')
+    if (!links) {
+      await expect(page.getByText('Leave it empty to email an invitation instead.')).toBeHidden()
+      return
+    }
+    await expect(page.getByText('Leave it empty to email an invitation instead.')).toBeVisible()
+    await page.getByRole('button', { name: 'Save' }).click()
+    await expect(page.getByText('Created. Invitation sent to invitee@e2e.test')).toBeVisible()
+    await expect(page).toHaveURL(/\/admin\/collections\/users\/\d+$/)
+    const id = page.url().split('/').pop() as string
+    await expect(
+      page.getByRole('button', { name: 'Email a link to set the password' }),
+    ).toBeVisible()
+
+    // The invitation's link, as the email has it: a user without a password has no fingerprint.
+    const token = passwordToken(id, 'invite')
+    const guest = await browser.newContext()
+    const tab = await guest.newPage()
+    await english(tab)
+    await tab.goto(`/admin/reset-password?token=${encodeURIComponent(token)}`)
+    await expect(tab.getByRole('heading', { name: 'Set your password' })).toBeVisible()
+    await expect(tab.getByText('Choose a password for invitee@e2e.test')).toBeVisible()
+    await tab.getByLabel('New password').fill('invitee-password-1')
+    await tab.getByLabel('Repeat the password').fill('invitee-password-1')
+    await tab.getByRole('button', { name: 'Set the password and start' }).click()
+    await expect(tab.getByRole('heading', { level: 1, name: GREETING })).toBeVisible()
+    // The link worked once.
+    await tab.goto(`/admin/reset-password?token=${encodeURIComponent(token)}`)
+    await expect(tab.getByText('This link has expired or was already used.')).toBeVisible()
+    await guest.close()
+
+    // "Forgot your password?" on the login page answers the same for any email.
+    const visitor = await browser.newContext()
+    const login = await visitor.newPage()
+    await english(login)
+    await login.goto('/admin/login')
+    await login.getByRole('link', { name: 'Forgot your password?' }).click()
+    await expect(login.getByRole('heading', { name: 'Reset your password' })).toBeVisible()
+    await login.getByLabel('Email').fill('someone@e2e.test')
+    await login.getByRole('button', { name: 'Send the link' }).click()
+    await expect(login.getByText(/If an account has the email someone@e2e\.test/)).toBeVisible()
+    await visitor.close()
   })
 
   test('creates an editor account', async ({ page }) => {

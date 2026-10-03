@@ -1,14 +1,15 @@
 # Email
 
 ::: info What you'll learn
-How Easy CMS sends email (for [forms](./forms) and your own hooks), how to connect SMTP, and
+How Easy CMS sends email (for [password links](./auth#forgotten-passwords-and-invitations), [forms](./forms) and your own hooks), how to connect SMTP, and
 what happens when sending fails.
 
 **Before this page:** [Configuration](./configuration).
 :::
 
-Easy CMS doesn't send email until you give it an **email adapter** in the config. Plugins such
-as the form builder then use it, and so can your own code with `cms.sendEmail()`.
+Easy CMS doesn't send email until you give it an **email adapter** in the config. The CMS uses it
+for forgotten passwords and invitations, plugins such as the form builder for notifications,
+and your own code with `cms.sendEmail()`.
 
 ## SMTP
 

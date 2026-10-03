@@ -296,7 +296,46 @@ async function route(
         return { body: { user: ctx.user, ...(csrfToken ? { csrfToken } : {}) } }
       }
       case 'GET init':
-        return { body: { hasUsers: await cms.auth.hasUsers() } }
+        return {
+          body: {
+            hasUsers: await cms.auth.hasUsers(),
+            // The login page offers "Forgot password?" only when the email can be sent.
+            passwordReset: cms.auth.canSendPasswordLinks(ctx.url.origin),
+          },
+        }
+      // Forgot password: the same answer whether or not the email has an account.
+      case 'POST forgot-password': {
+        const body = await readJson(ctx.request)
+        await cms.auth.requestPasswordReset({
+          email: String(body.email ?? ''),
+          ip: options.getClientIp?.(ctx.request),
+          origin: ctx.url.origin,
+          locale: typeof body.locale === 'string' ? body.locale : undefined,
+        })
+        return { body: { message: 'If an account has this email, a link is on its way.' } }
+      }
+      // The page behind a password link: which account, and whether the link still works.
+      case 'GET reset-password': {
+        const found = await cms.auth.checkPasswordToken(ctx.url.searchParams.get('token') ?? '')
+        if (!found)
+          throw new ValidationError(USERS, [
+            { field: 'token', message: 'This link has expired or was already used' },
+          ])
+        return { body: { email: found.user.email, purpose: found.purpose } }
+      }
+      case 'POST reset-password': {
+        const body = await readJson(ctx.request)
+        const session = await cms.auth.resetPassword({
+          token: String(body.token ?? ''),
+          password: String(body.password ?? ''),
+          ip: options.getClientIp?.(ctx.request),
+          locale: typeof body.locale === 'string' ? body.locale : undefined,
+        })
+        setSessionCookies(cms, ctx, session)
+        return {
+          body: { user: session.user, exp: session.expiresAt, csrfToken: session.csrfToken },
+        }
+      }
       case 'POST first-register': {
         const body = await readJson(ctx.request)
         const session = await cms.auth.registerFirstUser({
@@ -332,7 +371,7 @@ async function route(
     if (method !== 'GET') throw methodNotAllowed(ctx, 'GET')
     if (!ctx.user) throw new UnauthorizedError()
     if (second === 'schema' && third === undefined)
-      return { body: await adminSchema(cms, ctx.user) }
+      return { body: await adminSchema(cms, ctx.user, ctx.url.origin) }
     // /admin/modules/:n.js → an admin module's code (`admin.modules`)
     if (second === 'modules' && third !== undefined && segments.length === 3) {
       const index = /^(\d+)\.js$/.exec(third)?.[1]
@@ -510,6 +549,17 @@ async function documentAction(
   const access = { overrideAccess: false, user: ctx.user, ...parseLocale(ctx.url) } as const
   const depth = parseDepth(ctx.url)
   const [action, versionId, extra] = path
+  // An admin emails a user a link to set their password (an invitation, or a reset).
+  if (collection === USERS && action === 'password-link' && path.length === 1) {
+    if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
+    if (ctx.user?.role !== 'admin' || ctx.user.apiKey) throw new ForbiddenError()
+    const body = await readJson(ctx.request).catch(() => ({}) as Record<string, unknown>)
+    const sent = await cms.auth.sendPasswordLink(/^\d+$/.test(id) ? Number(id) : id, {
+      origin: ctx.url.origin,
+      locale: typeof body.locale === 'string' ? body.locale : undefined,
+    })
+    return { body: { sent } }
+  }
   if (action === 'versions' && versionId === undefined) {
     if (method !== 'GET') throw methodNotAllowed(ctx, 'GET')
     return { body: await cms.findVersions(collection, id, { ...access, ...parsePage(ctx.url) }) }

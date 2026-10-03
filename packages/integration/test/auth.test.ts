@@ -66,14 +66,16 @@ describe('users collection (FR-CFG-06, FR-AUTH-02/06)', () => {
     await cms.destroy()
   })
 
-  it('requires a password of at least 8 characters', async () => {
+  it('requires a password of at least 8 characters, or none (an invitation)', async () => {
     const cms = await open(config)
-    // @ts-expect-error password is required
-    await expect(cms.create('users', { email: 'a@b.co', role: 'editor' })).rejects.toMatchObject({
-      errors: [{ field: 'password', message: 'is required' }],
-    })
+    // Without a password the account exists but can't log in until it gets one.
+    const invited = await cms.create('users', { email: 'a@b.co', role: 'editor' })
+    expect(invited.email).toBe('a@b.co')
+    await expect(cms.auth.login({ email: 'a@b.co', password: '' })).rejects.toThrow(
+      /Invalid email or password/,
+    )
     await expect(
-      cms.create('users', { email: 'a@b.co', role: 'editor', password: 'short' }),
+      cms.create('users', { email: 'c@d.co', role: 'editor', password: 'short' }),
     ).rejects.toThrow(ValidationError)
     await cms.destroy()
   })

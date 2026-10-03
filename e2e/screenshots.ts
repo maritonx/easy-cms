@@ -2,7 +2,7 @@
 // Starts the Nuxt example on a temporary database, adds sample content in Thai and English,
 // and saves every shot in both languages and both themes to website/public/screenshots.
 import { type ChildProcess, spawn } from 'node:child_process'
-import { randomBytes } from 'node:crypto'
+import { createHash, createHmac, randomBytes } from 'node:crypto'
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -25,6 +25,18 @@ const ADMIN = {
 const scratch = mkdtempSync(join(tmpdir(), 'easy-cms-shots-'))
 let server: ChildProcess | undefined
 
+/** The CMS's secret, to sign an invitation link like its email would have it. */
+const SECRET = randomBytes(24).toString('hex')
+
+/** An invitation token for a user without a password (see auth/tokens.ts in core). */
+function inviteToken(userId: number) {
+  const payload = Buffer.from(
+    JSON.stringify({ u: String(userId), p: 'invite', e: Date.now() + 3_600_000 }),
+  ).toString('base64url')
+  const fingerprint = createHash('sha256').update('no-password').digest('base64url').slice(0, 22)
+  return `${payload}.${createHmac('sha256', SECRET).update(`password:${payload}:${fingerprint}`).digest('base64url')}`
+}
+
 async function main() {
   mkdirSync(OUT, { recursive: true })
   server = spawn('pnpm', ['exec', 'nuxi', 'dev', '--port', String(PORT)], {
@@ -32,7 +44,7 @@ async function main() {
     stdio: 'ignore',
     env: {
       ...process.env,
-      EASY_CMS_SECRET: randomBytes(24).toString('hex'),
+      EASY_CMS_SECRET: SECRET,
       DATABASE_URL: `file:${join(scratch, 'shots.db')}`,
       NUXT_TELEMETRY_DISABLED: '1',
     },
@@ -129,6 +141,13 @@ async function main() {
         await page.getByRole('list', { name: t.trail }).waitFor()
         await shot('nested-docs-page')
 
+        // An invitation link, as the invited person sees it.
+        await page.goto(
+          `${ORIGIN}/admin/reset-password?token=${encodeURIComponent(inviteToken(ids.invited))}`,
+        )
+        await page.getByRole('heading', { name: t.inviteTitle }).waitFor()
+        await shot('reset-password')
+
         await page.goto(`${ORIGIN}/admin/collections/api-keys/new`)
         await page.getByRole('textbox').first().fill(t.keyName)
         // Posts: read, create and update; media: read and create.
@@ -161,6 +180,7 @@ const EN = {
   keyChecks: ['Posts: Read', 'Posts: Create', 'Posts: Update', 'Media: Read', 'Media: Upload'],
   // Lists show the default language (Thai).
   gallery: 'Gallery',
+  inviteTitle: 'Set your password',
   expandAbout: 'Show pages under เกี่ยวกับเรา',
   team: 'ทีมงาน',
   trail: 'Where this page sits',
@@ -174,6 +194,7 @@ const TH = {
   keyName: 'ผู้ช่วยเขียนบทความ',
   keyChecks: ['บทความ: อ่าน', 'บทความ: สร้าง', 'บทความ: แก้ไข', 'คลังสื่อ: อ่าน', 'คลังสื่อ: อัปโหลด'],
   gallery: 'แกลเลอรี',
+  inviteTitle: 'ตั้งรหัสผ่านของคุณ',
   expandAbout: 'แสดงหน้าย่อยของ เกี่ยวกับเรา',
   team: 'ทีมงาน',
   trail: 'ตำแหน่งของหน้านี้',
@@ -480,7 +501,12 @@ async function seed() {
   await addPage('ที่ปรึกษา', 'Consulting', 'consulting', services)
   await addPage('ติดต่อเรา', 'Contact', 'contact')
 
-  return { featured, category: guides.id, form: form.id, redirect: redirect.id, team }
+  // Someone invited by email who hasn't set a password yet.
+  const invited = (
+    await call('POST', '/users', { email: 'nok@example.com', name: 'Nok', role: 'editor' })
+  ).id as number
+
+  return { featured, category: guides.id, form: form.id, redirect: redirect.id, team, invited }
 }
 
 try {

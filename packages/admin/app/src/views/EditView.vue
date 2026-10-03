@@ -17,7 +17,7 @@ import { initialValues, snapshot, titleOf, toFormValues } from '../lib/fields'
 import { formatBytes, formatDate, label, singularize, t } from '../lib/i18n'
 import { FORM, setPath } from '../lib/plugins'
 import { findCollection, loadSession, session, setFlash, takeFlash } from '../lib/session'
-import { showMessages } from '../lib/toast'
+import { notify, showMessages } from '../lib/toast'
 import { missingLocales } from '../lib/translation'
 
 const route = useRoute()
@@ -63,6 +63,32 @@ const hasSidebar = computed(
 
 const form = ref<Record<string, unknown>>(collection ? initialValues(collection.fields) : {})
 const password = ref('')
+// Admins can email a link to set the password instead (needs email in the CMS config).
+const canSendLink = computed(
+  () => isUsers && session.schema?.passwordLinks === true && session.user?.role === 'admin',
+)
+const sendingLink = ref(false)
+/** Emails the user a link to set their password: an invitation, or a reset link. */
+async function sendPasswordLink(
+  userId: string | number,
+  email: string,
+): Promise<'invite' | 'reset' | null> {
+  sendingLink.value = true
+  try {
+    const { sent } = await api<{ sent: 'invite' | 'reset' }>(
+      'POST',
+      `/users/${encodeURIComponent(String(userId))}/password-link`,
+      { locale: session.schema?.locale },
+    )
+    notify('success', t(sent === 'invite' ? 'users.inviteSent' : 'users.resetSent', { email }))
+    return sent
+  } catch (e) {
+    notify('error', (e as Error).message)
+    return null
+  } finally {
+    sendingLink.value = false
+  }
+}
 const doc = ref<Doc | null>(null)
 const baseline = ref('')
 const loading = ref(id !== undefined)
@@ -289,6 +315,12 @@ async function save(status?: 'draft' | 'published') {
   errors.value = {}
   message.value = null
   const wasPublished = published.value
+  // Without email, a new user needs a password: there is no invitation to set one.
+  if (isUsers && !id && !password.value && !canSendLink.value) {
+    errors.value = { password: [t('users.passwordRequired')] }
+    saving.value = false
+    return
+  }
   const body: Record<string, unknown> = { ...form.value }
   if (status) body.status = status
   if (isUsers && password.value) body.password = password.value
@@ -315,8 +347,15 @@ async function save(status?: 'draft' | 'published') {
     message.value = { kind: 'success', text }
     // Editing yourself may change what you can do (role, name shown in the sidebar).
     if (isUsers && String(saved.id) === String(session.user?.id)) await loadSession()
+    // A new user without a password gets an invitation to set one.
+    const invited =
+      !id && isUsers && !password.value && canSendLink.value
+        ? (await sendPasswordLink(saved.id, String(saved.email))) === 'invite'
+        : false
     if (!id) {
-      setFlash(t('edit.created'))
+      setFlash(
+        invited ? t('users.createdInvited', { email: String(saved.email) }) : t('edit.created'),
+      )
       // A new API key is shown once; go to its page when the dialog is closed.
       if (typeof saved.key === 'string') newKey.value = { key: saved.key, id: saved.id }
       else await router.replace(`/collections/${slug}/${saved.id}`)
@@ -481,7 +520,7 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
         <FieldList v-model="form" :fields="mainFields" :errors="errors" :read-only="readOnly" />
         <label v-if="isUsers && canSave" class="field">
           <span class="field-label">
-            {{ id ? t('edit.newPassword') : t('edit.password') }}<span v-if="!id" class="field-required" aria-hidden="true">*</span>
+            {{ id ? t('edit.newPassword') : t('edit.password') }}<span v-if="!id && !canSendLink" class="field-required" aria-hidden="true">*</span>
           </span>
           <input
             v-model="password"
@@ -489,10 +528,22 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
             type="password"
             autocomplete="new-password"
             :aria-invalid="!!errors.password"
-            aria-describedby="password-error"
+            :aria-describedby="!id && canSendLink ? 'password-error password-hint' : 'password-error'"
           />
           <span v-for="m in errors.password" id="password-error" :key="m" class="field-error">{{ m }}</span>
         </label>
+        <p v-if="isUsers && canSave && !id && canSendLink" id="password-hint" class="field-hint">{{ t('users.inviteHint') }}</p>
+        <div v-if="id && canSendLink" class="password-link">
+          <button
+            type="button"
+            class="btn btn-sm"
+            :disabled="sendingLink"
+            @click="sendPasswordLink(id, String(form.email ?? ''))"
+          >
+            {{ t('users.sendLink') }}
+          </button>
+          <span class="field-hint">{{ t('users.sendLinkHint') }}</span>
+        </div>
       </div>
 
       <LivePreview
@@ -889,5 +940,11 @@ form {
 .media-meta {
   margin: -0.5rem 0 0;
   font-size: 0.85rem;
+}
+.password-link {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
 }
 </style>

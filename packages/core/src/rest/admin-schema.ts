@@ -94,6 +94,8 @@ export interface AdminGlobal {
 
 export interface AdminSchema {
   locale: AdminLocale
+  /** Admins can email users links to set their password (needs `email` and `serverURL`). */
+  passwordLinks: boolean
   /** Menu order of collections (`admin.menu`); unlisted ones follow. */
   menu: string[]
   /** Content locales, when the config has `localization`. */
@@ -261,12 +263,17 @@ async function global(
 }
 
 /** Everything the admin UI needs to render forms and menus for this user. */
-export async function adminSchema(cms: EasyCMS, user: AuthUser): Promise<AdminSchema> {
+export async function adminSchema(
+  cms: EasyCMS,
+  user: AuthUser,
+  origin?: string,
+): Promise<AdminSchema> {
   const collections = cms.config.collections.filter((c) => !INTERNAL_COLLECTIONS.has(c.slug))
   const localization = cms.config.localization
   const localized = localization !== null
   return {
     locale: cms.config.admin.locale,
+    passwordLinks: cms.auth.canSendPasswordLinks(origin),
     menu: [...cms.config.admin.menu],
     localization: localization
       ? { locales: [...localization.locales], defaultLocale: localization.defaultLocale }

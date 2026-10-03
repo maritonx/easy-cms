@@ -82,6 +82,9 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
       maxLoginAttempts: config.auth?.maxLoginAttempts ?? 5,
       lockWindow: config.auth?.lockWindow ?? 15 * 60,
       trustedOrigins: config.auth?.trustedOrigins ?? [],
+      resetPasswordExpiration: config.auth?.resetPasswordExpiration ?? 60 * 60,
+      inviteExpiration: config.auth?.inviteExpiration ?? 7 * 24 * 60 * 60,
+      emails: config.auth?.emails ?? {},
     },
     collections: [
       ...(config.collections ?? []),

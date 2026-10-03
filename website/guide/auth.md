@@ -79,6 +79,52 @@ await cms.create('users', { email: 'ann@example.com', password: 'at least 8 char
 
 Passwords are hashed with scrypt and never returned.
 
+## Forgotten passwords and invitations
+
+<Screenshot name="reset-password" alt="Setting a new password from an emailed link" />
+
+With [email](./email) set up, the CMS sends links to set a password:
+
+- **Forgot your password?** on the login page emails a link that works once, within an hour.
+  The page answers the same whether or not the email has an account, so nobody can use it to
+  find out who has one; a few requests per email and IP are allowed, more are ignored.
+- **Invitations:** an admin creates a user and leaves the password empty. The user gets an email
+  to choose a password (the link works for 7 days), so nobody else ever knows it.
+- **Email a link to set the password** on a user's page sends an invitation, or a reset link if
+  they have a password.
+
+Setting the password signs the account out everywhere and in on this browser, and a reset is
+followed by a "your password was changed" email.
+
+The link points to `serverURL` (e.g. `https://cms.example.com`), which production needs: a
+request's Host can be forged, and a link built from it could send the token to someone else.
+In development the request's own address is used. Without `email`, or in production without
+`serverURL`, the admin doesn't offer the links: admins set passwords themselves.
+
+```ts
+export default defineConfig({
+  serverURL: 'https://cms.example.com',
+  email: smtp(),
+  auth: {
+    resetPasswordExpiration: 60 * 60, // seconds; default 1 hour
+    inviteExpiration: 7 * 24 * 60 * 60, // default 7 days
+    // Your own text; the defaults are in English or Thai (the admin's language).
+    emails: {
+      invite: ({ user, url }) => ({
+        subject: 'Welcome to the Acme content team',
+        text: `Hi ${user.name ?? user.email}, set your password here: ${url}`,
+      }),
+    },
+  },
+})
+```
+
+Over REST: `POST /api/cms/users/forgot-password` with `{ email }`, then
+`POST /api/cms/users/reset-password` with `{ token, password }` (which logs in);
+`GET /api/cms/users/reset-password?token=…` checks a link first. Admins send links with
+`POST /api/cms/users/:id/password-link`. In code: `cms.auth.requestPasswordReset({ email })` and
+`cms.auth.sendPasswordLink(userId)`.
+
 ## Sessions
 
 Logging in creates a session:
@@ -134,6 +180,9 @@ const { docs } = await cms.find('posts', { user, overrideAccess: false, draft: u
 | `auth.maxLoginAttempts` | `5` | Failed logins allowed within `lockWindow`. |
 | `auth.lockWindow` | 15 minutes | In seconds. |
 | `auth.trustedOrigins` | `[]` | Other origins allowed to send cookie-authenticated requests. |
+| `auth.resetPasswordExpiration` | 1 hour | How long a "forgot password" link works, in seconds. |
+| `auth.inviteExpiration` | 7 days | How long an invitation link works, in seconds. |
+| `auth.emails` | — | `{ resetPassword, invite, passwordChanged }`: your own email text. |
 
 ## Next steps
 

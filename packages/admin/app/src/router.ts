@@ -3,13 +3,24 @@ import { setUnauthorizedHandler } from './lib/api'
 import { loadSession, session } from './lib/session'
 import { settings } from './lib/settings'
 
-const PUBLIC = new Set(['login', 'setup'])
+const PUBLIC = new Set(['login', 'setup', 'forgot-password'])
 
 export const router = createRouter({
   history: createWebHistory(settings.adminPath),
   routes: [
     { path: '/login', name: 'login', component: () => import('./views/LoginView.vue') },
     { path: '/setup', name: 'setup', component: () => import('./views/SetupView.vue') },
+    {
+      path: '/forgot-password',
+      name: 'forgot-password',
+      component: () => import('./views/ForgotPasswordView.vue'),
+    },
+    // Opened from an email: works whether or not someone is logged in in this browser.
+    {
+      path: '/reset-password',
+      name: 'reset-password',
+      component: () => import('./views/ResetPasswordView.vue'),
+    },
     {
       path: '/',
       component: () => import('./components/AppLayout.vue'),
@@ -49,9 +60,10 @@ export const router = createRouter({
 router.beforeEach(async (to) => {
   if (!session.loaded) await loadSession()
   const name = String(to.name ?? '')
+  if (name === 'reset-password') return true
   if (!session.user) {
     if (!session.hasUsers) return name === 'setup' ? true : { name: 'setup' }
-    if (name === 'login') return true
+    if (name === 'login' || name === 'forgot-password') return true
     return { name: 'login', query: to.fullPath !== '/' ? { redirect: to.fullPath } : {} }
   }
   if (PUBLIC.has(name)) return { name: 'dashboard' }
