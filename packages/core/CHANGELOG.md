@@ -1,5 +1,9 @@
 # @easy-cms/core
 
+## 0.22.2
+
+No changes in this release.
+
 ## 0.22.1
 
 ### Patch Changes
