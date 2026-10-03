@@ -1,10 +1,11 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import Module from 'node:module'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { defineConfig } from '@easy-cms/core'
 import { sqlite } from '@easy-cms/db-sqlite'
 import type { NextConfig } from 'next'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it, vi } from 'vitest'
 import { SERVER_EXTERNAL_PACKAGES, withEasyCMS } from '../src/config.js'
 import { createAdminRouteHandlers, createRouteHandlers, getEasyCMS } from '../src/index.js'
 
@@ -86,6 +87,33 @@ describe('createAdminRouteHandlers', () => {
     const res = await GET(new Request('http://x.test/admin'))
     expect(res.status).toBe(200)
     expect(await res.text()).toContain('<base href="/admin/">')
+  })
+})
+
+describe('createAdminRouteHandlers on a host that deploys only traced files', () => {
+  it('serves the admin without the project node_modules (Vercel)', async () => {
+    // Like Vercel's /var/task: the project's package.json, but no node_modules to resolve
+    // @easy-cms/next through. The admin package itself is loaded from where it really is.
+    const task = mkdtempSync(join(tmpdir(), 'easy-cms-next-task-'))
+    writeFileSync(join(task, 'package.json'), '{"name":"site","private":true}')
+    const cwd = vi.spyOn(process, 'cwd').mockReturnValue(task)
+    // pnpm's bin shims set NODE_PATH to the workspace's hoisted packages, which would find
+    // @easy-cms/next anyway; Node reads it once, so re-read the paths without it.
+    const initPaths = (Module as unknown as { _initPaths(): void })._initPaths
+    const nodePath = process.env.NODE_PATH
+    delete process.env.NODE_PATH
+    initPaths()
+    try {
+      const { GET } = createAdminRouteHandlers(config)
+      const res = await GET(new Request('http://x.test/admin'))
+      expect(res.status).toBe(200)
+      expect(await res.text()).toContain('<base href="/admin/">')
+    } finally {
+      process.env.NODE_PATH = nodePath
+      initPaths()
+      cwd.mockRestore()
+      removeTemp(task)
+    }
   })
 })
 

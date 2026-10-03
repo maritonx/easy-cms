@@ -1,6 +1,7 @@
+import { existsSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
-import { createAdminHandler } from '@easy-cms/admin'
+import { APP_DIR, createAdminHandler, SHELL_FILE } from '@easy-cms/admin'
 import {
   type AuthUser,
   type Config,
@@ -134,12 +135,20 @@ export async function getEasyCMSUser(config: Config): Promise<AuthUser | null> {
 }
 
 /**
- * Where the built admin app is on disk. Next may bundle this package, so instead of relying on
- * `import.meta.url` follow the real dependency chain: project → @easy-cms/next → @easy-cms/admin.
+ * Where the built admin app is on disk. First @easy-cms/admin's own `APP_DIR`: withEasyCMS() keeps
+ * that package external, so its path is real, and it is what the build traces. That is the only
+ * lookup that works on Vercel, which deploys traced files and not the project's node_modules.
+ * When the admin package was bundled after all (no withEasyCMS), `APP_DIR` points into the build;
+ * then follow the dependency chain on disk: project → @easy-cms/next → @easy-cms/admin.
  */
 function adminAppDir(): string {
-  const fromProject = createRequire(join(process.cwd(), 'package.json'))
-  const nextPackage = fromProject.resolve('@easy-cms/next/package.json')
-  const adminPackage = createRequire(nextPackage).resolve('@easy-cms/admin/package.json')
-  return join(dirname(adminPackage), 'dist/app')
+  if (existsSync(join(APP_DIR, SHELL_FILE))) return APP_DIR
+  try {
+    const fromProject = createRequire(join(process.cwd(), 'package.json'))
+    const nextPackage = fromProject.resolve('@easy-cms/next/package.json')
+    const adminPackage = createRequire(nextPackage).resolve('@easy-cms/admin/package.json')
+    return join(dirname(adminPackage), 'dist/app')
+  } catch {
+    return APP_DIR
+  }
 }
