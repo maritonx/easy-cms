@@ -16,6 +16,41 @@ Files live in the built-in `media` collection. Link them with `upload` fields:
 
 Editors upload in the admin's Media library (drag and drop) or from an upload field's picker.
 
+## Several files: galleries
+
+<Screenshot name="gallery" alt="A gallery field: images in order, with buttons to move and remove them" />
+
+`hasMany` makes an upload field hold several files, in the order editors arrange them:
+
+```ts
+{
+  name: 'gallery',
+  type: 'upload',
+  hasMany: true,
+  maxRows: 12, // and minRows
+  mimeTypes: ['image/*'], // only images: the picker shows only these, and saving checks them
+}
+```
+
+In the admin editors drop several files at once, pick several from the library, drag them into
+order (or use the arrow buttons) and remove them. Reads return the media documents in that order
+(ids with `depth: 0`):
+
+```vue
+<ul class="gallery">
+  <li v-for="image in post.gallery" :key="image.id">
+    <img :src="image.sizes?.thumbnail?.url ?? image.url" :alt="image.alt" />
+  </li>
+</ul>
+```
+
+Each image's caption is its alt text in the media library. When a caption belongs to this page
+only, use an `array` with an `upload` and a `text` field instead: see the
+[Image galleries](./recipes/image-galleries) recipe.
+
+`mimeTypes` works on single uploads too, e.g. a cover that must be an image, or
+`['application/pdf']` for a brochure.
+
 ## Uploading from code
 
 ```ts

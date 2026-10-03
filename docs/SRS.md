@@ -1,9 +1,9 @@
 # Software Requirements Specification — Easy CMS
 
-- **เวอร์ชันเอกสาร:** 2.7
+- **เวอร์ชันเอกสาร:** 2.8
 - **วันที่:** 2026-10-01
 - **ผู้เขียน:** Kanawoot K.
-- **ครอบคลุม:** v0.1 (baseline) ถึง v0.22
+- **ครอบคลุม:** v0.1 (baseline) ถึง v0.23
 - **สถานะ:** Living document (อัปเดตทุกครั้งที่เพิ่มฟีเจอร์)
 - **เอกสารที่เกี่ยวข้อง:** [DESIGN.md](DESIGN.md), [ADRs](adr/)
 
@@ -432,6 +432,13 @@ AI assistant ► /api/cms/mcp ──┘                     └──► Webhook
 | FR-INS-13 | บล็อกคำสั่งในเอกสารต้องมีแท็บ npm, pnpm, Yarn และ Bun ที่แปลงด้วยกฎเดียวกับ CLI และจำตัวที่เลือก | 0.22 | SHOULD |
 | FR-SEO-13 | `seoMeta({ breadcrumbs })` ต้องสร้าง BreadcrumbList JSON-LD | 0.21 | SHOULD |
 
+### 3.23e Upload หลายไฟล์ (UPL) — [ADR-0026](adr/0026-upload-has-many.md)
+
+| ID | Requirement | Release | Priority |
+|---|---|---|---|
+| FR-MOD-13 | `upload` ต้องรองรับ `hasMany` (เรียงลำดับได้ แยกตามภาษาได้) และ `mimeTypes` ที่ตรวจฝั่ง server ส่วน upload และ relationship แบบ hasMany ต้องรองรับ `minRows` / `maxRows` | 0.23 | MUST |
+| FR-ADM-21 | upload แบบ hasMany ใน admin ต้องเลือกหลายไฟล์จากคลังได้ อัปโหลดหลายไฟล์ได้ เรียงลำดับด้วยการลากและด้วยคีย์บอร์ด และนำออกได้ | 0.23 | MUST |
+
 ### 3.24 API keys (KEY) — [ADR-0019](adr/0019-api-keys-and-mcp.md)
 
 | ID | ความต้องการ | ตั้งแต่ | ระดับ |
@@ -697,6 +704,7 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 0.18 | SEO สำหรับ AI: crawler ของ AI, llms.txt, Markdown, IndexNow | FR-SEO-09..12 | [0021](adr/0021-seo-for-ai.md) |
 | 0.19 | Redirects plugin, `admin.group: 'settings'` | FR-RDR-*, FR-ADM-19 | [0022](adr/0022-redirects-plugin.md) |
 | 0.20 | อีเมลใน core, email-smtp, form builder | FR-EML-*, FR-FRM-*, FR-STA-06 | [0023](adr/0023-email-and-form-builder.md) |
+| 0.23 | upload หลายไฟล์ (แกลเลอรี), `mimeTypes`, `minRows`/`maxRows` ของ hasMany | FR-MOD-13, FR-ADM-21 | [0026](adr/0026-upload-has-many.md) |
 | 0.22 | npm, pnpm, Yarn และ Bun: `--pm`, คำสั่งตาม package manager, แท็บในเอกสาร, smoke test | FR-INS-11..13 | [0025](adr/0025-package-managers.md) |
 | 0.21 | หน้าย่อย (nested docs), `filterOptions`, `uniqueWithin`, tree list, `live`, `commands`, BreadcrumbList | FR-NST-*, FR-MOD-11..12, FR-ADM-20, FR-LAPI-08, FR-INS-10, FR-SEO-13 | [0024](adr/0024-nested-docs.md) |
 
@@ -712,6 +720,7 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 1.3 | 2026-09-25 | M5: FR-REST-08 (อัปโหลด/ไฟล์), FR-CFG-07 (`routes.api`, `serverURL`), ระบุว่า drafts ใน v0.1 ไม่มี version แยก |
 | 1.4 | 2026-09-25 | M6: ผลวัด NFR-PERF-01/02 บน Postgres 17 (Local API p95 2.7 ms, REST p95 4.3 ms), Next.js adapter ใช้ `getEasyCMS(config)` |
 | 1.5 | 2026-09-25 | M7: ผลตรวจรับ v0.1 (7.1) |
+| 2.8 | 2026-10-03 | 0.23: FR-MOD-13, FR-ADM-21 |
 | 2.7 | 2026-10-01 | 7.2 ข้อ 7: README ตรงกับ release |
 | 2.6 | 2026-10-01 | 0.22: FR-INS-11..13 |
 | 2.5 | 2026-09-30 | 0.21: FR-NST-*, FR-MOD-11..12, FR-ADM-20, FR-LAPI-08, FR-INS-10, FR-SEO-13 |

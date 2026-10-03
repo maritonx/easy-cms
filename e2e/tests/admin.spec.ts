@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { expect, type Page, test } from '@playwright/test'
 
@@ -234,6 +235,55 @@ test.describe('logged in as admin', () => {
       await page.getByRole('link', { name: 'Hello from Playwright' }).click()
       await expect(page.locator('.body img')).toHaveAttribute('alt', 'A green circle')
     }
+  })
+
+  test('adds a gallery of several images and orders them (upload hasMany)', async ({ page }) => {
+    await page.goto('/admin/collections/posts?q=Hello')
+    await page.getByRole('link', { name: 'Hello from Playwright' }).click()
+    await expect(page).toHaveURL(/\/admin\/collections\/posts\/\d+$/)
+    const postId = page.url().split('/').pop() as string
+    const gallery = page.getByRole('group', { name: 'Gallery' })
+    const tiles = gallery.getByRole('listitem')
+
+    // Two files dropped straight into the gallery.
+    const photo = readFileSync(PHOTO)
+    await gallery.getByLabel('Upload files').setInputFiles([
+      { name: 'first.png', mimeType: 'image/png', buffer: photo },
+      { name: 'second.png', mimeType: 'image/png', buffer: photo },
+    ])
+    await expect(tiles).toHaveCount(2)
+    await expect(gallery).toContainText('2 / 12')
+
+    // Several more from the library at once (here the one already there).
+    await gallery.getByRole('button', { name: 'Choose from media library' }).click()
+    const picker = page.getByRole('dialog', { name: 'Choose a file' })
+    await picker.getByRole('button', { name: 'A green circle' }).click()
+    await expect(picker.getByRole('button', { name: 'A green circle' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    await picker.getByRole('button', { name: 'Add 1' }).click()
+    await expect(picker).toBeHidden()
+    await expect(tiles).toHaveCount(3)
+
+    // Reorder from the keyboard: the green circle first.
+    await gallery.getByRole('button', { name: 'Move A green circle earlier' }).click()
+    await gallery.getByRole('button', { name: 'Move A green circle earlier' }).click()
+    await expect(tiles.first()).toContainText('A green circle')
+    await page.getByRole('button', { name: 'Publish', exact: true }).click()
+    await expect(page.getByRole('status')).toHaveText('Saved')
+
+    // The site shows the gallery in that order.
+    if (standalone()) {
+      const api = new URL('/api/cms', test.info().project.use.baseURL).href
+      await page.goto(`http://localhost:3103/?post=${postId}&api=${encodeURIComponent(api)}`)
+    } else {
+      await page.goto('/posts/hello-from-playwright')
+    }
+    const images = page.locator('.gallery img')
+    await expect(images).toHaveCount(3)
+    await expect(images.first()).toHaveAttribute('alt', 'A green circle')
+    await page.waitForLoadState('load')
   })
 
   test('unpublishes and republishes (FR-DRF-05)', async ({ page }) => {

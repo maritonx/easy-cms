@@ -92,7 +92,21 @@
           coverOf(post),
           el('h1', { textContent: post.title }),
           el('p', { textContent: post.excerpt ?? '' }),
+          galleryOf(post),
         )
+      }
+
+      // The post's gallery: an upload field with hasMany, populated with depth=1.
+      const galleryOf = (post) => {
+        const images = (post.gallery ?? []).filter((m) => m && typeof m === 'object' && m.url)
+        if (!images.length) return ''
+        return el('ul', { className: 'gallery' }, ...images.map((image) =>
+          el('li', {}, el('img', {
+            src: new URL(image.sizes?.thumbnail?.url ?? image.url, origin).href,
+            alt: image.alt ?? '',
+            width: 120,
+          })),
+        ))
       }
 
       async function single(id) {

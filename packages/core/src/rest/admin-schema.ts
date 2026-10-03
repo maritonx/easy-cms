@@ -31,6 +31,8 @@ export interface AdminField {
   options?: { label: Label; value: string }[]
   hasMany?: boolean
   to?: string
+  /** An upload's allowed file types, e.g. `image/*`. */
+  mimeTypes?: string[]
   /** A relationship with `filterOptions`: the picker asks the server which documents fit. */
   filtered?: boolean
   from?: string
@@ -159,10 +161,16 @@ async function serializeFields(
       case 'relationship':
         f.to = field.to
         if (field.hasMany) f.hasMany = true
+        if (field.minRows !== undefined) f.minRows = field.minRows
+        if (field.maxRows !== undefined) f.maxRows = field.maxRows
         if (field.filterOptions) f.filtered = true
         break
       case 'upload':
         f.to = 'media'
+        if (field.hasMany) f.hasMany = true
+        if (field.minRows !== undefined) f.minRows = field.minRows
+        if (field.maxRows !== undefined) f.maxRows = field.maxRows
+        if (field.mimeTypes) f.mimeTypes = [...field.mimeTypes]
         break
       case 'array':
         if (field.minRows !== undefined) f.minRows = field.minRows

@@ -16,6 +16,38 @@
 
 ผู้แก้ไขเนื้อหาอัปโหลดไฟล์ได้ที่ Media library ในหน้า admin (ลากแล้ววาง) หรือจากตัวเลือกไฟล์ของ upload field
 
+## หลายไฟล์: แกลเลอรี {#several-files-galleries}
+
+<Screenshot name="gallery" alt="field แกลเลอรี: รูปเรียงตามลำดับ พร้อมปุ่มเลื่อนและนำออก" />
+
+`hasMany` ทำให้ upload field เก็บได้หลายไฟล์ เรียงตามที่ผู้แก้จัดไว้
+
+```ts
+{
+  name: 'gallery',
+  type: 'upload',
+  hasMany: true,
+  maxRows: 12, // และ minRows
+  mimeTypes: ['image/*'], // เฉพาะรูป: ช่องเลือกแสดงเฉพาะรูป และตรวจซ้ำตอนบันทึก
+}
+```
+
+ในหน้า admin ผู้แก้ลากหลายไฟล์มาวางพร้อมกันได้ เลือกจากคลังทีละหลายรูปได้ ลากเพื่อเรียงลำดับ (หรือใช้ปุ่มลูกศร)
+และนำออกได้ การอ่านข้อมูลได้เอกสาร media ตามลำดับนั้น (ได้ id เมื่อใช้ `depth: 0`)
+
+```vue
+<ul class="gallery">
+  <li v-for="image in post.gallery" :key="image.id">
+    <img :src="image.sizes?.thumbnail?.url ?? image.url" :alt="image.alt" />
+  </li>
+</ul>
+```
+
+คำบรรยายของแต่ละรูปคือ alt ในคลังสื่อ ถ้าคำบรรยายเป็นของหน้านี้เท่านั้น ให้ใช้ `array` ที่มี `upload` กับ `text`
+แทน ดูสูตร [แกลเลอรีรูปภาพ](./recipes/image-galleries)
+
+`mimeTypes` ใช้กับ upload แบบไฟล์เดียวได้ด้วย เช่น รูปปกที่ต้องเป็นรูปภาพ หรือ `['application/pdf']` สำหรับโบรชัวร์
+
 ## การอัปโหลดจากโค้ด {#uploading-from-code}
 
 ```ts

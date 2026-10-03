@@ -10,7 +10,10 @@ export function initialValues(fields: readonly AdminField[]): Data {
     else if (field.type === 'array' || field.type === 'blocks') data[field.name] = []
     else if (field.defaultValue !== undefined)
       data[field.name] = structuredClone(field.defaultValue)
-    else if ((field.type === 'select' || field.type === 'relationship') && field.hasMany)
+    else if (
+      (field.type === 'select' || field.type === 'relationship' || field.type === 'upload') &&
+      field.hasMany
+    )
       data[field.name] = []
     else data[field.name] = field.type === 'boolean' ? false : null
   }

@@ -108,7 +108,9 @@ export type FieldValue<F extends Field, C extends Config = Config> = F extends {
           : F extends { readonly type: 'richText' }
             ? RichTextDocument
             : F extends { readonly type: 'upload' }
-              ? ID | MediaDocument
+              ? F extends { readonly hasMany: true }
+                ? (ID | MediaDocument)[]
+                : ID | MediaDocument
               : F extends { readonly type: 'relationship'; readonly to: infer S }
                 ? F extends { readonly hasMany: true }
                   ? RelationValue<C, S>[]
@@ -207,7 +209,9 @@ type InputValue<F extends Field> = F extends { readonly type: 'relationship' }
   : F extends { readonly type: 'select'; readonly hasMany: true }
     ? Readonly<SelectValue<F>>
     : F extends { readonly type: 'upload' }
-      ? ID
+      ? F extends { readonly hasMany: true }
+        ? readonly ID[]
+        : ID
       : F extends { readonly type: 'date' }
         ? string | Date
         : F extends { readonly type: 'array'; readonly fields: infer Sub extends readonly Field[] }

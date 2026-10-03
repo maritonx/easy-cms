@@ -11,6 +11,7 @@ import BlocksField from './BlocksField.vue'
 import FieldList from './FieldList.vue'
 import RelationshipField from './RelationshipField.vue'
 import UploadField from './UploadField.vue'
+import UploadManyField from './UploadManyField.vue'
 
 // Tiptap is large; load it only when a rich text field is shown (NFR-PERF-03).
 const RichTextField = defineAsyncComponent(() => import('./RichTextField.vue'))
@@ -259,12 +260,25 @@ function onNumber(value: string) {
       :invalid="invalid"
       @update:model-value="set"
     />
+    <UploadManyField
+      v-else-if="field.type === 'upload' && field.hasMany"
+      :id="id"
+      :label="text"
+      :model-value="modelValue"
+      :read-only="readOnly"
+      :invalid="invalid"
+      :mime-types="field.mimeTypes"
+      :min-rows="field.minRows"
+      :max-rows="field.maxRows"
+      @update:model-value="set"
+    />
     <UploadField
       v-else-if="field.type === 'upload'"
       :id="id"
       :model-value="modelValue"
       :read-only="readOnly"
       :invalid="invalid"
+      :mime-types="field.mimeTypes"
       @update:model-value="set"
     />
 

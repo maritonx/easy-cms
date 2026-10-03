@@ -29,6 +29,18 @@ const cover = computed(() => {
   const c = post.value?.cover
   return c && typeof c === 'object' ? { url: String(c.url), alt: String(c.alt ?? '') } : null
 })
+// The gallery: populated media documents (ids while the live preview catches up).
+type Image = {
+  id: string | number
+  url: string
+  alt?: string | null
+  sizes?: Record<string, { url?: string }>
+}
+const gallery = computed(() =>
+  ((post.value?.gallery ?? []) as unknown[]).filter(
+    (m): m is Image => typeof m === 'object' && m !== null && 'url' in m,
+  ),
+)
 // renderRichText escapes text and drops unsafe URLs, so the HTML is safe for v-html.
 const html = computed(() => renderRichText(post.value?.body))
 </script>
@@ -47,6 +59,11 @@ const html = computed(() => renderRichText(post.value?.body))
       </blockquote>
       <aside v-else-if="section.blockType === 'callout'" :class="['callout', section.tone]">{{ section.text }}</aside>
     </template>
+    <ul v-if="gallery.length" class="gallery">
+      <li v-for="image in gallery" :key="image.id">
+        <a :href="image.url"><img :src="image.sizes?.thumbnail?.url ?? image.url" :alt="image.alt ?? ''" loading="lazy" /></a>
+      </li>
+    </ul>
   </article>
 </template>
 
@@ -69,5 +86,20 @@ const html = computed(() => renderRichText(post.value?.body))
 }
 .callout.warning {
   background: #fdf1d8;
+}
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: 0.5rem;
+  margin: 1.5rem 0;
+  padding: 0;
+  list-style: none;
+}
+.gallery img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 6px;
 }
 </style>

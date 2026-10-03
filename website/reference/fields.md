@@ -46,8 +46,8 @@ An `AdminComponent` is a tag name starting with `ecms-`, or `{ tag, props }`.
 | `slug` | URL-safe `string`, unique | [`from`](#slug) |
 | `json` | any JSON | |
 | `richText` | Tiptap JSON | see [Rich text](/guide/rich-text) |
-| `upload` | id of a `media` document | |
-| `relationship` | id(s) of documents | [`to`, `hasMany`](#relationship) |
+| `upload` | id of a `media` document, or an array with `hasMany` | [`hasMany`, `mimeTypes`](#upload) |
+| `relationship` | id(s) of documents | [`to`, `hasMany`, `minRows`, `maxRows`](#relationship) |
 | `array` | rows with `id` and sub-fields | [`fields`, `minRows`, `maxRows`](#array) |
 | `group` | an object | [`fields`](#group) |
 | `blocks` | rows of several kinds, with `blockType` | [`blocks`, `minRows`, `maxRows`](#blocks) |
@@ -85,6 +85,16 @@ An `AdminComponent` is a tag name starting with `ecms-`, or `{ tag, props }`.
 | `from` | `string` | A sibling `text` field to make the slug from when it is empty. |
 | `uniqueWithin` | `string` | A sibling field (e.g. `parent`): slugs only differ among documents with the same value there. |
 
+<!-- api: UploadField -->
+### upload
+
+| Option | Type | |
+|---|---|---|
+| `hasMany` | `boolean` | Several files, in the order editors arrange (a gallery); the value is an array. |
+| `minRows` | `number` | With `hasMany`: the fewest files. |
+| `maxRows` | `number` | With `hasMany`: the most files. |
+| `mimeTypes` | `string[]` | Allowed file types, e.g. `['image/*']`; the picker offers only these and saving checks them. |
+
 <!-- api: RelationshipField -->
 ### relationship
 
@@ -92,6 +102,8 @@ An `AdminComponent` is a tag name starting with `ecms-`, or `{ tag, props }`.
 |---|---|---|
 | `to` | `string` | **Required**. Slug of the target collection. |
 | `hasMany` | `boolean` | Several documents; the value is an array. |
+| `minRows` | `number` | With `hasMany`: the fewest documents. |
+| `maxRows` | `number` | With `hasMany`: the most documents. |
 | `filterOptions` | `({ id, user, cms }) => Where \| true` | Which documents it may point to; the admin's picker offers only these and saving checks them. |
 
 <!-- api: ArrayField -->

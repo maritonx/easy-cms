@@ -104,8 +104,20 @@ export interface RichTextDocument {
 
 export interface RichTextField extends BaseField<'richText', RichTextDocument> {}
 
-/** References a document in the built-in `media` collection. */
-export interface UploadField extends BaseField<'upload', never> {}
+/** References a document in the built-in `media` collection: a file or an image. */
+export interface UploadField extends BaseField<'upload', never> {
+  /** Several files, e.g. a gallery: the value is a list, in the order editors arrange. */
+  readonly hasMany?: boolean
+  /** With `hasMany`: the fewest files. */
+  readonly minRows?: number
+  /** With `hasMany`: the most files. */
+  readonly maxRows?: number
+  /**
+   * The file types allowed, e.g. `['image/*']` or `['image/*', 'application/pdf']`. The admin
+   * offers only these, and saving refuses others.
+   */
+  readonly mimeTypes?: readonly string[]
+}
 
 export interface FilterOptionsArgs {
   /** The document being edited; `undefined` while it is being created. */
@@ -124,6 +136,10 @@ export interface RelationshipField extends BaseField<'relationship', never> {
   /** Slug of the target collection. */
   readonly to: string
   readonly hasMany?: boolean
+  /** With `hasMany`: the fewest documents. */
+  readonly minRows?: number
+  /** With `hasMany`: the most documents. */
+  readonly maxRows?: number
   readonly filterOptions?: FilterOptions
 }
 
@@ -153,6 +169,20 @@ export interface BlocksField extends BaseField<'blocks', never> {
   readonly blocks: readonly Block[]
   readonly minRows?: number
   readonly maxRows?: number
+}
+
+/** Fields with `hasMany`: their value is a list of options, documents or files. */
+export const isHasMany = (field: Field): boolean =>
+  (field.type === 'select' || field.type === 'relationship' || field.type === 'upload') &&
+  field.hasMany === true
+
+/** Whether a MIME type is one of `patterns` (`image/*` matches every image). */
+export function mimeAllowedBy(mimeType: string, patterns: readonly string[]): boolean {
+  const type = mimeType.toLowerCase()
+  return patterns.some((pattern) => {
+    const p = pattern.toLowerCase()
+    return p.endsWith('/*') ? type.startsWith(p.slice(0, -1)) : type === p
+  })
 }
 
 /** Fields whose value is a list of rows: `array` and `blocks`. */

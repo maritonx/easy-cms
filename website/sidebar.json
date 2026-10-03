@@ -315,6 +315,13 @@
           }
         },
         {
+          "path": "guide/recipes/image-galleries",
+          "title": {
+            "en": "Image galleries",
+            "th": "แกลเลอรีรูปภาพ"
+          }
+        },
+        {
           "path": "guide/recipes/vercel",
           "title": {
             "en": "Deploy on Vercel",

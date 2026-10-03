@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import type { CollectionConfig, Field, ResolvedConfig } from '@easy-cms/core'
-import { ConfigError } from '@easy-cms/core'
+import { ConfigError, isHasMany } from '@easy-cms/core'
 import type { AnyColumn, AnyTable, ColumnBuilder, Dialect } from './dialect.js'
 
 /** A scalar field stored as a column of this table. */
@@ -293,7 +293,7 @@ function buildTable(
           ...localeInfo(localization),
         })
         described.push([base, 'array', child.name])
-      } else if ((field.type === 'select' || field.type === 'relationship') && field.hasMany) {
+      } else if (isHasMany(field)) {
         const localization = field.localized ? builder.localization : null
         const child = buildTable(builder, `${name}__${base}`, 'values', [], {
           parentIdKind: kind === 'array' ? 'text' : 'integer',

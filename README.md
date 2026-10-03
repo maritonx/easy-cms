@@ -105,6 +105,7 @@ cd my-cms && npm run dev       # http://localhost:4000/admin
 **Content modeling**
 - 15 field types: text, rich text (Tiptap), number, date, select, relationship, upload, array,
   group, blocks, JSON and more, with validation and per-field access
+- Uploads with several files and drag-to-order (galleries), limited to the file types you allow
 - Collections and globals, drafts and publishing, hooks
 - Localization: one value per language, translation status in the lists
 - Version history with restore, and drafts kept apart from the published version

@@ -6,6 +6,7 @@ import {
   type Field,
   type FilterOptions,
   hasRows,
+  isHasMany,
   rowFields,
   type SelectField,
 } from './fields.js'
@@ -17,6 +18,12 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 const isPlainObject = (value: unknown): value is Data =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
+
+/** `3 files`, `1 document`, `2 rows`: the unit of a list field's `minRows` / `maxRows`. */
+function itemsOf(field: Field, n: number): string {
+  const unit = field.type === 'upload' ? 'file' : field.type === 'relationship' ? 'document' : 'row'
+  return `${n} ${unit}${n === 1 ? '' : 's'}`
+}
 
 const isEmpty = (value: unknown) => value === undefined || value === null || value === ''
 
@@ -162,6 +169,8 @@ export interface Reference {
   readonly id: ID
   /** The relationship's `filterOptions`, checked when saving. */
   readonly filterOptions?: FilterOptions
+  /** The upload's `mimeTypes`, checked when saving. */
+  readonly mimeTypes?: readonly string[]
 }
 
 export interface ValidateOptions {
@@ -258,6 +267,9 @@ export async function validateFields(
 
     if (isEmpty(raw) || (Array.isArray(raw) && raw.length === 0)) {
       if (field.required && !options.skipRequired) fail('is required')
+      // An empty list is short of `minRows` too (drafts may be incomplete).
+      else if (!options.skipRequired && 'minRows' in field && field.minRows)
+        fail(`must have at least ${itemsOf(field, field.minRows)}`)
       data[field.name] = hasRows(field) || isHasMany(field) ? [] : null
       if (!field.required) await runCustom(field, null, options, fail)
       continue
@@ -270,10 +282,6 @@ export async function validateFields(
   }
 
   return { data, errors, references }
-}
-
-function isHasMany(field: Field): boolean {
-  return (field.type === 'select' || field.type === 'relationship') && field.hasMany === true
 }
 
 async function runCustom(
@@ -349,9 +357,13 @@ async function normalizeValue(
     case 'upload':
     case 'relationship': {
       const target = field.type === 'upload' ? 'media' : field.to
-      const many = field.type === 'relationship' && field.hasMany === true
+      const many = field.hasMany === true
       const values = many ? raw : [raw]
       if (!Array.isArray(values)) return fail('must be an array of ids')
+      if (many && field.minRows !== undefined && values.length < field.minRows)
+        return fail(`must have at least ${itemsOf(field, field.minRows)}`)
+      if (many && field.maxRows !== undefined && values.length > field.maxRows)
+        return fail(`must have at most ${itemsOf(field, field.maxRows)}`)
       const ids: ID[] = []
       for (const item of values) {
         const id = parseId(isPlainObject(item) ? item.id : item)
@@ -365,6 +377,7 @@ async function normalizeValue(
           ...(field.type === 'relationship' && field.filterOptions
             ? { filterOptions: field.filterOptions }
             : {}),
+          ...(field.type === 'upload' && field.mimeTypes ? { mimeTypes: field.mimeTypes } : {}),
         })
       }
       return many ? ids : ids[0]

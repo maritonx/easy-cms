@@ -57,17 +57,29 @@ export function fieldSchema(field: Field): JsonSchema {
     case 'richText':
       return { description: hint(RICH_TEXT_HINT) }
     case 'upload': {
-      const id = {
-        type: ['integer', 'string'],
-        description: hint('id of a media document (see upload_media)'),
-      }
-      return id
+      const types = field.mimeTypes ? ` (${field.mimeTypes.join(', ')})` : ''
+      const id = { type: ['integer', 'string'] }
+      return field.hasMany
+        ? {
+            type: 'array',
+            items: id,
+            description: hint(`ids of media documents${types}, in order (see upload_media)`),
+            ...(field.minRows !== undefined ? { minItems: field.minRows } : {}),
+            ...(field.maxRows !== undefined ? { maxItems: field.maxRows } : {}),
+          }
+        : { ...id, description: hint(`id of a media document${types} (see upload_media)`) }
     }
     case 'relationship': {
       const id = { type: ['integer', 'string'] }
       const about = hint(`id of a document in "${field.to}"`)
       return field.hasMany
-        ? { type: 'array', items: id, description: about }
+        ? {
+            type: 'array',
+            items: id,
+            description: about,
+            ...(field.minRows !== undefined ? { minItems: field.minRows } : {}),
+            ...(field.maxRows !== undefined ? { maxItems: field.maxRows } : {}),
+          }
         : { ...id, description: about }
     }
     case 'group':

@@ -36,8 +36,8 @@ Every field has a `name` and a `type`. Common options:
 | `slug` | URL-safe `string`, unique in the collection | `from` |
 | `json` | any JSON value | |
 | `richText` | Tiptap JSON document | see [Rich text](./rich-text) |
-| `upload` | id of a `media` document | see [Uploads](./uploads) |
-| `relationship` | id(s) of documents in another collection | `to`, `hasMany` |
+| `upload` | id of a `media` document, or an array with `hasMany` | `hasMany`, `mimeTypes`: see [Uploads](./uploads#several-files-galleries) |
+| `relationship` | id(s) of documents in another collection | `to`, `hasMany`, `minRows`, `maxRows` |
 | `array` | list of rows, each with an `id` and sub-fields | `fields`, `minRows`, `maxRows` |
 | `group` | nested object | `fields` |
 | `blocks` | list of rows of different kinds, each with `id` and `blockType` | `blocks`, `minRows`, `maxRows` |

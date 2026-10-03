@@ -84,6 +84,13 @@ async function main() {
         await page.getByRole('region', { name: t.preview }).scrollIntoViewIfNeeded()
         await shot('seo')
 
+        // The post's gallery: an upload field with hasMany.
+        const gallery = page.getByRole('group', { name: t.gallery })
+        await gallery.locator('img').first().waitFor()
+        // In the middle of the window: the editor's header covers the top.
+        await gallery.evaluate((el) => el.scrollIntoView({ block: 'center' }))
+        await shot('gallery')
+
         await page.goto(`${ORIGIN}/admin/collections/posts/${ids.featured}`)
         await page.locator('.rte-content').waitFor()
         // The other language's tab: the same post, translated.
@@ -153,6 +160,7 @@ const EN = {
   keyName: 'Writing assistant',
   keyChecks: ['Posts: Read', 'Posts: Create', 'Posts: Update', 'Media: Read', 'Media: Upload'],
   // Lists show the default language (Thai).
+  gallery: 'Gallery',
   expandAbout: 'Show pages under เกี่ยวกับเรา',
   team: 'ทีมงาน',
   trail: 'Where this page sits',
@@ -165,6 +173,7 @@ const TH = {
   submissions: 'ข้อมูลที่ส่งมา',
   keyName: 'ผู้ช่วยเขียนบทความ',
   keyChecks: ['บทความ: อ่าน', 'บทความ: สร้าง', 'บทความ: แก้ไข', 'คลังสื่อ: อ่าน', 'คลังสื่อ: อัปโหลด'],
+  gallery: 'แกลเลอรี',
   expandAbout: 'แสดงหน้าย่อยของ เกี่ยวกับเรา',
   team: 'ทีมงาน',
   trail: 'ตำแหน่งของหน้านี้',
@@ -295,6 +304,7 @@ async function seed() {
         ),
       },
       cover: covers[0]?.id,
+      gallery: covers.map((c) => c?.id).reverse(),
       tags: ['nuxt', 'cms'],
       status: 'published',
       daysAgo: 1,
@@ -363,6 +373,7 @@ async function seed() {
       author: me.user.id,
       publishedAt,
       ...(post.cover ? { cover: post.cover } : {}),
+      ...(post.gallery ? { gallery: post.gallery } : {}),
       status: post.status,
       meta: { title: `${post.th.title} | Easy CMS Blog`, description: post.th.excerpt },
     })

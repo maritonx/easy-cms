@@ -46,7 +46,7 @@
 | `slug` | `string` ที่ปลอดภัยสำหรับ URL และไม่ซ้ำ | [`from`](#slug) |
 | `json` | JSON ใดก็ได้ | |
 | `richText` | JSON ของ Tiptap | ดู [Rich text](/th/guide/rich-text) |
-| `upload` | id ของเอกสาร `media` | |
+| `upload` | id ของเอกสาร `media` หรือ array เมื่อใช้ `hasMany` | [`hasMany`, `mimeTypes`](#upload) |
 | `relationship` | id ของเอกสาร | [`to`, `hasMany`](#relationship) |
 | `array` | แถวที่มี `id` และ field ย่อย | [`fields`, `minRows`, `maxRows`](#array) |
 | `group` | object | [`fields`](#group) |
@@ -85,6 +85,16 @@
 | `from` | `string` | field แบบ `text` ข้างเคียงที่ใช้สร้าง slug เมื่อยังว่าง |
 | `uniqueWithin` | `string` | field ข้างเคียง (เช่น `parent`): slug ห้ามซ้ำเฉพาะเอกสารที่มีค่าใน field นั้นเหมือนกัน |
 
+<!-- api: UploadField -->
+### upload {#upload}
+
+| ตัวเลือก | Type | |
+|---|---|---|
+| `hasMany` | `boolean` | หลายไฟล์ เรียงตามที่ผู้แก้จัดไว้ (แกลเลอรี) ค่าเป็น array |
+| `minRows` | `number` | เมื่อใช้ `hasMany`: จำนวนไฟล์ขั้นต่ำ |
+| `maxRows` | `number` | เมื่อใช้ `hasMany`: จำนวนไฟล์สูงสุด |
+| `mimeTypes` | `string[]` | ชนิดไฟล์ที่อนุญาต เช่น `['image/*']` ช่องเลือกแสดงเฉพาะชนิดนี้ และตรวจซ้ำตอนบันทึก |
+
 <!-- api: RelationshipField -->
 ### relationship {#relationship}
 
@@ -92,6 +102,8 @@
 |---|---|---|
 | `to` | `string` | **จำเป็น** slug ของ collection ปลายทาง |
 | `hasMany` | `boolean` | หลายเอกสาร ค่าเป็น array |
+| `minRows` | `number` | เมื่อใช้ `hasMany`: จำนวนเอกสารขั้นต่ำ |
+| `maxRows` | `number` | เมื่อใช้ `hasMany`: จำนวนเอกสารสูงสุด |
 | `filterOptions` | `({ id, user, cms }) => Where \| true` | เอกสารใดที่เลือกได้ ช่องเลือกใน admin แสดงเฉพาะเอกสารเหล่านี้ และตรวจซ้ำตอนบันทึก |
 
 <!-- api: ArrayField -->

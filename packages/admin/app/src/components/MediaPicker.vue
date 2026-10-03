@@ -1,12 +1,42 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { Check } from '@lucide/vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { api, type Doc, type Paginated, toQuery } from '../lib/api'
 import { t } from '../lib/i18n'
 import MediaThumb from './MediaThumb.vue'
 import UploadDropzone from './UploadDropzone.vue'
 
-const props = defineProps<{ open: boolean; imagesOnly?: boolean; allowUrl?: boolean }>()
-const emit = defineEmits<{ select: [Doc]; url: [string]; close: [] }>()
+const props = defineProps<{
+  open: boolean
+  imagesOnly?: boolean
+  /** Allowed file types, e.g. `image/*` (an upload field's `mimeTypes`). */
+  mimeTypes?: readonly string[] | undefined
+  /** Pick several files, then add them with one button. */
+  multiple?: boolean
+  /** How many more files fit (`maxRows`), when picking several. */
+  room?: number | undefined
+  allowUrl?: boolean
+}>()
+const emit = defineEmits<{ select: [Doc]; selectMany: [Doc[]]; url: [string]; close: [] }>()
+
+const types = computed(() => props.mimeTypes ?? (props.imagesOnly ? ['image/*'] : undefined))
+const accept = computed(() => types.value?.join(','))
+/** Files picked so far, in the order they were picked. */
+const chosen = ref<Doc[]>([])
+const isChosen = (doc: Doc) => chosen.value.some((d) => d.id === doc.id)
+const full = computed(() => props.room !== undefined && chosen.value.length >= props.room)
+function toggle(doc: Doc) {
+  if (isChosen(doc)) chosen.value = chosen.value.filter((d) => d.id !== doc.id)
+  else if (!full.value) chosen.value = [...chosen.value, doc]
+}
+function pick(doc: Doc) {
+  if (props.multiple) toggle(doc)
+  else emit('select', doc)
+}
+function addChosen() {
+  emit('selectMany', chosen.value)
+  chosen.value = []
+}
 
 const dialog = ref<HTMLDialogElement>()
 const search = ref('')
@@ -20,7 +50,16 @@ async function load(reset = true) {
   const where: Record<string, unknown> = {}
   if (search.value)
     where.or = [{ filename: { like: search.value } }, { alt: { like: search.value } }]
-  if (props.imagesOnly) where.mimeType = { like: 'image/' }
+  if (types.value)
+    where.and = [
+      {
+        or: types.value.map((type) =>
+          type.endsWith('/*')
+            ? { mimeType: { like: type.slice(0, -1) } }
+            : { mimeType: { equals: type } },
+        ),
+      },
+    ]
   const result = await api<Paginated<Doc>>(
     'GET',
     `/media${toQuery({ where, limit: 24, page: page.value, sort: '-createdAt', depth: 0 })}`,
@@ -33,6 +72,7 @@ watch(
   () => props.open,
   (open) => {
     if (open) {
+      chosen.value = []
       dialog.value?.showModal()
       void load()
     } else {
@@ -51,7 +91,10 @@ onMounted(() => {
 
 function onUploaded(docs: Doc[]) {
   // Picking right after uploading is the common case.
-  if (docs.length === 1) emit('select', docs[0] as Doc)
+  if (props.multiple) {
+    for (const doc of docs) if (!isChosen(doc) && !full.value) chosen.value = [...chosen.value, doc]
+    void load()
+  } else if (docs.length === 1) emit('select', docs[0] as Doc)
   else void load()
 }
 function insertUrl() {
@@ -66,18 +109,32 @@ function insertUrl() {
       <h2>{{ t('media.pickerTitle') }}</h2>
       <button type="button" class="btn btn-ghost btn-icon" :aria-label="t('common.cancel')" @click="emit('close')">✕</button>
     </header>
-    <UploadDropzone :accept="imagesOnly ? 'image/*' : undefined" :multiple="false" @uploaded="onUploaded" />
+    <UploadDropzone :accept="accept" :multiple="!!multiple" @uploaded="onUploaded" />
     <input v-model="search" class="input" type="search" :placeholder="t('field.searchRelation')" />
     <p v-if="!items.length" class="muted">{{ t('media.empty') }}</p>
     <ul class="grid">
       <li v-for="item in items" :key="String(item.id)">
-        <button type="button" class="item" :title="String(item.filename)" @click="emit('select', item)">
+        <button
+          type="button"
+          :class="['item', { chosen: multiple && isChosen(item) }]"
+          :title="String(item.filename)"
+          :aria-pressed="multiple ? isChosen(item) : undefined"
+          :disabled="multiple && full && !isChosen(item)"
+          @click="pick(item)"
+        >
           <MediaThumb :media="item" />
           <span class="name">{{ item.alt || item.filename }}</span>
+          <span v-if="multiple && isChosen(item)" class="tick" aria-hidden="true"><Check :size="14" /></span>
         </button>
       </li>
     </ul>
     <button v-if="hasMore" type="button" class="btn btn-sm" @click="page++, load(false)">{{ t('list.next') }}</button>
+    <footer v-if="multiple" class="picker-footer">
+      <span class="muted">{{ full ? t('media.full') : '' }}</span>
+      <button type="button" class="btn btn-primary" :disabled="!chosen.length" @click="addChosen">
+        {{ t('media.addChosen', { count: chosen.length }) }}
+      </button>
+    </footer>
     <form v-if="allowUrl" class="url" @submit.prevent="insertUrl">
       <label class="field">
         <span class="field-label">{{ t('rte.imageFromUrl') }}</span>
@@ -136,8 +193,37 @@ function insertUrl() {
   cursor: pointer;
   font: inherit;
 }
-.item:hover {
+.item {
+  position: relative;
+}
+.item:hover:not(:disabled) {
   border-color: var(--accent);
+}
+.item:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.item.chosen {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+.tick {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  display: grid;
+  place-items: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--surface);
+}
+.picker-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
 }
 .item :deep(.thumb) {
   width: 100%;

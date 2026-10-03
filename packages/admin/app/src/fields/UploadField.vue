@@ -11,6 +11,8 @@ const props = defineProps<{
   modelValue: unknown
   readOnly: boolean
   invalid: boolean
+  /** Allowed file types (`mimeTypes`), e.g. `image/*`. */
+  mimeTypes?: readonly string[] | undefined
 }>()
 const emit = defineEmits<{ 'update:modelValue': [unknown] }>()
 
@@ -61,7 +63,7 @@ function choose(doc: Doc) {
       {{ t('media.choose') }}
     </button>
     <span v-else class="muted">—</span>
-    <MediaPicker :open="picking" @select="choose" @close="picking = false" />
+    <MediaPicker :open="picking" :mime-types="mimeTypes" @select="choose" @close="picking = false" />
   </div>
 </template>
 

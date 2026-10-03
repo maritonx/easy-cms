@@ -12,6 +12,7 @@ interface Post {
   status?: string
   body?: RichTextInput | null
   cover?: unknown
+  gallery?: unknown[]
   sections?: Section[]
 }
 
@@ -47,6 +48,36 @@ export function PostView({ post: initial }: { post: Post }) {
           </aside>
         ),
       )}
+      <Gallery images={post.gallery} />
     </article>
+  )
+}
+
+interface Image {
+  id: string | number
+  url: string
+  alt?: string | null
+  sizes?: Record<string, { url?: string }>
+}
+
+/** The post's gallery: populated media documents (ids while the live preview catches up). */
+function Gallery({ images = [] }: { images?: unknown[] | undefined }) {
+  const shown = images.filter((m): m is Image => typeof m === 'object' && m !== null && 'url' in m)
+  if (shown.length === 0) return null
+  return (
+    <ul className="gallery">
+      {shown.map((image) => (
+        <li key={image.id}>
+          <a href={image.url}>
+            {/* biome-ignore lint/performance/noImgElement: CMS media URLs; next/image would need remotePatterns */}
+            <img
+              src={image.sizes?.thumbnail?.url ?? image.url}
+              alt={image.alt ?? ''}
+              loading="lazy"
+            />
+          </a>
+        </li>
+      ))}
+    </ul>
   )
 }

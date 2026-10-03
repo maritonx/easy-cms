@@ -46,7 +46,7 @@ import {
   UnauthorizedError,
   ValidationError,
 } from './errors.js'
-import type { FilterOptions } from './fields.js'
+import { type FilterOptions, mimeAllowedBy } from './fields.js'
 import type {
   CollectionDocument,
   CollectionSlug,
@@ -2062,10 +2062,23 @@ export class EasyCMS<C extends Config = Config> {
         collection,
         ids: [...new Set(refs.map((r) => r.id))],
       })
-      const ids = new Set(found.map((d) => d.id))
+      const byId = new Map(found.map((d) => [d.id, d]))
       for (const ref of refs) {
-        if (!ids.has(ref.id)) {
+        const doc = byId.get(ref.id)
+        if (!doc) {
           errors.push({ field: ref.field, message: `${collection} ${ref.id} does not exist` })
+          continue
+        }
+        // An upload's `mimeTypes`: a gallery of images takes no PDF.
+        const type = typeof doc.mimeType === 'string' ? doc.mimeType : ''
+        if (ref.mimeTypes && !mimeAllowedBy(type, ref.mimeTypes)) {
+          const images = ref.mimeTypes.every((t) => t.toLowerCase() === 'image/*')
+          errors.push({
+            field: ref.field,
+            message: images
+              ? `must be an image (${doc.filename ?? ref.id} is ${type || 'not one'})`
+              : `must be ${ref.mimeTypes.join(', ')} (${doc.filename ?? ref.id} is ${type || 'unknown'})`,
+          })
         }
       }
     }

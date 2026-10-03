@@ -530,6 +530,19 @@ function validateList(
   }
 }
 
+/** `minRows` / `maxRows` of a relationship or upload: only with `hasMany`. */
+function validateManyRange(
+  field: { hasMany?: boolean; minRows?: number; maxRows?: number },
+  path: string,
+  add: Add,
+) {
+  if ((field.minRows !== undefined || field.maxRows !== undefined) && !field.hasMany) {
+    add(path, 'minRows and maxRows need hasMany: true')
+    return
+  }
+  checkRange(field.minRows, field.maxRows, 'minRows', 'maxRows', path, add)
+}
+
 function validateField(
   field: Field,
   path: string,
@@ -594,6 +607,20 @@ function validateField(
           `unknown collection ${JSON.stringify(field.to)}`,
           `use one of: ${[...collectionSlugs].join(', ')}`,
         )
+      }
+      validateManyRange(field, path, add)
+      break
+    case 'upload':
+      validateManyRange(field, path, add)
+      if (field.mimeTypes !== undefined) {
+        const types: unknown = field.mimeTypes
+        if (
+          !Array.isArray(types) ||
+          types.length === 0 ||
+          !types.every((t) => typeof t === 'string' && /^[\w.+-]+\/(\*|[\w.+-]+)$/.test(t))
+        ) {
+          add(`${path}.mimeTypes`, 'must be a list of MIME types', "e.g. mimeTypes: ['image/*']")
+        }
       }
       break
     case 'array':

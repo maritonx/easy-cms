@@ -9,6 +9,7 @@
 | [เวลาอ่านด้วย hook](./reading-time) | field แบบอ่านอย่างเดียวที่ CMS อัปเดตให้ |
 | [หน้า landing page จาก blocks](./landing-page) | ผู้แก้จัดหน้าเองจาก block ส่วนหัว จุดเด่น และปุ่มชวนคลิก |
 | [เมนูนำทางใน global](./navigation-menu) | เมนูเดียวที่แก้ได้สำหรับทั้งเว็บ ทุกภาษา |
+| [แกลเลอรีรูปภาพ](./image-galleries) | หลายรูปในบทความ เรียงตามที่ผู้แก้เลือก |
 | [Deploy บน Vercel ด้วย Postgres และ R2](./vercel) | serverless: Postgres, Cloudflare R2 สำหรับไฟล์ และ cron สำหรับบทความที่ตั้งเวลา |
 | [ย้ายจาก SQLite ไป Postgres](./sqlite-to-postgres) | เปลี่ยนฐานข้อมูลก่อนเปิดตัว หรือย้ายพร้อมข้อมูล |
 | [สำรองข้อมูลอัตโนมัติ](./automate-backups) | สำรองฐานข้อมูลและไฟล์อัปโหลดทุกวัน และซ้อมกู้คืน |

@@ -36,8 +36,8 @@ field ทุกประเภท ตัวเลือก หน้าตาใ
 | `slug` | `string` ที่ปลอดภัยสำหรับ URL และไม่ซ้ำภายใน collection | `from` |
 | `json` | ค่า JSON ใดก็ได้ | |
 | `richText` | เอกสาร JSON ของ Tiptap | ดู [Rich text](./rich-text) |
-| `upload` | id ของเอกสาร `media` | ดู [การอัปโหลด](./uploads) |
-| `relationship` | id ของเอกสารใน collection อื่น | `to`, `hasMany` |
+| `upload` | id ของเอกสาร `media` หรือ array เมื่อใช้ `hasMany` | `hasMany`, `mimeTypes` ดู [การอัปโหลด](./uploads#several-files-galleries) |
+| `relationship` | id ของเอกสารใน collection อื่น | `to`, `hasMany`, `minRows`, `maxRows` |
 | `array` | รายการของแถว แต่ละแถวมี `id` และ field ย่อย | `fields`, `minRows`, `maxRows` |
 | `group` | object ซ้อน | `fields` |
 | `blocks` | รายการของแถวที่มีหลายชนิด แต่ละแถวมี `id` และ `blockType` | `blocks`, `minRows`, `maxRows` |

@@ -1,6 +1,6 @@
 import { INTERNAL_COLLECTIONS, MEDIA } from './builtins.js'
 import type { CollectionConfig, GlobalConfig, ResolvedConfig } from './config.js'
-import type { Field } from './fields.js'
+import { type Field, isHasMany } from './fields.js'
 
 const pascal = (name: string) =>
   name
@@ -65,8 +65,10 @@ function fieldType(field: Field, n: Names, indent: string): string {
         field.options.map((o) => quote(typeof o === 'string' ? o : o.value)).join(' | ') || 'string'
       return field.hasMany ? `(${union})[]` : union
     }
-    case 'upload':
-      return `ID | ${n.collections.get(MEDIA) ?? 'Record<string, unknown>'}`
+    case 'upload': {
+      const one = `ID | ${n.collections.get(MEDIA) ?? 'Record<string, unknown>'}`
+      return field.hasMany ? `(${one})[]` : one
+    }
     case 'relationship': {
       const target = n.collections.get(field.to)
       const one = target ? `ID | ${target}` : 'ID'
@@ -97,7 +99,7 @@ function fieldLines(fields: readonly Field[], n: Names, indent: string): string[
       field.type === 'array' ||
       field.type === 'blocks' ||
       field.type === 'group' ||
-      ((field.type === 'select' || field.type === 'relationship') && field.hasMany)
+      isHasMany(field)
     if (field.required || alwaysPresent) lines.push(`${indent}${key(field.name)}: ${type}`)
     else lines.push(`${indent}${key(field.name)}?: ${type} | null`)
   }

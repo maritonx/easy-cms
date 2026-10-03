@@ -79,8 +79,22 @@ export default defineConfig({
           maxLength: 300,
           localized: true,
         },
-        { name: 'cover', type: 'upload', label: { en: 'Cover', th: 'รูปปก' } },
+        {
+          name: 'cover',
+          type: 'upload',
+          label: { en: 'Cover', th: 'รูปปก' },
+          mimeTypes: ['image/*'],
+        },
         { name: 'body', type: 'richText', label: { en: 'Body', th: 'เนื้อหา' }, localized: true },
+        // Several images in the order editors arrange them, shown under the post.
+        {
+          name: 'gallery',
+          type: 'upload',
+          hasMany: true,
+          maxRows: 12,
+          mimeTypes: ['image/*'],
+          label: { en: 'Gallery', th: 'แกลเลอรี' },
+        },
         {
           name: 'sections',
           label: { en: 'Sections', th: 'ส่วนเนื้อหา' },
