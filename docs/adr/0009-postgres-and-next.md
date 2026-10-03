@@ -22,6 +22,7 @@
 - `createRouteHandlers(config)` / `createAdminRouteHandlers(config)` สำหรับ `app/api/cms/[[...path]]` และ `app/admin/[[...path]]`, `getEasyCMS(config)` (singleton ข้าม HMR) และ `getEasyCMSUser(config)` (ผ่าน `next/headers`)
 - `withEasyCMS(nextConfig)` เพิ่ม `serverExternalPackages` และ `outputFileTracingIncludes` (admin `dist/app`, `easy-cms/migrations`, native binary จาก `db.bundle.traceInclude`)
 - Next อาจ bundle package ของเรา (เช่น symlink ใน workspace) จึงไม่พึ่ง `import.meta.url` หรือ `new URL(..., import.meta.url)` ไว้หาไฟล์ แต่หา admin app ตอน runtime ตามสาย dependency: โปรเจกต์ → `@easy-cms/next` → `@easy-cms/admin`
+  - **แก้ไข 2026-10-03:** สายนี้ใช้ไม่ได้บน Vercel เพราะ Vercel deploy เฉพาะไฟล์ที่ถูก trace ไม่มี `@easy-cms/next/package.json` ให้ resolve (`/admin` ตอบ 500 "Cannot find module '@easy-cms/next/package.json'") ตอนนี้ `createAdminRouteHandlers()` ใช้ `APP_DIR` ของ `@easy-cms/admin` ก่อน: `withEasyCMS()` ทำให้ package นั้นเป็น external จึงได้ path จริงที่ build trace ไว้ ถ้าไม่มี `shell.html` ที่ path นั้น (admin ถูก bundle) จึงค่อยหาตามสาย dependency แบบเดิม
 - Next ตัด `/` ท้าย URL จึงปิด redirect `/admin` → `/admin/` ใน admin handler (`trailingSlashRedirect: false`) SPA ทำงานได้ทั้งสองแบบเพราะใช้ `<base href>`
 - หน้าที่อ่านจาก CMS ควรเป็น dynamic เพราะ `next build` จะ prerender แล้ว query DB ในโหมด verify
 
