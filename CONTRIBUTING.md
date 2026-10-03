@@ -52,7 +52,9 @@ pnpm lint         # Biome
 
 - **Docs:** `pnpm --dir website test` checks that the reference pages list every option, and
   `pnpm --dir website dev` serves the site. Commands in `` ```sh [pm] `` blocks get a tab per
-  package manager.
+  package manager. A new page goes in `website/sidebar.json` (titles in English and Thai), which
+  both this site and easy-cms.io read; easy-cms.io builds its docs from the commit of the latest
+  npm release.
 - **Screenshots:** after admin changes, `pnpm docs:screenshots` retakes the docs' screenshots
   (English and Thai, light and dark).
 
