@@ -1,5 +1,13 @@
 # @easy-cms/next
 
+## 0.22.2
+
+### Patch Changes
+
+- cdc34cf: The admin works on Vercel. `createAdminRouteHandlers()` looked for the admin app through `@easy-cms/next/package.json`, which Vercel doesn't deploy, so `/admin` answered 500 with "Cannot find module '@easy-cms/next/package.json'". It now uses the path `@easy-cms/admin` reports for itself, which the build traces, and falls back to the old lookup when that package was bundled.
+- @easy-cms/admin@0.22.2
+  - @easy-cms/core@0.22.2
+
 ## 0.22.1
 
 ### Patch Changes
