@@ -18,7 +18,8 @@ your repository, the admin and APIs come with it, and there is no extra server t
 [Documentation](https://maritonx.github.io/easy-cms/) ·
 [เอกสารภาษาไทย](https://maritonx.github.io/easy-cms/th/) ·
 [Getting started](https://maritonx.github.io/easy-cms/guide/getting-started) ·
-[Examples](#examples)
+[Examples](#examples) ·
+[Sponsor](https://github.com/sponsors/maritonx)
 
 </div>
 
@@ -194,6 +195,15 @@ test and propose changes; [docs/DESIGN.md](docs/DESIGN.md) and the
 [architecture decisions](docs/adr) explain why things are the way they are.
 
 Please report security issues privately, as described in [SECURITY.md](SECURITY.md).
+
+## Sponsors
+
+Easy CMS is built in spare time. If it saves you or your team time, consider
+[sponsoring its development](https://github.com/sponsors/maritonx): sponsorship pays for the work
+toward 1.0, docs (in English and Thai) and faster fixes. Sponsors at $20 a month or more are
+listed here, and company sponsors also get their logo on [easy-cms.io](https://easy-cms.io).
+
+[![Sponsor Easy CMS](https://img.shields.io/badge/sponsor-%E2%9D%A4-2f6f5e?logo=githubsponsors)](https://github.com/sponsors/maritonx)
 
 ## License
 
