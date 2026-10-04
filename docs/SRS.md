@@ -1,9 +1,9 @@
 # Software Requirements Specification — Easy CMS
 
-- **เวอร์ชันเอกสาร:** 3.5
+- **เวอร์ชันเอกสาร:** 3.6
 - **วันที่:** 2026-10-04
 - **ผู้เขียน:** Kanawoot K.
-- **ครอบคลุม:** v0.1 (baseline) ถึง v0.30
+- **ครอบคลุม:** v0.1 (baseline) ถึง v0.31
 - **สถานะ:** Living document (อัปเดตทุกครั้งที่เพิ่มฟีเจอร์)
 - **เอกสารที่เกี่ยวข้อง:** [DESIGN.md](DESIGN.md), [ADRs](adr/)
 
@@ -408,6 +408,7 @@ AI assistant ► /api/cms/mcp ──┘                     └──► Webhook
 | FR-EML-01 | `email: EmailAdapter` ต้องส่งอีเมลให้ plugin และโค้ดของผู้ใช้ผ่าน `cms.sendEmail()` และมี `consoleEmail()` สำหรับ dev | 0.20 | MUST |
 | FR-EML-02 | อีเมลต้องถูกบันทึกลงคิวก่อนส่ง ส่งไม่สำเร็จต้องลองใหม่ผ่าน `runJobs()` และ `flushEmails()` ต้องรอการส่งที่ค้างอยู่ | 0.20 | MUST |
 | FR-EML-03 | `@easy-cms/email-smtp` ต้องส่งผ่าน SMTP โดยอ่านค่าตอนส่งฉบับแรก | 0.20 | MUST |
+| FR-EML-04 | admin ต้องดู email adapter และค่าที่ใช้อยู่ได้ที่ ตั้งค่า → อีเมล (`EmailAdapter.describe()` ไม่มีความลับ) ตรวจการเชื่อมต่อได้ (`verify()`) และส่งอีเมลทดสอบได้ทันทีโดยไม่ผ่านคิว (ไม่เกิน 5 ครั้งใน 10 นาที) พร้อมคำแนะนำสำหรับ error ที่พบบ่อย | 0.31 | MUST |
 | FR-FRM-01 | `formBuilderPlugin()` ต้องเพิ่ม `forms` (ช่องกรอกเป็น blocks 9 ชนิด, drafts, หลายภาษา, ข้อความหรือ redirect หลังส่ง, อีเมลแจ้งเตือน) และ `form-submissions` | 0.20 | MUST |
 | FR-FRM-02 | การส่งฟอร์มต้องผ่าน endpoint `POST <api>/form/:slug/submit` เท่านั้น ตรวจข้อมูลตามนิยามของฟอร์มฝั่ง server และไม่เก็บ IP | 0.20 | MUST |
 | FR-FRM-03 | ต้องกันสแปมด้วย honeypot, เวลาขั้นต่ำ, rate limit ต่อผู้เข้าชมต่อฟอร์ม และ Turnstile แบบเลือกเปิด บอทต้องได้คำตอบเหมือนสำเร็จโดยไม่บันทึกข้อมูล | 0.20 | MUST |
@@ -720,6 +721,7 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 0.18 | SEO สำหรับ AI: crawler ของ AI, llms.txt, Markdown, IndexNow | FR-SEO-09..12 | [0021](adr/0021-seo-for-ai.md) |
 | 0.19 | Redirects plugin, `admin.group: 'settings'` | FR-RDR-*, FR-ADM-19 | [0022](adr/0022-redirects-plugin.md) |
 | 0.20 | อีเมลใน core, email-smtp, form builder | FR-EML-*, FR-FRM-*, FR-STA-06 | [0023](adr/0023-email-and-form-builder.md) |
+| 0.31 | หน้า ตั้งค่า → อีเมล: ดูค่า ตรวจการเชื่อมต่อ ส่งอีเมลทดสอบ | FR-EML-04 | [0034](adr/0034-admin-email-settings.md) |
 | 0.30 | หน้า "การส่ง": webhook และอีเมลที่ล้ม ส่งซ้ำ ลบ ลบอัตโนมัติ 30 วัน | FR-ADM-23 | [0033](adr/0033-admin-deliveries.md) |
 | 0.29 | แดชบอร์ดสำหรับ admin: ต้องดูแล และระบบ (`/admin/status`), ชื่อและเวอร์ชันของ plugin | FR-ADM-22, FR-PLG-12 | [0032](adr/0032-admin-status.md) |
 | 0.28 | อัปโหลดจากลิงก์ (`upload.fromURL`, `cms.uploadFromURL`) | FR-UPL-08, NFR-SEC-09 | [0031](adr/0031-upload-from-url.md) |
@@ -743,6 +745,7 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 1.3 | 2026-09-25 | M5: FR-REST-08 (อัปโหลด/ไฟล์), FR-CFG-07 (`routes.api`, `serverURL`), ระบุว่า drafts ใน v0.1 ไม่มี version แยก |
 | 1.4 | 2026-09-25 | M6: ผลวัด NFR-PERF-01/02 บน Postgres 17 (Local API p95 2.7 ms, REST p95 4.3 ms), Next.js adapter ใช้ `getEasyCMS(config)` |
 | 1.5 | 2026-09-25 | M7: ผลตรวจรับ v0.1 (7.1) |
+| 3.6 | 2026-10-04 | 0.31: FR-EML-04 |
 | 3.5 | 2026-10-04 | 0.30: FR-ADM-23 |
 | 3.4 | 2026-10-04 | 0.29: FR-ADM-22, FR-PLG-12; NFR-SEC-10 ที่ซ้ำ (ลิงก์ตั้งรหัสผ่าน) เปลี่ยนเป็น NFR-SEC-11 |
 | 3.3 | 2026-10-04 | 0.28: FR-UPL-08, NFR-SEC-09 |

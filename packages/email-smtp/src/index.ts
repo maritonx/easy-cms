@@ -45,10 +45,44 @@ export function smtp(options: SmtpOptions = {}): EmailAdapter {
     })
     return transporter
   }
+  /** A setting and where it comes from: the option, else its environment variable. */
+  const setting = (key: string, option: string, value: unknown, variable: string) => {
+    if (value !== undefined) return { key, value: String(value), source: `smtp({ ${option} })` }
+    const fromEnv = env[variable]
+    return fromEnv
+      ? { key, value: fromEnv, source: variable }
+      : { key, value: null, source: variable }
+  }
   const adapter: EmailAdapter = {
     name: 'smtp',
     get from() {
       return options.from ?? env.SMTP_FROM
+    },
+    describe() {
+      const port = options.port ?? (env.SMTP_PORT ? Number(env.SMTP_PORT) : 587)
+      const password = options.password ?? env.SMTP_PASSWORD
+      return [
+        setting('host', 'host', options.host, 'SMTP_HOST'),
+        options.port !== undefined || env.SMTP_PORT
+          ? setting('port', 'port', options.port, 'SMTP_PORT')
+          : { key: 'port', value: '587', source: 'default' },
+        {
+          key: 'secure',
+          value: String(options.secure ?? port === 465),
+          source: options.secure !== undefined ? 'smtp({ secure })' : 'port 465 or not',
+        },
+        setting('user', 'user', options.user, 'SMTP_USER'),
+        // Never the password itself.
+        {
+          key: 'password',
+          value: password ? 'set' : null,
+          source: options.password !== undefined ? 'smtp({ password })' : 'SMTP_PASSWORD',
+        },
+        setting('from', 'from', options.from, 'SMTP_FROM'),
+      ]
+    },
+    async verify() {
+      await transport().verify()
     },
     async send(message) {
       const list = (value: string | readonly string[] | undefined) =>

@@ -41,7 +41,8 @@ or all at once. Failed deliveries are deleted after 30 days.
 **Shown when** an email has waited in the queue for over an hour, or failed for good in the last
 7 days. See [queued and retried](./email#queued-and-retried).
 
-**Check** the failed emails in **Settings → Deliveries → Emails** (who to, the subject and the
+**Check** the settings with **Check the connection** and **Send test email** on
+[Settings → Email](./email#checking-the-settings), and the failed emails in **Settings → Deliveries → Emails** (who to, the subject and the
 error; not the content), then:
 
 - The SMTP settings (`SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`) and that the server accepts this

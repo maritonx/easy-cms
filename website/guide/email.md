@@ -53,6 +53,22 @@ Send from an address on your own domain, and set up SPF, DKIM and DMARC for it w
 provider. Mail from `@gmail.com` addresses sent through another server usually lands in spam.
 :::
 
+## Checking the settings
+
+<Screenshot name="email-settings" alt="Settings → Email: the SMTP settings in use and a test email" />
+
+Admins find **Settings → Email** in the admin. It shows the adapter and the settings in use, and
+where each comes from (`SMTP_HOST`, `smtp({ from })`…). Passwords only show as set or not. To
+change a setting, change the environment variable or the config and restart.
+
+- **Check the connection** connects and logs in to the SMTP server without sending anything.
+- **Send test email** sends one email right away, not through the queue, to you or another
+  address (5 in 10 minutes at most).
+
+Both show the server's answer, with a hint for the usual mistakes: a wrong user or password
+(Gmail needs an app password), the port and `secure` not matching (465 is TLS from the start, 587
+is STARTTLS), a server that can't be reached, or a sender the server refuses.
+
 ## In development
 
 `consoleEmail()` prints each email in the server's log instead of sending it:
@@ -125,6 +141,14 @@ const resend: EmailAdapter = {
       }),
     })
     // Throw to have the email retried later.
+    if (!response.ok) throw new Error(`Resend answered ${response.status}`)
+  },
+  // Optional, for Settings → Email: what to show (never secrets) and a connection check.
+  describe: () => [{ key: 'from', value: 'My Site <no-reply@example.com>' }],
+  async verify() {
+    const response = await fetch('https://api.resend.com/domains', {
+      headers: { authorization: `Bearer ${process.env.RESEND_API_KEY}` },
+    })
     if (!response.ok) throw new Error(`Resend answered ${response.status}`)
   },
 }

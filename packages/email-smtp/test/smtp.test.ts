@@ -31,4 +31,33 @@ describe('smtp', () => {
     ).rejects.toThrow('set `host`')
     if (saved !== undefined) process.env.SMTP_HOST = saved
   })
+
+  it('describes its settings and where they come from, never the password', () => {
+    const saved = { ...process.env }
+    process.env.SMTP_HOST = 'smtp.env.example'
+    process.env.SMTP_USER = 'mailer'
+    process.env.SMTP_PASSWORD = 'secret-password'
+    delete process.env.SMTP_PORT
+    delete process.env.SMTP_FROM
+    try {
+      const settings = smtp({ from: 'Site <site@example.org>' }).describe?.()
+      expect(settings).toEqual([
+        { key: 'host', value: 'smtp.env.example', source: 'SMTP_HOST' },
+        { key: 'port', value: '587', source: 'default' },
+        { key: 'secure', value: 'false', source: 'port 465 or not' },
+        { key: 'user', value: 'mailer', source: 'SMTP_USER' },
+        { key: 'password', value: 'set', source: 'SMTP_PASSWORD' },
+        { key: 'from', value: 'Site <site@example.org>', source: 'smtp({ from })' },
+      ])
+      expect(JSON.stringify(settings)).not.toContain('secret-password')
+    } finally {
+      process.env = saved
+    }
+  })
+
+  it('checks the connection without sending', async () => {
+    // Nothing listens on port 1.
+    const email = smtp({ host: '127.0.0.1', port: 1, transport: { connectionTimeout: 2000 } })
+    await expect(email.verify?.()).rejects.toThrow(/ECONNREFUSED|connect/)
+  })
 })

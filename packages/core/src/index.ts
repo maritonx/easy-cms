@@ -80,6 +80,7 @@ export {
   consoleEmail,
   type EmailAdapter,
   type EmailMessage,
+  type EmailSetting,
 } from './email.js'
 export {
   ConfigError,
@@ -144,6 +145,7 @@ export type {
   DeliveryKind,
   DeliveryState,
 } from './rest/admin-deliveries.js'
+export type { AdminEmail, EmailCheck } from './rest/admin-email.js'
 export { resolveAdminModule } from './rest/admin-modules.js'
 export type {
   AdminCollection,

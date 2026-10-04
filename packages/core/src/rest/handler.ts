@@ -22,6 +22,7 @@ import {
   listDeliveries,
   retryFailedDeliveries,
 } from './admin-deliveries.js'
+import { adminEmail, sendTestEmail, verifyEmail } from './admin-email.js'
 import { readAdminModule } from './admin-modules.js'
 import { adminSchema } from './admin-schema.js'
 import { adminStatus } from './admin-status.js'
@@ -373,6 +374,25 @@ async function route(
       throw ctx.user ? new HttpError('Forbidden', 403) : new UnauthorizedError()
     }
     return { body: await cms.runJobs() }
+  }
+
+  // Settings → Email, for admins: the adapter's settings, a connection check and a test email.
+  if (first === 'admin' && second === 'email') {
+    if (!ctx.user) throw new UnauthorizedError()
+    if (ctx.user.role !== 'admin' || ctx.user.apiKey) throw new ForbiddenError()
+    const [, , action, extra] = segments
+    if (extra !== undefined) throw new HttpError('Not found', 404)
+    if (action === undefined) {
+      if (method !== 'GET') throw methodNotAllowed(ctx, 'GET')
+      return { body: adminEmail(cms) }
+    }
+    if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
+    if (action === 'verify') return { body: await verifyEmail(cms) }
+    if (action === 'test') {
+      const body = await readJson(ctx.request)
+      return { body: await sendTestEmail(cms, ctx.user, body.to, body.locale) }
+    }
+    throw new HttpError('Not found', 404)
   }
 
   // Saved webhook deliveries and emails, for admins: list, retry, delete.

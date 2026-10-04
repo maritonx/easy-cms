@@ -26,6 +26,26 @@ export interface EmailAdapter {
   /** The sender when a message has none, e.g. `Easy CMS <no-reply@example.com>`. */
   readonly from?: string | undefined
   send(message: EmailMessage & { readonly from: string }): Promise<void>
+  /**
+   * The settings in use, shown to admins on Settings → Email. Never return secrets: say whether
+   * a password is set, not what it is.
+   */
+  describe?(): readonly EmailSetting[]
+  /** Checks the connection without sending (Settings → Email); throws with the reason. */
+  verify?(): Promise<void>
+}
+
+/** One setting an email adapter shows to admins (`describe()`). */
+export interface EmailSetting {
+  /**
+   * `host`, `port`, `secure`, `user`, `password`, `from` and `delivery` (`log`: printed, not sent)
+   * are translated in the admin; others are shown as they are.
+   */
+  readonly key: string
+  /** `null`: not set. */
+  readonly value: string | null
+  /** Where it comes from, e.g. `SMTP_HOST` or `smtp({ host })`. */
+  readonly source?: string
 }
 
 /** Prints emails to the log instead of sending them: for development and tests. */
@@ -33,6 +53,8 @@ export function consoleEmail(options: { from?: string; log?: (text: string) => v
   const sent: (EmailMessage & { from: string })[] = []
   const adapter: EmailAdapter & { readonly sent: typeof sent } = {
     name: 'console',
+    // `log`: the admin says it prints to the server log instead of sending.
+    describe: () => [{ key: 'delivery', value: 'log' }],
     from: options.from ?? 'Easy CMS <no-reply@localhost>',
     sent,
     async send(message) {

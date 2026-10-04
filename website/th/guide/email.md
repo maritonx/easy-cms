@@ -50,6 +50,19 @@ SMTP_PASSWORD=re_…
 ที่ส่งผ่าน server อื่นมักเข้ากล่องสแปม
 :::
 
+## ตรวจการตั้งค่า {#checking-the-settings}
+
+<Screenshot name="email-settings" alt="ตั้งค่า → อีเมล: ค่า SMTP ที่ใช้อยู่และการส่งอีเมลทดสอบ" />
+
+admin เปิด **ตั้งค่า → อีเมล** ในหน้า admin ได้ หน้านี้แสดง adapter และค่าที่ใช้อยู่ พร้อมที่มาของแต่ละค่า (`SMTP_HOST`,
+`smtp({ from })`…) รหัสผ่านแสดงแค่ว่าตั้งไว้หรือยัง ถ้าจะเปลี่ยนค่า ให้แก้ environment variable หรือ config แล้ว restart
+
+- **ตรวจการเชื่อมต่อ** เชื่อมต่อและ login เข้า SMTP server โดยไม่ส่งอีเมล
+- **ส่งอีเมลทดสอบ** ส่งทันทีหนึ่งฉบับ ไม่ผ่านคิว ถึงตัวคุณเองหรือที่อยู่อื่น (ไม่เกิน 5 ครั้งใน 10 นาที)
+
+ทั้งสองแสดงคำตอบจาก server พร้อมคำแนะนำสำหรับความผิดพลาดที่พบบ่อย: user หรือรหัสผ่านผิด (Gmail ต้องใช้ app password),
+port กับ `secure` ไม่ตรงกัน (465 คือ TLS ตั้งแต่เริ่ม 587 คือ STARTTLS) ติดต่อ server ไม่ได้ หรือ server ไม่ยอมรับผู้ส่ง
+
 ## ตอนพัฒนา {#in-development}
 
 `consoleEmail()` พิมพ์อีเมลแต่ละฉบับลง log ของ server แทนการส่งจริง:
@@ -119,6 +132,14 @@ const resend: EmailAdapter = {
       }),
     })
     // throw เพื่อให้อีเมลถูกส่งซ้ำภายหลัง
+    if (!response.ok) throw new Error(`Resend answered ${response.status}`)
+  },
+  // ไม่บังคับ สำหรับ ตั้งค่า → อีเมล: สิ่งที่จะแสดง (ห้ามมีความลับ) และการตรวจการเชื่อมต่อ
+  describe: () => [{ key: 'from', value: 'My Site <no-reply@example.com>' }],
+  async verify() {
+    const response = await fetch('https://api.resend.com/domains', {
+      headers: { authorization: `Bearer ${process.env.RESEND_API_KEY}` },
+    })
     if (!response.ok) throw new Error(`Resend answered ${response.status}`)
   },
 }

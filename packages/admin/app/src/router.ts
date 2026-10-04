@@ -47,6 +47,8 @@ export const router = createRouter({
           component: () => import('./views/GlobalView.vue'),
         },
         { path: 'account', name: 'account', component: () => import('./views/AccountView.vue') },
+        // Settings → Email (admins).
+        { path: 'email', name: 'email', component: () => import('./views/EmailView.vue') },
         // Saved webhook deliveries and emails (admins).
         {
           path: 'deliveries',

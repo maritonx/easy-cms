@@ -1022,6 +1022,16 @@ test.describe('logged in as admin', () => {
     await expect(system.getByText('@easy-cms/plugin-seo')).toBeVisible()
     await expect(system).toContainText('color')
 
+    // Settings → Email: the adapter in use (console in the examples) and a test email.
+    await page
+      .getByRole('navigation', { name: 'Main' })
+      .getByRole('link', { name: 'Email', exact: true })
+      .click()
+    await expect(page.getByRole('heading', { level: 1, name: 'Email' })).toBeVisible()
+    await expect(page.getByRole('region', { name: 'Settings in use' })).toContainText('console')
+    await page.getByRole('button', { name: 'Send test email' }).click()
+    await expect(page.getByRole('status').filter({ hasText: /^Sent to / })).toBeVisible()
+
     // Saved emails and webhook deliveries, under Settings (email is set up in the examples).
     await page
       .getByRole('navigation', { name: 'Main' })
@@ -1161,6 +1171,7 @@ test.describe('logged in as editor', () => {
       page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Deliveries' }),
     ).toHaveCount(0)
     expect((await page.request.get('/api/cms/admin/deliveries?kind=email')).status()).toBe(403)
+    expect((await page.request.get('/api/cms/admin/email')).status()).toBe(403)
   })
 
   test('changes their own password (FR-ADM-13)', async ({ page }) => {
