@@ -71,6 +71,8 @@ pnpm lint         # Biome
 
 Merging to `main` opens a "Version Packages" pull request; merging that publishes every package
 to npm from CI, with npm trusted publishing (no tokens).
+That pull request and its merge only change versions and changelogs, so CI runs lint only on
+them: the full suite already ran on the commit before.
 
 A **new package** must exist on npm before CI can publish it: publish it once by hand
 (`pnpm publish --access public --no-git-checks` in its directory), then allow CI to publish it:

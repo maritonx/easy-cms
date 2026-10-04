@@ -5,7 +5,31 @@ on:
     branches: [main]
   pull_request:
 
+# A newer push to the same pull request cancels the run still going; on main every commit runs.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+  # The "Version Packages" pull request and its merge only change versions and changelogs: the
+  # same code already passed on the commit before. They get lint only, not the full suite.
+  scope:
+    runs-on: ubuntu-24.04
+    outputs:
+      full: ${{ steps.check.outputs.full }}
+    steps:
+      - id: check
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          if [[ "$HEAD_REF" == "changeset-release/main" || "$MESSAGE" == *"/changeset-release/main"* || "$MESSAGE" == "Version Packages"* ]]; then
+            echo "full=false" >> "$GITHUB_OUTPUT"
+            echo "Version Packages: lint only."
+          else
+            echo "full=true" >> "$GITHUB_OUTPUT"
+          fi
+
   lint:
     runs-on: ubuntu-24.04
     steps:
@@ -19,6 +43,8 @@ jobs:
       - run: pnpm biome ci .
 
   test:
+    needs: scope
+    if: needs.scope.outputs.full == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -45,6 +71,8 @@ jobs:
         run: node .github/scripts/annotate-failures.mjs test-output.log "Tests failed (${{ matrix.os }}, Node ${{ matrix.node }})"
 
   postgres:
+    needs: scope
+    if: needs.scope.outputs.full == 'true'
     # The shared integration suites against a real Postgres server (SQLite and PGlite run in "test").
     runs-on: ubuntu-24.04
     services:
@@ -71,6 +99,8 @@ jobs:
       - run: pnpm --filter easy-cms-integration-tests exec vitest run --project postgres
 
   s3:
+    needs: scope
+    if: needs.scope.outputs.full == 'true'
     runs-on: ubuntu-24.04
     services:
       # S3-compatible server that verifies SigV4 signatures (MinIO no longer publishes images).
@@ -98,6 +128,8 @@ jobs:
       - run: pnpm --filter @easy-cms/storage-s3 test
 
   e2e:
+    needs: scope
+    if: needs.scope.outputs.full == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -119,6 +151,8 @@ jobs:
   # A user's path with each package manager: `<pm> create easy-cms`, install, migrate, serve.
   # The packages come from this commit, published to a local registry (Verdaccio).
   smoke:
+    needs: scope
+    if: needs.scope.outputs.full == 'true'
     name: smoke (${{ matrix.pm }}${{ matrix.yarn && format(' {0}', matrix.yarn) || '' }}, ${{ matrix.os }})
     strategy:
       fail-fast: false
