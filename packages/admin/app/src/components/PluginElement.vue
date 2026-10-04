@@ -1,10 +1,18 @@
 <script setup lang="ts">
 import type { AdminComponentRef, AdminField } from '@easy-cms/core'
 import { inject, onBeforeUnmount, onMounted, ref, watchEffect } from 'vue'
+import { useRouter } from 'vue-router'
 import { api } from '../lib/api'
 import { contentLocale } from '../lib/content-locale'
 import { t, locale as uiLocale } from '../lib/i18n'
-import { API_VERSION, type ElementContext, FORM, modulesLoaded } from '../lib/plugins'
+import {
+  API_VERSION,
+  type ElementContext,
+  FORM,
+  modulesLoaded,
+  type PageRoute,
+} from '../lib/plugins'
+import { session } from '../lib/session'
 
 /**
  * Shows a Web Component from an admin module and passes it the edit page's state (see
@@ -18,10 +26,13 @@ const props = defineProps<{
   field?: AdminField
   label?: string
   readOnly?: boolean
+  /** On a page of its own (`admin.pages`): the rest of its path and the query. */
+  route?: PageRoute
 }>()
 const emit = defineEmits<{ change: [unknown] }>()
 
 const form = inject(FORM, null)
+const router = useRouter()
 const host = ref<HTMLElement>()
 const missing = ref(false)
 let element: HTMLElement | undefined
@@ -29,6 +40,12 @@ let element: HTMLElement | undefined
 function onChange(event: Event) {
   // Native `change` events from inputs inside the element bubble too; only ours carry detail.
   if (event instanceof CustomEvent && event.target === element) emit('change', event.detail)
+}
+/** `navigate` with a path inside the admin as `detail`, e.g. `/p/forms-overview/contact?range=30`. */
+function onNavigate(event: Event) {
+  if (!(event instanceof CustomEvent) || event.target !== element) return
+  const to = event.detail
+  if (typeof to === 'string' && to.startsWith('/') && !to.startsWith('//')) void router.push(to)
 }
 function onSetField(event: Event) {
   if (!(event instanceof CustomEvent) || props.readOnly) return
@@ -51,6 +68,12 @@ function context(): ElementContext {
     uiLocale: uiLocale.value,
     readOnly: props.readOnly === true,
     options: props.component.props ?? {},
+    user: session.user
+      ? { id: session.user.id, email: session.user.email, role: session.user.role }
+      : null,
+    route: props.route
+      ? { subpath: props.route.subpath, query: { ...props.route.query } }
+      : undefined,
     api,
   }
 }
@@ -72,6 +95,7 @@ onMounted(async () => {
   element = document.createElement(tag)
   element.addEventListener('change', onChange)
   element.addEventListener('set-field', onSetField)
+  element.addEventListener('navigate', onNavigate)
   Object.assign(element, context())
   host.value.append(element)
 })
@@ -85,6 +109,7 @@ watchEffect(() => {
 onBeforeUnmount(() => {
   element?.removeEventListener('change', onChange)
   element?.removeEventListener('set-field', onSetField)
+  element?.removeEventListener('navigate', onNavigate)
 })
 </script>
 

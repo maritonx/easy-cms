@@ -82,6 +82,8 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
       siteUrl: config.admin?.siteUrl ?? '',
       menu: config.admin?.menu ?? [],
       modules: config.admin?.modules ?? [],
+      pages: config.admin?.pages ?? [],
+      dashboard: config.admin?.dashboard ?? [],
     },
     upload: {
       dir: config.upload?.dir ?? 'uploads',

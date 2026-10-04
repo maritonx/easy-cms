@@ -3,7 +3,7 @@
 - **สถานะ:** Accepted (living document)
 - **วันที่:** 2026-10-01 (ฉบับแรก 2026-09-25)
 - **ผู้เขียน:** Kanawoot K.
-- **ครอบคลุม:** v0.1 ถึง v0.26
+- **ครอบคลุม:** v0.1 ถึง v0.27
 - **Requirements:** [SRS.md](SRS.md)
 
 ---
@@ -87,6 +87,7 @@ Plugin ยังเป็น `(config) => config` เหมือน v0.1 คว
 - **root endpoints** (0.17): `root: true` เสิร์ฟจาก root ของเว็บใน standalone (เช่น `/robots.txt`) ส่วนแอป Nuxt/Next ใช้ helper ของ plugin ใน route ของตัวเอง → ดู [ADR-0020](adr/0020-seo-sitemap-robots-root-endpoints.md)
 - **`commands`** (0.21): คำสั่ง `easy-cms <name>` จาก plugin และ **`filterOptions`**, **`admin.list.tree`**, **`update({ live })`** ที่ plugin nested docs ใช้ → ดู [ADR-0024](adr/0024-nested-docs.md)
 - **`fieldTypes`** (0.26): ชนิด field จากแพ็กเกจ (`defineFieldType`) ต่อยอดจากชนิด scalar ในตัว `resolveConfig` แปลงเป็นชนิดฐานพร้อม `customType` จึงไม่ต้องแก้ database adapter มี `validate`, input และ `admin.cell` ในหน้ารายการของตัวเอง type ขยายด้วย `CustomFieldTypes` → ดู [ADR-0029](adr/0029-custom-field-types.md)
+- **`admin.pages` และ `admin.dashboard`** (0.27): หน้าของ plugin ที่ `<admin>/p/<path>` (admin วาดส่วนหัว) และกล่องบนแดชบอร์ด ทั้งคู่เป็น Web Component มี `access` ที่ตรวจตอนสร้าง admin schema element ได้ `user`, `route` และส่ง `navigate` ได้ → ดู [ADR-0030](adr/0030-plugin-pages-and-dashboard.md)
 
 ### 4.5 API keys และ MCP (0.15–0.16)
 - **API keys** อยู่ใน core (`apiKeys: true`): key ทำงานในนามเจ้าของ ได้สิทธิ์ส่วนที่ซ้อนกันของ key กับเจ้าของ ตรวจใน Local API จุดเดียว
@@ -111,7 +112,7 @@ Plugin ยังเป็น `(config) => config` เหมือน v0.1 คว
 | `@easy-cms/plugin-seo` | field `meta`, ตัวนับความยาว, ตัวอย่างผลการค้นหา, `seoMeta()`, sitemap, robots.txt, hreflang, JSON-LD (0.17), crawler ของ AI, llms.txt, Markdown, IndexNow (0.18) | 0.13 |
 | `@easy-cms/plugin-mcp` | MCP server สำหรับผู้ช่วย AI | 0.16 |
 | `@easy-cms/plugin-redirects` | redirect ในหน้า admin, redirect อัตโนมัติเมื่อที่อยู่เปลี่ยน, `resolveRedirect()` | 0.19 |
-| `@easy-cms/plugin-form-builder` | ฟอร์มในหน้า admin, submissions, อีเมลแจ้งเตือน, กันสแปม, `<easy-form>` | 0.20 |
+| `@easy-cms/plugin-form-builder` | ฟอร์มในหน้า admin, submissions, อีเมลแจ้งเตือน, กันสแปม, `<easy-form>`, ภาพรวมฟอร์มและกล่องบนแดชบอร์ด (0.27) | 0.20 |
 | `@easy-cms/email-smtp` | email adapter ผ่าน SMTP (nodemailer) | 0.20 |
 | `@easy-cms/plugin-nested-docs` | หน้าแม่/ลูก, path และ breadcrumbs ที่ไล่อัปเดตเอง, `findByPath()`, `getTree()`, `nested:rebuild` | 0.21 |
 | `@easy-cms/fields` | ชนิด field เพิ่มเติม: `color` (ตัวเลือกสี, สีแนะนำ, จุดสีในหน้ารายการ) | 0.26 |
@@ -318,7 +319,7 @@ CI รัน lint, typecheck, build และ test บน Linux, macOS และ
 | **M7** CLI + Docs + Release | `create-easy-cms`, `generate:types`, VitePress, publish v0.1 |
 
 ### 15.2 หลัง v0.1 (เสร็จแล้ว)
-0.2 standalone + S3 → 0.3 versions → 0.4–0.5 live preview, localization → 0.6–0.9 blocks, webhooks, การตั้งเวลา → 0.10 backup → 0.11–0.12 admin redesign → 0.13 plugin ecosystem + SEO → 0.14 copy → 0.15 API keys → 0.16 MCP → 0.17 SEO ระดับทั้งเว็บ → 0.18 SEO สำหรับ AI → 0.19 redirects → 0.20 อีเมลและฟอร์ม → 0.21 หน้าย่อย → 0.22 npm, pnpm, Yarn และ Bun → 0.23 แกลเลอรี (upload หลายไฟล์) → 0.24 ลืมรหัสผ่านและคำเชิญ → 0.25 type ของ plugin → 0.26 ชนิด field เพิ่มเติม (`color`) (รายละเอียดใน [SRS §8.2](SRS.md#82-releases-หลัง-v01))
+0.2 standalone + S3 → 0.3 versions → 0.4–0.5 live preview, localization → 0.6–0.9 blocks, webhooks, การตั้งเวลา → 0.10 backup → 0.11–0.12 admin redesign → 0.13 plugin ecosystem + SEO → 0.14 copy → 0.15 API keys → 0.16 MCP → 0.17 SEO ระดับทั้งเว็บ → 0.18 SEO สำหรับ AI → 0.19 redirects → 0.20 อีเมลและฟอร์ม → 0.21 หน้าย่อย → 0.22 npm, pnpm, Yarn และ Bun → 0.23 แกลเลอรี (upload หลายไฟล์) → 0.24 ลืมรหัสผ่านและคำเชิญ → 0.25 type ของ plugin → 0.26 ชนิด field เพิ่มเติม (`color`) → 0.27 หน้าของ plugin และกล่องบนแดชบอร์ด (รายละเอียดใน [SRS §8.2](SRS.md#82-releases-หลัง-v01))
 
 ### 15.3 แนวคิดถัดไป (ยังไม่ได้ตัดสินใจ)
 - MCP แบบ stdio (`easy-cms mcp`) และ OAuth สำหรับ client ที่ส่ง header ไม่ได้
@@ -327,7 +328,7 @@ CI รัน lint, typecheck, build และ test บน Linux, macOS และ
 - Bun runtime (`bun --bun easy-cms serve`), Yarn Plug'n'Play
 - หน้าย่อย: ลากวางเพื่อย้ายหรือเรียงหน้า, ไล่อัปเดตผ่าน job queue สำหรับต้นไม้ขนาดใหญ่
 - redirects: export เป็น `_redirects`/`vercel.json`, นำเข้าจาก CSV, pattern/wildcard
-- Plugin: หน้าเต็มในหน้า Admin และ widget บน dashboard
+- Plugin: กลุ่มเมนูที่ตั้งชื่อเอง, ซ่อนหรือเรียงกล่องในตัวของแดชบอร์ด
 - `auth.strategy` สำหรับ auth ภายนอก (OAuth/SSO)
 
 ## 16. ความเสี่ยง
@@ -373,3 +374,4 @@ CI รัน lint, typecheck, build และ test บน Linux, macOS และ
 - [ADR-0027](adr/0027-password-links.md) — ลืมรหัสผ่านและคำเชิญทางอีเมล
 - [ADR-0028](adr/0028-typed-plugins.md) — type ของสิ่งที่ plugin เพิ่ม (`definePlugin`)
 - [ADR-0029](adr/0029-custom-field-types.md) — ชนิด field ที่แพ็กเกจเพิ่มได้ (`fieldTypes`)
+- [ADR-0030](adr/0030-plugin-pages-and-dashboard.md) — หน้าของ plugin และกล่องบนแดชบอร์ด

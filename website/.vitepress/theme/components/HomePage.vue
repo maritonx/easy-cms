@@ -11,8 +11,8 @@ const { isDark } = useData()
 
 const COPY = {
   en: {
-    badge: 'New in 0.26: custom field types, and a color field',
-    badgeLink: 'field-types',
+    badge: 'New in 0.27: plugin pages and dashboard panels',
+    badgeLink: 'plugins#pages-and-dashboard-panels',
     title: 'Your CMS,',
     titleAccent: 'inside your app',
     tagline:
@@ -97,7 +97,7 @@ const COPY = {
     tour: ['Dashboard', 'Posts', 'Live preview', 'Translate', 'Media'],
     pluginsTitle: 'Plugins',
     pluginsLead:
-      'A plugin is a function over your config. It can add fields, REST endpoints and admin components.',
+      'A plugin is a function over your config. It can add fields, REST endpoints, admin components, pages and dashboard panels.',
     plugins: [
       {
         id: 'seo',
@@ -112,7 +112,7 @@ const COPY = {
         id: 'forms',
         name: 'Form builder',
         pkg: '@easy-cms/plugin-form-builder',
-        text: 'Editors build forms in the admin. Submissions are checked, stored and emailed over SMTP, bots are kept out, and <easy-form> shows a form on any page.',
+        text: 'Editors build forms in the admin. Submissions are checked, stored, emailed over SMTP and summed up on an overview page, bots are kept out, and <easy-form> shows a form on any page.',
         link: '/guide/forms',
         shot: 'forms',
         alt: 'A contact form in the admin, with its submissions',
@@ -186,8 +186,8 @@ const COPY = {
     ctaGuide: 'Read the guide',
   },
   th: {
-    badge: 'ใหม่ใน 0.26: ชนิด field เพิ่มเติม และ field สี',
-    badgeLink: 'field-types',
+    badge: 'ใหม่ใน 0.27: หน้าของ plugin และกล่องบนแดชบอร์ด',
+    badgeLink: 'plugins#pages-and-dashboard-panels',
     title: 'CMS ที่อยู่',
     titleAccent: 'ในแอปของคุณ',
     tagline: 'กำหนดเนื้อหาด้วย TypeScript ได้หน้า admin, API ที่มี type และ plugin โดยไม่ต้องดูแล server แยก',
@@ -243,7 +243,8 @@ const COPY = {
     ],
     tour: ['แดชบอร์ด', 'บทความ', 'ตัวอย่างสด', 'แปลภาษา', 'คลังสื่อ'],
     pluginsTitle: 'Plugins',
-    pluginsLead: 'plugin คือฟังก์ชันที่ปรับ config เพิ่ม field, REST endpoint และ component ในหน้า admin ได้',
+    pluginsLead:
+      'plugin คือฟังก์ชันที่ปรับ config เพิ่ม field, REST endpoint, component หน้าของตัวเอง และกล่องบนแดชบอร์ดในหน้า admin ได้',
     plugins: [
       {
         id: 'seo',
@@ -258,7 +259,7 @@ const COPY = {
         id: 'forms',
         name: 'Form builder',
         pkg: '@easy-cms/plugin-form-builder',
-        text: 'ผู้แก้เนื้อหาสร้างฟอร์มเองในหน้า admin ข้อมูลที่ส่งมาผ่านการตรวจ ถูกเก็บ และแจ้งทางอีเมลผ่าน SMTP กันบอทได้ และ <easy-form> แสดงฟอร์มในหน้าเว็บใดก็ได้',
+        text: 'ผู้แก้เนื้อหาสร้างฟอร์มเองในหน้า admin ข้อมูลที่ส่งมาผ่านการตรวจ ถูกเก็บ แจ้งทางอีเมลผ่าน SMTP และสรุปในหน้าภาพรวม กันบอทได้ และ <easy-form> แสดงฟอร์มในหน้าเว็บใดก็ได้',
         link: '/th/guide/forms',
         shot: 'forms',
         alt: 'ฟอร์มติดต่อในหน้า admin พร้อมข้อมูลที่ส่งมา',

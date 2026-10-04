@@ -208,6 +208,8 @@ export const ADMIN_ICONS = [
   'ticket',
   'camera',
   'key',
+  'chart-column',
+  'chart-line',
 ] as const
 
 export type AdminIcon = (typeof ADMIN_ICONS)[number]
@@ -220,6 +222,35 @@ export interface AdminBrand {
   readonly logo?: string
   /** Main color as `#rrggbb`; lighter and darker shades are derived from it. */
   readonly color?: string
+}
+
+/** Who may see an admin page or dashboard widget. Default: every logged-in user. */
+export type AdminViewAccess = (args: { readonly user: AuthUser }) => boolean | Promise<boolean>
+
+/** A page of its own in the admin, e.g. a plugin's report, at `<admin>/p/<path>`. */
+export interface AdminPage {
+  /** Its address under `<admin>/p/`: lowercase letters, digits and `-`, e.g. `forms-overview`. */
+  readonly path: string
+  /** The page's body: a Web Component from an admin module. The admin draws the header. */
+  readonly component: AdminComponent
+  /** Its title in the header and the menu. */
+  readonly label: Label
+  /** Icon in the admin menu. Default `file-text`. */
+  readonly icon?: AdminIcon
+  /** Listed under Content (default) or Settings in the menu, or not listed (`false`): reached by links. */
+  readonly group?: 'content' | 'settings' | false
+  /** Who may open it. Pages a user may not open are left out of their admin. */
+  readonly access?: AdminViewAccess
+}
+
+/** A panel on the admin's dashboard, after the built-in ones. */
+export interface DashboardWidget {
+  /** A Web Component from an admin module. */
+  readonly component: AdminComponent
+  /** Half the dashboard's width (default) or all of it. Full width on phones. */
+  readonly width?: 'half' | 'full'
+  /** Who sees it. */
+  readonly access?: AdminViewAccess
 }
 
 export interface AdminConfig {
@@ -247,6 +278,10 @@ export interface AdminConfig {
    * module file. Remote URLs are not allowed.
    */
   readonly modules?: readonly string[]
+  /** Pages of their own, e.g. from plugins, at `<admin>/p/<path>`. */
+  readonly pages?: readonly AdminPage[]
+  /** Panels on the dashboard, after the built-in ones. */
+  readonly dashboard?: readonly DashboardWidget[]
 }
 
 export interface ImageSize {

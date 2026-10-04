@@ -139,13 +139,13 @@ cd my-cms && npm run dev       # http://localhost:4000/admin
 | Plugin | What it adds | Guide |
 |---|---|---|
 | [`@easy-cms/plugin-seo`](packages/plugin-seo) | Meta fields, search preview, sitemap, robots.txt, structured data, llms.txt | [SEO](https://maritonx.github.io/easy-cms/guide/seo) |
-| [`@easy-cms/plugin-form-builder`](packages/plugin-form-builder) | Forms built in the admin, submissions, email notifications, spam protection, `<easy-form>` | [Forms](https://maritonx.github.io/easy-cms/guide/forms) |
+| [`@easy-cms/plugin-form-builder`](packages/plugin-form-builder) | Forms built in the admin, submissions with an overview and a dashboard panel, email notifications, spam protection, `<easy-form>` | [Forms](https://maritonx.github.io/easy-cms/guide/forms) |
 | [`@easy-cms/plugin-redirects`](packages/plugin-redirects) | Redirects managed in the admin, automatic redirects when a page moves | [Redirects](https://maritonx.github.io/easy-cms/guide/redirects) |
 | [`@easy-cms/plugin-nested-docs`](packages/plugin-nested-docs) | Pages inside pages: parents, full paths, breadcrumbs, a tree in the admin | [Nested pages](https://maritonx.github.io/easy-cms/guide/nested-docs) |
 | [`@easy-cms/plugin-mcp`](packages/plugin-mcp) | Model Context Protocol server for AI assistants | [MCP](https://maritonx.github.io/easy-cms/guide/mcp) |
 
-Plugins are functions over your config: write your own with fields, endpoints, admin components
-and CLI commands. See [Plugins](https://maritonx.github.io/easy-cms/guide/plugins). Packages can
+Plugins are functions over your config: write your own with fields, endpoints, admin components,
+admin pages, dashboard panels and CLI commands. See [Plugins](https://maritonx.github.io/easy-cms/guide/plugins). Packages can
 also add field types, such as `color` from [`@easy-cms/fields`](packages/fields): see
 [Custom field types](https://maritonx.github.io/easy-cms/guide/field-types).
 

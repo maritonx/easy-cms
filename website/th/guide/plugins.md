@@ -147,7 +147,7 @@ handler ได้รับ:
 หน้า admin build มาสำเร็จแล้ว plugin จึงเพิ่ม UI ด้วย **Web Components**: custom element ที่หน้า admin
 สร้างขึ้นแล้วส่งสถานะของหน้าแก้ไขให้ ใช้ได้กับทุก framework (หรือไม่ใช้เลยก็ได้) และยังทำงานได้แม้โค้ดภายในของหน้า admin เปลี่ยน
 
-ใช้ได้สามตำแหน่ง:
+ใช้ได้ใน field และหน้าแก้ไข:
 
 ```ts
 fields: [
@@ -162,6 +162,40 @@ admin: { sidebar: ['ecms-checklist'] },
 
 component คือชื่อ tag ที่ขึ้นต้นด้วย `ecms-` หรือ `{ tag, props }` โดย `props` ต้องเป็น JSON ธรรมดา
 element จะได้รับค่านี้เป็น `options`
+
+### หน้าของ plugin และกล่องบนแดชบอร์ด {#pages-and-dashboard-panels}
+
+<Screenshot name="forms-overview" alt="หน้าภาพรวมฟอร์มของ form builder: ข้อมูลที่ส่งมารายวันและแยกตามฟอร์ม" />
+
+plugin มี **หน้าของตัวเอง** และ **กล่องบนแดชบอร์ด** ได้ด้วย เช่น หน้ารายงาน:
+
+```ts
+admin: {
+  pages: [
+    {
+      path: 'site-stats',                         // /admin/p/site-stats
+      label: { en: 'Site stats', th: 'สถิติเว็บไซต์' },
+      icon: 'chart-column',
+      component: 'ecms-site-stats',
+      group: 'content',                           // หรือ 'settings' หรือ false: ไม่แสดงในเมนู
+      access: ({ user }) => user.role === 'admin', // ค่าเริ่มต้น: ทุกคนที่ login
+    },
+  ],
+  dashboard: [
+    { component: 'ecms-visits-widget', width: 'half' }, // หรือ 'full'
+  ],
+},
+```
+
+- หน้า admin วาดส่วนหัวของหน้าให้ (ใช้ `label` เป็นหัวข้อและชื่อแท็บของ browser) element วาดส่วนที่เหลือ
+  กล่องบนแดชบอร์ดอยู่ต่อจากกล่องที่มีอยู่เดิมตามลำดับใน config และกว้างเต็มจอบนมือถือ
+- `access` ตรวจฝั่ง server: หน้าและกล่องที่ผู้ใช้ไม่มีสิทธิ์จะไม่ปรากฏใน admin ของเขา แต่เป็นแค่การซ่อน
+  endpoint ที่ส่งข้อมูลให้ต้องตรวจสิทธิ์อีกครั้งเสมอ
+- path ของหน้าใช้ตัวพิมพ์เล็ก ตัวเลข และ `-` และต้องไม่ซ้ำกัน
+- หน้าจะได้รับ `route`: ส่วนที่อยู่ต่อจาก path ของหน้า (`/admin/p/site-stats/2026` → `subpath: '2026'`)
+  และ query ถ้าจะเปลี่ยนค่าเหล่านี้หรือเปิดหน้าอื่นใน admin ให้ส่ง `navigate`:
+  `this.dispatchEvent(new CustomEvent('navigate', { detail: '/p/site-stats?range=30' }))`
+  เก็บสถานะอย่างแท็บหรือช่วงวันที่ไว้ในที่อยู่ จะได้ไม่หายเมื่อรีเฟรชและส่งลิงก์ให้คนอื่นได้
 
 ### ไฟล์ module {#the-module}
 
@@ -225,13 +259,16 @@ customElements.define('ecms-color-picker', ColorPicker)
 | `readOnly` | ผู้ใช้แก้ไขไม่ได้ |
 | `options` | `props` ของ component |
 | `api(method, path, body?)` | เรียก REST API ในนามผู้ใช้ที่ login อยู่ (แนบ cookie และ CSRF ให้แล้ว) เช่น endpoint ของ plugin |
+| `user` | ผู้ใช้ที่ login อยู่: `id`, `email`, `role` |
+| `route` | บนหน้าของ plugin: `{ subpath, query }` ที่อยู่ต่อจาก path ของหน้า ที่อื่นเป็น `undefined` |
 
-และฟัง event สองตัว:
+และฟัง event เหล่านี้:
 
 | Event | `detail` | |
 |---|---|---|
 | `change` | ค่าใหม่ | ตั้งค่าให้ field (สำหรับ component ของ field) |
 | `set-field` | `{ path, value }` | ตั้งค่าให้ field ใดก็ได้ในฟอร์ม เช่น `meta.title` จากปุ่มสร้างให้ |
+| `navigate` | path ภายใน admin | เปิดหน้านั้น เช่น `/collections/posts` หรือ `/p/site-stats?range=30` |
 
 การเปลี่ยนแปลงจะยังไม่ถูกบันทึกจนกว่าผู้แก้จะกดบันทึก
 

@@ -2,6 +2,7 @@
 import type { AdminCollection } from '@easy-cms/core'
 import { ArrowUpRight, CalendarClock, Plus } from '@lucide/vue'
 import { computed, onMounted, ref } from 'vue'
+import PluginElement from '../components/PluginElement.vue'
 import { api, type Doc, type Paginated, toQuery } from '../lib/api'
 import { counts, refreshCounts } from '../lib/counts'
 import { titleOf } from '../lib/fields'
@@ -15,6 +16,8 @@ const collections = menuOrder(
   (session.schema?.collections ?? []).filter((c) => c.permissions.read),
   session.schema?.menu,
 )
+/** Panels from `admin.dashboard`, e.g. a plugin's numbers, after the built-in ones. */
+const widgets = session.schema?.dashboard ?? []
 const hour = new Date().getHours()
 const greeting = t(
   hour < 12 ? 'dashboard.morning' : hour < 18 ? 'dashboard.afternoon' : 'dashboard.evening',
@@ -212,6 +215,16 @@ const statusOf = (doc: Doc) => (doc.status === 'published' ? 'published' : 'draf
       </section>
     </div>
   </div>
+
+  <div v-if="widgets.length" class="widgets">
+    <section
+      v-for="(widget, i) in widgets"
+      :key="`${i}-${widget.component.tag}`"
+      :class="['card', 'widget', { full: widget.width === 'full' }]"
+    >
+      <PluginElement :component="widget.component" />
+    </section>
+  </div>
 </template>
 
 <style scoped>
@@ -399,8 +412,23 @@ const statusOf = (doc: Doc) => (doc.status === 'published' ? 'published' : 'draf
   font-size: 0.8rem;
   font-weight: 600;
 }
+.widgets {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+  align-items: start;
+}
+.widget {
+  padding: 1rem 1.1rem;
+  min-width: 0;
+}
+.widget.full {
+  grid-column: 1 / -1;
+}
 @media (max-width: 1000px) {
-  .panels {
+  .panels,
+  .widgets {
     grid-template-columns: minmax(0, 1fr);
   }
 }

@@ -123,7 +123,21 @@ describe('formBuilderPlugin config', () => {
       'get /form/:slug',
       'post /form/:slug/submit',
       'get /form/:slug/submissions.csv',
+      'get /form/stats.json',
       'get /form/element.js',
+    ])
+    // The overview page under Content, and a dashboard panel.
+    expect(config.admin.pages).toEqual([
+      expect.objectContaining({
+        path: 'forms-overview',
+        component: {
+          tag: 'ecms-forms-overview',
+          props: { forms: 'forms', submissions: 'form-submissions', adminPath: '/admin' },
+        },
+      }),
+    ])
+    expect(config.admin.dashboard).toEqual([
+      expect.objectContaining({ component: expect.objectContaining({ tag: 'ecms-forms-widget' }) }),
     ])
   })
 })
@@ -301,6 +315,51 @@ describe('forms', () => {
       expect(text.startsWith('createdAt,locale,page,name,email,topic,message,agree\r\n')).toBe(true)
       // Formulas are escaped, quotes doubled.
       expect(text).toContain(`"'=cmd|x, ""quoted"""`)
+    } finally {
+      await cms.destroy()
+    }
+  })
+
+  it('counts submissions per form and day for logged-in users', async () => {
+    const { cms, call, load, submit, good, form } = await setup()
+    try {
+      const other = await cms.create('forms', {
+        title: 'Newsletter',
+        status: 'published',
+        fields: [],
+      })
+      const { token } = await load()
+      for (let i = 0; i < 3; i++) await submit({ data: good, token })
+      await cms.create('form-submissions', { form: other.id, summary: 'x', data: {} })
+      // Older than the range: not counted.
+      const old = await cms.create('form-submissions', { form: form.id, summary: 'old', data: {} })
+      await cms.db.update({
+        collection: 'form-submissions',
+        id: old.id,
+        data: { createdAt: new Date(Date.now() - 40 * 86_400_000).toISOString() },
+      })
+
+      expect((await call('/form/stats.json')).status).toBe(401)
+      await cms.create('users', { email: 'a@x.test', password: 'password123', role: 'editor' })
+      const session = await cms.auth.login({ email: 'a@x.test', password: 'password123' })
+      const headers = { authorization: `Bearer ${session.token}` }
+      const stats = await (await call('/form/stats.json?tz=Asia/Bangkok', { headers })).json()
+      const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(
+        new Date(),
+      )
+      expect(stats).toMatchObject({ days: 7, timeZone: 'Asia/Bangkok', total: 4 })
+      expect(stats.dates).toHaveLength(7)
+      expect(stats.dates.at(-1)).toBe(today)
+      expect(stats.perDay.at(-1)).toBe(4)
+      // Most submissions first.
+      expect(stats.forms.map((f: { title: string; total: number }) => [f.title, f.total])).toEqual([
+        ['Contact', 3],
+        ['Newsletter', 1],
+      ])
+      const month = await (
+        await call('/form/stats.json?days=30&tz=Nowhere/Else', { headers })
+      ).json()
+      expect(month).toMatchObject({ days: 30, timeZone: 'UTC', total: 4 })
     } finally {
       await cms.destroy()
     }

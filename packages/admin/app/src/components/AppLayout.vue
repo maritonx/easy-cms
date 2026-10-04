@@ -27,6 +27,13 @@ const settingsCollections = computed(() => {
   return [...list].sort((a, b) => rank(a.slug) - rank(b.slug))
 })
 const globals = computed(() => session.schema?.globals.filter((g) => g.permissions.read) ?? [])
+/** Pages from `admin.pages`, after the collections of their group; `group: false` ones are not listed. */
+const contentPages = computed(
+  () => session.schema?.pages.filter((p) => p.group === 'content') ?? [],
+)
+const settingsPages = computed(
+  () => session.schema?.pages.filter((p) => p.group === 'settings') ?? [],
+)
 
 /** Small screens: the menu opens over the page. */
 const menuOpen = ref(false)
@@ -101,7 +108,7 @@ async function onLogout() {
         <span>{{ t('nav.dashboard') }}</span>
       </RouterLink>
 
-      <template v-if="collections.length">
+      <template v-if="collections.length || contentPages.length">
         <h2 class="nav-heading">{{ t('nav.collections') }}</h2>
         <RouterLink
           v-for="c in collections"
@@ -114,9 +121,19 @@ async function onLogout() {
           <span>{{ label(c.labels?.plural, c.slug) }}</span>
           <span v-if="counts[c.slug] !== undefined" class="nav-count" aria-hidden="true">{{ counts[c.slug] }}</span>
         </RouterLink>
+        <RouterLink
+          v-for="p in contentPages"
+          :key="`p-${p.path}`"
+          :to="`/p/${p.path}`"
+          class="nav-link"
+          active-class="active"
+        >
+          <component :is="collectionIcon(p.icon)" :size="18" aria-hidden="true" />
+          <span>{{ label(p.label, p.path) }}</span>
+        </RouterLink>
       </template>
 
-      <template v-if="globals.length || settingsCollections.length">
+      <template v-if="globals.length || settingsCollections.length || settingsPages.length">
         <h2 class="nav-heading">{{ t('nav.globals') }}</h2>
         <RouterLink
           v-for="g in globals"
@@ -138,6 +155,16 @@ async function onLogout() {
           <component :is="collectionIcon(c.icon)" :size="18" aria-hidden="true" />
           <span>{{ label(c.labels?.plural, c.slug) }}</span>
           <span v-if="counts[c.slug] !== undefined" class="nav-count" aria-hidden="true">{{ counts[c.slug] }}</span>
+        </RouterLink>
+        <RouterLink
+          v-for="p in settingsPages"
+          :key="`p-${p.path}`"
+          :to="`/p/${p.path}`"
+          class="nav-link"
+          active-class="active"
+        >
+          <component :is="collectionIcon(p.icon)" :size="18" aria-hidden="true" />
+          <span>{{ label(p.label, p.path) }}</span>
         </RouterLink>
       </template>
 

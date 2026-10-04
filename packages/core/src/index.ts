@@ -22,6 +22,8 @@ export { INTERNAL_COLLECTIONS, MEDIA } from './builtins.js'
 export type {
   AdminConfig,
   AdminLocale,
+  AdminPage,
+  AdminViewAccess,
   AfterChangeHook,
   AfterDeleteHook,
   AfterReadHook,
@@ -35,6 +37,7 @@ export type {
   CollectionHooks,
   CollectionListAdmin,
   ContainerAdmin,
+  DashboardWidget,
   Endpoint,
   EndpointRequest,
   GlobalConfig,
@@ -137,7 +140,9 @@ export type {
   AdminComponentRef,
   AdminField,
   AdminGlobal,
+  AdminPageRef,
   AdminSchema,
+  AdminWidgetRef,
 } from './rest/admin-schema.js'
 export {
   CSRF_COOKIE,

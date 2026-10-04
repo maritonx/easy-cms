@@ -133,7 +133,7 @@ globals: [{ slug: 'site', icon: 'house', fields: [/* … */] }],
 Text on the brand color turns dark when white would be hard to read. Each user picks light,
 dark or their system's theme in the menu.
 
-Icons ([Lucide](https://lucide.dev)): `file-text`, `newspaper`, `book-open`, `notebook`, `folder`, `tag`, `tags`, `image`, `images`, `video`, `music`, `file`, `users`, `user`, `building`, `store`, `shopping-bag`, `shopping-cart`, `package`, `box`, `calendar`, `calendar-days`, `map-pin`, `globe`, `house`, `layout-grid`, `layers`, `star`, `heart`, `message-square`, `mail`, `phone`, `briefcase`, `graduation-cap`, `utensils`, `car`, `settings`, `sliders-horizontal`, `palette`, `megaphone`, `bell`, `link`, `quote`, `circle-help`, `award`, `ticket`, `camera`.
+Icons ([Lucide](https://lucide.dev)): `file-text`, `newspaper`, `book-open`, `notebook`, `folder`, `tag`, `tags`, `image`, `images`, `video`, `music`, `file`, `users`, `user`, `building`, `store`, `shopping-bag`, `shopping-cart`, `package`, `box`, `calendar`, `calendar-days`, `map-pin`, `globe`, `house`, `layout-grid`, `layers`, `star`, `heart`, `message-square`, `mail`, `phone`, `briefcase`, `graduation-cap`, `utensils`, `car`, `settings`, `sliders-horizontal`, `palette`, `megaphone`, `bell`, `link`, `quote`, `circle-help`, `award`, `ticket`, `camera`, `key`, `chart-column`, `chart-line`.
 
 ## Plugins
 

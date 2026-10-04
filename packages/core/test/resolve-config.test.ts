@@ -12,6 +12,8 @@ describe('resolveConfig', () => {
       siteUrl: '',
       menu: [],
       modules: [],
+      pages: [],
+      dashboard: [],
     })
     expect(config.upload).toEqual({
       dir: 'uploads',
@@ -52,6 +54,8 @@ describe('resolveConfig', () => {
       siteUrl: '',
       menu: [],
       modules: [],
+      pages: [],
+      dashboard: [],
     })
   })
 

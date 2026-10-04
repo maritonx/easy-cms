@@ -215,6 +215,7 @@ export function formBuilderPlugin<
       },
     ]
 
+    const adminPath = `/${(config.admin?.path ?? '/admin').replace(/^\/+|\/+$/g, '')}`
     const formsCollection: CollectionConfig = {
       slug: forms,
       labels: { singular: { en: 'Form', th: 'ฟอร์ม' }, plural: { en: 'Forms', th: 'ฟอร์ม' } },
@@ -228,7 +229,7 @@ export function formBuilderPlugin<
             tag: 'ecms-form-submissions',
             props: {
               submissions,
-              adminPath: `/${(config.admin?.path ?? '/admin').replace(/^\/+|\/+$/g, '')}`,
+              adminPath,
               apiPath: (config.routes?.api ?? '/api/cms').replace(/\/+$/, ''),
             },
           },
@@ -509,6 +510,85 @@ export function formBuilderPlugin<
       },
     }
 
+    /**
+     * Submissions per form and day over the last 7 or 30 days, for the overview page and the
+     * dashboard widget. Days are counted in the browser's time zone (`tz`).
+     */
+    const statsEndpoint: Endpoint = {
+      path: '/form/stats.json',
+      method: 'get',
+      handler: async ({ url, user, cms }) => {
+        if (!user) return fail(401, [{ message: 'Log in to see form statistics' }])
+        const days = url.searchParams.get('days') === '30' ? 30 : 7
+        const timeZone = validTimeZone(url.searchParams.get('tz'))
+        const dayOf = new Intl.DateTimeFormat('en-CA', {
+          timeZone,
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        })
+        const now = Date.now()
+        const dates = Array.from({ length: days }, (_, i) =>
+          dayOf.format(new Date(now - (days - 1 - i) * 86_400_000)),
+        )
+        const index = new Map(dates.map((d, i) => [d, i]))
+
+        const formRows: Row[] = []
+        for (let page = 1; ; page++) {
+          const result = await cms.find(forms, {
+            sort: 'title',
+            limit: 100,
+            page,
+            depth: 0,
+            draft: true,
+            overrideAccess: false,
+            user,
+          })
+          formRows.push(...(result.docs as Row[]))
+          if (!result.hasNextPage) break
+        }
+        const counts = new Map(formRows.map((f) => [String(f.id), new Array<number>(days).fill(0)]))
+        // A day more than the range, so the first day is whole in any time zone.
+        const since = new Date(now - (days + 1) * 86_400_000).toISOString()
+        for (let page = 1; ; page++) {
+          const result = await cms.find(submissions, {
+            where: { createdAt: { gte: since } },
+            limit: 500,
+            page,
+            depth: 0,
+            overrideAccess: false,
+            user,
+          })
+          for (const row of result.docs as Row[]) {
+            const perDay = counts.get(String(row.form))
+            const i = index.get(dayOf.format(new Date(String(row.createdAt))))
+            if (perDay && i !== undefined) perDay[i] = (perDay[i] ?? 0) + 1
+          }
+          if (!result.hasNextPage) break
+        }
+        const list = formRows
+          .map((f) => {
+            const perDay = counts.get(String(f.id)) ?? []
+            return {
+              id: f.id,
+              slug: String(f.slug ?? ''),
+              title: String(f.title ?? f.slug ?? f.id),
+              total: perDay.reduce((a, b) => a + b, 0),
+              perDay,
+            }
+          })
+          .sort((a, b) => b.total - a.total)
+        return {
+          days,
+          timeZone,
+          dates,
+          total: list.reduce((a, f) => a + f.total, 0),
+          perDay: dates.map((_, i) => list.reduce((a, f) => a + (f.perDay[i] ?? 0), 0)),
+          forms: list,
+        }
+      },
+    }
+
     /** The `<easy-form>` element, for pages that can't import it from npm (static sites). */
     let element: Promise<string | undefined> | undefined
     const elementEndpoint: Endpoint = {
@@ -536,12 +616,27 @@ export function formBuilderPlugin<
       admin: {
         ...config.admin,
         modules: [...new Set([...(config.admin?.modules ?? []), ADMIN_MODULE])],
+        // Submissions at a glance: a page under Content and a dashboard panel.
+        pages: [
+          ...(config.admin?.pages ?? []),
+          {
+            path: 'forms-overview',
+            label: { en: 'Form overview', th: 'ภาพรวมฟอร์ม' },
+            icon: 'chart-column',
+            component: { tag: 'ecms-forms-overview', props: { forms, submissions, adminPath } },
+          },
+        ],
+        dashboard: [
+          ...(config.admin?.dashboard ?? []),
+          { component: { tag: 'ecms-forms-widget', props: { forms, submissions, adminPath } } },
+        ],
       },
       endpoints: [
         ...(config.endpoints ?? []),
         getEndpoint,
         submitEndpoint,
         csvEndpoint,
+        statsEndpoint,
         elementEndpoint,
       ],
     }
@@ -556,6 +651,16 @@ function summarize(rows: readonly Row[], values: Readonly<Record<string, unknown
     .filter(Boolean)
   const text = parts.slice(0, 3).join(' · ')
   return text.length > 120 ? `${text.slice(0, 119)}…` : text
+}
+
+/** An IANA time zone the runtime knows, e.g. `Asia/Bangkok`; otherwise UTC. */
+function validTimeZone(value: string | null): string {
+  if (!value) return 'UTC'
+  try {
+    return new Intl.DateTimeFormat('en-US', { timeZone: value }).resolvedOptions().timeZone
+  } catch {
+    return 'UTC'
+  }
 }
 
 /** A byte-order mark: Excel then reads the CSV as UTF-8. */

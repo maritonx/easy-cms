@@ -153,7 +153,7 @@ The admin is a prebuilt app, so plugins extend it with **Web Components**: custo
 admin creates and passes the edit page's state to. They work with any framework (or none) and
 keep working when the admin's own code changes.
 
-Use them in three places:
+Use them in fields and edit pages:
 
 ```ts
 fields: [
@@ -168,6 +168,42 @@ admin: { sidebar: ['ecms-checklist'] },
 
 A component is a tag name starting with `ecms-`, or `{ tag, props }`. `props` must be plain JSON;
 the element receives them as `options`.
+
+### Pages and dashboard panels
+
+<Screenshot name="forms-overview" alt="The form builder's Form overview page: submissions per day and per form" />
+
+A plugin can also have **pages of its own** and **panels on the dashboard**, e.g. a report:
+
+```ts
+admin: {
+  pages: [
+    {
+      path: 'site-stats',                         // /admin/p/site-stats
+      label: { en: 'Site stats', th: 'สถิติเว็บไซต์' },
+      icon: 'chart-column',
+      component: 'ecms-site-stats',
+      group: 'content',                           // or 'settings', or false: not in the menu
+      access: ({ user }) => user.role === 'admin', // default: every logged-in user
+    },
+  ],
+  dashboard: [
+    { component: 'ecms-visits-widget', width: 'half' }, // or 'full'
+  ],
+},
+```
+
+- The admin draws a page's header (its `label` as the title, also in the browser tab); the
+  element draws the rest. Dashboard panels come after the built-in ones, in config order, and
+  take the full width on phones.
+- `access` is checked on the server: pages and panels a user may not see are left out of their
+  admin. It only hides them: check access again in the endpoints that give them data.
+- Page paths are lowercase letters, digits and `-`, and unique.
+- A page gets `route`: what follows its path (`/admin/p/site-stats/2026` → `subpath: '2026'`)
+  and the query. To change them, or to open another admin page, send `navigate`:
+  `this.dispatchEvent(new CustomEvent('navigate', { detail: '/p/site-stats?range=30' }))`.
+  Keep state such as tabs or a date range in the address, so it survives a reload and can be
+  shared.
 
 ### The module
 
@@ -232,13 +268,16 @@ The admin sets these properties, and sets them again whenever the form changes:
 | `readOnly` | The user may not change it. |
 | `options` | The component's `props`. |
 | `api(method, path, body?)` | Calls the REST API as the logged-in user (cookies and CSRF included), e.g. your plugin's endpoint. |
+| `user` | The logged-in user: `id`, `email`, `role`. |
+| `route` | On a page: `{ subpath, query }` after its path. Otherwise `undefined`. |
 
-And listens for two events:
+And listens for these events:
 
 | Event | `detail` | |
 |---|---|---|
 | `change` | the new value | Sets the field (field components). |
 | `set-field` | `{ path, value }` | Sets any field of the form, e.g. `meta.title` from a Generate button. |
+| `navigate` | a path in the admin | Opens it, e.g. `/collections/posts` or `/p/site-stats?range=30`. |
 
 Changes are not saved until the editor saves.
 

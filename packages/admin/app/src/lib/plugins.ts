@@ -9,6 +9,7 @@ import { settings } from './settings'
  *
  * - `change` (a `CustomEvent` whose `detail` is the new value): sets the field's value.
  * - `set-field` (`detail: { path, value }`): sets another field, e.g. `meta.title`.
+ * - `navigate` (`detail`: a path inside the admin, e.g. `/p/forms-overview?range=30`): goes there.
  *
  * Bump `API_VERSION` only for changes that break existing components.
  */
@@ -38,6 +39,16 @@ export interface ElementContext {
   options: Record<string, unknown>
   /** Calls the REST API as the logged-in user, e.g. `api('POST', '/seo/generate', body)`. */
   api: typeof api
+  /** The logged-in user. */
+  user: { id: string | number; email: string; role: string } | null
+  /** On a page of its own (`admin.pages`): the rest of its path and the query; otherwise undefined. */
+  route: PageRoute | undefined
+}
+
+/** Where a page (`admin.pages`) is: what follows `/p/<path>/`, and the query's first values. */
+export interface PageRoute {
+  subpath: string
+  query: Record<string, string>
 }
 
 /** What an edit page shares with components inside its form. */

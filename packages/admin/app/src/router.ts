@@ -47,6 +47,12 @@ export const router = createRouter({
           component: () => import('./views/GlobalView.vue'),
         },
         { path: 'account', name: 'account', component: () => import('./views/AccountView.vue') },
+        // Pages from `admin.pages`, e.g. a plugin's report; the rest of the path is the page's.
+        {
+          path: 'p/:path/:rest(.*)*',
+          name: 'page',
+          component: () => import('./views/PageView.vue'),
+        },
         {
           path: ':rest(.*)*',
           name: 'not-found',

@@ -20,7 +20,34 @@ const BASE = 'http://cms.test/api/cms'
 /** A plugin that adds a field, an endpoint and an admin module, like official plugins do. */
 const statsPlugin = (config: Config): Config => ({
   ...config,
-  admin: { ...config.admin, modules: [...(config.admin?.modules ?? []), './admin/stats.js'] },
+  admin: {
+    ...config.admin,
+    modules: [...(config.admin?.modules ?? []), './admin/stats.js'],
+    // A page of its own, one for admins under Settings, one hidden by a failing check.
+    pages: [
+      { path: 'stats', label: { en: 'Stats', th: 'สถิติ' }, icon: 'bell', component: 'ecms-stats' },
+      {
+        path: 'stats-admin',
+        label: 'Admin stats',
+        group: 'settings',
+        component: { tag: 'ecms-stats', props: { all: true } },
+        access: ({ user }) => user.role === 'admin',
+      },
+      {
+        path: 'broken',
+        label: 'Broken',
+        group: false,
+        component: 'ecms-broken',
+        access: () => {
+          throw new Error('oops')
+        },
+      },
+    ],
+    dashboard: [
+      { component: { tag: 'ecms-stats-widget', props: { days: 7 } } },
+      { component: 'ecms-stats-big', width: 'full', access: ({ user }) => user.role === 'admin' },
+    ],
+  },
   endpoints: [
     ...(config.endpoints ?? []),
     {
@@ -123,11 +150,11 @@ async function call(path: string, init: RequestInit = {}) {
   return handle(new Request(`${BASE}${path}`, init))
 }
 
-async function login() {
+async function login(email = 'admin@x.co') {
   const response = await call('/users/login', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ email: 'admin@x.co', password: PASSWORD }),
+    body: JSON.stringify({ email, password: PASSWORD }),
   })
   const body = (await response.json()) as { csrfToken: string }
   const session = response.headers
@@ -206,6 +233,35 @@ describe('admin components', () => {
     // The missing package is skipped (and logged); the plugin's module is the second entry.
     expect(schema.modules).toEqual(['/admin/modules/1.js'])
     expect(errors.join('\n')).toContain('@easy-cms/missing-plugin/admin')
+  })
+
+  it('lists the pages and dashboard panels each user may see', async () => {
+    const schemaFor = async (email?: string) =>
+      (await (await call('/admin/schema', { headers: await login(email) })).json()) as AdminSchema
+    const admin = await schemaFor()
+    expect(admin.pages).toEqual([
+      {
+        path: 'stats',
+        label: { en: 'Stats', th: 'สถิติ' },
+        icon: 'bell',
+        group: 'content',
+        component: { tag: 'ecms-stats' },
+      },
+      {
+        path: 'stats-admin',
+        label: 'Admin stats',
+        group: 'settings',
+        component: { tag: 'ecms-stats', props: { all: true } },
+      },
+    ])
+    expect(admin.dashboard).toEqual([
+      { component: { tag: 'ecms-stats-widget', props: { days: 7 } }, width: 'half' },
+      { component: { tag: 'ecms-stats-big' }, width: 'full' },
+    ])
+    await cms.create('users', { email: 'editor@x.co', password: PASSWORD, role: 'editor' })
+    const editor = await schemaFor('editor@x.co')
+    expect(editor.pages.map((p) => p.path)).toEqual(['stats'])
+    expect(editor.dashboard.map((w) => w.component.tag)).toEqual(['ecms-stats-widget'])
   })
 
   it('serves module code to logged-in users, with an ETag', async () => {

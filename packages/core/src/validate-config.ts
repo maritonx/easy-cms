@@ -46,6 +46,7 @@ export function validateConfig(config: Config): ConfigIssue[] {
   }
 
   validateAdmin(config, add)
+  validateAdminViews(config, add)
   validateUpload(config, add)
   validateAuth(config, add)
   validateCors(config.cors, add)
@@ -187,6 +188,94 @@ function validateAdmin(config: Config, add: Add) {
   }
   if (color !== undefined && (typeof color !== 'string' || !/^#[0-9a-f]{6}$/i.test(color))) {
     add('admin.brand.color', `must be a hex color like "#0f766e" (got ${JSON.stringify(color)})`)
+  }
+}
+
+const PAGE_PATH = /^[a-z0-9]+(-[a-z0-9]+)*$/
+
+/** Pages (`admin.pages`) and dashboard widgets (`admin.dashboard`), e.g. from plugins. */
+function validateAdminViews(config: Config, add: Add) {
+  const access = (value: unknown, path: string) => {
+    if (value !== undefined && typeof value !== 'function')
+      add(
+        `${path}.access`,
+        'must be a function',
+        'e.g. access: ({ user }) => user.role === "admin"',
+      )
+  }
+  const pages: unknown = config.admin?.pages
+  if (pages !== undefined) {
+    if (!Array.isArray(pages)) {
+      add(
+        'admin.pages',
+        'must be an array',
+        "e.g. pages: [{ path: 'stats', label: 'Stats', component: 'ecms-stats' }]",
+      )
+    } else {
+      const seen = new Set<string>()
+      pages.forEach((page: unknown, i) => {
+        const path = `admin.pages[${i}]`
+        if (typeof page !== 'object' || page === null) {
+          add(path, 'must be an object')
+          return
+        }
+        const p = page as Record<string, unknown>
+        if (typeof p.path !== 'string' || !PAGE_PATH.test(p.path)) {
+          add(
+            `${path}.path`,
+            `must be lowercase letters, digits and "-" (got ${JSON.stringify(p.path)})`,
+            "e.g. path: 'forms-overview'",
+          )
+        } else if (seen.has(p.path)) {
+          add(`${path}.path`, `"${p.path}" is used by another page`)
+        } else {
+          seen.add(p.path)
+        }
+        validateComponent(p.component, `${path}.component`, add)
+        const label = p.label
+        if (
+          !(typeof label === 'string' && label.trim() !== '') &&
+          !(typeof label === 'object' && label !== null && !Array.isArray(label))
+        )
+          add(
+            `${path}.label`,
+            'must be a string or { en, th }',
+            "e.g. label: { en: 'Stats', th: 'สถิติ' }",
+          )
+        validateIcon(p, path, add)
+        if (
+          p.group !== undefined &&
+          p.group !== 'content' &&
+          p.group !== 'settings' &&
+          p.group !== false
+        )
+          add(`${path}.group`, 'must be "content", "settings" or false')
+        access(p.access, path)
+      })
+    }
+  }
+  const widgets: unknown = config.admin?.dashboard
+  if (widgets !== undefined) {
+    if (!Array.isArray(widgets)) {
+      add(
+        'admin.dashboard',
+        'must be an array',
+        "e.g. dashboard: [{ component: 'ecms-stats-widget' }]",
+      )
+    } else {
+      widgets.forEach((widget: unknown, i) => {
+        const path = `admin.dashboard[${i}]`
+        if (typeof widget !== 'object' || widget === null) {
+          add(path, 'must be an object')
+          return
+        }
+        const w = widget as Record<string, unknown>
+        validateComponent(w.component, `${path}.component`, add)
+        if (w.width !== undefined && w.width !== 'half' && w.width !== 'full')
+          add(`${path}.width`, 'must be "half" or "full"')
+        access(w.access, path)
+      })
+    }
   }
 }
 

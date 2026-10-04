@@ -132,7 +132,7 @@ globals: [{ slug: 'site', icon: 'house', fields: [/* … */] }],
 
 ตัวอักษรบนสีแบรนด์จะเปลี่ยนเป็นสีเข้มเมื่อสีขาวอ่านยาก ผู้ใช้แต่ละคนเลือกธีมสว่าง มืด หรือตามระบบได้จากเมนู
 
-ไอคอน ([Lucide](https://lucide.dev)): `file-text`, `newspaper`, `book-open`, `notebook`, `folder`, `tag`, `tags`, `image`, `images`, `video`, `music`, `file`, `users`, `user`, `building`, `store`, `shopping-bag`, `shopping-cart`, `package`, `box`, `calendar`, `calendar-days`, `map-pin`, `globe`, `house`, `layout-grid`, `layers`, `star`, `heart`, `message-square`, `mail`, `phone`, `briefcase`, `graduation-cap`, `utensils`, `car`, `settings`, `sliders-horizontal`, `palette`, `megaphone`, `bell`, `link`, `quote`, `circle-help`, `award`, `ticket`, `camera`
+ไอคอน ([Lucide](https://lucide.dev)): `file-text`, `newspaper`, `book-open`, `notebook`, `folder`, `tag`, `tags`, `image`, `images`, `video`, `music`, `file`, `users`, `user`, `building`, `store`, `shopping-bag`, `shopping-cart`, `package`, `box`, `calendar`, `calendar-days`, `map-pin`, `globe`, `house`, `layout-grid`, `layers`, `star`, `heart`, `message-square`, `mail`, `phone`, `briefcase`, `graduation-cap`, `utensils`, `car`, `settings`, `sliders-horizontal`, `palette`, `megaphone`, `bell`, `link`, `quote`, `circle-help`, `award`, `ticket`, `camera`, `key`, `chart-column`, `chart-line`
 
 ## Plugins {#plugins}
 

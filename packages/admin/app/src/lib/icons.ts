@@ -9,6 +9,8 @@ import {
   CalendarDays,
   Camera,
   Car,
+  ChartColumn,
+  ChartLine,
   CircleHelp,
   File,
   FileText,
@@ -100,6 +102,8 @@ const ICONS: Record<string, Component> = {
   ticket: Ticket,
   camera: Camera,
   key: KeyRound,
+  'chart-column': ChartColumn,
+  'chart-line': ChartLine,
 }
 
 export const collectionIcon = (name?: string): Component => (name && ICONS[name]) || FileText

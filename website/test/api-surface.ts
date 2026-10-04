@@ -13,6 +13,8 @@ export const CONFIG_INTERFACES = [
   'Config',
   'AdminConfig',
   'AdminBrand',
+  'AdminPage',
+  'DashboardWidget',
   'RoutesConfig',
   'AuthConfig',
   'UploadConfig',

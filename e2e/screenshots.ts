@@ -128,6 +128,10 @@ async function main() {
         await page.getByRole('region', { name: t.submissions }).getByText(/\d/).waitFor()
         await shot('forms')
 
+        await page.goto(`${ORIGIN}/admin/p/forms-overview`)
+        await page.locator('ecms-forms-overview tbody tr').first().waitFor()
+        await shot('forms-overview')
+
         await page.goto(`${ORIGIN}/admin/collections/redirects?edit=${ids.redirect}`)
         await page.getByRole('dialog').waitFor()
         await shot('redirects')

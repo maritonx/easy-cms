@@ -1,9 +1,9 @@
 # Software Requirements Specification — Easy CMS
 
-- **เวอร์ชันเอกสาร:** 3.1
+- **เวอร์ชันเอกสาร:** 3.2
 - **วันที่:** 2026-10-04
 - **ผู้เขียน:** Kanawoot K.
-- **ครอบคลุม:** v0.1 (baseline) ถึง v0.26
+- **ครอบคลุม:** v0.1 (baseline) ถึง v0.27
 - **สถานะ:** Living document (อัปเดตทุกครั้งที่เพิ่มฟีเจอร์)
 - **เอกสารที่เกี่ยวข้อง:** [DESIGN.md](DESIGN.md), [ADRs](adr/)
 
@@ -368,6 +368,7 @@ AI assistant ► /api/cms/mcp ──┘                     └──► Webhook
 | FR-PLG-07 | `applyPlugins(config)` ต้องรัน plugin โดยไม่ตรวจ config เพื่อให้เครื่องมือตอน build อ่านสิ่งที่ plugin เพิ่มได้ | 0.13 | MUST |
 | FR-PLG-09 | Plugin ต้องประกาศสิ่งที่เพิ่ม (field ของ collection/global และ collection) ในระดับ type ได้ด้วย `definePlugin` และ type ที่อนุมานจาก config ต้องรวมสิ่งเหล่านั้น plugin ทางการทุกตัวต้องประกาศ type ของตัวเอง | 0.25 | MUST |
 | FR-PLG-10 | แพ็กเกจต้องเพิ่มชนิด field ได้ผ่าน `fieldTypes` (`defineFieldType`) โดยต่อยอดจากชนิด scalar ในตัว (เก็บ ค้นหา และ REST แบบชนิดฐาน) มี `validate`, `checkOptions`, input (`admin.component`) และ cell ในหน้ารายการ (`admin.cell`) ของตัวเอง ชื่อที่ซ้ำชนิดในตัวหรือซ้ำกันต้องเป็น config error และ type ต้องขยายได้ด้วย `CustomFieldTypes` แพ็กเกจ `@easy-cms/fields` ต้องมีชนิด `color` (`#rrggbb` / `#rrggbbaa`, `presets`) | 0.26 | MUST |
+| FR-PLG-11 | plugin ต้องเพิ่มหน้าของตัวเอง (`admin.pages` ที่ `<admin>/p/<path>` พร้อม `label`, `icon`, `group: 'content' \| 'settings' \| false`) และกล่องบนแดชบอร์ด (`admin.dashboard` แบบ `half`/`full`) ได้ด้วย Web Component โดย `access` ต้องตรวจฝั่ง server และไม่ส่งหน้าหรือกล่องที่ผู้ใช้ไม่มีสิทธิ์ไปให้ admin, `path` ที่ซ้ำหรือผิดรูปต้องเป็น config error, element ต้องได้ `user` และ (บนหน้า) `route` และส่ง `navigate` ได้ form builder ต้องมีหน้า "ภาพรวมฟอร์ม" และกล่อง "7 วันล่าสุด" จาก `GET <api>/form/stats.json` ที่นับวันตามเขตเวลาของผู้ใช้ | 0.27 | MUST |
 | FR-PLG-08 | Endpoint ที่ตั้ง `root: true` ต้องเสิร์ฟจาก root ของเว็บใน standalone server (`createRootEndpointHandler`) ด้วย auth และ CSRF เดียวกัน และ path ต้องไม่ชนกับ `routes.api`, `admin.path` หรือ `/healthz` | 0.17 | MUST |
 
 ### 3.23 SEO plugin (SEO) — [ADR-0018](adr/0018-plugin-endpoints-admin-components.md), [ADR-0020](adr/0020-seo-sitemap-robots-root-endpoints.md), [ADR-0021](adr/0021-seo-for-ai.md)
@@ -715,6 +716,7 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 0.18 | SEO สำหรับ AI: crawler ของ AI, llms.txt, Markdown, IndexNow | FR-SEO-09..12 | [0021](adr/0021-seo-for-ai.md) |
 | 0.19 | Redirects plugin, `admin.group: 'settings'` | FR-RDR-*, FR-ADM-19 | [0022](adr/0022-redirects-plugin.md) |
 | 0.20 | อีเมลใน core, email-smtp, form builder | FR-EML-*, FR-FRM-*, FR-STA-06 | [0023](adr/0023-email-and-form-builder.md) |
+| 0.27 | หน้าของ plugin และกล่องบนแดชบอร์ด, ภาพรวมฟอร์ม | FR-PLG-11 | [0030](adr/0030-plugin-pages-and-dashboard.md) |
 | 0.26 | ชนิด field ที่แพ็กเกจเพิ่มได้, `admin.cell`, `@easy-cms/fields` (`color`) | FR-PLG-10 | [0029](adr/0029-custom-field-types.md) |
 | 0.25 | type ของ field และ collection ที่ plugin เพิ่ม (`definePlugin`) | FR-PLG-09 | [0028](adr/0028-typed-plugins.md) |
 | 0.24 | ลืมรหัสผ่านและคำเชิญทางอีเมล | FR-AUTH-11..13, NFR-SEC-10 | [0027](adr/0027-password-links.md) |
@@ -734,6 +736,7 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 1.3 | 2026-09-25 | M5: FR-REST-08 (อัปโหลด/ไฟล์), FR-CFG-07 (`routes.api`, `serverURL`), ระบุว่า drafts ใน v0.1 ไม่มี version แยก |
 | 1.4 | 2026-09-25 | M6: ผลวัด NFR-PERF-01/02 บน Postgres 17 (Local API p95 2.7 ms, REST p95 4.3 ms), Next.js adapter ใช้ `getEasyCMS(config)` |
 | 1.5 | 2026-09-25 | M7: ผลตรวจรับ v0.1 (7.1) |
+| 3.2 | 2026-10-04 | 0.27: FR-PLG-11 |
 | 3.1 | 2026-10-04 | 0.26: FR-PLG-10 |
 | 3.0 | 2026-10-04 | 0.25: FR-PLG-09 |
 | 2.9 | 2026-10-03 | 0.24: FR-AUTH-11..13, NFR-SEC-10 |

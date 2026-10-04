@@ -2,7 +2,7 @@ import type { Access, AuthUser } from '../access.js'
 import { evaluateAccess, FieldAccessChecker } from '../access-control.js'
 import { API_KEYS } from '../api-keys.js'
 import { INTERNAL_COLLECTIONS, USERS } from '../builtins.js'
-import type { AdminLocale, CollectionConfig, GlobalConfig } from '../config.js'
+import type { AdminLocale, AdminViewAccess, CollectionConfig, GlobalConfig } from '../config.js'
 import type { AdminComponent, Field, Label } from '../fields.js'
 import type { EasyCMS } from '../local-api.js'
 import { adminModuleUrls } from './admin-modules.js'
@@ -94,6 +94,22 @@ export interface AdminGlobal {
   permissions: { read: boolean; update: boolean }
 }
 
+/** A page of its own in the admin (`admin.pages`) that this user may open. */
+export interface AdminPageRef {
+  path: string
+  label: Label
+  icon?: string
+  /** Where it is listed in the menu; `false`: not listed. */
+  group: 'content' | 'settings' | false
+  component: AdminComponentRef
+}
+
+/** A dashboard panel (`admin.dashboard`) this user may see. */
+export interface AdminWidgetRef {
+  component: AdminComponentRef
+  width: 'half' | 'full'
+}
+
 export interface AdminSchema {
   locale: AdminLocale
   /** Admins can email users links to set their password (needs `email` and `serverURL`). */
@@ -106,6 +122,10 @@ export interface AdminSchema {
   globals: AdminGlobal[]
   /** URLs under the API of the admin modules to load (`admin.modules`). */
   modules: string[]
+  /** Pages this user may open (`admin.pages`). */
+  pages: AdminPageRef[]
+  /** Dashboard panels this user may see (`admin.dashboard`). */
+  dashboard: AdminWidgetRef[]
 }
 
 /** Props go to the browser as JSON; a round trip drops functions and other non-JSON values. */
@@ -285,5 +305,41 @@ export async function adminSchema(
     collections: await Promise.all(collections.map((c) => collection(c, user, localized))),
     globals: await Promise.all(cms.config.globals.map((g) => global(g, user, localized))),
     modules: adminModuleUrls(cms),
+    pages: await pages(cms, user),
+    dashboard: await widgets(cms, user),
   }
+}
+
+/** Whether a page or widget is shown to this user; a failing check hides it. */
+async function shown(access: AdminViewAccess | undefined, user: AuthUser): Promise<boolean> {
+  if (!access) return true
+  try {
+    return (await access({ user })) === true
+  } catch {
+    return false
+  }
+}
+
+async function pages(cms: EasyCMS, user: AuthUser): Promise<AdminPageRef[]> {
+  const out: AdminPageRef[] = []
+  for (const page of cms.config.admin.pages) {
+    if (!(await shown(page.access, user))) continue
+    out.push({
+      path: page.path,
+      label: page.label,
+      ...(page.icon ? { icon: page.icon } : {}),
+      group: page.group ?? 'content',
+      component: componentRef(page.component),
+    })
+  }
+  return out
+}
+
+async function widgets(cms: EasyCMS, user: AuthUser): Promise<AdminWidgetRef[]> {
+  const out: AdminWidgetRef[] = []
+  for (const widget of cms.config.admin.dashboard) {
+    if (!(await shown(widget.access, user))) continue
+    out.push({ component: componentRef(widget.component), width: widget.width ?? 'half' })
+  }
+  return out
 }

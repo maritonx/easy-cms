@@ -930,6 +930,29 @@ test.describe('logged in as admin', () => {
     await expect(page.getByRole('row', { name: /Somchai/ })).toBeVisible()
     const csv = await page.request.get('/api/cms/form/contact/submissions.csv')
     expect(await csv.text()).toContain('Somchai,somchai@example.test,Hello from the e2e test')
+
+    // At a glance: the dashboard panel and the overview page (admin.dashboard, admin.pages).
+    await page.goto('/admin/')
+    const widget = page.locator('ecms-forms-widget')
+    await expect(widget.getByRole('heading', { name: 'Form submissions' })).toBeVisible()
+    await expect(widget.locator('.total')).toHaveText('1 submission')
+    await widget.getByRole('link', { name: /Form overview/ }).click()
+    await expect(page).toHaveURL(/\/admin\/p\/forms-overview$/)
+    await expect(page.getByRole('heading', { level: 1, name: 'Form overview' })).toBeVisible()
+    await expect(page).toHaveTitle(/^Form overview · /)
+    const overview = page.locator('ecms-forms-overview')
+    await expect(overview.getByRole('row', { name: /Contact/ })).toContainText('1')
+    const month = overview.getByRole('button', { name: 'Last 30 days' })
+    await month.click()
+    await expect(page).toHaveURL(/\?range=30$/)
+    await expect(month).toHaveAttribute('aria-pressed', 'true')
+    // The range is in the address: a reload keeps it.
+    await page.reload()
+    await expect(month).toHaveAttribute('aria-pressed', 'true')
+    // Listed in the menu under Content.
+    await expect(
+      page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Form overview' }),
+    ).toHaveClass(/active/)
   })
 
   test('edits small collections in a drawer, and creates related documents in place', async ({

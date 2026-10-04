@@ -52,6 +52,8 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `siteUrl` | `string` | `/` (Nuxt, Next.js) | เว็บสาธารณะสำหรับปุ่ม "ดูเว็บไซต์": path หรือ URL แบบ `http(s)` |
 | `menu` | `string[]` | ตามลำดับใน config | slug ของ collection ตามลำดับในเมนู ที่ไม่ระบุจะตามมา และ media อยู่ท้ายสุด |
 | `modules` | `string[]` | `[]` | admin module ที่มี Web Components: export ของแพ็กเกจหรือ path [Admin components](/th/guide/plugins#admin-components) |
+| `pages` | `AdminPage[]` | `[]` | หน้าของตัวเองที่ `<admin>/p/<path>` เช่น จาก plugin ดู [pages](#pages) |
+| `dashboard` | `DashboardWidget[]` | `[]` | กล่องบนแดชบอร์ดต่อจากกล่องที่มีอยู่เดิม ดู [dashboard](#dashboard) |
 
 <!-- api: AdminBrand -->
 ### brand {#brand}
@@ -61,6 +63,29 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `name` | `string` | แสดงในเมนู หน้า login และแท็บของ browser ค่าเริ่มต้น "Easy CMS" |
 | `logo` | `string` | path บนเว็บของคุณ หรือ URL แบบ `https://` |
 | `color` | `string` | สีหลักแบบ `#rrggbb` ระบบสร้างเฉดสีให้ |
+
+<!-- api: AdminPage -->
+### pages {#pages}
+
+| ตัวเลือก | Type | |
+|---|---|---|
+| `path` | `string` | **จำเป็น** ตัวพิมพ์เล็ก ตัวเลข และ `-` ไม่ซ้ำกัน หน้าจะอยู่ที่ `<admin>/p/<path>` |
+| `component` | `AdminComponent` | **จำเป็น** เนื้อหาของหน้า ส่วนหัวหน้า admin วาดให้ |
+| `label` | `string \| { en, th }` | **จำเป็น** หัวข้อในส่วนหัว เมนู และแท็บของ browser |
+| `icon` | `AdminIcon` | ไอคอนในเมนู ค่าเริ่มต้น `file-text` |
+| `group` | `'content' \| 'settings' \| false` | อยู่ตรงไหนในเมนู `false` คือไม่แสดง ค่าเริ่มต้น `content` |
+| `access` | `({ user }) => boolean` | ใครเปิดได้ ตรวจฝั่ง server ค่าเริ่มต้น: ทุกคนที่ login |
+
+<!-- api: DashboardWidget -->
+### dashboard {#dashboard}
+
+| ตัวเลือก | Type | |
+|---|---|---|
+| `component` | `AdminComponent` | **จำเป็น** เนื้อหาของกล่อง |
+| `width` | `'half' \| 'full'` | ค่าเริ่มต้น `half` บนมือถือกว้างเต็มจอ |
+| `access` | `({ user }) => boolean` | ใครเห็น ตรวจฝั่ง server ค่าเริ่มต้น: ทุกคนที่ login |
+
+วิธีเขียนดูที่ [หน้าของ plugin และกล่องบนแดชบอร์ด](/th/guide/plugins#pages-and-dashboard-panels)
 
 <!-- api: AuthConfig -->
 ## auth {#auth}

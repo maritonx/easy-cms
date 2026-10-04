@@ -4,6 +4,8 @@
  * framework; styles use the admin's CSS variables.
  */
 
+import { defineOverviewElements } from './admin-overview.js'
+
 type Api = (method: string, path: string, body?: unknown) => Promise<unknown>
 
 interface Props {
@@ -151,3 +153,5 @@ class FormSubmissions extends HTMLElement {
 
 if (!customElements.get('ecms-form-submissions'))
   customElements.define('ecms-form-submissions', FormSubmissions)
+// The "Form overview" page and the dashboard panel.
+defineOverviewElements()

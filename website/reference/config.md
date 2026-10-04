@@ -53,6 +53,8 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `siteUrl` | `string` | `/` (Nuxt, Next.js) | The public site for "View site": a path or an `http(s)` URL. |
 | `menu` | `string[]` | config order | Collection slugs in menu order; unlisted ones follow, media last. |
 | `modules` | `string[]` | `[]` | Admin modules with Web Components: package exports or paths. [Admin components](/guide/plugins#admin-components) |
+| `pages` | `AdminPage[]` | `[]` | Pages of their own at `<admin>/p/<path>`, e.g. from plugins. See [pages](#pages). |
+| `dashboard` | `DashboardWidget[]` | `[]` | Panels on the dashboard after the built-in ones. See [dashboard](#dashboard). |
 
 <!-- api: AdminBrand -->
 ### brand
@@ -62,6 +64,29 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `name` | `string` | Shown in the menu, login page and browser tab. Default "Easy CMS". |
 | `logo` | `string` | A path on your site or an `https://` URL. |
 | `color` | `string` | Main color as `#rrggbb`; shades are derived. |
+
+<!-- api: AdminPage -->
+### pages
+
+| Option | Type | |
+|---|---|---|
+| `path` | `string` | **Required**. Lowercase letters, digits and `-`, unique: the page is at `<admin>/p/<path>`. |
+| `component` | `AdminComponent` | **Required**. The page's body; the admin draws the header. |
+| `label` | `string \| { en, th }` | **Required**. Title in the header, the menu and the browser tab. |
+| `icon` | `AdminIcon` | Menu icon. Default `file-text`. |
+| `group` | `'content' \| 'settings' \| false` | Where it is in the menu; `false`: not listed. Default `content`. |
+| `access` | `({ user }) => boolean` | Who may open it, checked on the server. Default: every logged-in user. |
+
+<!-- api: DashboardWidget -->
+### dashboard
+
+| Option | Type | |
+|---|---|---|
+| `component` | `AdminComponent` | **Required**. The panel's content. |
+| `width` | `'half' \| 'full'` | Default `half`; full width on phones. |
+| `access` | `({ user }) => boolean` | Who sees it, checked on the server. Default: every logged-in user. |
+
+[Pages and dashboard panels](/guide/plugins#pages-and-dashboard-panels) shows how to write them.
 
 <!-- api: AuthConfig -->
 ## auth

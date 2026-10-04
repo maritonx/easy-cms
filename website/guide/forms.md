@@ -128,6 +128,19 @@ else showErrors(result.errors) // [{ field?, message }]
 Send `token` back as you got it, and the `honeypot` field empty (see [spam](#spam)). Behind the
 client are `GET <api>/form/:slug` and `POST <api>/form/:slug/submit`.
 
+## Submissions at a glance
+
+<Screenshot name="forms-overview" alt="Form overview: submissions per day, and per form with a link to each form's submissions" />
+
+**Form overview**, under Content in the menu, shows the submissions of the last 7 or 30 days:
+per day in a chart, and per form with a link to that form's submissions. The dashboard has a
+panel with the last 7 days' total and the forms with the most submissions. Days follow the
+editor's time zone.
+
+Both read `GET <api>/form/stats.json?days=7|30&tz=<time zone>` as the logged-in user, so they
+count only the forms and submissions that user may read. It is a
+[page and a dashboard panel](./plugins#pages-and-dashboard-panels) like any plugin can add.
+
 ## Emails
 
 ::: v-pre
