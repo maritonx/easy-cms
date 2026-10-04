@@ -1,5 +1,12 @@
 # @easy-cms/email-smtp
 
+## 0.30.0
+
+### Patch Changes
+
+- Updated dependencies [f9d5512]
+  - @easy-cms/core@0.30.0
+
 ## 0.29.0
 
 ### Minor Changes
