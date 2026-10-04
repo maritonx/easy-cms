@@ -132,6 +132,10 @@ async function main() {
         await page.locator('ecms-forms-overview tbody tr').first().waitFor()
         await shot('forms-overview')
 
+        await page.goto(`${ORIGIN}/admin/backups`)
+        await page.locator('#settings-heading').waitFor()
+        await shot('backups')
+
         await page.goto(`${ORIGIN}/admin/email`)
         await page.locator('#settings-heading').waitFor()
         await shot('email-settings')

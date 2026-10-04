@@ -10,6 +10,7 @@ export const VERSIONS = 'document-versions'
 export const SCHEDULED_JOBS = 'scheduled-jobs'
 export const WEBHOOK_DELIVERIES = 'webhook-deliveries'
 export const EMAIL_DELIVERIES = 'email-deliveries'
+export const DATABASE_BACKUPS = 'database-backups'
 
 /** Collections Easy CMS uses internally. Not exposed over REST or in the admin UI. */
 export const INTERNAL_COLLECTIONS: ReadonlySet<string> = new Set([
@@ -19,6 +20,7 @@ export const INTERNAL_COLLECTIONS: ReadonlySet<string> = new Set([
   SCHEDULED_JOBS,
   WEBHOOK_DELIVERIES,
   EMAIL_DELIVERIES,
+  DATABASE_BACKUPS,
 ])
 
 export const DEFAULT_ROLES = ['admin', 'editor'] as const
@@ -268,6 +270,27 @@ export const webhookDeliveriesCollection: CollectionConfig = {
     // pending | failed
     { name: 'state', type: 'text', required: true, index: true },
     { name: 'error', type: 'text' },
+  ],
+}
+
+/** Backups of the database (Settings → Backups): the record of each, the files are in storage. */
+export const databaseBackupsCollection: CollectionConfig = {
+  slug: DATABASE_BACKUPS,
+  access: { read: nobody, create: nobody, update: nobody, delete: nobody },
+  fields: [
+    // pending | running | done | failed
+    { name: 'state', type: 'text', required: true, index: true },
+    // manual | scheduled
+    { name: 'trigger', type: 'text', required: true },
+    { name: 'filename', type: 'text' },
+    { name: 'size', type: 'number' },
+    { name: 'startedAt', type: 'text', index: true },
+    { name: 'finishedAt', type: 'text' },
+    { name: 'error', type: 'text' },
+    // Who started it (email), for manual ones.
+    { name: 'author', type: 'text' },
+    { name: 'downloadedBy', type: 'text' },
+    { name: 'downloadedAt', type: 'text' },
   ],
 }
 

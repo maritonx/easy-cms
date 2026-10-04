@@ -467,6 +467,25 @@ export function definePlugin<const T extends PluginTypes = Record<never, never>>
   return plugin
 }
 
+/** Database backups (Settings → Backups): one compressed SQLite file each. */
+export interface BackupsConfig {
+  /** Back up automatically every day or week. Default: only by hand. */
+  readonly every?: 'day' | 'week'
+  /** When, as `HH:MM` in the server's time zone. Default `03:00`. */
+  readonly at?: string
+  /** How many finished backups to keep; older ones are deleted. Default 7. */
+  readonly keep?: number
+  /** Folder for the default local storage, from the project root. Default `backups`. Never served publicly. */
+  readonly dir?: string
+  /** Where backups are stored instead, e.g. `s3Storage()` with a private bucket. */
+  readonly storage?: StorageAdapter
+  /**
+   * For Postgres: the SQLite adapter that writes the backup file, `sqlite` from
+   * `@easy-cms/db-sqlite`. SQLite databases back themselves up and don't need it.
+   */
+  readonly sqlite?: (options: { url: string; tablePrefix?: string }) => DatabaseAdapter
+}
+
 export interface Config {
   /** Signs sessions. At least 32 characters; read it from `process.env.EASY_CMS_SECRET`. */
   readonly secret: string
@@ -522,6 +541,11 @@ export interface Config {
    * database and retried until sent.
    */
   readonly email?: EmailAdapter
+  /**
+   * Database backups, made on a schedule and from the admin (Settings → Backups). Without
+   * `every`, admins can still back up by hand.
+   */
+  readonly backups?: BackupsConfig
   readonly plugins?: readonly Plugin[]
 }
 

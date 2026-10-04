@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {
+  DatabaseBackup,
   Languages,
   LayoutDashboard,
   LogOut,
@@ -182,6 +183,10 @@ async function onLogout() {
         >
           <component :is="collectionIcon(p.icon)" :size="18" aria-hidden="true" />
           <span>{{ label(p.label, p.path) }}</span>
+        </RouterLink>
+        <RouterLink v-if="isAdmin" to="/backups" class="nav-link" active-class="active">
+          <DatabaseBackup :size="18" aria-hidden="true" />
+          <span>{{ t('backups.title') }}</span>
         </RouterLink>
         <RouterLink v-if="isAdmin" to="/email" class="nav-link" active-class="active">
           <Mail :size="18" aria-hidden="true" />

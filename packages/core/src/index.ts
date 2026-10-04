@@ -18,6 +18,12 @@ export {
 } from './auth/emails.js'
 export { hashPassword, MIN_PASSWORD_LENGTH, verifyPassword } from './auth/password.js'
 export type { PreviewTarget } from './auth/tokens.js'
+export {
+  type AdminBackup,
+  type AdminBackups,
+  type BackupState,
+  writeBackupFile,
+} from './backups.js'
 export { INTERNAL_COLLECTIONS, MEDIA } from './builtins.js'
 export type {
   AdminConfig,
@@ -28,6 +34,7 @@ export type {
   AfterDeleteHook,
   AfterReadHook,
   AuthConfig,
+  BackupsConfig,
   BeforeChangeHook,
   BeforeDeleteHook,
   BeforeValidateHook,

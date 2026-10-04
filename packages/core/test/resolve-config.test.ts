@@ -36,6 +36,7 @@ describe('resolveConfig', () => {
       'media',
       'sessions',
       'login-attempts',
+      'database-backups',
     ])
     expect(config.routes).toEqual({ api: '/api/cms' })
     expect(config.globals).toEqual([])

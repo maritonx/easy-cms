@@ -32,6 +32,8 @@ export default defineConfig({
     // "From a link" in the media library: the server downloads files from any public site.
     fromURL: { allowedHosts: ['*'] },
   },
+  // Settings → Backups: a compressed copy of the database every night, the newest 7 kept.
+  backups: { every: 'day', at: '03:00', keep: 7 },
   // Field types from packages; `type: 'color'` below.
   fieldTypes: [color],
   collections: [

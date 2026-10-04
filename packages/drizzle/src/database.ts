@@ -77,7 +77,7 @@ export async function connectDatabase(
     })
     if (args.schema === 'push') await migrator.push()
     else if (args.schema === 'verify') await migrator.verify()
-    return new DrizzleDatabase(dialect, connection, schema, migrator)
+    return new DrizzleDatabase(dialect, connection, schema, migrator, prefix)
   } catch (error) {
     await connection.close().catch(() => {})
     throw error
@@ -93,6 +93,7 @@ class DrizzleDatabase implements Database {
     private readonly connection: Connection,
     private readonly schema: SchemaModel,
     private readonly migrator: Migrator,
+    readonly tablePrefix: string,
   ) {
     this.db = connection.db
     for (const [slug, model] of schema.collections) {

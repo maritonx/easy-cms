@@ -1,9 +1,9 @@
 # Software Requirements Specification — Easy CMS
 
-- **เวอร์ชันเอกสาร:** 3.6
+- **เวอร์ชันเอกสาร:** 3.7
 - **วันที่:** 2026-10-04
 - **ผู้เขียน:** Kanawoot K.
-- **ครอบคลุม:** v0.1 (baseline) ถึง v0.31
+- **ครอบคลุม:** v0.1 (baseline) ถึง v0.32
 - **สถานะ:** Living document (อัปเดตทุกครั้งที่เพิ่มฟีเจอร์)
 - **เอกสารที่เกี่ยวข้อง:** [DESIGN.md](DESIGN.md), [ADRs](adr/)
 
@@ -487,6 +487,7 @@ AI assistant ► /api/cms/mcp ──┘                     └──► Webhook
 | FR-OPS-01 | `easy-cms backup <file>` ต้องสำเนาฐานข้อมูล SQLite ที่สอดคล้องกันได้ขณะที่ CMS ยังทำงาน (`db.backup`) ส่วน Postgres ใช้ `pg_dump` | 0.10 | MUST |
 | FR-OPS-02 | `easy-cms copy --from <config>` ต้องคัดลอกเอกสาร เวอร์ชัน ผู้ใช้ และ global ทั้งหมดข้ามฐานข้อมูล (เช่น SQLite → Postgres) โดย id คงเดิม | 0.14 | MUST |
 | FR-OPS-03 | `copy` ต้องปฏิเสธเมื่อ schema ของสองฝั่งไม่ตรงกันหรือปลายทางไม่ว่าง และต้องตั้ง sequence ของ Postgres ต่อจาก id ที่คัดลอกมา | 0.14 | MUST |
+| FR-OPS-04 | admin ต้อง backup ฐานข้อมูลได้จาก ตั้งค่า → Backups ทั้งกดเองและตามรอบ (`backups.every`) เป็นไฟล์ SQLite บีบอัดไฟล์เดียวสำหรับทุกฐานข้อมูล เก็บในที่ส่วนตัว (ไม่ใช่ uploads) เก็บตามจำนวน `keep` ดาวน์โหลดได้เฉพาะ admin พร้อมบันทึกผู้ดาวน์โหลด และแดชบอร์ดต้องเตือนเมื่อ backup ตามรอบล้มหรือหยุด | MUST |
 
 ### 3.27 หน้า Admin หลัง v0.1 (ADM)
 
@@ -721,6 +722,7 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 0.18 | SEO สำหรับ AI: crawler ของ AI, llms.txt, Markdown, IndexNow | FR-SEO-09..12 | [0021](adr/0021-seo-for-ai.md) |
 | 0.19 | Redirects plugin, `admin.group: 'settings'` | FR-RDR-*, FR-ADM-19 | [0022](adr/0022-redirects-plugin.md) |
 | 0.20 | อีเมลใน core, email-smtp, form builder | FR-EML-*, FR-FRM-*, FR-STA-06 | [0023](adr/0023-email-and-form-builder.md) |
+| 0.32 | Backups: ตามรอบและกดเอง ดาวน์โหลด การเก็บ เตือนเมื่อหยุดทำงาน | FR-OPS-04 | [0035](adr/0035-backups.md) |
 | 0.31 | หน้า ตั้งค่า → อีเมล: ดูค่า ตรวจการเชื่อมต่อ ส่งอีเมลทดสอบ | FR-EML-04 | [0034](adr/0034-admin-email-settings.md) |
 | 0.30 | หน้า "การส่ง": webhook และอีเมลที่ล้ม ส่งซ้ำ ลบ ลบอัตโนมัติ 30 วัน | FR-ADM-23 | [0033](adr/0033-admin-deliveries.md) |
 | 0.29 | แดชบอร์ดสำหรับ admin: ต้องดูแล และระบบ (`/admin/status`), ชื่อและเวอร์ชันของ plugin | FR-ADM-22, FR-PLG-12 | [0032](adr/0032-admin-status.md) |
@@ -745,6 +747,7 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 1.3 | 2026-09-25 | M5: FR-REST-08 (อัปโหลด/ไฟล์), FR-CFG-07 (`routes.api`, `serverURL`), ระบุว่า drafts ใน v0.1 ไม่มี version แยก |
 | 1.4 | 2026-09-25 | M6: ผลวัด NFR-PERF-01/02 บน Postgres 17 (Local API p95 2.7 ms, REST p95 4.3 ms), Next.js adapter ใช้ `getEasyCMS(config)` |
 | 1.5 | 2026-09-25 | M7: ผลตรวจรับ v0.1 (7.1) |
+| 3.7 | 2026-10-04 | 0.32: FR-OPS-04 |
 | 3.6 | 2026-10-04 | 0.31: FR-EML-04 |
 | 3.5 | 2026-10-04 | 0.30: FR-ADM-23 |
 | 3.4 | 2026-10-04 | 0.29: FR-ADM-22, FR-PLG-12; NFR-SEC-10 ที่ซ้ำ (ลิงก์ตั้งรหัสผ่าน) เปลี่ยนเป็น NFR-SEC-11 |

@@ -77,6 +77,7 @@ describe('postgres development push', () => {
     )
     await cms.destroy()
     expect(await tables(prefix)).toEqual([
+      'database_backups',
       'globals',
       'login_attempts',
       'media',

@@ -1,5 +1,6 @@
 import { consoleEmail, defineConfig } from '@easy-cms/core'
 import { postgres } from '@easy-cms/db-postgres'
+import { sqlite } from '@easy-cms/db-sqlite'
 import { smtp } from '@easy-cms/email-smtp'
 import { color } from '@easy-cms/fields'
 import { formBuilderPlugin } from '@easy-cms/plugin-form-builder'
@@ -32,6 +33,8 @@ export default defineConfig({
   localization: { locales: ['th', 'en'], defaultLocale: 'th' },
   // "From a link" in the media library: the server downloads files from any public site.
   upload: { fromURL: { allowedHosts: ['*'] } },
+  // Settings → Backups: every night, as a compressed SQLite file (Postgres is copied with sqlite).
+  backups: { every: 'day', at: '03:00', keep: 7, sqlite },
   // Field types from packages; `type: 'color'` below.
   fieldTypes: [color],
   collections: [

@@ -1,8 +1,9 @@
 import { existsSync } from 'node:fs'
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { createInterface } from 'node:readline/promises'
 import { parseArgs } from 'node:util'
+import { gzipSync } from 'node:zlib'
 import {
   ConfigError,
   copyDatabase,
@@ -13,6 +14,7 @@ import {
   type Logger,
   loadConfig,
   ValidationError,
+  writeBackupFile,
 } from '@easy-cms/core'
 import { startServer } from './serve.js'
 
@@ -62,7 +64,7 @@ Commands:
   create-admin            Create an admin user
   serve                   Run the CMS as its own server (admin + REST API)
   run-scheduled           Run due scheduled publishes, webhook and email retries
-  backup <file>           Copy a SQLite database to a file while the CMS runs
+  backup <file>           Copy the database to a SQLite file while the CMS runs
   copy --from <config>    Copy all content from another config's database into this one
   <plugin command>        Commands from your config's plugins, e.g. nested:rebuild
 
@@ -100,8 +102,9 @@ terminal, or read from EASY_CMS_ADMIN_PASSWORD when there is no terminal.
 `,
   backup: `Usage: easy-cms backup <file> [options]
 
-Copies the SQLite database to <file> (relative to the project root) while the CMS keeps running,
-as a consistent snapshot. The file must not exist yet. Uploads are not included: back up the
+Copies the database to <file> (relative to the project root) as a SQLite file while the CMS keeps
+running, as a consistent snapshot; a name ending in .gz is compressed. The file must not exist
+yet. Postgres needs backups: { sqlite } in the config. Uploads are not included: back up the
 uploads folder or bucket separately.
 
 Postgres: use pg_dump, e.g. pg_dump --format=custom --file=cms.dump "$DATABASE_URL".
@@ -194,9 +197,9 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
             io.err(COMMAND_HELP.backup as string)
             return 1
           }
-          if (!cms.db.backup) {
+          if (!cms.db.backup && !cms.config.backups?.sqlite) {
             io.err(
-              'This database cannot back itself up. For Postgres use pg_dump, e.g.\n  pg_dump --format=custom --file=cms.dump "$DATABASE_URL"',
+              'Postgres is copied into a SQLite file: add backups: { sqlite } to the config (sqlite from @easy-cms/db-sqlite).\nOr use pg_dump, e.g.\n  pg_dump --format=custom --file=cms.dump "$DATABASE_URL"',
             )
             return 1
           }
@@ -206,7 +209,15 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
             return 1
           }
           await mkdir(dirname(file), { recursive: true })
-          await cms.db.backup(file)
+          // `.gz`: compressed, like the backups made from the admin.
+          if (file.endsWith('.gz')) {
+            const plain = file.slice(0, -3)
+            await writeBackupFile(cms, plain)
+            await writeFile(file, gzipSync(await readFile(plain)))
+            await rm(plain, { force: true })
+          } else {
+            await writeBackupFile(cms, file)
+          }
           io.out(`Backed up the database to ${file}`)
           return 0
         }

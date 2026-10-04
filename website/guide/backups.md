@@ -8,7 +8,8 @@ What to back up, how to restore, and how to upgrade Easy CMS safely.
 
 Easy CMS keeps everything in two places: the **database** (documents, users, versions, scheduled
 jobs, queued webhooks and the migrations table) and the **uploads** (local `upload.dir` or your
-S3 bucket). Back up both. It doesn't back them up for you.
+S3 bucket). Back up both. The database can be backed up [from the admin](#from-the-admin), on a
+schedule; uploads are yours to back up.
 
 ## What to back up
 
@@ -21,6 +22,60 @@ S3 bucket). Back up both. It doesn't back them up for you.
 
 Losing `EASY_CMS_SECRET` loses no content: it signs sessions and preview links, not passwords.
 Setting a new one signs everyone out and invalidates preview links.
+
+## From the admin
+
+<Screenshot name="backups" alt="Settings → Backups: the schedule, back up now, and the backups with Download" />
+
+Admins find **Settings → Backups** in the admin: **Back up now**, the list of backups with who
+made them, **Download** and **Delete**. Scheduled backups and how many to keep are set in the
+config:
+
+```ts
+import { sqlite } from '@easy-cms/db-sqlite'
+
+backups: {
+  every: 'day',          // or 'week'; leave out for backups by hand only
+  at: '03:00',           // the server's time
+  keep: 7,               // older ones are deleted
+  // dir: 'backups',     // default; never served publicly
+  // storage: s3Storage({ bucket: 'my-private-backups' }), // instead of the server's disk
+  // sqlite,             // Postgres only: see below
+},
+```
+
+- **Each backup is one compressed SQLite file** (`<site>-YYYY-MM-DD-HHmm.db.gz`) of the whole
+  database: documents, users, versions, settings. SQLite copies itself; **Postgres** is copied
+  into a SQLite file, so pass `sqlite` from `@easy-cms/db-sqlite` as `backups.sqlite` (install the
+  package). For a large Postgres database, keep your provider's backups or `pg_dump` too.
+- **Uploaded files are not included**: back up the uploads folder, or turn on versioning for the
+  S3 bucket.
+- **Where they're kept:** `backups/` on the server's disk by default, which is lost with the server
+  (and on serverless hosts, with every deploy). Set `backups.storage` to a **private** bucket, or
+  download them. Never use the uploads folder or a public bucket: a backup holds password hashes
+  and API key hashes.
+- **Scheduled backups** run with [scheduled jobs](./drafts#scheduled-publishing): every minute on a
+  long-running server, or from your cron calling `<api>/jobs/run`. One runs at a time; one a
+  process stopped in the middle is finished by the next run. The dashboard tells admins when the
+  last scheduled backup failed, or when none finished in two periods.
+- **Downloads** go through the server, for admins only, and the list shows who downloaded each
+  backup last. Keep downloaded files as safe as the database.
+- Upgrading to Easy CMS 0.32 adds the `database-backups` table: create a migration
+  (`npx easy-cms migrate:create backups`).
+
+### Restoring a backup from the admin
+
+Restoring is done on the server, not in the admin. Unpack the file first:
+
+```bash
+gunzip my-site-2026-10-04-0300.db.gz
+```
+
+- **SQLite:** stop the server, replace `cms.db` with the unpacked file (delete `cms.db-wal` and
+  `cms.db-shm` if they exist), start the server.
+- **Postgres:** copy the file into an empty database with `easy-cms copy`, as in
+  [moving from SQLite to Postgres](./recipes/sqlite-to-postgres#with-content-to-keep): a config
+  whose `db` is `sqlite({ url: 'file:./my-site-2026-10-04-0300.db' })` is the source.
 
 ## SQLite
 

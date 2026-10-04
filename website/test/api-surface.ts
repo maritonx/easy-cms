@@ -19,6 +19,7 @@ export const CONFIG_INTERFACES = [
   'AuthConfig',
   'UploadConfig',
   'UploadFromURLConfig',
+  'BackupsConfig',
   'ImageSize',
   'LocalizationConfig',
   'CollectionConfig',

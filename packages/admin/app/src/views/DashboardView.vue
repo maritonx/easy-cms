@@ -121,6 +121,7 @@ const ANCHORS: Record<AdminAttention['id'], string> = {
   scheduled: 'late-scheduled-publishing',
   'no-email': 'no-email',
   'no-server-url': 'no-serverurl',
+  backups: 'backups',
 }
 /** An attention item as text, with where the docs explain the fix. */
 function describe(item: AdminAttention) {
@@ -146,6 +147,15 @@ function describe(item: AdminAttention) {
         title: t('status.scheduled', { count: item.count }),
         detail: t('status.scheduledDetail'),
         href,
+      }
+    case 'backups':
+      return {
+        title: t(item.failed ? 'status.backupFailed' : 'status.backupOverdue'),
+        detail: item.lastDone
+          ? t('status.backupLast', { date: formatDate(item.lastDone) })
+          : t('status.backupNone'),
+        href,
+        to: '/backups',
       }
     case 'no-email':
       return { title: t('status.noEmail'), detail: t('status.noEmailDetail'), href }

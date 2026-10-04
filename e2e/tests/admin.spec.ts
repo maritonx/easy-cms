@@ -1022,6 +1022,22 @@ test.describe('logged in as admin', () => {
     await expect(system.getByText('@easy-cms/plugin-seo')).toBeVisible()
     await expect(system).toContainText('color')
 
+    // Settings → Backups: back up now, then download it.
+    await page
+      .getByRole('navigation', { name: 'Main' })
+      .getByRole('link', { name: 'Backups' })
+      .click()
+    await expect(page.getByRole('heading', { level: 1, name: 'Backups' })).toBeVisible()
+    await page.getByRole('button', { name: 'Back up now' }).click()
+    const latest = page.getByRole('region', { name: 'Backups' }).getByRole('listitem').first()
+    await expect(latest).toContainText('Done', { timeout: 20_000 })
+    await expect(latest).toContainText(/\.db\.gz/)
+    const href = await latest.getByRole('link', { name: 'Download' }).getAttribute('href')
+    const file = await page.request.get(href as string)
+    expect(file.status()).toBe(200)
+    expect(file.headers()['content-type']).toBe('application/gzip')
+    expect([...(await file.body()).subarray(0, 2)]).toEqual([0x1f, 0x8b])
+
     // Settings → Email: the adapter in use (console in the examples) and a test email.
     await page
       .getByRole('navigation', { name: 'Main' })
@@ -1172,6 +1188,7 @@ test.describe('logged in as editor', () => {
     ).toHaveCount(0)
     expect((await page.request.get('/api/cms/admin/deliveries?kind=email')).status()).toBe(403)
     expect((await page.request.get('/api/cms/admin/email')).status()).toBe(403)
+    expect((await page.request.get('/api/cms/admin/backups')).status()).toBe(403)
   })
 
   test('changes their own password (FR-ADM-13)', async ({ page }) => {

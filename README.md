@@ -130,6 +130,7 @@ cd my-cms && npm run dev       # http://localhost:4000/admin
 - SQLite (libSQL) or Postgres (postgres.js or PGlite) through Drizzle
 - Schema push in development, reviewed migration files in production
 - Uploads on disk or S3, Cloudflare R2 and MinIO, also from links (the server downloads them)
+- Database backups on a schedule or by hand from the admin, downloadable
 - `easy-cms` CLI: migrations, backups, copying between databases, scheduled jobs
 
 **SEO and AI**

@@ -50,6 +50,9 @@ importers:
       '@easy-cms/db-postgres':
         specifier: workspace:^
         version: link:../../packages/db-postgres
+      '@easy-cms/db-sqlite':
+        specifier: workspace:^
+        version: link:../../packages/db-sqlite
       '@easy-cms/email-smtp':
         specifier: workspace:^
         version: link:../../packages/email-smtp

@@ -1,3 +1,4 @@
+import { backupAttention } from '../backups.js'
 import { EMAIL_DELIVERIES, SCHEDULED_JOBS, WEBHOOK_DELIVERIES } from '../builtins.js'
 import type { EasyCMS } from '../local-api.js'
 import { VERSION } from '../version.js'
@@ -14,6 +15,8 @@ export type AdminAttention =
   | { id: 'no-email' }
   /** In production without `serverURL`: links in emails can't be made. */
   | { id: 'no-server-url' }
+  /** The last scheduled backup failed, or none finished in two periods (`backups.every`). */
+  | { id: 'backups'; failed: boolean; lastDone: string | null }
 
 /** What the dashboard shows admins (`GET <api>/admin/status`). */
 export interface AdminStatus {
@@ -93,6 +96,9 @@ export async function adminStatus(cms: EasyCMS): Promise<AdminStatus> {
     })
     if (count > 0) attention.push({ id: 'scheduled', count })
   }
+
+  const backups = await backupAttention(cms)
+  if (backups) attention.push(backups)
 
   if (!config.email) attention.push({ id: 'no-email' })
   if (!config.serverURL && process.env.NODE_ENV === 'production')

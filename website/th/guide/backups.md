@@ -21,6 +21,52 @@ Easy CMS เก็บข้อมูลไว้สองที่: **ฐาน�
 ถ้า `EASY_CMS_SECRET` หาย ข้อมูลไม่หาย เพราะใช้เซ็น session และลิงก์ preview ไม่ได้ใช้กับรหัสผ่าน
 การตั้งค่าใหม่จะทำให้ทุกคนหลุดออกจากระบบและลิงก์ preview เดิมใช้ไม่ได้
 
+## จากหน้า admin {#from-the-admin}
+
+<Screenshot name="backups" alt="ตั้งค่า → Backups: รอบที่ตั้งไว้ ปุ่ม Backup ตอนนี้ และรายการ backup พร้อมปุ่มดาวน์โหลด" />
+
+admin เปิด **ตั้งค่า → Backups** ในหน้า admin ได้ มีปุ่ม **Backup ตอนนี้** รายการ backup พร้อมบอกว่าใครทำ ปุ่ม **ดาวน์โหลด**
+และ **ลบ** ส่วนรอบอัตโนมัติและจำนวนที่เก็บตั้งใน config:
+
+```ts
+import { sqlite } from '@easy-cms/db-sqlite'
+
+backups: {
+  every: 'day',          // หรือ 'week' ไม่ใส่ = กดทำเองเท่านั้น
+  at: '03:00',           // เวลาของ server
+  keep: 7,               // ชุดที่เก่ากว่านี้จะถูกลบ
+  // dir: 'backups',     // ค่าเริ่มต้น ไม่เปิดเป็น URL สาธารณะ
+  // storage: s3Storage({ bucket: 'my-private-backups' }), // แทนดิสก์ของ server
+  // sqlite,             // เฉพาะ Postgres ดูด้านล่าง
+},
+```
+
+- **backup แต่ละชุดเป็นไฟล์ SQLite บีบอัดไฟล์เดียว** (`<ชื่อเว็บ>-YYYY-MM-DD-HHmm.db.gz`) ของทั้งฐานข้อมูล: เอกสาร ผู้ใช้
+  เวอร์ชัน การตั้งค่า SQLite คัดลอกตัวเองได้ ส่วน **Postgres** ถูกคัดลอกลงไฟล์ SQLite จึงต้องส่ง `sqlite` จาก
+  `@easy-cms/db-sqlite` เป็น `backups.sqlite` (ติดตั้งแพ็กเกจนั้นด้วย) ถ้าฐานข้อมูล Postgres ใหญ่ ควรใช้ backup ของผู้ให้บริการ
+  หรือ `pg_dump` ควบคู่ไปด้วย
+- **ไม่รวมไฟล์ที่อัปโหลด**: backup โฟลเดอร์ uploads แยก หรือเปิด versioning ของ S3 bucket
+- **เก็บที่ไหน:** ค่าเริ่มต้นคือ `backups/` บนดิสก์ของ server ซึ่งหายไปพร้อม server (และบน serverless หายทุกครั้งที่ deploy)
+  ตั้ง `backups.storage` เป็น bucket **ส่วนตัว** หรือดาวน์โหลดเก็บไว้ ห้ามใช้โฟลเดอร์ uploads หรือ bucket สาธารณะ
+  เพราะ backup มี hash ของรหัสผ่านและ API key
+- **backup ตามรอบ** ทำงานพร้อม[งานที่ตั้งเวลาไว้](./drafts#scheduled-publishing): ทุกนาทีบน server ที่ทำงานต่อเนื่อง หรือจาก cron
+  ที่เรียก `<api>/jobs/run` ทำทีละชุด ชุดที่ค้างเพราะ process หยุดกลางทางจะถูกทำต่อในรอบถัดไป แดชบอร์ดจะเตือน admin
+  เมื่อ backup ตามรอบครั้งล่าสุดไม่สำเร็จ หรือไม่มีชุดที่สำเร็จนานเกินสองรอบ
+- **การดาวน์โหลด** ผ่าน server เฉพาะ admin และรายการบอกว่าใครดาวน์โหลดครั้งล่าสุด เก็บไฟล์ที่ดาวน์โหลดให้ปลอดภัยเท่ากับฐานข้อมูล
+- อัปเกรดเป็น Easy CMS 0.32 จะเพิ่มตาราง `database-backups` ต้องสร้าง migration (`npx easy-cms migrate:create backups`)
+
+### กู้คืนจาก backup ของหน้า admin {#restoring-a-backup-from-the-admin}
+
+การกู้คืนทำบน server ไม่ใช่ในหน้า admin แตกไฟล์ก่อน:
+
+```bash
+gunzip my-site-2026-10-04-0300.db.gz
+```
+
+- **SQLite:** หยุด server แทนที่ `cms.db` ด้วยไฟล์ที่แตกแล้ว (ลบ `cms.db-wal` และ `cms.db-shm` ถ้ามี) แล้วเริ่ม server
+- **Postgres:** คัดลอกไฟล์เข้าฐานข้อมูลว่างด้วย `easy-cms copy` ตาม[การย้ายจาก SQLite ไป Postgres](./recipes/sqlite-to-postgres#with-content-to-keep)
+  โดยใช้ config ที่ `db` เป็น `sqlite({ url: 'file:./my-site-2026-10-04-0300.db' })` เป็นต้นทาง
+
 ## SQLite {#sqlite}
 
 ฐานข้อมูลทำงานในโหมด WAL การคัดลอก `cms.db` ขณะ server ทำงานอาจได้ไฟล์ที่เสีย ให้ใช้ `easy-cms backup` แทน

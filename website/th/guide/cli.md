@@ -49,7 +49,7 @@ npx easy-cms <command> [--config <file>] [--cwd <dir>]
 | [`migrate:status`](#migrate-status) | แสดงรายการ migration และสถานะว่ารันแล้วหรือยัง |
 | [`create-admin`](#create-admin) | สร้างผู้ใช้ |
 | [`generate:types`](#generate-types) | เขียน type ของ TypeScript สำหรับแอปอื่น |
-| [`backup <file>`](#backup) | คัดลอกฐานข้อมูล SQLite ขณะที่ CMS ทำงานอยู่ |
+| [`backup <file>`](#backup) | คัดลอกฐานข้อมูลเป็นไฟล์ SQLite ขณะที่ CMS ทำงานอยู่ |
 | [`copy --from <config>`](#copy) | คัดลอกเนื้อหาทั้งหมดไปอีกฐานข้อมูล เช่น จาก SQLite ไป Postgres |
 | [`run-scheduled`](#run-scheduled) | รันงานตั้งเวลาที่ถึงกำหนดและส่ง webhook ซ้ำหนึ่งรอบ |
 | [`serve`](#serve) | รัน CMS เป็น server ของตัวเอง |
@@ -111,9 +111,9 @@ frontend ใน repo อื่นจึงใช้ได้ ส่วนแอ�
 npx easy-cms backup backups/cms-2026-09-28.db
 ```
 
-คัดลอกฐานข้อมูล SQLite ไปไฟล์ใหม่ขณะที่ CMS ยังทำงาน เป็น snapshot ที่ข้อมูลตรงกันทั้งไฟล์
-ไฟล์ปลายทางต้องยังไม่มีอยู่ ไม่รวมไฟล์อัปโหลด ให้สำรองโฟลเดอร์ uploads หรือ bucket แยก
-สำหรับ Postgres ใช้ `pg_dump` ดู [Backup](./backups)
+คัดลอกฐานข้อมูลเป็นไฟล์ SQLite ใหม่ขณะที่ CMS ยังทำงาน เป็น snapshot ที่ข้อมูลตรงกันทั้งไฟล์ ชื่อที่ลงท้าย `.gz` จะถูกบีบอัด
+เหมือน backup จากหน้า admin ไฟล์ปลายทางต้องยังไม่มีอยู่ Postgres ต้องมี `backups: { sqlite }` ใน config (หรือใช้ `pg_dump`)
+ไม่รวมไฟล์อัปโหลด ให้สำรองโฟลเดอร์ uploads หรือ bucket แยก ดู [Backup](./backups)
 
 ### copy {#copy}
 

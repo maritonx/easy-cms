@@ -17,6 +17,7 @@ import {
 import { Auth } from './auth/auth.js'
 import { hashPassword, MIN_PASSWORD_LENGTH } from './auth/password.js'
 import { signPreviewToken, verifyPreviewToken } from './auth/tokens.js'
+import { runDueBackups } from './backups.js'
 import {
   EMAIL_DELIVERIES,
   INTERNAL_COLLECTIONS,
@@ -1230,6 +1231,9 @@ export class EasyCMS<C extends Config = Config> {
   }> {
     const scheduled = await this.runScheduled(now)
     await this.pruneFailedDeliveries(now)
+    await runDueBackups(this as unknown as EasyCMS, now).catch((error) =>
+      this.logger.error(`Backups: ${(error as Error).message}`),
+    )
     return {
       ...scheduled,
       webhooks: await this.retryWebhooks(now),

@@ -32,6 +32,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `commands` | `CliCommand[]` | `[]` | `easy-cms <name>` commands, e.g. from plugins: `{ name, description, help?, run({ cms, args, log }) }`. [CLI](/guide/cli#commands-from-plugins) |
 | `apiKeys` | `boolean` | `false` | API keys under Settings, for scripts and other apps. [API keys](/guide/api-keys) |
 | `email` | `EmailAdapter` | — | Sends email for plugins, e.g. `smtp()` or `consoleEmail()`. [Email](/guide/email) |
+| `backups` | `BackupsConfig` | by hand only | Database backups on a schedule. See [backups](#backups). |
 | `plugins` | `Plugin[]` | `[]` | `(config) => config`, run in order before validation; `definePlugin(fn, { name, version })` names one for the dashboard. [Plugins](/guide/plugins) |
 | `fieldTypes` | `FieldTypeDefinition[]` | `[]` | Field types from packages, e.g. `color` from `@easy-cms/fields`. [Custom field types](/guide/field-types) |
 
@@ -87,6 +88,18 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `access` | `({ user }) => boolean` | Who sees it, checked on the server. Default: every logged-in user. |
 
 [Pages and dashboard panels](/guide/plugins#pages-and-dashboard-panels) shows how to write them.
+
+<!-- api: BackupsConfig -->
+## backups
+
+| Option | Type | Default | |
+|---|---|---|---|
+| `every` | `'day' \| 'week'` | — | Back up automatically. Without it, admins back up by hand. |
+| `at` | `string` | `03:00` | When, as `HH:MM` in the server's time zone. |
+| `keep` | `number` | `7` | Finished backups to keep; older ones are deleted. |
+| `dir` | `string` | `backups` | Folder for the default local storage. Never served publicly. |
+| `storage` | `StorageAdapter` | local disk | E.g. `s3Storage()` with a private bucket. |
+| `sqlite` | `(options) => DatabaseAdapter` | — | Postgres only: `sqlite` from `@easy-cms/db-sqlite`, which writes the backup file. [Backups](/guide/backups#from-the-admin) |
 
 <!-- api: AuthConfig -->
 ## auth

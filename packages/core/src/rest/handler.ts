@@ -2,6 +2,7 @@ import type { AuthUser } from '../access.js'
 import { API_KEYS, type ApiKeyPermissions } from '../api-keys.js'
 import type { Session } from '../auth/auth.js'
 import { safeEqual } from '../auth/tokens.js'
+import { deleteBackup, downloadBackup, listBackups, startBackup } from '../backups.js'
 import { INTERNAL_COLLECTIONS, MEDIA, USERS } from '../builtins.js'
 import type { Config } from '../config.js'
 import { parseId } from '../document.js'
@@ -374,6 +375,40 @@ async function route(
       throw ctx.user ? new HttpError('Forbidden', 403) : new UnauthorizedError()
     }
     return { body: await cms.runJobs() }
+  }
+
+  // Settings → Backups, for admins: list, back up now, download, delete.
+  if (first === 'admin' && second === 'backups') {
+    if (!ctx.user) throw new UnauthorizedError()
+    if (ctx.user.role !== 'admin' || ctx.user.apiKey) throw new ForbiddenError()
+    const [, , id, action, extra] = segments
+    if (extra !== undefined) throw new HttpError('Not found', 404)
+    if (id === undefined) {
+      if (method === 'GET') return { body: await listBackups(cms) }
+      if (method === 'POST')
+        return { status: 202, body: await startBackup(cms, 'manual', ctx.user.email) }
+      throw methodNotAllowed(ctx, 'GET, POST')
+    }
+    const parsed = parseId(id)
+    if (parsed === undefined) throw new HttpError('Not found', 404)
+    if (action === 'download') {
+      if (method !== 'GET') throw methodNotAllowed(ctx, 'GET')
+      const file = await downloadBackup(cms, parsed, ctx.user.email)
+      return {
+        body: new Response(file.body as Uint8Array<ArrayBuffer>, {
+          headers: {
+            'content-type': 'application/gzip',
+            'content-disposition': `attachment; filename="${file.filename}"`,
+            'cache-control': 'no-store',
+            'x-content-type-options': 'nosniff',
+          },
+        }),
+      }
+    }
+    if (action !== undefined) throw new HttpError('Not found', 404)
+    if (method !== 'DELETE') throw methodNotAllowed(ctx, 'DELETE')
+    await deleteBackup(cms, parsed)
+    return { body: { deleted: 1 } }
   }
 
   // Settings → Email, for admins: the adapter's settings, a connection check and a test email.

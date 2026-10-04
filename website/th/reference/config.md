@@ -31,6 +31,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `commands` | `CliCommand[]` | `[]` | คำสั่ง `easy-cms <name>` เช่นจาก plugin: `{ name, description, help?, run({ cms, args, log }) }` [CLI](/th/guide/cli#commands-from-plugins) |
 | `apiKeys` | `boolean` | `false` | API key ใต้ตั้งค่า สำหรับสคริปต์และแอปอื่น [API keys](/th/guide/api-keys) |
 | `email` | `EmailAdapter` | — | ส่งอีเมลให้ plugin เช่น `smtp()` หรือ `consoleEmail()` [อีเมล](/th/guide/email) |
+| `backups` | `BackupsConfig` | กดทำเองเท่านั้น | backup ฐานข้อมูลตามรอบ ดู [backups](#backups) |
 | `plugins` | `Plugin[]` | `[]` | `(config) => config` ทำงานตามลำดับก่อนตรวจ config `definePlugin(fn, { name, version })` ตั้งชื่อให้แสดงบนแดชบอร์ด [Plugins](/th/guide/plugins) |
 | `fieldTypes` | `FieldTypeDefinition[]` | `[]` | ชนิด field จากแพ็กเกจ เช่น `color` จาก `@easy-cms/fields` [ชนิด field เพิ่มเติม](/th/guide/field-types) |
 
@@ -86,6 +87,18 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `access` | `({ user }) => boolean` | ใครเห็น ตรวจฝั่ง server ค่าเริ่มต้น: ทุกคนที่ login |
 
 วิธีเขียนดูที่ [หน้าของ plugin และกล่องบนแดชบอร์ด](/th/guide/plugins#pages-and-dashboard-panels)
+
+<!-- api: BackupsConfig -->
+## backups {#backups}
+
+| ตัวเลือก | Type | ค่าเริ่มต้น | |
+|---|---|---|---|
+| `every` | `'day' \| 'week'` | — | backup อัตโนมัติ ถ้าไม่ตั้ง admin กดทำเองได้ |
+| `at` | `string` | `03:00` | เวลา `HH:MM` ตามเขตเวลาของ server |
+| `keep` | `number` | `7` | จำนวน backup ที่สำเร็จที่จะเก็บ ชุดที่เก่ากว่าจะถูกลบ |
+| `dir` | `string` | `backups` | โฟลเดอร์ของที่เก็บในเครื่อง ไม่เปิดเป็น URL สาธารณะ |
+| `storage` | `StorageAdapter` | ดิสก์ในเครื่อง | เช่น `s3Storage()` กับ bucket ส่วนตัว |
+| `sqlite` | `(options) => DatabaseAdapter` | — | เฉพาะ Postgres: `sqlite` จาก `@easy-cms/db-sqlite` ใช้เขียนไฟล์ backup [Backup](/th/guide/backups#from-the-admin) |
 
 <!-- api: AuthConfig -->
 ## auth {#auth}

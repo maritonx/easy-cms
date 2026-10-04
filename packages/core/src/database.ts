@@ -84,6 +84,8 @@ export interface Database {
   readonly backup?: ((file: string) => Promise<void>) | undefined
   /** Raw table access for copying a whole database to another (`easy-cms copy`). */
   readonly transfer?: DatabaseTransfer | undefined
+  /** The prefix of its tables (`tablePrefix`), so a copy (a backup) can use the same. */
+  readonly tablePrefix?: string | undefined
 
   destroy(): Promise<void>
 }

@@ -18,3 +18,4 @@ uploads/
 
 # Smoke test registry
 smoke/.registry/
+backups/

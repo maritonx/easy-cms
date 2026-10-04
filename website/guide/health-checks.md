@@ -62,6 +62,14 @@ minute. On serverless platforms, call `<api>/jobs/run` every minute from a cron 
 `Authorization: Bearer $CRON_SECRET`, or run `npx easy-cms run-scheduled` from one. The late jobs
 run on the next call, and so do webhook and email retries.
 
+## Backups
+
+**Shown when** `backups.every` is set and the last scheduled backup failed, or no backup finished
+in two periods (two days, or two weeks). See its error on **Settings → Backups**; the usual causes
+are a full disk, storage that refuses the file, Postgres without `backups.sqlite`, or nothing
+running the jobs (as for [late scheduled publishing](#late-scheduled-publishing)). Then
+**Back up now** to check. See [Backups](./backups#from-the-admin).
+
 ## No email
 
 **Shown when** the config has no `email`. Without it there are no forgotten-password links, no

@@ -21,6 +21,7 @@ Served at `routes.api` (default `/api/cms`). All responses are JSON; access rule
 | POST | `/media` | Upload (`multipart/form-data`, field `file`), or JSON `{ url }` to download it ([from a link](/guide/uploads#from-a-link)) |
 | GET | `/media/file/:name` | A stored file (public) |
 | GET | `/admin/status` | For admins: the system and what needs attention ([Health checks](/guide/health-checks)) |
+| GET | `/admin/backups` | For admins: the backup settings and backups. `POST /admin/backups` backs up now (202); `GET /admin/backups/:id/download` downloads one; `DELETE /admin/backups/:id` deletes one |
 | GET | `/admin/email` | For admins: the email adapter and its settings (never secrets). `POST /admin/email/verify` checks the connection; `POST /admin/email/test` with `{ to?, locale? }` sends a test email now (5 in 10 minutes) |
 | GET | `/admin/deliveries` | For admins: saved webhook deliveries or emails (`kind=webhook\|email`, `state=failed\|pending`, `page`). `POST /admin/deliveries/:kind/:id/retry` and `/:kind/retry` (all failed) send now; `DELETE /admin/deliveries/:kind/:id` and `/:kind` (all failed) delete |
 | GET | `/:collection/:id/versions` | Versions, newest first. Query: `limit`, `page` |

@@ -17,6 +17,8 @@ const RESERVED_SLUGS = new Set([
   'document-versions',
   'scheduled-jobs',
   'webhook-deliveries',
+  'email-deliveries',
+  'database-backups',
   'api-keys',
   'jobs',
   'migrations',
@@ -48,6 +50,7 @@ export function validateConfig(config: Config): ConfigIssue[] {
   validateAdmin(config, add)
   validateAdminViews(config, add)
   validateUpload(config, add)
+  validateBackups(config, add)
   validateAuth(config, add)
   validateCors(config.cors, add)
   validateLocalization(config, add)
@@ -517,6 +520,42 @@ function validateUpload(config: Config, add: Add) {
 /** `*`, `host.name` or `*.host.name`: no scheme, port or path. */
 const HOST_PATTERN =
   /^(\*|(\*\.)?[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*)$/i
+
+function validateBackups(config: Config, add: Add) {
+  const backups: unknown = config.backups
+  if (backups === undefined) return
+  if (typeof backups !== 'object' || backups === null) {
+    add('backups', 'must be an object', "e.g. backups: { every: 'day', keep: 7 }")
+    return
+  }
+  const { every, at, keep, dir, storage, sqlite } = backups as Record<string, unknown>
+  if (every !== undefined && every !== 'day' && every !== 'week')
+    add('backups.every', 'must be "day" or "week"')
+  if (at !== undefined && (typeof at !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(at)))
+    add('backups.at', 'must be a time like "03:00"')
+  if (keep !== undefined && !(Number.isInteger(keep) && (keep as number) >= 1))
+    add('backups.keep', 'must be a whole number, 1 or more')
+  if (dir !== undefined && (typeof dir !== 'string' || dir.trim() === ''))
+    add('backups.dir', 'must be a folder name')
+  if (
+    typeof dir === 'string' &&
+    dir.replace(/^\.\//, '').replace(/\/+$/, '') ===
+      (config.upload?.dir ?? 'uploads').replace(/^\.\//, '').replace(/\/+$/, '')
+  )
+    add('backups.dir', 'must not be the uploads folder: uploads are served publicly')
+  if (
+    storage !== undefined &&
+    (typeof storage !== 'object' ||
+      storage === null ||
+      typeof (storage as { put?: unknown }).put !== 'function')
+  )
+    add('backups.storage', 'must be a storage adapter, e.g. s3Storage()')
+  if (sqlite !== undefined && typeof sqlite !== 'function')
+    add(
+      'backups.sqlite',
+      "must be the sqlite adapter, e.g. import { sqlite } from '@easy-cms/db-sqlite'",
+    )
+}
 
 function asArray<T>(value: readonly T[] | undefined, path: string, add: Add): readonly T[] {
   if (value === undefined) return []
