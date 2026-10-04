@@ -76,7 +76,9 @@ const QUEUE_DELAYS = [60_000, 5 * 60_000, 30 * 60_000, 2 * 3_600_000, 6 * 3_600_
 const CLAIM = 5 * 60_000
 const TIMEOUT = 10_000
 
-type Attempt = { ok: true } | { ok: false; error: string }
+/** The result of one attempt to send a delivery. */
+export type WebhookAttempt = { ok: true } | { ok: false; error: string }
+type Attempt = WebhookAttempt
 
 /** Sends events to the configured webhooks without holding up the operation that caused them. */
 export class Webhooks {
@@ -148,6 +150,18 @@ export class Webhooks {
       if (delay === undefined) this.giveUp(hook, queued.event, result.error, attempts)
     }
     return { sent, failed }
+  }
+
+  /**
+   * One attempt now for a saved delivery (the admin's Retry), with the webhook's current headers
+   * and secret.
+   */
+  async sendNow(
+    delivery: Pick<QueuedDelivery, 'url' | 'event' | 'body' | 'delivery'>,
+  ): Promise<WebhookAttempt> {
+    const hook = this.hooks.find((h) => h.url === delivery.url)
+    if (!hook) return { ok: false, error: 'this webhook is no longer in the config' }
+    return this.attempt(hook, delivery.event, delivery.body, delivery.delivery)
   }
 
   private track(delivery: Promise<void>) {

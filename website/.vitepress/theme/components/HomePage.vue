@@ -11,7 +11,7 @@ const { isDark } = useData()
 
 const COPY = {
   en: {
-    badge: 'New in 0.29: health checks on the dashboard',
+    badge: 'New in 0.30: retry failed webhooks and emails in the admin',
     badgeLink: 'health-checks',
     title: 'Your CMS,',
     titleAccent: 'inside your app',
@@ -186,7 +186,7 @@ const COPY = {
     ctaGuide: 'Read the guide',
   },
   th: {
-    badge: 'ใหม่ใน 0.29: ตรวจสุขภาพระบบบนแดชบอร์ด',
+    badge: 'ใหม่ใน 0.30: ส่ง webhook และอีเมลที่ล้มซ้ำได้จากหน้า admin',
     badgeLink: 'health-checks',
     title: 'CMS ที่อยู่',
     titleAccent: 'ในแอปของคุณ',

@@ -1229,6 +1229,7 @@ export class EasyCMS<C extends Config = Config> {
     emails: { sent: number; failed: number }
   }> {
     const scheduled = await this.runScheduled(now)
+    await this.pruneFailedDeliveries(now)
     return {
       ...scheduled,
       webhooks: await this.retryWebhooks(now),
@@ -1507,6 +1508,61 @@ export class EasyCMS<C extends Config = Config> {
     const job = (await this.pendingJobs(parent, doc)).find((j) => String(j.id) === String(jobId))
     if (!job) throw new NotFoundError('scheduled job', jobId)
     await this.db.delete({ collection: SCHEDULED_JOBS, id: job.id })
+  }
+
+  /**
+   * @internal One attempt now for a saved webhook delivery or email (the admin's Retry): removed
+   * when it is sent, otherwise kept as failed with the new error.
+   */
+  async retryDelivery(
+    kind: 'webhook' | 'email',
+    id: ID,
+  ): Promise<{ ok: true } | { ok: false; error: string }> {
+    const collection = kind === 'webhook' ? WEBHOOK_DELIVERIES : EMAIL_DELIVERIES
+    const row = await this.db.findById({ collection, id })
+    if (!row) throw new NotFoundError(collection, id)
+    const error =
+      kind === 'webhook'
+        ? await this.webhooks
+            .sendNow(row as unknown as QueuedDelivery)
+            .then((result) => (result.ok ? undefined : result.error))
+        : await this.mailer.sendNow(String(row.message))
+    if (error === undefined) {
+      await this.db.delete({ collection, id })
+      return { ok: true }
+    }
+    const { id: _id, ...data } = row
+    await this.db.update({
+      collection,
+      id,
+      data: {
+        ...data,
+        attempts: Number(row.attempts ?? 0) + 1,
+        state: 'failed',
+        error,
+        updatedAt: new Date().toISOString(),
+      },
+    })
+    return { ok: false, error }
+  }
+
+  /** Removes webhook deliveries and emails that failed more than 30 days ago. */
+  private async pruneFailedDeliveries(now: Date): Promise<void> {
+    const before = new Date(now.getTime() - 30 * 86_400_000).toISOString()
+    for (const collection of [WEBHOOK_DELIVERIES, EMAIL_DELIVERIES]) {
+      if (!this.config.collections.some((c) => c.slug === collection)) continue
+      for (;;) {
+        const { docs } = await this.db.find({
+          collection,
+          where: { and: [{ state: { equals: 'failed' } }, { updatedAt: { lt: before } }] },
+          sort: ['updatedAt'],
+          limit: 100,
+          page: 1,
+        })
+        for (const doc of docs) await this.db.delete({ collection, id: doc.id })
+        if (docs.length < 100) break
+      }
+    }
   }
 
   // -------------------------------------------------------------------------

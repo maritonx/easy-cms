@@ -1022,6 +1022,20 @@ test.describe('logged in as admin', () => {
     await expect(system.getByText('@easy-cms/plugin-seo')).toBeVisible()
     await expect(system).toContainText('color')
 
+    // Saved emails and webhook deliveries, under Settings (email is set up in the examples).
+    await page
+      .getByRole('navigation', { name: 'Main' })
+      .getByRole('link', { name: 'Deliveries' })
+      .click()
+    await expect(page.getByRole('heading', { level: 1, name: 'Deliveries' })).toBeVisible()
+    await expect(page.getByRole('button', { name: /^Failed \(\d+\)$/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    await page.getByRole('button', { name: /^Waiting/ }).click()
+    await expect(page).toHaveURL(/state=pending/)
+    await page.goto('/admin/')
+
     await tiles.getByRole('link', { name: 'Create Post' }).click()
     await expect(page).toHaveURL(/\/admin\/collections\/posts\/new$/)
   })
@@ -1143,6 +1157,10 @@ test.describe('logged in as editor', () => {
     await expect(page.getByRole('heading', { name: 'Drafts to review' })).toBeVisible()
     await expect(page.getByRole('region', { name: 'System' })).toHaveCount(0)
     expect((await page.request.get('/api/cms/admin/status')).status()).toBe(403)
+    await expect(
+      page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Deliveries' }),
+    ).toHaveCount(0)
+    expect((await page.request.get('/api/cms/admin/deliveries?kind=email')).status()).toBe(403)
   })
 
   test('changes their own password (FR-ADM-13)', async ({ page }) => {

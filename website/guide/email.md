@@ -85,7 +85,8 @@ anything that comes from visitors before you put it in `html`.
 `sendEmail` resolves once the email is saved in the database (the internal `email-deliveries`
 collection); it is sent in the background. When sending fails (the SMTP server is down, a
 limit is reached), the email is tried again after 1 minute, then 5, 30 minutes, 2, 6 and 12
-hours, and then marked failed. Retries run with [scheduled jobs](./drafts#scheduled-publishing):
+hours, and then marked failed: admins see failed emails under **Settings → Deliveries** and can
+retry or delete them; they are deleted after 30 days. Retries run with [scheduled jobs](./drafts#scheduled-publishing):
 every minute on a long-running server, or from your cron (`GET <api>/jobs/run`).
 
 On serverless hosts, call `await cms.flushEmails()` before the function returns, or let the cron

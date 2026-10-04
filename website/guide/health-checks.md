@@ -31,20 +31,25 @@ over about a day, got an error. The panel shows how many, and the address that f
 - The URL in `webhooks` is still right (a redeployed build hook often gets a new address).
 - The receiver checks the signature with the same secret.
 
-Failed deliveries are not retried. Once the receiver works, trigger what it needs again (for a
-site build, publish or save once more).
+Once the receiver works, open **Settings → Deliveries** (the banner links there): each failed
+delivery shows what changed, the address, its last error and the body it sent, with **Retry**
+(one attempt now, with the same delivery id and a fresh signature) and **Delete**, one at a time
+or all at once. Failed deliveries are deleted after 30 days.
 
 ## Emails not sent
 
 **Shown when** an email has waited in the queue for over an hour, or failed for good in the last
 7 days. See [queued and retried](./email#queued-and-retried).
 
-**Check:**
+**Check** the failed emails in **Settings → Deliveries → Emails** (who to, the subject and the
+error; not the content), then:
 
 - The SMTP settings (`SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`) and that the server accepts this
   sender. Failures are logged with the server's answer.
 - On serverless hosts, that something runs the queue: a cron calling `<api>/jobs/run` (as for
   [late scheduled publishing](#late-scheduled-publishing)).
+
+Then **Retry** them there. Failed emails are deleted after 30 days.
 
 ## Late scheduled publishing
 

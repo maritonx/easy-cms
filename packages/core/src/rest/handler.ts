@@ -4,6 +4,7 @@ import type { Session } from '../auth/auth.js'
 import { safeEqual } from '../auth/tokens.js'
 import { INTERNAL_COLLECTIONS, MEDIA, USERS } from '../builtins.js'
 import type { Config } from '../config.js'
+import { parseId } from '../document.js'
 import {
   EasyCMSError,
   ForbiddenError,
@@ -14,6 +15,13 @@ import {
 } from '../errors.js'
 import type { EasyCMS } from '../local-api.js'
 import { EXTENSIONS } from '../media.js'
+import {
+  deleteDelivery,
+  deleteFailedDeliveries,
+  isDeliveryKind,
+  listDeliveries,
+  retryFailedDeliveries,
+} from './admin-deliveries.js'
 import { readAdminModule } from './admin-modules.js'
 import { adminSchema } from './admin-schema.js'
 import { adminStatus } from './admin-status.js'
@@ -365,6 +373,41 @@ async function route(
       throw ctx.user ? new HttpError('Forbidden', 403) : new UnauthorizedError()
     }
     return { body: await cms.runJobs() }
+  }
+
+  // Saved webhook deliveries and emails, for admins: list, retry, delete.
+  if (first === 'admin' && second === 'deliveries') {
+    if (!ctx.user) throw new UnauthorizedError()
+    if (ctx.user.role !== 'admin' || ctx.user.apiKey) throw new ForbiddenError()
+    const [, , kind, id, action, extra] = segments
+    if (kind === undefined) {
+      if (method !== 'GET') throw methodNotAllowed(ctx, 'GET')
+      const k = ctx.url.searchParams.get('kind') ?? 'webhook'
+      const state = ctx.url.searchParams.get('state') === 'pending' ? 'pending' : 'failed'
+      if (!isDeliveryKind(k)) throw new HttpError('kind must be webhook or email', 400)
+      const page = Math.max(1, Number.parseInt(ctx.url.searchParams.get('page') ?? '1', 10) || 1)
+      return { body: await listDeliveries(cms, k, state, page) }
+    }
+    if (!isDeliveryKind(kind) || extra !== undefined) throw new HttpError('Not found', 404)
+    // /admin/deliveries/:kind/retry and DELETE /admin/deliveries/:kind → every failed one
+    if (id === 'retry' && action === undefined) {
+      if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
+      return { body: await retryFailedDeliveries(cms, kind) }
+    }
+    if (id === undefined) {
+      if (method !== 'DELETE') throw methodNotAllowed(ctx, 'DELETE')
+      return { body: await deleteFailedDeliveries(cms, kind) }
+    }
+    const parsed = parseId(id)
+    if (parsed === undefined) throw new HttpError('Not found', 404)
+    if (action === 'retry') {
+      if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
+      return { body: await cms.retryDelivery(kind, parsed) }
+    }
+    if (action !== undefined) throw new HttpError('Not found', 404)
+    if (method !== 'DELETE') throw methodNotAllowed(ctx, 'DELETE')
+    await deleteDelivery(cms, kind, parsed)
+    return { body: { deleted: 1 } }
   }
 
   // Admin UI metadata

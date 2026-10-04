@@ -3,7 +3,7 @@
 - **สถานะ:** Accepted (living document)
 - **วันที่:** 2026-10-01 (ฉบับแรก 2026-09-25)
 - **ผู้เขียน:** Kanawoot K.
-- **ครอบคลุม:** v0.1 ถึง v0.29
+- **ครอบคลุม:** v0.1 ถึง v0.30
 - **Requirements:** [SRS.md](SRS.md)
 
 ---
@@ -319,7 +319,7 @@ CI รัน lint, typecheck, build และ test บน Linux, macOS และ
 | **M7** CLI + Docs + Release | `create-easy-cms`, `generate:types`, VitePress, publish v0.1 |
 
 ### 15.2 หลัง v0.1 (เสร็จแล้ว)
-0.2 standalone + S3 → 0.3 versions → 0.4–0.5 live preview, localization → 0.6–0.9 blocks, webhooks, การตั้งเวลา → 0.10 backup → 0.11–0.12 admin redesign → 0.13 plugin ecosystem + SEO → 0.14 copy → 0.15 API keys → 0.16 MCP → 0.17 SEO ระดับทั้งเว็บ → 0.18 SEO สำหรับ AI → 0.19 redirects → 0.20 อีเมลและฟอร์ม → 0.21 หน้าย่อย → 0.22 npm, pnpm, Yarn และ Bun → 0.23 แกลเลอรี (upload หลายไฟล์) → 0.24 ลืมรหัสผ่านและคำเชิญ → 0.25 type ของ plugin → 0.26 ชนิด field เพิ่มเติม (`color`) → 0.27 หน้าของ plugin และกล่องบนแดชบอร์ด → 0.28 อัปโหลดจากลิงก์ → 0.29 แดชบอร์ดสำหรับ admin (ต้องดูแล, ระบบ) (รายละเอียดใน [SRS §8.2](SRS.md#82-releases-หลัง-v01))
+0.2 standalone + S3 → 0.3 versions → 0.4–0.5 live preview, localization → 0.6–0.9 blocks, webhooks, การตั้งเวลา → 0.10 backup → 0.11–0.12 admin redesign → 0.13 plugin ecosystem + SEO → 0.14 copy → 0.15 API keys → 0.16 MCP → 0.17 SEO ระดับทั้งเว็บ → 0.18 SEO สำหรับ AI → 0.19 redirects → 0.20 อีเมลและฟอร์ม → 0.21 หน้าย่อย → 0.22 npm, pnpm, Yarn และ Bun → 0.23 แกลเลอรี (upload หลายไฟล์) → 0.24 ลืมรหัสผ่านและคำเชิญ → 0.25 type ของ plugin → 0.26 ชนิด field เพิ่มเติม (`color`) → 0.27 หน้าของ plugin และกล่องบนแดชบอร์ด → 0.28 อัปโหลดจากลิงก์ → 0.29 แดชบอร์ดสำหรับ admin (ต้องดูแล, ระบบ) → 0.30 หน้าการส่ง (webhook และอีเมลที่ล้ม) (รายละเอียดใน [SRS §8.2](SRS.md#82-releases-หลัง-v01))
 
 ### 15.3 แนวคิดถัดไป (ยังไม่ได้ตัดสินใจ)
 - MCP แบบ stdio (`easy-cms mcp`) และ OAuth สำหรับ client ที่ส่ง header ไม่ได้
@@ -377,3 +377,4 @@ CI รัน lint, typecheck, build และ test บน Linux, macOS และ
 - [ADR-0030](adr/0030-plugin-pages-and-dashboard.md) — หน้าของ plugin และกล่องบนแดชบอร์ด
 - [ADR-0031](adr/0031-upload-from-url.md) — อัปโหลดจากลิงก์ (`upload.fromURL`) และการกัน SSRF
 - [ADR-0032](adr/0032-admin-status.md) — แดชบอร์ดสำหรับ admin: ต้องดูแล และระบบ
+- [ADR-0033](adr/0033-admin-deliveries.md) — หน้า "การส่ง": webhook และอีเมลที่ล้ม

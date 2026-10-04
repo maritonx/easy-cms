@@ -136,6 +136,14 @@ export {
   DEFAULT_TOKEN_EXPIRATION,
   resolveConfig,
 } from './resolve-config.js'
+export type {
+  AdminDeliveries,
+  AdminDelivery,
+  AdminEmailDelivery,
+  AdminWebhookDelivery,
+  DeliveryKind,
+  DeliveryState,
+} from './rest/admin-deliveries.js'
 export { resolveAdminModule } from './rest/admin-modules.js'
 export type {
   AdminCollection,

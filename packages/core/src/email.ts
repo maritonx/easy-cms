@@ -154,6 +154,12 @@ export class Mailer {
     return { sent, failed }
   }
 
+  /** One attempt now for a saved email (the admin's Retry): `undefined` when sent, else the error. */
+  async sendNow(message: string): Promise<string | undefined> {
+    if (!this.adapter) return 'email is not set up (`email` in the config)'
+    return this.attempt(JSON.parse(message) as EmailMessage)
+  }
+
   private track(delivery: Promise<void>) {
     const tracked = delivery
       .catch((error) => this.logger.error(`Email queue failed: ${(error as Error).message}`))

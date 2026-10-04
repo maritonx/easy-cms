@@ -80,7 +80,9 @@ not retried.
   after 1 minute, 5 minutes, 30 minutes, 2, 6 and 12 hours. Servers run them every minute; on
   serverless, call `<api>/jobs/run` from a cron.
 - After the last attempt (about a day later) the delivery is kept with `state: 'failed'` and its
-  last error, and not retried.
+  last error, and not retried by itself. Admins see it under **Settings → Deliveries**, where
+  they can retry or delete it ([Health checks](./health-checks#failed-webhooks)). Failed
+  deliveries are deleted after 30 days.
 
 Every attempt sends the same body, signature and `x-easy-cms-delivery`, so a receiver can skip
 deliveries it has already handled. Adding `webhooks` to a config adds the

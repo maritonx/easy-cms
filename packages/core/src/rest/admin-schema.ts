@@ -1,7 +1,7 @@
 import type { Access, AuthUser } from '../access.js'
 import { evaluateAccess, FieldAccessChecker } from '../access-control.js'
 import { API_KEYS } from '../api-keys.js'
-import { INTERNAL_COLLECTIONS, USERS } from '../builtins.js'
+import { EMAIL_DELIVERIES, INTERNAL_COLLECTIONS, USERS, WEBHOOK_DELIVERIES } from '../builtins.js'
 import type { AdminLocale, AdminViewAccess, CollectionConfig, GlobalConfig } from '../config.js'
 import type { AdminComponent, Field, Label } from '../fields.js'
 import type { EasyCMS } from '../local-api.js'
@@ -124,6 +124,8 @@ export interface AdminSchema {
   modules: string[]
   /** Files can be uploaded from links (`upload.fromURL`). */
   uploadFromURL: boolean
+  /** For admins: which saved deliveries the admin can show (webhooks, emails). */
+  deliveries?: { webhook: boolean; email: boolean }
   /** Pages this user may open (`admin.pages`). */
   pages: AdminPageRef[]
   /** Dashboard panels this user may see (`admin.dashboard`). */
@@ -308,6 +310,14 @@ export async function adminSchema(
     globals: await Promise.all(cms.config.globals.map((g) => global(g, user, localized))),
     modules: adminModuleUrls(cms),
     uploadFromURL: cms.config.upload.fromURL !== undefined,
+    ...(user.role === 'admin' && !user.apiKey
+      ? {
+          deliveries: {
+            webhook: cms.config.collections.some((c) => c.slug === WEBHOOK_DELIVERIES),
+            email: cms.config.collections.some((c) => c.slug === EMAIL_DELIVERIES),
+          },
+        }
+      : {}),
     pages: await pages(cms, user),
     dashboard: await widgets(cms, user),
   }

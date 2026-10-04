@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Languages, LayoutDashboard, LogOut, Menu, Monitor, Moon, Sun, X } from '@lucide/vue'
+import { Languages, LayoutDashboard, LogOut, Menu, Monitor, Moon, Send, Sun, X } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { counts, refreshCounts } from '../lib/counts'
@@ -31,6 +31,11 @@ const globals = computed(() => session.schema?.globals.filter((g) => g.permissio
 const contentPages = computed(
   () => session.schema?.pages.filter((p) => p.group === 'content') ?? [],
 )
+/** Saved webhook deliveries and emails: for admins, when webhooks or email are set up. */
+const deliveries = computed(() => {
+  const d = session.schema?.deliveries
+  return !!d && (d.webhook || d.email)
+})
 const settingsPages = computed(
   () => session.schema?.pages.filter((p) => p.group === 'settings') ?? [],
 )
@@ -133,7 +138,7 @@ async function onLogout() {
         </RouterLink>
       </template>
 
-      <template v-if="globals.length || settingsCollections.length || settingsPages.length">
+      <template v-if="globals.length || settingsCollections.length || settingsPages.length || deliveries">
         <h2 class="nav-heading">{{ t('nav.globals') }}</h2>
         <RouterLink
           v-for="g in globals"
@@ -165,6 +170,10 @@ async function onLogout() {
         >
           <component :is="collectionIcon(p.icon)" :size="18" aria-hidden="true" />
           <span>{{ label(p.label, p.path) }}</span>
+        </RouterLink>
+        <RouterLink v-if="deliveries" to="/deliveries" class="nav-link" active-class="active">
+          <Send :size="18" aria-hidden="true" />
+          <span>{{ t('deliveries.title') }}</span>
         </RouterLink>
       </template>
 

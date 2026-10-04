@@ -21,6 +21,7 @@ Served at `routes.api` (default `/api/cms`). All responses are JSON; access rule
 | POST | `/media` | Upload (`multipart/form-data`, field `file`), or JSON `{ url }` to download it ([from a link](/guide/uploads#from-a-link)) |
 | GET | `/media/file/:name` | A stored file (public) |
 | GET | `/admin/status` | For admins: the system and what needs attention ([Health checks](/guide/health-checks)) |
+| GET | `/admin/deliveries` | For admins: saved webhook deliveries or emails (`kind=webhook\|email`, `state=failed\|pending`, `page`). `POST /admin/deliveries/:kind/:id/retry` and `/:kind/retry` (all failed) send now; `DELETE /admin/deliveries/:kind/:id` and `/:kind` (all failed) delete |
 | GET | `/:collection/:id/versions` | Versions, newest first. Query: `limit`, `page` |
 | GET | `/:collection/:id/versions/:version` | One version with its `data` |
 | POST | `/:collection/:id/versions/:version/restore` | Restore a version |

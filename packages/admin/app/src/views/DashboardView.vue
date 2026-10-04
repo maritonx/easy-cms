@@ -131,12 +131,15 @@ function describe(item: AdminAttention) {
         title: t('status.webhooks', { count: item.count }),
         detail: t('status.webhooksDetail', { url: item.url }),
         href,
+        // In the admin: the deliveries page, with retry.
+        to: '/deliveries?kind=webhook',
       }
     case 'emails':
       return {
         title: t('status.emails', { count: item.count }),
         detail: t('status.emailsDetail'),
         href,
+        to: '/deliveries?kind=email',
       }
     case 'scheduled':
       return {
@@ -251,7 +254,8 @@ const statusOf = (doc: Doc) => (doc.status === 'published' ? 'published' : 'draf
       <li v-for="item in attention" :key="item.href">
         <strong>{{ item.title }}</strong>
         <span class="attention-detail">{{ item.detail }}</span>
-        <a :href="item.href" target="_blank" rel="noopener">{{ t('status.howToFix') }}</a>
+        <RouterLink v-if="item.to" :to="item.to">{{ t('status.review') }}</RouterLink>
+        <a v-else :href="item.href" target="_blank" rel="noopener">{{ t('status.howToFix') }}</a>
       </li>
     </ul>
   </section>
