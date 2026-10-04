@@ -33,6 +33,8 @@ export default defineConfig({
       { name: 'thumbnail', width: 400, height: 300 },
       { name: 'wide', width: 1200 },
     ],
+    // "From a link" in the media library: the server downloads files from any public site.
+    fromURL: { allowedHosts: ['*'] },
   },
   // Field types from packages; `type: 'color'` below.
   fieldTypes: [color],

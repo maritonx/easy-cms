@@ -52,6 +52,7 @@ export type {
   RoutesConfig,
   TypedPlugin,
   UploadConfig,
+  UploadFromURLConfig,
   VersionsConfig,
 } from './config.js'
 export {

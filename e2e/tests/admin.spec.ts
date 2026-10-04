@@ -2,6 +2,7 @@ import { createHash, createHmac } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { expect, type Page, test } from '@playwright/test'
+import sharp from 'sharp'
 
 const ADMIN = { email: 'admin@e2e.test', password: 'admin-password-1' }
 const EDITOR = { email: 'editor@e2e.test', password: 'editor-password-1' }
@@ -215,6 +216,15 @@ test.describe('logged in as admin', () => {
     await expect(row.locator('img')).toBeVisible()
     await shot(page, '05-media-library')
 
+    // From a link (upload.fromURL): the server refuses addresses on this machine or network.
+    const link = page.getByRole('textbox', { name: 'From a link' })
+    await link.fill('http://localhost:9/photo.png')
+    await page.getByRole('button', { name: 'Import' }).click()
+    await expect(page.getByRole('alert')).toContainText(
+      'localhost points to a private network address',
+    )
+    await expect(link).toHaveValue('')
+
     // Alt text is editable; file metadata is not.
     await row.getByRole('link').click()
     await expect(page.locator('.thumb.large img')).toBeVisible()
@@ -253,6 +263,35 @@ test.describe('logged in as admin', () => {
       await page.getByRole('link', { name: 'Hello from Playwright' }).click()
       await expect(page.locator('.body img')).toHaveAttribute('alt', 'A green circle')
     }
+  })
+
+  test('shows a large image whole on its own page, linking to the original', async ({ page }) => {
+    const square = await sharp({
+      create: { width: 2400, height: 2400, channels: 3, background: '#2f6f5e' },
+    })
+      .png()
+      .toBuffer()
+    await page.goto('/admin/collections/media')
+    await page
+      .getByLabel('Upload files')
+      .setInputFiles({ name: 'square.png', mimeType: 'image/png', buffer: square })
+    await expect(page.getByText('Uploaded 1 file(s)')).toBeVisible()
+    await page
+      .getByRole('row')
+      .filter({ hasText: /square-[0-9a-f]{8}\.png/ })
+      .getByRole('link')
+      .click()
+    const frame = page.locator('.thumb.large')
+    const image = frame.locator('img')
+    await expect(image).toBeVisible()
+    await expect.poll(() => image.evaluate((img: HTMLImageElement) => img.complete)).toBe(true)
+    // Scaled down to fit: nothing is cut off by the frame.
+    const [outer, inner] = await Promise.all([frame.boundingBox(), image.boundingBox()])
+    if (!outer || !inner) throw new Error('not laid out')
+    expect(inner.width).toBeLessThanOrEqual(outer.width)
+    expect(inner.y + inner.height).toBeLessThanOrEqual(outer.y + outer.height)
+    expect(Math.round(inner.width)).toBe(Math.round(inner.height))
+    await expect(frame.getByRole('link')).toHaveAttribute('href', /square-[0-9a-f]{8}\.png$/)
   })
 
   test('adds a gallery of several images and orders them (upload hasMany)', async ({ page }) => {
@@ -953,6 +992,31 @@ test.describe('logged in as admin', () => {
     await expect(
       page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Form overview' }),
     ).toHaveClass(/active/)
+  })
+
+  test('groups the dashboard: content tiles, drafts first, plugin panels beside them', async ({
+    page,
+  }) => {
+    await page.goto('/admin/')
+    const tiles = page.getByRole('region', { name: 'Content' })
+    // Content only: users and API keys are in the menu, not here.
+    await expect(tiles.getByRole('link', { name: /^Posts/ })).toBeVisible()
+    await expect(tiles.getByRole('link', { name: /^Users/ })).toHaveCount(0)
+    // + creates; media is created by uploading, so it has none.
+    await expect(tiles.getByRole('link', { name: 'Create Post' })).toBeVisible()
+    await expect(tiles.getByRole('link', { name: /^Create Media/ })).toHaveCount(0)
+    // Drafts to review come before what was edited recently.
+    const drafts = page.getByRole('heading', { name: 'Drafts to review' })
+    const recent = page.getByRole('heading', { name: 'Recently edited' })
+    const [d, r] = await Promise.all([drafts.boundingBox(), recent.boundingBox()])
+    expect(d && r && d.y < r.y).toBe(true)
+    // A plugin's half-width panel sits in the side column, at the top of the page.
+    const panel = page.locator('.side ecms-forms-widget')
+    await expect(panel).toBeVisible()
+    const widget = await panel.boundingBox()
+    expect(widget && d && Math.abs(widget.y - d.y) < 80).toBe(true)
+    await tiles.getByRole('link', { name: 'Create Post' }).click()
+    await expect(page).toHaveURL(/\/admin\/collections\/posts\/new$/)
   })
 
   test('edits small collections in a drawer, and creates related documents in place', async ({

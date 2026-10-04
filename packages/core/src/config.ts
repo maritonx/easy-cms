@@ -247,7 +247,7 @@ export interface AdminPage {
 export interface DashboardWidget {
   /** A Web Component from an admin module. */
   readonly component: AdminComponent
-  /** Half the dashboard's width (default) or all of it. Full width on phones. */
+  /** `half` (default): the side column, beside drafts and recent edits; `full`: below both. */
   readonly width?: 'half' | 'full'
   /** Who sees it. */
   readonly access?: AdminViewAccess
@@ -293,6 +293,23 @@ export interface ImageSize {
   readonly fit?: 'cover' | 'contain' | 'inside'
 }
 
+/**
+ * Uploads from a link: the server downloads the file (`cms.uploadFromURL`, `POST <api>/media`
+ * with `{ url }`, "From a link" in the admin).
+ */
+export interface UploadFromURLConfig {
+  /**
+   * Hosts files may come from: `images.example.com`, `*.example.com` (its subdomains, not
+   * `example.com` itself) or `*` for any public host. Checked at every redirect too.
+   */
+  readonly allowedHosts: readonly string[]
+  /**
+   * Also download from private network addresses (`10.x`, `192.168.x`, `localhost`…), e.g. an
+   * intranet. Off by default: links could then reach services that are not meant to be public.
+   */
+  readonly allowPrivate?: boolean
+}
+
 export interface UploadConfig {
   /** Directory for uploaded files with the default local storage, relative to the project root. Default `uploads`. */
   readonly dir?: string
@@ -304,6 +321,8 @@ export interface UploadConfig {
   readonly storage?: StorageAdapter
   /** Resized copies generated for images when `sharp` is installed. */
   readonly imageSizes?: readonly ImageSize[]
+  /** Lets users upload from a link. Off by default. */
+  readonly fromURL?: UploadFromURLConfig
 }
 
 export interface RoutesConfig {
@@ -513,7 +532,8 @@ export interface ResolvedConfig
   readonly localization: Required<LocalizationConfig> | null
   readonly routes: Required<RoutesConfig>
   readonly admin: Required<AdminConfig>
-  readonly upload: Required<Omit<UploadConfig, 'storage'>> & Pick<UploadConfig, 'storage'>
+  readonly upload: Required<Omit<UploadConfig, 'storage' | 'fromURL'>> &
+    Pick<UploadConfig, 'storage' | 'fromURL'>
   readonly auth: Required<AuthConfig>
   readonly collections: readonly CollectionConfig[]
   readonly globals: readonly GlobalConfig[]

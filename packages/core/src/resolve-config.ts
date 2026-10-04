@@ -91,6 +91,7 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
       mimeTypes: config.upload?.mimeTypes ?? ['image/*', 'application/pdf'],
       imageSizes: config.upload?.imageSizes ?? [],
       ...(config.upload?.storage ? { storage: config.upload.storage } : {}),
+      ...(config.upload?.fromURL ? { fromURL: config.upload.fromURL } : {}),
     },
     auth: {
       roles: config.auth?.roles ?? DEFAULT_ROLES,

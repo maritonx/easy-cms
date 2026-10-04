@@ -98,3 +98,8 @@ export function uploadFile(file: File, alt?: string): Promise<Doc> {
   if (alt) form.set('alt', alt)
   return api<Doc>('POST', '/media?depth=0', form)
 }
+
+/** Has the server download a file from a link into the media library (`upload.fromURL`). */
+export function uploadFromURL(url: string, alt?: string): Promise<Doc> {
+  return api<Doc>('POST', '/media?depth=0', { url, ...(alt ? { alt } : {}) })
+}

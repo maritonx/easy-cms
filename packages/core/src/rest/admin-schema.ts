@@ -122,6 +122,8 @@ export interface AdminSchema {
   globals: AdminGlobal[]
   /** URLs under the API of the admin modules to load (`admin.modules`). */
   modules: string[]
+  /** Files can be uploaded from links (`upload.fromURL`). */
+  uploadFromURL: boolean
   /** Pages this user may open (`admin.pages`). */
   pages: AdminPageRef[]
   /** Dashboard panels this user may see (`admin.dashboard`). */
@@ -305,6 +307,7 @@ export async function adminSchema(
     collections: await Promise.all(collections.map((c) => collection(c, user, localized))),
     globals: await Promise.all(cms.config.globals.map((g) => global(g, user, localized))),
     modules: adminModuleUrls(cms),
+    uploadFromURL: cms.config.upload.fromURL !== undefined,
     pages: await pages(cms, user),
     dashboard: await widgets(cms, user),
   }

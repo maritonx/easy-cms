@@ -218,7 +218,16 @@ describe('REST uploads and files', () => {
         body: '{}',
       }),
     )
-    expect(json.status).toBe(415)
+    // JSON is for links (upload.fromURL); without one it is incomplete.
+    expect(json.status).toBe(400)
+    const text = await handler(
+      new Request('http://cms.test/api/cms/media', {
+        method: 'POST',
+        headers: { 'content-type': 'text/plain' },
+        body: 'hello',
+      }),
+    )
+    expect(text.status).toBe(415)
 
     const big = new FormData()
     big.set('file', new Blob([new Uint8Array(300_000)]), 'big.png')

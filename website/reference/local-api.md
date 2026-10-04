@@ -43,6 +43,7 @@ to apply them, as the REST API does.
 | Method | Returns | |
 |---|---|---|
 | `upload({ data, name }, fields?, options?)` | media document | Stores a file; images get dimensions and resized copies. |
+| `uploadFromURL(url, fields?, options?)` | media document | Downloads a file from a link, then as `upload`. [From a link](/guide/uploads#from-a-link) |
 | `mediaURL(key)` | `string` | Public URL of a stored file. |
 
 ### Drafts and versions

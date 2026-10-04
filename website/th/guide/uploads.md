@@ -58,6 +58,49 @@ media.url // "/api/cms/media/file/photo-3f9a2c1b.jpg"
 ผ่าน REST: `POST /api/cms/media` ด้วย `multipart/form-data` โดยใส่ไฟล์ใน `file` และ field อื่น
 (เช่น `alt`) เป็น text part
 
+## จากลิงก์ {#from-a-link}
+
+กำลังย้ายเนื้อหาจากเว็บอื่นอยู่ใช่ไหม ให้ server ดาวน์โหลดไฟล์จากลิงก์แทนได้:
+
+```ts
+upload: {
+  fromURL: {
+    // host ที่ดึงไฟล์ได้: ชื่อตรงตัว, `*.example.com` สำหรับ subdomain หรือ `*` สำหรับทุก host
+    allowedHosts: ['images.oldsite.com', '*.cdn.example.com'],
+  },
+},
+```
+
+คลังสื่อ ตัวเลือกสื่อ และแกลเลอรีจะมีช่อง **จากลิงก์** ผู้แก้ไขยังวางลิงก์ (หรือหลายลิงก์ บรรทัดละลิงก์) ลงใน
+พื้นที่อัปโหลด หรือลากรูปจากหน้าเว็บอื่นมาวางได้ด้วย ในโค้ด:
+
+```ts
+const media = await cms.uploadFromURL('https://images.oldsite.com/2024/beach.jpg', { alt: 'The beach' })
+```
+
+ผ่าน REST: `POST /api/cms/media` ด้วย JSON `{ "url": "https://…", "alt": "…" }`
+
+จากนั้นไฟล์ถูกตรวจเหมือนการอัปโหลดทั่วไป: ชนิดไฟล์จากเนื้อไฟล์ `maxFileSize` และสิทธิ์สร้าง media ชื่อไฟล์มาจาก
+`Content-Disposition` ของ server ปลายทาง ถ้าไม่มีใช้จากลิงก์
+
+::: warning ลิงก์เข้าถึงเครือข่ายของคุณได้
+server เป็นผู้ส่ง request จากภายในเครือข่ายของคุณ เพื่อไม่ให้ลิงก์เข้าถึงสิ่งที่ไม่ได้เปิดสาธารณะ server จะปฏิเสธ:
+
+- scheme อื่นนอกจาก `http` และ `https` และลิงก์ที่มีรหัสผ่าน
+- ที่อยู่ในเครือข่ายภายใน: `localhost`, `10.x`, `172.16–31.x`, `192.168.x`, link-local (`169.254.x`
+  ที่ cloud ใช้ให้ข้อมูล metadata) รวมถึงของ IPv6 ชื่อ host ตรวจหลัง resolve DNS และตรวจซ้ำทุกครั้งที่
+  redirect (ไม่เกินสามครั้ง)
+- host ที่ไม่อยู่ใน `allowedHosts` รวมถึงหลัง redirect
+- การดาวน์โหลดที่นานเกิน 15 วินาทีหรือใหญ่กว่า `maxFileSize`
+
+`allowPrivate: true` ยกเลิกกฎเรื่องที่อยู่ภายใน เช่น สำหรับ server เก็บรูปในอินทราเน็ต ตั้งเฉพาะเมื่อทุกคนที่อัปโหลด
+ได้มีสิทธิ์เข้าถึงเครือข่ายภายในของคุณอยู่แล้ว
+:::
+
+`cms.uploadFromURL()` ที่ไม่มี user คือโค้ดของคุณเอง (เช่น script ย้ายข้อมูล) จึงไม่ต้องตั้ง `upload.fromURL`
+และไม่สน `allowedHosts` แต่ยังปฏิเสธที่อยู่ภายในเว้นแต่ตั้ง `allowPrivate` ถ้าเรียกพร้อม `user` และ
+`overrideAccess: false` แบบที่ REST API ทำ ต้องผ่านทั้งสองข้อ
+
 ## สิ่งที่เกิดขึ้นกับไฟล์ {#what-happens-to-a-file}
 
 - **ตรวจสอบประเภทไฟล์จากเนื้อหา** ไม่ใช่จากชื่อไฟล์หรือ Content-Type ที่ client ส่งมา ประเภทต้อง

@@ -18,6 +18,7 @@ export const CONFIG_INTERFACES = [
   'RoutesConfig',
   'AuthConfig',
   'UploadConfig',
+  'UploadFromURLConfig',
   'ImageSize',
   'LocalizationConfig',
   'CollectionConfig',

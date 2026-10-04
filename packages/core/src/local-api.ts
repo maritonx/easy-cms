@@ -67,6 +67,7 @@ import {
 import { consoleLogger, type Logger } from './logger.js'
 import { imageDimensions, mimeAllowed, sniffMimeType, storageKey } from './media.js'
 import { DEFAULT_DEPTH, type Loader, MAX_DEPTH, populate } from './populate.js'
+import { fetchRemoteFile, RemoteFileError } from './remote-file.js'
 import { resolveConfig } from './resolve-config.js'
 import { localStorage, type StorageAdapter } from './storage.js'
 import {
@@ -420,6 +421,45 @@ export class EasyCMS<C extends Config = Config> {
       for (const key of stored) await this.storage.delete(key).catch(() => {})
       throw error
     }
+  }
+
+  /**
+   * Downloads a file from an `http(s)` link and uploads it like `upload()`. Private network
+   * addresses are refused unless `upload.fromURL.allowPrivate`. Calls on behalf of a user (the
+   * REST API, `overrideAccess: false`) also need `upload.fromURL` and a host in its `allowedHosts`.
+   */
+  async uploadFromURL(
+    url: string,
+    data: Record<string, unknown> = {},
+    options: DepthOptions = {},
+  ): Promise<MediaDocument> {
+    const config = this.collection(MEDIA)
+    const guard = guardOf(options)
+    const fromURL = this.config.upload.fromURL
+    // Before downloading anything: who may upload, and whether links are allowed at all.
+    if (guard.enforce) {
+      this.checkKey(guard, { collection: MEDIA }, 'create')
+      const allowed = await evaluateAccess(config.access?.create, { user: guard.user, data })
+      if (allowed !== true) throw deny(guard.user)
+      if (!fromURL)
+        throw new ValidationError(MEDIA, [
+          { field: 'url', message: 'uploads from links are off (upload.fromURL)' },
+        ])
+    }
+    let file: { data: Uint8Array; name: string }
+    try {
+      file = await fetchRemoteFile(url, {
+        allowedHosts: guard.enforce ? fromURL?.allowedHosts : undefined,
+        allowPrivate: fromURL?.allowPrivate === true,
+        maxBytes: this.config.upload.maxFileSize,
+        userAgent: 'EasyCMS (+https://github.com/maritonx/easy-cms)',
+      })
+    } catch (error) {
+      if (!(error instanceof RemoteFileError)) throw error
+      if (error.status === 413) throw new PayloadTooLargeError(`File ${error.message}`)
+      throw new ValidationError(MEDIA, [{ field: 'url', message: error.message }])
+    }
+    return this.upload(file, data, options)
   }
 
   /**

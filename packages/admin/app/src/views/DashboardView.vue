@@ -16,8 +16,12 @@ const collections = menuOrder(
   (session.schema?.collections ?? []).filter((c) => c.permissions.read),
   session.schema?.menu,
 )
-/** Panels from `admin.dashboard`, e.g. a plugin's numbers, after the built-in ones. */
+/** Number tiles: content only, in menu order (users and other settings are in the menu). */
+const tiles = collections.filter((c) => c.group !== 'settings')
+/** Panels from `admin.dashboard`, e.g. a plugin's numbers: half width in the side column. */
 const widgets = session.schema?.dashboard ?? []
+const sideWidgets = widgets.filter((w) => w.width !== 'full')
+const fullWidgets = widgets.filter((w) => w.width === 'full')
 const hour = new Date().getHours()
 const greeting = t(
   hour < 12 ? 'dashboard.morning' : hour < 18 ? 'dashboard.afternoon' : 'dashboard.evening',
@@ -35,6 +39,9 @@ interface Entry {
 }
 const recent = ref<Entry[] | null>(null)
 const drafts = ref<Entry[] | null>(null)
+/** All drafts waiting, and where to see them: the collection with the most. */
+const draftTotal = ref(0)
+const draftsLink = ref('')
 interface Job {
   id: string | number
   action: 'publish' | 'unpublish'
@@ -49,15 +56,24 @@ const scheduled = ref<Job[] | null>(null)
 const byUpdated = (a: Entry, b: Entry) =>
   String(b.doc.updatedAt ?? '').localeCompare(String(a.doc.updatedAt ?? ''))
 
-async function latest(collection: AdminCollection, where?: unknown): Promise<Entry[]> {
+interface Latest {
+  collection: AdminCollection
+  entries: Entry[]
+  total: number
+}
+async function latest(collection: AdminCollection, where?: unknown): Promise<Latest> {
   try {
     const result = await api<Paginated<Doc>>(
       'GET',
       `/${collection.slug}${toQuery({ where, sort: '-updatedAt', limit: 6, depth: 0, draft: true })}`,
     )
-    return result.docs.map((doc) => ({ collection, doc }))
+    return {
+      collection,
+      entries: result.docs.map((doc) => ({ collection, doc })),
+      total: result.totalDocs,
+    }
   } catch {
-    return []
+    return { collection, entries: [], total: 0 }
   }
 }
 
@@ -90,12 +106,24 @@ async function loadScheduled() {
 onMounted(() => {
   void refreshCounts(true)
   void Promise.all(content.map((c) => latest(c))).then((lists) => {
-    recent.value = lists.flat().sort(byUpdated).slice(0, 6)
+    recent.value = lists
+      .flatMap((l) => l.entries)
+      .sort(byUpdated)
+      .slice(0, 6)
   })
   const withDrafts = content.filter((c) => c.drafts)
   void Promise.all(withDrafts.map((c) => latest(c, { status: { equals: 'draft' } }))).then(
     (lists) => {
-      drafts.value = lists.flat().sort(byUpdated).slice(0, 5)
+      drafts.value = lists
+        .flatMap((l) => l.entries)
+        .sort(byUpdated)
+        .slice(0, 5)
+      draftTotal.value = lists.reduce((sum, l) => sum + l.total, 0)
+      const most = lists.reduce<Latest | undefined>(
+        (a, b) => (!a || b.total > a.total ? b : a),
+        undefined,
+      )
+      draftsLink.value = most?.total ? `/collections/${most.collection.slug}?status=draft` : ''
     },
   )
   if (collections.some((c) => c.schedule) || session.schema?.globals.some((g) => g.schedule))
@@ -104,6 +132,8 @@ onMounted(() => {
 })
 
 const showScheduled = computed(() => scheduled.value !== null && scheduled.value.length > 0)
+/** Without scheduled jobs or plugin panels, the main column takes the whole width. */
+const sideEmpty = computed(() => !showScheduled.value && sideWidgets.length === 0)
 const day = (value: string) =>
   new Intl.DateTimeFormat(locale.value === 'th' ? 'th-TH' : 'en-GB', { day: 'numeric' }).format(
     new Date(value),
@@ -137,47 +167,39 @@ const statusOf = (doc: Doc) => (doc.status === 'published' ? 'published' : 'draf
     </div>
   </header>
 
-  <div class="tiles">
-    <RouterLink v-for="c in collections" :key="c.slug" :to="`/collections/${c.slug}`" class="card tile">
-      <span class="tile-label">
-        <component :is="collectionIcon(c.icon)" :size="16" aria-hidden="true" />
-        {{ label(c.labels?.plural, c.slug) }}
-      </span>
-      <span class="tile-row">
-        <span class="tile-count">{{ counts[c.slug] ?? '…' }}</span>
-        <span class="tile-more">{{ t('dashboard.viewAll') }}</span>
-      </span>
-      <span class="visually-hidden">{{ t('dashboard.documents', { count: counts[c.slug] ?? 0 }) }}</span>
-    </RouterLink>
-  </div>
+  <!-- Content only, in menu order: the whole tile opens the list, + creates. -->
+  <section class="tiles-section" aria-labelledby="tiles-heading">
+    <h2 id="tiles-heading" class="section-label">{{ t('nav.collections') }}</h2>
+    <div class="tiles">
+      <div v-for="c in tiles" :key="c.slug" class="card tile">
+        <RouterLink :to="`/collections/${c.slug}`" class="tile-link">
+          <span class="tile-label">
+            <component :is="collectionIcon(c.icon)" :size="16" aria-hidden="true" />
+            {{ label(c.labels?.plural, c.slug) }}
+          </span>
+          <span class="tile-count" aria-hidden="true">{{ counts[c.slug] ?? '…' }}</span>
+          <span class="visually-hidden">{{ t('dashboard.documents', { count: counts[c.slug] ?? 0 }) }}</span>
+        </RouterLink>
+        <!-- Media is created by uploading, in its list. -->
+        <RouterLink
+          v-if="c.permissions.create && c.slug !== 'media'"
+          :to="`/collections/${c.slug}/new`"
+          class="tile-add btn btn-ghost btn-icon btn-sm"
+          :aria-label="t('edit.create', { label: label(c.labels?.singular, singularize(c.slug)) })"
+        >
+          <Plus :size="16" aria-hidden="true" />
+        </RouterLink>
+      </div>
+    </div>
+  </section>
 
-  <div class="panels">
-    <section class="card panel">
-      <h2>{{ t('dashboard.recent') }}</h2>
-      <p v-if="recent && recent.length === 0" class="empty muted">{{ t('dashboard.noRecent') }}</p>
-      <ul v-else class="entries">
-        <li v-for="entry in recent ?? []" :key="`${entry.collection.slug}-${entry.doc.id}`">
-          <RouterLink :to="`/collections/${entry.collection.slug}/${entry.doc.id}`" class="entry">
-            <span class="entry-icon" aria-hidden="true"><component :is="collectionIcon(entry.collection.icon)" :size="17" /></span>
-            <span class="entry-text">
-              <span class="entry-title">{{ titleOf(entry.collection, entry.doc) }}</span>
-              <span class="entry-meta">
-                {{ t('dashboard.editedAt', { label: label(entry.collection.labels?.singular, entry.collection.slug), date: formatDate(entry.doc.updatedAt) }) }}
-              </span>
-            </span>
-            <span v-if="entry.collection.drafts" :class="['badge', `badge-${statusOf(entry.doc)}`]">
-              {{ t(statusOf(entry.doc) === 'published' ? 'status.published' : 'status.draft') }}
-            </span>
-          </RouterLink>
-        </li>
-      </ul>
-    </section>
-
-    <div class="side">
+  <!-- Left: what needs doing, then what changed. Right: schedule and plugin panels. -->
+  <div :class="['panels', { single: sideEmpty }]">
+    <div class="main-col">
       <section v-if="content.some((c) => c.drafts)" class="card panel">
         <h2>
           {{ t('dashboard.drafts') }}
-          <span v-if="drafts?.length" class="count-badge">{{ drafts.length }}</span>
+          <span v-if="draftTotal" class="count-badge">{{ draftTotal }}</span>
         </h2>
         <p v-if="drafts && drafts.length === 0" class="empty muted">{{ t('dashboard.noDrafts') }}</p>
         <ul v-else class="entries compact">
@@ -191,8 +213,35 @@ const statusOf = (doc: Doc) => (doc.status === 'published' ? 'published' : 'draf
             </RouterLink>
           </li>
         </ul>
+        <RouterLink v-if="draftsLink && draftTotal > (drafts?.length ?? 0)" :to="draftsLink" class="panel-more">
+          {{ t('dashboard.viewAllCount', { count: draftTotal }) }}
+        </RouterLink>
       </section>
 
+
+      <section class="card panel">
+        <h2>{{ t('dashboard.recent') }}</h2>
+        <p v-if="recent && recent.length === 0" class="empty muted">{{ t('dashboard.noRecent') }}</p>
+        <ul v-else class="entries">
+          <li v-for="entry in recent ?? []" :key="`${entry.collection.slug}-${entry.doc.id}`">
+            <RouterLink :to="`/collections/${entry.collection.slug}/${entry.doc.id}`" class="entry">
+              <span class="entry-icon" aria-hidden="true"><component :is="collectionIcon(entry.collection.icon)" :size="17" /></span>
+              <span class="entry-text">
+                <span class="entry-title">{{ titleOf(entry.collection, entry.doc) }}</span>
+                <span class="entry-meta">
+                  {{ t('dashboard.editedAt', { label: label(entry.collection.labels?.singular, entry.collection.slug), date: formatDate(entry.doc.updatedAt) }) }}
+                </span>
+              </span>
+              <span v-if="entry.collection.drafts" :class="['badge', `badge-${statusOf(entry.doc)}`]">
+                {{ t(statusOf(entry.doc) === 'published' ? 'status.published' : 'status.draft') }}
+              </span>
+            </RouterLink>
+          </li>
+        </ul>
+      </section>
+    </div>
+
+    <div v-if="!sideEmpty" class="side">
       <section v-if="showScheduled" class="card panel">
         <h2>
           {{ t('dashboard.scheduled') }}
@@ -213,14 +262,22 @@ const statusOf = (doc: Doc) => (doc.status === 'published' ? 'published' : 'draf
           </li>
         </ul>
       </section>
+
+      <section
+        v-for="(widget, i) in sideWidgets"
+        :key="`${i}-${widget.component.tag}`"
+        class="card widget"
+      >
+        <PluginElement :component="widget.component" />
+      </section>
     </div>
   </div>
 
-  <div v-if="widgets.length" class="widgets">
+  <div v-if="fullWidgets.length" class="widgets">
     <section
-      v-for="(widget, i) in widgets"
+      v-for="(widget, i) in fullWidgets"
       :key="`${i}-${widget.component.tag}`"
-      :class="['card', 'widget', { full: widget.width === 'full' }]"
+      class="card widget"
     >
       <PluginElement :component="widget.component" />
     </section>
@@ -243,43 +300,61 @@ const statusOf = (doc: Doc) => (doc.status === 'published' ? 'published' : 'draf
   display: flex;
   gap: 0.6rem;
 }
+.tiles-section {
+  margin-bottom: 1.25rem;
+}
+.section-label {
+  margin: 0 0 0.6rem;
+  color: var(--faint);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
 .tiles {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-.tile-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-.tile-more {
-  padding: 0.15rem 0.6rem;
-  border-radius: 999px;
-  background: var(--surface-2);
-  color: var(--text-muted);
-  font-size: 0.8rem;
-  font-weight: 500;
-}
-.tile:hover .tile-more {
-  background: var(--accent-soft);
-  color: var(--accent-ink);
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.75rem;
 }
 .tile {
+  position: relative;
+  transition: border-color 0.12s;
+}
+/* The whole tile opens the list; the + button sits above that. */
+.tile-link {
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
-  padding: 1.25rem;
+  justify-content: space-between;
+  box-sizing: border-box;
+  height: 100%;
+  gap: 0.45rem;
+  padding: 1rem 1.1rem 1.1rem;
   color: var(--text);
   text-decoration: none;
-  transition: border-color 0.12s;
+  border-radius: inherit;
+}
+.tile-link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+.tile-link:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.tile-add {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.55rem;
+  z-index: 1;
 }
 .tile:hover {
   border-color: var(--border-strong);
 }
 .tile-label {
+  /* Room for the + button. */
+  padding-right: 1.75rem;
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
@@ -287,7 +362,7 @@ const statusOf = (doc: Doc) => (doc.status === 'published' ? 'published' : 'draf
   font-size: 0.9rem;
 }
 .tile-count {
-  font-size: 2rem;
+  font-size: 1.75rem;
   font-weight: 600;
   letter-spacing: -0.01em;
   line-height: 1.2;
@@ -297,6 +372,15 @@ const statusOf = (doc: Doc) => (doc.status === 'published' ? 'published' : 'draf
   grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
   gap: 1rem;
   align-items: start;
+}
+.panels.single {
+  grid-template-columns: minmax(0, 1fr);
+}
+.main-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
 }
 .side {
   display: flex;
@@ -414,21 +498,27 @@ const statusOf = (doc: Doc) => (doc.status === 'published' ? 'published' : 'draf
 }
 .widgets {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
   margin-top: 1rem;
-  align-items: start;
 }
 .widget {
   padding: 1rem 1.1rem;
   min-width: 0;
 }
-.widget.full {
-  grid-column: 1 / -1;
+.panel-more {
+  display: block;
+  padding: 0.65rem 1.1rem 0.75rem;
+  border-top: 1px solid var(--border);
+  color: var(--accent-ink);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+.panel-more:hover {
+  text-decoration: underline;
 }
 @media (max-width: 1000px) {
-  .panels,
-  .widgets {
+  .panels {
     grid-template-columns: minmax(0, 1fr);
   }
 }

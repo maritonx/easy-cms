@@ -83,7 +83,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | Option | Type | |
 |---|---|---|
 | `component` | `AdminComponent` | **Required**. The panel's content. |
-| `width` | `'half' \| 'full'` | Default `half`; full width on phones. |
+| `width` | `'half' \| 'full'` | `half` (default): the side column; `full`: below both columns. One column on phones. |
 | `access` | `({ user }) => boolean` | Who sees it, checked on the server. Default: every logged-in user. |
 
 [Pages and dashboard panels](/guide/plugins#pages-and-dashboard-panels) shows how to write them.
@@ -112,6 +112,15 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `mimeTypes` | `string[]` | `['image/*', 'application/pdf']` | Allowed types, detected from file contents. |
 | `storage` | `StorageAdapter` | local disk | E.g. `s3Storage()` from `@easy-cms/storage-s3`. [Uploads](/guide/uploads) |
 | `imageSizes` | `ImageSize[]` | `[]` | Resized copies (needs `sharp`). See [image sizes](#image-sizes). |
+| `fromURL` | `UploadFromURLConfig` | off | Uploads from links. See [fromURL](#fromurl). |
+
+<!-- api: UploadFromURLConfig -->
+### fromURL
+
+| Option | Type | |
+|---|---|---|
+| `allowedHosts` | `string[]` | **Required**. `images.example.com`, `*.example.com` (subdomains) or `*` (any public host). |
+| `allowPrivate` | `boolean` | Also private network addresses (`localhost`, `10.x`…). Default `false`. [Read first](/guide/uploads#from-a-link) |
 
 <!-- api: ImageSize -->
 ### Image sizes

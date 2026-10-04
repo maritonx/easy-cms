@@ -18,7 +18,7 @@ Served at `routes.api` (default `/api/cms`). All responses are JSON; access rule
 | PATCH | `/:collection/:id` | Update the given fields |
 | DELETE | `/:collection/:id` | Delete |
 | GET / POST | `/globals/:slug` | Read / update a global |
-| POST | `/media` | Upload (`multipart/form-data`, field `file`) |
+| POST | `/media` | Upload (`multipart/form-data`, field `file`), or JSON `{ url }` to download it ([from a link](/guide/uploads#from-a-link)) |
 | GET | `/media/file/:name` | A stored file (public) |
 | GET | `/:collection/:id/versions` | Versions, newest first. Query: `limit`, `page` |
 | GET | `/:collection/:id/versions/:version` | One version with its `data` |

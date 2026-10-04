@@ -61,6 +61,52 @@ media.url // "/api/cms/media/file/photo-3f9a2c1b.jpg"
 Over REST: `POST /api/cms/media` with `multipart/form-data`, the file in `file` and other fields
 (like `alt`) as text parts.
 
+## From a link
+
+Moving content from another site? Let the server download files from their links:
+
+```ts
+upload: {
+  fromURL: {
+    // Hosts files may come from: exact names, `*.example.com` for subdomains, or `*` for any.
+    allowedHosts: ['images.oldsite.com', '*.cdn.example.com'],
+  },
+},
+```
+
+The media library, the media picker and galleries then have a **From a link** field. Editors can
+also paste a link (or several, one per line) into the upload area, or drop an image dragged from
+another page. In code:
+
+```ts
+const media = await cms.uploadFromURL('https://images.oldsite.com/2024/beach.jpg', { alt: 'The beach' })
+```
+
+Over REST: `POST /api/cms/media` with JSON `{ "url": "https://…", "alt": "…" }`.
+
+The file is then checked like any upload: its type from the contents, `maxFileSize` and the
+right to create media. The name comes from the server's `Content-Disposition`, else the link.
+
+::: warning Links reach your network
+The server makes the request, from inside your network. So that a link can't reach what isn't
+public, the server refuses:
+
+- other schemes than `http` and `https`, and links with a password;
+- private network addresses: `localhost`, `10.x`, `172.16–31.x`, `192.168.x`, link-local
+  (`169.254.x`, where clouds serve their metadata), IPv6 ones too. Names are checked after DNS,
+  and every redirect is checked again (three at most);
+- hosts not in `allowedHosts`, also after a redirect;
+- downloads over 15 seconds or larger than `maxFileSize`.
+
+`allowPrivate: true` lifts the private address rule, e.g. for an intranet image server. Only
+set it if every user who can upload may reach your internal network.
+:::
+
+`cms.uploadFromURL()` without a user is your own code (a migration script, say): it doesn't need
+`upload.fromURL`, and ignores `allowedHosts`, but still refuses private addresses unless
+`allowPrivate`. Called with `user` and `overrideAccess: false`, as the REST API does, it needs
+both.
+
 ## What happens to a file
 
 - **The type is detected from the contents**, not the name or the client's Content-Type. It must

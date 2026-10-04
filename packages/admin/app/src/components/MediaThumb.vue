@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { t } from '../lib/i18n'
 
 type Media = Record<string, unknown>
 
@@ -17,6 +18,8 @@ const src = computed(() => {
     props.size === 'small' ? (sizes.thumbnail?.url ?? Object.values(sizes)[0]?.url) : undefined
   return String(small ?? props.media.url ?? '')
 })
+/** The image's own size, so the page keeps its space while it loads. */
+const dimension = (value: unknown) => (typeof value === 'number' && value > 0 ? value : undefined)
 const extension = computed(
   () =>
     String(props.media.filename ?? '')
@@ -27,8 +30,23 @@ const extension = computed(
 </script>
 
 <template>
+  <!-- Large: the whole image, as big as fits; a click opens the original. -->
   <div :class="['thumb', size]">
-    <img v-if="isImage && src" :src="src" :alt="String(media.alt ?? '')" loading="lazy" />
+    <a
+      v-if="size === 'large' && isImage && src"
+      :href="src"
+      target="_blank"
+      rel="noopener"
+      :title="t('media.openOriginal')"
+    >
+      <img
+        :src="src"
+        :alt="String(media.alt ?? '')"
+        :width="dimension(media.width)"
+        :height="dimension(media.height)"
+      />
+    </a>
+    <img v-else-if="isImage && src" :src="src" :alt="String(media.alt ?? '')" loading="lazy" />
     <span v-else class="file" aria-hidden="true">{{ extension }}</span>
   </div>
 </template>
@@ -54,13 +72,26 @@ const extension = computed(
 }
 .large {
   width: 100%;
-  height: 22rem;
+  min-height: 10rem;
   padding: 0.5rem;
 }
-.large img {
+.large a {
+  display: block;
   max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
+  line-height: 0;
+  cursor: zoom-in;
+}
+.large a:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+/* Its own proportions, within the column's width and 70% of the screen's height. */
+.large img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 70vh;
 }
 .file {
   font-size: 0.75rem;

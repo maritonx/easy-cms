@@ -488,7 +488,35 @@ function validateUpload(config: Config, add: Add) {
   if (upload.dir !== undefined && (typeof upload.dir !== 'string' || upload.dir.length === 0)) {
     add('upload.dir', 'must be a non-empty string')
   }
+  const fromURL: unknown = upload.fromURL
+  if (fromURL === undefined) return
+  if (typeof fromURL !== 'object' || fromURL === null) {
+    add('upload.fromURL', 'must be an object', "e.g. fromURL: { allowedHosts: ['*'] }")
+    return
+  }
+  const { allowedHosts, allowPrivate } = fromURL as Record<string, unknown>
+  if (!Array.isArray(allowedHosts) || allowedHosts.length === 0) {
+    add(
+      'upload.fromURL.allowedHosts',
+      'must be a non-empty array of host names',
+      "e.g. allowedHosts: ['images.example.com', '*.cdn.example.com'] or ['*'] for any public host",
+    )
+  } else {
+    allowedHosts.forEach((host: unknown, i) => {
+      if (typeof host !== 'string' || !HOST_PATTERN.test(host))
+        add(
+          `upload.fromURL.allowedHosts[${i}]`,
+          `must be a host name like "images.example.com", "*.example.com" or "*" (got ${JSON.stringify(host)})`,
+        )
+    })
+  }
+  if (allowPrivate !== undefined && typeof allowPrivate !== 'boolean')
+    add('upload.fromURL.allowPrivate', 'must be true or false')
 }
+
+/** `*`, `host.name` or `*.host.name`: no scheme, port or path. */
+const HOST_PATTERN =
+  /^(\*|(\*\.)?[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*)$/i
 
 function asArray<T>(value: readonly T[] | undefined, path: string, add: Add): readonly T[] {
   if (value === undefined) return []

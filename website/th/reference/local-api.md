@@ -41,6 +41,7 @@ Local API เชื่อผู้เรียกและข้ามกฎส�
 | Method | คืนค่า | |
 |---|---|---|
 | `upload({ data, name }, fields?, options?)` | เอกสาร media | เก็บไฟล์ รูปจะได้ขนาดและรูปย่อ |
+| `uploadFromURL(url, fields?, options?)` | เอกสาร media | ดาวน์โหลดไฟล์จากลิงก์ แล้วทำแบบ `upload` [จากลิงก์](/th/guide/uploads#from-a-link) |
 | `mediaURL(key)` | `string` | URL สาธารณะของไฟล์ที่เก็บไว้ |
 
 ### ฉบับร่างและเวอร์ชัน {#drafts-and-versions}

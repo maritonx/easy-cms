@@ -82,7 +82,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | ตัวเลือก | Type | |
 |---|---|---|
 | `component` | `AdminComponent` | **จำเป็น** เนื้อหาของกล่อง |
-| `width` | `'half' \| 'full'` | ค่าเริ่มต้น `half` บนมือถือกว้างเต็มจอ |
+| `width` | `'half' \| 'full'` | `half` (ค่าเริ่มต้น): คอลัมน์ข้าง `full`: ใต้ทั้งสองคอลัมน์ บนมือถือเป็นคอลัมน์เดียว |
 | `access` | `({ user }) => boolean` | ใครเห็น ตรวจฝั่ง server ค่าเริ่มต้น: ทุกคนที่ login |
 
 วิธีเขียนดูที่ [หน้าของ plugin และกล่องบนแดชบอร์ด](/th/guide/plugins#pages-and-dashboard-panels)
@@ -111,6 +111,15 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `mimeTypes` | `string[]` | `['image/*', 'application/pdf']` | ประเภทไฟล์ที่อนุญาต ตรวจจากเนื้อไฟล์ |
 | `storage` | `StorageAdapter` | ดิสก์ในเครื่อง | เช่น `s3Storage()` จาก `@easy-cms/storage-s3` [อัปโหลด](/th/guide/uploads) |
 | `imageSizes` | `ImageSize[]` | `[]` | รูปย่อ (ต้องมี `sharp`) ดู [ขนาดรูป](#image-sizes) |
+| `fromURL` | `UploadFromURLConfig` | ปิด | อัปโหลดจากลิงก์ ดู [fromURL](#fromurl) |
+
+<!-- api: UploadFromURLConfig -->
+### fromURL {#fromurl}
+
+| ตัวเลือก | Type | |
+|---|---|---|
+| `allowedHosts` | `string[]` | **จำเป็น** `images.example.com`, `*.example.com` (subdomain) หรือ `*` (ทุก host สาธารณะ) |
+| `allowPrivate` | `boolean` | รวมที่อยู่ในเครือข่ายภายใน (`localhost`, `10.x`…) ด้วย ค่าเริ่มต้น `false` [อ่านก่อน](/th/guide/uploads#from-a-link) |
 
 <!-- api: ImageSize -->
 ### ขนาดรูป {#image-sizes}

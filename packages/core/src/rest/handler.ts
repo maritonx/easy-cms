@@ -436,6 +436,18 @@ async function route(
     return { body: await serveFile(cms, third, method === 'HEAD') }
   }
   if (first === MEDIA && second === undefined && method === 'POST') {
+    // `{ url, ...data }` as JSON: the server downloads the file (upload.fromURL).
+    if (
+      (ctx.request.headers.get('content-type') ?? '').toLowerCase().startsWith('application/json')
+    ) {
+      const { url, ...data } = await readJson(ctx.request)
+      if (typeof url !== 'string' || url === '')
+        throw new ValidationError(MEDIA, [{ field: 'url', message: 'is required' }])
+      return {
+        status: 201,
+        body: await cms.uploadFromURL(url, data, { ...access, ...parseDepth(ctx.url) }),
+      }
+    }
     const { file, data } = await readUpload(ctx.request, cms.config.upload.maxFileSize)
     return {
       status: 201,
@@ -818,7 +830,10 @@ async function readUpload(
 ): Promise<{ file: { data: Uint8Array; name: string }; data: Record<string, unknown> }> {
   const type = request.headers.get('content-type') ?? ''
   if (!type.toLowerCase().startsWith('multipart/form-data')) {
-    throw new HttpError('Uploads must be multipart/form-data with a "file" field', 415)
+    throw new HttpError(
+      'Uploads must be multipart/form-data with a "file" field, or JSON with a "url"',
+      415,
+    )
   }
   const declared = Number(request.headers.get('content-length') ?? 0)
   // Leave room for the multipart envelope and the other fields.

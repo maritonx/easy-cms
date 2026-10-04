@@ -188,14 +188,15 @@ admin: {
     },
   ],
   dashboard: [
-    { component: 'ecms-visits-widget', width: 'half' }, // or 'full'
+    { component: 'ecms-visits-widget', width: 'half' }, // the side column; 'full': below
   ],
 },
 ```
 
 - The admin draws a page's header (its `label` as the title, also in the browser tab); the
-  element draws the rest. Dashboard panels come after the built-in ones, in config order, and
-  take the full width on phones.
+  element draws the rest. Dashboard panels follow the built-in ones in config order: `half`
+  (the default) in the side column, beside drafts to review and recent edits; `full` below
+  both columns. On phones everything is one column.
 - `access` is checked on the server: pages and panels a user may not see are left out of their
   admin. It only hides them: check access again in the endpoints that give them data.
 - Page paths are lowercase letters, digits and `-`, and unique.

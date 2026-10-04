@@ -1,9 +1,9 @@
 # Software Requirements Specification — Easy CMS
 
-- **เวอร์ชันเอกสาร:** 3.2
+- **เวอร์ชันเอกสาร:** 3.3
 - **วันที่:** 2026-10-04
 - **ผู้เขียน:** Kanawoot K.
-- **ครอบคลุม:** v0.1 (baseline) ถึง v0.27
+- **ครอบคลุม:** v0.1 (baseline) ถึง v0.28
 - **สถานะ:** Living document (อัปเดตทุกครั้งที่เพิ่มฟีเจอร์)
 - **เอกสารที่เกี่ยวข้อง:** [DESIGN.md](DESIGN.md), [ADRs](adr/)
 
@@ -239,6 +239,7 @@ AI assistant ► /api/cms/mcp ──┘                     └──► Webhook
 | FR-UPL-05 | ชื่อไฟล์ที่บันทึกต้องผ่านการ sanitize และไม่ซ้ำกัน เพื่อป้องกัน path traversal และการเขียนทับ | MUST |
 | FR-UPL-06 | ถ้าติดตั้ง `sharp` ไว้ ระบบต้องสร้าง thumbnail ตาม `imageSizes` ที่กำหนด | SHOULD |
 | FR-UPL-07 | Storage ต้องเป็น interface (`put/get/delete/url`) เพื่อเพิ่ม adapter อื่นได้ | MUST |
+| FR-UPL-08 | (0.28) เมื่อตั้ง `upload.fromURL` ผู้ใช้ต้องอัปโหลดจากลิงก์ได้ (`cms.uploadFromURL`, `POST <api>/media` แบบ JSON `{ url }`, ช่อง "จากลิงก์" และการวางลิงก์ใน admin) โดยไฟล์ผ่านการตรวจเดียวกับการอัปโหลดปกติ | MUST |
 
 ### 3.11 Rich Text (RTX)
 
@@ -521,7 +522,7 @@ AI assistant ► /api/cms/mcp ──┘                     └──► Webhook
 | NFR-SEC-06 | ต้องมี `SECURITY.md` ที่ระบุช่องทางรายงานช่องโหว่ | MUST |
 | NFR-SEC-07 | CI ต้องสแกนหา dependency ที่มีช่องโหว่ (`pnpm audit` หรือเทียบเท่า) | SHOULD |
 | NFR-SEC-08 | Token ที่ออกให้ภายนอก (API key, preview token, `cronSecret`) ต้องจำกัดขอบเขตและตรวจแบบเวลาคงที่ ส่วน API key และ session เก็บเป็น hash เท่านั้น | MUST |
-| NFR-SEC-09 | Server ต้องไม่ดาวน์โหลด URL ที่ได้รับจาก client หรือผู้ช่วย AI (กัน SSRF) | MUST |
+| NFR-SEC-09 | Server ต้องไม่ดาวน์โหลด URL ที่ได้รับจาก client หรือผู้ช่วย AI (กัน SSRF) ยกเว้นอัปโหลดจากลิงก์ที่เปิดด้วย `upload.fromURL` (0.28) ซึ่งต้องรับเฉพาะ `http(s)` ตรวจ host กับ `allowedHosts` และปฏิเสธที่อยู่ในเครือข่ายภายในหลัง resolve DNS ทุกครั้งที่ redirect (เว้นแต่ `allowPrivate`) และจำกัดเวลาและขนาด | MUST |
 | NFR-SEC-10 | Webhook ต้องลงลายเซ็น HMAC เพื่อให้ปลายทางตรวจได้ว่ามาจากระบบจริง | MUST |
 
 ### 4.3 Usability (USE)
@@ -716,6 +717,7 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 0.18 | SEO สำหรับ AI: crawler ของ AI, llms.txt, Markdown, IndexNow | FR-SEO-09..12 | [0021](adr/0021-seo-for-ai.md) |
 | 0.19 | Redirects plugin, `admin.group: 'settings'` | FR-RDR-*, FR-ADM-19 | [0022](adr/0022-redirects-plugin.md) |
 | 0.20 | อีเมลใน core, email-smtp, form builder | FR-EML-*, FR-FRM-*, FR-STA-06 | [0023](adr/0023-email-and-form-builder.md) |
+| 0.28 | อัปโหลดจากลิงก์ (`upload.fromURL`, `cms.uploadFromURL`) | FR-UPL-08, NFR-SEC-09 | [0031](adr/0031-upload-from-url.md) |
 | 0.27 | หน้าของ plugin และกล่องบนแดชบอร์ด, ภาพรวมฟอร์ม | FR-PLG-11 | [0030](adr/0030-plugin-pages-and-dashboard.md) |
 | 0.26 | ชนิด field ที่แพ็กเกจเพิ่มได้, `admin.cell`, `@easy-cms/fields` (`color`) | FR-PLG-10 | [0029](adr/0029-custom-field-types.md) |
 | 0.25 | type ของ field และ collection ที่ plugin เพิ่ม (`definePlugin`) | FR-PLG-09 | [0028](adr/0028-typed-plugins.md) |
@@ -736,6 +738,7 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 1.3 | 2026-09-25 | M5: FR-REST-08 (อัปโหลด/ไฟล์), FR-CFG-07 (`routes.api`, `serverURL`), ระบุว่า drafts ใน v0.1 ไม่มี version แยก |
 | 1.4 | 2026-09-25 | M6: ผลวัด NFR-PERF-01/02 บน Postgres 17 (Local API p95 2.7 ms, REST p95 4.3 ms), Next.js adapter ใช้ `getEasyCMS(config)` |
 | 1.5 | 2026-09-25 | M7: ผลตรวจรับ v0.1 (7.1) |
+| 3.3 | 2026-10-04 | 0.28: FR-UPL-08, NFR-SEC-09 |
 | 3.2 | 2026-10-04 | 0.27: FR-PLG-11 |
 | 3.1 | 2026-10-04 | 0.26: FR-PLG-10 |
 | 3.0 | 2026-10-04 | 0.25: FR-PLG-09 |

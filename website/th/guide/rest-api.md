@@ -18,7 +18,7 @@ HTTP API ที่ `/api/cms`: endpoint, การ query, การยืนย�
 | PATCH | `/:collection/:id` | อัปเดต field ที่ระบุ |
 | DELETE | `/:collection/:id` | ลบ |
 | GET / POST | `/globals/:slug` | อ่าน / อัปเดต global |
-| POST | `/media` | อัปโหลด (`multipart/form-data`, field `file`) |
+| POST | `/media` | อัปโหลด (`multipart/form-data`, field `file`) หรือ JSON `{ url }` เพื่อดาวน์โหลด ([จากลิงก์](/th/guide/uploads#from-a-link)) |
 | GET | `/media/file/:name` | ไฟล์ที่จัดเก็บไว้ (สาธารณะ) |
 | GET | `/:collection/:id/versions` | รายการเวอร์ชัน ใหม่สุดก่อน query: `limit`, `page` |
 | GET | `/:collection/:id/versions/:version` | เวอร์ชันเดียวพร้อม `data` |

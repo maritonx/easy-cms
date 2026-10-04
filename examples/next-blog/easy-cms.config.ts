@@ -30,6 +30,8 @@ export default defineConfig({
   apiKeys: true,
   // Posts and the site name in Thai and English; the slug and other fields are shared.
   localization: { locales: ['th', 'en'], defaultLocale: 'th' },
+  // "From a link" in the media library: the server downloads files from any public site.
+  upload: { fromURL: { allowedHosts: ['*'] } },
   // Field types from packages; `type: 'color'` below.
   fieldTypes: [color],
   collections: [
