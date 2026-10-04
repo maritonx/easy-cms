@@ -1,5 +1,23 @@
 # @easy-cms/nuxt
 
+## 0.29.0
+
+### Minor Changes
+
+- 5e92063: The dashboard tells admins what needs attention, and what the system is.
+  
+  - **Needs attention** (admins only, shown only when something is wrong): webhook deliveries that failed in the last 7 days, emails waiting over an hour or failed, scheduled publishing over 10 minutes late (nothing calls `jobs/run`), no `email`, and no `serverURL` in production. Each links to the new Health checks guide.
+  - **System** (admins only): the Easy CMS version, database, file storage, email adapter, plugins with their versions, and field types.
+  - Both come from the new `GET <api>/admin/status`, for admins only. Easy CMS doesn't check for new versions.
+  - **`definePlugin(plugin, { name, version })`** names a plugin for the dashboard; the official plugins name themselves. `EmailAdapter` gets an optional `name` (`smtp`, `console`). Core exports `VERSION`.
+  - In development, the admin's HTML is read on each request, so a rebuilt admin shows up without a restart.
+
+### Patch Changes
+
+- Updated dependencies [5e92063]
+  - @easy-cms/core@0.29.0
+  - @easy-cms/admin@0.29.0
+
 ## 0.28.0
 
 ### Patch Changes
