@@ -20,6 +20,7 @@ Served at `routes.api` (default `/api/cms`). All responses are JSON; access rule
 | GET / POST | `/globals/:slug` | Read / update a global |
 | POST | `/media` | Upload (`multipart/form-data`, field `file`), or JSON `{ url }` to download it ([from a link](/guide/uploads#from-a-link)) |
 | GET | `/media/file/:name` | A stored file (public) |
+| GET | `/admin/status` | For admins: the system and what needs attention ([Health checks](/guide/health-checks)) |
 | GET | `/:collection/:id/versions` | Versions, newest first. Query: `limit`, `page` |
 | GET | `/:collection/:id/versions/:version` | One version with its `data` |
 | POST | `/:collection/:id/versions/:version/restore` | Restore a version |

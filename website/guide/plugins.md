@@ -65,6 +65,22 @@ export function readingTime(options: { collections: string[] }): Plugin {
 Throw an `Error` for wrong options (an unknown slug, a field name that is taken): it stops
 startup with your message.
 
+### Naming your plugin
+
+Give `definePlugin` your package's name and version, and admins see them on the dashboard
+(System), which helps when someone reports a problem:
+
+```ts
+import { definePlugin } from '@easy-cms/core'
+import pkg from '../package.json' with { type: 'json' }
+
+export const readingTime = (options: { collections: string[] }) =>
+  definePlugin((config) => ({ /* … */ ...config }), { name: pkg.name, version: pkg.version })
+```
+
+Plugins without a name are counted there as "without a name". The official plugins name
+themselves.
+
 ### Typing your plugin
 
 Document types are inferred from the config, and a plain `Plugin` is invisible to them:

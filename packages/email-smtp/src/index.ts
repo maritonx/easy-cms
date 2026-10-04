@@ -46,6 +46,7 @@ export function smtp(options: SmtpOptions = {}): EmailAdapter {
     return transporter
   }
   const adapter: EmailAdapter = {
+    name: 'smtp',
     get from() {
       return options.from ?? env.SMTP_FROM
     },

@@ -16,6 +16,7 @@ import {
   ValidationError,
 } from '@easy-cms/core'
 import { getTree, rebuildNestedDocs } from './helpers.js'
+import { INFO } from './info.js'
 import { type ID, idOf, NESTED_SOURCE, type NestedCollection, type NestedSource } from './shared.js'
 import { descendants, liveChildren, syncChildren, trailData, trailOf } from './tree.js'
 
@@ -374,5 +375,5 @@ pages after an error. Default: every collection of nestedDocsPlugin (${slugs.joi
         modules: [...new Set([...(config.admin?.modules ?? []), ADMIN_MODULE])],
       },
     }
-  })
+  }, INFO)
 }

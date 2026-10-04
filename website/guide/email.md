@@ -102,6 +102,8 @@ An adapter is an object with `send()`. For example, with an HTTP API instead of 
 import type { EmailAdapter } from '@easy-cms/core'
 
 const resend: EmailAdapter = {
+  // Shown to admins on the dashboard (System).
+  name: 'resend',
   from: 'My Site <no-reply@example.com>',
   async send(message) {
     const response = await fetch('https://api.resend.com/emails', {

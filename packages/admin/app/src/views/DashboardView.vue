@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { AdminCollection } from '@easy-cms/core'
-import { ArrowUpRight, CalendarClock, Plus } from '@lucide/vue'
+import type { AdminAttention, AdminCollection, AdminStatus } from '@easy-cms/core'
+import { ArrowUpRight, CalendarClock, Plus, TriangleAlert } from '@lucide/vue'
 import { computed, onMounted, ref } from 'vue'
 import PluginElement from '../components/PluginElement.vue'
 import { api, type Doc, type Paginated, toQuery } from '../lib/api'
@@ -103,7 +103,80 @@ async function loadScheduled() {
   }
 }
 
+/** For admins: the system and what needs attention (`GET <api>/admin/status`). */
+const status = ref<AdminStatus | null>(null)
+const isAdmin = session.user?.role === 'admin'
+async function loadStatus() {
+  try {
+    status.value = await api<AdminStatus>('GET', '/admin/status')
+  } catch {
+    status.value = null
+  }
+}
+
+const DOCS = 'https://maritonx.github.io/easy-cms'
+const ANCHORS: Record<AdminAttention['id'], string> = {
+  webhooks: 'failed-webhooks',
+  emails: 'emails-not-sent',
+  scheduled: 'late-scheduled-publishing',
+  'no-email': 'no-email',
+  'no-server-url': 'no-serverurl',
+}
+/** An attention item as text, with where the docs explain the fix. */
+function describe(item: AdminAttention) {
+  const href = `${DOCS}${locale.value === 'th' ? '/th' : ''}/guide/health-checks#${ANCHORS[item.id]}`
+  switch (item.id) {
+    case 'webhooks':
+      return {
+        title: t('status.webhooks', { count: item.count }),
+        detail: t('status.webhooksDetail', { url: item.url }),
+        href,
+      }
+    case 'emails':
+      return {
+        title: t('status.emails', { count: item.count }),
+        detail: t('status.emailsDetail'),
+        href,
+      }
+    case 'scheduled':
+      return {
+        title: t('status.scheduled', { count: item.count }),
+        detail: t('status.scheduledDetail'),
+        href,
+      }
+    case 'no-email':
+      return { title: t('status.noEmail'), detail: t('status.noEmailDetail'), href }
+    case 'no-server-url':
+      return { title: t('status.noServerUrl'), detail: t('status.noServerUrlDetail'), href }
+  }
+}
+const attention = computed(() => (status.value?.attention ?? []).map(describe))
+const DATABASES: Record<string, string> = { sqlite: 'SQLite', postgres: 'PostgreSQL' }
+const system = computed(() => {
+  const s = status.value?.system
+  if (!s) return null
+  const named = s.plugins.filter((p) => p.name)
+  return {
+    version: s.version,
+    database: DATABASES[s.database] ?? s.database,
+    storage:
+      s.storage === 'local' ? t('status.storageLocal') : s.storage === 's3' ? 'S3' : s.storage,
+    email:
+      s.email === null
+        ? t('status.emailNone')
+        : s.email === 'smtp'
+          ? 'SMTP'
+          : s.email === 'console'
+            ? t('status.emailConsole')
+            : s.email,
+    plugins: named,
+    unnamed: s.plugins.length - named.length,
+    fieldTypes: s.fieldTypes,
+  }
+})
+
 onMounted(() => {
+  if (isAdmin) void loadStatus()
   void refreshCounts(true)
   void Promise.all(content.map((c) => latest(c))).then((lists) => {
     recent.value = lists
@@ -133,7 +206,7 @@ onMounted(() => {
 
 const showScheduled = computed(() => scheduled.value !== null && scheduled.value.length > 0)
 /** Without scheduled jobs or plugin panels, the main column takes the whole width. */
-const sideEmpty = computed(() => !showScheduled.value && sideWidgets.length === 0)
+const sideEmpty = computed(() => !showScheduled.value && sideWidgets.length === 0 && !system.value)
 const day = (value: string) =>
   new Intl.DateTimeFormat(locale.value === 'th' ? 'th-TH' : 'en-GB', { day: 'numeric' }).format(
     new Date(value),
@@ -168,6 +241,21 @@ const statusOf = (doc: Doc) => (doc.status === 'published' ? 'published' : 'draf
   </header>
 
   <!-- Content only, in menu order: the whole tile opens the list, + creates. -->
+  <!-- Admins only, and only when something is wrong. -->
+  <section v-if="attention.length" class="attention" aria-labelledby="attention-heading">
+    <h2 id="attention-heading">
+      <TriangleAlert :size="18" aria-hidden="true" />
+      {{ t('status.attention') }}
+    </h2>
+    <ul>
+      <li v-for="item in attention" :key="item.href">
+        <strong>{{ item.title }}</strong>
+        <span class="attention-detail">{{ item.detail }}</span>
+        <a :href="item.href" target="_blank" rel="noopener">{{ t('status.howToFix') }}</a>
+      </li>
+    </ul>
+  </section>
+
   <section class="tiles-section" aria-labelledby="tiles-heading">
     <h2 id="tiles-heading" class="section-label">{{ t('nav.collections') }}</h2>
     <div class="tiles">
@@ -269,6 +357,34 @@ const statusOf = (doc: Doc) => (doc.status === 'published' ? 'published' : 'draf
         class="card widget"
       >
         <PluginElement :component="widget.component" />
+      </section>
+
+      <!-- Admins only. -->
+      <section v-if="system" class="card panel system" aria-labelledby="system-heading">
+        <h2 id="system-heading">{{ t('status.system') }}</h2>
+        <dl>
+          <dt>Easy CMS</dt>
+          <dd>{{ system.version }}</dd>
+          <dt>{{ t('status.database') }}</dt>
+          <dd>{{ system.database }}</dd>
+          <dt>{{ t('status.files') }}</dt>
+          <dd>{{ system.storage }}</dd>
+          <dt>{{ t('status.email') }}</dt>
+          <dd>{{ system.email }}</dd>
+        </dl>
+        <template v-if="system.plugins.length || system.unnamed">
+          <h3>{{ t('status.plugins') }}</h3>
+          <ul class="plugins">
+            <li v-for="plugin in system.plugins" :key="plugin.name">
+              <code>{{ plugin.name }}</code>
+              <span v-if="plugin.version" class="muted">{{ plugin.version }}</span>
+            </li>
+            <li v-if="system.unnamed" class="muted">{{ t('status.unnamed', { count: system.unnamed }) }}</li>
+          </ul>
+        </template>
+        <p v-if="system.fieldTypes.length" class="field-types">
+          {{ t('status.fieldTypes') }}: <code v-for="name in system.fieldTypes" :key="name">{{ name }}</code>
+        </p>
       </section>
     </div>
   </div>
@@ -516,6 +632,96 @@ const statusOf = (doc: Doc) => (doc.status === 'published' ? 'published' : 'draf
 }
 .panel-more:hover {
   text-decoration: underline;
+}
+.attention {
+  margin-bottom: 1.25rem;
+  padding: 0.9rem 1.1rem;
+  border: 1px solid color-mix(in srgb, var(--warning-text) 30%, transparent);
+  border-radius: var(--radius);
+  background: var(--warning-soft);
+}
+.attention h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.6rem;
+  color: var(--warning-text);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.attention ul {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.attention li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+  font-size: 0.9rem;
+}
+.attention strong {
+  font-weight: 600;
+}
+.attention-detail {
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+.attention a {
+  margin-left: auto;
+  color: var(--warning-text);
+  font-weight: 500;
+}
+.system dl {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.35rem 1rem;
+  margin: 0;
+  padding: 0 1.1rem 0.75rem;
+  font-size: 0.875rem;
+}
+.system dt {
+  color: var(--faint);
+}
+.system dd {
+  margin: 0;
+}
+.system h3 {
+  margin: 0.25rem 1.1rem 0.4rem;
+  color: var(--faint);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.plugins {
+  margin: 0;
+  padding: 0 1.1rem 0.75rem;
+  list-style: none;
+  font-size: 0.85rem;
+}
+.plugins li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.15rem 0;
+}
+.plugins code,
+.field-types code {
+  overflow-wrap: anywhere;
+}
+.field-types {
+  margin: 0;
+  padding: 0 1.1rem 0.9rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+.field-types code + code::before {
+  content: ', ';
 }
 @media (max-width: 1000px) {
   .panels {

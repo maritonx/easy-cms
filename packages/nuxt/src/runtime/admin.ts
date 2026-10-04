@@ -1,5 +1,7 @@
+import { readFileSync } from 'node:fs'
+import { renderShell } from '@easy-cms/admin'
 import { defineEventHandler, getRequestURL, setResponseHeaders, setResponseStatus } from 'h3'
-import { basePath, headers, html } from '#easy-cms-admin-shell'
+import { basePath, headers, html, reload } from '#easy-cms-admin-shell'
 
 /**
  * Serves the admin SPA's HTML for every route under the admin path.
@@ -27,5 +29,5 @@ export default defineEventHandler((event) => {
     'content-type': 'text/html; charset=utf-8',
     'cache-control': 'no-store',
   })
-  return html
+  return reload ? renderShell(readFileSync(reload.file, 'utf8'), reload.options) : html
 })

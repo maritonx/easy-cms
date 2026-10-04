@@ -10,6 +10,7 @@ import {
   type Field,
   type TypedPlugin,
 } from '@easy-cms/core'
+import { INFO } from './info.js'
 import { clearRedirects, normalizePath, resolveRedirect } from './resolve.js'
 import { REDIRECTS_SOURCE, type RedirectsSource, STATUSES, targetField } from './shared.js'
 
@@ -312,5 +313,5 @@ export function redirectsPlugin<
       collections: [...(config.collections ?? []).map(withAuto), redirects],
       endpoints: [...(config.endpoints ?? []), endpoint],
     }
-  })
+  }, INFO)
 }

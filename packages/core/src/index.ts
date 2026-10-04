@@ -46,6 +46,7 @@ export type {
   LocalizationConfig,
   Operation,
   Plugin,
+  PluginInfo,
   PluginTypes,
   PreviewURL,
   ResolvedConfig,
@@ -145,6 +146,7 @@ export type {
   AdminSchema,
   AdminWidgetRef,
 } from './rest/admin-schema.js'
+export type { AdminAttention, AdminStatus } from './rest/admin-status.js'
 export {
   CSRF_COOKIE,
   CSRF_HEADER,
@@ -163,6 +165,7 @@ export {
 } from './storage.js'
 export { generateTypes, singularize } from './typegen.js'
 export { BUILTIN_COLLECTIONS, MIN_SECRET_LENGTH, validateConfig } from './validate-config.js'
+export { VERSION } from './version.js'
 export { DEFAULT_MAX_VERSIONS, type Version, type VersionSummary } from './versions.js'
 export {
   WEBHOOK_EVENTS,

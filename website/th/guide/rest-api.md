@@ -20,6 +20,7 @@ HTTP API ที่ `/api/cms`: endpoint, การ query, การยืนย�
 | GET / POST | `/globals/:slug` | อ่าน / อัปเดต global |
 | POST | `/media` | อัปโหลด (`multipart/form-data`, field `file`) หรือ JSON `{ url }` เพื่อดาวน์โหลด ([จากลิงก์](/th/guide/uploads#from-a-link)) |
 | GET | `/media/file/:name` | ไฟล์ที่จัดเก็บไว้ (สาธารณะ) |
+| GET | `/admin/status` | สำหรับ admin: ข้อมูลระบบและสิ่งที่ต้องดูแล ([ตรวจสุขภาพระบบ](/th/guide/health-checks)) |
 | GET | `/:collection/:id/versions` | รายการเวอร์ชัน ใหม่สุดก่อน query: `limit`, `page` |
 | GET | `/:collection/:id/versions/:version` | เวอร์ชันเดียวพร้อม `data` |
 | POST | `/:collection/:id/versions/:version/restore` | กู้คืนเวอร์ชัน |

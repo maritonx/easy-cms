@@ -16,6 +16,7 @@ import type { EasyCMS } from '../local-api.js'
 import { EXTENSIONS } from '../media.js'
 import { readAdminModule } from './admin-modules.js'
 import { adminSchema } from './admin-schema.js'
+import { adminStatus } from './admin-status.js'
 import { pickerFilter } from './filter-options.js'
 import { parseDepth, parseListQuery } from './query.js'
 
@@ -386,6 +387,11 @@ async function route(
       if (ctx.request.headers.get('if-none-match') === file.etag)
         return { body: new Response(null, { status: 304, headers }) }
       return { body: new Response(file.body, { headers }) }
+    }
+    // /admin/status → the system and what needs attention (dashboard, admins only)
+    if (second === 'status' && third === undefined) {
+      if (ctx.user.role !== 'admin' || ctx.user.apiKey) throw new ForbiddenError()
+      return { body: await adminStatus(cms) }
     }
     // /admin/scheduled → the next scheduled publishes the user may manage (dashboard)
     if (second === 'scheduled' && third === undefined)

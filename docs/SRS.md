@@ -1,9 +1,9 @@
 # Software Requirements Specification — Easy CMS
 
-- **เวอร์ชันเอกสาร:** 3.3
+- **เวอร์ชันเอกสาร:** 3.4
 - **วันที่:** 2026-10-04
 - **ผู้เขียน:** Kanawoot K.
-- **ครอบคลุม:** v0.1 (baseline) ถึง v0.28
+- **ครอบคลุม:** v0.1 (baseline) ถึง v0.29
 - **สถานะ:** Living document (อัปเดตทุกครั้งที่เพิ่มฟีเจอร์)
 - **เอกสารที่เกี่ยวข้อง:** [DESIGN.md](DESIGN.md), [ADRs](adr/)
 
@@ -370,6 +370,7 @@ AI assistant ► /api/cms/mcp ──┘                     └──► Webhook
 | FR-PLG-09 | Plugin ต้องประกาศสิ่งที่เพิ่ม (field ของ collection/global และ collection) ในระดับ type ได้ด้วย `definePlugin` และ type ที่อนุมานจาก config ต้องรวมสิ่งเหล่านั้น plugin ทางการทุกตัวต้องประกาศ type ของตัวเอง | 0.25 | MUST |
 | FR-PLG-10 | แพ็กเกจต้องเพิ่มชนิด field ได้ผ่าน `fieldTypes` (`defineFieldType`) โดยต่อยอดจากชนิด scalar ในตัว (เก็บ ค้นหา และ REST แบบชนิดฐาน) มี `validate`, `checkOptions`, input (`admin.component`) และ cell ในหน้ารายการ (`admin.cell`) ของตัวเอง ชื่อที่ซ้ำชนิดในตัวหรือซ้ำกันต้องเป็น config error และ type ต้องขยายได้ด้วย `CustomFieldTypes` แพ็กเกจ `@easy-cms/fields` ต้องมีชนิด `color` (`#rrggbb` / `#rrggbbaa`, `presets`) | 0.26 | MUST |
 | FR-PLG-11 | plugin ต้องเพิ่มหน้าของตัวเอง (`admin.pages` ที่ `<admin>/p/<path>` พร้อม `label`, `icon`, `group: 'content' \| 'settings' \| false`) และกล่องบนแดชบอร์ด (`admin.dashboard` แบบ `half`/`full`) ได้ด้วย Web Component โดย `access` ต้องตรวจฝั่ง server และไม่ส่งหน้าหรือกล่องที่ผู้ใช้ไม่มีสิทธิ์ไปให้ admin, `path` ที่ซ้ำหรือผิดรูปต้องเป็น config error, element ต้องได้ `user` และ (บนหน้า) `route` และส่ง `navigate` ได้ form builder ต้องมีหน้า "ภาพรวมฟอร์ม" และกล่อง "7 วันล่าสุด" จาก `GET <api>/form/stats.json` ที่นับวันตามเขตเวลาของผู้ใช้ | 0.27 | MUST |
+| FR-PLG-12 | plugin ต้องประกาศชื่อและเวอร์ชันได้ด้วย `definePlugin(fn, { name, version })` (ไม่บังคับ) plugin ทางการทุกตัวต้องประกาศ โดยเวอร์ชันมาจาก `package.json` ตอน build | 0.29 | MUST |
 | FR-PLG-08 | Endpoint ที่ตั้ง `root: true` ต้องเสิร์ฟจาก root ของเว็บใน standalone server (`createRootEndpointHandler`) ด้วย auth และ CSRF เดียวกัน และ path ต้องไม่ชนกับ `routes.api`, `admin.path` หรือ `/healthz` | 0.17 | MUST |
 
 ### 3.23 SEO plugin (SEO) — [ADR-0018](adr/0018-plugin-endpoints-admin-components.md), [ADR-0020](adr/0020-seo-sitemap-robots-root-endpoints.md), [ADR-0021](adr/0021-seo-for-ai.md)
@@ -442,6 +443,7 @@ AI assistant ► /api/cms/mcp ──┘                     └──► Webhook
 |---|---|---|---|
 | FR-MOD-13 | `upload` ต้องรองรับ `hasMany` (เรียงลำดับได้ แยกตามภาษาได้) และ `mimeTypes` ที่ตรวจฝั่ง server ส่วน upload และ relationship แบบ hasMany ต้องรองรับ `minRows` / `maxRows` | 0.23 | MUST |
 | FR-ADM-21 | upload แบบ hasMany ใน admin ต้องเลือกหลายไฟล์จากคลังได้ อัปโหลดหลายไฟล์ได้ เรียงลำดับด้วยการลากและด้วยคีย์บอร์ด และนำออกได้ | 0.23 | MUST |
+| FR-ADM-22 | แดชบอร์ดต้องแสดงให้ admin เท่านั้น: กล่อง "ต้องดูแล" เมื่อมี webhook ที่ล้มใน 7 วัน อีเมลค้างเกิน 1 ชั่วโมงหรือล้ม งานกำหนดเวลาช้าเกิน 10 นาที ไม่มี `email` หรือ production ไม่มี `serverURL` (แต่ละรายการลิงก์ไปวิธีแก้) และกล่อง "ระบบ" (เวอร์ชัน ฐานข้อมูล ที่เก็บไฟล์ อีเมล plugin และชนิด field) ข้อมูลมาจาก `GET <api>/admin/status` ที่ตอบเฉพาะ admin และไม่ติดต่อออกไปข้างนอก | 0.29 | MUST |
 
 ### 3.23f ลืมรหัสผ่านและคำเชิญ (PWD) — [ADR-0027](adr/0027-password-links.md)
 
@@ -450,7 +452,7 @@ AI assistant ► /api/cms/mcp ──┘                     └──► Webhook
 | FR-AUTH-11 | เมื่อมี `email` ผู้ใช้ต้องขอลิงก์ตั้งรหัสใหม่ได้จากหน้า login ลิงก์ใช้ได้ครั้งเดียว หมดอายุ (ค่าเริ่มต้น 1 ชั่วโมง) และคำตอบต้องไม่บอกว่าอีเมลมีบัญชีหรือไม่ | 0.24 | MUST |
 | FR-AUTH-12 | admin ต้องเชิญผู้ใช้ใหม่ทางอีเมลได้ (สร้างโดยไม่มีรหัสผ่าน) และส่งลิงก์ตั้งรหัสให้ผู้ใช้ที่มีอยู่ได้ | 0.24 | MUST |
 | FR-AUTH-13 | การตั้งรหัสจากลิงก์ต้องยกเลิก session ทุกเครื่อง login ในเบราว์เซอร์นั้น และแจ้งเจ้าของบัญชีทางอีเมลเมื่อเป็นการ reset | 0.24 | MUST |
-| NFR-SEC-10 | บน production ลิงก์ต้องสร้างจาก `serverURL` เท่านั้น ไม่ใช้ Host ของ request และต้องจำกัดจำนวนคำขอต่ออีเมลและ IP | 0.24 | MUST |
+| NFR-SEC-11 | บน production ลิงก์ต้องสร้างจาก `serverURL` เท่านั้น ไม่ใช้ Host ของ request และต้องจำกัดจำนวนคำขอต่ออีเมลและ IP | 0.24 | MUST |
 
 ### 3.24 API keys (KEY) — [ADR-0019](adr/0019-api-keys-and-mcp.md)
 
@@ -717,11 +719,12 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 0.18 | SEO สำหรับ AI: crawler ของ AI, llms.txt, Markdown, IndexNow | FR-SEO-09..12 | [0021](adr/0021-seo-for-ai.md) |
 | 0.19 | Redirects plugin, `admin.group: 'settings'` | FR-RDR-*, FR-ADM-19 | [0022](adr/0022-redirects-plugin.md) |
 | 0.20 | อีเมลใน core, email-smtp, form builder | FR-EML-*, FR-FRM-*, FR-STA-06 | [0023](adr/0023-email-and-form-builder.md) |
+| 0.29 | แดชบอร์ดสำหรับ admin: ต้องดูแล และระบบ (`/admin/status`), ชื่อและเวอร์ชันของ plugin | FR-ADM-22, FR-PLG-12 | [0032](adr/0032-admin-status.md) |
 | 0.28 | อัปโหลดจากลิงก์ (`upload.fromURL`, `cms.uploadFromURL`) | FR-UPL-08, NFR-SEC-09 | [0031](adr/0031-upload-from-url.md) |
 | 0.27 | หน้าของ plugin และกล่องบนแดชบอร์ด, ภาพรวมฟอร์ม | FR-PLG-11 | [0030](adr/0030-plugin-pages-and-dashboard.md) |
 | 0.26 | ชนิด field ที่แพ็กเกจเพิ่มได้, `admin.cell`, `@easy-cms/fields` (`color`) | FR-PLG-10 | [0029](adr/0029-custom-field-types.md) |
 | 0.25 | type ของ field และ collection ที่ plugin เพิ่ม (`definePlugin`) | FR-PLG-09 | [0028](adr/0028-typed-plugins.md) |
-| 0.24 | ลืมรหัสผ่านและคำเชิญทางอีเมล | FR-AUTH-11..13, NFR-SEC-10 | [0027](adr/0027-password-links.md) |
+| 0.24 | ลืมรหัสผ่านและคำเชิญทางอีเมล | FR-AUTH-11..13, NFR-SEC-11 | [0027](adr/0027-password-links.md) |
 | 0.23 | upload หลายไฟล์ (แกลเลอรี), `mimeTypes`, `minRows`/`maxRows` ของ hasMany | FR-MOD-13, FR-ADM-21 | [0026](adr/0026-upload-has-many.md) |
 | 0.22 | npm, pnpm, Yarn และ Bun: `--pm`, คำสั่งตาม package manager, แท็บในเอกสาร, smoke test | FR-INS-11..13 | [0025](adr/0025-package-managers.md) |
 | 0.21 | หน้าย่อย (nested docs), `filterOptions`, `uniqueWithin`, tree list, `live`, `commands`, BreadcrumbList | FR-NST-*, FR-MOD-11..12, FR-ADM-20, FR-LAPI-08, FR-INS-10, FR-SEO-13 | [0024](adr/0024-nested-docs.md) |
@@ -738,11 +741,12 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 1.3 | 2026-09-25 | M5: FR-REST-08 (อัปโหลด/ไฟล์), FR-CFG-07 (`routes.api`, `serverURL`), ระบุว่า drafts ใน v0.1 ไม่มี version แยก |
 | 1.4 | 2026-09-25 | M6: ผลวัด NFR-PERF-01/02 บน Postgres 17 (Local API p95 2.7 ms, REST p95 4.3 ms), Next.js adapter ใช้ `getEasyCMS(config)` |
 | 1.5 | 2026-09-25 | M7: ผลตรวจรับ v0.1 (7.1) |
+| 3.4 | 2026-10-04 | 0.29: FR-ADM-22, FR-PLG-12; NFR-SEC-10 ที่ซ้ำ (ลิงก์ตั้งรหัสผ่าน) เปลี่ยนเป็น NFR-SEC-11 |
 | 3.3 | 2026-10-04 | 0.28: FR-UPL-08, NFR-SEC-09 |
 | 3.2 | 2026-10-04 | 0.27: FR-PLG-11 |
 | 3.1 | 2026-10-04 | 0.26: FR-PLG-10 |
 | 3.0 | 2026-10-04 | 0.25: FR-PLG-09 |
-| 2.9 | 2026-10-03 | 0.24: FR-AUTH-11..13, NFR-SEC-10 |
+| 2.9 | 2026-10-03 | 0.24: FR-AUTH-11..13, NFR-SEC-11 |
 | 2.8 | 2026-10-03 | 0.23: FR-MOD-13, FR-ADM-21 |
 | 2.7 | 2026-10-01 | 7.2 ข้อ 7: README ตรงกับ release |
 | 2.6 | 2026-10-01 | 0.22: FR-INS-11..13 |

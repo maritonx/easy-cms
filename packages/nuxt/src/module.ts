@@ -149,17 +149,21 @@ declare module '${SERVER}' {
     // that adds security headers and the settings the app reads at startup.
     const adminPackage = createRequire(import.meta.url).resolve('@easy-cms/admin/package.json')
     const adminAppDir = join(dirname(adminPackage), 'dist/app')
-    const shell = renderShell(readFileSync(join(adminAppDir, SHELL_FILE), 'utf8'), {
+    const shellFile = join(adminAppDir, SHELL_FILE)
+    const shellOptions = {
       basePath: adminPath,
       apiPath,
       locale: rawConfig?.admin?.locale ?? 'en',
       brand: rawConfig?.admin?.brand ?? {},
       // The site is this Nuxt app.
       siteUrl: rawConfig?.admin?.siteUrl ?? '/',
-    })
+    }
+    const shell = renderShell(readFileSync(shellFile, 'utf8'), shellOptions)
+    // In development the shell is read on each request, so a rebuilt admin is picked up.
     nitro.virtual[ADMIN_SHELL] = `export const basePath = ${JSON.stringify(adminPath)}
 export const html = ${JSON.stringify(shell)}
 export const headers = ${JSON.stringify(SECURITY_HEADERS)}
+export const reload = ${nuxt.options.dev ? JSON.stringify({ file: shellFile, options: shellOptions }) : 'null'}
 `
     nitro.publicAssets = [
       ...(nitro.publicAssets ?? []),

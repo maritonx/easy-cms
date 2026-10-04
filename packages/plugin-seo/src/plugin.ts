@@ -15,6 +15,7 @@ import type {
   TypedPlugin,
 } from '@easy-cms/core'
 import { createIndexNow, INDEXNOW_KEY, INDEXNOW_SOURCE, type IndexNowOptions } from './indexnow.js'
+import { INFO } from './info.js'
 import { llmsFullTxt, llmsTxt } from './llms.js'
 import { type RobotsTxtOptions, robotsTxt } from './robots.js'
 import {
@@ -472,7 +473,8 @@ export function seoPlugin<const C extends string = never, const G extends string
       endpoints: [...(config.endpoints ?? []), endpoint, ...siteEndpoints],
     }
   }
-  return plugin as TypedPlugin<SeoPluginTypes<C, G>>
+  // Not definePlugin(): this package's browser code must not import core's values.
+  return Object.assign(plugin, { info: INFO }) as TypedPlugin<SeoPluginTypes<C, G>>
 }
 
 const isEmpty = (value: unknown) => value === null || value === undefined || value === ''

@@ -417,8 +417,18 @@ export interface Endpoint {
   readonly handler: (request: EndpointRequest) => MaybePromise<unknown>
 }
 
+/** A plugin's package and version, listed for admins on the dashboard (System). */
+export interface PluginInfo {
+  /** Usually the package name, e.g. `@acme/easy-cms-plugin-stats`. */
+  readonly name: string
+  readonly version?: string
+}
+
 /** Receives the config and returns a modified copy. Runs before validation. */
-export type Plugin = (config: Config) => MaybePromise<Config>
+export type Plugin = ((config: Config) => MaybePromise<Config>) & {
+  /** Set by `definePlugin(plugin, info)`. */
+  readonly info?: PluginInfo
+}
 
 /** Holds a plugin's `PluginTypes` at the type level only: nothing is stored at runtime. */
 declare const PLUGIN_TYPES: unique symbol
@@ -438,19 +448,22 @@ export interface PluginTypes {
 export type TypedPlugin<T extends PluginTypes> = Plugin & { readonly [PLUGIN_TYPES]?: T }
 
 /**
- * Returns the plugin unchanged, with what it adds as types, so `cms.find()` and
- * `CollectionDocument` know the plugin's fields:
+ * Returns the plugin with what it adds as types, so `cms.find()` and `CollectionDocument` know
+ * the plugin's fields; `info` (its name and version) is listed for admins on the dashboard:
  *
  * ```ts
  * export const colorPlugin = (options: { collections: readonly string[] }) =>
  *   definePlugin<{ fields: { posts: readonly [{ readonly name: 'color'; readonly type: 'text' }] } }>(
  *     (config) => ({ ...config, collections: … }),
+ *     { name: '@acme/easy-cms-plugin-color', version: '1.2.0' },
  *   )
  * ```
  */
 export function definePlugin<const T extends PluginTypes = Record<never, never>>(
   plugin: Plugin,
+  info?: PluginInfo,
 ): TypedPlugin<T> {
+  if (info) Object.defineProperty(plugin, 'info', { value: info, configurable: true })
   return plugin
 }
 
@@ -540,6 +553,8 @@ export interface ResolvedConfig
   readonly endpoints: readonly Endpoint[]
   readonly commands: readonly CliCommand[]
   readonly fieldTypes: readonly FieldTypeDefinition[]
+  /** The config's plugins in order, with their `info` where they give one. */
+  readonly installedPlugins: readonly Partial<PluginInfo>[]
 }
 
 /**

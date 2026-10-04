@@ -62,6 +62,9 @@ When `EASY_CMS_SECRET` is missing, the API answers `500` and the log says
 - Set `auth.trustedOrigins` if the admin or frontend call the API from another origin
 - [Backups](./backups) of the database and uploads, and a restore you have tried
 
+After going live, the dashboard tells admins what needs attention: see
+[Health checks](./health-checks).
+
 ## Next steps
 
 - [Backups & upgrades](./backups): back up before upgrading.

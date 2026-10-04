@@ -1015,6 +1015,13 @@ test.describe('logged in as admin', () => {
     await expect(panel).toBeVisible()
     const widget = await panel.boundingBox()
     expect(widget && d && Math.abs(widget.y - d.y) < 80).toBe(true)
+    // For admins: the system, with the plugins and their versions.
+    const system = page.getByRole('region', { name: 'System' })
+    await expect(system).toContainText('Easy CMS')
+    await expect(system).toContainText(/\d+\.\d+\.\d+/)
+    await expect(system.getByText('@easy-cms/plugin-seo')).toBeVisible()
+    await expect(system).toContainText('color')
+
     await tiles.getByRole('link', { name: 'Create Post' }).click()
     await expect(page).toHaveURL(/\/admin\/collections\/posts\/new$/)
   })
@@ -1130,6 +1137,12 @@ test.describe('logged in as editor', () => {
     await expect(page.getByText('You can view but not change this document.')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Save' })).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Delete' })).toHaveCount(0)
+
+    // The system and its problems are for admins.
+    await page.goto('/admin/')
+    await expect(page.getByRole('heading', { name: 'Drafts to review' })).toBeVisible()
+    await expect(page.getByRole('region', { name: 'System' })).toHaveCount(0)
+    expect((await page.request.get('/api/cms/admin/status')).status()).toBe(403)
   })
 
   test('changes their own password (FR-ADM-13)', async ({ page }) => {

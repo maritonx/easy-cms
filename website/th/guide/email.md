@@ -96,6 +96,8 @@ adapter คือ object ที่มี `send()` เช่น ใช้ HTTP AP
 import type { EmailAdapter } from '@easy-cms/core'
 
 const resend: EmailAdapter = {
+  // แสดงให้ admin เห็นบนแดชบอร์ด (กล่องระบบ)
+  name: 'resend',
   from: 'My Site <no-reply@example.com>',
   async send(message) {
     const response = await fetch('https://api.resend.com/emails', {

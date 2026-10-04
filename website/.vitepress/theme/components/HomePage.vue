@@ -11,8 +11,8 @@ const { isDark } = useData()
 
 const COPY = {
   en: {
-    badge: 'New in 0.28: upload files from a link',
-    badgeLink: 'uploads#from-a-link',
+    badge: 'New in 0.29: health checks on the dashboard',
+    badgeLink: 'health-checks',
     title: 'Your CMS,',
     titleAccent: 'inside your app',
     tagline:
@@ -186,8 +186,8 @@ const COPY = {
     ctaGuide: 'Read the guide',
   },
   th: {
-    badge: 'ใหม่ใน 0.28: อัปโหลดไฟล์จากลิงก์',
-    badgeLink: 'uploads#from-a-link',
+    badge: 'ใหม่ใน 0.29: ตรวจสุขภาพระบบบนแดชบอร์ด',
+    badgeLink: 'health-checks',
     title: 'CMS ที่อยู่',
     titleAccent: 'ในแอปของคุณ',
     tagline: 'กำหนดเนื้อหาด้วย TypeScript ได้หน้า admin, API ที่มี type และ plugin โดยไม่ต้องดูแล server แยก',

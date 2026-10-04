@@ -115,6 +115,8 @@ cd my-cms && npm run dev       # http://localhost:4000/admin
 - Lists with search, filters, columns, bulk actions and tree views; forms with a side panel
 - Live preview of unsaved changes on your real pages
 - Scheduled publish and unpublish, a media library with image sizes
+- A dashboard that tells admins what needs attention: failed webhooks, stuck emails, late
+  scheduled publishing
 - English and Thai interface, light and dark themes, works on phones
 
 **APIs**

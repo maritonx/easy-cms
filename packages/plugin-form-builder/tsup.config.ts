@@ -1,5 +1,7 @@
-import { copyFileSync } from 'node:fs'
+import { copyFileSync, readFileSync } from 'node:fs'
 import { defineConfig } from 'tsup'
+
+const { version } = JSON.parse(readFileSync('package.json', 'utf8')) as { version: string }
 
 export default defineConfig([
   {
@@ -9,6 +11,8 @@ export default defineConfig([
     dts: { compilerOptions: { ignoreDeprecations: '6.0' } },
     clean: true,
     target: 'es2022',
+    // INFO in src/info.ts.
+    define: { __PACKAGE_VERSION__: JSON.stringify(version) },
   },
   {
     // Browser files, one each and self-contained: the admin module and the <easy-form> element.

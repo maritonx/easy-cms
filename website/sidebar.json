@@ -243,6 +243,13 @@
           }
         },
         {
+          "path": "guide/health-checks",
+          "title": {
+            "en": "Health checks",
+            "th": "ตรวจสุขภาพระบบ"
+          }
+        },
+        {
           "path": "guide/backups",
           "title": {
             "en": "Backups & upgrades",

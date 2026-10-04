@@ -63,7 +63,7 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
   const issues = [...applied.issues, ...validateConfig(config)]
   if (issues.length > 0) throw new ConfigError(issues)
 
-  const { plugins: _plugins, ...rest } = config
+  const { plugins, ...rest } = config
   const result: ResolvedConfig = {
     ...rest,
     cors: config.cors ?? [],
@@ -115,6 +115,9 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
     globals: config.globals ?? [],
     endpoints: config.endpoints ?? [],
     commands: config.commands ?? [],
+    installedPlugins: (plugins ?? []).map((plugin) =>
+      typeof plugin === 'function' && plugin.info ? { ...plugin.info } : {},
+    ),
     fieldTypes: config.fieldTypes ?? [],
   }
   resolved.add(result)

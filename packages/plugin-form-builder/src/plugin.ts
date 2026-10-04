@@ -12,6 +12,7 @@ import {
 import { renderRichText } from '@easy-cms/richtext'
 import { buildEmails } from './emails.js'
 import { fieldBlocks } from './fields.js'
+import { INFO } from './info.js'
 import {
   type Confirmation,
   FIELD_KINDS,
@@ -640,7 +641,7 @@ export function formBuilderPlugin<
         elementEndpoint,
       ],
     }
-  })
+  }, INFO)
 }
 
 /** A short line for the admin list: the first few values. */

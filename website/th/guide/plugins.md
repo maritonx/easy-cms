@@ -63,6 +63,20 @@ export function readingTime(options: { collections: string[] }): Plugin {
 
 ถ้าตัวเลือกผิด (เช่น slug ที่ไม่มี หรือชื่อ field ที่ถูกใช้แล้ว) ให้ throw `Error` ระบบจะหยุดตอนเริ่มทำงานและแสดงข้อความของคุณ
 
+### ตั้งชื่อ plugin {#naming-your-plugin}
+
+ส่งชื่อแพ็กเกจและเวอร์ชันให้ `definePlugin` แล้ว admin จะเห็นบนแดชบอร์ด (กล่องระบบ) ซึ่งช่วยได้มากตอนมีคนแจ้งปัญหา:
+
+```ts
+import { definePlugin } from '@easy-cms/core'
+import pkg from '../package.json' with { type: 'json' }
+
+export const readingTime = (options: { collections: string[] }) =>
+  definePlugin((config) => ({ /* … */ ...config }), { name: pkg.name, version: pkg.version })
+```
+
+plugin ที่ไม่มีชื่อจะถูกนับรวมว่า "ไม่มีชื่อ" plugin ทางการทุกตัวตั้งชื่อตัวเองแล้ว
+
 ### ใส่ type ให้ plugin {#typing-your-plugin}
 
 type ของเอกสารอนุมานจาก config และ type มองไม่เห็นสิ่งที่ `Plugin` ธรรมดาเพิ่ม `post.readingTime` จึงไม่มีอยู่ในสายตาของ

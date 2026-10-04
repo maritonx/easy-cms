@@ -8,6 +8,7 @@ import {
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js'
+import { INFO } from './info.js'
 import { buildTools, type ToolOptions } from './tools.js'
 
 export interface McpPluginOptions extends ToolOptions {
@@ -31,7 +32,7 @@ const DEFAULT_INSTRUCTIONS = `Tools read and change the content of an Easy CMS s
  * key allows. Needs `apiKeys: true`.
  */
 export function mcpPlugin(options: McpPluginOptions = {}): Plugin {
-  return (config: Config): Config => {
+  const plugin: Plugin = (config: Config): Config => {
     if (!config.apiKeys)
       throw new Error('mcpPlugin: set `apiKeys: true`; assistants connect with an API key')
     const endpoint: Endpoint = {
@@ -85,6 +86,7 @@ export function mcpPlugin(options: McpPluginOptions = {}): Plugin {
     }
     return { ...config, endpoints: [...(config.endpoints ?? []), endpoint] }
   }
+  return Object.assign(plugin, { info: INFO })
 }
 
 function failure(text: string) {

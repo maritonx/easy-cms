@@ -95,10 +95,13 @@ export function createAdminHandler(options: AdminHandlerOptions = {}): AdminHand
   const basePath = trimSlashes(options.basePath ?? '/admin')
   const appDir = options.appDir ?? APP_DIR
   let shell: Promise<string> | undefined
+  // Outside production the shell is read on each request, so a rebuilt admin is picked up.
+  const cache = process.env.NODE_ENV === 'production'
   const html = () => {
-    shell ??= readFile(join(appDir, SHELL_FILE), 'utf8').then((source) =>
-      renderShell(source, options),
-    )
+    const read = () =>
+      readFile(join(appDir, SHELL_FILE), 'utf8').then((source) => renderShell(source, options))
+    if (!cache) return read()
+    shell ??= read()
     return shell
   }
 

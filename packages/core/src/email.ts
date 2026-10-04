@@ -21,6 +21,8 @@ export interface EmailMessage {
  * development. Throw to report a failure: the message is retried later.
  */
 export interface EmailAdapter {
+  /** What sends the email, e.g. `smtp`; shown to admins on the dashboard (System). */
+  readonly name?: string
   /** The sender when a message has none, e.g. `Easy CMS <no-reply@example.com>`. */
   readonly from?: string | undefined
   send(message: EmailMessage & { readonly from: string }): Promise<void>
@@ -30,6 +32,7 @@ export interface EmailAdapter {
 export function consoleEmail(options: { from?: string; log?: (text: string) => void } = {}) {
   const sent: (EmailMessage & { from: string })[] = []
   const adapter: EmailAdapter & { readonly sent: typeof sent } = {
+    name: 'console',
     from: options.from ?? 'Easy CMS <no-reply@localhost>',
     sent,
     async send(message) {
