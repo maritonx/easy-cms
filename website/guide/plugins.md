@@ -65,6 +65,42 @@ export function readingTime(options: { collections: string[] }): Plugin {
 Throw an `Error` for wrong options (an unknown slug, a field name that is taken): it stops
 startup with your message.
 
+### Typing your plugin
+
+Document types are inferred from the config, and a plain `Plugin` is invisible to them:
+`post.readingTime` wouldn't exist for TypeScript. `definePlugin` tells the types what the plugin
+adds, written like config fields. A `const` type parameter keeps the collection names the user
+passes:
+
+```ts
+import { definePlugin } from '@easy-cms/core'
+
+type ReadingTimeField = { readonly name: 'readingTime'; readonly type: 'number' }
+
+export function readingTime<const S extends string>(options: { collections: readonly S[] }) {
+  return definePlugin<{ fields: { [K in S]: readonly [ReadingTimeField] } }>((config) => ({
+    // … as above
+  }))
+}
+
+// readingTime({ collections: ['posts'] }) → `post.readingTime: number | null | undefined`
+```
+
+`definePlugin<T>` returns the plugin unchanged; `T` has up to three parts:
+
+| | |
+|---|---|
+| `fields` | Fields added to collections, by slug. |
+| `globalFields` | Fields added to globals, by slug. |
+| `collections` | Whole collections the plugin adds, e.g. `[{ readonly slug: 'redirects'; readonly fields: readonly [...] }]`. |
+
+The official plugins do the same, so `post.meta` (SEO), `page.path` and `page.breadcrumbs`
+(nested pages) and the `redirects` and `forms` collections are typed. When the options aren't
+literals (a `string[]` variable), the plugin's fields are left out rather than added everywhere.
+
+If your package also has code for browsers (like `seoMeta`), keep core out of it: instead of
+importing `definePlugin`, write the type only, `return plugin as TypedPlugin<…>`.
+
 ## Endpoints
 
 `endpoints` adds routes to the REST API, under `routes.api` (`/api/cms`):

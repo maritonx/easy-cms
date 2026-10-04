@@ -365,6 +365,40 @@ export interface Endpoint {
 /** Receives the config and returns a modified copy. Runs before validation. */
 export type Plugin = (config: Config) => MaybePromise<Config>
 
+/** Holds a plugin's `PluginTypes` at the type level only: nothing is stored at runtime. */
+declare const PLUGIN_TYPES: unique symbol
+
+/**
+ * What a plugin adds, for the document types inferred from the config: fields on collections
+ * and globals (by slug), and whole collections. Field types are written like config fields,
+ * e.g. `{ fields: { posts: readonly [{ readonly name: 'meta'; readonly type: 'group'; … }] } }`.
+ */
+export interface PluginTypes {
+  readonly fields?: { readonly [collection: string]: readonly Field[] }
+  readonly globalFields?: { readonly [global: string]: readonly Field[] }
+  readonly collections?: readonly CollectionConfig[]
+}
+
+/** A plugin that tells the type system what it adds (see `definePlugin`). */
+export type TypedPlugin<T extends PluginTypes> = Plugin & { readonly [PLUGIN_TYPES]?: T }
+
+/**
+ * Returns the plugin unchanged, with what it adds as types, so `cms.find()` and
+ * `CollectionDocument` know the plugin's fields:
+ *
+ * ```ts
+ * export const colorPlugin = (options: { collections: readonly string[] }) =>
+ *   definePlugin<{ fields: { posts: readonly [{ readonly name: 'color'; readonly type: 'text' }] } }>(
+ *     (config) => ({ ...config, collections: … }),
+ *   )
+ * ```
+ */
+export function definePlugin<const T extends PluginTypes = Record<never, never>>(
+  plugin: Plugin,
+): TypedPlugin<T> {
+  return plugin
+}
+
 export interface Config {
   /** Signs sessions. At least 32 characters; read it from `process.env.EASY_CMS_SECRET`. */
   readonly secret: string

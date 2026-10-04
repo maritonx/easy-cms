@@ -96,6 +96,14 @@ type GDoc<C extends Config, S> =
 type GInput<C extends Config, S> =
   string extends GlobalSlug<C> ? Data : GlobalInput<C, S & GlobalSlug<C>>
 
+/** A collection slug of the config `C` (any string when the config isn't a literal). */
+export type SlugOf<C extends Config> = Slug<C>
+/**
+ * A document of collection `S` as the Local API returns it, e.g. for helpers that take an
+ * `EasyCMS<C>`: inferred from a literal config, loose otherwise.
+ */
+export type DocumentOf<C extends Config, S> = Doc<C, S>
+
 export interface AccessOptions {
   /**
    * The Local API trusts its caller and skips access rules by default.

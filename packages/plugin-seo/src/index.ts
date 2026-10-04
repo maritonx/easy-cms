@@ -21,7 +21,14 @@ export {
   seoMeta,
   siteJsonLd,
 } from './meta.js'
-export { type Generate, type GenerateArgs, type SeoPluginOptions, seoPlugin } from './plugin.js'
+export {
+  type Generate,
+  type GenerateArgs,
+  type SeoMetaField,
+  type SeoPluginOptions,
+  type SeoPluginTypes,
+  seoPlugin,
+} from './plugin.js'
 export { AI_CRAWLERS, type RobotsRule, type RobotsTxtOptions, robotsTxt } from './robots.js'
 export { DEFAULT_DESCRIPTION_LENGTH, DEFAULT_TITLE_LENGTH } from './shared.js'
 export {

@@ -54,6 +54,25 @@ for (const section of post.sections ?? []) {
 }
 ```
 
+### Fields that plugins add
+
+Plugins tell the types what they add, so their fields are typed like yours:
+
+```ts
+plugins: [
+  seoPlugin({ collections: ['posts'] }),
+  nestedDocsPlugin({ collections: ['pages'] }),
+  redirectsPlugin({ collections: ['pages'] }),
+]
+
+post.meta.title // string | null | undefined
+page.breadcrumbs[0]?.url // string | null | undefined
+await findByPath(cms, 'pages', '/about') // Page | null
+await cms.find('redirects') // the collection the plugin adds
+```
+
+Your own plugins can do the same with [`definePlugin`](./plugins#typing-your-plugin).
+
 ## Naming the types
 
 ```ts

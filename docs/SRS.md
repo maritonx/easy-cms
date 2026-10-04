@@ -1,9 +1,9 @@
 # Software Requirements Specification — Easy CMS
 
-- **เวอร์ชันเอกสาร:** 2.9
+- **เวอร์ชันเอกสาร:** 3.0
 - **วันที่:** 2026-10-01
 - **ผู้เขียน:** Kanawoot K.
-- **ครอบคลุม:** v0.1 (baseline) ถึง v0.24
+- **ครอบคลุม:** v0.1 (baseline) ถึง v0.25
 - **สถานะ:** Living document (อัปเดตทุกครั้งที่เพิ่มฟีเจอร์)
 - **เอกสารที่เกี่ยวข้อง:** [DESIGN.md](DESIGN.md), [ADRs](adr/)
 
@@ -366,6 +366,7 @@ AI assistant ► /api/cms/mcp ──┘                     └──► Webhook
 | FR-PLG-05 | สัญญาเวอร์ชัน 1 ต้องส่ง property `apiVersion, value, path, field, label, doc, collection, global, id, locale, uiLocale, readOnly, options, api` และรับ event `change` กับ `set-field` การเปลี่ยนแบบไม่เข้ากันได้ต้องเพิ่ม `apiVersion` | 0.13 | MUST |
 | FR-PLG-06 | ถ้า module โหลดไม่ได้หรือไม่มี tag ที่ระบุ หน้า Admin ต้องแสดงข้อความแทนที่ว่าง | 0.13 | MUST |
 | FR-PLG-07 | `applyPlugins(config)` ต้องรัน plugin โดยไม่ตรวจ config เพื่อให้เครื่องมือตอน build อ่านสิ่งที่ plugin เพิ่มได้ | 0.13 | MUST |
+| FR-PLG-09 | Plugin ต้องประกาศสิ่งที่เพิ่ม (field ของ collection/global และ collection) ในระดับ type ได้ด้วย `definePlugin` และ type ที่อนุมานจาก config ต้องรวมสิ่งเหล่านั้น plugin ทางการทุกตัวต้องประกาศ type ของตัวเอง | 0.25 | MUST |
 | FR-PLG-08 | Endpoint ที่ตั้ง `root: true` ต้องเสิร์ฟจาก root ของเว็บใน standalone server (`createRootEndpointHandler`) ด้วย auth และ CSRF เดียวกัน และ path ต้องไม่ชนกับ `routes.api`, `admin.path` หรือ `/healthz` | 0.17 | MUST |
 
 ### 3.23 SEO plugin (SEO) — [ADR-0018](adr/0018-plugin-endpoints-admin-components.md), [ADR-0020](adr/0020-seo-sitemap-robots-root-endpoints.md), [ADR-0021](adr/0021-seo-for-ai.md)
@@ -713,6 +714,7 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 0.18 | SEO สำหรับ AI: crawler ของ AI, llms.txt, Markdown, IndexNow | FR-SEO-09..12 | [0021](adr/0021-seo-for-ai.md) |
 | 0.19 | Redirects plugin, `admin.group: 'settings'` | FR-RDR-*, FR-ADM-19 | [0022](adr/0022-redirects-plugin.md) |
 | 0.20 | อีเมลใน core, email-smtp, form builder | FR-EML-*, FR-FRM-*, FR-STA-06 | [0023](adr/0023-email-and-form-builder.md) |
+| 0.25 | type ของ field และ collection ที่ plugin เพิ่ม (`definePlugin`) | FR-PLG-09 | [0028](adr/0028-typed-plugins.md) |
 | 0.24 | ลืมรหัสผ่านและคำเชิญทางอีเมล | FR-AUTH-11..13, NFR-SEC-10 | [0027](adr/0027-password-links.md) |
 | 0.23 | upload หลายไฟล์ (แกลเลอรี), `mimeTypes`, `minRows`/`maxRows` ของ hasMany | FR-MOD-13, FR-ADM-21 | [0026](adr/0026-upload-has-many.md) |
 | 0.22 | npm, pnpm, Yarn และ Bun: `--pm`, คำสั่งตาม package manager, แท็บในเอกสาร, smoke test | FR-INS-11..13 | [0025](adr/0025-package-managers.md) |
@@ -730,6 +732,7 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 1.3 | 2026-09-25 | M5: FR-REST-08 (อัปโหลด/ไฟล์), FR-CFG-07 (`routes.api`, `serverURL`), ระบุว่า drafts ใน v0.1 ไม่มี version แยก |
 | 1.4 | 2026-09-25 | M6: ผลวัด NFR-PERF-01/02 บน Postgres 17 (Local API p95 2.7 ms, REST p95 4.3 ms), Next.js adapter ใช้ `getEasyCMS(config)` |
 | 1.5 | 2026-09-25 | M7: ผลตรวจรับ v0.1 (7.1) |
+| 3.0 | 2026-10-04 | 0.25: FR-PLG-09 |
 | 2.9 | 2026-10-03 | 0.24: FR-AUTH-11..13, NFR-SEC-10 |
 | 2.8 | 2026-10-03 | 0.23: FR-MOD-13, FR-ADM-21 |
 | 2.7 | 2026-10-01 | 7.2 ข้อ 7: README ตรงกับ release |

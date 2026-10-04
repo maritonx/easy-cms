@@ -7,11 +7,12 @@ import {
   type CliCommand,
   type CollectionConfig,
   type Config,
+  definePlugin,
   type Endpoint,
   type Field,
   type FilterOptions,
   NotFoundError,
-  type Plugin,
+  type TypedPlugin,
   ValidationError,
 } from '@easy-cms/core'
 import { getTree, rebuildNestedDocs } from './helpers.js'
@@ -47,8 +48,46 @@ const ADMIN_MODULE = '@easy-cms/plugin-nested-docs/admin'
  * (`/about/team`), kept up to date when a page above it moves or changes its slug, and a tree
  * in the admin's list.
  */
-export function nestedDocsPlugin(options: NestedDocsPluginOptions): Plugin {
-  return (config: Config): Config => {
+/** The fields the plugin adds to collection `S`, as the inferred document types see them. */
+export type NestedDocsFields<
+  S extends string,
+  P extends string = 'parent',
+  B extends string = 'breadcrumbs',
+  T extends string = 'path',
+> = readonly [
+  { readonly name: P; readonly type: 'relationship'; readonly to: S },
+  { readonly name: T; readonly type: 'text' },
+  {
+    readonly name: B
+    readonly type: 'array'
+    readonly fields: readonly [
+      { readonly name: 'doc'; readonly type: 'relationship'; readonly to: S },
+      { readonly name: 'label'; readonly type: 'text' },
+      { readonly name: 'url'; readonly type: 'text' },
+    ]
+  },
+]
+
+/** What `nestedDocsPlugin(options)` adds: its fields on each of its collections. */
+export type NestedDocsPluginTypes<
+  S extends string,
+  P extends string = 'parent',
+  B extends string = 'breadcrumbs',
+  T extends string = 'path',
+> = { readonly fields: { readonly [K in S]: NestedDocsFields<K, P, B, T> } }
+
+export function nestedDocsPlugin<
+  const S extends string,
+  const P extends string = 'parent',
+  const B extends string = 'breadcrumbs',
+  const T extends string = 'path',
+>(
+  options: NestedDocsPluginOptions & {
+    readonly collections: readonly S[]
+    readonly fields?: { readonly parent?: P; readonly breadcrumbs?: B; readonly path?: T }
+  },
+): TypedPlugin<NestedDocsPluginTypes<S, P, B, T>> {
+  return definePlugin<NestedDocsPluginTypes<S, P, B, T>>((config: Config): Config => {
     const slugs = options.collections ?? []
     if (!Array.isArray(slugs) || slugs.length === 0)
       throw new Error("nestedDocsPlugin: list the collections, e.g. { collections: ['pages'] }")
@@ -335,5 +374,5 @@ pages after an error. Default: every collection of nestedDocsPlugin (${slugs.joi
         modules: [...new Set([...(config.admin?.modules ?? []), ADMIN_MODULE])],
       },
     }
-  }
+  })
 }

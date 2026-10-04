@@ -43,9 +43,11 @@ export type {
   LocalizationConfig,
   Operation,
   Plugin,
+  PluginTypes,
   PreviewURL,
   ResolvedConfig,
   RoutesConfig,
+  TypedPlugin,
   UploadConfig,
   VersionsConfig,
 } from './config.js'
@@ -55,6 +57,7 @@ export {
   type AdminIcon,
   type Config,
   defineConfig,
+  definePlugin,
 } from './config.js'
 export { configSignature } from './config-signature.js'
 export { type CopyProgress, type CopyResult, copyDatabase } from './copy.js'
@@ -101,11 +104,13 @@ export {
   type CreateEasyCMSOptions,
   createEasyCMS,
   type DepthOptions,
+  type DocumentOf,
   EasyCMS,
   type FindOptions,
   type LivePreview,
   type ReadOptions,
   type ScheduledJob,
+  type SlugOf,
   type UpdateOptions,
 } from './local-api.js'
 export { consoleLogger, type Logger, silentLogger } from './logger.js'

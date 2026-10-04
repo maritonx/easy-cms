@@ -15,12 +15,6 @@ type Props = {
   searchParams: Promise<{ locale?: string }>
 }
 
-interface Breadcrumb {
-  id: string
-  label: string
-  url: string
-}
-
 /** A page by its full path (/p/about/team), Thai by default and English at `?locale=en`. */
 async function load({ params, searchParams }: Props, preview: boolean) {
   const path = `/${(await params).path.join('/')}`
@@ -38,7 +32,9 @@ async function load({ params, searchParams }: Props, preview: boolean) {
 }
 
 /** Metadata, with BreadcrumbList JSON-LD so search results can show where the page sits. */
-async function seoFor(page: Record<string, unknown>, locale: 'th' | 'en') {
+type PageDoc = NonNullable<Awaited<ReturnType<typeof load>>['page']>
+
+async function seoFor(page: PageDoc, locale: 'th' | 'en') {
   const request = await headers()
   const origin = `${request.get('x-forwarded-proto') ?? 'http'}://${request.get('host')}`
   // Like pageURL in easy-cms.config.ts.
@@ -48,10 +44,7 @@ async function seoFor(page: Record<string, unknown>, locale: 'th' | 'en') {
     config,
     locale,
     url: (p) => (typeof p.path === 'string' ? href(p.path) : null),
-    breadcrumbs: ((page.breadcrumbs ?? []) as Breadcrumb[]).map((b) => ({
-      name: b.label,
-      url: href(b.url),
-    })),
+    breadcrumbs: page.breadcrumbs.map((b) => ({ name: b.label ?? '', url: href(b.url ?? '') })),
   })
 }
 
@@ -65,7 +58,7 @@ export default async function Page(props: Props) {
   if (!page) notFound()
   const seo = await seoFor(page, locale)
   const query = locale === 'en' ? '?locale=en' : ''
-  const breadcrumbs = (page.breadcrumbs ?? []) as Breadcrumb[]
+  const breadcrumbs = page.breadcrumbs
   return (
     <article>
       {[seo.jsonLd, seo.breadcrumbList].filter(Boolean).map((data, i) => (
@@ -101,7 +94,7 @@ export default async function Page(props: Props) {
       <div
         className="body"
         // biome-ignore lint/security/noDangerouslySetInnerHtml: renderRichText escapes text and drops unsafe URLs
-        dangerouslySetInnerHTML={{ __html: renderRichText(page.body as never) }}
+        dangerouslySetInnerHTML={{ __html: renderRichText(page.body) }}
       />
     </article>
   )

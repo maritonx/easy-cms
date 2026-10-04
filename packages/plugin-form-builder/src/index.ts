@@ -1,4 +1,8 @@
-export { type FormBuilderOptions, formBuilderPlugin } from './plugin.js'
+export {
+  type FormBuilderOptions,
+  type FormBuilderPluginTypes,
+  formBuilderPlugin,
+} from './plugin.js'
 export type {
   Confirmation,
   FieldKind,

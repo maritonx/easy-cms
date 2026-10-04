@@ -1,3 +1,4 @@
+// Types only: `seoMeta()` from this package runs in browsers too, so no core code is imported.
 import type {
   AfterChangeHook,
   AfterDeleteHook,
@@ -11,6 +12,7 @@ import type {
   GlobalConfig,
   Label,
   Plugin,
+  TypedPlugin,
 } from '@easy-cms/core'
 import { createIndexNow, INDEXNOW_KEY, INDEXNOW_SOURCE, type IndexNowOptions } from './indexnow.js'
 import { llmsFullTxt, llmsTxt } from './llms.js'
@@ -101,8 +103,32 @@ const TEXT_KINDS = ['title', 'description'] as const
  * Adds a `meta` group (title, description, image) to the chosen collections and globals,
  * with length meters, a search result preview and Generate buttons in the admin.
  */
-export function seoPlugin(options: SeoPluginOptions = {}): Plugin {
-  return (config: Config): Config => {
+/** The `meta` group the plugin adds, as the inferred document types see it. */
+export type SeoMetaField = {
+  readonly name: 'meta'
+  readonly type: 'group'
+  readonly fields: readonly [
+    { readonly name: 'title'; readonly type: 'text' },
+    { readonly name: 'description'; readonly type: 'textarea' },
+    { readonly name: 'image'; readonly type: 'upload' },
+    { readonly name: 'noindex'; readonly type: 'boolean' },
+  ]
+}
+
+/** What `seoPlugin(options)` adds: `meta` on the collections and globals it was given. */
+export type SeoPluginTypes<C extends string, G extends string> = {
+  readonly fields: { readonly [S in C]: readonly [SeoMetaField] }
+  readonly globalFields: { readonly [S in G]: readonly [SeoMetaField] }
+}
+
+export function seoPlugin<const C extends string = never, const G extends string = never>(
+  options: SeoPluginOptions & {
+    readonly collections?: readonly C[]
+    readonly globals?: readonly G[]
+  } = {},
+): TypedPlugin<SeoPluginTypes<C, G>> {
+  // Like `definePlugin()` from core, without importing it.
+  const plugin: Plugin = (config: Config): Config => {
     const collections = options.collections ?? []
     const globals = options.globals ?? []
     const known = (
@@ -446,6 +472,7 @@ export function seoPlugin(options: SeoPluginOptions = {}): Plugin {
       endpoints: [...(config.endpoints ?? []), endpoint, ...siteEndpoints],
     }
   }
+  return plugin as TypedPlugin<SeoPluginTypes<C, G>>
 }
 
 const isEmpty = (value: unknown) => value === null || value === undefined || value === ''

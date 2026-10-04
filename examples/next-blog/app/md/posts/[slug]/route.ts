@@ -16,7 +16,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
     user: null,
   })
   const post = docs[0]
-  const hidden = (post as { meta?: { noindex?: boolean | null } } | undefined)?.meta?.noindex
+  const hidden = post?.meta.noindex
   if (!post || hidden) return new Response('Not found', { status: 404 })
   const url = `${new URL(request.url).origin}/posts/${post.slug}`
   return new Response(docMarkdown(cms, { collection: 'posts', doc: post, url }), {

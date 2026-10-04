@@ -2,11 +2,12 @@ import { readFile } from 'node:fs/promises'
 import {
   type CollectionConfig,
   type Config,
+  definePlugin,
   type EasyCMS,
   type Endpoint,
   type Field,
-  type Plugin,
   resolveAdminModule,
+  type TypedPlugin,
 } from '@easy-cms/core'
 import { renderRichText } from '@easy-cms/richtext'
 import { buildEmails } from './emails.js'
@@ -53,8 +54,68 @@ const ADMIN_MODULE = '@easy-cms/plugin-form-builder/admin'
  * Forms editors build in the admin from field blocks, with submissions, email notifications and
  * spam protection. Pages render them with `<easy-form>` or the `getForm` / `submitForm` client.
  */
-export function formBuilderPlugin(options: FormBuilderOptions = {}): Plugin {
-  return (config: Config): Config => {
+/** The forms and submissions collections, as the inferred document types see them. */
+export type FormBuilderPluginTypes<F extends string, S extends string> = {
+  readonly collections: readonly [
+    {
+      readonly slug: F
+      readonly drafts: true
+      readonly fields: readonly [
+        { readonly name: 'title'; readonly type: 'text'; readonly required: true },
+        { readonly name: 'slug'; readonly type: 'slug' },
+        /** The form's field blocks (see `PublicForm` from the client for their shape). */
+        { readonly name: 'fields'; readonly type: 'json' },
+        { readonly name: 'submitLabel'; readonly type: 'text' },
+        {
+          readonly name: 'confirmationType'
+          readonly type: 'select'
+          readonly options: readonly ['message', 'redirect']
+          readonly defaultValue: 'message'
+        },
+        { readonly name: 'confirmationMessage'; readonly type: 'richText' },
+        { readonly name: 'redirectUrl'; readonly type: 'text' },
+        {
+          readonly name: 'emails'
+          readonly type: 'array'
+          readonly fields: readonly [
+            { readonly name: 'to'; readonly type: 'text' },
+            { readonly name: 'cc'; readonly type: 'text' },
+            { readonly name: 'bcc'; readonly type: 'text' },
+            { readonly name: 'replyTo'; readonly type: 'text' },
+            { readonly name: 'from'; readonly type: 'text' },
+            { readonly name: 'subject'; readonly type: 'text' },
+            { readonly name: 'message'; readonly type: 'richText' },
+          ]
+        },
+      ]
+    },
+    {
+      readonly slug: S
+      readonly fields: readonly [
+        {
+          readonly name: 'form'
+          readonly type: 'relationship'
+          readonly to: F
+          readonly required: true
+        },
+        { readonly name: 'summary'; readonly type: 'text' },
+        { readonly name: 'data'; readonly type: 'json' },
+        { readonly name: 'locale'; readonly type: 'text' },
+        { readonly name: 'page'; readonly type: 'text' },
+      ]
+    },
+  ]
+}
+
+export function formBuilderPlugin<
+  const F extends string = 'forms',
+  const S extends string = 'form-submissions',
+>(
+  options: FormBuilderOptions & {
+    readonly slugs?: { readonly forms?: F; readonly submissions?: S }
+  } = {},
+): TypedPlugin<FormBuilderPluginTypes<F, S>> {
+  return definePlugin<FormBuilderPluginTypes<F, S>>((config: Config): Config => {
     const forms = options.slugs?.forms ?? 'forms'
     const submissions = options.slugs?.submissions ?? 'form-submissions'
     for (const slug of [forms, submissions])
@@ -484,7 +545,7 @@ export function formBuilderPlugin(options: FormBuilderOptions = {}): Plugin {
         elementEndpoint,
       ],
     }
-  }
+  })
 }
 
 /** A short line for the admin list: the first few values. */

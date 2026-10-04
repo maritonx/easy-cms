@@ -1,5 +1,5 @@
 import type { ID } from './access.js'
-import type { CollectionConfig, Config, GlobalConfig } from './config.js'
+import type { CollectionConfig, Config, PluginTypes, TypedPlugin } from './config.js'
 import type { Block, Field, RichTextDocument, SelectOption } from './fields.js'
 
 type Simplify<T> = { [K in keyof T]: T[K] } & {}
@@ -46,12 +46,61 @@ type ApiKeysOf<C extends Config> = C extends { readonly apiKeys: true }
   ? BuiltinApiKeysCollection
   : never
 
-/** Every collection of a config, including the built-in ones. */
+// ---------------------------------------------------------------------------
+// What plugins add (`definePlugin`): fields on collections and globals, and collections.
+
+/** The `PluginTypes` of each plugin in the config (a union). */
+type PluginTypesOf<C extends Config> = C extends { readonly plugins: readonly (infer P)[] }
+  ? P extends TypedPlugin<infer T extends PluginTypes>
+    ? T
+    : never
+  : never
+
+/** Fields that plugins add to the collection (or global) `S`, as a union. */
+type AddedFields<T, S> = T extends { readonly [K in 'fields' | 'globalFields']?: infer M }
+  ? M extends { readonly [slug: string]: readonly Field[] }
+    ? string extends keyof M
+      ? never // options that aren't literals: unknown collections
+      : S extends keyof M
+        ? M[S][number]
+        : never
+    : never
+  : never
+type PluginFields<C extends Config, S, Key extends 'fields' | 'globalFields'> = AddedFields<
+  PluginTypesOf<C> extends infer T
+    ? T extends PluginTypes
+      ? Pick<T, Key & keyof T>
+      : never
+    : never,
+  S
+>
+
+/** Collections that plugins add. */
+type PluginCollections<C extends Config> =
+  PluginTypesOf<C> extends infer T
+    ? T extends { readonly collections: readonly (infer K extends CollectionConfig)[] }
+      ? K
+      : never
+    : never
+
+/** A collection or global with the fields plugins add to it. */
+type WithPluginFields<
+  C extends Config,
+  T extends { readonly slug: string; readonly fields: readonly Field[] },
+  Key extends 'fields' | 'globalFields',
+> = [PluginFields<C, T['slug'], Key>] extends [never]
+  ? T
+  : Omit<T, 'fields'> & {
+      readonly fields: readonly (T['fields'][number] | PluginFields<C, T['slug'], Key>)[]
+    }
+
+/** Every collection of a config, including the built-in ones and those plugins add. */
 type AllCollections<C extends Config> =
   | NonNullable<C['collections']>[number]
   | BuiltinUsersCollection
   | BuiltinMediaCollection
   | ApiKeysOf<C>
+  | PluginCollections<C>
 
 /** The built-in media collection; its documents are typed as `MediaDocument`. */
 export interface BuiltinMediaCollection {
@@ -59,7 +108,16 @@ export interface BuiltinMediaCollection {
   readonly fields: readonly []
 }
 
-type CollectionBySlug<C extends Config, S> = Extract<AllCollections<C>, { readonly slug: S }>
+type CollectionBySlug<C extends Config, S> = WithPluginFields<
+  C,
+  Extract<AllCollections<C>, { readonly slug: S }>,
+  'fields'
+>
+type GlobalBySlug<C extends Config, S> = WithPluginFields<
+  C,
+  Extract<NonNullable<C['globals']>[number], { readonly slug: S }>,
+  'globalFields'
+>
 
 /** Relationships are ids at depth 0 and documents when populated. */
 type RelationValue<C extends Config, S> = [CollectionBySlug<C, S>] extends [never]
@@ -163,17 +221,20 @@ export type FieldsValue<Fs extends readonly Field[], C extends Config = Config> 
   }
 >
 
-type SystemFields<T extends { readonly drafts?: boolean }> = {
+type SystemFields<T extends { readonly drafts?: unknown }> = {
   id: ID
   createdAt: string
   updatedAt: string
 } & (T extends { readonly drafts: true } ? { status: 'draft' | 'published' } : unknown)
 
-export type InferCollection<T extends CollectionConfig, C extends Config = Config> = Simplify<
+/** What document types are inferred from: a collection's or global's fields and drafts. */
+type FieldsOwner = { readonly fields: readonly Field[]; readonly drafts?: unknown }
+
+export type InferCollection<T extends FieldsOwner, C extends Config = Config> = Simplify<
   SystemFields<T> & FieldsValue<T['fields'], C>
 >
 
-export type InferGlobal<T extends GlobalConfig, C extends Config = Config> = Simplify<
+export type InferGlobal<T extends FieldsOwner, C extends Config = Config> = Simplify<
   /** `null` until the global is saved for the first time. */
   { updatedAt: string | null } & (T extends { readonly drafts: true }
     ? { status: 'draft' | 'published' }
@@ -186,6 +247,7 @@ export type CollectionSlug<C extends Config> =
   | 'users'
   | 'media'
   | ApiKeysOf<C>['slug']
+  | PluginCollections<C>['slug']
 export type GlobalSlug<C extends Config> = NonNullable<C['globals']>[number]['slug']
 
 /** Document type of a collection, e.g. `CollectionDocument<typeof config, 'posts'>`. */
@@ -195,7 +257,7 @@ export type CollectionDocument<C extends Config, S extends CollectionSlug<C>> = 
 
 /** Data type of a global, e.g. `GlobalDocument<typeof config, 'site'>`. */
 export type GlobalDocument<C extends Config, S extends GlobalSlug<C>> = InferGlobal<
-  Extract<NonNullable<C['globals']>[number], { readonly slug: S }>,
+  GlobalBySlug<C, S>,
   C
 >
 
@@ -272,8 +334,5 @@ export type UpdateInput<C extends Config, S extends CollectionSlug<C>> = Partial
 
 /** Data accepted by `updateGlobal`. */
 export type GlobalInput<C extends Config, S extends GlobalSlug<C>> = Partial<
-  Simplify<
-    FieldsInput<Extract<NonNullable<C['globals']>[number], { readonly slug: S }>['fields']> &
-      StatusInput<Extract<NonNullable<C['globals']>[number], { readonly slug: S }>>
-  >
+  Simplify<FieldsInput<GlobalBySlug<C, S>['fields']> & StatusInput<GlobalBySlug<C, S>>>
 >

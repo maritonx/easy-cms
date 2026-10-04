@@ -13,7 +13,7 @@ import { sqlite } from '@easy-cms/db-sqlite'
 import { PGlite } from '@electric-sql/pglite'
 import { createClient } from '@libsql/client'
 import postgresJs from 'postgres'
-import { afterAll, afterEach } from 'vitest'
+import { afterAll, afterEach, expect } from 'vitest'
 
 /** Temp cleanup: Windows may still hold SQLite files for a moment after close; retry, then give up quietly. */
 function removeTemp(path: string) {
@@ -28,15 +28,26 @@ export type Dialect = 'sqlite' | 'pglite' | 'postgres'
 export const DIALECT = (process.env.EASY_CMS_TEST_DIALECT ?? 'sqlite') as Dialect
 export const SECRET = 'x'.repeat(32)
 
+/** Directories made inside a test, removed after it. */
 const dirs: string[] = []
+/** Directories made in `beforeAll`: a CMS opened there uses its database until the file ends. */
+const fileDirs: string[] = []
 afterEach(() => {
   for (const dir of dirs.splice(0)) removeTemp(dir)
 })
+afterAll(() => {
+  for (const dir of fileDirs.splice(0)) removeTemp(dir)
+})
 
-/** A fresh temporary project directory, removed after each test. */
+/**
+ * A fresh temporary project directory: removed after the test that made it, or, when made in
+ * `beforeAll`, after the file's tests. (Removing a SQLite file a running CMS uses works until it
+ * opens another connection, which then fails with SQLITE_CANTOPEN.)
+ */
 export function tempProject(): string {
   const dir = mkdtempSync(join(tmpdir(), 'easy-cms-it-'))
-  dirs.push(dir)
+  const inTest = expect.getState().currentTestName !== undefined
+  ;(inTest ? dirs : fileDirs).push(dir)
   return dir
 }
 

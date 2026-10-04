@@ -63,6 +63,41 @@ export function readingTime(options: { collections: string[] }): Plugin {
 
 ถ้าตัวเลือกผิด (เช่น slug ที่ไม่มี หรือชื่อ field ที่ถูกใช้แล้ว) ให้ throw `Error` ระบบจะหยุดตอนเริ่มทำงานและแสดงข้อความของคุณ
 
+### ใส่ type ให้ plugin {#typing-your-plugin}
+
+type ของเอกสารอนุมานจาก config และ type มองไม่เห็นสิ่งที่ `Plugin` ธรรมดาเพิ่ม `post.readingTime` จึงไม่มีอยู่ในสายตาของ
+TypeScript `definePlugin` ใช้บอก type ว่า plugin เพิ่มอะไร เขียนแบบเดียวกับ field ใน config และ type parameter แบบ
+`const` จะเก็บชื่อ collection ที่ผู้ใช้ส่งมา
+
+```ts
+import { definePlugin } from '@easy-cms/core'
+
+type ReadingTimeField = { readonly name: 'readingTime'; readonly type: 'number' }
+
+export function readingTime<const S extends string>(options: { collections: readonly S[] }) {
+  return definePlugin<{ fields: { [K in S]: readonly [ReadingTimeField] } }>((config) => ({
+    // … เหมือนด้านบน
+  }))
+}
+
+// readingTime({ collections: ['posts'] }) → `post.readingTime: number | null | undefined`
+```
+
+`definePlugin<T>` คืน plugin เดิมไม่เปลี่ยน ส่วน `T` มีได้สามส่วน
+
+| | |
+|---|---|
+| `fields` | field ที่เพิ่มให้ collection ระบุตาม slug |
+| `globalFields` | field ที่เพิ่มให้ global ระบุตาม slug |
+| `collections` | collection ทั้งตัวที่ plugin เพิ่ม เช่น `[{ readonly slug: 'redirects'; readonly fields: readonly [...] }]` |
+
+plugin ทางการทำแบบเดียวกัน `post.meta` (SEO), `page.path` และ `page.breadcrumbs` (หน้าย่อย) และ collection
+`redirects` กับ `forms` จึงมี type ครบ ถ้าตัวเลือกไม่ใช่ค่า literal (เช่นตัวแปร `string[]`) field ของ plugin จะไม่ถูกเพิ่ม
+แทนที่จะเพิ่มให้ทุก collection
+
+ถ้าแพ็กเกจของคุณมีโค้ดที่รันใน browser ด้วย (เช่น `seoMeta`) อย่าดึง core เข้าไป ให้ใช้แค่ type แทนการ import
+`definePlugin` คือ `return plugin as TypedPlugin<…>`
+
 ## Endpoints {#endpoints}
 
 `endpoints` เพิ่ม route ให้ REST API ใต้ `routes.api` (`/api/cms`):

@@ -11,8 +11,8 @@ const { isDark } = useData()
 
 const COPY = {
   en: {
-    badge: 'New in 0.24: forgot password and invitations',
-    badgeLink: 'auth#forgotten-passwords-and-invitations',
+    badge: 'New in 0.25: typed plugin fields',
+    badgeLink: 'typescript#fields-that-plugins-add',
     title: 'Your CMS,',
     titleAccent: 'inside your app',
     tagline:
@@ -177,8 +177,8 @@ const COPY = {
     ctaGuide: 'Read the guide',
   },
   th: {
-    badge: 'ใหม่ใน 0.24: ลืมรหัสผ่านและคำเชิญ',
-    badgeLink: 'auth#forgotten-passwords-and-invitations',
+    badge: 'ใหม่ใน 0.25: type ของ field จาก plugin',
+    badgeLink: 'typescript#fields-that-plugins-add',
     title: 'CMS ที่อยู่',
     titleAccent: 'ในแอปของคุณ',
     tagline: 'กำหนดเนื้อหาด้วย TypeScript ได้หน้า admin, API ที่มี type และ plugin โดยไม่ต้องดูแล server แยก',

@@ -13,16 +13,14 @@ const { data: page, error } = await useFetch('/api/page', {
 // A page's address on this site: /p and its path, English at ?locale=en (like pageURL in
 // easy-cms.config.ts).
 const href = (p: string) => `/p${p}${locale.value === 'en' ? '?locale=en' : ''}`
-const breadcrumbs = computed(
-  () => (page.value?.breadcrumbs ?? []) as { id: string; label: string; url: string }[],
-)
+const breadcrumbs = computed(() => page.value?.breadcrumbs ?? [])
 
 // Metadata, with BreadcrumbList JSON-LD so search results can show where the page sits.
 const seo = seoMeta(page.value ?? {}, {
   siteUrl: useRequestURL().origin,
   locale: locale.value,
   url: (p) => (typeof p.path === 'string' ? href(p.path) : null),
-  breadcrumbs: breadcrumbs.value.map((b) => ({ name: b.label, url: href(b.url) })),
+  breadcrumbs: breadcrumbs.value.map((b) => ({ name: b.label ?? '', url: href(b.url ?? '') })),
 })
 useSeoMeta(seo.nuxt)
 useHead(seo.head)
@@ -37,7 +35,7 @@ const html = computed(() => renderRichText(page.value?.body))
     <nav v-if="breadcrumbs.length > 1" aria-label="Breadcrumb" class="breadcrumbs">
       <ol>
         <li v-for="(crumb, i) in breadcrumbs" :key="crumb.id">
-          <NuxtLink v-if="i < breadcrumbs.length - 1" :to="href(crumb.url)">{{ crumb.label }}</NuxtLink>
+          <NuxtLink v-if="i < breadcrumbs.length - 1" :to="href(crumb.url ?? '')">{{ crumb.label }}</NuxtLink>
           <span v-else aria-current="page">{{ crumb.label }}</span>
         </li>
       </ol>

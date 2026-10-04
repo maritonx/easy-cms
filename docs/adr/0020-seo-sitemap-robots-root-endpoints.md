@@ -61,4 +61,4 @@ plugin SEO ใน 0.13 ([ADR-0018](0018-plugin-endpoints-admin-components.md)) �
 - ✅ plugin อื่นเสิร์ฟไฟล์ที่ root ใน standalone ได้
 - ❌ Nuxt และ Next.js ต้องเพิ่ม route ของ sitemap และ robots เอง (โค้ดไม่กี่บรรทัดในเอกสาร)
 - ❌ sitemap อ่านทุกเอกสารทุกครั้งที่ถูกเรียก (500 ต่อหน้า) เว็บใหญ่ควรใส่ cache ที่ CDN (endpoint ตอบ `max-age=600`)
-- ❌ BreadcrumbList ยังไม่มี เพราะ CMS ไม่รู้โครงสร้างหน้าของเว็บ
+- ~~❌ BreadcrumbList ยังไม่มี เพราะ CMS ไม่รู้โครงสร้างหน้าของเว็บ~~ → มีแล้วใน 0.21: `seoMeta({ breadcrumbs })` รับเส้นทางของหน้าจากเว็บเอง เช่นจาก plugin nested docs (ดู [ADR-0024](0024-nested-docs.md))

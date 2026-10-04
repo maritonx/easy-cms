@@ -53,6 +53,25 @@ for (const section of post.sections ?? []) {
 }
 ```
 
+### field ที่ plugin เพิ่ม {#fields-that-plugins-add}
+
+plugin บอก type ว่าเพิ่มอะไร field ของ plugin จึงมี type เหมือน field ของคุณ
+
+```ts
+plugins: [
+  seoPlugin({ collections: ['posts'] }),
+  nestedDocsPlugin({ collections: ['pages'] }),
+  redirectsPlugin({ collections: ['pages'] }),
+]
+
+post.meta.title // string | null | undefined
+page.breadcrumbs[0]?.url // string | null | undefined
+await findByPath(cms, 'pages', '/about') // Page | null
+await cms.find('redirects') // collection ที่ plugin เพิ่ม
+```
+
+plugin ของคุณเองก็ทำแบบเดียวกันได้ด้วย [`definePlugin`](./plugins#typing-your-plugin)
+
 ## ตั้งชื่อ type {#naming-the-types}
 
 ```ts

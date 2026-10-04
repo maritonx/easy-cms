@@ -6,6 +6,7 @@ import {
   createEasyCMS,
   createRestHandler,
   defineConfig,
+  type Plugin,
   resolveConfig,
   silentLogger,
 } from '@easy-cms/core'
@@ -28,7 +29,7 @@ const postURL = ({ doc, locale }: { doc: Record<string, unknown>; locale: string
   doc.slug ? `${locale === 'en' ? '/en' : ''}/posts/${doc.slug}` : null
 
 const base = (
-  plugin = redirectsPlugin({ collections: ['posts'], url: postURL }),
+  plugin: Plugin = redirectsPlugin({ collections: ['posts'], url: postURL }),
   extra: Partial<Config> = {},
 ) =>
   defineConfig({

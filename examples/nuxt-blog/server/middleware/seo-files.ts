@@ -16,7 +16,7 @@ export default defineEventHandler(async (event) => {
       user: null,
     })
     const post = docs[0]
-    const hidden = (post as { meta?: { noindex?: boolean | null } } | undefined)?.meta?.noindex
+    const hidden = post?.meta.noindex
     if (!post || hidden) throw createError({ statusCode: 404 })
     setHeader(event, 'content-type', 'text/markdown; charset=utf-8')
     return docMarkdown(cms, { collection: 'posts', doc: post, url: `${origin}/posts/${post.slug}` })

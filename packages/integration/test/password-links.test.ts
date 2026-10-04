@@ -1,6 +1,3 @@
-import { mkdtempSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 import { consoleEmail, createRestHandler, defineConfig, type RestHandler } from '@easy-cms/core'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { db, open, SECRET } from './helpers.js'
@@ -20,10 +17,8 @@ const BASE = 'https://cms.example.com/api/cms'
 type CMS = Awaited<ReturnType<typeof open<typeof config>>>
 let cms: CMS
 let handle: RestHandler
-// Its own directory, kept for the whole file: the helpers remove theirs after each test.
-const dir = mkdtempSync(join(tmpdir(), 'easy-cms-links-'))
 beforeAll(async () => {
-  cms = await open(config, dir)
+  cms = await open(config)
   handle = createRestHandler(cms, { getClientIp: (r) => r.headers.get('x-test-ip') ?? undefined })
   await cms.create('users', {
     email: 'admin@example.com',
@@ -32,14 +27,7 @@ beforeAll(async () => {
   })
   await cms.create('users', { email: 'ann@example.com', password: 'old-password', role: 'editor' })
 })
-afterAll(async () => {
-  await cms.destroy()
-  try {
-    rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
-  } catch {
-    // Windows may still hold the file; the OS cleans temp
-  }
-})
+afterAll(() => cms.destroy())
 
 async function call(
   path: string,

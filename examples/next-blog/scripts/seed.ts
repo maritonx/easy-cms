@@ -46,12 +46,10 @@ if ((await cms.count('users')) > 0) {
     status: 'published',
   })
   await cms.update('pages', about.id, { title: 'About us' }, { locale: 'en' })
-  // `parent` is added by the plugin, so the config's inferred types don't list it.
-  const under = { parent: about.id }
   const team = await cms.create('pages', {
     title: 'ทีมงาน',
     slug: 'team',
-    ...under,
+    parent: about.id,
     status: 'published',
   })
   await cms.update('pages', team.id, { title: 'Our team' }, { locale: 'en' })

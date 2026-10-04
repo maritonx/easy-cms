@@ -117,8 +117,8 @@ cd my-cms && npm run dev       # http://localhost:4000/admin
 - English and Thai interface, light and dark themes, works on phones
 
 **APIs**
-- Typed Local API, REST API with `where` queries, and generated types for frontends in other
-  repositories
+- Typed Local API (fields that plugins add included), REST API with `where` queries, and
+  generated types for frontends in other repositories
 - Users and roles, function-based access rules per collection, document and field; forgotten
   passwords and invitations by email
 - API keys with per-collection permissions, signed webhooks with retries, email with retries

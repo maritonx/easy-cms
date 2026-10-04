@@ -1,13 +1,14 @@
-import type {
-  AfterChangeHook,
-  AfterDeleteHook,
-  BeforeChangeHook,
-  CollectionConfig,
-  Config,
-  EasyCMS,
-  Endpoint,
-  Field,
-  Plugin,
+import {
+  type AfterChangeHook,
+  type AfterDeleteHook,
+  type BeforeChangeHook,
+  type CollectionConfig,
+  type Config,
+  definePlugin,
+  type EasyCMS,
+  type Endpoint,
+  type Field,
+  type TypedPlugin,
 } from '@easy-cms/core'
 import { clearRedirects, normalizePath, resolveRedirect } from './resolve.js'
 import { REDIRECTS_SOURCE, type RedirectsSource, STATUSES, targetField } from './shared.js'
@@ -53,8 +54,47 @@ export interface RedirectsPluginOptions {
  * A `redirects` collection under Settings in the admin, `resolveRedirect()` for your app's
  * middleware, and automatic redirects when a page's address changes.
  */
-export function redirectsPlugin(options: RedirectsPluginOptions = {}): Plugin {
-  return (config: Config): Config => {
+/** `to_<slug>`: the field of a redirect that points to a document of collection `S`. */
+type TargetField<S extends string> = `to_${Underscored<S>}`
+type Underscored<S extends string> = S extends `${infer A}-${infer B}`
+  ? `${A}_${Underscored<B>}`
+  : S
+
+/** The redirects collection, as the inferred document types see it. */
+export type RedirectsCollection<R extends string, S extends string> = {
+  readonly slug: R
+  readonly fields: readonly [
+    { readonly name: 'from'; readonly type: 'text'; readonly required: true },
+    { readonly name: 'to'; readonly type: 'text' },
+    { readonly name: 'locale'; readonly type: 'select'; readonly options: readonly string[] },
+    {
+      readonly name: 'type'
+      readonly type: 'select'
+      readonly options: readonly ['301', '302', '307', '308']
+      readonly required: true
+      readonly defaultValue: '301'
+    },
+    ...{
+      [K in S]: { readonly name: TargetField<K>; readonly type: 'relationship'; readonly to: K }
+    }[S][],
+  ]
+}
+
+/** What `redirectsPlugin(options)` adds: the redirects collection. */
+export type RedirectsPluginTypes<R extends string, S extends string> = {
+  readonly collections: readonly [RedirectsCollection<R, S>]
+}
+
+export function redirectsPlugin<
+  const S extends string = never,
+  const R extends string = 'redirects',
+>(
+  options: RedirectsPluginOptions & {
+    readonly collections?: readonly S[]
+    readonly slug?: R
+  } = {},
+): TypedPlugin<RedirectsPluginTypes<R, S>> {
+  return definePlugin<RedirectsPluginTypes<R, S>>((config: Config): Config => {
     const slug = options.slug ?? 'redirects'
     const collections = options.collections ?? []
     const missing = collections.filter((s) => !config.collections?.some((c) => c.slug === s))
@@ -272,5 +312,5 @@ export function redirectsPlugin(options: RedirectsPluginOptions = {}): Plugin {
       collections: [...(config.collections ?? []).map(withAuto), redirects],
       endpoints: [...(config.endpoints ?? []), endpoint],
     }
-  }
+  })
 }

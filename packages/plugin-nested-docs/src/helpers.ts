@@ -1,4 +1,4 @@
-import type { AccessOptions } from '@easy-cms/core'
+import type { AccessOptions, Config, DocumentOf, EasyCMS, SlugOf } from '@easy-cms/core'
 import {
   type Doc,
   type ID,
@@ -20,23 +20,23 @@ export interface FindByPathOptions extends AccessOptions {
 }
 
 /**
- * The page at a path, e.g. `findByPath(cms, 'pages', '/about/team')`, or `null`. The path is
- * the page's own: take the locale prefix or other routing off first.
+ * The page at a path, e.g. `findByPath(cms, 'pages', '/about/team')`, or `null`, typed from
+ * your config. The path is the page's own: take the locale prefix or other routing off first.
  */
-export async function findByPath(
-  instance: NestedCMS,
-  collection: string,
+export async function findByPath<C extends Config, S extends SlugOf<C>>(
+  instance: EasyCMS<C>,
+  collection: S,
   path: string,
   options: FindByPathOptions = {},
-): Promise<Doc | null> {
-  const cms = localApi(instance)
+): Promise<DocumentOf<C, S> | null> {
+  const cms = localApi(instance as unknown as NestedCMS)
   const { nested } = nestedOf(cms, collection)
   const found = await cms.find(collection, {
     ...options,
     where: { [nested.pathField]: { equals: normalizePath(path) } },
     limit: 1,
   })
-  return found.docs[0] ?? null
+  return (found.docs[0] as DocumentOf<C, S> | undefined) ?? null
 }
 
 /** A page in `getTree()`: what a menu or sidebar needs, and the pages under it. */
@@ -58,12 +58,12 @@ export interface GetTreeOptions extends AccessOptions {
  * Published pages as a tree, top-level pages first, in the list's order (`admin.list.sort`,
  * else by title). Pages under an unpublished page are left out with it.
  */
-export async function getTree(
-  instance: NestedCMS,
-  collection: string,
+export async function getTree<C extends Config>(
+  instance: EasyCMS<C>,
+  collection: SlugOf<C>,
   options: GetTreeOptions = {},
 ): Promise<TreeNode[]> {
-  const cms = localApi(instance)
+  const cms = localApi(instance as unknown as NestedCMS)
   const { nested } = nestedOf(cms, collection)
   const { docs } = await cms.find(collection, {
     ...options,
@@ -100,11 +100,11 @@ export async function getTree(
  * pages whose values changed. For pages that existed before the plugin, or to repair them.
  * Pages whose parent was deleted move to the top level.
  */
-export async function rebuildNestedDocs(
-  instance: NestedCMS,
-  collection: string,
+export async function rebuildNestedDocs<C extends Config>(
+  instance: EasyCMS<C>,
+  collection: SlugOf<C>,
 ): Promise<{ checked: number; updated: number }> {
-  const cms = localApi(instance)
+  const cms = localApi(instance as unknown as NestedCMS)
   const { source, nested } = nestedOf(cms, collection)
   const snapshot = async () => {
     const docs = await liveChildren(cms, source, nested, undefined)
