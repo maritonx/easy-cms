@@ -22,6 +22,7 @@ import { useRoute, useRouter } from 'vue-router'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import DocumentDrawer from '../components/DocumentDrawer.vue'
 import MediaThumb from '../components/MediaThumb.vue'
+import PluginElement from '../components/PluginElement.vue'
 import UploadDropzone from '../components/UploadDropzone.vue'
 import { ApiError, api, type Doc, type Paginated, toQuery } from '../lib/api'
 import { localeName } from '../lib/content-locale'
@@ -74,12 +75,16 @@ const columnFields = computed<AdminField[]>(
   () => collection?.fields.filter((f) => COLUMN_TYPES.has(f.type) && f.name !== titleField) ?? [],
 )
 const columnsKey = `easy-cms-columns:${slug}`
+/** The columns chosen before; at first, fields with a cell of their own (e.g. a color swatch). */
 function storedColumns(): string[] {
+  const shownFirst = columnFields.value.filter((f) => f.admin?.cell).map((f) => f.name)
   try {
-    const value = JSON.parse(localStorage.getItem(columnsKey) ?? '[]')
+    const stored = localStorage.getItem(columnsKey)
+    if (stored === null) return shownFirst
+    const value = JSON.parse(stored)
     return Array.isArray(value) ? value.filter((v) => typeof v === 'string') : []
   } catch {
-    return []
+    return shownFirst
   }
 }
 const shownColumns = ref<string[]>(storedColumns())
@@ -609,7 +614,16 @@ async function deleteSelected() {
               <RouterLink v-else :to="docLink(doc.id)" class="title-link">{{ titleOf(collection, doc) }}</RouterLink>
             </td>
             <td v-for="f in extraColumns" :key="f.name" class="muted value-cell" :data-label="label(f.label, humanize(f.name))">
-              {{ cell(f, doc[f.name]) }}
+              <!-- A field type's own cell, e.g. a color swatch. -->
+              <PluginElement
+                v-if="f.admin?.cell"
+                :component="f.admin.cell"
+                :value="doc[f.name] ?? null"
+                :field="f"
+                :label="label(f.label, humanize(f.name))"
+                read-only
+              />
+              <template v-else>{{ cell(f, doc[f.name]) }}</template>
             </td>
             <td v-if="localized && localization" class="translations">
               <span

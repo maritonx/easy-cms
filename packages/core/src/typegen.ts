@@ -23,6 +23,8 @@ const key = (name: string) => (/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(name) ? name : 
 interface Names {
   collections: Map<string, string>
   globals: Map<string, string>
+  /** TypeScript types of added field types that set one (`typescript`). */
+  custom: Map<string, string>
 }
 
 function names(config: ResolvedConfig): Names {
@@ -41,10 +43,17 @@ function names(config: ResolvedConfig): Names {
   }
   const globals = new Map<string, string>()
   for (const g of config.globals) globals.set(g.slug, claim(pascal(g.slug), 'Global'))
-  return { collections, globals }
+  const custom = new Map(
+    (config.fieldTypes ?? [])
+      .filter((t) => t.typescript)
+      .map((t) => [t.name, t.typescript as string] as const),
+  )
+  return { collections, globals, custom }
 }
 
 function fieldType(field: Field, n: Names, indent: string): string {
+  const custom = field.customType ? n.custom.get(field.customType) : undefined
+  if (custom) return custom
   switch (field.type) {
     case 'text':
     case 'textarea':

@@ -940,10 +940,16 @@ test.describe('logged in as admin', () => {
     await page.getByRole('link', { name: 'Create new' }).click()
     const drawer = page.getByRole('dialog', { name: 'Create Category' })
     await drawer.getByLabel('Name').fill('Recipes')
+    // A field type from a package (@easy-cms/fields): a color from the suggested ones.
+    await drawer.getByRole('button', { name: '#e8a33d' }).click()
+    await expect(drawer.getByRole('textbox', { name: 'Color: Color code' })).toHaveValue('#e8a33d')
     await drawer.getByRole('button', { name: 'Save' }).click()
     await expect(page.getByRole('status')).toHaveText('Created')
     await expect(page).toHaveURL(/edit=\d+/)
-    await expect(page.getByRole('row', { name: /Recipes/ })).toBeVisible()
+    const row = page.getByRole('row', { name: /Recipes/ })
+    await expect(row).toBeVisible()
+    // Shown in the list as a swatch with its code.
+    await expect(row.locator('ecms-color-cell code')).toHaveText('#e8a33d')
     await page.keyboard.press('Escape')
     await expect(page.getByRole('dialog')).toHaveCount(0)
     await expect(page).not.toHaveURL(/edit=/)

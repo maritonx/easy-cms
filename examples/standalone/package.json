@@ -12,6 +12,7 @@
     "@easy-cms/core": "workspace:^",
     "@easy-cms/db-sqlite": "workspace:^",
     "@easy-cms/email-smtp": "workspace:^",
+    "@easy-cms/fields": "workspace:^",
     "@easy-cms/plugin-form-builder": "workspace:^",
     "@easy-cms/plugin-mcp": "workspace:^",
     "@easy-cms/plugin-nested-docs": "workspace:^",

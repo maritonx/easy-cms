@@ -3,7 +3,7 @@
 - **สถานะ:** Accepted (living document)
 - **วันที่:** 2026-10-01 (ฉบับแรก 2026-09-25)
 - **ผู้เขียน:** Kanawoot K.
-- **ครอบคลุม:** v0.1 ถึง v0.25
+- **ครอบคลุม:** v0.1 ถึง v0.26
 - **Requirements:** [SRS.md](SRS.md)
 
 ---
@@ -86,6 +86,7 @@ Plugin ยังเป็น `(config) => config` เหมือน v0.1 คว
 - เลือก Web Components แทนการแชร์ Vue เพราะสัญญาเล็กและคงที่ เปลี่ยนภายในหน้า admin ได้โดย plugin ไม่พัง
 - **root endpoints** (0.17): `root: true` เสิร์ฟจาก root ของเว็บใน standalone (เช่น `/robots.txt`) ส่วนแอป Nuxt/Next ใช้ helper ของ plugin ใน route ของตัวเอง → ดู [ADR-0020](adr/0020-seo-sitemap-robots-root-endpoints.md)
 - **`commands`** (0.21): คำสั่ง `easy-cms <name>` จาก plugin และ **`filterOptions`**, **`admin.list.tree`**, **`update({ live })`** ที่ plugin nested docs ใช้ → ดู [ADR-0024](adr/0024-nested-docs.md)
+- **`fieldTypes`** (0.26): ชนิด field จากแพ็กเกจ (`defineFieldType`) ต่อยอดจากชนิด scalar ในตัว `resolveConfig` แปลงเป็นชนิดฐานพร้อม `customType` จึงไม่ต้องแก้ database adapter มี `validate`, input และ `admin.cell` ในหน้ารายการของตัวเอง type ขยายด้วย `CustomFieldTypes` → ดู [ADR-0029](adr/0029-custom-field-types.md)
 
 ### 4.5 API keys และ MCP (0.15–0.16)
 - **API keys** อยู่ใน core (`apiKeys: true`): key ทำงานในนามเจ้าของ ได้สิทธิ์ส่วนที่ซ้อนกันของ key กับเจ้าของ ตรวจใน Local API จุดเดียว
@@ -113,6 +114,7 @@ Plugin ยังเป็น `(config) => config` เหมือน v0.1 คว
 | `@easy-cms/plugin-form-builder` | ฟอร์มในหน้า admin, submissions, อีเมลแจ้งเตือน, กันสแปม, `<easy-form>` | 0.20 |
 | `@easy-cms/email-smtp` | email adapter ผ่าน SMTP (nodemailer) | 0.20 |
 | `@easy-cms/plugin-nested-docs` | หน้าแม่/ลูก, path และ breadcrumbs ที่ไล่อัปเดตเอง, `findByPath()`, `getTree()`, `nested:rebuild` | 0.21 |
+| `@easy-cms/fields` | ชนิด field เพิ่มเติม: `color` (ตัวเลือกสี, สีแนะนำ, จุดสีในหน้ารายการ) | 0.26 |
 | `easy-cms` (bin) | CLI และโหมด standalone | 0.1 |
 | `create-easy-cms` | ตัว scaffold (Nuxt, Next, standalone) | 0.1 |
 
@@ -121,7 +123,7 @@ Repo: **pnpm workspaces + Turborepo + Changesets + Biome**
 ```
 easy-cms/
 ├── packages/   core, admin, nuxt, next, drizzle, db-sqlite, db-postgres, richtext, storage-s3,
-│               plugin-seo, plugin-mcp, plugin-redirects, plugin-form-builder, plugin-nested-docs, email-smtp, cli,
+│               plugin-seo, plugin-mcp, plugin-redirects, plugin-form-builder, plugin-nested-docs, fields, email-smtp, cli,
 │               create-easy-cms, integration (test เท่านั้น)
 ├── examples/   nuxt-blog, next-blog, standalone   (ใช้เป็น fixture ของ E2E ด้วย)
 ├── e2e/        Playwright ชุดเดียวสำหรับทั้งสามแอป + สคริปต์ถ่าย screenshot ของเอกสาร
@@ -316,7 +318,7 @@ CI รัน lint, typecheck, build และ test บน Linux, macOS และ
 | **M7** CLI + Docs + Release | `create-easy-cms`, `generate:types`, VitePress, publish v0.1 |
 
 ### 15.2 หลัง v0.1 (เสร็จแล้ว)
-0.2 standalone + S3 → 0.3 versions → 0.4–0.5 live preview, localization → 0.6–0.9 blocks, webhooks, การตั้งเวลา → 0.10 backup → 0.11–0.12 admin redesign → 0.13 plugin ecosystem + SEO → 0.14 copy → 0.15 API keys → 0.16 MCP → 0.17 SEO ระดับทั้งเว็บ → 0.18 SEO สำหรับ AI → 0.19 redirects → 0.20 อีเมลและฟอร์ม → 0.21 หน้าย่อย → 0.22 npm, pnpm, Yarn และ Bun → 0.23 แกลเลอรี (upload หลายไฟล์) → 0.24 ลืมรหัสผ่านและคำเชิญ → 0.25 type ของ plugin (รายละเอียดใน [SRS §8.2](SRS.md#82-releases-หลัง-v01))
+0.2 standalone + S3 → 0.3 versions → 0.4–0.5 live preview, localization → 0.6–0.9 blocks, webhooks, การตั้งเวลา → 0.10 backup → 0.11–0.12 admin redesign → 0.13 plugin ecosystem + SEO → 0.14 copy → 0.15 API keys → 0.16 MCP → 0.17 SEO ระดับทั้งเว็บ → 0.18 SEO สำหรับ AI → 0.19 redirects → 0.20 อีเมลและฟอร์ม → 0.21 หน้าย่อย → 0.22 npm, pnpm, Yarn และ Bun → 0.23 แกลเลอรี (upload หลายไฟล์) → 0.24 ลืมรหัสผ่านและคำเชิญ → 0.25 type ของ plugin → 0.26 ชนิด field เพิ่มเติม (`color`) (รายละเอียดใน [SRS §8.2](SRS.md#82-releases-หลัง-v01))
 
 ### 15.3 แนวคิดถัดไป (ยังไม่ได้ตัดสินใจ)
 - MCP แบบ stdio (`easy-cms mcp`) และ OAuth สำหรับ client ที่ส่ง header ไม่ได้
@@ -370,3 +372,4 @@ CI รัน lint, typecheck, build และ test บน Linux, macOS และ
 - [ADR-0026](adr/0026-upload-has-many.md) — upload หลายไฟล์ (`hasMany`) และการจำกัดชนิดไฟล์
 - [ADR-0027](adr/0027-password-links.md) — ลืมรหัสผ่านและคำเชิญทางอีเมล
 - [ADR-0028](adr/0028-typed-plugins.md) — type ของสิ่งที่ plugin เพิ่ม (`definePlugin`)
+- [ADR-0029](adr/0029-custom-field-types.md) — ชนิด field ที่แพ็กเกจเพิ่มได้ (`fieldTypes`)

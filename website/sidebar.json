@@ -72,6 +72,13 @@
           }
         },
         {
+          "path": "guide/field-types",
+          "title": {
+            "en": "Custom field types",
+            "th": "ชนิด field เพิ่มเติม"
+          }
+        },
+        {
           "path": "guide/access-control",
           "title": {
             "en": "Access control",

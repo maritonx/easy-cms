@@ -25,7 +25,7 @@ pnpm lint         # Biome
 | `packages/admin` | The admin SPA (Vue) and its static handler |
 | `packages/nuxt`, `packages/next` | Framework adapters (keep them thin) |
 | `packages/cli`, `packages/create-easy-cms` | The `easy-cms` CLI and the project generator |
-| `packages/plugin-*`, `packages/email-smtp`, `packages/storage-s3`, `packages/richtext` | Official plugins and adapters |
+| `packages/plugin-*`, `packages/fields`, `packages/email-smtp`, `packages/storage-s3`, `packages/richtext` | Official plugins, field types and adapters |
 | `packages/integration` | Test suites that run on every database |
 | `examples/*` | Example apps, also the end-to-end fixtures |
 | `e2e` | Playwright suite and the docs screenshot script |

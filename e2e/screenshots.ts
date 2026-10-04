@@ -281,9 +281,9 @@ const doc = (...content: unknown[]) => ({ type: 'doc', content })
 async function seed() {
   const call = await client()
   const me = (await call('GET', '/users/me')) as unknown as { user: { id: number } }
-  const guides = await call('POST', '/categories', { name: 'คู่มือ' })
-  await call('POST', '/categories', { name: 'ข่าว' })
-  await call('POST', '/categories', { name: 'เบื้องหลัง' })
+  const guides = await call('POST', '/categories', { name: 'คู่มือ', color: '#2f6f5e' })
+  await call('POST', '/categories', { name: 'ข่าว', color: '#2563eb' })
+  await call('POST', '/categories', { name: 'เบื้องหลัง', color: '#e8a33d' })
   const covers = [
     await cover(162, 'getting-started', 'ภาพปก: เริ่มต้นใช้งาน', call),
     await cover(210, 'content-model', 'ภาพปก: content model', call),

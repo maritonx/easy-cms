@@ -145,7 +145,9 @@ cd my-cms && npm run dev       # http://localhost:4000/admin
 | [`@easy-cms/plugin-mcp`](packages/plugin-mcp) | Model Context Protocol server for AI assistants | [MCP](https://maritonx.github.io/easy-cms/guide/mcp) |
 
 Plugins are functions over your config: write your own with fields, endpoints, admin components
-and CLI commands. See [Plugins](https://maritonx.github.io/easy-cms/guide/plugins).
+and CLI commands. See [Plugins](https://maritonx.github.io/easy-cms/guide/plugins). Packages can
+also add field types, such as `color` from [`@easy-cms/fields`](packages/fields): see
+[Custom field types](https://maritonx.github.io/easy-cms/guide/field-types).
 
 ## Packages
 
@@ -164,6 +166,7 @@ and CLI commands. See [Plugins](https://maritonx.github.io/easy-cms/guide/plugin
 | [`@easy-cms/storage-s3`](packages/storage-s3) | Uploads on S3, Cloudflare R2 or MinIO |
 | [`@easy-cms/email-smtp`](packages/email-smtp) | Email over SMTP |
 | [`@easy-cms/richtext`](packages/richtext) | Rich text to safe HTML or Markdown |
+| [`@easy-cms/fields`](packages/fields) | More field types: `color`, with a picker and swatches |
 | [`@easy-cms/admin`](packages/admin) | The admin UI (installed by the adapters) |
 | [`@easy-cms/drizzle`](packages/drizzle) | Shared database layer (installed by the database adapters) |
 

@@ -90,6 +90,13 @@ export {
   UnauthorizedError,
   ValidationError,
 } from './errors.js'
+export {
+  defineFieldType,
+  FIELD_TYPE_BASES,
+  type FieldTypeBase,
+  type FieldTypeDefinition,
+  type FieldTypeValidateContext,
+} from './field-types.js'
 export * from './fields.js'
 export type * from './infer.js'
 export {

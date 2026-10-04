@@ -21,6 +21,7 @@ look in the admin and how they are stored, see [Fields](/guide/fields).
 | `localized` | `boolean` | One value per locale (needs `localization`). |
 | `position` | `'sidebar'` | Shown in the edit page's side column (top-level fields). |
 | `admin` | `FieldAdmin` | Admin components; see [below](#admin). |
+| `customType` | `string` | Set by Easy CMS for fields of an [added type](/guide/field-types) (e.g. `color`); don't set it yourself. |
 
 <!-- api: FieldAdmin -->
 ### admin
@@ -29,6 +30,7 @@ look in the admin and how they are stored, see [Fields](/guide/fields).
 |---|---|---|
 | `component` | `AdminComponent` | A Web Component instead of the input. [Admin components](/guide/plugins#admin-components) |
 | `after` | `AdminComponent[]` | Components shown below the field. |
+| `cell` | `AdminComponent` | Shows the value in the list's column, e.g. a color swatch. |
 
 An `AdminComponent` is a tag name starting with `ecms-`, or `{ tag, props }`.
 
@@ -51,6 +53,8 @@ An `AdminComponent` is a tag name starting with `ecms-`, or `{ tag, props }`.
 | `array` | rows with `id` and sub-fields | [`fields`, `minRows`, `maxRows`](#array) |
 | `group` | an object | [`fields`](#group) |
 | `blocks` | rows of several kinds, with `blockType` | [`blocks`, `minRows`, `maxRows`](#blocks) |
+
+Packages add more types, e.g. `color` from `@easy-cms/fields`: see [Custom field types](/guide/field-types).
 
 <!-- api: TextField -->
 <!-- api: TextareaField -->

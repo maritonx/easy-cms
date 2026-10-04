@@ -158,5 +158,6 @@ await cms.find('pages', { where: { 'layout.content.blockType': { equals: 'quote'
 
 ## ขั้นต่อไป {#next-steps}
 
+- [ชนิด field เพิ่มเติม](./field-types): ชนิดอื่นจากแพ็กเกจ เช่น `color` หรือเขียนเอง
 - [การควบคุมสิทธิ์](./access-control): สิทธิ์ระดับ field
 - [Rich text](./rich-text): แสดง rich text บนหน้าเว็บ

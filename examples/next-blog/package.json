@@ -15,6 +15,7 @@
     "@easy-cms/core": "workspace:^",
     "@easy-cms/db-postgres": "workspace:^",
     "@easy-cms/email-smtp": "workspace:^",
+    "@easy-cms/fields": "workspace:^",
     "@easy-cms/next": "workspace:^",
     "@easy-cms/plugin-form-builder": "workspace:^",
     "@easy-cms/plugin-mcp": "workspace:^",

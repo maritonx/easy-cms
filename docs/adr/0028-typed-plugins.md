@@ -44,4 +44,4 @@ type ของเอกสารอนุมานจาก `collections` ใน
 - ✅ plugin ของคนอื่นใช้วิธีเดียวกันได้ (หัวข้อ "Typing your plugin" ในเอกสาร)
 - ⚠️ ถ้าผู้ใช้แก้ field ของ plugin ด้วย option (เช่น `seoPlugin({ fields })`) type จะยังเป็นค่าเริ่มต้น
 - ⚠️ type ของ plugin ทางการเขียนแยกจากโค้ดที่สร้าง field จึงต้องแก้คู่กัน มีเทสต์คอยจับถ้าไม่ตรง
-- ❌ ยังไม่รองรับ field type ใหม่ที่ plugin สร้างเอง (งานถัดไป)
+- ❌ ยังไม่รองรับ field type ใหม่ที่ plugin สร้างเอง (งานถัดไป: ทำแล้วใน [ADR-0029](0029-custom-field-types.md))

@@ -12,7 +12,7 @@ if ((await cms.count('users')) > 0) {
     role: 'admin',
     name: 'Admin',
   })
-  const category = await cms.create('categories', { name: 'Guides' })
+  const category = await cms.create('categories', { name: 'Guides', color: '#2f6f5e' })
   const paragraph = (text: string) => ({ type: 'paragraph', content: [{ type: 'text', text }] })
 
   await cms.create('posts', {

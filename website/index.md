@@ -109,6 +109,17 @@ const page = await findByPath(cms, 'pages', '/about/team')
 ```
 
 </template>
+<template #plugin-fields>
+
+```ts
+import { color } from '@easy-cms/fields'
+
+fieldTypes: [color],
+// A field type: a color picker in the admin, a swatch in lists
+fields: [{ name: 'color', type: 'color', presets: ['#2f6f5e', '#e8a33d'] }]
+```
+
+</template>
 <template #plugin-mcp>
 
 ```ts

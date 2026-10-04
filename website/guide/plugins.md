@@ -258,5 +258,6 @@ admin's to match its light and dark themes: `--text`, `--text-muted`, `--surface
 
 ## Next steps
 
+- [Custom field types](./field-types): add a `type` with its own input, e.g. for your plugin.
 - [SEO](./seo): the SEO plugin.
 - [REST API](./rest-api): how endpoints fit the API.

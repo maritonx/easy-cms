@@ -583,9 +583,14 @@ function validateField(
     if (typeof admin !== 'object' || admin === null) {
       add(`${path}.admin`, 'must be an object', "e.g. admin: { component: 'ecms-color-picker' }")
     } else {
-      const { component, after } = admin as { component?: unknown; after?: unknown }
+      const { component, after, cell } = admin as {
+        component?: unknown
+        after?: unknown
+        cell?: unknown
+      }
       if (component !== undefined) validateComponent(component, `${path}.admin.component`, add)
       if (after !== undefined) validateComponents(after, `${path}.admin.after`, add)
+      if (cell !== undefined) validateComponent(cell, `${path}.admin.cell`, add)
     }
   }
   switch (field.type) {

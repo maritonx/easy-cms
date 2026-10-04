@@ -109,6 +109,17 @@ const page = await findByPath(cms, 'pages', '/about/team')
 ```
 
 </template>
+<template #plugin-fields>
+
+```ts
+import { color } from '@easy-cms/fields'
+
+fieldTypes: [color],
+// ชนิด field: ตัวเลือกสีในหน้า admin และจุดสีในหน้ารายการ
+fields: [{ name: 'color', type: 'color', presets: ['#2f6f5e', '#e8a33d'] }]
+```
+
+</template>
 <template #plugin-mcp>
 
 ```ts

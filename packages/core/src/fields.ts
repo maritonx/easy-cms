@@ -30,7 +30,33 @@ export interface FieldAdmin {
   readonly component?: AdminComponent
   /** Shown below the field, e.g. a length meter or a preview. */
   readonly after?: readonly AdminComponent[]
+  /** Shows the value in the admin's lists (e.g. a color swatch). Default: the plain value. */
+  readonly cell?: AdminComponent
 }
+
+/**
+ * Field types that packages add (`fieldTypes` in the config), for the types inferred from the
+ * config. A package declares its own by augmenting this interface:
+ *
+ * ```ts
+ * declare module '@easy-cms/core' {
+ *   interface CustomFieldTypes {
+ *     color: { value: string; options: { readonly presets?: readonly string[] } }
+ *   }
+ * }
+ * ```
+ */
+// biome-ignore lint/suspicious/noEmptyInterface: filled in by packages, through module augmentation
+export interface CustomFieldTypes {}
+
+/** A field of a type from `CustomFieldTypes`: the common options, plus the type's own. */
+export type CustomField = {
+  [K in keyof CustomFieldTypes]: BaseField<
+    K & string,
+    CustomFieldTypes[K] extends { value: infer V } ? V : unknown
+  > &
+    (CustomFieldTypes[K] extends { options: infer O } ? O : unknown)
+}[keyof CustomFieldTypes]
 
 interface BaseField<TType extends string, TValue> {
   readonly type: TType
@@ -53,6 +79,8 @@ interface BaseField<TType extends string, TValue> {
   readonly position?: 'sidebar'
   /** Custom admin components for this field. */
   readonly admin?: FieldAdmin
+  /** Set by Easy CMS on fields of an added type (`fieldTypes`): the type's name, e.g. `color`. */
+  readonly customType?: string
 }
 
 export interface TextField extends BaseField<'text', string> {
@@ -201,6 +229,7 @@ export function rowFields(
 }
 
 export type Field =
+  | CustomField
   | TextField
   | TextareaField
   | NumberField

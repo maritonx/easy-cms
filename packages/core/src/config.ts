@@ -2,6 +2,7 @@ import type { AuthUser, CollectionAccess, GlobalAccess, ID } from './access.js'
 import type { PasswordEmailFn } from './auth/emails.js'
 import type { DatabaseAdapter } from './database.js'
 import type { EmailAdapter } from './email.js'
+import type { FieldTypeDefinition } from './field-types.js'
 import type { AdminComponent, Field, Label } from './fields.js'
 import type { EasyCMS } from './local-api.js'
 import type { StorageAdapter } from './storage.js'
@@ -439,6 +440,11 @@ export interface Config {
   /** Extra `easy-cms <name>` CLI commands, e.g. from plugins. */
   readonly commands?: readonly CliCommand[]
   /**
+   * Field types from packages, e.g. `color` from `@easy-cms/fields`: fields then use
+   * `type: 'color'`. See `defineFieldType`.
+   */
+  readonly fieldTypes?: readonly FieldTypeDefinition[]
+  /**
    * API keys for scripts and other apps (`Authorization: Bearer ecms_…`), managed in the admin
    * under Settings. A key acts as its owner, limited to the collections and operations it lists.
    */
@@ -478,6 +484,7 @@ export interface ResolvedConfig
   readonly globals: readonly GlobalConfig[]
   readonly endpoints: readonly Endpoint[]
   readonly commands: readonly CliCommand[]
+  readonly fieldTypes: readonly FieldTypeDefinition[]
 }
 
 /**

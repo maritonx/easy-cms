@@ -21,6 +21,7 @@
 | `localized` | `boolean` | เก็บค่าแยกตามภาษา (ต้องมี `localization`) |
 | `position` | `'sidebar'` | แสดงในแถบข้างของหน้าแก้ไข (field ระดับบนสุด) |
 | `admin` | `FieldAdmin` | admin components ดู[ด้านล่าง](#admin) |
+| `customType` | `string` | Easy CMS ตั้งให้เองกับ field ของ[ชนิดที่เพิ่มเข้ามา](/th/guide/field-types) (เช่น `color`) ไม่ต้องตั้งเอง |
 
 <!-- api: FieldAdmin -->
 ### admin {#admin}
@@ -29,6 +30,7 @@
 |---|---|---|
 | `component` | `AdminComponent` | Web Component แทนช่องกรอก [Admin components](/th/guide/plugins#admin-components) |
 | `after` | `AdminComponent[]` | component ที่แสดงใต้ field |
+| `cell` | `AdminComponent` | แสดงค่าในคอลัมน์ของหน้ารายการ เช่น จุดสี |
 
 `AdminComponent` คือชื่อ tag ที่ขึ้นต้นด้วย `ecms-` หรือ `{ tag, props }`
 
@@ -51,6 +53,8 @@
 | `array` | แถวที่มี `id` และ field ย่อย | [`fields`, `minRows`, `maxRows`](#array) |
 | `group` | object | [`fields`](#group) |
 | `blocks` | แถวหลายชนิด มี `blockType` | [`blocks`, `minRows`, `maxRows`](#blocks) |
+
+แพ็กเกจเพิ่มชนิดอื่นได้ เช่น `color` จาก `@easy-cms/fields` ดู[ชนิด field เพิ่มเติม](/th/guide/field-types)
 
 <!-- api: TextField -->
 <!-- api: TextareaField -->

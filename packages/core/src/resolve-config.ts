@@ -11,6 +11,7 @@ import {
 } from './builtins.js'
 import type { Config, ResolvedConfig } from './config.js'
 import { ConfigError } from './errors.js'
+import { applyFieldTypes, fieldTypeModules } from './field-types.js'
 import { validateConfig } from './validate-config.js'
 
 export const DEFAULT_ADMIN_PATH = '/admin'
@@ -31,6 +32,16 @@ export async function applyPlugins(input: Config): Promise<Config> {
     if (typeof plugin !== 'function') break // reported by validateConfig
     config = await plugin(config)
   }
+  // The admin modules of field types (their inputs and list cells), after the plugins' own.
+  const modules = fieldTypeModules(config)
+  if (modules.length > 0)
+    config = {
+      ...config,
+      admin: {
+        ...config.admin,
+        modules: [...new Set([...(config.admin?.modules ?? []), ...modules])],
+      },
+    }
   return config
 }
 
@@ -46,7 +57,10 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
     config = withMedia(withUsers(config))
   }
 
-  const issues = validateConfig(config)
+  // Fields of added types become fields of their base types.
+  const applied = applyFieldTypes(config)
+  config = applied.config
+  const issues = [...applied.issues, ...validateConfig(config)]
   if (issues.length > 0) throw new ConfigError(issues)
 
   const { plugins: _plugins, ...rest } = config
@@ -98,6 +112,7 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
     globals: config.globals ?? [],
     endpoints: config.endpoints ?? [],
     commands: config.commands ?? [],
+    fieldTypes: config.fieldTypes ?? [],
   }
   resolved.add(result)
   return result

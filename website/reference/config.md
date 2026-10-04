@@ -33,6 +33,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `apiKeys` | `boolean` | `false` | API keys under Settings, for scripts and other apps. [API keys](/guide/api-keys) |
 | `email` | `EmailAdapter` | — | Sends email for plugins, e.g. `smtp()` or `consoleEmail()`. [Email](/guide/email) |
 | `plugins` | `Plugin[]` | `[]` | `(config) => config`, run in order before validation. [Plugins](/guide/plugins) |
+| `fieldTypes` | `FieldTypeDefinition[]` | `[]` | Field types from packages, e.g. `color` from `@easy-cms/fields`. [Custom field types](/guide/field-types) |
 
 <!-- api: RoutesConfig -->
 ## routes

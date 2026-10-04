@@ -159,5 +159,6 @@ same column are reported as a config error.
 
 ## Next steps
 
+- [Custom field types](./field-types): more types from packages, such as `color`, or your own.
 - [Access control](./access-control): field-level access.
 - [Rich text](./rich-text): show rich text on your pages.

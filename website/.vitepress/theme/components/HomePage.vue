@@ -11,8 +11,8 @@ const { isDark } = useData()
 
 const COPY = {
   en: {
-    badge: 'New in 0.25: typed plugin fields',
-    badgeLink: 'typescript#fields-that-plugins-add',
+    badge: 'New in 0.26: custom field types, and a color field',
+    badgeLink: 'field-types',
     title: 'Your CMS,',
     titleAccent: 'inside your app',
     tagline:
@@ -136,6 +136,15 @@ const COPY = {
         alt: 'Pages as a tree in the admin',
       },
       {
+        id: 'fields',
+        name: 'Field types',
+        pkg: '@easy-cms/fields',
+        text: 'More field types for your collections, starting with color: a picker with your brand colors, a check on every save, and swatches in lists.',
+        link: '/guide/field-types',
+        shot: 'drawer',
+        alt: 'A category with a color picker, and swatches in its list',
+      },
+      {
         id: 'mcp',
         name: 'MCP',
         pkg: '@easy-cms/plugin-mcp',
@@ -177,8 +186,8 @@ const COPY = {
     ctaGuide: 'Read the guide',
   },
   th: {
-    badge: 'ใหม่ใน 0.25: type ของ field จาก plugin',
-    badgeLink: 'typescript#fields-that-plugins-add',
+    badge: 'ใหม่ใน 0.26: ชนิด field เพิ่มเติม และ field สี',
+    badgeLink: 'field-types',
     title: 'CMS ที่อยู่',
     titleAccent: 'ในแอปของคุณ',
     tagline: 'กำหนดเนื้อหาด้วย TypeScript ได้หน้า admin, API ที่มี type และ plugin โดยไม่ต้องดูแล server แยก',
@@ -271,6 +280,15 @@ const COPY = {
         link: '/th/guide/nested-docs',
         shot: 'nested-docs',
         alt: 'หน้าต่าง ๆ แสดงเป็นต้นไม้ในหน้า admin',
+      },
+      {
+        id: 'fields',
+        name: 'ชนิด field',
+        pkg: '@easy-cms/fields',
+        text: 'ชนิด field เพิ่มเติมสำหรับ collection เริ่มจากสี: ตัวเลือกสีพร้อมสีของแบรนด์ ตรวจค่าทุกครั้งที่บันทึก และแสดงจุดสีในหน้ารายการ',
+        link: '/th/guide/field-types',
+        shot: 'drawer',
+        alt: 'หมวดหมู่ที่มีตัวเลือกสี และจุดสีในหน้ารายการ',
       },
       {
         id: 'mcp',
@@ -493,7 +511,8 @@ const ICONS = [
             <div v-show="shown === 1"><slot name="plugin-forms" /></div>
             <div v-show="shown === 2"><slot name="plugin-redirects" /></div>
             <div v-show="shown === 3"><slot name="plugin-nested-docs" /></div>
-            <div v-show="shown === 4"><slot name="plugin-mcp" /></div>
+            <div v-show="shown === 4"><slot name="plugin-fields" /></div>
+            <div v-show="shown === 5"><slot name="plugin-mcp" /></div>
           </div>
         </div>
       </div>

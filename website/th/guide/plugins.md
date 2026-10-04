@@ -250,5 +250,6 @@ customElements.define('ecms-color-picker', ColorPicker)
 
 ## ขั้นต่อไป {#next-steps}
 
+- [ชนิด field เพิ่มเติม](./field-types): เพิ่ม `type` ที่มีช่องกรอกของตัวเอง เช่น สำหรับ plugin ของคุณ
 - [SEO](./seo): plugin SEO
 - [REST API](./rest-api): endpoint อยู่ใน API อย่างไร

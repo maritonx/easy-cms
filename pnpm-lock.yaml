@@ -53,6 +53,9 @@ importers:
       '@easy-cms/email-smtp':
         specifier: workspace:^
         version: link:../../packages/email-smtp
+      '@easy-cms/fields':
+        specifier: workspace:^
+        version: link:../../packages/fields
       '@easy-cms/next':
         specifier: workspace:^
         version: link:../../packages/next
@@ -108,6 +111,9 @@ importers:
       '@easy-cms/email-smtp':
         specifier: workspace:^
         version: link:../../packages/email-smtp
+      '@easy-cms/fields':
+        specifier: workspace:^
+        version: link:../../packages/fields
       '@easy-cms/nuxt':
         specifier: workspace:^
         version: link:../../packages/nuxt
@@ -151,6 +157,9 @@ importers:
       '@easy-cms/email-smtp':
         specifier: workspace:^
         version: link:../../packages/email-smtp
+      '@easy-cms/fields':
+        specifier: workspace:^
+        version: link:../../packages/fields
       '@easy-cms/plugin-form-builder':
         specifier: workspace:^
         version: link:../../packages/plugin-form-builder
@@ -309,6 +318,18 @@ importers:
       '@types/nodemailer':
         specifier: ^8.0.2
         version: 8.0.2
+
+  packages/fields:
+    devDependencies:
+      '@easy-cms/core':
+        specifier: workspace:^
+        version: link:../core
+      '@easy-cms/db-sqlite':
+        specifier: workspace:^
+        version: link:../db-sqlite
+      happy-dom:
+        specifier: ^20.14.5
+        version: 20.14.5
 
   packages/integration:
     devDependencies:

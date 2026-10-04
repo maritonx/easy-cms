@@ -1,6 +1,7 @@
 import { consoleEmail, defineConfig } from '@easy-cms/core'
 import { postgres } from '@easy-cms/db-postgres'
 import { smtp } from '@easy-cms/email-smtp'
+import { color } from '@easy-cms/fields'
 import { formBuilderPlugin } from '@easy-cms/plugin-form-builder'
 import { mcpPlugin } from '@easy-cms/plugin-mcp'
 import { nestedDocsPlugin } from '@easy-cms/plugin-nested-docs'
@@ -29,6 +30,8 @@ export default defineConfig({
   apiKeys: true,
   // Posts and the site name in Thai and English; the slug and other fields are shared.
   localization: { locales: ['th', 'en'], defaultLocale: 'th' },
+  // Field types from packages; `type: 'color'` below.
+  fieldTypes: [color],
   collections: [
     {
       slug: 'categories',
@@ -44,6 +47,13 @@ export default defineConfig({
       fields: [
         { name: 'name', type: 'text', required: true, label: { en: 'Name', th: 'ชื่อ' } },
         { name: 'slug', type: 'slug', from: 'name', label: { en: 'Slug', th: 'Slug' } },
+        // A field type from @easy-cms/fields: a color picker, and a swatch in the list.
+        {
+          name: 'color',
+          type: 'color',
+          presets: ['#2f6f5e', '#e8a33d', '#c2410c', '#2563eb', '#7c3aed'],
+          label: { en: 'Color', th: 'สี' },
+        },
       ],
     },
     {

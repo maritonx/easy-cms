@@ -1,6 +1,6 @@
 import type { ID } from './access.js'
 import type { CollectionConfig, Config, PluginTypes, TypedPlugin } from './config.js'
-import type { Block, Field, RichTextDocument, SelectOption } from './fields.js'
+import type { Block, CustomFieldTypes, Field, RichTextDocument, SelectOption } from './fields.js'
 
 type Simplify<T> = { [K in keyof T]: T[K] } & {}
 
@@ -188,7 +188,14 @@ export type FieldValue<F extends Field, C extends Config = Config> = F extends {
                           readonly blocks: infer B extends readonly Block[]
                         }
                       ? BlockValue<B[number], C>[]
-                      : never
+                      : CustomValue<F>
+
+/** The value of a field of an added type (`CustomFieldTypes`). */
+type CustomValue<F> = F extends { readonly type: infer T extends keyof CustomFieldTypes }
+  ? CustomFieldTypes[T] extends { value: infer V }
+    ? V
+    : unknown
+  : never
 
 /** One row of a `blocks` field: the block's fields plus `id` and `blockType` (distributes over kinds). */
 type BlockValue<B, C extends Config> = B extends {

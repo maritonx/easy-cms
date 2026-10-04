@@ -47,8 +47,10 @@ export interface AdminField {
   localized?: boolean
   /** Shown in the edit page's side panel. */
   position?: 'sidebar'
-  /** Components from admin modules: instead of the input, and below the field. */
-  admin?: { component?: AdminComponentRef; after?: AdminComponentRef[] }
+  /** Components from admin modules: instead of the input, below the field, and in lists. */
+  admin?: { component?: AdminComponentRef; after?: AdminComponentRef[]; cell?: AdminComponentRef }
+  /** A field of an added type (`fieldTypes`), e.g. `color`; `type` is the base it's stored as. */
+  customType?: string
 }
 
 export interface AdminCollection {
@@ -135,12 +137,14 @@ async function serializeFields(
     if (!(await update.allows(field))) f.readOnly = true
     if (field.localized && localized) f.localized = true
     if (field.position === 'sidebar') f.position = 'sidebar'
-    if (field.admin?.component || field.admin?.after?.length) {
+    if (field.admin?.component || field.admin?.after?.length || field.admin?.cell) {
       f.admin = {
         ...(field.admin.component ? { component: componentRef(field.admin.component) } : {}),
         ...(field.admin.after?.length ? { after: field.admin.after.map(componentRef) } : {}),
+        ...(field.admin.cell ? { cell: componentRef(field.admin.cell) } : {}),
       }
     }
+    if (field.customType) f.customType = field.customType
     switch (field.type) {
       case 'text':
       case 'textarea':
