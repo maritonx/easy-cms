@@ -1,6 +1,7 @@
 import type { AuthUser } from '../access.js'
 import { API_KEYS, type ApiKeyPermissions } from '../api-keys.js'
 import type { Session } from '../auth/auth.js'
+import { SSO_COOKIE } from '../auth/sso.js'
 import { safeEqual } from '../auth/tokens.js'
 import { deleteBackup, downloadBackup, listBackups, startBackup } from '../backups.js'
 import { INTERNAL_COLLECTIONS, MEDIA, USERS } from '../builtins.js'
@@ -279,6 +280,9 @@ async function route(
 
   if (segments.length === 0) throw new HttpError('Not found', 404)
 
+  // Signing in with outside accounts (`auth.providers`).
+  if (first === 'auth') return ssoRoute(cms, ctx, method, segments)
+
   // Auth endpoints
   if (first === USERS && second !== undefined && third === undefined && !/^\d+$/.test(second)) {
     switch (`${method} ${second}`) {
@@ -312,6 +316,9 @@ async function route(
             hasUsers: await cms.auth.hasUsers(),
             // The login page offers "Forgot password?" only when the email can be sent.
             passwordReset: cms.auth.canSendPasswordLinks(ctx.url.origin),
+            // Buttons to sign in with outside accounts; `password: false`: only admins use one.
+            providers: cms.auth.sso.providers(),
+            password: cms.config.auth.password,
           },
         }
       // Forgot password: the same answer whether or not the email has an account.
@@ -428,6 +435,14 @@ async function route(
       return { body: await sendTestEmail(cms, ctx.user, body.to, body.locale) }
     }
     throw new HttpError('Not found', 404)
+  }
+
+  // Settings → SSO, for admins: the providers, their callback URLs, who may use a password.
+  if (first === 'admin' && second === 'sso' && third === undefined) {
+    if (!ctx.user) throw new UnauthorizedError()
+    if (ctx.user.role !== 'admin' || ctx.user.apiKey) throw new ForbiddenError()
+    if (method !== 'GET') throw methodNotAllowed(ctx, 'GET')
+    return { body: cms.auth.sso.settings(ctx.url.origin) }
   }
 
   // What a user owns, by collection (`auth.rbac`), for admins about to delete them.
@@ -1040,6 +1055,84 @@ function cookie(
   if (isSecure(ctx)) parts.push('Secure')
   if (opts.maxAge !== undefined) parts.push(`Max-Age=${opts.maxAge}`)
   return parts.join('; ')
+}
+
+/**
+ * `<api>/auth/…`: `GET :provider/login` and `POST :provider/link` start signing in (or linking
+ * an account), `GET :provider/callback` finishes; `GET identities` and `DELETE identities/:id`.
+ */
+async function ssoRoute(
+  cms: EasyCMS,
+  ctx: Context,
+  method: string,
+  segments: string[],
+): Promise<Result> {
+  const sso = cms.auth.sso
+  if (!sso.enabled) throw new HttpError('Not found', 404)
+  const [, second, third, extra] = segments
+  if (extra !== undefined || second === undefined) throw new HttpError('Not found', 404)
+
+  if (second === 'identities') {
+    if (!ctx.user) throw new UnauthorizedError()
+    if (third === undefined) {
+      if (method !== 'GET') throw methodNotAllowed(ctx, 'GET')
+      // Admins may look at anyone's (`?user=`); others at their own.
+      const asked = ctx.url.searchParams.get('user')
+      const target = asked === null ? ctx.user.id : (parseId(asked) ?? asked)
+      if (String(target) !== String(ctx.user.id) && (ctx.user.role !== 'admin' || ctx.user.apiKey))
+        throw new ForbiddenError()
+      return { body: await sso.identities(target) }
+    }
+    if (method !== 'DELETE') throw methodNotAllowed(ctx, 'DELETE')
+    const id = parseId(third)
+    if (id === undefined) throw new HttpError('Not found', 404)
+    await sso.unlink(ctx.user, id)
+    return { body: { deleted: 1 } }
+  }
+
+  const pendingCookie = (value: string, maxAge: number) =>
+    cookie(ctx, SSO_COOKIE, value, { httpOnly: true, maxAge })
+  if (third === 'login') {
+    if (method !== 'GET') throw methodNotAllowed(ctx, 'GET')
+    const started = await sso.start(second, {
+      origin: ctx.url.origin,
+      redirect: ctx.url.searchParams.get('redirect'),
+    })
+    ctx.headers.append('set-cookie', pendingCookie(started.cookie, 600))
+    return { body: redirectResponse(ctx, started.url) }
+  }
+  // Linking needs the session (and its CSRF token): the account is added to the signed-in user.
+  if (third === 'link') {
+    if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
+    if (!ctx.user || ctx.user.apiKey) throw new UnauthorizedError()
+    const started = await sso.start(second, {
+      origin: ctx.url.origin,
+      redirect: null,
+      user: ctx.user,
+    })
+    ctx.headers.append('set-cookie', pendingCookie(started.cookie, 600))
+    return { body: { url: started.url } }
+  }
+  if (third === 'callback') {
+    if (method !== 'GET') throw methodNotAllowed(ctx, 'GET')
+    const finished = await sso.finish(second, {
+      url: ctx.url,
+      cookie: readCookie(ctx.request, SSO_COOKIE),
+      origin: ctx.url.origin,
+      user: ctx.user,
+    })
+    ctx.headers.append('set-cookie', pendingCookie('', 0))
+    if (finished.session) setSessionCookies(cms, ctx, finished.session)
+    return { body: redirectResponse(ctx, finished.redirect) }
+  }
+  throw new HttpError('Not found', 404)
+}
+
+/** A redirect that keeps the cookies set on the way. */
+function redirectResponse(ctx: Context, location: string): Response {
+  const headers = new Headers({ location, 'cache-control': 'no-store' })
+  for (const value of ctx.headers.getSetCookie()) headers.append('set-cookie', value)
+  return new Response(null, { status: 302, headers })
 }
 
 function setSessionCookies(cms: EasyCMS, ctx: Context, session: Session) {

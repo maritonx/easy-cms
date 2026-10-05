@@ -21,6 +21,7 @@ import {
 import type { EasyCMS } from '../local-api.js'
 import { DEFAULT_PASSWORD_EMAILS } from './emails.js'
 import { fakeVerify, verifyPassword } from './password.js'
+import { SingleSignOn } from './sso.js'
 import {
   csrfToken,
   hashToken,
@@ -64,7 +65,12 @@ export interface PasswordLinkOptions {
 
 /** Login, logout and session verification. Available as `cms.auth`. */
 export class Auth {
-  constructor(private readonly cms: EasyCMS) {}
+  /** Signing in with outside accounts (`auth.providers`). */
+  readonly sso: SingleSignOn
+
+  constructor(private readonly cms: EasyCMS) {
+    this.sso = new SingleSignOn(cms)
+  }
 
   private get db() {
     return this.cms.db
@@ -101,6 +107,11 @@ export class Auth {
       throw new UnauthorizedError(INVALID)
     }
     await this.clearFailures(key)
+    // With `auth.password: false`, only admins sign in with a password.
+    if (!this.sso.passwordAllowed(user))
+      throw new UnauthorizedError(
+        `Sign in with ${this.config.auth.providers.map((p) => p.name).join(' or ')}`,
+      )
     await this.deleteExpiredSessions(user.id)
     return this.startSession(user)
   }
@@ -217,7 +228,7 @@ export class Auth {
     if (recent >= RESET_REQUESTS) return
     await this.recordFailure(key)
     const user = await this.findByEmail(email)
-    if (!user || user.active === false) return
+    if (!user || user.active === false || !this.sso.passwordAllowed(user)) return
     await this.mailPasswordLink(user, user.passwordHash ? 'reset' : 'invite', args)
   }
 
@@ -290,7 +301,7 @@ export class Auth {
     if (!claims || claims.expiresAt <= Date.now()) return null
     const id = /^\d+$/.test(claims.userId) ? Number(claims.userId) : claims.userId
     const user = await this.db.findById({ collection: USERS, id })
-    if (!user || user.active === false) return null
+    if (!user || user.active === false || !this.sso.passwordAllowed(user)) return null
     // The link is bound to the password it replaces: once that changes, the link is spent.
     const fingerprint = passwordFingerprint(user.passwordHash)
     if (!passwordTokenMatches(this.config.secret, token, fingerprint)) return null
@@ -314,7 +325,13 @@ export class Auth {
       expiresAt,
       fingerprint: passwordFingerprint(user.passwordHash),
     })
-    const url = `${base}${this.config.admin.path}/reset-password?token=${encodeURIComponent(token)}`
+    // Without passwords, an invitation sends people to sign in with a provider instead.
+    const sso = this.sso.passwordAllowed(user)
+      ? undefined
+      : this.config.auth.providers.map((p) => p.name)
+    const url = sso
+      ? `${base}${this.config.admin.path}/login`
+      : `${base}${this.config.admin.path}/reset-password?token=${encodeURIComponent(token)}`
     const write =
       purpose === 'invite'
         ? (this.config.auth.emails.invite ?? DEFAULT_PASSWORD_EMAILS.invite)
@@ -323,7 +340,7 @@ export class Auth {
       user: await this.toAuthUser(user),
       url,
       locale: this.localeOf(options.locale),
-      expiresAt: new Date(expiresAt),
+      ...(sso ? { sso } : { expiresAt: new Date(expiresAt) }),
     })
     await this.cms.sendEmail({ to: String(user.email), ...content })
   }

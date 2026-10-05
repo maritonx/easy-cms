@@ -1,3 +1,4 @@
+import { oidc } from '@easy-cms/auth-oauth'
 import { consoleEmail, defineConfig } from '@easy-cms/core'
 import { postgres } from '@easy-cms/db-postgres'
 import { sqlite } from '@easy-cms/db-sqlite'
@@ -36,7 +37,22 @@ export default defineConfig({
   // Settings → Backups: every night, as a compressed SQLite file (Postgres is copied with sqlite).
   backups: { every: 'day', at: '03:00', keep: 7, sqlite },
   // Settings → Roles: admins tick what each role may do; add roles there without code.
-  auth: { rbac: true },
+  auth: {
+    rbac: true,
+    // Single sign-on: google(), microsoft() or github() from @easy-cms/auth-oauth, or any
+    // OpenID Connect provider. Here one is used when OIDC_ISSUER is set.
+    providers: process.env.OIDC_ISSUER
+      ? [
+          oidc({
+            id: 'sso',
+            name: process.env.OIDC_NAME ?? 'SSO',
+            issuer: process.env.OIDC_ISSUER,
+            clientId: process.env.OIDC_CLIENT_ID ?? '',
+            clientSecret: process.env.OIDC_CLIENT_SECRET,
+          }),
+        ]
+      : [],
+  },
   // Field types from packages; `type: 'color'` below.
   fieldTypes: [color],
   collections: [

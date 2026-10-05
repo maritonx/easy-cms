@@ -250,6 +250,35 @@ describe('validateConfig', () => {
     ])
   })
 
+  it('checks sign-in providers, sign-up and passwords', () => {
+    const provider = (id: string) => ({
+      id,
+      name: 'Acme',
+      authorizationURL: async () => new URL('https://idp.test'),
+      callback: async () => ({ subject: '1', email: null, emailVerified: false }),
+    })
+    const auth = (value: object) =>
+      validateConfig(baseConfig({ auth: value as never })).map((i) => i.path)
+    expect(
+      auth({
+        providers: [provider('acme')],
+        allowSignUp: { domains: ['acme.test'], role: 'editor' },
+        password: false,
+      }),
+    ).toEqual([])
+    expect(
+      auth({ providers: [provider('acme'), provider('acme'), provider('Bad Id'), {}] }),
+    ).toEqual(['auth.providers[1].id', 'auth.providers[2].id', 'auth.providers[3]'])
+    expect(
+      auth({ providers: [provider('a')], allowSignUp: { domains: ['acme.test'], role: 'admin' } }),
+    ).toEqual(['auth.allowSignUp.role'])
+    expect(auth({ allowSignUp: { domains: ['not a domain'] }, password: false })).toEqual([
+      'auth.allowSignUp.domains',
+      'auth.allowSignUp',
+      'auth.password',
+    ])
+  })
+
   it('checks cors origins', () => {
     expect(validateConfig(baseConfig({ cors: '*' }))).toEqual([])
     expect(validateConfig(baseConfig({ cors: ['https://ok.test'] }))).toEqual([])

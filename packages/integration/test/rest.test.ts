@@ -91,7 +91,12 @@ async function browser(email: string) {
 
 describe('first admin', () => {
   it('reports whether users exist and registers the first admin once', async () => {
-    expect((await call('/users/init')).json).toEqual({ hasUsers: false, passwordReset: false })
+    expect((await call('/users/init')).json).toEqual({
+      hasUsers: false,
+      passwordReset: false,
+      providers: [],
+      password: true,
+    })
     const first = await call('/users/first-register', {
       method: 'POST',
       body: { email: 'admin@x.co', password: PASSWORD },
@@ -99,7 +104,12 @@ describe('first admin', () => {
     expect(first.status).toBe(201)
     expect(first.json.user).toMatchObject({ email: 'admin@x.co', role: 'admin' })
     expect(first.headers.getSetCookie().some((c) => c.startsWith('ecms-session='))).toBe(true)
-    expect((await call('/users/init')).json).toEqual({ hasUsers: true, passwordReset: false })
+    expect((await call('/users/init')).json).toEqual({
+      hasUsers: true,
+      passwordReset: false,
+      providers: [],
+      password: true,
+    })
 
     const again = await call('/users/first-register', {
       method: 'POST',

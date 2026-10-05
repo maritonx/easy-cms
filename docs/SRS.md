@@ -1,9 +1,9 @@
 # Software Requirements Specification — Easy CMS
 
-- **เวอร์ชันเอกสาร:** 3.9
+- **เวอร์ชันเอกสาร:** 3.10
 - **วันที่:** 2026-10-05
 - **ผู้เขียน:** Kanawoot K.
-- **ครอบคลุม:** v0.1 (baseline) ถึง v0.34
+- **ครอบคลุม:** v0.1 (baseline) ถึง v0.35
 - **สถานะ:** Living document (อัปเดตทุกครั้งที่เพิ่มฟีเจอร์)
 - **เอกสารที่เกี่ยวข้อง:** [DESIGN.md](DESIGN.md), [ADRs](adr/)
 
@@ -461,6 +461,10 @@ AI assistant ► /api/cms/mcp ──┘                     └──► Webhook
 | FR-AUTH-11 | เมื่อมี `email` ผู้ใช้ต้องขอลิงก์ตั้งรหัสใหม่ได้จากหน้า login ลิงก์ใช้ได้ครั้งเดียว หมดอายุ (ค่าเริ่มต้น 1 ชั่วโมง) และคำตอบต้องไม่บอกว่าอีเมลมีบัญชีหรือไม่ | 0.24 | MUST |
 | FR-AUTH-12 | admin ต้องเชิญผู้ใช้ใหม่ทางอีเมลได้ (สร้างโดยไม่มีรหัสผ่าน) และส่งลิงก์ตั้งรหัสให้ผู้ใช้ที่มีอยู่ได้ | 0.24 | MUST |
 | FR-AUTH-13 | การตั้งรหัสจากลิงก์ต้องยกเลิก session ทุกเครื่อง login ในเบราว์เซอร์นั้น และแจ้งเจ้าของบัญชีทางอีเมลเมื่อเป็นการ reset | 0.24 | MUST |
+| FR-AUTH-14 | ผู้ใช้ต้องเข้าสู่ระบบหน้า admin ด้วยผู้ให้บริการใน `auth.providers` ได้ (OIDC, Google, Microsoft, GitHub) จับคู่ด้วย `sub` หรืออีเมลที่ยืนยันแล้ว และสร้างผู้ใช้ใหม่ได้เฉพาะโดเมนใน `allowSignUp` ([ADR-0038](adr/0038-single-sign-on.md)) | 0.35 | SHOULD |
+| FR-AUTH-15 | `auth.password: false` ต้องให้เฉพาะ admin ใช้รหัสผ่าน และคำเชิญต้องชี้ไปที่การเข้าสู่ระบบด้วยผู้ให้บริการ | 0.35 | SHOULD |
+| FR-AUTH-16 | ผู้ใช้ต้องเชื่อมและยกเลิกบัญชีภายนอกได้ในหน้า Account (ยกเลิกทางเข้าสุดท้ายไม่ได้) และ admin ต้องเห็น callback URL ใน ตั้งค่า → SSO | 0.35 | SHOULD |
+| NFR-SEC-12 | การเข้าสู่ระบบด้วยผู้ให้บริการต้องใช้ Authorization Code + PKCE + `state` + `nonce` ตรวจ ID token ด้วย key ของผู้ให้บริการ redirect ได้เฉพาะหน้าใน admin และการเชื่อมบัญชีต้องผ่าน CSRF | 0.35 | MUST |
 | NFR-SEC-11 | บน production ลิงก์ต้องสร้างจาก `serverURL` เท่านั้น ไม่ใช้ Host ของ request และต้องจำกัดจำนวนคำขอต่ออีเมลและ IP | 0.24 | MUST |
 
 ### 3.24 API keys (KEY) — [ADR-0019](adr/0019-api-keys-and-mcp.md)
@@ -729,6 +733,7 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 0.18 | SEO สำหรับ AI: crawler ของ AI, llms.txt, Markdown, IndexNow | FR-SEO-09..12 | [0021](adr/0021-seo-for-ai.md) |
 | 0.19 | Redirects plugin, `admin.group: 'settings'` | FR-RDR-*, FR-ADM-19 | [0022](adr/0022-redirects-plugin.md) |
 | 0.20 | อีเมลใน core, email-smtp, form builder | FR-EML-*, FR-FRM-*, FR-STA-06 | [0023](adr/0023-email-and-form-builder.md) |
+| 0.35 | Single sign-on: `@easy-cms/auth-oauth` (OIDC, Google, Microsoft, GitHub), `auth.password: false` | FR-AUTH-14..16, NFR-SEC-12 | [0038](adr/0038-single-sign-on.md) |
 | 0.34 | เฉพาะเอกสารของตัวเอง (`createdBy`, `ownerField`), สิทธิ์ระดับ field, โอนเอกสารเมื่อลบผู้ใช้ | FR-ACL-10..13 | [0037](adr/0037-own-documents-and-field-permissions.md) |
 | 0.33 | บทบาทและสิทธิ์จากหน้า admin (`auth.rbac`) | FR-ACL-07..09 | [0036](adr/0036-roles-from-the-admin.md) |
 | 0.32 | Backups: ตามรอบและกดเอง ดาวน์โหลด การเก็บ เตือนเมื่อหยุดทำงาน | FR-OPS-04 | [0035](adr/0035-backups.md) |
@@ -756,6 +761,7 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 1.3 | 2026-09-25 | M5: FR-REST-08 (อัปโหลด/ไฟล์), FR-CFG-07 (`routes.api`, `serverURL`), ระบุว่า drafts ใน v0.1 ไม่มี version แยก |
 | 1.4 | 2026-09-25 | M6: ผลวัด NFR-PERF-01/02 บน Postgres 17 (Local API p95 2.7 ms, REST p95 4.3 ms), Next.js adapter ใช้ `getEasyCMS(config)` |
 | 1.5 | 2026-09-25 | M7: ผลตรวจรับ v0.1 (7.1) |
+| 3.10 | 2026-10-05 | 0.35: FR-AUTH-14..16, NFR-SEC-12 |
 | 3.9 | 2026-10-05 | 0.34: FR-ACL-10..13 |
 | 3.8 | 2026-10-05 | 0.33: FR-ACL-07..09 |
 | 3.7 | 2026-10-04 | 0.32: FR-OPS-04 |

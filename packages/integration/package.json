@@ -9,6 +9,7 @@
     "load": "node load.ts"
   },
   "devDependencies": {
+    "@easy-cms/auth-oauth": "workspace:^",
     "@easy-cms/core": "workspace:^",
     "@easy-cms/db-postgres": "workspace:^",
     "@easy-cms/db-sqlite": "workspace:^",

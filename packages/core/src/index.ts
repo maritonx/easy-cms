@@ -17,6 +17,18 @@ export {
   type PasswordEmailFn,
 } from './auth/emails.js'
 export { hashPassword, MIN_PASSWORD_LENGTH, verifyPassword } from './auth/password.js'
+export type {
+  AuthProvider,
+  AuthProviderProfile,
+  AuthProviderRequest,
+} from './auth/providers.js'
+export {
+  type AdminSso,
+  SSO_COOKIE,
+  type SsoOutcome,
+  type SsoProviderRef,
+  type UserIdentity,
+} from './auth/sso.js'
 export type { PreviewTarget } from './auth/tokens.js'
 export {
   type AdminBackup,

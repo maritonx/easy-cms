@@ -108,6 +108,9 @@ export default defineConfig({ secret, db, collections, /* … */ })
 |---|---|---|---|
 | `roles` | `string[]` | `['admin', 'editor']` | ต้องมี `admin` เมื่อเปิด `rbac` คือ role ที่มีอยู่เสมอ [ผู้ใช้และการยืนยันตัวตน](/th/guide/auth) |
 | `rbac` | `boolean` | `false` | กำหนด role และสิทธิ์จากหน้า admin (Settings → Roles) ซ้อนบนกฎ access [บทบาทและสิทธิ์](/th/guide/roles) |
+| `providers` | `AuthProvider[]` | `[]` | เข้าสู่ระบบหน้า admin ด้วยบัญชีภายนอก เช่น `[google()]` จาก `@easy-cms/auth-oauth` [Single sign-on](/th/guide/sso) |
+| `allowSignUp` | `{ domains, role? }` | — | เมื่อมี `providers`: คนจากโดเมนอีเมลเหล่านี้ได้บัญชีตอนเข้าสู่ระบบครั้งแรก เป็น `role` (ห้ามเป็น `admin`) |
+| `password` | `boolean` | `true` | `false`: เฉพาะ admin ที่ใช้รหัสผ่านได้ คนอื่นใช้ `providers` |
 | `tokenExpiration` | `number` | `604800` (7 วัน) | อายุของ session เป็นวินาที |
 | `maxLoginAttempts` | `number` | `5` | จำนวนครั้งที่ login ผิดได้ต่อ email (และ IP) ภายใน `lockWindow` |
 | `lockWindow` | `number` | `900` (15 นาที) | เป็นวินาที |

@@ -1,4 +1,4 @@
-import type { AdminCollection, AdminGlobal, AdminSchema } from '@easy-cms/core'
+import type { AdminCollection, AdminGlobal, AdminSchema, SsoProviderRef } from '@easy-cms/core'
 import { reactive } from 'vue'
 import { api } from './api'
 import { loadModules } from './plugins'
@@ -16,6 +16,10 @@ interface SessionState {
   hasUsers: boolean
   /** The login page offers "Forgot password?" (the CMS can email links). */
   passwordReset: boolean
+  /** Outside accounts to sign in with (`auth.providers`). */
+  providers: SsoProviderRef[]
+  /** `false`: only admins sign in with a password (`auth.password: false`). */
+  password: boolean
   schema: AdminSchema | null
 }
 
@@ -24,6 +28,8 @@ export const session = reactive<SessionState>({
   user: null,
   hasUsers: true,
   passwordReset: false,
+  providers: [],
+  password: true,
   schema: null,
 })
 
@@ -37,9 +43,16 @@ export async function loadSession(): Promise<void> {
     void loadModules(session.schema.modules ?? [])
   } else {
     session.schema = null
-    const init = await api<{ hasUsers: boolean; passwordReset?: boolean }>('GET', '/users/init')
+    const init = await api<{
+      hasUsers: boolean
+      passwordReset?: boolean
+      providers?: SsoProviderRef[]
+      password?: boolean
+    }>('GET', '/users/init')
     session.hasUsers = init.hasUsers
     session.passwordReset = init.passwordReset === true
+    session.providers = init.providers ?? []
+    session.password = init.password !== false
   }
   session.loaded = true
 }

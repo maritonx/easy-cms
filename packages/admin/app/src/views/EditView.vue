@@ -4,6 +4,7 @@ import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import ApiKeyCreated from '../components/ApiKeyCreated.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import IdentitiesPanel from '../components/IdentitiesPanel.vue'
 import LivePreview from '../components/LivePreview.vue'
 import LocaleSwitcher from '../components/LocaleSwitcher.vue'
 import MediaThumb from '../components/MediaThumb.vue'
@@ -551,6 +552,8 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
           </button>
           <span class="field-hint">{{ t('users.sendLinkHint') }}</span>
         </div>
+        <!-- Admins: the outside accounts this user signs in with (`auth.providers`). -->
+        <IdentitiesPanel v-if="isUsers && id && session.user?.role === 'admin'" :user-id="id" class="identities" />
       </div>
 
       <LivePreview
@@ -963,5 +966,9 @@ form {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.6rem;
+}
+.identities {
+  margin-top: 1rem;
+  padding: 1rem 1.1rem;
 }
 </style>

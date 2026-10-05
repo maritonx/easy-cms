@@ -12,6 +12,9 @@ const browser = {
   ...(process.env.CI ? {} : { channel: 'chrome' as const }),
 }
 
+/** A mock OpenID Connect provider: Nuxt and standalone sign in with it (single sign-on). */
+const OIDC = 'http://localhost:3110'
+
 /** Where the standalone example's frontend is served; the suite uses it as that app's public site. */
 const FRONTEND = 'http://localhost:3103'
 
@@ -74,8 +77,22 @@ export default defineConfig({
         CMS_URL: `http://localhost:${app.port}`,
         // The key file is served; nothing is sent, as localhost isn't a public site.
         INDEXNOW_KEY: 'e2e-indexnow-key',
+        // Single sign-on, where the database schema is pushed (the Next app runs migrations).
+        ...(app.name === 'next'
+          ? {}
+          : {
+              OIDC_ISSUER: OIDC,
+              OIDC_CLIENT_ID: 'easy-cms-test',
+              OIDC_CLIENT_SECRET: 'test-secret',
+            }),
       },
     })),
+    {
+      name: 'oidc',
+      command: `node oidc-provider.ts ${new URL(OIDC).port}`,
+      url: `${OIDC}/.well-known/openid-configuration`,
+      reuseExistingServer: false,
+    },
     // The standalone example's frontend, on its own origin.
     {
       name: 'frontend',

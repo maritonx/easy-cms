@@ -939,6 +939,7 @@ export class EasyCMS<C extends Config = Config> {
         await this.roles.transfer(parsed, heir.id)
       } else await this.roles.transfer(parsed, null)
       await this.auth.revokeSessions(parsed)
+      await this.auth.sso.forget(parsed)
     }
     await this.db.delete({ collection, id: parsed })
     if (versionLimit(config)) await this.versions.deleteAll(collectionParent(collection), parsed)

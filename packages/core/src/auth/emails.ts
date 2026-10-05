@@ -9,6 +9,11 @@ export interface PasswordEmailArgs {
   readonly locale: string
   /** When the link stops working. */
   readonly expiresAt?: Date
+  /**
+   * Invitations when passwords are off (`auth.password: false`): the providers to sign in with,
+   * e.g. `['Google']`; `url` is then the login page.
+   */
+  readonly sso?: readonly string[]
 }
 
 /** An email's content: a subject, and text and/or HTML. */
@@ -67,24 +72,38 @@ export const DEFAULT_PASSWORD_EMAILS: {
           ],
           { label: 'Set a new password', url },
         ),
-  invite: ({ url = '', locale, expiresAt, user }) =>
-    locale === 'th'
-      ? email(
-          'คุณได้รับเชิญให้ใช้งานระบบจัดการเนื้อหา',
-          [
-            `มีบัญชีสำหรับ ${user.email} รอคุณอยู่ ตั้งรหัสผ่านเพื่อเริ่มใช้งาน`,
-            `ลิงก์นี้ใช้ได้ภายใน ${days(expiresAt)} วัน`,
-          ],
-          { label: 'ตั้งรหัสผ่าน', url },
-        )
-      : email(
-          "You're invited to the content admin",
-          [
-            `An account for ${user.email} is waiting for you. Set a password to start.`,
-            `The link works within ${days(expiresAt)} day(s).`,
-          ],
-          { label: 'Set your password', url },
-        ),
+  invite: ({ url = '', locale, expiresAt, user, sso }) =>
+    sso
+      ? locale === 'th'
+        ? email(
+            'คุณได้รับเชิญให้ใช้งานระบบจัดการเนื้อหา',
+            [`มีบัญชีสำหรับ ${user.email} รอคุณอยู่ เข้าสู่ระบบด้วย ${sso.join(' หรือ ')} เพื่อเริ่มใช้งาน`],
+            { label: 'เข้าสู่ระบบ', url },
+          )
+        : email(
+            "You're invited to the content admin",
+            [
+              `An account for ${user.email} is waiting for you. Sign in with ${sso.join(' or ')} to start.`,
+            ],
+            { label: 'Sign in', url },
+          )
+      : locale === 'th'
+        ? email(
+            'คุณได้รับเชิญให้ใช้งานระบบจัดการเนื้อหา',
+            [
+              `มีบัญชีสำหรับ ${user.email} รอคุณอยู่ ตั้งรหัสผ่านเพื่อเริ่มใช้งาน`,
+              `ลิงก์นี้ใช้ได้ภายใน ${days(expiresAt)} วัน`,
+            ],
+            { label: 'ตั้งรหัสผ่าน', url },
+          )
+        : email(
+            "You're invited to the content admin",
+            [
+              `An account for ${user.email} is waiting for you. Set a password to start.`,
+              `The link works within ${days(expiresAt)} day(s).`,
+            ],
+            { label: 'Set your password', url },
+          ),
   passwordChanged: ({ locale }) =>
     locale === 'th'
       ? email('รหัสผ่านของคุณถูกเปลี่ยนแล้ว', [

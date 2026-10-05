@@ -65,7 +65,8 @@ roles mean what your [access rules](./access-control) say, for example:
 New users get `editor` when that role exists (otherwise the last role).
 
 To let admins add roles and tick what each may do in the admin, without code, turn on
-[roles from the admin](./roles) (`auth: { rbac: true }`).
+[roles from the admin](./roles) (`auth: { rbac: true }`). To sign in with Google, Microsoft, GitHub
+or another OpenID Connect provider, see [Single sign-on](./sso).
 
 Easy CMS refuses changes that would leave no active admin (deleting, demoting or deactivating
 the last one), so nobody gets locked out.

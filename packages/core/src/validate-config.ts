@@ -21,8 +21,10 @@ const RESERVED_SLUGS = new Set([
   'email-deliveries',
   'database-backups',
   'user-roles',
+  'user-identities',
   'api-keys',
   'jobs',
+  'auth',
   'migrations',
   'access',
 ])
@@ -320,6 +322,66 @@ function validateAuth(config: Config, add: Add) {
   if (auth === undefined) return
   if (auth.rbac !== undefined && typeof auth.rbac !== 'boolean')
     add('auth.rbac', 'must be true or false')
+  if (auth.password !== undefined && typeof auth.password !== 'boolean')
+    add('auth.password', 'must be true or false')
+  const providers: unknown = auth.providers
+  if (providers !== undefined) {
+    if (!Array.isArray(providers)) {
+      add(
+        'auth.providers',
+        'must be an array',
+        'e.g. providers: [google({ clientId, clientSecret })]',
+      )
+    } else {
+      const ids = new Set<string>()
+      providers.forEach((provider: unknown, i) => {
+        const p = provider as Record<string, unknown> | null
+        const path = `auth.providers[${i}]`
+        if (
+          typeof p !== 'object' ||
+          p === null ||
+          typeof p.authorizationURL !== 'function' ||
+          typeof p.callback !== 'function'
+        ) {
+          add(
+            path,
+            'must be a provider',
+            'e.g. google({ clientId, clientSecret }) from @easy-cms/auth-oauth',
+          )
+          return
+        }
+        if (typeof p.id !== 'string' || !PAGE_PATH.test(p.id))
+          add(`${path}.id`, 'must be lowercase letters, digits and "-"')
+        else if (ids.has(p.id))
+          add(`${path}.id`, `"${p.id}" is used by another provider`, 'give one of them its own id')
+        else ids.add(p.id)
+        if (typeof p.name !== 'string' || p.name.trim() === '')
+          add(`${path}.name`, 'must be a name')
+      })
+    }
+  }
+  const signUp = auth.allowSignUp as { domains?: unknown; role?: unknown } | undefined
+  if (signUp !== undefined) {
+    if (
+      typeof signUp !== 'object' ||
+      signUp === null ||
+      !Array.isArray(signUp.domains) ||
+      signUp.domains.some((d) => typeof d !== 'string' || !/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(d))
+    )
+      add('auth.allowSignUp.domains', 'must be email domains', "e.g. domains: ['example.com']")
+    if (signUp?.role === 'admin')
+      add('auth.allowSignUp.role', 'can\'t be "admin"', 'make admins by hand, in Settings → Users')
+    else if (
+      signUp?.role !== undefined &&
+      (typeof signUp.role !== 'string' ||
+        (!auth.rbac && !(auth.roles ?? ['admin', 'editor']).includes(signUp.role)))
+    )
+      add('auth.allowSignUp.role', 'must be one of auth.roles')
+    if (!Array.isArray(providers) || providers.length === 0)
+      add('auth.allowSignUp', 'needs auth.providers')
+  }
+  if (auth.password === false && (!Array.isArray(providers) || providers.length === 0))
+    add('auth.password', 'false needs auth.providers', 'otherwise only admins could sign in')
   if (auth.roles !== undefined) {
     const roles: unknown = auth.roles
     if (!Array.isArray(roles) || roles.some((r) => typeof r !== 'string' || r === '')) {
@@ -951,7 +1013,15 @@ function validateComponents(components: unknown, path: string, add: Add) {
 const ENDPOINT_METHODS = ['get', 'post', 'put', 'patch', 'delete']
 const ENDPOINT_SEGMENT = /^(:[A-Za-z_][A-Za-z0-9_]*|[A-Za-z0-9._~-]+)$/
 /** First path segments the built-in REST API uses besides collection slugs. */
-const RESERVED_ENDPOINT_ROOTS = new Set(['users', 'globals', 'admin', 'jobs', 'media', 'api-keys'])
+const RESERVED_ENDPOINT_ROOTS = new Set([
+  'users',
+  'globals',
+  'admin',
+  'jobs',
+  'media',
+  'api-keys',
+  'auth',
+])
 
 function validateCommands(config: Config, add: Add) {
   const commands: unknown = config.commands

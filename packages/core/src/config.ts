@@ -1,5 +1,6 @@
 import type { AuthUser, CollectionAccess, GlobalAccess, ID } from './access.js'
 import type { PasswordEmailFn } from './auth/emails.js'
+import type { AuthProvider } from './auth/providers.js'
 import type { DatabaseAdapter } from './database.js'
 import type { EmailAdapter } from './email.js'
 import type { FieldTypeDefinition } from './field-types.js'
@@ -366,6 +367,21 @@ export interface AuthConfig {
   readonly resetPasswordExpiration?: number
   /** How long an invitation link works, in seconds. Default 7 days. */
   readonly inviteExpiration?: number
+  /**
+   * Signing in to the admin with outside accounts, e.g. `[google({ clientId, clientSecret })]`
+   * from `@easy-cms/auth-oauth`. Users are matched by their verified email.
+   */
+  readonly providers?: readonly AuthProvider[]
+  /**
+   * With `providers`: people from these email domains who sign in for the first time get an
+   * account with `role` (default: as new users). Without it, only existing users can sign in.
+   */
+  readonly allowSignUp?: { readonly domains: readonly string[]; readonly role?: string }
+  /**
+   * `false`: only admins may sign in with a password (a way in when the provider is down);
+   * everyone else signs in with `providers`. Default `true`.
+   */
+  readonly password?: boolean
   /** Your own text for the password emails, e.g. in your brand's voice. Default: English or Thai. */
   readonly emails?: {
     readonly resetPassword?: PasswordEmailFn

@@ -12,6 +12,7 @@
     "migrate": "easy-cms migrate"
   },
   "dependencies": {
+    "@easy-cms/auth-oauth": "workspace:^",
     "@easy-cms/core": "workspace:^",
     "@easy-cms/db-sqlite": "workspace:^",
     "@easy-cms/email-smtp": "workspace:^",

@@ -1,0 +1,52 @@
+{
+  "name": "@easy-cms/auth-oauth",
+  "version": "0.34.0",
+  "description": "Sign in to the Easy CMS admin with Google, Microsoft, GitHub or any OpenID Connect provider",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "oauth4webapi": "^3.8.8"
+  },
+  "peerDependencies": {
+    "@easy-cms/core": "workspace:^"
+  },
+  "devDependencies": {
+    "@easy-cms/core": "workspace:^"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maritonx/easy-cms.git",
+    "directory": "packages/auth-oauth"
+  },
+  "keywords": [
+    "easy-cms",
+    "sso",
+    "oauth",
+    "openid-connect",
+    "google",
+    "microsoft",
+    "github"
+  ]
+}

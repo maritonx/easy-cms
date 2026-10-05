@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   DatabaseBackup,
+  KeyRound,
   Languages,
   LayoutDashboard,
   LogOut,
@@ -52,7 +53,9 @@ const deliveries = computed(() => {
   return !!views.value?.deliveries && !!d && (d.webhook || d.email)
 })
 const settingsViews = computed(
-  () => !!views.value && (views.value.backups || views.value.email || views.value.roles),
+  () =>
+    !!views.value &&
+    (views.value.backups || views.value.email || views.value.roles || views.value.sso),
 )
 const settingsPages = computed(
   () => session.schema?.pages.filter((p) => p.group === 'settings') ?? [],
@@ -192,6 +195,10 @@ async function onLogout() {
         <RouterLink v-if="views?.roles" to="/roles" class="nav-link" active-class="active">
           <ShieldCheck :size="18" aria-hidden="true" />
           <span>{{ t('roles.title') }}</span>
+        </RouterLink>
+        <RouterLink v-if="views?.sso" to="/sso" class="nav-link" active-class="active">
+          <KeyRound :size="18" aria-hidden="true" />
+          <span>{{ t('sso.title') }}</span>
         </RouterLink>
         <RouterLink v-if="views?.backups" to="/backups" class="nav-link" active-class="active">
           <DatabaseBackup :size="18" aria-hidden="true" />

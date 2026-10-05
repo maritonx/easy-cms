@@ -9,6 +9,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium, type Page } from '@playwright/test'
 import sharp from 'sharp'
+import { type MockProvider, startMockProvider } from '../packages/auth-oauth/test/mock-provider.ts'
 
 const PORT = 3210
 const ORIGIN = `http://localhost:${PORT}`
@@ -24,6 +25,7 @@ const ADMIN = {
 
 const scratch = mkdtempSync(join(tmpdir(), 'easy-cms-shots-'))
 let server: ChildProcess | undefined
+let oidc: MockProvider | undefined
 
 /** The CMS's secret, to sign an invitation link like its email would have it. */
 const SECRET = randomBytes(24).toString('hex')
@@ -39,6 +41,8 @@ function inviteToken(userId: number) {
 
 async function main() {
   mkdirSync(OUT, { recursive: true })
+  // A sign-in provider, for the single sign-on pages.
+  oidc = await startMockProvider()
   server = spawn('pnpm', ['exec', 'nuxi', 'dev', '--port', String(PORT)], {
     cwd: EXAMPLE,
     stdio: 'ignore',
@@ -47,6 +51,10 @@ async function main() {
       EASY_CMS_SECRET: SECRET,
       DATABASE_URL: `file:${join(scratch, 'shots.db')}`,
       NUXT_TELEMETRY_DISABLED: '1',
+      OIDC_ISSUER: oidc.url,
+      OIDC_NAME: 'Company SSO',
+      OIDC_CLIENT_ID: oidc.clientId,
+      OIDC_CLIENT_SECRET: oidc.clientSecret,
     },
   })
   await waitFor(`${API}/users/init`)
@@ -177,6 +185,16 @@ async function main() {
         await page.goto(`${ORIGIN}/contact${locale === 'en' ? '?locale=en' : ''}`)
         await page.locator('easy-form form').waitFor()
         await shot('form-page')
+
+        await page.goto(`${ORIGIN}/admin/sso`)
+        await page.locator('#who-heading').waitFor()
+        await shot('sso')
+
+        // Signed out: the login page with the provider's button.
+        await context.clearCookies()
+        await page.goto(`${ORIGIN}/admin/login`)
+        await page.getByRole('link', { name: /Company SSO/ }).waitFor()
+        await shot('login-sso')
 
         await context.close()
       }
@@ -529,5 +547,6 @@ try {
   await main()
 } finally {
   server?.kill()
+  await oidc?.close()
   rmSync(scratch, { recursive: true, force: true })
 }

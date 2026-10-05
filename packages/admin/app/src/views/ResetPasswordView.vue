@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AuthCard from '../components/AuthCard.vue'
+import ProviderButtons from '../components/ProviderButtons.vue'
 import { ApiError, api } from '../lib/api'
 import { locale, t } from '../lib/i18n'
 import { resetPassword, session } from '../lib/session'
@@ -72,6 +73,11 @@ async function submit() {
         <input v-model="confirm" class="input" type="password" autocomplete="new-password" minlength="8" required />
       </label>
       <button class="btn btn-primary" type="submit" :disabled="busy">{{ t(purpose === 'invite' ? 'reset.inviteSubmit' : 'reset.submit') }}</button>
+      <!-- An invitation can be taken with an outside account instead of a password. -->
+      <template v-if="purpose === 'invite' && session.providers.length">
+        <p class="or"><span>{{ t('sso.orProvider') }}</span></p>
+        <ProviderButtons />
+      </template>
     </form>
   </AuthCard>
 </template>
@@ -81,6 +87,20 @@ async function submit() {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+.or {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.25rem 0 0;
+  color: var(--faint);
+  font-size: 0.8rem;
+}
+.or::before,
+.or::after {
+  content: '';
+  flex: 1;
+  border-top: 1px solid var(--border);
 }
 .link {
   align-self: center;

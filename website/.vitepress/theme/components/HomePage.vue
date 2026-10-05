@@ -11,8 +11,8 @@ const { isDark } = useData()
 
 const COPY = {
   en: {
-    badge: 'New in 0.34: roles limited to their own documents, and field permissions',
-    badgeLink: 'roles#own-documents-only',
+    badge: 'New in 0.35: single sign-on with Google, Microsoft and GitHub',
+    badgeLink: 'sso',
     title: 'Your CMS,',
     titleAccent: 'inside your app',
     tagline:
@@ -186,8 +186,8 @@ const COPY = {
     ctaGuide: 'Read the guide',
   },
   th: {
-    badge: 'ใหม่ใน 0.34: บทบาทที่ทำได้เฉพาะเอกสารของตัวเอง และสิทธิ์ระดับ field',
-    badgeLink: 'roles#own-documents-only',
+    badge: 'ใหม่ใน 0.35: เข้าสู่ระบบด้วย Google, Microsoft และ GitHub (SSO)',
+    badgeLink: 'sso',
     title: 'CMS ที่อยู่',
     titleAccent: 'ในแอปของคุณ',
     tagline: 'กำหนดเนื้อหาด้วย TypeScript ได้หน้า admin, API ที่มี type และ plugin โดยไม่ต้องดูแล server แยก',

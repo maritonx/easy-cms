@@ -1314,8 +1314,55 @@ test.describe('logged in as editor', () => {
     await expect(page.getByRole('status')).toHaveText('Password changed')
     // Still logged in with the new cookie.
     await page.reload()
-    await expect(page.getByRole('heading', { name: 'Account' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible()
     await page.getByRole('button', { name: 'Log out' }).click()
     await login(page, { email: EDITOR.email, password: 'a-brand-new-password' })
+  })
+})
+
+test.describe('single sign-on', () => {
+  // The Next app runs from migrations, without a provider; Nuxt and standalone have one (OIDC).
+  test.skip(() => test.info().project.name === 'next', 'no provider in the Next app')
+  test.beforeEach(async ({ page }) => {
+    await english(page)
+  })
+
+  test('signs an existing user in with the provider, and lists the account', async ({ page }) => {
+    await page.goto('/admin/collections/posts')
+    await expect(page).toHaveURL(/\/admin\/login/)
+    await page.getByRole('link', { name: 'Sign in with SSO' }).click()
+    // The provider's own page: who signs in.
+    await page.getByLabel('Email').fill(EDITOR.email)
+    await page.getByRole('button', { name: 'Continue' }).click()
+    // Back where they were going, signed in as the editor matched by email.
+    await expect(page).toHaveURL(/\/admin\/collections\/posts$/)
+    await expect(page.getByRole('heading', { name: 'Posts' })).toBeVisible()
+
+    await page.getByRole('link', { name: /Account/ }).click()
+    const accounts = page.getByRole('region', { name: 'Sign-in accounts' })
+    await expect(accounts.getByRole('listitem')).toContainText(['SSO'])
+    await expect(accounts).toContainText(EDITOR.email)
+  })
+
+  test('says when there is no account for the email', async ({ page }) => {
+    await page.goto('/admin/login')
+    await page.getByRole('link', { name: 'Sign in with SSO' }).click()
+    await page.getByLabel('Email').fill('stranger@elsewhere.test')
+    await page.getByRole('button', { name: 'Continue' }).click()
+    await expect(page.getByRole('alert')).toHaveText(
+      'There is no account for that email here. Ask an admin to add you.',
+    )
+  })
+
+  test('shows admins the callback URL to give the provider', async ({ page }) => {
+    await login(page, ADMIN)
+    await page
+      .getByRole('navigation', { name: 'Main' })
+      .getByRole('link', { name: 'Single sign-on' })
+      .click()
+    const origin = new URL(page.url()).origin
+    await expect(page.getByRole('region', { name: /SSO/ })).toContainText(
+      `${origin}/api/cms/auth/sso/callback`,
+    )
   })
 })

@@ -109,6 +109,9 @@ export default defineConfig({ secret, db, collections, /* … */ })
 |---|---|---|---|
 | `roles` | `string[]` | `['admin', 'editor']` | Must include `admin`. With `rbac`, the roles that always exist. [Users & auth](/guide/auth) |
 | `rbac` | `boolean` | `false` | Roles and their permissions from the admin (Settings → Roles), on top of access rules. [Roles](/guide/roles) |
+| `providers` | `AuthProvider[]` | `[]` | Signing in to the admin with outside accounts, e.g. `[google()]` from `@easy-cms/auth-oauth`. [Single sign-on](/guide/sso) |
+| `allowSignUp` | `{ domains, role? }` | — | With `providers`: people from these email domains get an account on their first sign-in, with `role` (not `admin`). |
+| `password` | `boolean` | `true` | `false`: only admins sign in with a password; everyone else uses `providers`. |
 | `tokenExpiration` | `number` | `604800` (7 days) | Session lifetime in seconds. |
 | `maxLoginAttempts` | `number` | `5` | Failed logins allowed per email (and IP) within `lockWindow`. |
 | `lockWindow` | `number` | `900` (15 minutes) | In seconds. |

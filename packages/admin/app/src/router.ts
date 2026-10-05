@@ -49,6 +49,8 @@ export const router = createRouter({
         { path: 'account', name: 'account', component: () => import('./views/AccountView.vue') },
         // Settings → Roles (admins, with `auth.rbac`).
         { path: 'roles', name: 'roles', component: () => import('./views/RolesView.vue') },
+        // Settings → SSO (admins, with `auth.providers`).
+        { path: 'sso', name: 'sso', component: () => import('./views/SsoView.vue') },
         // Settings → Backups (admins).
         { path: 'backups', name: 'backups', component: () => import('./views/BackupsView.vue') },
         // Settings → Email (admins).

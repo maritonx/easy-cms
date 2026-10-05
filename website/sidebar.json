@@ -79,6 +79,13 @@
           }
         },
         {
+          "path": "guide/sso",
+          "title": {
+            "en": "Single sign-on",
+            "th": "Single sign-on"
+          }
+        },
+        {
           "path": "guide/access-control",
           "title": {
             "en": "Access control",

@@ -62,7 +62,12 @@ async function linkTo(to: string) {
 
 describe('forgot password', () => {
   it('is offered when email and serverURL are set', async () => {
-    expect((await call('/users/init')).json).toEqual({ hasUsers: true, passwordReset: true })
+    expect((await call('/users/init')).json).toEqual({
+      hasUsers: true,
+      passwordReset: true,
+      providers: [],
+      password: true,
+    })
   })
 
   it('emails a one-time link that sets a new password and signs out everywhere', async () => {

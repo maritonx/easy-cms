@@ -24,6 +24,9 @@ describe('resolveConfig', () => {
     expect(config.auth).toEqual({
       roles: ['admin', 'editor'],
       rbac: false,
+      providers: [],
+      allowSignUp: { domains: [] },
+      password: true,
       tokenExpiration: 7 * 24 * 60 * 60,
       maxLoginAttempts: 5,
       lockWindow: 15 * 60,

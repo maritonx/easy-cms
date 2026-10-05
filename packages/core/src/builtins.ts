@@ -12,6 +12,7 @@ export const WEBHOOK_DELIVERIES = 'webhook-deliveries'
 export const EMAIL_DELIVERIES = 'email-deliveries'
 export const DATABASE_BACKUPS = 'database-backups'
 export const ROLES = 'user-roles'
+export const USER_IDENTITIES = 'user-identities'
 
 /** Collections Easy CMS uses internally. Not exposed over REST or in the admin UI. */
 export const INTERNAL_COLLECTIONS: ReadonlySet<string> = new Set([
@@ -23,6 +24,7 @@ export const INTERNAL_COLLECTIONS: ReadonlySet<string> = new Set([
   EMAIL_DELIVERIES,
   DATABASE_BACKUPS,
   ROLES,
+  USER_IDENTITIES,
 ])
 
 export const DEFAULT_ROLES = ['admin', 'editor'] as const
@@ -330,6 +332,20 @@ export const databaseBackupsCollection: CollectionConfig = {
     { name: 'author', type: 'text' },
     { name: 'downloadedBy', type: 'text' },
     { name: 'downloadedAt', type: 'text' },
+  ],
+}
+
+/** Outside accounts users sign in with (`auth.providers`); added only when there are providers. */
+export const userIdentitiesCollection: CollectionConfig = {
+  slug: USER_IDENTITIES,
+  access: { read: nobody, create: nobody, update: nobody, delete: nobody },
+  fields: [
+    { name: 'user', type: 'relationship', to: USERS, required: true, index: true },
+    // The provider's id (`google`) and its id for the account (`sub`).
+    { name: 'provider', type: 'text', required: true, index: true },
+    { name: 'subject', type: 'text', required: true, index: true },
+    { name: 'email', type: 'text' },
+    { name: 'lastUsedAt', type: 'text' },
   ],
 }
 

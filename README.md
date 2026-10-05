@@ -125,7 +125,8 @@ cd my-cms && npm run dev       # http://localhost:4000/admin
 - Typed Local API (fields that plugins add included), REST API with `where` queries, and
   generated types for frontends in other repositories
 - Users and roles, function-based access rules per collection, document and field; forgotten
-  passwords and invitations by email
+  passwords and invitations by email; single sign-on with Google, Microsoft, GitHub or any OpenID
+  Connect provider
 - API keys with per-collection permissions, signed webhooks with retries, email with retries
 
 **Data and operations**
@@ -171,6 +172,7 @@ also add field types, such as `color` from [`@easy-cms/fields`](packages/fields)
 | [`@easy-cms/db-postgres`](packages/db-postgres) | Postgres adapter (postgres.js or PGlite) |
 | [`@easy-cms/storage-s3`](packages/storage-s3) | Uploads on S3, Cloudflare R2 or MinIO |
 | [`@easy-cms/email-smtp`](packages/email-smtp) | Email over SMTP |
+| [`@easy-cms/auth-oauth`](packages/auth-oauth) | Single sign-on: Google, Microsoft, GitHub, OpenID Connect |
 | [`@easy-cms/richtext`](packages/richtext) | Rich text to safe HTML or Markdown |
 | [`@easy-cms/fields`](packages/fields) | More field types: `color`, with a picker and swatches |
 | [`@easy-cms/admin`](packages/admin) | The admin UI (installed by the adapters) |

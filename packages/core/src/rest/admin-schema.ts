@@ -1,6 +1,7 @@
 import type { Access, AuthUser } from '../access.js'
 import { evaluateAccess, FieldAccessChecker } from '../access-control.js'
 import { API_KEYS } from '../api-keys.js'
+import type { SsoProviderRef } from '../auth/sso.js'
 import { EMAIL_DELIVERIES, INTERNAL_COLLECTIONS, USERS, WEBHOOK_DELIVERIES } from '../builtins.js'
 import type { AdminLocale, AdminViewAccess, CollectionConfig, GlobalConfig } from '../config.js'
 import type { AdminComponent, Field, Label } from '../fields.js'
@@ -136,9 +137,18 @@ export interface AdminSchema {
   /** Which saved deliveries the admin can show (webhooks, emails), for users who may see them. */
   deliveries?: { webhook: boolean; email: boolean }
   /** Admin pages this user may open: Settings → Backups, Email, Roles; deliveries; the status panel. */
-  views: { status: boolean; deliveries: boolean; backups: boolean; email: boolean; roles: boolean }
+  views: {
+    status: boolean
+    deliveries: boolean
+    backups: boolean
+    email: boolean
+    roles: boolean
+    sso: boolean
+  }
   /** Roles from the admin are on (`auth.rbac`): documents have owners. */
   rbac: boolean
+  /** Outside accounts users can sign in with and link (`auth.providers`). */
+  providers: SsoProviderRef[]
   /** Pages this user may open (`admin.pages`). */
   pages: AdminPageRef[]
   /** Dashboard panels this user may see (`admin.dashboard`). */
@@ -359,6 +369,7 @@ export async function adminSchema(
     backups: admin,
     email: admin,
     roles: admin && cms.roles.enabled,
+    sso: admin && cms.auth.sso.enabled,
   }
   const roles = await cms.roles.options()
   return {
@@ -376,6 +387,7 @@ export async function adminSchema(
     uploadFromURL: cms.config.upload.fromURL !== undefined,
     views,
     rbac: cms.roles.enabled,
+    providers: cms.auth.sso.providers(),
     ...(views.deliveries
       ? {
           deliveries: {
