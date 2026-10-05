@@ -122,6 +122,9 @@ const ANCHORS: Record<AdminAttention['id'], string> = {
   'no-email': 'no-email',
   'no-server-url': 'no-serverurl',
   backups: 'backups',
+  'failed-logins': 'failed-logins',
+  'audit-failures': 'audit-log',
+  'audit-tampered': 'audit-log',
 }
 /** An attention item as text, with where the docs explain the fix. */
 function describe(item: AdminAttention) {
@@ -161,6 +164,26 @@ function describe(item: AdminAttention) {
       return { title: t('status.noEmail'), detail: t('status.noEmailDetail'), href }
     case 'no-server-url':
       return { title: t('status.noServerUrl'), detail: t('status.noServerUrlDetail'), href }
+    case 'failed-logins':
+      return {
+        title: t('status.failedLogins', { count: item.count }),
+        detail: t('status.failedLoginsDetail'),
+        href,
+        ...(views?.audit ? { to: '/audit?action=login' } : {}),
+      }
+    case 'audit-failures':
+      return {
+        title: t('status.auditFailures', { count: item.count }),
+        detail: t('status.auditFailuresDetail'),
+        href,
+      }
+    case 'audit-tampered':
+      return {
+        title: t('status.auditTampered', { count: item.invalid }),
+        detail: t('status.auditTamperedDetail', { date: formatDate(item.at) }),
+        href,
+        ...(views?.audit ? { to: '/audit' } : {}),
+      }
   }
 }
 const attention = computed(() => (status.value?.attention ?? []).map(describe))

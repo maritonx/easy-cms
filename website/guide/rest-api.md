@@ -21,6 +21,7 @@ Served at `routes.api` (default `/api/cms`). All responses are JSON; access rule
 | POST | `/media` | Upload (`multipart/form-data`, field `file`), or JSON `{ url }` to download it ([from a link](/guide/uploads#from-a-link)) |
 | GET | `/media/file/:name` | A stored file (public) |
 | GET | `/auth/:provider/login` | Starts signing in with a provider (`?redirect=` an admin page); `/auth/:provider/callback` finishes. `POST /auth/:provider/link` (signed in) returns `{ url }` to link an account; `GET /auth/identities` and `DELETE /auth/identities/:id` list and unlink them ([Single sign-on](/guide/sso)) |
+| GET | `/admin/audit` | For admins and roles given it: audit log entries, newest first (`action`, `target`, `doc`, `actor`, `from`, `to`, `page`). `/admin/audit.csv` exports them; `POST /admin/audit/verify` checks their signatures ([Audit log](/guide/audit-log)) |
 | GET | `/admin/sso` | For admins: the providers, their callback URLs, who may use a password |
 | GET | `/admin/status` | For admins (and [roles](/guide/roles) given it): the system and what needs attention ([Health checks](/guide/health-checks)) |
 | GET | `/admin/roles` | For admins, with `auth.rbac`: the roles and what can be given. `POST /admin/roles` with `{ key, name?, permissions? }` adds one; `PATCH /admin/roles/:id` with `{ name?, permissions? }` changes one; `DELETE /admin/roles/:id` deletes one; `GET /admin/roles/:id/history` lists its changes; `GET /admin/owned/:userId` says what a user owns, by collection ([Roles](/guide/roles)) |

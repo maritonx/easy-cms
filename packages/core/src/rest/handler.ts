@@ -1,5 +1,6 @@
 import type { AuthUser } from '../access.js'
 import { API_KEYS, type ApiKeyPermissions } from '../api-keys.js'
+import { auditContext } from '../audit.js'
 import type { Session } from '../auth/auth.js'
 import { SSO_COOKIE } from '../auth/sso.js'
 import { safeEqual } from '../auth/tokens.js'
@@ -158,10 +159,18 @@ async function respond(
     const method = request.method.toUpperCase()
     if (method !== 'GET' && method !== 'HEAD') checkCsrf(cms, ctx)
 
-    const result = root
-      ? await customEndpoint(cms, ctx, method, segments, true, options)
-      : ((await customEndpoint(cms, ctx, method, segments, false, options)) ??
-        (await route(cms, ctx, method, segments, options)))
+    // Who and from where, for the audit log of whatever this request changes.
+    const audit = {
+      user,
+      ip: options.getClientIp?.(request),
+      userAgent: request.headers.get('user-agent'),
+    }
+    const result = await auditContext.run(audit, async () =>
+      root
+        ? await customEndpoint(cms, ctx, method, segments, true, options)
+        : ((await customEndpoint(cms, ctx, method, segments, false, options)) ??
+          (await route(cms, ctx, method, segments, options))),
+    )
     if (!result) throw new HttpError('Not found', 404)
     if (result.body instanceof Response) return result.body
     return new Response(JSON.stringify(result.body), { status: result.status ?? 200, headers })
@@ -392,8 +401,11 @@ async function route(
     if (extra !== undefined) throw new HttpError('Not found', 404)
     if (id === undefined) {
       if (method === 'GET') return { body: await listBackups(cms) }
-      if (method === 'POST')
-        return { status: 202, body: await startBackup(cms, 'manual', ctx.user.email) }
+      if (method === 'POST') {
+        const started = await startBackup(cms, 'manual', ctx.user.email)
+        await cms.audit.record({ action: 'backup.start', target: 'backups', doc: started.id })
+        return { status: 202, body: started }
+      }
       throw methodNotAllowed(ctx, 'GET, POST')
     }
     const parsed = parseId(id)
@@ -401,6 +413,12 @@ async function route(
     if (action === 'download') {
       if (method !== 'GET') throw methodNotAllowed(ctx, 'GET')
       const file = await downloadBackup(cms, parsed, ctx.user.email)
+      await cms.audit.record({
+        action: 'backup.download',
+        target: 'backups',
+        doc: parsed,
+        title: file.filename,
+      })
       return {
         body: new Response(file.body as Uint8Array<ArrayBuffer>, {
           headers: {
@@ -415,6 +433,7 @@ async function route(
     if (action !== undefined) throw new HttpError('Not found', 404)
     if (method !== 'DELETE') throw methodNotAllowed(ctx, 'DELETE')
     await deleteBackup(cms, parsed)
+    await cms.audit.record({ action: 'backup.delete', target: 'backups', doc: parsed })
     return { body: { deleted: 1 } }
   }
 
@@ -432,7 +451,9 @@ async function route(
     if (action === 'verify') return { body: await verifyEmail(cms) }
     if (action === 'test') {
       const body = await readJson(ctx.request)
-      return { body: await sendTestEmail(cms, ctx.user, body.to, body.locale) }
+      const sent = await sendTestEmail(cms, ctx.user, body.to, body.locale)
+      await cms.audit.record({ action: 'email.test', target: 'email', detail: { ...sent } })
+      return { body: sent }
     }
     throw new HttpError('Not found', 404)
   }
@@ -443,6 +464,43 @@ async function route(
     if (ctx.user.role !== 'admin' || ctx.user.apiKey) throw new ForbiddenError()
     if (method !== 'GET') throw methodNotAllowed(ctx, 'GET')
     return { body: cms.auth.sso.settings(ctx.url.origin) }
+  }
+
+  // Settings → Audit log (`audit`), for admins and roles given it: entries, CSV, the check.
+  if (first === 'admin' && (second === 'audit' || second === 'audit.csv')) {
+    if (!ctx.user) throw new UnauthorizedError()
+    if (!cms.audit.enabled) throw new HttpError('Not found', 404)
+    if (!(await cms.roles.canView(ctx.user, 'audit'))) throw new ForbiddenError()
+    const q = ctx.url.searchParams
+    const filter = {
+      action: q.get('action'),
+      target: q.get('target'),
+      doc: q.get('doc'),
+      actor: q.get('actor'),
+      from: q.get('from'),
+      to: q.get('to'),
+    }
+    if (second === 'audit.csv' && third === undefined) {
+      if (method !== 'GET') throw methodNotAllowed(ctx, 'GET')
+      return {
+        body: new Response(await cms.audit.csv(filter), {
+          headers: {
+            'content-type': 'text/csv; charset=utf-8',
+            'content-disposition': `attachment; filename="audit-log-${new Date().toISOString().slice(0, 10)}.csv"`,
+            'cache-control': 'no-store',
+            'x-content-type-options': 'nosniff',
+          },
+        }),
+      }
+    }
+    if (second === 'audit' && third === 'verify' && segments.length === 3) {
+      if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
+      return { body: await cms.audit.verify() }
+    }
+    if (second !== 'audit' || third !== undefined) throw new HttpError('Not found', 404)
+    if (method !== 'GET') throw methodNotAllowed(ctx, 'GET')
+    const page = Math.max(1, Number.parseInt(q.get('page') ?? '1', 10) || 1)
+    return { body: await cms.audit.list(filter, page) }
   }
 
   // What a user owns, by collection (`auth.rbac`), for admins about to delete them.
@@ -501,21 +559,46 @@ async function route(
     // /admin/deliveries/:kind/retry and DELETE /admin/deliveries/:kind → every failed one
     if (id === 'retry' && action === undefined) {
       if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
-      return { body: await retryFailedDeliveries(cms, kind) }
+      const retried = await retryFailedDeliveries(cms, kind)
+      await cms.audit.record({
+        action: 'delivery.retry',
+        target: 'deliveries',
+        detail: { kind, all: true },
+      })
+      return { body: retried }
     }
     if (id === undefined) {
       if (method !== 'DELETE') throw methodNotAllowed(ctx, 'DELETE')
-      return { body: await deleteFailedDeliveries(cms, kind) }
+      const deleted = await deleteFailedDeliveries(cms, kind)
+      await cms.audit.record({
+        action: 'delivery.delete',
+        target: 'deliveries',
+        detail: { kind, all: true },
+      })
+      return { body: deleted }
     }
     const parsed = parseId(id)
     if (parsed === undefined) throw new HttpError('Not found', 404)
     if (action === 'retry') {
       if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
-      return { body: await cms.retryDelivery(kind, parsed) }
+      const retried = await cms.retryDelivery(kind, parsed)
+      await cms.audit.record({
+        action: 'delivery.retry',
+        target: 'deliveries',
+        doc: parsed,
+        detail: { kind },
+      })
+      return { body: retried }
     }
     if (action !== undefined) throw new HttpError('Not found', 404)
     if (method !== 'DELETE') throw methodNotAllowed(ctx, 'DELETE')
     await deleteDelivery(cms, kind, parsed)
+    await cms.audit.record({
+      action: 'delivery.delete',
+      target: 'deliveries',
+      doc: parsed,
+      detail: { kind },
+    })
     return { body: { deleted: 1 } }
   }
 

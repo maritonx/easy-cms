@@ -39,6 +39,8 @@ export default defineConfig({
   },
   // Settings → Backups: a compressed copy of the database every night, the newest 7 kept.
   backups: { every: 'day', at: '03:00', keep: 7 },
+  // Settings → Audit log: who changed what and when, sign-ins and admin actions (a year).
+  audit: true,
   // Settings → Roles: admins tick what each role may do; add roles there without code.
   auth: {
     rbac: true,

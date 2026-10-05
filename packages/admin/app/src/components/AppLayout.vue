@@ -9,6 +9,7 @@ import {
   Menu,
   Monitor,
   Moon,
+  ScrollText,
   Send,
   ShieldCheck,
   Sun,
@@ -55,7 +56,11 @@ const deliveries = computed(() => {
 const settingsViews = computed(
   () =>
     !!views.value &&
-    (views.value.backups || views.value.email || views.value.roles || views.value.sso),
+    (views.value.backups ||
+      views.value.email ||
+      views.value.roles ||
+      views.value.sso ||
+      views.value.audit),
 )
 const settingsPages = computed(
   () => session.schema?.pages.filter((p) => p.group === 'settings') ?? [],
@@ -195,6 +200,10 @@ async function onLogout() {
         <RouterLink v-if="views?.roles" to="/roles" class="nav-link" active-class="active">
           <ShieldCheck :size="18" aria-hidden="true" />
           <span>{{ t('roles.title') }}</span>
+        </RouterLink>
+        <RouterLink v-if="views?.audit" to="/audit" class="nav-link" active-class="active">
+          <ScrollText :size="18" aria-hidden="true" />
+          <span>{{ t('audit.title') }}</span>
         </RouterLink>
         <RouterLink v-if="views?.sso" to="/sso" class="nav-link" active-class="active">
           <KeyRound :size="18" aria-hidden="true" />

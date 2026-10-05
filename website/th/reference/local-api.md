@@ -108,5 +108,5 @@ Local API เชื่อผู้เรียกและข้ามกฎส�
 | `destroy()` | — | หยุดตัวจับเวลา รอการส่ง webhook และปิดการเชื่อมต่อฐานข้อมูล |
 
 object `cms` ยังมี `config` (config ที่ resolve แล้ว), `auth` (การ login และตรวจ session),
-`auth.sso` (การเข้าสู่ระบบด้วย `auth.providers`), `roles` (เมื่อเปิด `auth.rbac`: `roles.allows(user, { collection }, operation)` บอกว่า role ของผู้ใช้อนุญาตอะไร),
+`auth.sso` (การเข้าสู่ระบบด้วย `auth.providers`), `audit` (เมื่อเปิด `audit`: `audit.record({ action, target, doc })` เขียนรายการ), `roles` (เมื่อเปิด `auth.rbac`: `roles.allows(user, { collection }, operation)` บอกว่า role ของผู้ใช้อนุญาตอะไร),
 `db`, `storage`, `logger` และ `cwd`

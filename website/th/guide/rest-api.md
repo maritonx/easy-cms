@@ -21,6 +21,7 @@ HTTP API ที่ `/api/cms`: endpoint, การ query, การยืนย�
 | POST | `/media` | อัปโหลด (`multipart/form-data`, field `file`) หรือ JSON `{ url }` เพื่อดาวน์โหลด ([จากลิงก์](/th/guide/uploads#from-a-link)) |
 | GET | `/media/file/:name` | ไฟล์ที่จัดเก็บไว้ (สาธารณะ) |
 | GET | `/auth/:provider/login` | เริ่มเข้าสู่ระบบด้วยผู้ให้บริการ (`?redirect=` หน้าใน admin) ส่วน `/auth/:provider/callback` ปิดท้าย `POST /auth/:provider/link` (ต้อง login อยู่) คืน `{ url }` สำหรับเชื่อมบัญชี `GET /auth/identities` และ `DELETE /auth/identities/:id` ดูและยกเลิกการเชื่อม ([Single sign-on](/th/guide/sso)) |
+| GET | `/admin/audit` | สำหรับ admin และบทบาทที่ได้รับสิทธิ์: รายการ audit log ใหม่สุดก่อน (`action`, `target`, `doc`, `actor`, `from`, `to`, `page`) `/admin/audit.csv` ส่งออก `POST /admin/audit/verify` ตรวจลายเซ็น ([Audit log](/th/guide/audit-log)) |
 | GET | `/admin/sso` | สำหรับ admin: ผู้ให้บริการ callback URL และใครใช้รหัสผ่านได้ |
 | GET | `/admin/status` | สำหรับ admin (และ [role](/th/guide/roles) ที่ได้รับสิทธิ์): ข้อมูลระบบและสิ่งที่ต้องดูแล ([ตรวจสุขภาพระบบ](/th/guide/health-checks)) |
 | GET | `/admin/roles` | สำหรับ admin เมื่อเปิด `auth.rbac`: รายการ role และสิ่งที่ให้สิทธิ์ได้ `POST /admin/roles` พร้อม `{ key, name?, permissions? }` เพิ่ม role `PATCH /admin/roles/:id` พร้อม `{ name?, permissions? }` แก้ไข `DELETE /admin/roles/:id` ลบ `GET /admin/roles/:id/history` ประวัติการแก้ไข `GET /admin/owned/:userId` บอกว่าผู้ใช้เป็นเจ้าของเอกสารอะไรบ้าง แยกตาม collection ([บทบาทและสิทธิ์](/th/guide/roles)) |

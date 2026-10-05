@@ -14,6 +14,7 @@ import {
   keyAllows,
   newApiKey,
 } from './api-keys.js'
+import { AuditLog, auditContext } from './audit.js'
 import { Auth } from './auth/auth.js'
 import { hashPassword, MIN_PASSWORD_LENGTH } from './auth/password.js'
 import { signPreviewToken, verifyPreviewToken } from './auth/tokens.js'
@@ -235,6 +236,8 @@ export class EasyCMS<C extends Config = Config> {
   readonly cwd: string
   /** Roles and their permissions (`auth.rbac`, Settings → Roles). */
   readonly roles: Roles
+  /** Who did what (`audit`, Settings → Audit log). */
+  readonly audit: AuditLog
   private readonly versions: VersionStore
   private readonly webhooks: Webhooks
   private readonly mailer: Mailer
@@ -252,7 +255,13 @@ export class EasyCMS<C extends Config = Config> {
     this.storage = storage
     this.cwd = cwd
     this.versions = new VersionStore(db)
-    this.roles = new Roles(config, db, (message) => logger.info(message))
+    this.roles = new Roles(
+      config,
+      db,
+      (message) => logger.info(message),
+      (entry) => this.audit.record(entry),
+    )
+    this.audit = new AuditLog(this as unknown as EasyCMS)
     this.webhooks = new Webhooks(
       config.webhooks ?? [],
       logger,
@@ -876,6 +885,7 @@ export class EasyCMS<C extends Config = Config> {
         operation: 'update',
       })
       this.emit(config, 'draft', draft)
+      await this.audited(config, 'draft', draft, current, guard, mode)
       const [out] = await this.output(config, [draft as RawDocument], guard, {
         ...options,
         draft: true,
@@ -902,6 +912,7 @@ export class EasyCMS<C extends Config = Config> {
       operation: 'update',
     })
     this.emit(config, 'update', doc, existing.status)
+    await this.audited(config, 'update', doc, current, guard, mode)
     const [out] = await this.output(config, [doc], guard, { ...options, draft: true })
     return out as RawDocument
   }
@@ -953,6 +964,7 @@ export class EasyCMS<C extends Config = Config> {
       doc: existing,
     })
     this.emit(config, 'delete', existing)
+    await this.audited(config, 'delete', existing, existing, guard)
     const [out] = await this.output(config, [existing], guard, { depth: 0, draft: true })
     return out as Doc<C, S>
   }
@@ -1119,6 +1131,7 @@ export class EasyCMS<C extends Config = Config> {
         operation: 'update',
       })
       this.emit(config, 'draft', draft)
+      await this.audited(config, 'draft', draft, current, guard, mode)
       return this.findGlobal(slug, { ...options, draft: true })
     }
 
@@ -1131,6 +1144,7 @@ export class EasyCMS<C extends Config = Config> {
       operation: 'update',
     })
     this.emit(config, 'update', doc, existing.status)
+    await this.audited(config, 'update', doc, current, guard, mode)
     return this.findGlobal(slug, { ...options, draft: true })
   }
 
@@ -1252,16 +1266,22 @@ export class EasyCMS<C extends Config = Config> {
     webhooks: { sent: number; failed: number }
     emails: { sent: number; failed: number }
   }> {
-    const scheduled = await this.runScheduled(now)
-    await this.pruneFailedDeliveries(now)
-    await runDueBackups(this as unknown as EasyCMS, now).catch((error) =>
-      this.logger.error(`Backups: ${(error as Error).message}`),
-    )
-    return {
-      ...scheduled,
-      webhooks: await this.retryWebhooks(now),
-      emails: await this.mailer.retry(now),
-    }
+    // What jobs change is the scheduler's doing, in the audit log.
+    return auditContext.run({ via: 'scheduler', user: null }, async () => {
+      const scheduled = await this.runScheduled(now)
+      await this.pruneFailedDeliveries(now)
+      await runDueBackups(this as unknown as EasyCMS, now).catch((error) =>
+        this.logger.error(`Backups: ${(error as Error).message}`),
+      )
+      await this.audit
+        .upkeep(now)
+        .catch((error) => this.logger.error(`Audit log: ${(error as Error).message}`))
+      return {
+        ...scheduled,
+        webhooks: await this.retryWebhooks(now),
+        emails: await this.mailer.retry(now),
+      }
+    })
   }
 
   /**
@@ -1466,6 +1486,13 @@ export class EasyCMS<C extends Config = Config> {
         updatedAt: now,
       },
     })
+    await this.audit.record({
+      action: 'schedule',
+      target: parent,
+      ...(parent.startsWith('global:') ? {} : { doc }),
+      ...(guardOf(options).user ? { user: guardOf(options).user } : {}),
+      detail: { action: job.action, at: runAt.toISOString() },
+    })
     return toJob(row)
   }
 
@@ -1539,6 +1566,12 @@ export class EasyCMS<C extends Config = Config> {
     const job = (await this.pendingJobs(parent, doc)).find((j) => String(j.id) === String(jobId))
     if (!job) throw new NotFoundError('scheduled job', jobId)
     await this.db.delete({ collection: SCHEDULED_JOBS, id: job.id })
+    await this.audit.record({
+      action: 'unschedule',
+      target: parent,
+      ...(parent.startsWith('global:') ? {} : { doc }),
+      detail: { action: job.action, at: job.runAt },
+    })
   }
 
   /**
@@ -1854,6 +1887,7 @@ export class EasyCMS<C extends Config = Config> {
       operation: 'create',
     })
     this.emit(config, 'create', doc)
+    await this.audited(config, 'create', doc, undefined, hookGuard ?? guard)
     const [out] = await this.output(config, [doc], hookGuard ?? guard, { ...options, draft: true })
     return out as RawDocument
   }
@@ -1960,6 +1994,44 @@ export class EasyCMS<C extends Config = Config> {
     if (after === 'published' && before !== 'published') this.webhooks.emit('publish', target, body)
     if (after !== 'published' && before === 'published')
       this.webhooks.emit('unpublish', target, body)
+  }
+
+  /**
+   * Writes the audit log entry for a change (`audit`): publishing, unpublishing and restoring
+   * are told apart from other saves.
+   */
+  private async audited(
+    config: CollectionConfig | GlobalConfig,
+    event: 'create' | 'update' | 'draft' | 'delete',
+    doc: Data,
+    previous: Data | undefined,
+    guard: Guard,
+    mode: 'save' | 'unpublish' | 'restore' = 'save',
+  ) {
+    if (!this.audit.enabled) return
+    let action: string = event
+    if (event === 'update' || event === 'draft') {
+      const was = previous?.status
+      if (mode === 'restore') action = 'restore'
+      else if (config.drafts && doc.status === 'published' && was !== 'published')
+        action = 'publish'
+      else if (
+        config.drafts &&
+        event === 'update' &&
+        doc.status !== 'published' &&
+        was === 'published'
+      )
+        action = 'unpublish'
+    }
+    const global = !this.config.collections.includes(config as CollectionConfig)
+    await this.audit.content(
+      config,
+      global,
+      action,
+      event === 'delete' ? undefined : doc,
+      event === 'create' ? undefined : previous,
+      guard.user,
+    )
   }
 
   /** Records a version after a save, when the collection or global keeps versions. */

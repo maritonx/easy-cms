@@ -36,6 +36,8 @@ export default defineConfig({
   upload: { fromURL: { allowedHosts: ['*'] } },
   // Settings → Backups: every night, as a compressed SQLite file (Postgres is copied with sqlite).
   backups: { every: 'day', at: '03:00', keep: 7, sqlite },
+  // Settings → Audit log: who changed what and when, sign-ins and admin actions (a year).
+  audit: true,
   // Settings → Roles: admins tick what each role may do; add roles there without code.
   auth: {
     rbac: true,

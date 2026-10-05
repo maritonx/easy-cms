@@ -17,6 +17,12 @@ export type AdminAttention =
   | { id: 'no-server-url' }
   /** The last scheduled backup failed, or none finished in two periods (`backups.every`). */
   | { id: 'backups'; failed: boolean; lastDone: string | null }
+  /** Many failed logins in the last hour (`audit.failedLogins`): someone may be guessing. */
+  | { id: 'failed-logins'; count: number }
+  /** Audit log entries that could not be written since the server started. */
+  | { id: 'audit-failures'; count: number }
+  /** The last check of the audit log found entries changed in the database. */
+  | { id: 'audit-tampered'; invalid: number; at: string }
 
 /** What the dashboard shows admins (`GET <api>/admin/status`). */
 export interface AdminStatus {
@@ -99,6 +105,7 @@ export async function adminStatus(cms: EasyCMS): Promise<AdminStatus> {
 
   const backups = await backupAttention(cms)
   if (backups) attention.push(backups)
+  attention.push(...(await cms.audit.attention()))
 
   if (!config.email) attention.push({ id: 'no-email' })
   if (!config.serverURL && process.env.NODE_ENV === 'production')

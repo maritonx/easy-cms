@@ -1,5 +1,7 @@
 import { apiKeysCollection } from './api-keys.js'
+import { type AuditConfig, DEFAULT_AUDIT_KEEP, DEFAULT_FAILED_LOGINS } from './audit.js'
 import {
+  auditLogsCollection,
   DEFAULT_ROLES,
   databaseBackupsCollection,
   emailDeliveriesCollection,
@@ -111,6 +113,7 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
       inviteExpiration: config.auth?.inviteExpiration ?? 7 * 24 * 60 * 60,
       emails: config.auth?.emails ?? {},
     },
+    audit: config.audit ? resolveAudit(config.audit === true ? {} : config.audit) : false,
     collections: [
       ...(config.collections ?? []),
       ...internalCollections,
@@ -123,6 +126,7 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
       databaseBackupsCollection,
       ...(config.auth?.rbac ? [rolesCollection] : []),
       ...((config.auth?.providers?.length ?? 0) > 0 ? [userIdentitiesCollection] : []),
+      ...(config.audit ? [auditLogsCollection] : []),
     ],
     globals: config.globals ?? [],
     endpoints: config.endpoints ?? [],
@@ -142,4 +146,12 @@ function usesVersions(config: Config): boolean {
 
 function usesSchedule(config: Config): boolean {
   return [...(config.collections ?? []), ...(config.globals ?? [])].some((c) => c.schedule)
+}
+
+function resolveAudit(audit: AuditConfig): Required<AuditConfig> {
+  return {
+    keep: audit.keep ?? DEFAULT_AUDIT_KEEP,
+    values: audit.values !== false,
+    failedLogins: audit.failedLogins ?? DEFAULT_FAILED_LOGINS,
+  }
 }

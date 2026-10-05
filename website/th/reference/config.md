@@ -32,6 +32,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `apiKeys` | `boolean` | `false` | API key ใต้ตั้งค่า สำหรับสคริปต์และแอปอื่น [API keys](/th/guide/api-keys) |
 | `email` | `EmailAdapter` | — | ส่งอีเมลให้ plugin เช่น `smtp()` หรือ `consoleEmail()` [อีเมล](/th/guide/email) |
 | `backups` | `BackupsConfig` | กดทำเองเท่านั้น | backup ฐานข้อมูลตามรอบ ดู [backups](#backups) |
+| `audit` | `boolean \| AuditConfig` | ปิด | audit log: ใครแก้อะไร การเข้าสู่ระบบ การจัดการระบบ ดู [audit](#audit) |
 | `plugins` | `Plugin[]` | `[]` | `(config) => config` ทำงานตามลำดับก่อนตรวจ config `definePlugin(fn, { name, version })` ตั้งชื่อให้แสดงบนแดชบอร์ด [Plugins](/th/guide/plugins) |
 | `fieldTypes` | `FieldTypeDefinition[]` | `[]` | ชนิด field จากแพ็กเกจ เช่น `color` จาก `@easy-cms/fields` [ชนิด field เพิ่มเติม](/th/guide/field-types) |
 
@@ -100,6 +101,15 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `dir` | `string` | `backups` | โฟลเดอร์ของที่เก็บในเครื่อง ไม่เปิดเป็น URL สาธารณะ |
 | `storage` | `StorageAdapter` | ดิสก์ในเครื่อง | เช่น `s3Storage()` กับ bucket ส่วนตัว |
 | `sqlite` | `(options) => DatabaseAdapter` | — | เฉพาะ Postgres: `sqlite` จาก `@easy-cms/db-sqlite` ใช้เขียนไฟล์ backup [Backup](/th/guide/backups#from-the-admin) |
+
+<!-- api: AuditConfig -->
+## audit {#audit}
+
+| ตัวเลือก | Type | ค่าเริ่มต้น | |
+|---|---|---|---|
+| `keep` | `number` | `365` | เก็บกี่วัน ที่เก่ากว่าจะถูกลบ `0`: เก็บไว้ทั้งหมด |
+| `values` | `boolean` | `true` | เก็บค่าก่อนและหลังการแก้ `false`: เก็บแค่ชื่อ field ที่เปลี่ยน |
+| `failedLogins` | `number` | `20` | จำนวน login ไม่สำเร็จในหนึ่งชั่วโมงที่แดชบอร์ดจะเตือน [Audit log](/th/guide/audit-log) |
 
 <!-- api: AuthConfig -->
 ## auth {#auth}

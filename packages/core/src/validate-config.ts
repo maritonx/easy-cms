@@ -22,6 +22,7 @@ const RESERVED_SLUGS = new Set([
   'database-backups',
   'user-roles',
   'user-identities',
+  'audit-logs',
   'api-keys',
   'jobs',
   'auth',
@@ -55,6 +56,7 @@ export function validateConfig(config: Config): ConfigIssue[] {
   validateAdminViews(config, add)
   validateUpload(config, add)
   validateBackups(config, add)
+  validateAudit(config, add)
   validateAuth(config, add)
   validateCors(config.cors, add)
   validateLocalization(config, add)
@@ -611,6 +613,27 @@ function validateUpload(config: Config, add: Add) {
 /** `*`, `host.name` or `*.host.name`: no scheme, port or path. */
 const HOST_PATTERN =
   /^(\*|(\*\.)?[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*)$/i
+
+/** `audit`: true, or its settings. */
+function validateAudit(config: Config, add: Add) {
+  const audit: unknown = config.audit
+  if (audit !== undefined && typeof audit !== 'boolean') {
+    const a = audit as Record<string, unknown> | null
+    if (typeof a !== 'object' || a === null)
+      add('audit', 'must be true or { keep, values, failedLogins }')
+    else {
+      if (a.keep !== undefined && !(Number.isInteger(a.keep) && (a.keep as number) >= 0))
+        add('audit.keep', 'must be a number of days (0: keep all)')
+      if (a.values !== undefined && typeof a.values !== 'boolean')
+        add('audit.values', 'must be true or false')
+      if (
+        a.failedLogins !== undefined &&
+        !(Number.isInteger(a.failedLogins) && (a.failedLogins as number) > 0)
+      )
+        add('audit.failedLogins', 'must be a positive number')
+    }
+  }
+}
 
 function validateBackups(config: Config, add: Add) {
   const backups: unknown = config.backups

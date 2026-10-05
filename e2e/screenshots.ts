@@ -186,6 +186,11 @@ async function main() {
         await page.locator('easy-form form').waitFor()
         await shot('form-page')
 
+        await page.goto(`${ORIGIN}/admin/audit`)
+        await page.locator('.entry').first().waitFor()
+        await page.locator('.entry .row').nth(1).click()
+        await shot('audit')
+
         await page.goto(`${ORIGIN}/admin/sso`)
         await page.locator('#who-heading').waitFor()
         await shot('sso')

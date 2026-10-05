@@ -119,6 +119,7 @@ cd my-cms && npm run dev       # http://localhost:4000/admin
   scheduled publishing
 - Roles from the admin: tick what each role may do per collection, page and field, or on its own
   documents only, no code
+- An audit log of who changed which fields, sign-ins and admin actions, signed against tampering
 - English and Thai interface, light and dark themes, works on phones
 
 **APIs**

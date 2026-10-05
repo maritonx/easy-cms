@@ -86,6 +86,13 @@
           }
         },
         {
+          "path": "guide/audit-log",
+          "title": {
+            "en": "Audit log",
+            "th": "Audit log"
+          }
+        },
+        {
           "path": "guide/access-control",
           "title": {
             "en": "Access control",

@@ -33,6 +33,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `apiKeys` | `boolean` | `false` | API keys under Settings, for scripts and other apps. [API keys](/guide/api-keys) |
 | `email` | `EmailAdapter` | — | Sends email for plugins, e.g. `smtp()` or `consoleEmail()`. [Email](/guide/email) |
 | `backups` | `BackupsConfig` | by hand only | Database backups on a schedule. See [backups](#backups). |
+| `audit` | `boolean \| AuditConfig` | off | The audit log: who changed what, sign-ins, admin actions. See [audit](#audit). |
 | `plugins` | `Plugin[]` | `[]` | `(config) => config`, run in order before validation; `definePlugin(fn, { name, version })` names one for the dashboard. [Plugins](/guide/plugins) |
 | `fieldTypes` | `FieldTypeDefinition[]` | `[]` | Field types from packages, e.g. `color` from `@easy-cms/fields`. [Custom field types](/guide/field-types) |
 
@@ -101,6 +102,15 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `dir` | `string` | `backups` | Folder for the default local storage. Never served publicly. |
 | `storage` | `StorageAdapter` | local disk | E.g. `s3Storage()` with a private bucket. |
 | `sqlite` | `(options) => DatabaseAdapter` | — | Postgres only: `sqlite` from `@easy-cms/db-sqlite`, which writes the backup file. [Backups](/guide/backups#from-the-admin) |
+
+<!-- api: AuditConfig -->
+## audit
+
+| Option | Type | Default | |
+|---|---|---|---|
+| `keep` | `number` | `365` | Days to keep entries; older ones are deleted. `0`: keep them all. |
+| `values` | `boolean` | `true` | Keep values before and after a change; `false`: only which fields changed. |
+| `failedLogins` | `number` | `20` | Failed sign-ins within an hour that the dashboard warns about. [Audit log](/guide/audit-log) |
 
 <!-- api: AuthConfig -->
 ## auth

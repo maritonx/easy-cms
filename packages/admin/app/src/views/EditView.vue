@@ -2,6 +2,7 @@
 import { CalendarClock, ChevronDown, ChevronLeft, Eye, EyeOff, Link2, Trash2 } from '@lucide/vue'
 import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
+import ActivityPanel from '../components/ActivityPanel.vue'
 import ApiKeyCreated from '../components/ApiKeyCreated.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import IdentitiesPanel from '../components/IdentitiesPanel.vue'
@@ -627,6 +628,8 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
           :query="localeQuery({ editing: true })"
           @restored="(d) => show(d as Doc, t('history.restored'))"
         />
+        <!-- Who changed this document, from the audit log (`audit`). -->
+        <ActivityPanel v-if="session.schema?.views.audit && id" :target="slug" :doc="id" :reload-key="historyKey" />
       </aside>
     </div>
 

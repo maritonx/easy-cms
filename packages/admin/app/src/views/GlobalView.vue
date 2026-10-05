@@ -2,6 +2,7 @@
 import { CalendarClock, Eye, EyeOff } from '@lucide/vue'
 import { computed, onBeforeUnmount, onMounted, provide, ref } from 'vue'
 import { onBeforeRouteLeave, useRoute } from 'vue-router'
+import ActivityPanel from '../components/ActivityPanel.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import LivePreview from '../components/LivePreview.vue'
 import LocaleSwitcher from '../components/LocaleSwitcher.vue'
@@ -285,6 +286,7 @@ onBeforeRouteLeave(() => (dirty.value ? window.confirm(t('edit.unsaved')) : true
           :query="localeQuery({ editing: true })"
           @restored="restored"
         />
+        <ActivityPanel v-if="session.schema?.views.audit" :target="`global:${slug}`" :reload-key="historyKey" />
       </aside>
     </div>
     <footer v-if="!readOnly" class="save-bar">

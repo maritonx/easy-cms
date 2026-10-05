@@ -110,5 +110,5 @@ to apply them, as the REST API does.
 | `destroy()` | — | Stops the scheduler, waits for webhook deliveries and closes the database. |
 
 The `cms` object also has `config` (the resolved config), `auth` (login and session checks),
-`auth.sso` (signing in with `auth.providers`), `roles` (with `auth.rbac`: `roles.allows(user, { collection }, operation)` says what a user's role
+`auth.sso` (signing in with `auth.providers`), `audit` (with `audit`: `audit.record({ action, target, doc })` writes an entry), `roles` (with `auth.rbac`: `roles.allows(user, { collection }, operation)` says what a user's role
 allows), `db`, `storage`, `logger` and `cwd`.

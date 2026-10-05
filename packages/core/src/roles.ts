@@ -165,6 +165,14 @@ export class Roles {
     private readonly config: ResolvedConfig,
     private readonly db: Database,
     private readonly log?: (message: string) => void,
+    /** Writes to the audit log (`audit`). */
+    private readonly audit?: (entry: {
+      action: string
+      target: string
+      doc: ID
+      title: string
+      changes?: { field: string; before?: unknown; after?: unknown }[]
+    }) => Promise<void>,
   ) {
     this.enabled = config.auth.rbac
     this.versions = new VersionStore(db)
@@ -437,6 +445,7 @@ export class Roles {
       this.clean(input.permissions),
       author.id,
     )
+    await this.audit?.({ action: 'role.create', target: 'roles', doc: row.id, title: key })
     return this.toRole(row, 0)
   }
 
@@ -456,6 +465,18 @@ export class Roles {
     const { id: _id, ...rest } = data
     const saved = await this.db.update({ collection: ROLES, id: row.id, data: rest })
     await this.record(saved, author.id)
+    const changes: { field: string; before?: unknown; after?: unknown }[] = []
+    if ((row.name ?? '') !== (saved.name ?? ''))
+      changes.push({ field: 'name', before: row.name ?? '', after: saved.name ?? '' })
+    if (JSON.stringify(row.permissions ?? {}) !== JSON.stringify(saved.permissions ?? {}))
+      changes.push({ field: 'permissions' })
+    await this.audit?.({
+      action: 'role.update',
+      target: 'roles',
+      doc: row.id,
+      title: String(row.key),
+      changes,
+    })
     this.invalidate()
     return this.toRole(saved, await this.users(String(row.key)))
   }
@@ -470,6 +491,7 @@ export class Roles {
       throw new EasyCMSError(`${users} user(s) have this role; give them another role first`, 409)
     await this.db.delete({ collection: ROLES, id: row.id })
     await this.versions.deleteAll(ROLES, row.id)
+    await this.audit?.({ action: 'role.delete', target: 'roles', doc: row.id, title: key })
     this.invalidate()
   }
 
@@ -507,6 +529,7 @@ export class Roles {
   private views(): AdminRoleView[] {
     return [
       { id: 'status' },
+      ...(this.config.audit ? [{ id: 'audit' }] : []),
       ...(this.config.collections.some(
         (c) => c.slug === WEBHOOK_DELIVERIES || c.slug === EMAIL_DELIVERIES,
       )

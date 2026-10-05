@@ -9,6 +9,14 @@ export {
   type ApiKeyPermissions,
   keyAllows,
 } from './api-keys.js'
+export {
+  type AuditChange,
+  type AuditConfig,
+  type AuditEntry,
+  AuditLog,
+  type AuditPage,
+  type AuditVerification,
+} from './audit.js'
 export { Auth, type LoginArgs, type PasswordLinkOptions, type Session } from './auth/auth.js'
 export {
   DEFAULT_PASSWORD_EMAILS,

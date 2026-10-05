@@ -85,7 +85,12 @@ export class Auth {
     const email = typeof args.email === 'string' ? args.email.trim().toLowerCase() : ''
     const password = typeof args.password === 'string' ? args.password : ''
     const key = `${email}|${args.ip ?? ''}`
-    await this.checkRateLimit(key)
+    try {
+      await this.checkRateLimit(key)
+    } catch (error) {
+      await this.cms.audit.record({ action: 'login.locked', target: 'auth', user: null, email })
+      throw error
+    }
 
     const [user] = email
       ? (
@@ -104,16 +109,39 @@ export class Auth {
 
     if (!user || !valid || user.active === false) {
       await this.recordFailure(key)
+      await this.cms.audit.record({
+        action: 'login.failed',
+        target: 'auth',
+        user: null,
+        email,
+        detail: {
+          reason: !user
+            ? 'unknown email'
+            : user.active === false
+              ? 'deactivated'
+              : 'wrong password',
+        },
+      })
       throw new UnauthorizedError(INVALID)
     }
     await this.clearFailures(key)
     // With `auth.password: false`, only admins sign in with a password.
-    if (!this.sso.passwordAllowed(user))
+    if (!this.sso.passwordAllowed(user)) {
+      await this.cms.audit.record({
+        action: 'login.failed',
+        target: 'auth',
+        user: null,
+        email,
+        detail: { reason: 'passwords are off' },
+      })
       throw new UnauthorizedError(
         `Sign in with ${this.config.auth.providers.map((p) => p.name).join(' or ')}`,
       )
+    }
     await this.deleteExpiredSessions(user.id)
-    return this.startSession(user)
+    const session = await this.startSession(user)
+    await this.cms.audit.record({ action: 'login', target: 'auth', user: session.user })
+    return session
   }
 
   /** Creates the first admin. Only works while there are no users. */
@@ -143,7 +171,15 @@ export class Auth {
     const token = unsignToken(this.config.secret, signedToken)
     if (!token) return
     const session = await this.findSession(token)
-    if (session) await this.db.delete({ collection: SESSIONS, id: session.id })
+    if (!session) return
+    await this.db.delete({ collection: SESSIONS, id: session.id })
+    const user = await this.db.findById({ collection: USERS, id: session.user as ID })
+    if (user)
+      await this.cms.audit.record({
+        action: 'logout',
+        target: 'auth',
+        user: await this.toAuthUser(user),
+      })
   }
 
   /**
@@ -227,6 +263,7 @@ export class Auth {
     })
     if (recent >= RESET_REQUESTS) return
     await this.recordFailure(key)
+    await this.cms.audit.record({ action: 'password.forgot', target: 'auth', user: null, email })
     const user = await this.findByEmail(email)
     if (!user || user.active === false || !this.sso.passwordAllowed(user)) return
     await this.mailPasswordLink(user, user.passwordHash ? 'reset' : 'invite', args)
@@ -246,6 +283,13 @@ export class Auth {
     if (user.active === false) throw new QueryError('This user is deactivated')
     const purpose = user.passwordHash ? 'reset' : 'invite'
     await this.mailPasswordLink(user, purpose, options)
+    await this.cms.audit.record({
+      action: 'password.link',
+      target: USERS,
+      doc: user.id,
+      title: String(user.email),
+      detail: { purpose },
+    })
     return purpose
   }
 
@@ -282,6 +326,12 @@ export class Auth {
     const user = (await this.db.findById({ collection: USERS, id: found.user.id })) as RawDocument
     // Sign this browser in, then send the notice.
     const session = await this.startSession(user)
+    await this.cms.audit.record({
+      action: 'password.reset',
+      target: 'auth',
+      user: session.user,
+      detail: { purpose: found.purpose },
+    })
     if (found.purpose === 'reset') {
       const content = await (
         this.config.auth.emails.passwordChanged ?? DEFAULT_PASSWORD_EMAILS.passwordChanged

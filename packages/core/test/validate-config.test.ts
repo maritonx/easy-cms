@@ -279,6 +279,19 @@ describe('validateConfig', () => {
     ])
   })
 
+  it('checks the audit log options', () => {
+    const audit = (value: unknown) =>
+      validateConfig(baseConfig({ audit: value as never })).map((i) => i.path)
+    expect(audit(true)).toEqual([])
+    expect(audit({ keep: 0, values: false, failedLogins: 5 })).toEqual([])
+    expect(audit({ keep: -1, values: 'no', failedLogins: 0 })).toEqual([
+      'audit.keep',
+      'audit.values',
+      'audit.failedLogins',
+    ])
+    expect(audit('yes')).toEqual(['audit'])
+  })
+
   it('checks cors origins', () => {
     expect(validateConfig(baseConfig({ cors: '*' }))).toEqual([])
     expect(validateConfig(baseConfig({ cors: ['https://ok.test'] }))).toEqual([])

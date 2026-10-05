@@ -1263,6 +1263,39 @@ test.describe('logged in as admin', () => {
     expect(moved.author).toBe(me.user.id)
   })
 
+  test('keeps an audit log of changes, sign-ins and admin actions (audit)', async ({ page }) => {
+    await page
+      .getByRole('navigation', { name: 'Main' })
+      .getByRole('link', { name: 'Audit log' })
+      .click()
+    await expect(page.getByRole('heading', { level: 1, name: 'Audit log' })).toBeVisible()
+    const list = page.getByRole('region', { name: 'Audit log' })
+    // The user deleted in the test before, and who did it.
+    await page.getByLabel('Action').selectOption('delete')
+    const deleted = list.getByRole('listitem').filter({ hasText: 'leaver@e2e.test' })
+    await expect(deleted).toContainText('Deleted')
+    await expect(deleted).toContainText(ADMIN.email)
+
+    // A change, field by field.
+    await page.getByLabel('Action').selectOption('update')
+    await page.getByLabel('Where').selectOption('posts')
+    await list.getByRole('listitem').first().getByRole('button').click()
+    await expect(list.getByRole('columnheader', { name: 'Before' })).toBeVisible()
+
+    // Sign-ins are logged too.
+    await page.getByLabel('Where').selectOption('')
+    await page.getByLabel('Action').selectOption('login')
+    await expect(list.getByRole('listitem').filter({ hasText: 'Signed in' }).first()).toBeVisible()
+
+    await page.getByRole('button', { name: 'Check integrity' }).click()
+    await expect(page.getByRole('status')).toContainText('entries check out')
+
+    // On a post's page: its activity.
+    await page.goto('/admin/collections/posts')
+    await page.getByRole('row').nth(1).getByRole('link').first().click()
+    await expect(page.getByRole('region', { name: 'Activity' })).toContainText('Created')
+  })
+
   test('creates an editor account', async ({ page }) => {
     await page.goto('/admin/collections/users/new')
     await page.getByLabel('Email').fill(EDITOR.email)
@@ -1305,6 +1338,7 @@ test.describe('logged in as editor', () => {
       page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Roles' }),
     ).toHaveCount(0)
     expect((await page.request.get('/api/cms/admin/roles')).status()).toBe(403)
+    expect((await page.request.get('/api/cms/admin/audit')).status()).toBe(403)
   })
 
   test('changes their own password (FR-ADM-13)', async ({ page }) => {

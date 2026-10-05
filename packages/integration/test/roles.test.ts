@@ -164,6 +164,7 @@ describe('roles from the admin', () => {
       email: false,
       roles: false,
       sso: false,
+      audit: false,
     })
     expect(schema.pages).toEqual([])
     expect(schema.dashboard).toEqual([])

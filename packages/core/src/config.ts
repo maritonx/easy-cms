@@ -1,4 +1,5 @@
 import type { AuthUser, CollectionAccess, GlobalAccess, ID } from './access.js'
+import type { AuditConfig } from './audit.js'
 import type { PasswordEmailFn } from './auth/emails.js'
 import type { AuthProvider } from './auth/providers.js'
 import type { DatabaseAdapter } from './database.js'
@@ -577,6 +578,11 @@ export interface Config {
    * `every`, admins can still back up by hand.
    */
   readonly backups?: BackupsConfig
+  /**
+   * The audit log (Settings → Audit log): who changed what and when, sign-ins, and admin
+   * actions, kept for `keep` days. `true` for the defaults.
+   */
+  readonly audit?: boolean | AuditConfig
   readonly plugins?: readonly Plugin[]
 }
 
@@ -594,6 +600,7 @@ export interface ResolvedConfig
     | 'globals'
     | 'endpoints'
     | 'plugins'
+    | 'audit'
   > {
   readonly cors: readonly string[] | '*'
   /** `null` without localization. */
@@ -603,6 +610,8 @@ export interface ResolvedConfig
   readonly upload: Required<Omit<UploadConfig, 'storage' | 'fromURL'>> &
     Pick<UploadConfig, 'storage' | 'fromURL'>
   readonly auth: Required<AuthConfig>
+  /** `false` without an audit log. */
+  readonly audit: Required<AuditConfig> | false
   readonly collections: readonly CollectionConfig[]
   readonly globals: readonly GlobalConfig[]
   readonly endpoints: readonly Endpoint[]

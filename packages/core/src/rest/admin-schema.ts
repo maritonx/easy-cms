@@ -144,6 +144,7 @@ export interface AdminSchema {
     email: boolean
     roles: boolean
     sso: boolean
+    audit: boolean
   }
   /** Roles from the admin are on (`auth.rbac`): documents have owners. */
   rbac: boolean
@@ -370,6 +371,7 @@ export async function adminSchema(
     email: admin,
     roles: admin && cms.roles.enabled,
     sso: admin && cms.auth.sso.enabled,
+    audit: cms.audit.enabled && (await cms.roles.canView(user, 'audit')),
   }
   const roles = await cms.roles.options()
   return {

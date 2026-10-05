@@ -13,6 +13,7 @@ export const EMAIL_DELIVERIES = 'email-deliveries'
 export const DATABASE_BACKUPS = 'database-backups'
 export const ROLES = 'user-roles'
 export const USER_IDENTITIES = 'user-identities'
+export const AUDIT_LOGS = 'audit-logs'
 
 /** Collections Easy CMS uses internally. Not exposed over REST or in the admin UI. */
 export const INTERNAL_COLLECTIONS: ReadonlySet<string> = new Set([
@@ -25,6 +26,7 @@ export const INTERNAL_COLLECTIONS: ReadonlySet<string> = new Set([
   DATABASE_BACKUPS,
   ROLES,
   USER_IDENTITIES,
+  AUDIT_LOGS,
 ])
 
 export const DEFAULT_ROLES = ['admin', 'editor'] as const
@@ -346,6 +348,28 @@ export const userIdentitiesCollection: CollectionConfig = {
     { name: 'subject', type: 'text', required: true, index: true },
     { name: 'email', type: 'text' },
     { name: 'lastUsedAt', type: 'text' },
+  ],
+}
+
+/** The audit log (`audit`): append-only, each row signed. Added only with `audit`. */
+export const auditLogsCollection: CollectionConfig = {
+  slug: AUDIT_LOGS,
+  access: { read: nobody, create: nobody, update: nobody, delete: nobody },
+  fields: [
+    { name: 'action', type: 'text', required: true, index: true },
+    // A collection slug, `global:<slug>`, or an area (auth, roles, backups…).
+    { name: 'target', type: 'text', index: true },
+    { name: 'doc', type: 'text', index: true },
+    { name: 'title', type: 'text' },
+    { name: 'actorId', type: 'text' },
+    { name: 'actorEmail', type: 'text', index: true },
+    // user | api-key | system | scheduler
+    { name: 'via', type: 'text' },
+    { name: 'ip', type: 'text' },
+    { name: 'userAgent', type: 'text' },
+    { name: 'changes', type: 'json' },
+    { name: 'detail', type: 'json' },
+    { name: 'signature', type: 'text' },
   ],
 }
 

@@ -70,6 +70,19 @@ are a full disk, storage that refuses the file, Postgres without `backups.sqlite
 running the jobs (as for [late scheduled publishing](#late-scheduled-publishing)). Then
 **Back up now** to check. See [Backups](./backups#from-the-admin).
 
+## Failed logins
+
+**Shown when** the [audit log](./audit-log) is on and more sign-ins failed within the last hour
+than `audit.failedLogins` (default 20). Someone may be guessing passwords. Open the audit log
+filtered by sign-ins to see which emails and IP addresses; deactivate accounts under attack, or
+block the addresses at your host. Each email and IP is also locked after `auth.maxLoginAttempts`.
+
+## Audit log
+
+**Shown when** audit log entries could not be written (the change went through; see the server log
+for why, often the database), or when the last integrity check found entries changed in the
+database. See [tamper evidence](./audit-log#tamper-evidence).
+
 ## No email
 
 **Shown when** the config has no `email`. Without it there are no forgotten-password links, no

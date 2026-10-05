@@ -168,13 +168,21 @@ export class SingleSignOn {
   ): Promise<{ redirect: string; session?: Session }> {
     const admin = this.config.admin.path.replace(/\/+$/, '')
     const pending = unseal(this.config.secret, options.cookie)
-    const back = (page: 'login' | 'account', outcome: SsoOutcome) =>
-      ({ redirect: `${admin}/${page}?sso=${outcome}` }) as const
+    let email: string | null = null
+    const back = async (page: 'login' | 'account', outcome: SsoOutcome) => {
+      await this.cms.audit.record({
+        action: 'sso.failed',
+        target: 'auth',
+        ...(page === 'login' ? { user: null, email } : {}),
+        detail: { provider: providerId, outcome },
+      })
+      return { redirect: `${admin}/${page}?sso=${outcome}` } as const
+    }
     const page = pending?.u ? 'account' : 'login'
-    if (!pending || pending.p !== providerId) return back(page, 'expired')
+    if (!pending || pending.p !== providerId) return await back(page, 'expired')
     const state = options.url.searchParams.get('state') ?? ''
-    if (!safeEqual(state, pending.s)) return back(page, 'expired')
-    if (options.url.searchParams.has('error')) return back(page, 'cancelled')
+    if (!safeEqual(state, pending.s)) return await back(page, 'expired')
+    if (options.url.searchParams.has('error')) return await back(page, 'cancelled')
 
     const provider = this.provider(providerId)
     const redirectUri = this.callbackURL(provider.id, options.origin)
@@ -192,17 +200,24 @@ export class SingleSignOn {
       this.cms.logger.warn(
         `Signing in with ${provider.name} failed: ${(error as Error).message || String(error)}`,
       )
-      return back(page, 'failed')
+      return await back(page, 'failed')
     }
     const subject = String(profile.subject)
-    const email = profile.email?.trim().toLowerCase() || null
+    email = profile.email?.trim().toLowerCase() || null
 
     // Linking an account to the signed-in user.
     if (pending.u) {
-      if (!options.user || String(options.user.id) !== pending.u) return back('account', 'failed')
+      if (!options.user || String(options.user.id) !== pending.u)
+        return await back('account', 'failed')
       const existing = await this.identity(provider.id, subject)
-      if (existing && String(existing.user) !== pending.u) return back('account', 'taken')
+      if (existing && String(existing.user) !== pending.u) return await back('account', 'taken')
       if (!existing) await this.addIdentity(options.user.id, provider.id, subject, email)
+      await this.cms.audit.record({
+        action: 'sso.link',
+        target: 'auth',
+        user: options.user,
+        detail: { provider: provider.id, email },
+      })
       return { redirect: `${admin}/account?sso=linked` }
     }
 
@@ -212,14 +227,14 @@ export class SingleSignOn {
       user = await this.cms.db.findById({ collection: USERS, id: identity.user as ID })
     } else {
       if (!email || !profile.emailVerified)
-        return back('login', email ? 'unverified' : 'no-account')
+        return await back('login', email ? 'unverified' : 'no-account')
       user = await this.userByEmail(email)
       if (!user) user = await this.signUp(email, profile.name)
-      if (!user) return back('login', 'no-account')
+      if (!user) return await back('login', 'no-account')
       await this.addIdentity(user.id, provider.id, subject, email)
     }
-    if (!user) return back('login', 'no-account')
-    if (user.active === false) return back('login', 'inactive')
+    if (!user) return await back('login', 'no-account')
+    if (user.active === false) return await back('login', 'inactive')
     const found = identity ?? (await this.identity(provider.id, subject))
     if (found) {
       const { id, ...rest } = found
@@ -229,7 +244,14 @@ export class SingleSignOn {
         data: { ...rest, email, lastUsedAt: new Date().toISOString() },
       })
     }
-    return { redirect: pending.r, session: await this.cms.auth.createSession(user.id) }
+    const session = await this.cms.auth.createSession(user.id)
+    await this.cms.audit.record({
+      action: 'sso.login',
+      target: 'auth',
+      user: session.user,
+      detail: { provider: provider.id, email },
+    })
+    return { redirect: pending.r, session }
   }
 
   /** A user's outside accounts. */
@@ -271,6 +293,13 @@ export class SingleSignOn {
         { field: 'provider', message: 'is the only way left to sign in to this account' },
       ])
     await this.cms.db.delete({ collection: USER_IDENTITIES, id: row.id })
+    await this.cms.audit.record({
+      action: 'sso.unlink',
+      target: USERS,
+      doc: row.user as ID,
+      title: typeof user?.email === 'string' ? user.email : null,
+      detail: { provider: String(row.provider), email: row.email ?? null },
+    })
   }
 
   /** Forgets a deleted user's outside accounts. */

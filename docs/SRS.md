@@ -1,9 +1,9 @@
 # Software Requirements Specification — Easy CMS
 
-- **เวอร์ชันเอกสาร:** 3.10
+- **เวอร์ชันเอกสาร:** 3.11
 - **วันที่:** 2026-10-05
 - **ผู้เขียน:** Kanawoot K.
-- **ครอบคลุม:** v0.1 (baseline) ถึง v0.35
+- **ครอบคลุม:** v0.1 (baseline) ถึง v0.36
 - **สถานะ:** Living document (อัปเดตทุกครั้งที่เพิ่มฟีเจอร์)
 - **เอกสารที่เกี่ยวข้อง:** [DESIGN.md](DESIGN.md), [ADRs](adr/)
 
@@ -499,6 +499,8 @@ AI assistant ► /api/cms/mcp ──┘                     └──► Webhook
 | FR-OPS-02 | `easy-cms copy --from <config>` ต้องคัดลอกเอกสาร เวอร์ชัน ผู้ใช้ และ global ทั้งหมดข้ามฐานข้อมูล (เช่น SQLite → Postgres) โดย id คงเดิม | 0.14 | MUST |
 | FR-OPS-03 | `copy` ต้องปฏิเสธเมื่อ schema ของสองฝั่งไม่ตรงกันหรือปลายทางไม่ว่าง และต้องตั้ง sequence ของ Postgres ต่อจาก id ที่คัดลอกมา | 0.14 | MUST |
 | FR-OPS-04 | admin ต้อง backup ฐานข้อมูลได้จาก ตั้งค่า → Backups ทั้งกดเองและตามรอบ (`backups.every`) เป็นไฟล์ SQLite บีบอัดไฟล์เดียวสำหรับทุกฐานข้อมูล เก็บในที่ส่วนตัว (ไม่ใช่ uploads) เก็บตามจำนวน `keep` ดาวน์โหลดได้เฉพาะ admin พร้อมบันทึกผู้ดาวน์โหลด และแดชบอร์ดต้องเตือนเมื่อ backup ตามรอบล้มหรือหยุด | MUST |
+| FR-OPS-05 | เมื่อเปิด `audit` ระบบต้องบันทึกการเปลี่ยนเนื้อหา (field ที่เปลี่ยนพร้อมค่าก่อนและหลัง ยกเว้น field ที่ซ่อน) การเข้าสู่ระบบ และการจัดการระบบ พร้อมผู้กระทำ ช่องทาง IP และเวลา และ admin (หรือบทบาทที่ได้รับสิทธิ์) ต้องกรอง ดู และส่งออก CSV ได้ ([ADR-0039](adr/0039-audit-log.md)) | 0.36 | SHOULD |
+| NFR-SEC-13 | audit log ต้องแก้หรือลบผ่านระบบไม่ได้ (ยกเว้นตามอายุ `keep`) แต่ละรายการต้องลงลายเซ็นด้วย secret ให้ตรวจพบการแก้ในฐานข้อมูลได้ และแดชบอร์ดต้องเตือนเมื่อ login ไม่สำเร็จเกินเกณฑ์ บันทึกไม่สำเร็จ หรือพบรายการถูกแก้ | 0.36 | MUST |
 
 ### 3.27 หน้า Admin หลัง v0.1 (ADM)
 
@@ -733,6 +735,7 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 0.18 | SEO สำหรับ AI: crawler ของ AI, llms.txt, Markdown, IndexNow | FR-SEO-09..12 | [0021](adr/0021-seo-for-ai.md) |
 | 0.19 | Redirects plugin, `admin.group: 'settings'` | FR-RDR-*, FR-ADM-19 | [0022](adr/0022-redirects-plugin.md) |
 | 0.20 | อีเมลใน core, email-smtp, form builder | FR-EML-*, FR-FRM-*, FR-STA-06 | [0023](adr/0023-email-and-form-builder.md) |
+| 0.36 | Audit log: การเปลี่ยนแปลงระดับ field การเข้าสู่ระบบ การจัดการระบบ ลายเซ็น และการเตือน | FR-OPS-05, NFR-SEC-13 | [0039](adr/0039-audit-log.md) |
 | 0.35 | Single sign-on: `@easy-cms/auth-oauth` (OIDC, Google, Microsoft, GitHub), `auth.password: false` | FR-AUTH-14..16, NFR-SEC-12 | [0038](adr/0038-single-sign-on.md) |
 | 0.34 | เฉพาะเอกสารของตัวเอง (`createdBy`, `ownerField`), สิทธิ์ระดับ field, โอนเอกสารเมื่อลบผู้ใช้ | FR-ACL-10..13 | [0037](adr/0037-own-documents-and-field-permissions.md) |
 | 0.33 | บทบาทและสิทธิ์จากหน้า admin (`auth.rbac`) | FR-ACL-07..09 | [0036](adr/0036-roles-from-the-admin.md) |
@@ -761,6 +764,7 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 1.3 | 2026-09-25 | M5: FR-REST-08 (อัปโหลด/ไฟล์), FR-CFG-07 (`routes.api`, `serverURL`), ระบุว่า drafts ใน v0.1 ไม่มี version แยก |
 | 1.4 | 2026-09-25 | M6: ผลวัด NFR-PERF-01/02 บน Postgres 17 (Local API p95 2.7 ms, REST p95 4.3 ms), Next.js adapter ใช้ `getEasyCMS(config)` |
 | 1.5 | 2026-09-25 | M7: ผลตรวจรับ v0.1 (7.1) |
+| 3.11 | 2026-10-05 | 0.36: FR-OPS-05, NFR-SEC-13 |
 | 3.10 | 2026-10-05 | 0.35: FR-AUTH-14..16, NFR-SEC-12 |
 | 3.9 | 2026-10-05 | 0.34: FR-ACL-10..13 |
 | 3.8 | 2026-10-05 | 0.33: FR-ACL-07..09 |
