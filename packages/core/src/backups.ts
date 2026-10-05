@@ -246,6 +246,8 @@ async function runBackup(cms: EasyCMS, record: RawDocument): Promise<void> {
       ? filename.replace(/\.db\.gz$/, `-${row.id}.db.gz`)
       : filename
     await storage.put(key, data, { contentType: 'application/gzip' })
+    // Older ones go first, so the list never shows more than `keep` finished backups.
+    await pruneBackups(cms, 1)
     row = await update(cms, row, {
       state: 'done',
       filename: key,
@@ -253,7 +255,6 @@ async function runBackup(cms: EasyCMS, record: RawDocument): Promise<void> {
       finishedAt: new Date().toISOString(),
     })
     cms.logger.info(`Backup ${key} written (${data.byteLength} bytes)`)
-    await pruneBackups(cms)
   } catch (error) {
     await update(cms, row, {
       state: 'failed',
@@ -266,9 +267,12 @@ async function runBackup(cms: EasyCMS, record: RawDocument): Promise<void> {
   }
 }
 
-/** Keeps the newest `keep` finished backups, and failed records for 30 days. */
-async function pruneBackups(cms: EasyCMS): Promise<void> {
-  const keep = cms.config.backups?.keep ?? DEFAULT_BACKUP_KEEP
+/**
+ * Keeps the newest `keep` finished backups (minus `room` for ones about to finish), and failed
+ * records for 30 days.
+ */
+async function pruneBackups(cms: EasyCMS, room = 0): Promise<void> {
+  const keep = Math.max(0, (cms.config.backups?.keep ?? DEFAULT_BACKUP_KEEP) - room)
   const storage = await backupStorage(cms)
   const { docs } = await cms.db.find({
     collection: DATABASE_BACKUPS,
