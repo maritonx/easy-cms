@@ -27,6 +27,32 @@ export const INTERNAL_COLLECTIONS: ReadonlySet<string> = new Set([
 
 export const DEFAULT_ROLES = ['admin', 'editor'] as const
 
+/**
+ * Who created a document, set by Easy CMS (`auth.rbac`): for roles given "own documents only".
+ * Added to every collection but users; trusted Local API calls may set it, e.g. in imports.
+ */
+export const CREATED_BY_FIELD: Field = {
+  name: 'createdBy',
+  type: 'relationship',
+  to: USERS,
+  position: 'sidebar',
+  access: { update: () => false },
+  label: { en: 'Created by', th: 'สร้างโดย' },
+}
+
+/** Adds `createdBy` to every collection but users (a collection with its own is reported). */
+export function withCreatedBy(config: Config): Config {
+  if (config.auth?.rbac !== true) return config
+  return {
+    ...config,
+    collections: (config.collections ?? []).map((c) =>
+      c.slug === USERS || c.fields?.some((f) => f.name === CREATED_BY_FIELD.name)
+        ? c
+        : { ...c, fields: [...c.fields, CREATED_BY_FIELD] },
+    ),
+  }
+}
+
 /** Admins can update anyone; other users only themselves. */
 const adminOrSelf: Access = ({ user }) => {
   if (!user) return false

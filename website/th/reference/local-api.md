@@ -34,7 +34,7 @@ Local API เชื่อผู้เรียกและข้ามกฎส�
 | `count(collection, options?)` | `number` | จำนวนที่ตรง `where` |
 | `create(collection, data, options?)` | เอกสาร | ตรวจข้อมูล รัน hook และบันทึก |
 | `update(collection, id, data, options?)` | เอกสาร | แก้ field ที่ส่งมา |
-| `delete(collection, id, options?)` | เอกสารที่ถูกลบ | ลบเวอร์ชันและงานตั้งเวลาของมันด้วย |
+| `delete(collection, id, options?)` | เอกสารที่ถูกลบ | ลบเวอร์ชันและงานตั้งเวลาของมันด้วย ถ้าลบผู้ใช้เมื่อเปิด `auth.rbac`: `{ transferTo: id }` โอนเอกสารที่ผู้ใช้เป็นเจ้าของให้ผู้ใช้อีกคน ถ้าไม่ระบุ เอกสารจะไม่มีเจ้าของ |
 
 ### Media {#media}
 

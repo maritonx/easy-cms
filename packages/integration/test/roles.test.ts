@@ -127,6 +127,8 @@ describe('roles from the admin', () => {
       collections: { posts: ['read', 'create', 'update'], categories: ['read'] },
       globals: {},
       admin: ['status'],
+      own: {},
+      fields: { collections: {}, globals: {} },
     })
     await cms.update('users', await userId('editor@x.co'), { role: 'writer' })
 

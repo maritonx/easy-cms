@@ -83,6 +83,8 @@ export interface AdminCollection {
     delete: boolean
     publish: boolean
   }
+  /** With `auth.rbac`: the field naming a document's owner (`createdBy` or `admin.ownerField`). */
+  owner?: string
 }
 
 export interface AdminGlobal {
@@ -135,6 +137,8 @@ export interface AdminSchema {
   deliveries?: { webhook: boolean; email: boolean }
   /** Admin pages this user may open: Settings → Backups, Email, Roles; deliveries; the status panel. */
   views: { status: boolean; deliveries: boolean; backups: boolean; email: boolean; roles: boolean }
+  /** Roles from the admin are on (`auth.rbac`): documents have owners. */
+  rbac: boolean
   /** Pages this user may open (`admin.pages`). */
   pages: AdminPageRef[]
   /** Dashboard panels this user may see (`admin.dashboard`). */
@@ -156,12 +160,14 @@ async function allowed(access: Access | undefined, user: AuthUser): Promise<bool
 
 async function serializeFields(
   fields: readonly Field[],
-  update: FieldAccessChecker,
+  checks: { update: FieldAccessChecker; read: FieldAccessChecker },
   localized: boolean,
 ): Promise<AdminField[]> {
+  const { update } = checks
   const out: AdminField[] = []
   for (const field of fields) {
-    if (field.hidden) continue
+    // Fields the user may not read are left out: no input, list column or filter.
+    if (field.hidden || !(await checks.read.allows(field))) continue
     const f: AdminField = { name: field.name, type: field.type }
     if (field.label !== undefined) f.label = field.label
     if (field.required) f.required = true
@@ -214,7 +220,7 @@ async function serializeFields(
       case 'array':
         if (field.minRows !== undefined) f.minRows = field.minRows
         if (field.maxRows !== undefined) f.maxRows = field.maxRows
-        f.fields = await serializeFields(field.fields, update, localized)
+        f.fields = await serializeFields(field.fields, checks, localized)
         break
       case 'blocks':
         if (field.minRows !== undefined) f.minRows = field.minRows
@@ -223,17 +229,26 @@ async function serializeFields(
           field.blocks.map(async (block) => ({
             slug: block.slug,
             ...(block.labels ? { labels: block.labels } : {}),
-            fields: await serializeFields(block.fields, update, localized),
+            fields: await serializeFields(block.fields, checks, localized),
           })),
         )
         break
       case 'group':
-        f.fields = await serializeFields(field.fields, update, localized)
+        f.fields = await serializeFields(field.fields, checks, localized)
         break
     }
     out.push(f)
   }
   return out
+}
+
+/** Field access for the user: `access` in the code and, with roles, their role's field rules. */
+async function checkers(cms: EasyCMS, user: AuthUser) {
+  const rules = await cms.roles.fieldRules(user)
+  return {
+    update: new FieldAccessChecker('update', { user }, rules),
+    read: new FieldAccessChecker('read', { user }, rules),
+  }
 }
 
 /** Allowed by access rules and, with roles, by the user's role. */
@@ -257,11 +272,7 @@ async function collection(
   roles: { key: string; name: string }[],
 ): Promise<AdminCollection> {
   const target = { collection: config.slug }
-  const fields = await serializeFields(
-    config.fields,
-    new FieldAccessChecker('update', { user }),
-    localized,
-  )
+  const fields = await serializeFields(config.fields, await checkers(cms, user), localized)
   // With roles from the admin, a user's role is one of Settings → Roles.
   if (config.slug === USERS && cms.roles.enabled) {
     const role = fields.find((f) => f.name === 'role')
@@ -293,6 +304,8 @@ async function collection(
   if (config.admin?.group === 'settings' || SETTINGS.has(config.slug)) result.group = 'settings'
   if (config.admin?.list?.tree) result.tree = config.admin.list.tree
   if (config.admin?.list?.sort) result.defaultSort = config.admin.list.sort
+  const owner = cms.roles.ownerOf(config.slug)
+  if (owner && fields.some((f) => f.name === owner)) result.owner = owner
   // Drafts, history and preview need the whole page.
   if (config.editIn === 'drawer' && !result.drafts && !result.versions && !result.preview)
     result.editIn = 'drawer'
@@ -306,17 +319,14 @@ async function global(
   localized: boolean,
 ): Promise<AdminGlobal> {
   const target = { global: config.slug }
+  const checks = await checkers(cms, user)
   const result: AdminGlobal = {
     slug: config.slug,
     drafts: config.drafts === true,
     versions: Boolean(config.versions),
     preview: typeof config.preview === 'function',
     schedule: config.schedule === true,
-    fields: await serializeFields(
-      config.fields,
-      new FieldAccessChecker('update', { user }),
-      localized,
-    ),
+    fields: await serializeFields(config.fields, checks, localized),
     permissions: {
       read: await may(cms, config.access?.read, user, target, 'read'),
       update: await may(cms, config.access?.update, user, target, 'update'),
@@ -365,6 +375,7 @@ export async function adminSchema(
     modules: adminModuleUrls(cms),
     uploadFromURL: cms.config.upload.fromURL !== undefined,
     views,
+    rbac: cms.roles.enabled,
     ...(views.deliveries
       ? {
           deliveries: {

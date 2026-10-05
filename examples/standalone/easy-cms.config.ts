@@ -74,6 +74,8 @@ export default defineConfig({
       // Live preview on the frontend's origin; the admin adds a preview token to the URL.
       preview: ({ doc }) =>
         `${frontendURL}/?api=${encodeURIComponent(`${cmsURL}/api/cms`)}&post=${doc.id}`,
+      // Roles limited to their own posts (Settings → Roles) go by the author.
+      admin: { ownerField: 'author' },
       useAsTitle: 'title',
       access: {
         // Visitors see published posts; logged-in editors see drafts too.

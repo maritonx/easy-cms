@@ -430,6 +430,16 @@ async function route(
     throw new HttpError('Not found', 404)
   }
 
+  // What a user owns, by collection (`auth.rbac`), for admins about to delete them.
+  if (first === 'admin' && second === 'owned' && third !== undefined && segments.length === 3) {
+    if (!ctx.user) throw new UnauthorizedError()
+    if (ctx.user.role !== 'admin' || ctx.user.apiKey) throw new ForbiddenError()
+    if (method !== 'GET') throw methodNotAllowed(ctx, 'GET')
+    const parsed = parseId(third)
+    if (parsed === undefined) throw new HttpError('Not found', 404)
+    return { body: await cms.roles.owned(parsed) }
+  }
+
   // Settings → Roles (`auth.rbac`), for admins: the roles, add, change, delete, history.
   if (first === 'admin' && second === 'roles') {
     if (!ctx.user) throw new UnauthorizedError()
@@ -674,7 +684,10 @@ async function route(
     return { body: doc }
   }
   if (method === 'DELETE') {
-    return { body: await cms.delete(collection, id, access) }
+    // Deleting a user: `?transferTo=<id>` gives their documents to another user, `none` to nobody.
+    const to = collection === USERS ? ctx.url.searchParams.get('transferTo') : null
+    const transferTo = to === null ? {} : { transferTo: to === 'none' ? null : (parseId(to) ?? to) }
+    return { body: await cms.delete(collection, id, { ...access, ...transferTo }) }
   }
   throw methodNotAllowed(ctx, 'GET, PATCH, DELETE')
 }

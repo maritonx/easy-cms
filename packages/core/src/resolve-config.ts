@@ -7,6 +7,7 @@ import {
   scheduledJobsCollection,
   versionsCollection,
   webhookDeliveriesCollection,
+  withCreatedBy,
   withMedia,
   withUsers,
 } from './builtins.js'
@@ -56,7 +57,7 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
 
   let config = await applyPlugins(input as Config)
   if (typeof config === 'object' && config !== null && Array.isArray(config.collections ?? [])) {
-    config = withMedia(withUsers(config))
+    config = withCreatedBy(withMedia(withUsers(config)))
   }
 
   // Fields of added types become fields of their base types.

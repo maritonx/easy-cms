@@ -36,7 +36,7 @@ to apply them, as the REST API does.
 | `count(collection, options?)` | `number` | How many match `where`. |
 | `create(collection, data, options?)` | document | Validates, runs hooks, saves. |
 | `update(collection, id, data, options?)` | document | Changes the given fields. |
-| `delete(collection, id, options?)` | the deleted document | Also deletes its versions and scheduled jobs. |
+| `delete(collection, id, options?)` | the deleted document | Also deletes its versions and scheduled jobs. Deleting a user with `auth.rbac`: `{ transferTo: id }` gives the documents they own to another user; otherwise they have no owner. |
 
 ### Media
 

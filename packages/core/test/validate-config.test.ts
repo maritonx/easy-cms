@@ -229,6 +229,25 @@ describe('validateConfig', () => {
       validateConfig(baseConfig({ admin: { dashboard: [{ component: 'ecms-chart' }] } })),
     ).toEqual([])
     expect(paths([{ slug: 'user-roles', fields: [] }])).toEqual(['collections[0].slug'])
+    // The owner field: a relationship to users; createdBy is Easy CMS's.
+    const owned = (fields: Field[], ownerField = 'author') =>
+      validateConfig(
+        baseConfig({
+          auth: { rbac: true },
+          collections: [{ slug: 'posts', admin: { ownerField }, fields }],
+        }),
+      ).map((i) => i.path)
+    expect(owned([{ name: 'author', type: 'relationship', to: 'users' }])).toEqual([])
+    expect(owned([{ name: 'author', type: 'text' }])).toEqual([
+      'collections.posts.admin.ownerField',
+    ])
+    expect(owned([{ name: 'author', type: 'relationship', to: 'users', hasMany: true }])).toEqual([
+      'collections.posts.admin.ownerField',
+    ])
+    expect(owned([{ name: 'createdBy', type: 'text' }], 'createdBy')).toEqual([
+      'collections.posts.admin.ownerField',
+      'collections.posts.fields.createdBy',
+    ])
   })
 
   it('checks cors origins', () => {

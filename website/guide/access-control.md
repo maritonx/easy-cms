@@ -55,8 +55,9 @@ update: ({ user }) => (user?.role === 'admin' ? true : user ? { author: { equals
 { name: 'featured', type: 'boolean', access: { update: ({ user }) => user?.role === 'admin' } }
 ```
 
-Fields that can't be read are left out of responses; fields that can't be updated are ignored in
-input (and shown read-only in the admin).
+Fields that can't be read are left out of responses (and of the admin), and can't be used to
+filter or sort (`403`); fields that can't be updated are ignored in input (and shown read-only in
+the admin).
 
 ## Populated documents
 

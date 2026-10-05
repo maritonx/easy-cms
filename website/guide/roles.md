@@ -58,6 +58,53 @@ with admins, as before. So turning roles on changes nothing until an admin untic
 Collections and globals added to the config later are **not given to any role**: only admins can
 use them until someone ticks them. Settings → Roles marks them **New**.
 
+## Own documents only
+
+Next to a ticked Read, Update, Delete or Publish, the person button limits it to the role's **own
+documents**: a writer can read every post but change, publish and delete only their own. Creating
+always makes a document one's own.
+
+Who owns a document:
+
+- **Who created it**, by default. With roles on, every collection but Users gets a `createdBy`
+  field, set by Easy CMS when a document is created and shown as **Created by** in the admin.
+  Requests can't set or change it; trusted Local API calls can (for imports).
+- **Or a field of yours** that names the owner, such as a post's author:
+
+  ```ts
+  {
+    slug: 'posts',
+    admin: { ownerField: 'author' }, // a relationship to users, not hasMany
+    fields: [{ name: 'author', type: 'relationship', to: 'users' }, /* … */],
+  }
+  ```
+
+  An empty owner field is filled with whoever creates the document. A role limited to its own
+  documents can't change it (so it can't give a document away, or take one); roles with all
+  documents can.
+
+Lists in the admin have a **Mine** filter for documents you own. Documents from before roles get
+`createdBy` from who saved their first [version](./drafts#versions), for collections with versions;
+the others have no owner, so only roles with all documents (and admins) can change them.
+
+### Deleting users who own documents
+
+Deleting a user in the admin says what they own and asks who gets it, or nobody. Over REST:
+`DELETE <api>/users/:id?transferTo=<id>` (or `none`); the Local API takes
+`cms.delete('users', id, { transferTo })`. Without a choice, their documents have no owner.
+
+## Field permissions
+
+**Fields ›** on a row opens its fields: each top-level field can be **Can edit**, **Read only** or
+**Hidden** for the role. Fields not set follow the row, so a field added later works like the rest.
+Fields inside groups, arrays and blocks follow their parent.
+
+- Hidden fields are not sent, and can't be used to filter or sort (`403`): the results would give
+  their values away. The same now holds for fields hidden by `access.read` in the code.
+- Read-only fields are shown but not saved from requests.
+- A field that must be filled in (required, without a default) stays editable for roles that create
+  documents.
+
 ## Fields that point elsewhere
 
 When a role may edit posts but not read categories, a post's category field shows the value as it
@@ -66,8 +113,9 @@ this when the role is saved. Upload fields need Read on Media to choose files, a
 
 ## Setting it up
 
-Roles are stored in the `ecms_user_roles` table, and their history with [versions](./drafts#versions). Turning them on
-adds a migration:
+Roles are stored in the `ecms_user_roles` table, and their history with
+[versions](./drafts#versions). Turning them on adds that table and the `createdBy` column of every
+collection, so create a migration:
 
 ```sh
 npx easy-cms migrate:create roles
@@ -82,5 +130,6 @@ admin: { dashboard: [{ component: 'ecms-sales-chart', label: { en: 'Sales', th: 
 
 ## Next steps
 
-- [Access control](./access-control): rules in code, per document and per field.
+- [Access control](./access-control): rules in code, per document and per field, when a role
+  isn't enough.
 - [API keys](./api-keys): access for scripts, limited to what their owner may do.

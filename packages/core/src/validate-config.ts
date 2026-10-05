@@ -1,3 +1,4 @@
+import { CREATED_BY_FIELD } from './builtins.js'
 import { ADMIN_ICONS, type CollectionConfig, type Config, type GlobalConfig } from './config.js'
 import type { ConfigIssue } from './errors.js'
 import { FIELD_TYPES, type Field, type SelectOption } from './fields.js'
@@ -91,7 +92,10 @@ export function validateConfig(config: Config): ConfigIssue[] {
 
   collections.forEach((collection, i) => {
     const path = `collections.${collection.slug ?? `[${i}]`}`
-    validateContainer(collection, path, collectionSlugs, add)
+    validateContainer(collection, path, collectionSlugs, add, {
+      collection: true,
+      rbac: config.auth?.rbac === true,
+    })
     validateUseAsTitle(collection, path, add)
     validateIcon(collection, path, add)
     const editIn: unknown = collection.editIn
@@ -101,7 +105,10 @@ export function validateConfig(config: Config): ConfigIssue[] {
 
   globals.forEach((global, i) => {
     const path = `globals.${global.slug ?? `[${i}]`}`
-    validateContainer(global, path, collectionSlugs, add)
+    validateContainer(global, path, collectionSlugs, add, {
+      collection: false,
+      rbac: config.auth?.rbac === true,
+    })
     validateIcon(global, path, add)
   })
 
@@ -619,6 +626,7 @@ function validateContainer(
   path: string,
   collectionSlugs: ReadonlySet<string>,
   add: Add,
+  { collection, rbac }: { collection: boolean; rbac: boolean },
 ) {
   if (!Array.isArray(container.fields)) {
     add(`${path}.fields`, 'must be an array')
@@ -656,8 +664,32 @@ function validateContainer(
         add(`${path}.admin.group`, `must be 'settings' (got ${JSON.stringify(group)})`)
       const list: unknown = (admin as { list?: unknown }).list
       if (list !== undefined) validateList(list, container, `${path}.admin.list`, add)
+      const owner: unknown = (admin as { ownerField?: unknown }).ownerField
+      if (owner !== undefined) {
+        const field = container.fields.find((f) => f.name === owner)
+        if (
+          !collection ||
+          container.slug === 'users' ||
+          field?.type !== 'relationship' ||
+          field.to !== 'users' ||
+          field.hasMany
+        )
+          add(
+            `${path}.admin.ownerField`,
+            'must name a relationship field to "users" (not hasMany) of a collection',
+            "e.g. { name: 'author', type: 'relationship', to: 'users' }",
+          )
+      }
     }
   }
+  // With roles from the admin, `createdBy` is Easy CMS's.
+  const createdBy = container.fields.find((f) => f.name === CREATED_BY_FIELD.name)
+  if (rbac && createdBy && createdBy !== CREATED_BY_FIELD)
+    add(
+      `${path}.fields.createdBy`,
+      '"createdBy" is added by Easy CMS with auth.rbac',
+      'rename the field; to use it as the owner, set admin.ownerField',
+    )
   const reserved = new Set(SYSTEM_FIELD_NAMES)
   if (container.drafts) reserved.add('status')
   validateFields(container.fields, `${path}.fields`, reserved, collectionSlugs, add)

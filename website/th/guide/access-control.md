@@ -55,8 +55,8 @@ update: ({ user }) => (user?.role === 'admin' ? true : user ? { author: { equals
 { name: 'featured', type: 'boolean', access: { update: ({ user }) => user?.role === 'admin' } }
 ```
 
-field ที่อ่านไม่ได้จะถูกตัดออกจาก response ส่วน field ที่อัปเดตไม่ได้จะถูกละเว้นใน
-input (และแสดงเป็นแบบอ่านอย่างเดียวในหน้า admin)
+field ที่อ่านไม่ได้จะถูกตัดออกจาก response (และจากหน้า admin) และใช้กรองหรือเรียงไม่ได้ (`403`) ส่วน field
+ที่อัปเดตไม่ได้จะถูกละเว้นใน input (และแสดงเป็นแบบอ่านอย่างเดียวในหน้า admin)
 
 ## เอกสารที่ถูก populate {#populated-documents}
 

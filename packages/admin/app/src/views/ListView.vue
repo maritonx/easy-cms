@@ -15,6 +15,7 @@ import {
   SearchX,
   Send,
   Trash2,
+  UserRound,
   X,
 } from '@lucide/vue'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
@@ -23,6 +24,7 @@ import ConfirmDialog from '../components/ConfirmDialog.vue'
 import DocumentDrawer from '../components/DocumentDrawer.vue'
 import MediaThumb from '../components/MediaThumb.vue'
 import PluginElement from '../components/PluginElement.vue'
+import TransferDialog from '../components/TransferDialog.vue'
 import UploadDropzone from '../components/UploadDropzone.vue'
 import { ApiError, api, type Doc, type Paginated, toQuery } from '../lib/api'
 import { localeName } from '../lib/content-locale'
@@ -130,6 +132,9 @@ function cell(field: AdminField, value: unknown): string {
 }
 
 // --- Filters ----------------------------------------------------------------------------------
+
+/** With roles (`auth.rbac`): the field naming a document's owner, for "Mine". */
+const owner = collection?.owner
 
 /** Select fields become filter menus (up to three). */
 const filterFields = computed(
@@ -452,12 +457,14 @@ const unpublishSelected = () =>
   )
 /** A single document deleted from its row menu. */
 const deleting = ref<Doc | null>(null)
-async function deleteOne() {
+/** Deleting users with roles (`auth.rbac`) asks who gets the documents they own. */
+const transfers = slug === 'users' && session.schema?.rbac === true
+async function deleteOne(query = '') {
   const doc = deleting.value
   deleting.value = null
   if (!doc) return
   try {
-    await api('DELETE', `/${slug}/${doc.id}`)
+    await api('DELETE', `/${slug}/${doc.id}${query}`)
     notify('success', t('list.deletedCount', { count: 1 }))
   } catch (e) {
     notify(
@@ -468,10 +475,10 @@ async function deleteOne() {
   await load()
 }
 
-async function deleteSelected() {
+async function deleteSelected(query = '') {
   confirming.value = false
   await bulk(
-    (id) => api('DELETE', `/${slug}/${id}`),
+    (id) => api('DELETE', `/${slug}/${id}${query}`),
     (count) => t('list.deletedCount', { count }),
   )
 }
@@ -517,6 +524,17 @@ async function deleteSelected() {
           <option value="draft">{{ t('list.statusIs', { status: t('status.draft') }) }}</option>
         </select>
       </label>
+      <button
+        v-if="owner && session.user"
+        type="button"
+        :class="['btn', 'btn-sm', 'mine', { on: filterValue(owner) === String(session.user.id) }]"
+        :aria-pressed="filterValue(owner) === String(session.user.id)"
+        :title="t('list.mineHint')"
+        @click="setQuery({ [`f_${owner}`]: filterValue(owner) ? undefined : String(session.user.id), page: undefined })"
+      >
+        <UserRound :size="14" aria-hidden="true" />
+        {{ t('list.mine') }}
+      </button>
       <label v-for="f in filterFields" :key="f.name" :class="['filter', { on: filterValue(f.name) }]">
         <span class="visually-hidden">{{ label(f.label, f.name) }}</span>
         <select
@@ -738,20 +756,38 @@ async function deleteSelected() {
       @deleted="onDrawerDeleted"
       @close="closeDrawer"
     />
-    <ConfirmDialog
-      :open="deleting !== null"
-      :message="t('list.confirmDelete', { count: 1 })"
-      :confirm-label="t('edit.delete')"
-      @confirm="deleteOne"
-      @cancel="deleting = null"
-    />
-    <ConfirmDialog
-      :open="confirming"
-      :message="t('list.confirmDelete', { count: selected.size })"
-      :confirm-label="t('edit.delete')"
-      @confirm="deleteSelected"
-      @cancel="confirming = false"
-    />
+    <template v-if="transfers">
+      <TransferDialog
+        :open="deleting !== null"
+        :user-ids="deleting ? [deleting.id] : []"
+        :message="t('list.confirmDelete', { count: 1 })"
+        @confirm="deleteOne"
+        @cancel="deleting = null"
+      />
+      <TransferDialog
+        :open="confirming"
+        :user-ids="[...selected]"
+        :message="t('list.confirmDelete', { count: selected.size })"
+        @confirm="deleteSelected"
+        @cancel="confirming = false"
+      />
+    </template>
+    <template v-else>
+      <ConfirmDialog
+        :open="deleting !== null"
+        :message="t('list.confirmDelete', { count: 1 })"
+        :confirm-label="t('edit.delete')"
+        @confirm="deleteOne()"
+        @cancel="deleting = null"
+      />
+      <ConfirmDialog
+        :open="confirming"
+        :message="t('list.confirmDelete', { count: selected.size })"
+        :confirm-label="t('edit.delete')"
+        @confirm="deleteSelected()"
+        @cancel="confirming = false"
+      />
+    </template>
   </template>
 </template>
 
@@ -871,6 +907,11 @@ button.menu-item {
   font: inherit;
   font-size: 0.875rem;
   cursor: pointer;
+}
+.mine.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
 }
 .filter.on select {
   border-style: solid;

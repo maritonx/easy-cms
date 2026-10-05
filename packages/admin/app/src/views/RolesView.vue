@@ -2,11 +2,23 @@
 import type {
   AdminRole,
   AdminRoleChange,
+  AdminRoleField,
   AdminRoles,
+  FieldRule,
   RoleOperation,
   RolePermissions,
 } from '@easy-cms/core'
-import { ChevronRight, Copy, History, Plus, ShieldCheck, Trash2, TriangleAlert } from '@lucide/vue'
+import {
+  ChevronDown,
+  ChevronRight,
+  Copy,
+  History,
+  Plus,
+  ShieldCheck,
+  Trash2,
+  TriangleAlert,
+  UserRound,
+} from '@lucide/vue'
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
@@ -23,6 +35,8 @@ const failed = ref('')
 const saving = ref(false)
 
 const OPS: RoleOperation[] = ['read', 'create', 'update', 'delete', 'publish']
+/** Operations that can be limited to the role's own documents. */
+const OWN_OPS: RoleOperation[] = ['read', 'update', 'delete', 'publish']
 type Group = 'collections' | 'globals'
 interface Row {
   group: Group
@@ -30,7 +44,11 @@ interface Row {
   name: string
   ops: RoleOperation[]
   new: boolean
+  /** Collections with owners: the field naming the owner. */
+  owner?: string
+  fields: AdminRoleField[]
 }
+type Rules = Record<string, Record<string, FieldRule>>
 
 function errorText(e: unknown) {
   return e instanceof ApiError ? (e.errors[0]?.message ?? e.message) : String(e)
@@ -67,10 +85,14 @@ const draft = ref<{
   collections: Record<string, RoleOperation[]>
   globals: Record<string, RoleOperation[]>
   admin: string[]
+  own: Record<string, RoleOperation[]>
+  fields: { collections: Rules; globals: Rules }
 }>({
   collections: {},
   globals: {},
   admin: [],
+  own: {},
+  fields: { collections: {}, globals: {} },
 })
 const baseline = ref('')
 const snapshot = () => JSON.stringify({ name: name.value, draft: draft.value })
@@ -84,10 +106,25 @@ function reset(role: AdminRole | undefined) {
       Object.entries(role?.permissions.globals ?? {}).map(([k, v]) => [k, [...v]]),
     ),
     admin: [...(role?.permissions.admin ?? [])],
+    own: Object.fromEntries(
+      Object.entries(role?.permissions.own ?? {}).map(([k, v]) => [k, [...v]]),
+    ),
+    fields: {
+      collections: copyRules(role?.permissions.fields?.collections),
+      globals: copyRules(role?.permissions.fields?.globals),
+    },
   }
+  expanded.value = null
   baseline.value = snapshot()
   history.value = null
 }
+function copyRules(
+  rules: Readonly<Record<string, Readonly<Record<string, FieldRule>>>> | undefined,
+) {
+  return Object.fromEntries(Object.entries(rules ?? {}).map(([k, v]) => [k, { ...v }])) as Rules
+}
+/** The row whose fields are open. */
+const expanded = ref<string | null>(null)
 watch(selected, reset, { immediate: true })
 const dirty = computed(() => baseline.value !== '' && snapshot() !== baseline.value)
 
@@ -115,6 +152,8 @@ const rows = computed<Row[]>(() => [
     name: collectionName(c.slug),
     ops: c.ops,
     new: c.new,
+    ...(c.owner ? { owner: c.owner } : {}),
+    fields: c.fields,
   })),
   ...(data.value?.globals ?? []).map((g) => {
     const global = session.schema?.globals.find((x) => x.slug === g.slug)
@@ -124,6 +163,7 @@ const rows = computed<Row[]>(() => [
       name: label(global?.label, g.slug),
       ops: g.ops,
       new: g.new,
+      fields: g.fields,
     }
   }),
 ])
@@ -143,6 +183,44 @@ function toggle(row: Row, op: RoleOperation, on: boolean) {
     if (op === 'read') current.clear()
   }
   setOps(row, current)
+  // What the role can't do can't be limited to its own documents either.
+  const own = draft.value.own[row.slug]
+  if (own) draft.value.own[row.slug] = own.filter((o) => current.has(o))
+}
+
+/** Allowed on the role's own documents only (collections with owners). */
+const isOwn = (row: Row, op: RoleOperation) => draft.value.own[row.slug]?.includes(op) ?? false
+const canOwn = (row: Row, op: RoleOperation) =>
+  row.group === 'collections' && !!row.owner && OWN_OPS.includes(op) && has(row, op)
+function toggleOwn(row: Row, op: RoleOperation) {
+  const own = new Set(draft.value.own[row.slug] ?? [])
+  if (own.has(op)) own.delete(op)
+  else own.add(op)
+  draft.value.own[row.slug] = OWN_OPS.filter((o) => own.has(o))
+}
+
+const rowKey = (row: Row) => `${row.group}:${row.slug}`
+const fieldRule = (row: Row, field: string): FieldRule | 'edit' =>
+  draft.value.fields[row.group][row.slug]?.[field] ?? 'edit'
+function setFieldRule(row: Row, field: string, rule: FieldRule | 'edit') {
+  const rules = { ...(draft.value.fields[row.group][row.slug] ?? {}) }
+  if (rule === 'edit') delete rules[field]
+  else rules[field] = rule
+  draft.value.fields[row.group][row.slug] = rules
+}
+const ruleCount = (row: Row) => Object.keys(draft.value.fields[row.group][row.slug] ?? {}).length
+/** A required field can't be read-only or hidden for a role that creates documents. */
+const mustEdit = (row: Row, field: AdminRoleField) =>
+  field.required && row.group === 'collections' && has(row, 'create')
+const RULES = ['edit', 'read', 'hidden'] as const
+const ruleLabel = (rule: (typeof RULES)[number]) =>
+  t(rule === 'edit' ? 'roles.fieldEdit' : rule === 'read' ? 'roles.fieldRead' : 'roles.fieldHidden')
+const fieldName = (row: Row, field: AdminRoleField) => {
+  const fields =
+    row.group === 'collections'
+      ? session.schema?.collections.find((c) => c.slug === row.slug)?.fields
+      : session.schema?.globals.find((g) => g.slug === row.slug)?.fields
+  return label(field.label ?? fields?.find((f) => f.name === field.name)?.label, field.name)
 }
 const rowAll = (row: Row) => row.ops.every((op) => has(row, op))
 function toggleRow(row: Row, on: boolean) {
@@ -202,7 +280,17 @@ function permissions(): RolePermissions {
     if (row.group === 'collections') collections[row.slug] = ops
     else globals[row.slug] = ops
   }
-  return { collections, globals, admin: draft.value.admin }
+  const own: Record<string, RoleOperation[]> = {}
+  for (const row of rows.value) {
+    const ops = (draft.value.own[row.slug] ?? []).filter((op) => canOwn(row, op))
+    if (ops.length > 0) own[row.slug] = ops
+  }
+  const fields = { collections: {} as Rules, globals: {} as Rules }
+  for (const row of rows.value) {
+    const rules = draft.value.fields[row.group][row.slug]
+    if (rules && Object.keys(rules).length > 0) fields[row.group][row.slug] = rules
+  }
+  return { collections, globals, admin: draft.value.admin, own, fields }
 }
 
 async function save() {
@@ -359,6 +447,9 @@ const ticks = (p: RolePermissions) =>
           <section class="card panel" aria-labelledby="content-heading">
             <h2 id="content-heading">{{ t('roles.content') }}</h2>
             <p class="field-hint">{{ t('roles.contentHint') }}</p>
+            <p v-if="rows.some((r) => r.owner)" class="field-hint own-hint">
+              <UserRound :size="13" aria-hidden="true" /> {{ t('roles.ownHint') }}
+            </p>
             <div class="table-wrap">
               <table>
                 <thead>
@@ -380,7 +471,8 @@ const ticks = (p: RolePermissions) =>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="row in rows" :key="`${row.group}:${row.slug}`">
+                  <template v-for="row in rows" :key="rowKey(row)">
+                  <tr>
                     <th scope="row" class="name-col">
                       <label class="row-head">
                         <input
@@ -394,18 +486,72 @@ const ticks = (p: RolePermissions) =>
                       </label>
                       <span v-if="row.group === 'globals'" class="kind">{{ t('apiKey.global') }}</span>
                       <span v-if="row.new" class="badge badge-new" :title="t('roles.newHint')">{{ t('roles.newBadge') }}</span>
+                      <button
+                        v-if="row.fields.length"
+                        type="button"
+                        class="fields-toggle"
+                        :aria-expanded="expanded === rowKey(row)"
+                        :aria-controls="`fields-${row.group}-${row.slug}`"
+                        :aria-label="t('roles.fieldsOf', { name: row.name })"
+                        @click="expanded = expanded === rowKey(row) ? null : rowKey(row)"
+                      >
+                        {{ t('roles.fields') }}
+                        <span v-if="ruleCount(row)" class="count">{{ ruleCount(row) }}</span>
+                        <component :is="expanded === rowKey(row) ? ChevronDown : ChevronRight" :size="13" aria-hidden="true" />
+                      </button>
                     </th>
                     <td v-for="op in OPS" :key="op">
-                      <input
-                        v-if="row.ops.includes(op)"
-                        type="checkbox"
-                        :checked="has(row, op)"
-                        :aria-label="`${row.name}: ${opLabel(row, op)}`"
-                        :title="opLabel(row, op)"
-                        @change="toggle(row, op, ($event.target as HTMLInputElement).checked)"
-                      />
+                      <span v-if="row.ops.includes(op)" class="cell">
+                        <input
+                          type="checkbox"
+                          :checked="has(row, op)"
+                          :aria-label="`${row.name}: ${opLabel(row, op)}`"
+                          :title="opLabel(row, op)"
+                          @change="toggle(row, op, ($event.target as HTMLInputElement).checked)"
+                        />
+                        <button
+                          v-if="canOwn(row, op)"
+                          type="button"
+                          :class="['own', { on: isOwn(row, op) }]"
+                          :aria-pressed="isOwn(row, op)"
+                          :aria-label="t('roles.ownOf', { name: row.name, op: opLabel(row, op) })"
+                          :title="t('roles.ownOf', { name: row.name, op: opLabel(row, op) })"
+                          @click="toggleOwn(row, op)"
+                        >
+                          <UserRound :size="13" aria-hidden="true" />
+                        </button>
+                      </span>
                     </td>
                   </tr>
+                  <tr v-if="expanded === rowKey(row)" :id="`fields-${row.group}-${row.slug}`" class="fields-row">
+                    <td :colspan="OPS.length + 1">
+                      <p class="field-hint">{{ t('roles.fieldsHint') }}</p>
+                      <ul class="field-rules">
+                        <li v-for="field in row.fields" :key="field.name">
+                          <span class="field-name">
+                            {{ fieldName(row, field) }}
+                            <code>{{ field.name }}</code>
+                            <span v-if="field.owner" class="badge">{{ t('roles.ownerBadge') }}</span>
+                          </span>
+                          <span class="segmented-rules" role="radiogroup" :aria-label="fieldName(row, field)">
+                            <label v-for="rule in RULES" :key="rule" :class="{ on: fieldRule(row, field.name) === rule }">
+                              <input
+                                type="radio"
+                                :name="`rule-${row.group}-${row.slug}-${field.name}`"
+                                :value="rule"
+                                :checked="fieldRule(row, field.name) === rule"
+                                :disabled="rule !== 'edit' && mustEdit(row, field)"
+                                @change="setFieldRule(row, field.name, rule)"
+                              />
+                              {{ ruleLabel(rule) }}
+                            </label>
+                          </span>
+                          <span v-if="mustEdit(row, field)" class="field-hint required-hint">{{ t('roles.fieldRequired') }}</span>
+                        </li>
+                      </ul>
+                    </td>
+                  </tr>
+                  </template>
                 </tbody>
               </table>
             </div>
@@ -690,6 +836,128 @@ input[type='checkbox'] {
   width: 1rem;
   height: 1rem;
   accent-color: var(--accent);
+}
+.cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.own {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--faint);
+  cursor: pointer;
+}
+.own.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+.own-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.25rem;
+}
+.fields-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  margin-left: 0.5rem;
+  padding: 0.1rem 0.4rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 400;
+  cursor: pointer;
+}
+.fields-toggle:hover {
+  background: var(--surface-2);
+}
+.fields-toggle .count {
+  min-width: 1.1rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-size: 0.7rem;
+}
+.fields-row > td {
+  padding: 0.6rem 0.9rem 0.8rem;
+  background: var(--surface-2);
+  text-align: left;
+}
+.field-rules {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.field-rules li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.3rem 1rem;
+}
+.field-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+.field-name code {
+  color: var(--faint);
+  font-size: 0.75rem;
+}
+.segmented-rules {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--surface);
+}
+.segmented-rules label {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+.segmented-rules label + label {
+  border-left: 1px solid var(--border);
+}
+.segmented-rules label.on {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+.segmented-rules input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.segmented-rules label:has(input:disabled) {
+  color: var(--faint);
+  cursor: not-allowed;
+}
+.segmented-rules label:has(input:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+.required-hint {
+  flex-basis: 100%;
+  margin: 0;
 }
 .warnings {
   display: flex;

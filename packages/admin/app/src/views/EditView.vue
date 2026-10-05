@@ -9,6 +9,7 @@ import LocaleSwitcher from '../components/LocaleSwitcher.vue'
 import MediaThumb from '../components/MediaThumb.vue'
 import PluginElement from '../components/PluginElement.vue'
 import ScheduleControl from '../components/ScheduleControl.vue'
+import TransferDialog from '../components/TransferDialog.vue'
 import VersionHistory from '../components/VersionHistory.vue'
 import FieldList from '../fields/FieldList.vue'
 import { ApiError, api, type Doc } from '../lib/api'
@@ -383,10 +384,10 @@ async function save(status?: 'draft' | 'published') {
   }
 }
 
-async function remove() {
+async function remove(query = '') {
   confirmingDelete.value = false
   try {
-    await api('DELETE', `/${slug}/${encodeURIComponent(String(id))}`)
+    await api('DELETE', `/${slug}/${encodeURIComponent(String(id))}${query}`)
     baseline.value = snapshot([form.value, password.value])
     await router.push(`/collections/${slug}`)
   } catch (e) {
@@ -653,11 +654,21 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
       @confirm="action('discard-draft')"
       @cancel="confirmingDiscard = false"
     />
+    <!-- Deleting a user with roles (`auth.rbac`): who gets the documents they own. -->
+    <TransferDialog
+      v-if="isUsers && session.schema?.rbac && id"
+      :open="confirmingDelete"
+      :user-ids="[id]"
+      :message="t('edit.confirmDelete')"
+      @confirm="remove"
+      @cancel="confirmingDelete = false"
+    />
     <ConfirmDialog
+      v-else
       :open="confirmingDelete"
       :message="t('edit.confirmDelete')"
       :confirm-label="t('edit.delete')"
-      @confirm="remove"
+      @confirm="remove()"
       @cancel="confirmingDelete = false"
     />
   </form>

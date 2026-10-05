@@ -74,6 +74,8 @@ export default defineConfig({
       schedule: true,
       // Live preview in the admin: the page that shows a post.
       preview: ({ doc }) => (doc.slug ? `/posts/${doc.slug}` : null),
+      // Roles limited to their own posts (Settings → Roles) go by the author.
+      admin: { ownerField: 'author' },
       useAsTitle: 'title',
       access: {
         // Visitors see published posts; logged-in editors see drafts too.

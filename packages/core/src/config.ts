@@ -92,6 +92,11 @@ export interface CollectionAdmin extends ContainerAdmin {
    */
   readonly group?: 'settings'
   readonly list?: CollectionListAdmin
+  /**
+   * With `auth.rbac`: the relationship field to `users` that names a document's owner, e.g.
+   * `author`, for roles given "own documents only". Default: who created it (`createdBy`).
+   */
+  readonly ownerField?: string
 }
 
 export interface CollectionListAdmin {

@@ -177,9 +177,11 @@ export {
 export {
   type AdminRole,
   type AdminRoleChange,
+  type AdminRoleField,
   type AdminRoles,
   type AdminRoleTarget,
   type AdminRoleView,
+  type FieldRule,
   ROLE_OPERATIONS,
   type RoleOperation,
   type RolePermissions,

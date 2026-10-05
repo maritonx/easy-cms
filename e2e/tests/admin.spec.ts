@@ -1182,6 +1182,16 @@ test.describe('logged in as admin', () => {
     await page.getByRole('checkbox', { name: 'Posts: Update' }).check()
     await expect(page.getByRole('checkbox', { name: 'Posts: Read' })).toBeChecked()
     await page.getByRole('checkbox', { name: 'System status on the dashboard' }).check()
+    // Updating only their own posts; tags hidden; the title must stay editable (required).
+    const ownUpdate = page.getByRole('button', { name: 'Posts: Update own documents only' })
+    await ownUpdate.click()
+    await expect(ownUpdate).toHaveAttribute('aria-pressed', 'true')
+    await page.getByRole('button', { name: 'Fields of Posts' }).click()
+    await page.getByRole('radiogroup', { name: 'Tags' }).getByText('Hidden').click()
+    const titleHidden = page.getByRole('radiogroup', { name: 'Title' }).getByLabel('Hidden')
+    await expect(titleHidden).toBeEnabled()
+    await page.getByRole('checkbox', { name: 'Posts: Create' }).check()
+    await expect(titleHidden).toBeDisabled()
     await page.getByRole('button', { name: 'Save', exact: true }).click()
     await expect(page.getByRole('status')).toHaveText('Role saved')
 
@@ -1191,6 +1201,11 @@ test.describe('logged in as admin', () => {
     await expect(
       page.getByRole('checkbox', { name: 'System status on the dashboard' }),
     ).toBeChecked()
+    await expect(
+      page.getByRole('button', { name: 'Posts: Update own documents only' }),
+    ).toHaveAttribute('aria-pressed', 'true')
+    await page.getByRole('button', { name: 'Fields of Posts' }).click()
+    await expect(page.getByRole('radiogroup', { name: 'Tags' }).getByLabel('Hidden')).toBeChecked()
     await page.getByRole('button', { name: 'History' }).click()
     await expect(page.getByRole('listitem').filter({ hasText: ADMIN.email })).toHaveCount(2)
 
@@ -1206,6 +1221,46 @@ test.describe('logged in as admin', () => {
     await page.getByRole('dialog').getByRole('button', { name: 'Delete role' }).click()
     await expect(page.getByRole('status')).toHaveText('Role deleted')
     await expect(list.getByRole('button', { name: /Reviewer/ })).toHaveCount(0)
+  })
+
+  test('gives the documents of a deleted user to someone else (auth.rbac)', async ({ page }) => {
+    await page.goto('/admin/')
+    const me = (await (await page.request.get('/api/cms/users/me')).json()) as {
+      csrfToken: string
+      user: { id: number }
+    }
+    const headers = { 'x-csrf-token': me.csrfToken, origin: new URL(page.url()).origin }
+    const leaver = (await (
+      await page.request.post('/api/cms/users', {
+        headers,
+        data: { email: 'leaver@e2e.test', password: 'leaver-password-1', role: 'editor' },
+      })
+    ).json()) as { id: number }
+    const post = (await (
+      await page.request.post('/api/cms/posts?depth=0', {
+        headers,
+        data: { title: 'Left behind', author: leaver.id },
+      })
+    ).json()) as { id: number; createdBy: number }
+    // Who created it is recorded: the admin.
+    expect(post.createdBy).toBe(me.user.id)
+
+    // Mine: what the admin owns (by author, the posts' owner field), so not this one.
+    await page.goto('/admin/collections/posts')
+    await page.getByRole('button', { name: 'Mine' }).click()
+    await expect(page.getByRole('link', { name: 'Left behind' })).toHaveCount(0)
+
+    await page.goto(`/admin/collections/users/${leaver.id}`)
+    await page.getByRole('button', { name: 'Delete' }).click()
+    const dialog = page.getByRole('dialog', { name: 'What happens to their documents?' })
+    await expect(dialog).toContainText('This user owns: Posts 1.')
+    await dialog.getByLabel('Give them to').selectOption(String(me.user.id))
+    await dialog.getByRole('button', { name: 'Delete' }).click()
+    await expect(page).toHaveURL(/\/admin\/collections\/users$/)
+    const moved = (await (
+      await page.request.get(`/api/cms/posts/${post.id}?depth=0&draft=true`)
+    ).json()) as { author: number }
+    expect(moved.author).toBe(me.user.id)
   })
 
   test('creates an editor account', async ({ page }) => {

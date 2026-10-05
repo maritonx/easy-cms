@@ -444,6 +444,26 @@ const en = {
   'roles.admin': 'Admin',
   'roles.editor': 'Editor',
   'field.noAccess': 'You can’t open {label}; the value is kept as it is.',
+  'roles.ownHint':
+    'Ticked boxes with this button: own documents only (who created them, or the owner field).',
+  'roles.ownOf': '{name}: {op} own documents only',
+  'roles.fields': 'Fields',
+  'roles.fieldsOf': 'Fields of {name}',
+  'roles.fieldsHint':
+    'Fields follow the row unless set here. Hidden fields are not sent, and can’t be filtered or sorted by.',
+  'roles.fieldEdit': 'Can edit',
+  'roles.fieldRead': 'Read only',
+  'roles.fieldHidden': 'Hidden',
+  'roles.fieldRequired': 'Required: roles that create documents must be able to fill it.',
+  'roles.ownerBadge': 'owner',
+  'list.mine': 'Mine',
+  'list.mineHint': 'Only documents you own',
+  'users.transferTitle': 'What happens to their documents?',
+  'users.transferText': '{who} owns: {list}.',
+  'users.transferTo': 'Give them to',
+  'users.thisUser': 'This user',
+  'users.transferNone': 'Nobody (no owner)',
+  'users.transferBulk': 'The selected users own {count} documents.',
 } as const
 
 export type MessageKey = keyof typeof en
@@ -878,6 +898,24 @@ const th: Record<MessageKey, string> = {
   'roles.admin': 'ผู้ดูแลระบบ',
   'roles.editor': 'บรรณาธิการ',
   'field.noAccess': 'คุณไม่มีสิทธิ์เปิด {label} ค่าเดิมจะถูกเก็บไว้ตามเดิม',
+  'roles.ownHint': 'ช่องที่ติ๊กแล้วกดปุ่มนี้: ทำได้เฉพาะเอกสารของตัวเอง (ที่ตัวเองสร้าง หรือตาม field เจ้าของ)',
+  'roles.ownOf': '{name}: {op} เฉพาะเอกสารของตัวเอง',
+  'roles.fields': 'Field',
+  'roles.fieldsOf': 'Field ของ {name}',
+  'roles.fieldsHint': 'field ใช้สิทธิ์ตามแถว เว้นแต่ตั้งไว้ที่นี่ field ที่ซ่อนจะไม่ถูกส่งกลับ และใช้กรองหรือเรียงไม่ได้',
+  'roles.fieldEdit': 'แก้ได้',
+  'roles.fieldRead': 'อ่านอย่างเดียว',
+  'roles.fieldHidden': 'ซ่อน',
+  'roles.fieldRequired': 'บังคับกรอก: บทบาทที่สร้างเอกสารได้ต้องกรอก field นี้ได้',
+  'roles.ownerBadge': 'เจ้าของ',
+  'list.mine': 'ของฉัน',
+  'list.mineHint': 'เฉพาะเอกสารที่คุณเป็นเจ้าของ',
+  'users.transferTitle': 'เอกสารของผู้ใช้คนนี้จะเป็นของใคร',
+  'users.transferText': '{who} เป็นเจ้าของ: {list}',
+  'users.transferTo': 'โอนให้',
+  'users.thisUser': 'ผู้ใช้คนนี้',
+  'users.transferNone': 'ไม่โอน (ไม่มีเจ้าของ)',
+  'users.transferBulk': 'ผู้ใช้ที่เลือกเป็นเจ้าของเอกสาร {count} รายการ',
 }
 
 const messages: Record<Locale, Record<MessageKey, string>> = { en, th }

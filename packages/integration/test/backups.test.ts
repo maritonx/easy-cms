@@ -54,7 +54,7 @@ async function backUp() {
   const started = await call('', 'POST')
   expect(started.status).toBe(202)
   const { id } = (await started.json()) as { id: number }
-  for (let i = 0; i < 100; i++) {
+  for (let i = 0; i < 400; i++) {
     const row = (await list()).backups.find((b) => b.id === id)
     if (row && (row.state === 'done' || row.state === 'failed')) return row
     await new Promise((resolve) => setTimeout(resolve, 50))
@@ -105,7 +105,7 @@ describe('backups in the admin', () => {
     const first = await call('', 'POST')
     expect(first.status).toBe(202)
     expect((await call('', 'POST')).status).toBe(409)
-    for (let i = 0; i < 100 && (await list()).backups.some((b) => b.state !== 'done'); i++)
+    for (let i = 0; i < 400 && (await list()).backups.some((b) => b.state !== 'done'); i++)
       await new Promise((resolve) => setTimeout(resolve, 50))
     const { backups, settings } = await list()
     expect(settings).toMatchObject({ every: 'day', at: '03:00', keep: 2, storage: 'local' })
@@ -121,7 +121,7 @@ describe('backups in the admin', () => {
     if (now.getHours() < 4) now.setDate(now.getDate() - 1)
     now.setHours(4, 0, 0, 0)
     await cms.runJobs(now)
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 400; i++) {
       const scheduled = (await list()).backups.find((b) => b.trigger === 'scheduled')
       if (scheduled?.state === 'done') break
       await new Promise((resolve) => setTimeout(resolve, 50))

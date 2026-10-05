@@ -218,6 +218,7 @@ Every hook also gets `user`, `cms` and `slug`.
 | `sidebar` | `AdminComponent[]` | Panels in the edit page's side column. [Admin components](/guide/plugins#admin-components) |
 | `group` | `'settings'` | List the collection under Settings in the menu, with Users and API keys. |
 | `list` | `{ tree?, sort? }` | The list page: `tree` names a relationship to the same collection to show a tree (top-level documents first, children open below); `sort` is the default order, e.g. `'title'`. |
+| `ownerField` | `string` | With `auth.rbac`: a relationship field to `users` naming the owner, e.g. `'author'`, for roles given "own documents only". Default: who created it (`createdBy`). [Roles](/guide/roles#own-documents-only) |
 
 <!-- api: GlobalConfig -->
 ## globals

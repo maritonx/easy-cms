@@ -47,7 +47,7 @@ import {
   UnauthorizedError,
   ValidationError,
 } from './errors.js'
-import { type FilterOptions, mimeAllowedBy } from './fields.js'
+import { type Field, type FilterOptions, mimeAllowedBy } from './fields.js'
 import type {
   CollectionDocument,
   CollectionSlug,
@@ -252,7 +252,7 @@ export class EasyCMS<C extends Config = Config> {
     this.storage = storage
     this.cwd = cwd
     this.versions = new VersionStore(db)
-    this.roles = new Roles(config, db)
+    this.roles = new Roles(config, db, (message) => logger.info(message))
     this.webhooks = new Webhooks(
       config.webhooks ?? [],
       logger,
@@ -286,6 +286,7 @@ export class EasyCMS<C extends Config = Config> {
       options,
     )
     const requested = options.sort === undefined ? ['-createdAt'] : [options.sort].flat()
+    await this.checkQueryFields(config, guard, undefined, requested)
     const locale = this.localeOf(options)
     const sort =
       locale === undefined
@@ -669,7 +670,7 @@ export class EasyCMS<C extends Config = Config> {
     const filtered = await filterInput(
       config.fields,
       input,
-      this.fieldChecker('update', guard, parsed, input),
+      await this.fieldChecker('update', guard, parsed, input),
     )
     const localized = this.toMaps(config, filtered, base ?? {}, options)
     const merged = base
@@ -722,7 +723,7 @@ export class EasyCMS<C extends Config = Config> {
     const input = await filterInput(
       config.fields,
       raw,
-      this.fieldChecker('update', guard, undefined, raw),
+      await this.fieldChecker('update', guard, undefined, raw),
     )
     const saved = (await this.db.findGlobal({ slug })) ?? {}
     const current = await this.globalDraft(config, saved)
@@ -809,7 +810,7 @@ export class EasyCMS<C extends Config = Config> {
     if (!existing || parsed === undefined) throw new NotFoundError(collection, id)
     await this.checkDocumentAccess(config, 'update', guard, parsed, raw)
     if (config.drafts && (mode === 'unpublish' || raw.status === 'published'))
-      await this.checkGrant(guard, { collection }, 'publish')
+      await this.checkDocumentGrant(guard, collection, 'publish', parsed)
     // With separate drafts, edits apply to the pending draft when there is one.
     const [drafted] = (await this.withDrafts(config, [existing])) as [RawDocument]
     const live = options.live === true && mode === 'save'
@@ -823,7 +824,7 @@ export class EasyCMS<C extends Config = Config> {
     const filtered = await filterInput(
       config.fields,
       input,
-      this.fieldChecker('update', guard, parsed, input),
+      await this.fieldChecker('update', guard, parsed, input),
     )
     // Versions hold every locale, so a restore writes the maps as they are.
     const localized =
@@ -905,10 +906,14 @@ export class EasyCMS<C extends Config = Config> {
     return out as RawDocument
   }
 
+  /**
+   * Deletes a document. Deleting a user with roles from the admin (`auth.rbac`): `transferTo`
+   * gives the documents they own to another user; without it they have no owner.
+   */
   async delete<S extends Slug<C>>(
     collection: S,
     id: ID,
-    options: AccessOptions = {},
+    options: AccessOptions & { transferTo?: ID | null } = {},
   ): Promise<Doc<C, S>> {
     const config = this.collection(collection)
     const guard = guardOf(options)
@@ -921,7 +926,20 @@ export class EasyCMS<C extends Config = Config> {
       await this.guardLastAdmin(parsed, existing, { ...existing, active: false })
     const base = this.hookArgs(config, guard)
     for (const hook of config.hooks?.beforeDelete ?? []) await hook({ ...base, id: parsed })
-    if (config.slug === USERS) await this.auth.revokeSessions(parsed)
+    if (config.slug === USERS) {
+      const to = options.transferTo
+      if (to !== undefined && to !== null) {
+        const target = parseId(to)
+        const heir =
+          target === undefined ? null : await this.db.findById({ collection: USERS, id: target })
+        if (!heir || String(heir.id) === String(parsed))
+          throw new ValidationError(USERS, [
+            { field: 'transferTo', message: 'must be another existing user' },
+          ])
+        await this.roles.transfer(parsed, heir.id)
+      } else await this.roles.transfer(parsed, null)
+      await this.auth.revokeSessions(parsed)
+    }
     await this.db.delete({ collection, id: parsed })
     if (versionLimit(config)) await this.versions.deleteAll(collectionParent(collection), parsed)
     if (config.schedule) {
@@ -1059,7 +1077,7 @@ export class EasyCMS<C extends Config = Config> {
     const input = await filterInput(
       config.fields,
       raw,
-      this.fieldChecker('update', guard, undefined, raw),
+      await this.fieldChecker('update', guard, undefined, raw),
     )
     const existing = (await this.db.findGlobal({ slug })) ?? {}
     const current = await this.globalDraft(config, existing)
@@ -1405,7 +1423,7 @@ export class EasyCMS<C extends Config = Config> {
       parsed === undefined ? null : await this.db.findById({ collection, id: parsed })
     if (!existing || parsed === undefined) throw new NotFoundError(collection, id)
     await this.checkDocumentAccess(config, 'update', guardOf(options), parsed, undefined)
-    await this.checkGrant(guardOf(options), { collection }, 'publish')
+    await this.checkDocumentGrant(guardOf(options), collection, 'publish', parsed)
     return { config, parsed }
   }
 
@@ -1616,6 +1634,7 @@ export class EasyCMS<C extends Config = Config> {
     const own = await this.checkGrant(guard, { collection: config.slug }, 'read')
     const access = await evaluateAccess(config.access?.read, { user: guard.user })
     if (access === false) throw deny(guard.user)
+    await this.checkQueryFields(config, guard, where)
     return andWhere(andWhere(where, access), own)
   }
 
@@ -1659,18 +1678,70 @@ export class EasyCMS<C extends Config = Config> {
     if (!access) throw deny(guard.user)
   }
 
-  private fieldChecker(
+  private async fieldChecker(
     kind: 'read' | 'update',
     guard: Guard,
     id: ID | undefined,
     data: Data | undefined,
   ) {
     if (!guard.enforce) return undefined
-    return new FieldAccessChecker(kind, {
-      user: guard.user,
-      ...(id !== undefined ? { id } : {}),
-      ...(data ? { data } : {}),
+    return new FieldAccessChecker(
+      kind,
+      {
+        user: guard.user,
+        ...(id !== undefined ? { id } : {}),
+        ...(data ? { data } : {}),
+      },
+      await this.roles.fieldRules(guard.user),
+    )
+  }
+
+  /**
+   * Refuses filtering or sorting by fields the caller may not read: the results would tell
+   * their values. Checks each field along a dotted path, through groups, arrays and blocks.
+   */
+  private async checkQueryFields(
+    config: CollectionConfig,
+    guard: Guard,
+    where: Where | undefined,
+    sort: readonly string[] = [],
+  ) {
+    if (!guard.enforce) return
+    const paths = [...wherePaths(where), ...sort.map((s) => s.replace(/^-/, ''))]
+    if (paths.length === 0) return
+    const read = await this.fieldChecker('read', guard, undefined, undefined)
+    for (const path of paths) {
+      let fields: readonly Field[] | undefined = config.fields
+      for (const name of path.split('.')) {
+        if (!fields) break
+        const field: Field | undefined = fields.find((f) => f.name === name)
+        if (!field) break
+        if (field.hidden || (read && !(await read.allows(field))))
+          throw new ForbiddenError(`You may not filter or sort by "${path}"`)
+        fields =
+          field.type === 'group' || field.type === 'array'
+            ? field.fields
+            : field.type === 'blocks'
+              ? field.blocks.flatMap((b) => b.fields)
+              : undefined
+      }
+    }
+  }
+
+  /** `checkGrant` for one document: a role limited to its own documents must own it. */
+  private async checkDocumentGrant(
+    guard: Guard,
+    collection: string,
+    operation: ApiKeyOperation,
+    id: ID,
+  ) {
+    const own = await this.checkGrant(guard, { collection }, operation)
+    if (own === true) return
+    const matches = await this.db.count({
+      collection,
+      where: andWhere(own, { id: { equals: id } }),
     })
+    if (matches === 0) throw deny(guard.user)
   }
 
   /** Runs afterRead hooks, populates relationships and removes what the caller may not see. */
@@ -1680,7 +1751,7 @@ export class EasyCMS<C extends Config = Config> {
     guard: Guard,
     options: ReadOptions,
   ): Promise<RawDocument[]> {
-    const read = this.fieldChecker('read', guard, undefined, undefined)
+    const read = await this.fieldChecker('read', guard, undefined, undefined)
     const finish = async (target: CollectionConfig | GlobalConfig, doc: RawDocument) => {
       const hooked = await this.transform(
         target.hooks?.afterRead,
@@ -1739,8 +1810,9 @@ export class EasyCMS<C extends Config = Config> {
     const filtered = await filterInput(
       config.fields,
       input,
-      this.fieldChecker('update', guard, undefined, input),
+      await this.fieldChecker('update', guard, undefined, input),
     )
+    this.roles.fillOwner(collection, filtered, guard.user ?? hookGuard?.user ?? null)
     const base = this.hookArgs(config, hookGuard ?? guard)
     let data = applyDefaults(
       config.fields,
@@ -2262,6 +2334,18 @@ function loadSharp(): Promise<SharpFactory | undefined> {
     () => undefined,
   )
   return sharpModule
+}
+
+/** The field paths a `where` filters by. */
+function wherePaths(where: Where | undefined): string[] {
+  if (!where) return []
+  const out: string[] = []
+  for (const [key, value] of Object.entries(where)) {
+    if (key === 'and' || key === 'or') {
+      for (const sub of (value ?? []) as readonly Where[]) out.push(...wherePaths(sub))
+    } else out.push(key)
+  }
+  return out
 }
 
 function guardOf(options: AccessOptions): Guard {
