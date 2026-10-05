@@ -114,8 +114,11 @@ describe('backups in the admin', () => {
   })
 
   it('backs up on schedule when jobs run', async () => {
-    // A run after 03:00 with no scheduled backup yet today starts one.
+    // A run after 03:00 with no scheduled backup yet in that slot starts one. 04:00 of a day
+    // that has already reached it: backups are stamped with the real time, which must be after
+    // the slot (before 04:00, today's would be in the future).
     const now = new Date()
+    if (now.getHours() < 4) now.setDate(now.getDate() - 1)
     now.setHours(4, 0, 0, 0)
     await cms.runJobs(now)
     for (let i = 0; i < 100; i++) {

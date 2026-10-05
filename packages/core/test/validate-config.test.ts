@@ -225,7 +225,9 @@ describe('validateConfig', () => {
         (i) => i.path,
       ),
     ).toEqual(['admin.dashboard[1].label', 'admin.dashboard[1].component'])
-    expect(validateConfig(baseConfig({ admin: { dashboard: dashboard.slice(0, 1) } }))).toEqual([])
+    expect(
+      validateConfig(baseConfig({ admin: { dashboard: [{ component: 'ecms-chart' }] } })),
+    ).toEqual([])
     expect(paths([{ slug: 'user-roles', fields: [] }])).toEqual(['collections[0].slug'])
   })
 
