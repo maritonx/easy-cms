@@ -81,7 +81,7 @@ describe('form values', () => {
       schedule: false,
       fields: [],
       useAsTitle: 'title',
-      permissions: { read: true, create: true, update: true, delete: true },
+      permissions: { read: true, create: true, update: true, delete: true, publish: true },
     }
     expect(titleOf(collection, { id: 1, title: 'Hi' })).toBe('Hi')
     expect(titleOf(collection, { id: 1, title: '' })).toBe('#1')

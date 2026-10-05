@@ -107,5 +107,6 @@ Local API เชื่อผู้เรียกและข้ามกฎส�
 | `documentPermissions(collection, id, user)` | `{ update, delete }` | ผู้ใช้ทำอะไรกับเอกสารนี้ได้บ้าง |
 | `destroy()` | — | หยุดตัวจับเวลา รอการส่ง webhook และปิดการเชื่อมต่อฐานข้อมูล |
 
-object `cms` ยังมี `config` (config ที่ resolve แล้ว), `auth` (การ login และตรวจ session), `db`, `storage`,
-`logger` และ `cwd`
+object `cms` ยังมี `config` (config ที่ resolve แล้ว), `auth` (การ login และตรวจ session),
+`roles` (เมื่อเปิด `auth.rbac`: `roles.allows(user, { collection }, operation)` บอกว่า role ของผู้ใช้อนุญาตอะไร),
+`db`, `storage`, `logger` และ `cwd`

@@ -5,6 +5,7 @@ import PluginElement from '../components/PluginElement.vue'
 import { contentLocale } from '../lib/content-locale'
 import { fromLocalInput, toLocalInput } from '../lib/fields'
 import { label, t } from '../lib/i18n'
+import { findCollection } from '../lib/session'
 import ApiKeyPermissions from './ApiKeyPermissions.vue'
 import ArrayField from './ArrayField.vue'
 import BlocksField from './BlocksField.vue'
@@ -31,6 +32,10 @@ const messages = computed(() => props.errors[props.path] ?? [])
 const invalid = computed(() => messages.value.length > 0)
 const text = computed(() => label(props.field.label, props.field.name))
 const set = (value: unknown) => emit('update:modelValue', value)
+/** The user's role can't read media (Settings → Roles): uploads are shown as they are, unchanged. */
+const noMedia = computed(
+  () => props.field.type === 'upload' && findCollection('media')?.permissions.read === false,
+)
 
 const jsonText = ref(
   props.field.type === 'json' ? JSON.stringify(props.modelValue ?? null, null, 2) : '',
@@ -265,7 +270,7 @@ function onNumber(value: string) {
       :id="id"
       :label="text"
       :model-value="modelValue"
-      :read-only="readOnly"
+      :read-only="readOnly || noMedia"
       :invalid="invalid"
       :mime-types="field.mimeTypes"
       :min-rows="field.minRows"
@@ -276,12 +281,15 @@ function onNumber(value: string) {
       v-else-if="field.type === 'upload'"
       :id="id"
       :model-value="modelValue"
-      :read-only="readOnly"
+      :read-only="readOnly || noMedia"
       :invalid="invalid"
       :mime-types="field.mimeTypes"
       @update:model-value="set"
     />
 
+    <p v-if="noMedia" class="field-hint">
+      {{ t('field.noAccess', { label: label(findCollection('media')?.labels?.plural, 'media') }) }}
+    </p>
     <span v-if="field.type === 'slug' && field.from" class="field-hint">↳ {{ field.from }}</span>
     <p v-if="jsonError" :id="errorId" class="field-error">{{ t('field.invalidJson') }}</p>
     <p v-for="m in messages" :id="errorId" :key="m" class="field-error">{{ m }}</p>

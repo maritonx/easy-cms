@@ -11,6 +11,7 @@ export const SCHEDULED_JOBS = 'scheduled-jobs'
 export const WEBHOOK_DELIVERIES = 'webhook-deliveries'
 export const EMAIL_DELIVERIES = 'email-deliveries'
 export const DATABASE_BACKUPS = 'database-backups'
+export const ROLES = 'user-roles'
 
 /** Collections Easy CMS uses internally. Not exposed over REST or in the admin UI. */
 export const INTERNAL_COLLECTIONS: ReadonlySet<string> = new Set([
@@ -21,6 +22,7 @@ export const INTERNAL_COLLECTIONS: ReadonlySet<string> = new Set([
   WEBHOOK_DELIVERIES,
   EMAIL_DELIVERIES,
   DATABASE_BACKUPS,
+  ROLES,
 ])
 
 export const DEFAULT_ROLES = ['admin', 'editor'] as const
@@ -36,7 +38,8 @@ const adminOnly = {
   update: ({ user }: { user: { role: string } | null }) => user?.role === 'admin',
 }
 
-function userFields(roles: readonly string[]): Field[] {
+function userFields(roles: readonly string[], rbac: boolean): Field[] {
+  const defaultRole = roles.includes('editor') ? 'editor' : (roles[roles.length - 1] as string)
   return [
     {
       name: 'email',
@@ -46,15 +49,25 @@ function userFields(roles: readonly string[]): Field[] {
       label: { en: 'Email', th: 'อีเมล' },
     },
     { name: 'name', type: 'text', label: { en: 'Name', th: 'ชื่อ' } },
-    {
-      name: 'role',
-      type: 'select',
-      options: roles,
-      required: true,
-      defaultValue: roles.includes('editor') ? 'editor' : (roles[roles.length - 1] as string),
-      access: adminOnly,
-      label: { en: 'Role', th: 'บทบาท' },
-    },
+    // With roles from the admin (`auth.rbac`), any role in Settings → Roles: checked on save.
+    rbac
+      ? {
+          name: 'role',
+          type: 'text',
+          required: true,
+          defaultValue: defaultRole,
+          access: adminOnly,
+          label: { en: 'Role', th: 'บทบาท' },
+        }
+      : {
+          name: 'role',
+          type: 'select',
+          options: roles,
+          required: true,
+          defaultValue: defaultRole,
+          access: adminOnly,
+          label: { en: 'Role', th: 'บทบาท' },
+        },
     {
       name: 'active',
       type: 'boolean',
@@ -79,7 +92,7 @@ export function withUsers(config: Config): Config {
     useAsTitle: 'email',
     icon: 'users',
     ...custom,
-    fields: [...userFields(roles), ...(custom?.fields ?? [])],
+    fields: [...userFields(roles, config.auth?.rbac === true), ...(custom?.fields ?? [])],
     access: {
       read: isLoggedIn,
       create: isAdmin,

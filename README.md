@@ -117,6 +117,7 @@ cd my-cms && npm run dev       # http://localhost:4000/admin
 - Scheduled publish and unpublish, a media library with image sizes
 - A dashboard that tells admins what needs attention: failed webhooks, stuck emails, late
   scheduled publishing
+- Roles from the admin: add roles and tick what each may do per collection and page, no code
 - English and Thai interface, light and dark themes, works on phones
 
 **APIs**

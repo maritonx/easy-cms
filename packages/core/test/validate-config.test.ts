@@ -211,6 +211,24 @@ describe('validateConfig', () => {
     ])
   })
 
+  it('checks roles from the admin (auth.rbac)', () => {
+    expect(validateConfig(baseConfig({ auth: { rbac: true } }))).toEqual([])
+    expect(
+      validateConfig(baseConfig({ auth: { rbac: 'yes' as unknown as boolean } })).map(
+        (i) => i.path,
+      ),
+    ).toEqual(['auth.rbac'])
+    // Panels are given to roles by their tag, so each needs its own.
+    const dashboard = [{ component: 'ecms-chart' }, { component: { tag: 'ecms-chart' }, label: 7 }]
+    expect(
+      validateConfig(baseConfig({ auth: { rbac: true }, admin: { dashboard } as never })).map(
+        (i) => i.path,
+      ),
+    ).toEqual(['admin.dashboard[1].label', 'admin.dashboard[1].component'])
+    expect(validateConfig(baseConfig({ admin: { dashboard: dashboard.slice(0, 1) } }))).toEqual([])
+    expect(paths([{ slug: 'user-roles', fields: [] }])).toEqual(['collections[0].slug'])
+  })
+
   it('checks cors origins', () => {
     expect(validateConfig(baseConfig({ cors: '*' }))).toEqual([])
     expect(validateConfig(baseConfig({ cors: ['https://ok.test'] }))).toEqual([])

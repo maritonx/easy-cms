@@ -1,9 +1,9 @@
 # Software Requirements Specification — Easy CMS
 
-- **เวอร์ชันเอกสาร:** 3.7
-- **วันที่:** 2026-10-04
+- **เวอร์ชันเอกสาร:** 3.8
+- **วันที่:** 2026-10-05
 - **ผู้เขียน:** Kanawoot K.
-- **ครอบคลุม:** v0.1 (baseline) ถึง v0.32
+- **ครอบคลุม:** v0.1 (baseline) ถึง v0.33
 - **สถานะ:** Living document (อัปเดตทุกครั้งที่เพิ่มฟีเจอร์)
 - **เอกสารที่เกี่ยวข้อง:** [DESIGN.md](DESIGN.md), [ADRs](adr/)
 
@@ -216,6 +216,9 @@ AI assistant ► /api/cms/mcp ──┘                     └──► Webhook
 | FR-ACL-04 | ต้องมี helper `isAdmin`, `isLoggedIn`, `anyone` | MUST |
 | FR-ACL-05 | Field ต้องกำหนด `access: { read, update }` ระดับ field ได้ | SHOULD |
 | FR-ACL-06 | หน้า Admin ต้องซ่อนเมนูและปุ่มของ operation ที่ user ไม่มีสิทธิ์ | MUST |
+| FR-ACL-07 | เมื่อเปิด `auth.rbac` admin ต้องเพิ่ม เปลี่ยนชื่อ คัดลอก และลบบทบาทได้จาก ตั้งค่า → Roles และติ๊กสิทธิ์ของแต่ละบทบาทได้ ทั้ง collection/global × read/create/update/delete/publish และหน้าใน admin (status, deliveries, หน้าและกล่องของ plugin) โดยไม่ต้องเขียนโค้ด พร้อมเก็บประวัติการแก้ ([ADR-0036](adr/0036-roles-from-the-admin.md)) | SHOULD |
+| FR-ACL-08 | สิทธิ์ของบทบาทต้องตรวจฝั่ง server ซ้อนกับ access ในโค้ด (ต้องผ่านทั้งคู่) admin ทำได้ทุกอย่างเสมอ ผู้ที่ไม่ได้ login ใช้ access อย่างเดียว ทุกคนเข้าถึงบัญชีของตัวเองได้ และ API key ทำได้ไม่เกินบทบาทของเจ้าของ | MUST |
+| FR-ACL-09 | บทบาทใน `auth.roles` ต้องลบไม่ได้ บทบาทที่ยังมีผู้ใช้ต้องลบไม่ได้ เมื่อเปิดใช้ครั้งแรกบทบาทเดิมต้องได้สิทธิ์เท่าที่เคยมี และ collection/global ที่เพิ่มภายหลังต้องเริ่มแบบไม่อนุญาต | MUST |
 
 ### 3.9 Drafts และ Publishing (DRF)
 
@@ -722,6 +725,7 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 0.18 | SEO สำหรับ AI: crawler ของ AI, llms.txt, Markdown, IndexNow | FR-SEO-09..12 | [0021](adr/0021-seo-for-ai.md) |
 | 0.19 | Redirects plugin, `admin.group: 'settings'` | FR-RDR-*, FR-ADM-19 | [0022](adr/0022-redirects-plugin.md) |
 | 0.20 | อีเมลใน core, email-smtp, form builder | FR-EML-*, FR-FRM-*, FR-STA-06 | [0023](adr/0023-email-and-form-builder.md) |
+| 0.33 | บทบาทและสิทธิ์จากหน้า admin (`auth.rbac`) | FR-ACL-07..09 | [0036](adr/0036-roles-from-the-admin.md) |
 | 0.32 | Backups: ตามรอบและกดเอง ดาวน์โหลด การเก็บ เตือนเมื่อหยุดทำงาน | FR-OPS-04 | [0035](adr/0035-backups.md) |
 | 0.31 | หน้า ตั้งค่า → อีเมล: ดูค่า ตรวจการเชื่อมต่อ ส่งอีเมลทดสอบ | FR-EML-04 | [0034](adr/0034-admin-email-settings.md) |
 | 0.30 | หน้า "การส่ง": webhook และอีเมลที่ล้ม ส่งซ้ำ ลบ ลบอัตโนมัติ 30 วัน | FR-ADM-23 | [0033](adr/0033-admin-deliveries.md) |
@@ -747,6 +751,7 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 1.3 | 2026-09-25 | M5: FR-REST-08 (อัปโหลด/ไฟล์), FR-CFG-07 (`routes.api`, `serverURL`), ระบุว่า drafts ใน v0.1 ไม่มี version แยก |
 | 1.4 | 2026-09-25 | M6: ผลวัด NFR-PERF-01/02 บน Postgres 17 (Local API p95 2.7 ms, REST p95 4.3 ms), Next.js adapter ใช้ `getEasyCMS(config)` |
 | 1.5 | 2026-09-25 | M7: ผลตรวจรับ v0.1 (7.1) |
+| 3.8 | 2026-10-05 | 0.33: FR-ACL-07..09 |
 | 3.7 | 2026-10-04 | 0.32: FR-OPS-04 |
 | 3.6 | 2026-10-04 | 0.31: FR-EML-04 |
 | 3.5 | 2026-10-04 | 0.30: FR-ADM-23 |

@@ -428,7 +428,13 @@ describe('admin endpoints', () => {
     const slugs = json.collections.map((c: { slug: string }) => c.slug)
     expect(slugs).toEqual(['users', 'media', 'posts', 'pages'])
     const users = json.collections[0]
-    expect(users.permissions).toEqual({ read: true, create: false, update: true, delete: false })
+    expect(users.permissions).toEqual({
+      read: true,
+      create: false,
+      update: true,
+      delete: false,
+      publish: false,
+    })
     expect(users.fields.map((f: { name: string }) => f.name)).toEqual([
       'email',
       'name',

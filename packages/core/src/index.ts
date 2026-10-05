@@ -175,6 +175,17 @@ export {
   SESSION_COOKIE,
 } from './rest/handler.js'
 export {
+  type AdminRole,
+  type AdminRoleChange,
+  type AdminRoles,
+  type AdminRoleTarget,
+  type AdminRoleView,
+  ROLE_OPERATIONS,
+  type RoleOperation,
+  type RolePermissions,
+  Roles,
+} from './roles.js'
+export {
   type LocalStorageOptions,
   localStorage,
   type StorageAdapter,

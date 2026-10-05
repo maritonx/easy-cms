@@ -79,5 +79,6 @@ their own `role` or `active`. The last active admin can't be demoted, deactivate
 
 ## Next steps
 
+- [Roles from the admin](./roles): let admins tick what each role may do, without code.
 - [Hooks](./hooks): run code when content changes.
 - [Security](./security): what else is protected.

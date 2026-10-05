@@ -84,6 +84,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 |---|---|---|
 | `component` | `AdminComponent` | **จำเป็น** เนื้อหาของกล่อง |
 | `width` | `'half' \| 'full'` | `half` (ค่าเริ่มต้น): คอลัมน์ข้าง `full`: ใต้ทั้งสองคอลัมน์ บนมือถือเป็นคอลัมน์เดียว |
+| `label` | `Label` | ชื่อของกล่องในหน้า Settings → Roles (`auth.rbac`) ค่าเริ่มต้น: tag ของ component |
 | `access` | `({ user }) => boolean` | ใครเห็น ตรวจฝั่ง server ค่าเริ่มต้น: ทุกคนที่ login |
 
 วิธีเขียนดูที่ [หน้าของ plugin และกล่องบนแดชบอร์ด](/th/guide/plugins#pages-and-dashboard-panels)
@@ -105,7 +106,8 @@ export default defineConfig({ secret, db, collections, /* … */ })
 
 | ตัวเลือก | Type | ค่าเริ่มต้น | |
 |---|---|---|---|
-| `roles` | `string[]` | `['admin', 'editor']` | ต้องมี `admin` [ผู้ใช้และการยืนยันตัวตน](/th/guide/auth) |
+| `roles` | `string[]` | `['admin', 'editor']` | ต้องมี `admin` เมื่อเปิด `rbac` คือ role ที่มีอยู่เสมอ [ผู้ใช้และการยืนยันตัวตน](/th/guide/auth) |
+| `rbac` | `boolean` | `false` | กำหนด role และสิทธิ์จากหน้า admin (Settings → Roles) ซ้อนบนกฎ access [บทบาทและสิทธิ์](/th/guide/roles) |
 | `tokenExpiration` | `number` | `604800` (7 วัน) | อายุของ session เป็นวินาที |
 | `maxLoginAttempts` | `number` | `5` | จำนวนครั้งที่ login ผิดได้ต่อ email (และ IP) ภายใน `lockWindow` |
 | `lockWindow` | `number` | `900` (15 นาที) | เป็นวินาที |

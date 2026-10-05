@@ -85,6 +85,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 |---|---|---|
 | `component` | `AdminComponent` | **Required**. The panel's content. |
 | `width` | `'half' \| 'full'` | `half` (default): the side column; `full`: below both columns. One column on phones. |
+| `label` | `Label` | Its name in Settings → Roles (`auth.rbac`). Default: the component's tag. |
 | `access` | `({ user }) => boolean` | Who sees it, checked on the server. Default: every logged-in user. |
 
 [Pages and dashboard panels](/guide/plugins#pages-and-dashboard-panels) shows how to write them.
@@ -106,7 +107,8 @@ export default defineConfig({ secret, db, collections, /* … */ })
 
 | Option | Type | Default | |
 |---|---|---|---|
-| `roles` | `string[]` | `['admin', 'editor']` | Must include `admin`. [Users & auth](/guide/auth) |
+| `roles` | `string[]` | `['admin', 'editor']` | Must include `admin`. With `rbac`, the roles that always exist. [Users & auth](/guide/auth) |
+| `rbac` | `boolean` | `false` | Roles and their permissions from the admin (Settings → Roles), on top of access rules. [Roles](/guide/roles) |
 | `tokenExpiration` | `number` | `604800` (7 days) | Session lifetime in seconds. |
 | `maxLoginAttempts` | `number` | `5` | Failed logins allowed per email (and IP) within `lockWindow`. |
 | `lockWindow` | `number` | `900` (15 minutes) | In seconds. |

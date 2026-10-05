@@ -136,6 +136,10 @@ async function main() {
         await page.locator('#settings-heading').waitFor()
         await shot('backups')
 
+        await page.goto(`${ORIGIN}/admin/roles?role=editor`)
+        await page.locator('#content-heading').waitFor()
+        await shot('roles')
+
         await page.goto(`${ORIGIN}/admin/email`)
         await page.locator('#settings-heading').waitFor()
         await shot('email-settings')

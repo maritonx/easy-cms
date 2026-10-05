@@ -70,6 +70,7 @@ import { imageDimensions, mimeAllowed, sniffMimeType, storageKey } from './media
 import { DEFAULT_DEPTH, type Loader, MAX_DEPTH, populate } from './populate.js'
 import { fetchRemoteFile, RemoteFileError } from './remote-file.js'
 import { resolveConfig } from './resolve-config.js'
+import { Roles } from './roles.js'
 import { localStorage, type StorageAdapter } from './storage.js'
 import {
   collectionParent,
@@ -232,6 +233,8 @@ export class EasyCMS<C extends Config = Config> {
   readonly storage: StorageAdapter
   /** Project root: relative paths in the config (e.g. `admin.modules`) start here. */
   readonly cwd: string
+  /** Roles and their permissions (`auth.rbac`, Settings → Roles). */
+  readonly roles: Roles
   private readonly versions: VersionStore
   private readonly webhooks: Webhooks
   private readonly mailer: Mailer
@@ -249,6 +252,7 @@ export class EasyCMS<C extends Config = Config> {
     this.storage = storage
     this.cwd = cwd
     this.versions = new VersionStore(db)
+    this.roles = new Roles(config, db)
     this.webhooks = new Webhooks(
       config.webhooks ?? [],
       logger,
@@ -372,7 +376,7 @@ export class EasyCMS<C extends Config = Config> {
     const config = this.collection(MEDIA)
     const guard = guardOf(options)
     if (guard.enforce) {
-      this.checkKey(guard, { collection: MEDIA }, 'create')
+      await this.checkGrant(guard, { collection: MEDIA }, 'create')
       const allowed = await evaluateAccess(config.access?.create, { user: guard.user, data })
       if (allowed !== true) throw deny(guard.user)
     }
@@ -439,7 +443,7 @@ export class EasyCMS<C extends Config = Config> {
     const fromURL = this.config.upload.fromURL
     // Before downloading anything: who may upload, and whether links are allowed at all.
     if (guard.enforce) {
-      this.checkKey(guard, { collection: MEDIA }, 'create')
+      await this.checkGrant(guard, { collection: MEDIA }, 'create')
       const allowed = await evaluateAccess(config.access?.create, { user: guard.user, data })
       if (allowed !== true) throw deny(guard.user)
       if (!fromURL)
@@ -649,7 +653,7 @@ export class EasyCMS<C extends Config = Config> {
     let parsed: ID | undefined
     if (id === null) {
       if (guard.enforce) {
-        this.checkKey(guard, { collection }, 'create')
+        await this.checkGrant(guard, { collection }, 'create')
         const allowed = await evaluateAccess(config.access?.create, { user: guard.user, data: raw })
         if (allowed !== true) throw deny(guard.user)
       }
@@ -805,7 +809,7 @@ export class EasyCMS<C extends Config = Config> {
     if (!existing || parsed === undefined) throw new NotFoundError(collection, id)
     await this.checkDocumentAccess(config, 'update', guard, parsed, raw)
     if (config.drafts && (mode === 'unpublish' || raw.status === 'published'))
-      this.checkKey(guard, { collection }, 'publish')
+      await this.checkGrant(guard, { collection }, 'publish')
     // With separate drafts, edits apply to the pending draft when there is one.
     const [drafted] = (await this.withDrafts(config, [existing])) as [RawDocument]
     const live = options.live === true && mode === 'save'
@@ -1051,7 +1055,7 @@ export class EasyCMS<C extends Config = Config> {
     const guard = guardOf(options)
     await this.checkGlobalAccess(config, 'update', guard)
     if (config.drafts && (mode === 'unpublish' || raw.status === 'published'))
-      this.checkKey(guard, { global: slug }, 'publish')
+      await this.checkGrant(guard, { global: slug }, 'publish')
     const input = await filterInput(
       config.fields,
       raw,
@@ -1401,7 +1405,7 @@ export class EasyCMS<C extends Config = Config> {
       parsed === undefined ? null : await this.db.findById({ collection, id: parsed })
     if (!existing || parsed === undefined) throw new NotFoundError(collection, id)
     await this.checkDocumentAccess(config, 'update', guardOf(options), parsed, undefined)
-    this.checkKey(guardOf(options), { collection }, 'publish')
+    await this.checkGrant(guardOf(options), { collection }, 'publish')
     return { config, parsed }
   }
 
@@ -1409,7 +1413,7 @@ export class EasyCMS<C extends Config = Config> {
     const config = this.global(slug)
     if (!config.schedule) throw new QueryError(`"${slug}" has no schedule`)
     await this.checkGlobalAccess(config, 'update', guardOf(options))
-    this.checkKey(guardOf(options), { global: slug }, 'publish')
+    await this.checkGrant(guardOf(options), { global: slug }, 'publish')
   }
 
   private async addJob(
@@ -1474,7 +1478,11 @@ export class EasyCMS<C extends Config = Config> {
       const access = config
         ? await evaluateAccess(config.access?.update, { user: guard.user })
         : false
-      const result = access !== false
+      const target = parent.startsWith('global:')
+        ? { global: parent.slice('global:'.length) }
+        : { collection: parent }
+      const result =
+        access !== false && (await this.roles.allows(guard.user, target, 'update')) !== false
       allowed.set(parent, result)
       return result
     }
@@ -1584,24 +1592,31 @@ export class EasyCMS<C extends Config = Config> {
     return config
   }
 
-  /** Refuses what a request's API key does not allow (see `ApiKeyPermissions`). */
-  private checkKey(
+  /**
+   * Refuses what a request's API key (see `ApiKeyPermissions`) or the user's role (`auth.rbac`)
+   * does not allow. Returns a constraint when the role allows only the user's own account.
+   */
+  private async checkGrant(
     guard: Guard,
     target: { collection: string } | { global: string },
     operation: ApiKeyOperation,
-  ) {
-    if (!guard.enforce || keyAllows(guard.user, target, operation)) return
+  ): Promise<true | Where> {
+    if (!guard.enforce) return true
     const name = 'collection' in target ? target.collection : target.global
-    throw new ForbiddenError(`This API key may not ${operation} "${name}"`)
+    if (!keyAllows(guard.user, target, operation))
+      throw new ForbiddenError(`This API key may not ${operation} "${name}"`)
+    const role = await this.roles.allows(guard.user, target, operation)
+    if (role === false) throw deny(guard.user)
+    return role
   }
 
   /** The query constraint read access adds, or `undefined` when there is none. Throws when denied. */
   private async readWhere(config: CollectionConfig, guard: Guard, where: Where | undefined) {
     if (!guard.enforce) return where
-    this.checkKey(guard, { collection: config.slug }, 'read')
+    const own = await this.checkGrant(guard, { collection: config.slug }, 'read')
     const access = await evaluateAccess(config.access?.read, { user: guard.user })
     if (access === false) throw deny(guard.user)
-    return andWhere(where, access)
+    return andWhere(andWhere(where, access), own)
   }
 
   private async checkDocumentAccess(
@@ -1612,12 +1627,14 @@ export class EasyCMS<C extends Config = Config> {
     data: Data | undefined,
   ) {
     if (!guard.enforce) return
-    this.checkKey(guard, { collection: config.slug }, operation)
-    const access = await evaluateAccess(config.access?.[operation], {
+    const own = await this.checkGrant(guard, { collection: config.slug }, operation)
+    const allowed = await evaluateAccess(config.access?.[operation], {
       user: guard.user,
       id,
       ...(data ? { data } : {}),
     })
+    const access =
+      allowed === false ? false : (andWhere(own === true ? undefined : own, allowed) ?? true)
     if (access === true) return
     if (access !== false) {
       const matches = await this.db.count({
@@ -1635,7 +1652,7 @@ export class EasyCMS<C extends Config = Config> {
     guard: Guard,
   ) {
     if (!guard.enforce) return
-    this.checkKey(guard, { global: config.slug }, operation)
+    await this.checkGrant(guard, { global: config.slug }, operation)
     const access = await evaluateAccess(config.access?.[operation], { user: guard.user })
     if (typeof access === 'object')
       throw new QueryError(`${operation} access of global "${config.slug}" must return a boolean`)
@@ -1708,9 +1725,9 @@ export class EasyCMS<C extends Config = Config> {
     const guard = guardOf(options)
     const collection = config.slug
     if (guard.enforce) {
-      this.checkKey(guard, { collection }, 'create')
+      await this.checkGrant(guard, { collection }, 'create')
       if (config.drafts && raw.status === 'published')
-        this.checkKey(guard, { collection }, 'publish')
+        await this.checkGrant(guard, { collection }, 'publish')
       const allowed = await evaluateAccess(config.access?.create, { user: guard.user, data: raw })
       if (typeof allowed === 'object')
         throw new QueryError(`create access of "${collection}" must return a boolean`)
@@ -2013,6 +2030,15 @@ export class EasyCMS<C extends Config = Config> {
       }
       clean.status = status
     }
+
+    // With roles from the admin, any role in Settings → Roles.
+    if (
+      config.slug === USERS &&
+      this.roles.enabled &&
+      typeof clean.role === 'string' &&
+      !(await this.roles.exists(clean.role))
+    )
+      errors.push({ field: 'role', message: `there is no role "${clean.role}"` })
 
     const isCollection = this.config.collections.includes(config as CollectionConfig)
     if (isCollection && errors.length === 0) {

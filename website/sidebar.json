@@ -86,6 +86,13 @@
           }
         },
         {
+          "path": "guide/roles",
+          "title": {
+            "en": "Roles from the admin",
+            "th": "บทบาทและสิทธิ์จากหน้า admin"
+          }
+        },
+        {
           "path": "guide/hooks",
           "title": {
             "en": "Hooks",

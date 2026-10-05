@@ -414,7 +414,10 @@ function toggle(id: Doc['id']) {
   else next.add(id)
   selected.value = next
 }
-const canPublish = computed(() => !!collection?.drafts && !!collection?.permissions.update)
+const canPublish = computed(
+  () =>
+    !!collection?.drafts && !!collection?.permissions.update && !!collection.permissions.publish,
+)
 
 async function bulk(run: (id: Doc['id']) => Promise<unknown>, done: (count: number) => string) {
   const ids = [...selected.value]

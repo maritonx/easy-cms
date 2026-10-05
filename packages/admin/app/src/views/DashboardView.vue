@@ -103,9 +103,9 @@ async function loadScheduled() {
   }
 }
 
-/** For admins: the system and what needs attention (`GET <api>/admin/status`). */
+/** For admins and roles given it: the system and what needs attention (`GET <api>/admin/status`). */
 const status = ref<AdminStatus | null>(null)
-const isAdmin = session.user?.role === 'admin'
+const views = session.schema?.views
 async function loadStatus() {
   try {
     status.value = await api<AdminStatus>('GET', '/admin/status')
@@ -133,14 +133,14 @@ function describe(item: AdminAttention) {
         detail: t('status.webhooksDetail', { url: item.url }),
         href,
         // In the admin: the deliveries page, with retry.
-        to: '/deliveries?kind=webhook',
+        ...(views?.deliveries ? { to: '/deliveries?kind=webhook' } : {}),
       }
     case 'emails':
       return {
         title: t('status.emails', { count: item.count }),
         detail: t('status.emailsDetail'),
         href,
-        to: '/deliveries?kind=email',
+        ...(views?.deliveries ? { to: '/deliveries?kind=email' } : {}),
       }
     case 'scheduled':
       return {
@@ -155,7 +155,7 @@ function describe(item: AdminAttention) {
           ? t('status.backupLast', { date: formatDate(item.lastDone) })
           : t('status.backupNone'),
         href,
-        to: '/backups',
+        ...(views?.backups ? { to: '/backups' } : {}),
       }
     case 'no-email':
       return { title: t('status.noEmail'), detail: t('status.noEmailDetail'), href }
@@ -189,7 +189,7 @@ const system = computed(() => {
 })
 
 onMounted(() => {
-  if (isAdmin) void loadStatus()
+  if (views?.status) void loadStatus()
   void refreshCounts(true)
   void Promise.all(content.map((c) => latest(c))).then((lists) => {
     recent.value = lists

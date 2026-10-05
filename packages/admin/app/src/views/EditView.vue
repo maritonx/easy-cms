@@ -110,6 +110,10 @@ const canSave = computed(
     !!collection && (id ? (docPermissions.value?.update ?? false) : collection.permissions.create),
 )
 const canDelete = computed(() => !!id && (docPermissions.value?.delete ?? false))
+/** Publishing (and unpublishing, scheduling) may be left out of a role (Settings → Roles). */
+const canPublish = computed(() => !!collection && collection.permissions.publish !== false)
+/** Without publishing, the main button saves a draft. */
+const draftOnly = computed(() => !!collection?.drafts && !canPublish.value)
 const readOnly = computed(() => !canSave.value)
 // Media file metadata is shown above; only editable fields go in the form.
 const mediaFields = computed(() => collection?.fields.filter((f) => !f.readOnly) ?? [])
@@ -409,7 +413,7 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
     <RouterLink :to="`/collections/${slug}`">{{ t('common.back') }}</RouterLink>
   </p>
   <p v-else-if="loading" class="muted">{{ t('common.loading') }}</p>
-  <form v-else class="editor" novalidate @submit.prevent="save(collection.drafts ? 'published' : undefined)">
+  <form v-else class="editor" novalidate @submit.prevent="save(collection.drafts ? (draftOnly ? 'draft' : 'published') : undefined)">
     <header class="editor-header">
       <div class="title-block">
         <RouterLink :to="`/collections/${slug}`" class="btn btn-ghost btn-sm btn-icon back" :aria-label="label(collection.labels?.plural, collection.slug)">
@@ -433,9 +437,11 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
           {{ previewing ? t('preview.hide') : t('preview.show') }}
         </button>
         <div v-if="canSave" class="split">
-          <button type="submit" class="btn btn-primary" :class="{ 'split-main': collection.schedule && id }" :disabled="saving">
+          <button type="submit" class="btn btn-primary" :class="{ 'split-main': collection.schedule && id && canPublish }" :disabled="saving">
             {{
-              collection.drafts && !published
+              draftOnly
+                ? t('edit.saveDraft')
+                : collection.drafts && !published
                 ? pendingChanges
                   ? t('edit.publishChanges')
                   : t('edit.publish')
@@ -445,7 +451,7 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
             }}
           </button>
           <button
-            v-if="collection.schedule && id"
+            v-if="collection.schedule && id && canPublish"
             type="button"
             class="btn btn-primary btn-icon split-toggle"
             :aria-label="t('edit.publishOptions')"
@@ -571,22 +577,22 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
             </div>
           </dl>
           <ScheduleControl
-            v-if="collection.schedule && id && canSave"
+            v-if="collection.schedule && id && canSave && canPublish"
             ref="scheduler"
             :path="`/${slug}/${encodeURIComponent(id)}`"
             :reload-key="historyKey"
           />
           <div v-if="canSave || canDelete" class="side-actions">
-            <button v-if="collection.schedule && id && canSave" type="button" class="btn btn-sm" @click="scheduler?.open()">
+            <button v-if="collection.schedule && id && canSave && canPublish" type="button" class="btn btn-sm" @click="scheduler?.open()">
               <CalendarClock :size="15" aria-hidden="true" />
               {{ t('schedule.button') }}
             </button>
             <template v-if="canSave && separateDrafts && live">
               <button v-if="pendingChanges" type="button" class="btn btn-sm" :disabled="saving" @click="confirmingDiscard = true">{{ t('edit.discardChanges') }}</button>
-              <button type="button" class="btn btn-sm" :disabled="saving" @click="action('unpublish')">{{ t('edit.unpublish') }}</button>
+              <button v-if="canPublish" type="button" class="btn btn-sm" :disabled="saving" @click="action('unpublish')">{{ t('edit.unpublish') }}</button>
             </template>
             <button
-              v-else-if="canSave && collection.drafts && published"
+              v-else-if="canSave && canPublish && collection.drafts && published"
               type="button"
               class="btn btn-sm"
               :disabled="saving"
@@ -629,7 +635,7 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
       <div class="save-actions">
         <button v-if="dirty && id" type="button" class="btn btn-ghost" :disabled="saving" @click="undoChanges">{{ t('edit.undoChanges') }}</button>
         <button
-          v-if="collection.drafts && (!published || (separateDrafts && live))"
+          v-if="collection.drafts && !draftOnly && (!published || (separateDrafts && live))"
           type="button"
           class="btn"
           :disabled="saving"

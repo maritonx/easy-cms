@@ -35,6 +35,8 @@ export default defineConfig({
   upload: { fromURL: { allowedHosts: ['*'] } },
   // Settings → Backups: every night, as a compressed SQLite file (Postgres is copied with sqlite).
   backups: { every: 'day', at: '03:00', keep: 7, sqlite },
+  // Settings → Roles: admins tick what each role may do; add roles there without code.
+  auth: { rbac: true },
   // Field types from packages; `type: 'color'` below.
   fieldTypes: [color],
   collections: [

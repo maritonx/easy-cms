@@ -249,6 +249,8 @@ export interface DashboardWidget {
   readonly component: AdminComponent
   /** `half` (default): the side column, beside drafts and recent edits; `full`: below both. */
   readonly width?: 'half' | 'full'
+  /** Its name in Settings → Roles (`auth.rbac`). Default: the component's tag. */
+  readonly label?: Label
   /** Who sees it. */
   readonly access?: AdminViewAccess
 }
@@ -331,8 +333,16 @@ export interface RoutesConfig {
 }
 
 export interface AuthConfig {
-  /** Roles a user can have. Must include `admin`. Default `['admin', 'editor']`. */
+  /**
+   * Roles a user can have. Must include `admin`. Default `['admin', 'editor']`. With `rbac`, these
+   * are the roles that always exist; admins can add more in Settings → Roles.
+   */
   readonly roles?: readonly string[]
+  /**
+   * Roles and their permissions from the admin (Settings → Roles): admins tick what each role
+   * may do with each collection, global and admin page, on top of access rules. Default `false`.
+   */
+  readonly rbac?: boolean
   /** Session lifetime in seconds. Default 7 days. */
   readonly tokenExpiration?: number
   /** Failed logins allowed per email (and IP) within `lockWindow`. Default 5. */

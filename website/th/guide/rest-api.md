@@ -20,10 +20,11 @@ HTTP API ที่ `/api/cms`: endpoint, การ query, การยืนย�
 | GET / POST | `/globals/:slug` | อ่าน / อัปเดต global |
 | POST | `/media` | อัปโหลด (`multipart/form-data`, field `file`) หรือ JSON `{ url }` เพื่อดาวน์โหลด ([จากลิงก์](/th/guide/uploads#from-a-link)) |
 | GET | `/media/file/:name` | ไฟล์ที่จัดเก็บไว้ (สาธารณะ) |
-| GET | `/admin/status` | สำหรับ admin: ข้อมูลระบบและสิ่งที่ต้องดูแล ([ตรวจสุขภาพระบบ](/th/guide/health-checks)) |
+| GET | `/admin/status` | สำหรับ admin (และ [role](/th/guide/roles) ที่ได้รับสิทธิ์): ข้อมูลระบบและสิ่งที่ต้องดูแล ([ตรวจสุขภาพระบบ](/th/guide/health-checks)) |
+| GET | `/admin/roles` | สำหรับ admin เมื่อเปิด `auth.rbac`: รายการ role และสิ่งที่ให้สิทธิ์ได้ `POST /admin/roles` พร้อม `{ key, name?, permissions? }` เพิ่ม role `PATCH /admin/roles/:id` พร้อม `{ name?, permissions? }` แก้ไข `DELETE /admin/roles/:id` ลบ `GET /admin/roles/:id/history` ประวัติการแก้ไข ([บทบาทและสิทธิ์](/th/guide/roles)) |
 | GET | `/admin/backups` | สำหรับ admin: การตั้งค่าและรายการ backup `POST /admin/backups` เริ่ม backup ทันที (202) `GET /admin/backups/:id/download` ดาวน์โหลด `DELETE /admin/backups/:id` ลบ |
 | GET | `/admin/email` | สำหรับ admin: email adapter และค่าที่ใช้อยู่ (ไม่มีความลับ) `POST /admin/email/verify` ตรวจการเชื่อมต่อ `POST /admin/email/test` พร้อม `{ to?, locale? }` ส่งอีเมลทดสอบทันที (ไม่เกิน 5 ครั้งใน 10 นาที) |
-| GET | `/admin/deliveries` | สำหรับ admin: webhook หรืออีเมลที่บันทึกไว้ (`kind=webhook\|email`, `state=failed\|pending`, `page`) `POST /admin/deliveries/:kind/:id/retry` และ `/:kind/retry` (ที่ล้มทั้งหมด) ส่งทันที `DELETE /admin/deliveries/:kind/:id` และ `/:kind` (ที่ล้มทั้งหมด) ลบ |
+| GET | `/admin/deliveries` | สำหรับ admin (และ role ที่ได้รับสิทธิ์): webhook หรืออีเมลที่บันทึกไว้ (`kind=webhook\|email`, `state=failed\|pending`, `page`) `POST /admin/deliveries/:kind/:id/retry` และ `/:kind/retry` (ที่ล้มทั้งหมด) ส่งทันที `DELETE /admin/deliveries/:kind/:id` และ `/:kind` (ที่ล้มทั้งหมด) ลบ |
 | GET | `/:collection/:id/versions` | รายการเวอร์ชัน ใหม่สุดก่อน query: `limit`, `page` |
 | GET | `/:collection/:id/versions/:version` | เวอร์ชันเดียวพร้อม `data` |
 | POST | `/:collection/:id/versions/:version/restore` | กู้คืนเวอร์ชัน |

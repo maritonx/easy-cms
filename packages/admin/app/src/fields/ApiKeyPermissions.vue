@@ -53,6 +53,15 @@ const rows = computed<Row[]>(() => [
 ])
 
 const has = (row: Row, op: string) => value.value[row.group]?.[row.slug]?.includes(op) ?? false
+/** A key can do no more than you: what you may not do yourself can't be ticked (only unticked). */
+function yours(row: Row, op: string): boolean {
+  const target =
+    row.group === 'collections'
+      ? session.schema?.collections.find((c) => c.slug === row.slug)
+      : session.schema?.globals.find((g) => g.slug === row.slug)
+  const permissions = target?.permissions as Record<string, boolean> | undefined
+  return permissions?.[op] === true
+}
 
 function toggle(row: Row, op: string, on: boolean) {
   const group = { ...(value.value[row.group] ?? {}) }
@@ -97,7 +106,7 @@ const opLabel = (row: Row, op: string) =>
                 v-if="row.ops.includes(op)"
                 type="checkbox"
                 :checked="has(row, op)"
-                :disabled="readOnly"
+                :disabled="readOnly || (!has(row, op) && !yours(row, op))"
                 :aria-label="`${row.name}: ${opLabel(row, op)}`"
                 :title="opLabel(row, op)"
                 @change="toggle(row, op, ($event.target as HTMLInputElement).checked)"

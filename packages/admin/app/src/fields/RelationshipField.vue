@@ -23,6 +23,8 @@ const props = defineProps<{
 const emit = defineEmits<{ 'update:modelValue': [unknown] }>()
 
 const target = findCollection(props.to)
+/** The user's role can't read the collection (Settings → Roles): the value is kept as it is. */
+const noAccess = computed(() => !!target && !target.permissions.read)
 const selectedIds = computed<Id[]>(() => {
   if (props.hasMany) return Array.isArray(props.modelValue) ? (props.modelValue as Id[]) : []
   return props.modelValue === null || props.modelValue === undefined ? [] : [props.modelValue as Id]
@@ -139,11 +141,15 @@ function created(doc: Doc) {
   <div class="relationship">
     <ul v-if="selectedIds.length" class="chips">
       <li v-for="id in selectedIds" :key="String(id)" class="chip">
-        <RouterLink :to="`/collections/${to}/${id}`">{{ titles[String(id)] ?? `#${id}` }}</RouterLink>
-        <button v-if="!readOnly" type="button" class="chip-remove" :aria-label="t('field.remove', { title: titles[String(id)] ?? `#${id}` })" @click="removeId(id)"><X :size="13" aria-hidden="true" /></button>
+        <span v-if="noAccess">#{{ id }}</span>
+        <RouterLink v-else :to="`/collections/${to}/${id}`">{{ titles[String(id)] ?? `#${id}` }}</RouterLink>
+        <button v-if="!readOnly && !noAccess" type="button" class="chip-remove" :aria-label="t('field.remove', { title: titles[String(id)] ?? `#${id}` })" @click="removeId(id)"><X :size="13" aria-hidden="true" /></button>
       </li>
     </ul>
-    <div v-if="!readOnly && (hasMany || !selectedIds.length)" class="combo">
+    <p v-if="noAccess" class="field-hint">
+      {{ t('field.noAccess', { label: label(target?.labels?.plural, to) }) }}
+    </p>
+    <div v-else-if="!readOnly && (hasMany || !selectedIds.length)" class="combo">
       <input
         :id="id"
         v-model="query"
@@ -175,7 +181,7 @@ function created(doc: Doc) {
         <li v-if="!options.length" class="muted empty">{{ t('field.noMatches') }}</li>
       </ul>
     </div>
-    <button v-if="!readOnly && canCreate && (hasMany || !selectedIds.length)" type="button" class="btn btn-ghost btn-sm create" @click="creating = true">
+    <button v-if="!readOnly && !noAccess && canCreate && (hasMany || !selectedIds.length)" type="button" class="btn btn-ghost btn-sm create" @click="creating = true">
       <Plus :size="15" aria-hidden="true" />
       {{ t('edit.create', { label: label(target?.labels?.singular, singularize(to)) }) }}
     </button>

@@ -9,6 +9,7 @@ import {
   Monitor,
   Moon,
   Send,
+  ShieldCheck,
   Sun,
   X,
 } from '@lucide/vue'
@@ -43,12 +44,16 @@ const globals = computed(() => session.schema?.globals.filter((g) => g.permissio
 const contentPages = computed(
   () => session.schema?.pages.filter((p) => p.group === 'content') ?? [],
 )
-const isAdmin = computed(() => session.user?.role === 'admin')
-/** Saved webhook deliveries and emails: for admins, when webhooks or email are set up. */
+/** Settings pages this user may open (admins; roles given them in Settings → Roles). */
+const views = computed(() => session.schema?.views)
+/** Saved webhook deliveries and emails, when webhooks or email are set up. */
 const deliveries = computed(() => {
   const d = session.schema?.deliveries
-  return !!d && (d.webhook || d.email)
+  return !!views.value?.deliveries && !!d && (d.webhook || d.email)
 })
+const settingsViews = computed(
+  () => !!views.value && (views.value.backups || views.value.email || views.value.roles),
+)
 const settingsPages = computed(
   () => session.schema?.pages.filter((p) => p.group === 'settings') ?? [],
 )
@@ -151,7 +156,7 @@ async function onLogout() {
         </RouterLink>
       </template>
 
-      <template v-if="globals.length || settingsCollections.length || settingsPages.length || isAdmin">
+      <template v-if="globals.length || settingsCollections.length || settingsPages.length || settingsViews || deliveries">
         <h2 class="nav-heading">{{ t('nav.globals') }}</h2>
         <RouterLink
           v-for="g in globals"
@@ -184,11 +189,15 @@ async function onLogout() {
           <component :is="collectionIcon(p.icon)" :size="18" aria-hidden="true" />
           <span>{{ label(p.label, p.path) }}</span>
         </RouterLink>
-        <RouterLink v-if="isAdmin" to="/backups" class="nav-link" active-class="active">
+        <RouterLink v-if="views?.roles" to="/roles" class="nav-link" active-class="active">
+          <ShieldCheck :size="18" aria-hidden="true" />
+          <span>{{ t('roles.title') }}</span>
+        </RouterLink>
+        <RouterLink v-if="views?.backups" to="/backups" class="nav-link" active-class="active">
           <DatabaseBackup :size="18" aria-hidden="true" />
           <span>{{ t('backups.title') }}</span>
         </RouterLink>
-        <RouterLink v-if="isAdmin" to="/email" class="nav-link" active-class="active">
+        <RouterLink v-if="views?.email" to="/email" class="nav-link" active-class="active">
           <Mail :size="18" aria-hidden="true" />
           <span>{{ t('email.title') }}</span>
         </RouterLink>

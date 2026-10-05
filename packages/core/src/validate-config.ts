@@ -19,6 +19,7 @@ const RESERVED_SLUGS = new Set([
   'webhook-deliveries',
   'email-deliveries',
   'database-backups',
+  'user-roles',
   'api-keys',
   'jobs',
   'migrations',
@@ -266,6 +267,7 @@ function validateAdminViews(config: Config, add: Add) {
         "e.g. dashboard: [{ component: 'ecms-stats-widget' }]",
       )
     } else {
+      const tags = new Set<string>()
       widgets.forEach((widget: unknown, i) => {
         const path = `admin.dashboard[${i}]`
         if (typeof widget !== 'object' || widget === null) {
@@ -276,6 +278,24 @@ function validateAdminViews(config: Config, add: Add) {
         validateComponent(w.component, `${path}.component`, add)
         if (w.width !== undefined && w.width !== 'half' && w.width !== 'full')
           add(`${path}.width`, 'must be "half" or "full"')
+        if (
+          w.label !== undefined &&
+          !(typeof w.label === 'string' && w.label.trim() !== '') &&
+          !(typeof w.label === 'object' && w.label !== null && !Array.isArray(w.label))
+        )
+          add(`${path}.label`, 'must be a string or { en, th }')
+        // Settings → Roles gives panels to roles by their tag.
+        const component = w.component as { tag?: unknown } | string | undefined
+        const tag = typeof component === 'string' ? component : component?.tag
+        if (config.auth?.rbac === true && typeof tag === 'string') {
+          if (tags.has(tag))
+            add(
+              `${path}.component`,
+              `another panel uses "${tag}"`,
+              'with auth.rbac, roles are given panels by their tag: use one tag per panel',
+            )
+          tags.add(tag)
+        }
         access(w.access, path)
       })
     }
@@ -291,6 +311,8 @@ function validateIcon(container: { icon?: unknown }, path: string, add: Add) {
 function validateAuth(config: Config, add: Add) {
   const auth = config.auth
   if (auth === undefined) return
+  if (auth.rbac !== undefined && typeof auth.rbac !== 'boolean')
+    add('auth.rbac', 'must be true or false')
   if (auth.roles !== undefined) {
     const roles: unknown = auth.roles
     if (!Array.isArray(roles) || roles.some((r) => typeof r !== 'string' || r === '')) {

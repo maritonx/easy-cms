@@ -430,10 +430,39 @@ async function route(
     throw new HttpError('Not found', 404)
   }
 
-  // Saved webhook deliveries and emails, for admins: list, retry, delete.
-  if (first === 'admin' && second === 'deliveries') {
+  // Settings → Roles (`auth.rbac`), for admins: the roles, add, change, delete, history.
+  if (first === 'admin' && second === 'roles') {
     if (!ctx.user) throw new UnauthorizedError()
     if (ctx.user.role !== 'admin' || ctx.user.apiKey) throw new ForbiddenError()
+    if (!cms.roles.enabled) throw new HttpError('Not found', 404)
+    const [, , id, action, extra] = segments
+    if (extra !== undefined) throw new HttpError('Not found', 404)
+    if (id === undefined) {
+      if (method === 'GET') return { body: await cms.roles.list() }
+      if (method === 'POST')
+        return { status: 201, body: await cms.roles.create(await readJson(ctx.request), ctx.user) }
+      throw methodNotAllowed(ctx, 'GET, POST')
+    }
+    const parsed = parseId(id)
+    if (parsed === undefined) throw new HttpError('Not found', 404)
+    if (action === 'history') {
+      if (method !== 'GET') throw methodNotAllowed(ctx, 'GET')
+      return { body: await cms.roles.history(parsed) }
+    }
+    if (action !== undefined) throw new HttpError('Not found', 404)
+    if (method === 'PATCH')
+      return { body: await cms.roles.update(parsed, await readJson(ctx.request), ctx.user) }
+    if (method === 'DELETE') {
+      await cms.roles.delete(parsed)
+      return { body: { deleted: 1 } }
+    }
+    throw methodNotAllowed(ctx, 'PATCH, DELETE')
+  }
+
+  // Saved webhook deliveries and emails, for admins and roles given them: list, retry, delete.
+  if (first === 'admin' && second === 'deliveries') {
+    if (!ctx.user) throw new UnauthorizedError()
+    if (!(await cms.roles.canView(ctx.user, 'deliveries'))) throw new ForbiddenError()
     const [, , kind, id, action, extra] = segments
     if (kind === undefined) {
       if (method !== 'GET') throw methodNotAllowed(ctx, 'GET')
@@ -486,9 +515,9 @@ async function route(
         return { body: new Response(null, { status: 304, headers }) }
       return { body: new Response(file.body, { headers }) }
     }
-    // /admin/status → the system and what needs attention (dashboard, admins only)
+    // /admin/status → the system and what needs attention (dashboard: admins, roles given it)
     if (second === 'status' && third === undefined) {
-      if (ctx.user.role !== 'admin' || ctx.user.apiKey) throw new ForbiddenError()
+      if (!(await cms.roles.canView(ctx.user, 'status'))) throw new ForbiddenError()
       return { body: await adminStatus(cms) }
     }
     // /admin/scheduled → the next scheduled publishes the user may manage (dashboard)

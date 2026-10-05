@@ -38,6 +38,8 @@ export default defineConfig({
   },
   // Settings → Backups: a compressed copy of the database every night, the newest 7 kept.
   backups: { every: 'day', at: '03:00', keep: 7 },
+  // Settings → Roles: admins tick what each role may do; add roles there without code.
+  auth: { rbac: true },
   // Field types from packages; `type: 'color'` below.
   fieldTypes: [color],
   collections: [

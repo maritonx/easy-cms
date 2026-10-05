@@ -5,6 +5,7 @@ import { EMAIL_DELIVERIES, INTERNAL_COLLECTIONS, USERS, WEBHOOK_DELIVERIES } fro
 import type { AdminLocale, AdminViewAccess, CollectionConfig, GlobalConfig } from '../config.js'
 import type { AdminComponent, Field, Label } from '../fields.js'
 import type { EasyCMS } from '../local-api.js'
+import type { RoleOperation } from '../roles.js'
 import { adminModuleUrls } from './admin-modules.js'
 
 /** Built-in collections listed under Settings in the menu. */
@@ -75,7 +76,13 @@ export interface AdminCollection {
   tree?: string
   /** The list's default order (`admin.list.sort`). */
   defaultSort?: string
-  permissions: { read: boolean; create: boolean; update: boolean; delete: boolean }
+  permissions: {
+    read: boolean
+    create: boolean
+    update: boolean
+    delete: boolean
+    publish: boolean
+  }
 }
 
 export interface AdminGlobal {
@@ -91,7 +98,7 @@ export interface AdminGlobal {
   fields: AdminField[]
   /** Panels from admin modules in the edit page's side column. */
   sidebar?: AdminComponentRef[]
-  permissions: { read: boolean; update: boolean }
+  permissions: { read: boolean; update: boolean; publish: boolean }
 }
 
 /** A page of its own in the admin (`admin.pages`) that this user may open. */
@@ -124,8 +131,10 @@ export interface AdminSchema {
   modules: string[]
   /** Files can be uploaded from links (`upload.fromURL`). */
   uploadFromURL: boolean
-  /** For admins: which saved deliveries the admin can show (webhooks, emails). */
+  /** Which saved deliveries the admin can show (webhooks, emails), for users who may see them. */
   deliveries?: { webhook: boolean; email: boolean }
+  /** Admin pages this user may open: Settings → Backups, Email, Roles; deliveries; the status panel. */
+  views: { status: boolean; deliveries: boolean; backups: boolean; email: boolean; roles: boolean }
   /** Pages this user may open (`admin.pages`). */
   pages: AdminPageRef[]
   /** Dashboard panels this user may see (`admin.dashboard`). */
@@ -227,27 +236,54 @@ async function serializeFields(
   return out
 }
 
+/** Allowed by access rules and, with roles, by the user's role. */
+async function may(
+  cms: EasyCMS,
+  access: Access | undefined,
+  user: AuthUser,
+  target: { collection: string } | { global: string },
+  operation: RoleOperation,
+): Promise<boolean> {
+  return (
+    (await allowed(access, user)) && (await cms.roles.allows(user, target, operation)) !== false
+  )
+}
+
 async function collection(
+  cms: EasyCMS,
   config: CollectionConfig,
   user: AuthUser,
   localized: boolean,
+  roles: { key: string; name: string }[],
 ): Promise<AdminCollection> {
+  const target = { collection: config.slug }
+  const fields = await serializeFields(
+    config.fields,
+    new FieldAccessChecker('update', { user }),
+    localized,
+  )
+  // With roles from the admin, a user's role is one of Settings → Roles.
+  if (config.slug === USERS && cms.roles.enabled) {
+    const role = fields.find((f) => f.name === 'role')
+    if (role) {
+      role.type = 'select'
+      role.options = roles.map((r) => ({ label: r.name || r.key, value: r.key }))
+    }
+  }
   const result: AdminCollection = {
     slug: config.slug,
     drafts: config.drafts === true,
     versions: Boolean(config.versions),
     preview: typeof config.preview === 'function',
     schedule: config.schedule === true,
-    fields: await serializeFields(
-      config.fields,
-      new FieldAccessChecker('update', { user }),
-      localized,
-    ),
+    fields,
     permissions: {
-      read: await allowed(config.access?.read, user),
-      create: await allowed(config.access?.create, user),
-      update: await allowed(config.access?.update, user),
-      delete: await allowed(config.access?.delete, user),
+      read: await may(cms, config.access?.read, user, target, 'read'),
+      create: await may(cms, config.access?.create, user, target, 'create'),
+      update: await may(cms, config.access?.update, user, target, 'update'),
+      delete: await may(cms, config.access?.delete, user, target, 'delete'),
+      publish:
+        config.drafts === true && (await may(cms, config.access?.update, user, target, 'publish')),
     },
   }
   if (config.labels) result.labels = config.labels
@@ -264,10 +300,12 @@ async function collection(
 }
 
 async function global(
+  cms: EasyCMS,
   config: GlobalConfig,
   user: AuthUser,
   localized: boolean,
 ): Promise<AdminGlobal> {
+  const target = { global: config.slug }
   const result: AdminGlobal = {
     slug: config.slug,
     drafts: config.drafts === true,
@@ -280,8 +318,10 @@ async function global(
       localized,
     ),
     permissions: {
-      read: await allowed(config.access?.read, user),
-      update: await allowed(config.access?.update, user),
+      read: await may(cms, config.access?.read, user, target, 'read'),
+      update: await may(cms, config.access?.update, user, target, 'update'),
+      publish:
+        config.drafts === true && (await may(cms, config.access?.update, user, target, 'publish')),
     },
   }
   if (config.label !== undefined) result.label = config.label
@@ -299,6 +339,18 @@ export async function adminSchema(
   const collections = cms.config.collections.filter((c) => !INTERNAL_COLLECTIONS.has(c.slug))
   const localization = cms.config.localization
   const localized = localization !== null
+  const admin = user.role === 'admin' && !user.apiKey
+  const deliveries = cms.config.collections.some(
+    (c) => c.slug === WEBHOOK_DELIVERIES || c.slug === EMAIL_DELIVERIES,
+  )
+  const views = {
+    status: await cms.roles.canView(user, 'status'),
+    deliveries: deliveries && (await cms.roles.canView(user, 'deliveries')),
+    backups: admin,
+    email: admin,
+    roles: admin && cms.roles.enabled,
+  }
+  const roles = await cms.roles.options()
   return {
     locale: cms.config.admin.locale,
     passwordLinks: cms.auth.canSendPasswordLinks(origin),
@@ -306,11 +358,14 @@ export async function adminSchema(
     localization: localization
       ? { locales: [...localization.locales], defaultLocale: localization.defaultLocale }
       : null,
-    collections: await Promise.all(collections.map((c) => collection(c, user, localized))),
-    globals: await Promise.all(cms.config.globals.map((g) => global(g, user, localized))),
+    collections: await Promise.all(
+      collections.map((c) => collection(cms, c, user, localized, roles)),
+    ),
+    globals: await Promise.all(cms.config.globals.map((g) => global(cms, g, user, localized))),
     modules: adminModuleUrls(cms),
     uploadFromURL: cms.config.upload.fromURL !== undefined,
-    ...(user.role === 'admin' && !user.apiKey
+    views,
+    ...(views.deliveries
       ? {
           deliveries: {
             webhook: cms.config.collections.some((c) => c.slug === WEBHOOK_DELIVERIES),
@@ -336,7 +391,8 @@ async function shown(access: AdminViewAccess | undefined, user: AuthUser): Promi
 async function pages(cms: EasyCMS, user: AuthUser): Promise<AdminPageRef[]> {
   const out: AdminPageRef[] = []
   for (const page of cms.config.admin.pages) {
-    if (!(await shown(page.access, user))) continue
+    if (!(await shown(page.access, user)) || !(await cms.roles.canView(user, `page:${page.path}`)))
+      continue
     out.push({
       path: page.path,
       label: page.label,
@@ -351,7 +407,9 @@ async function pages(cms: EasyCMS, user: AuthUser): Promise<AdminPageRef[]> {
 async function widgets(cms: EasyCMS, user: AuthUser): Promise<AdminWidgetRef[]> {
   const out: AdminWidgetRef[] = []
   for (const widget of cms.config.admin.dashboard) {
-    if (!(await shown(widget.access, user))) continue
+    const tag = typeof widget.component === 'string' ? widget.component : widget.component.tag
+    if (!(await shown(widget.access, user)) || !(await cms.roles.canView(user, `widget:${tag}`)))
+      continue
     out.push({ component: componentRef(widget.component), width: widget.width ?? 'half' })
   }
   return out

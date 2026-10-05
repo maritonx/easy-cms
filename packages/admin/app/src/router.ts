@@ -47,11 +47,13 @@ export const router = createRouter({
           component: () => import('./views/GlobalView.vue'),
         },
         { path: 'account', name: 'account', component: () => import('./views/AccountView.vue') },
+        // Settings → Roles (admins, with `auth.rbac`).
+        { path: 'roles', name: 'roles', component: () => import('./views/RolesView.vue') },
         // Settings → Backups (admins).
         { path: 'backups', name: 'backups', component: () => import('./views/BackupsView.vue') },
         // Settings → Email (admins).
         { path: 'email', name: 'email', component: () => import('./views/EmailView.vue') },
-        // Saved webhook deliveries and emails (admins).
+        // Saved webhook deliveries and emails (admins, roles given them).
         {
           path: 'deliveries',
           name: 'deliveries',

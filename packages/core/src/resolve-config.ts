@@ -13,6 +13,7 @@ import {
 import type { Config, ResolvedConfig } from './config.js'
 import { ConfigError } from './errors.js'
 import { applyFieldTypes, fieldTypeModules } from './field-types.js'
+import { rolesCollection } from './roles.js'
 import { validateConfig } from './validate-config.js'
 
 export const DEFAULT_ADMIN_PATH = '/admin'
@@ -96,6 +97,7 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
     },
     auth: {
       roles: config.auth?.roles ?? DEFAULT_ROLES,
+      rbac: config.auth?.rbac === true,
       tokenExpiration: config.auth?.tokenExpiration ?? DEFAULT_TOKEN_EXPIRATION,
       maxLoginAttempts: config.auth?.maxLoginAttempts ?? 5,
       lockWindow: config.auth?.lockWindow ?? 15 * 60,
@@ -107,12 +109,14 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
     collections: [
       ...(config.collections ?? []),
       ...internalCollections,
-      ...(usesVersions(config) ? [versionsCollection] : []),
+      // Roles keep their history as versions.
+      ...(usesVersions(config) || config.auth?.rbac ? [versionsCollection] : []),
       ...(usesSchedule(config) ? [scheduledJobsCollection] : []),
       ...((config.webhooks?.length ?? 0) > 0 ? [webhookDeliveriesCollection] : []),
       ...(config.apiKeys ? [apiKeysCollection] : []),
       ...(config.email ? [emailDeliveriesCollection] : []),
       databaseBackupsCollection,
+      ...(config.auth?.rbac ? [rolesCollection] : []),
     ],
     globals: config.globals ?? [],
     endpoints: config.endpoints ?? [],

@@ -1151,6 +1151,63 @@ test.describe('logged in as admin', () => {
     await visitor.close()
   })
 
+  test('gives roles permissions without code in Settings → Roles (auth.rbac)', async ({ page }) => {
+    await page
+      .getByRole('navigation', { name: 'Main' })
+      .getByRole('link', { name: 'Roles' })
+      .click()
+    await expect(page.getByRole('heading', { level: 1, name: 'Roles' })).toBeVisible()
+    const list = page.getByRole('list', { name: 'Roles' })
+    await expect(list.getByRole('button', { name: /Admin/ })).toBeVisible()
+    await expect(list.getByRole('button', { name: /Editor/ })).toBeVisible()
+    // Editors start with everything they could do before roles.
+    await expect(page.getByRole('checkbox', { name: 'Posts: Publish' })).toBeChecked()
+
+    // A new role from the editor's permissions.
+    await page.getByRole('button', { name: 'New role' }).click()
+    const dialog = page.getByRole('dialog', { name: 'New role' })
+    await dialog.getByLabel('Name').fill('Reviewer')
+    await dialog.getByLabel('Key').fill('reviewer')
+    await dialog.getByLabel('Start from').selectOption('editor')
+    await dialog.getByRole('button', { name: 'Create role' }).click()
+    await expect(page.getByRole('status')).toHaveText('Role created')
+    await expect(list.getByRole('button', { name: /Reviewer/ })).toHaveAttribute(
+      'aria-current',
+      'true',
+    )
+
+    // Unticking Read unticks the rest; ticking Delete ticks Read again.
+    await page.getByRole('checkbox', { name: 'Posts: Read' }).uncheck()
+    await expect(page.getByRole('checkbox', { name: 'Posts: Publish' })).not.toBeChecked()
+    await page.getByRole('checkbox', { name: 'Posts: Update' }).check()
+    await expect(page.getByRole('checkbox', { name: 'Posts: Read' })).toBeChecked()
+    await page.getByRole('checkbox', { name: 'System status on the dashboard' }).check()
+    await page.getByRole('button', { name: 'Save', exact: true }).click()
+    await expect(page.getByRole('status')).toHaveText('Role saved')
+
+    await page.reload()
+    await expect(page.getByRole('checkbox', { name: 'Posts: Update' })).toBeChecked()
+    await expect(page.getByRole('checkbox', { name: 'Posts: Delete' })).not.toBeChecked()
+    await expect(
+      page.getByRole('checkbox', { name: 'System status on the dashboard' }),
+    ).toBeChecked()
+    await page.getByRole('button', { name: 'History' }).click()
+    await expect(page.getByRole('listitem').filter({ hasText: ADMIN.email })).toHaveCount(2)
+
+    // Users can be given it.
+    await page.goto('/admin/collections/users/new')
+    await expect(page.getByLabel('Role').locator('option', { hasText: 'Reviewer' })).toHaveCount(1)
+
+    // Roles from the config can't be deleted; others can.
+    await page.goto('/admin/roles?role=editor')
+    await expect(page.getByRole('button', { name: 'Delete role' })).toBeDisabled()
+    await page.goto('/admin/roles?role=reviewer')
+    await page.getByRole('button', { name: 'Delete role' }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Delete role' }).click()
+    await expect(page.getByRole('status')).toHaveText('Role deleted')
+    await expect(list.getByRole('button', { name: /Reviewer/ })).toHaveCount(0)
+  })
+
   test('creates an editor account', async ({ page }) => {
     await page.goto('/admin/collections/users/new')
     await page.getByLabel('Email').fill(EDITOR.email)
@@ -1189,6 +1246,10 @@ test.describe('logged in as editor', () => {
     expect((await page.request.get('/api/cms/admin/deliveries?kind=email')).status()).toBe(403)
     expect((await page.request.get('/api/cms/admin/email')).status()).toBe(403)
     expect((await page.request.get('/api/cms/admin/backups')).status()).toBe(403)
+    await expect(
+      page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Roles' }),
+    ).toHaveCount(0)
+    expect((await page.request.get('/api/cms/admin/roles')).status()).toBe(403)
   })
 
   test('changes their own password (FR-ADM-13)', async ({ page }) => {

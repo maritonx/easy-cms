@@ -34,6 +34,9 @@ const message = ref<{ kind: 'success' | 'error'; text: string } | null>(null)
 // Messages show as a toast (one at a time).
 showMessages(message)
 const readOnly = computed(() => !global?.permissions.update)
+/** Publishing may be left out of a role (Settings → Roles): then the main button saves a draft. */
+const canPublish = computed(() => !!global && global.permissions.publish !== false)
+const draftOnly = computed(() => !!global?.drafts && !canPublish.value)
 const dirty = computed(() => snapshot(form.value) !== baseline.value)
 // See EditView: with versions and drafts the published version stays live until published again.
 const separateDrafts = !!global?.drafts && !!global?.versions
@@ -197,7 +200,7 @@ onBeforeRouteLeave(() => (dirty.value ? window.confirm(t('edit.unsaved')) : true
 <template>
   <p v-if="!global" class="notice">{{ t('common.notFound') }}</p>
   <p v-else-if="loading" class="muted">{{ t('common.loading') }}</p>
-  <form v-else novalidate @submit.prevent="save(global.drafts ? 'published' : undefined)">
+  <form v-else novalidate @submit.prevent="save(global.drafts ? (draftOnly ? 'draft' : 'published') : undefined)">
     <header class="editor-header">
       <div class="title-row">
         <h1>{{ label(global.label, global.slug) }}</h1>
@@ -214,7 +217,7 @@ onBeforeRouteLeave(() => (dirty.value ? window.confirm(t('edit.unsaved')) : true
         </button>
         <template v-if="!readOnly">
           <button type="submit" class="btn btn-primary" :disabled="saving">
-            {{ !global.drafts ? t('edit.save') : pendingChanges ? t('edit.publishChanges') : t('edit.publish') }}
+            {{ !global.drafts ? t('edit.save') : draftOnly ? t('edit.saveDraft') : pendingChanges ? t('edit.publishChanges') : t('edit.publish') }}
           </button>
         </template>
       </div>
@@ -249,19 +252,19 @@ onBeforeRouteLeave(() => (dirty.value ? window.confirm(t('edit.unsaved')) : true
             </div>
           </dl>
           <ScheduleControl
-            v-if="global.schedule && !readOnly"
+            v-if="global.schedule && !readOnly && canPublish"
             ref="scheduler"
             :path="`/globals/${slug}`"
             :reload-key="historyKey"
           />
-          <div v-if="!readOnly && (global.schedule || (separateDrafts && live))" class="side-actions">
-            <button v-if="global.schedule" type="button" class="btn btn-sm" @click="scheduler?.open()">
+          <div v-if="!readOnly && ((global.schedule && canPublish) || (separateDrafts && live))" class="side-actions">
+            <button v-if="global.schedule && canPublish" type="button" class="btn btn-sm" @click="scheduler?.open()">
               <CalendarClock :size="15" aria-hidden="true" />
               {{ t('schedule.button') }}
             </button>
             <template v-if="separateDrafts && live">
               <button v-if="pendingChanges" type="button" class="btn btn-sm" :disabled="saving" @click="confirmingDiscard = true">{{ t('edit.discardChanges') }}</button>
-              <button type="button" class="btn btn-sm" :disabled="saving" @click="action('unpublish')">{{ t('edit.unpublish') }}</button>
+              <button v-if="canPublish" type="button" class="btn btn-sm" :disabled="saving" @click="action('unpublish')">{{ t('edit.unpublish') }}</button>
             </template>
           </div>
         </section>
@@ -292,7 +295,7 @@ onBeforeRouteLeave(() => (dirty.value ? window.confirm(t('edit.unsaved')) : true
       </span>
       <div class="save-actions">
         <button v-if="dirty" type="button" class="btn btn-ghost" :disabled="saving" @click="undoChanges">{{ t('edit.undoChanges') }}</button>
-        <button v-if="global.drafts" type="button" class="btn" :disabled="saving" @click="save('draft')">{{ t('edit.saveDraft') }}</button>
+        <button v-if="global.drafts && !draftOnly" type="button" class="btn" :disabled="saving" @click="save('draft')">{{ t('edit.saveDraft') }}</button>
       </div>
     </footer>
     <ConfirmDialog

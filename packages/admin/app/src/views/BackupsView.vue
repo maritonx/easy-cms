@@ -84,7 +84,7 @@ const STATES = {
 </script>
 
 <template>
-  <p v-if="session.user?.role !== 'admin'" class="notice">{{ t('common.notFound') }}</p>
+  <p v-if="!session.schema?.views.backups" class="notice">{{ t('common.notFound') }}</p>
   <template v-else>
     <nav class="crumbs" :aria-label="t('list.breadcrumb')">
       <span>{{ t('nav.globals') }}</span>

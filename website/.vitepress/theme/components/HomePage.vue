@@ -11,8 +11,8 @@ const { isDark } = useData()
 
 const COPY = {
   en: {
-    badge: 'New in 0.32: database backups from the admin',
-    badgeLink: 'backups#from-the-admin',
+    badge: 'New in 0.33: roles and permissions from the admin, no code',
+    badgeLink: 'roles',
     title: 'Your CMS,',
     titleAccent: 'inside your app',
     tagline:
@@ -186,8 +186,8 @@ const COPY = {
     ctaGuide: 'Read the guide',
   },
   th: {
-    badge: 'ใหม่ใน 0.32: backup ฐานข้อมูลจากหน้า admin',
-    badgeLink: 'backups#from-the-admin',
+    badge: 'ใหม่ใน 0.33: กำหนดบทบาทและสิทธิ์จากหน้า admin โดยไม่ต้องเขียนโค้ด',
+    badgeLink: 'roles',
     title: 'CMS ที่อยู่',
     titleAccent: 'ในแอปของคุณ',
     tagline: 'กำหนดเนื้อหาด้วย TypeScript ได้หน้า admin, API ที่มี type และ plugin โดยไม่ต้องดูแล server แยก',

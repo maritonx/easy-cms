@@ -119,7 +119,7 @@ const docs = computed(
 </script>
 
 <template>
-  <p v-if="session.user?.role !== 'admin' || !kinds.length" class="notice">{{ t('common.notFound') }}</p>
+  <p v-if="!session.schema?.views.deliveries || !kinds.length" class="notice">{{ t('common.notFound') }}</p>
   <template v-else>
     <nav class="crumbs" :aria-label="t('list.breadcrumb')">
       <span>{{ t('nav.globals') }}</span>
