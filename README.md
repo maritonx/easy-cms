@@ -204,10 +204,15 @@ Please report security issues privately, as described in [SECURITY.md](SECURITY.
 
 Easy CMS is built in spare time. If it saves you or your team time, consider
 [sponsoring its development](https://github.com/sponsors/maritonx): sponsorship pays for the work
-toward 1.0, docs (in English and Thai) and faster fixes. Sponsors at $20 a month or more are
+toward 1.0, docs (in English and Thai) and faster fixes. Sponsors at $5 a month or more are
 listed here, and company sponsors also get their logo on [easy-cms.io](https://easy-cms.io).
 
 [![Sponsor Easy CMS](https://img.shields.io/badge/sponsor-%E2%9D%A4-2f6f5e?logo=githubsponsors)](https://github.com/sponsors/maritonx)
+
+### Founding sponsors
+
+The first 10 sponsors, at any tier, are listed here permanently, even if they stop sponsoring
+later. Spots left: 10 of 10.
 
 ## License
 
