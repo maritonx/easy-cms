@@ -1,5 +1,11 @@
 # @easy-cms/core
 
+## 0.37.2
+
+### Patch Changes
+
+- 63f0116: The CSRF check also accepts an Origin matching the request's public host (`x-forwarded-host` or `host`), so admin writes work behind proxies whose request URL names an internal host, like Netlify's (the first-admin setup said "CSRF check failed: untrusted origin").
+
 ## 0.37.1
 
 No changes in this release.
