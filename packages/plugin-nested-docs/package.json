@@ -1,6 +1,6 @@
 {
   "name": "@easy-cms/plugin-nested-docs",
-  "version": "0.37.1",
+  "version": "0.37.2",
   "description": "Nested pages for Easy CMS: a parent for each page, breadcrumbs and full paths kept up to date, and a tree in the admin",
   "license": "MIT",
   "type": "module",
