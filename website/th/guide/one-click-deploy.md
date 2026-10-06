@@ -30,6 +30,20 @@
 2. สร้าง admin คนแรก: ชื่อ อีเมล รหัสผ่าน และรหัส setup
 3. แก้หรือลบบทความตัวอย่าง แล้วเขียนของคุณเอง เชิญทีมได้ที่ **ตั้งค่า → ผู้ใช้**
 
+## ถ้ามีบางอย่างไม่ทำงาน {#if-something-doesnt-work}
+
+**อัปโหลดไม่ได้ และมีข้อความให้ connect Blob store (Vercel)** แปลว่า deployment นั้นไม่มี
+`BLOB_READ_WRITE_TOKEN` อาจเพราะไม่ได้เพิ่ม Blob store ในฟอร์ม deploy หรือเชื่อมหลังจาก deploy เริ่มไปแล้ว
+
+1. ในโปรเจกต์บน Vercel เปิดแท็บ **Storage** ถ้ายังไม่มี Blob store ให้กด **Create** → **Blob** และเลือก **Public**
+2. ที่ store นั้นกด **Connect Project** เลือกโปรเจกต์นี้และทุก environment
+3. **Settings → Environment Variables** จะมี `BLOB_READ_WRITE_TOKEN` ขึ้นมาเอง อย่านำค่านี้ไปใส่ที่อื่น ใครได้ไปจะแก้ไฟล์
+   ของคุณได้
+4. **Deployments** → **⋯** → **Redeploy** เพราะ environment variable ใหม่มีผลกับ deployment ใหม่เท่านั้น
+
+**`/admin` ไม่ถามรหัส setup** แปลว่ายังไม่ได้ตั้ง `EASY_CMS_SETUP_CODE` ให้เพิ่มใน environment variable ของโปรเจกต์
+แล้ว redeploy ก่อนที่จะมีใครสร้าง admin คนแรก
+
 ## เมื่อใช้งานจริง {#for-real-use}
 
 - **ตั้ง `EASY_CMS_SECRET`** ใน environment variable ของโปรเจกต์ (`openssl rand -hex 32`) แล้ว deploy ใหม่

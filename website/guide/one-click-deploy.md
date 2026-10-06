@@ -33,6 +33,21 @@ only you can.
 2. Create the first admin: your name, email, a password, and the setup code.
 3. Edit or delete the sample posts, and write your own. Invite your team from **Settings → Users**.
 
+## If something doesn't work
+
+**Uploads fail, saying to connect a Blob store (Vercel).** The deploy has no `BLOB_READ_WRITE_TOKEN`:
+the Blob store wasn't added in the deploy form, or it was connected after the deploy started.
+
+1. In the project on Vercel, open **Storage**. If there is no Blob store, **Create** one: **Blob**,
+   with **Public** access.
+2. On the store, **Connect Project**, choose this project and every environment.
+3. **Settings → Environment Variables** now lists `BLOB_READ_WRITE_TOKEN`. Don't copy it anywhere
+   else: anyone with it can change your files.
+4. **Deployments** → **⋯** → **Redeploy**. New environment variables only reach new deployments.
+
+**`/admin` doesn't ask for a setup code.** `EASY_CMS_SETUP_CODE` isn't set: add it in the project's
+environment variables and redeploy before anyone creates the first admin.
+
 ## For real use
 
 - **Set `EASY_CMS_SECRET`** in the project's environment variables (`openssl rand -hex 32`), then
