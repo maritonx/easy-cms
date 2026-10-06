@@ -226,6 +226,22 @@ describe('CSRF protection (NFR-SEC-01)', () => {
         })
       ).status,
     ).toBe(201)
+    // Behind a proxy the request URL names an internal host; the Host header is the public one.
+    const proxied = (origin: string) =>
+      handle(
+        new Request('http://internal:3000/api/cms/posts', {
+          method: 'POST',
+          body: JSON.stringify({ title: 'proxied' }),
+          headers: {
+            ...headers,
+            'content-type': 'application/json',
+            host: 'site.example.net',
+            origin,
+          },
+        }),
+      )
+    expect((await proxied('https://site.example.net')).status).toBe(201)
+    expect((await proxied('https://evil.test')).status).toBe(403)
     const crossSite = await call('/users/login', {
       method: 'POST',
       body: { email: 'admin@x.co', password: PASSWORD },

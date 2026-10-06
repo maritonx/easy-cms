@@ -1014,6 +1014,22 @@ export function readCookie(request: Request, name: string): string | undefined {
 }
 
 /**
+ * Whether the Origin is the host the browser asked for. Behind a platform's proxy (Netlify,
+ * Vercel…) the request URL can name an internal host, while `x-forwarded-host` or `host` keep the
+ * public one; a browser can't set either on a cross-site form or a simple request.
+ */
+function sameHost(origin: string, request: Request): boolean {
+  let host: string
+  try {
+    host = new URL(origin).host
+  } catch {
+    return false
+  }
+  const forwarded = request.headers.get('x-forwarded-host')?.split(',')[0]?.trim()
+  return host === (forwarded || request.headers.get('host'))
+}
+
+/**
  * Blocks cross-site writes (NFR-SEC-01): the Origin must be ours or trusted,
  * and cookie-authenticated requests must echo the session's CSRF token.
  */
@@ -1027,6 +1043,7 @@ function checkCsrf(cms: EasyCMS, ctx: Context) {
   const trusted =
     origin !== null &&
     (origin === ctx.url.origin ||
+      sameHost(origin, ctx.request) ||
       cms.config.auth.trustedOrigins.includes(origin) ||
       (!cookie && (cors === '*' || cors.includes(origin))))
   if (origin !== null && !trusted) throw new ForbiddenError('CSRF check failed: untrusted origin')
