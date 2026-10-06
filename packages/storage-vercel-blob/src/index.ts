@@ -1,4 +1,4 @@
-import type { StorageAdapter } from '@easy-cms/core'
+import { EasyCMSError, type StorageAdapter } from '@easy-cms/core'
 import { del, get, put } from '@vercel/blob'
 
 export interface VercelBlobStorageOptions {
@@ -37,9 +37,15 @@ export function vercelBlobStorage(
 ): StorageAdapter {
   const access = options.access ?? 'public'
   const prefix = options.prefix ?? ''
+  const configured = () => options.token ?? process.env.BLOB_READ_WRITE_TOKEN
+  // Writing needs the store; the message reaches the admin (a missing store is a setup problem).
   const token = () => {
-    const value = options.token ?? process.env.BLOB_READ_WRITE_TOKEN
-    if (!value) throw new Error('Vercel Blob: set BLOB_READ_WRITE_TOKEN (connect a Blob store)')
+    const value = configured()
+    if (!value)
+      throw new EasyCMSError(
+        'Uploads need a Vercel Blob store: connect one to the project (Storage → Blob), which sets BLOB_READ_WRITE_TOKEN, then redeploy',
+        503,
+      )
     return value
   }
   return {
@@ -53,7 +59,10 @@ export function vercelBlobStorage(
       })
     },
     async get(key) {
-      const found = await client.get(`${prefix}${key}`, { access, token: token() })
+      // Without a store there are no files: pages still render, without them.
+      const value = configured()
+      if (!value) return null
+      const found = await client.get(`${prefix}${key}`, { access, token: value })
       if (found?.statusCode !== 200) return null
       const body = new Uint8Array(await new Response(found.stream).arrayBuffer())
       return { body, size: body.byteLength }
@@ -63,8 +72,9 @@ export function vercelBlobStorage(
     },
     url(key) {
       // Private files are served through the API, which reads them with the token.
-      if (access !== 'public') return undefined
-      return `https://${storeIdOf(token())}.public.blob.vercel-storage.com/${prefix}${key}`
+      const value = configured()
+      if (access !== 'public' || !value) return undefined
+      return `https://${storeIdOf(value)}.public.blob.vercel-storage.com/${prefix}${key}`
     },
   }
 }

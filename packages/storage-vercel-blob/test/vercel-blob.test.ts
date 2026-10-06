@@ -59,7 +59,13 @@ describe('vercelBlobStorage', () => {
       const storage = vercelBlobStorage({}, fakeClient().client)
       await expect(
         storage.put('a.png', new Uint8Array(), { contentType: 'image/png' }),
-      ).rejects.toThrow('BLOB_READ_WRITE_TOKEN')
+      ).rejects.toMatchObject({
+        status: 503,
+        message: expect.stringContaining('BLOB_READ_WRITE_TOKEN'),
+      })
+      // Reading still works, without the files: pages that show images don't break.
+      expect(storage.url?.('a.png')).toBeUndefined()
+      expect(await storage.get('a.png')).toBeNull()
     } finally {
       if (before !== undefined) process.env.BLOB_READ_WRITE_TOKEN = before
     }

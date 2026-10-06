@@ -11,9 +11,13 @@ import { vercelBlobStorage } from '@easy-cms/storage-vercel-blob'
  */
 const databaseURL = process.env.DATABASE_URL ?? process.env.NETLIFY_DATABASE_URL
 
-/** Where uploads go: Vercel Blob, Netlify Blobs, or the `uploads` folder when developing. */
+/**
+ * Where uploads go: Vercel Blob on Vercel, Netlify Blobs on Netlify, or the `uploads` folder
+ * when developing. On Vercel the disk can't keep files: without a Blob store, uploads fail
+ * saying to connect one (`BLOB_READ_WRITE_TOKEN`), instead of writing where they'd be lost.
+ */
 function storage(): StorageAdapter | undefined {
-  if (process.env.BLOB_READ_WRITE_TOKEN) return vercelBlobStorage()
+  if (process.env.BLOB_READ_WRITE_TOKEN || process.env.VERCEL) return vercelBlobStorage()
   if (process.env.NETLIFY) return netlifyBlobsStorage()
   return undefined
 }
