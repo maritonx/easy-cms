@@ -1,4 +1,4 @@
-import type { AuditEntry } from '@easy-cms/core'
+import type { AuditChange, AuditEntry } from '@easy-cms/core'
 import { label, type MessageKey, t } from './i18n'
 import { session } from './session'
 
@@ -84,6 +84,29 @@ const VIA: Record<string, MessageKey> = {
   scheduler: 'audit.via.scheduler',
 }
 export const viaLabel = (via: string) => (VIA[via] ? t(VIA[via] as MessageKey) : via)
+
+/**
+ * The rows of one change: a translated field (a value per content locale) gets a row for each
+ * locale whose value changed, e.g. `title · en`.
+ */
+export function changeRows(change: AuditChange): AuditChange[] {
+  const locales = session.schema?.localization?.locales ?? []
+  const byLocale = (value: unknown) =>
+    value === null ||
+    value === undefined ||
+    (typeof value === 'object' &&
+      !Array.isArray(value) &&
+      Object.keys(value).length > 0 &&
+      Object.keys(value).every((k) => locales.includes(k)))
+  if (!('before' in change) || locales.length === 0) return [change]
+  const { before, after } = change
+  if (!byLocale(before) || !byLocale(after) || (before === null && after === null)) return [change]
+  const at = (value: unknown, locale: string) =>
+    (value as Record<string, unknown> | null)?.[locale] ?? null
+  return locales
+    .filter((l) => JSON.stringify(at(before, l)) !== JSON.stringify(at(after, l)))
+    .map((l) => ({ field: `${change.field} · ${l}`, before: at(before, l), after: at(after, l) }))
+}
 
 /** A value before or after a change, short. */
 export function showValue(value: unknown): string {

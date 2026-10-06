@@ -16,6 +16,7 @@ import {
   AUDIT_ACTIONS,
   actionLabel,
   actionTone,
+  changeRows,
   entryLink,
   showValue,
   targetLabel,
@@ -226,7 +227,7 @@ async function verify() {
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="change in entry.changes" :key="change.field">
+                <tr v-for="change in entry.changes.flatMap(changeRows)" :key="change.field">
                   <th scope="row"><code>{{ change.field }}</code></th>
                   <template v-if="'before' in change || 'after' in change">
                     <td class="before">{{ showValue(change.before) }}</td>

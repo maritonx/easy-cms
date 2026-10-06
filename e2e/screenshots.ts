@@ -186,9 +186,11 @@ async function main() {
         await page.locator('easy-form form').waitFor()
         await shot('form-page')
 
-        await page.goto(`${ORIGIN}/admin/audit`)
+        // Changes, with one open to show its fields before and after.
+        await page.goto(`${ORIGIN}/admin/audit?action=update`)
         await page.locator('.entry').first().waitFor()
-        await page.locator('.entry .row').nth(1).click()
+        await page.locator('.entry .row').first().click()
+        await page.locator('.changes').waitFor()
         await shot('audit')
 
         await page.goto(`${ORIGIN}/admin/sso`)
