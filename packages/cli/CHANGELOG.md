@@ -1,5 +1,13 @@
 # easy-cms
 
+## 0.37.0
+
+### Patch Changes
+
+- Updated dependencies [cbf800c]
+  - @easy-cms/core@0.37.0
+  - @easy-cms/admin@0.37.0
+
 ## 0.36.1
 
 ### Patch Changes
