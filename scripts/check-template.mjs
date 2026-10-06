@@ -64,6 +64,7 @@ try {
     const env = {
       EASY_CMS_SETUP_CODE: 'check-template',
       DATABASE_URL: '',
+      NETLIFY_DB_URL: '',
       NETLIFY_DATABASE_URL: '',
     }
     run('npm', ['run', 'build'], work, env)

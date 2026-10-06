@@ -5,11 +5,29 @@ import { seoPlugin } from '@easy-cms/plugin-seo'
 import { netlifyBlobsStorage } from '@easy-cms/storage-netlify-blobs'
 import { vercelBlobStorage } from '@easy-cms/storage-vercel-blob'
 
+/** An environment variable; on Netlify's functions also from `Netlify.env`. */
+function env(name: string): string | undefined {
+  const netlify = (globalThis as { Netlify?: { env: { get(name: string): string | undefined } } })
+    .Netlify
+  return process.env[name] || netlify?.env.get(name) || undefined
+}
+
+/** On Vercel or Netlify (builds and functions), whose disk doesn't keep files. */
+const onVercel = Boolean(env('VERCEL'))
+const onNetlify = Boolean(env('NETLIFY') || 'Netlify' in globalThis)
+
 /**
- * Easy CMS, ready for Vercel and Netlify: Postgres (Neon) when the platform gives a database,
- * otherwise PGlite in `.pglite` for development; uploads in Vercel Blob or Netlify Blobs.
+ * Easy CMS, ready for Vercel and Netlify: Postgres from the platform (Neon on Vercel, Netlify
+ * Database on Netlify), otherwise PGlite in `.pglite` for development; uploads in Vercel Blob
+ * or Netlify Blobs. `NETLIFY_DATABASE_URL` is the older Netlify DB (beta).
  */
-const databaseURL = process.env.DATABASE_URL ?? process.env.NETLIFY_DATABASE_URL
+const databaseURL = env('DATABASE_URL') ?? env('NETLIFY_DB_URL') ?? env('NETLIFY_DATABASE_URL')
+if (!databaseURL && (onVercel || onNetlify || env('AWS_LAMBDA_FUNCTION_NAME')))
+  throw new Error(
+    onNetlify
+      ? 'No database: Netlify Database sets NETLIFY_DB_URL when @netlify/database is installed (it needs a credit-based plan). Or set DATABASE_URL to any Postgres, then redeploy'
+      : 'No database: connect one to the project (Storage → Neon), which sets DATABASE_URL, or set DATABASE_URL to any Postgres, then redeploy',
+  )
 
 /**
  * Where uploads go: Vercel Blob on Vercel, Netlify Blobs on Netlify, or the `uploads` folder
@@ -17,8 +35,8 @@ const databaseURL = process.env.DATABASE_URL ?? process.env.NETLIFY_DATABASE_URL
  * saying to connect one (`BLOB_READ_WRITE_TOKEN`), instead of writing where they'd be lost.
  */
 function storage(): StorageAdapter | undefined {
-  if (process.env.BLOB_READ_WRITE_TOKEN || process.env.VERCEL) return vercelBlobStorage()
-  if (process.env.NETLIFY) return netlifyBlobsStorage()
+  if (env('BLOB_READ_WRITE_TOKEN') || onVercel) return vercelBlobStorage()
+  if (onNetlify) return netlifyBlobsStorage()
   return undefined
 }
 
@@ -27,7 +45,8 @@ function storage(): StorageAdapter | undefined {
  * without it gets one made from the database URL, so it works at once.
  */
 function secret(): string {
-  if (process.env.EASY_CMS_SECRET) return process.env.EASY_CMS_SECRET
+  const set = env('EASY_CMS_SECRET')
+  if (set) return set
   if (databaseURL) return createHmac('sha256', databaseURL).update('easy-cms-secret').digest('hex')
   return 'development-secret-change-me-development-secret'
 }

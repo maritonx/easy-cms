@@ -19,7 +19,7 @@ media, SEO, [roles](./roles) and an [audit log](./audit-log)), with sample posts
 
 | | Vercel | Netlify |
 |---|---|---|
-| Database | Neon Postgres, created by the button | Neon Postgres from Netlify DB, created at the first build |
+| Database | Neon Postgres, created by the button | Netlify Database (Postgres), created at the first deploy |
 | Uploads | Vercel Blob, created by the button | Netlify Blobs, created on first use |
 | You type | a setup code | a setup code |
 
@@ -45,6 +45,13 @@ the Blob store wasn't added in the deploy form, or it was connected after the de
    else: anyone with it can change your files.
 4. **Deployments** → **⋯** → **Redeploy**. New environment variables only reach new deployments.
 
+**The site fails with "No database".** The platform gave no database URL. On Netlify, Netlify
+Database is created at the first deploy because the starter installs `@netlify/database`; it needs
+a credit-based plan, and **Data & Storage → Database** shows it. Older sites made from the starter
+used Netlify DB (beta), which can no longer be created: update `package.json` and
+`easy-cms.config.ts` from the [starter](https://github.com/maritonx/easy-cms/tree/main/templates/next-starter),
+or set `DATABASE_URL` to any Postgres, then redeploy.
+
 **`/admin` doesn't ask for a setup code.** `EASY_CMS_SETUP_CODE` isn't set: add it in the project's
 environment variables and redeploy before anyone creates the first admin.
 
@@ -61,8 +68,9 @@ environment variables and redeploy before anyone creates the first admin.
 ## How it works
 
 The build runs `easy-cms migrate`, adds the sample posts while the database has none, then
-`next build`. The config picks the database from `DATABASE_URL` (Vercel) or
-`NETLIFY_DATABASE_URL` (Netlify DB), and uploads from `BLOB_READ_WRITE_TOKEN`
+`next build`. The config picks the database from `DATABASE_URL` (Vercel) or `NETLIFY_DB_URL`
+(Netlify Database, which Netlify creates because the starter installs `@netlify/database`; it
+needs a credit-based Netlify plan), and uploads from `BLOB_READ_WRITE_TOKEN`
 ([`@easy-cms/storage-vercel-blob`](./uploads#vercel-blob)) or Netlify
 ([`@easy-cms/storage-netlify-blobs`](./uploads#netlify-blobs)); without them, it uses PGlite and the
 `uploads` folder, for developing.

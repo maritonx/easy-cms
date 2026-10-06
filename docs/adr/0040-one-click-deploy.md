@@ -13,7 +13,7 @@
 ## การตัดสินใจ
 
 - **template เดียว `templates/next-starter`** (Next.js blog + admin: posts, categories, media, SEO, roles, audit log) อ้างเวอร์ชันจาก npm ปุ่ม Vercel ใช้ `repository-url` แบบ subfolder ปุ่ม Netlify ใช้ `create_from_path` จึงไม่ต้องมี repo แยก
-- **ตรวจแพลตฟอร์มจาก environment:** ฐานข้อมูลจาก `DATABASE_URL` (Neon จาก Vercel Marketplace) หรือ `NETLIFY_DATABASE_URL` (Netlify DB ซึ่งสร้างให้อัตโนมัติเมื่อมี `@netlify/neon`) ไม่มีก็ใช้ PGlite ตอนพัฒนา ไฟล์จาก `BLOB_READ_WRITE_TOKEN` หรือ `NETLIFY`
+- **ตรวจแพลตฟอร์มจาก environment:** ฐานข้อมูลจาก `DATABASE_URL` (Neon จาก Vercel Marketplace) หรือ `NETLIFY_DB_URL` (Netlify Database ซึ่งสร้างให้อัตโนมัติเมื่อมี `@netlify/database`; Netlify DB เดิมที่ใช้ `@netlify/neon`/`NETLIFY_DATABASE_URL` สร้างใหม่ไม่ได้แล้วตั้งแต่เม.ย. 2026 แต่ยังอ่านค่าไว้ให้เว็บเก่า) ไม่มีก็ใช้ PGlite ตอนพัฒนา แต่บน Vercel/Netlify/Lambda ที่ไม่มีฐานข้อมูลจะหยุดพร้อมข้อความบอกวิธีแก้ แทนที่จะเขียน `.pglite` บนดิสก์ที่อ่านได้อย่างเดียว ไฟล์จาก `BLOB_READ_WRITE_TOKEN`/`VERCEL` หรือ `NETLIFY` (ใน function ดูจาก `Netlify` global ด้วย)
 - **package ใหม่:** `@easy-cms/storage-vercel-blob` (public บน CDN หรือ private ผ่าน API, URL สร้างจาก store id ใน token) และ `@easy-cms/storage-netlify-blobs` (consistency แบบ strong เพราะอ่านทันทีหลังอัปโหลด เรียก `getStore` ทุกครั้งเพราะ Netlify ตั้ง context ต่อ request)
 - **ปุ่ม Vercel** ใช้ `stores` สร้าง Neon และ Blob (public) ตามเอกสารของ Vercel (template ของ Neon ใช้พารามิเตอร์ `products` แทน จึงต้องยืนยันด้วยการ deploy จริง)
 - **`auth.setupCode` / `EASY_CMS_SETUP_CODE` ใน core:** ถ้าตั้ง การสร้าง admin คนแรกต้องใช้รหัสนี้ (เทียบแบบ timing-safe จำกัดจำนวนครั้งต่อ IP) ใช้ได้กับทุกโปรเจกต์ เป็นช่องเดียวในฟอร์ม deploy

@@ -12,7 +12,7 @@ A blog with its admin, ready to deploy: posts, categories, media, SEO, roles and
 2. Create the first admin, with the **setup code** you chose when deploying (`EASY_CMS_SETUP_CODE`).
 3. Edit the sample posts, or delete them, and write your own.
 
-The deploy creates a Postgres database (Neon) and a store for uploads (Vercel Blob or Netlify
+The deploy creates a Postgres database (Neon on Vercel, Netlify Database on Netlify) and a store for uploads (Vercel Blob or Netlify
 Blobs). Set `EASY_CMS_SECRET` in the project's settings (`openssl rand -hex 32`) when you use it
 for real; without it, one is made from the database URL.
 

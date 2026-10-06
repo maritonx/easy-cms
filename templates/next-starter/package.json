@@ -19,7 +19,7 @@
     "@easy-cms/storage-netlify-blobs": "^0.37.1",
     "@easy-cms/storage-vercel-blob": "^0.37.1",
     "@electric-sql/pglite": "^0.5.8",
-    "@netlify/neon": "^0.1.2",
+    "@netlify/database": "^2.0.1",
     "easy-cms": "^0.37.1",
     "next": "^16.3.6",
     "react": "^19.3.0",

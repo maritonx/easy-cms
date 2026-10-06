@@ -17,7 +17,7 @@
 
 | | Vercel | Netlify |
 |---|---|---|
-| ฐานข้อมูล | Neon Postgres ที่ปุ่มสร้างให้ | Neon Postgres จาก Netlify DB สร้างตอน build ครั้งแรก |
+| ฐานข้อมูล | Neon Postgres ที่ปุ่มสร้างให้ | Netlify Database (Postgres) สร้างตอน deploy ครั้งแรก |
 | ไฟล์อัปโหลด | Vercel Blob ที่ปุ่มสร้างให้ | Netlify Blobs สร้างตอนใช้ครั้งแรก |
 | สิ่งที่ต้องกรอก | รหัส setup | รหัส setup |
 
@@ -41,6 +41,12 @@
    ของคุณได้
 4. **Deployments** → **⋯** → **Redeploy** เพราะ environment variable ใหม่มีผลกับ deployment ใหม่เท่านั้น
 
+**เว็บล้มพร้อมข้อความ "No database"** แปลว่าแพลตฟอร์มไม่ได้ให้ URL ฐานข้อมูล บน Netlify ฐานข้อมูล Netlify Database
+จะถูกสร้างตอน deploy ครั้งแรกเพราะ starter ติดตั้ง `@netlify/database` ไว้ ต้องใช้แพ็กเกจแบบ credit-based และดูได้ที่
+**Data & Storage → Database** เว็บเก่าที่สร้างจาก starter ใช้ Netlify DB (beta) ซึ่งสร้างใหม่ไม่ได้แล้ว ให้อัปเดต
+`package.json` และ `easy-cms.config.ts` ตาม [starter](https://github.com/maritonx/easy-cms/tree/main/templates/next-starter)
+หรือตั้ง `DATABASE_URL` เป็น Postgres ใดก็ได้ แล้ว redeploy
+
 **`/admin` ไม่ถามรหัส setup** แปลว่ายังไม่ได้ตั้ง `EASY_CMS_SETUP_CODE` ให้เพิ่มใน environment variable ของโปรเจกต์
 แล้ว redeploy ก่อนที่จะมีใครสร้าง admin คนแรก
 
@@ -57,7 +63,8 @@
 ## ทำงานอย่างไร {#how-it-works}
 
 ขั้น build รัน `easy-cms migrate` ใส่บทความตัวอย่างเมื่อฐานข้อมูลยังไม่มีบทความ แล้วจึง `next build` config เลือกฐาน
-ข้อมูลจาก `DATABASE_URL` (Vercel) หรือ `NETLIFY_DATABASE_URL` (Netlify DB) และเลือกที่เก็บไฟล์จาก
+ข้อมูลจาก `DATABASE_URL` (Vercel) หรือ `NETLIFY_DB_URL` (Netlify Database ซึ่ง Netlify สร้างให้เพราะ starter ติดตั้ง
+`@netlify/database` ต้องใช้แพ็กเกจ Netlify แบบ credit-based) และเลือกที่เก็บไฟล์จาก
 `BLOB_READ_WRITE_TOKEN` ([`@easy-cms/storage-vercel-blob`](./uploads#vercel-blob)) หรือ Netlify
 ([`@easy-cms/storage-netlify-blobs`](./uploads#netlify-blobs)) ถ้าไม่มีจะใช้ PGlite และโฟลเดอร์ `uploads` สำหรับตอนพัฒนา
 
