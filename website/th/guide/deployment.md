@@ -6,6 +6,8 @@
 **ควรอ่านก่อน:** [ฐานข้อมูล](./databases)
 :::
 
+ถ้าต้องการลองบน Vercel หรือ Netlify ในไม่กี่คลิก โดยมีฐานข้อมูลและที่เก็บไฟล์สร้างให้ ใช้ [deploy ด้วยคลิกเดียว](./one-click-deploy)
+
 ## ช่วงพัฒนา: อัตโนมัติ {#development-automatic}
 
 ระหว่างพัฒนา (`NODE_ENV` ไม่ใช่ `production`) Easy CMS จะปรับฐานข้อมูลให้ตรงกับ
@@ -56,7 +58,9 @@ field ที่เปลี่ยนไปถูกเปลี่ยนชื�
 - เริ่ม server **จาก root ของโปรเจกต์**: path ฐานข้อมูลแบบ relative, migration และไฟล์ที่อัปโหลด
   อ้างอิงจาก working directory
 - ไฟล์ที่อัปโหลดลงดิสก์ในเครื่องต้องใช้ persistent volume บนแพลตฟอร์ม serverless ให้ใช้
-  [S3 storage](./uploads#s3-cloudflare-r2-and-minio)
+  [S3 storage](./uploads#s3-cloudflare-r2-and-minio), [Vercel Blob](./uploads#vercel-blob) หรือ
+  [Netlify Blobs](./uploads#netlify-blobs)
+- ตั้ง `EASY_CMS_SETUP_CODE` ไว้จนกว่าจะมี admin คนแรก กันคนอื่นแย่งเว็บ
 - build บน OS และสถาปัตยกรรมเดียวกับ server เมื่อใช้ SQLite (native driver)
 - เมื่ออยู่หลัง proxy ที่เชื่อถือได้ ให้เปิด `trustProxy` เพื่อจำกัดอัตราการเข้าสู่ระบบแยกตาม IP
 - ตั้งค่า `auth.trustedOrigins` หากหน้า admin หรือ frontend เรียก API จาก origin อื่น

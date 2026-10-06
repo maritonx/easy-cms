@@ -96,6 +96,7 @@ describe('first admin', () => {
       passwordReset: false,
       providers: [],
       password: true,
+      setupCode: false,
     })
     const first = await call('/users/first-register', {
       method: 'POST',
@@ -109,6 +110,7 @@ describe('first admin', () => {
       passwordReset: false,
       providers: [],
       password: true,
+      setupCode: false,
     })
 
     const again = await call('/users/first-register', {

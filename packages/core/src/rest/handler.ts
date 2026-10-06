@@ -328,6 +328,8 @@ async function route(
             // Buttons to sign in with outside accounts; `password: false`: only admins use one.
             providers: cms.auth.sso.providers(),
             password: cms.config.auth.password,
+            // The first admin needs the setup code (`EASY_CMS_SETUP_CODE`).
+            setupCode: cms.config.auth.setupCode !== '',
           },
         }
       // Forgot password: the same answer whether or not the email has an account.
@@ -369,6 +371,8 @@ async function route(
           email: String(body.email ?? ''),
           password: String(body.password ?? ''),
           ...(typeof body.name === 'string' ? { name: body.name } : {}),
+          ...(typeof body.setupCode === 'string' ? { setupCode: body.setupCode } : {}),
+          ip: options.getClientIp?.(ctx.request),
         })
         setSessionCookies(cms, ctx, session)
         return {

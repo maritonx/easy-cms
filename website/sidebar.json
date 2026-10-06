@@ -15,6 +15,13 @@
           }
         },
         {
+          "path": "guide/one-click-deploy",
+          "title": {
+            "en": "One-click deploy",
+            "th": "Deploy ด้วยคลิกเดียว"
+          }
+        },
+        {
           "path": "guide/getting-started",
           "title": {
             "en": "Getting started",

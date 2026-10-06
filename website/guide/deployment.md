@@ -6,6 +6,9 @@ How schema changes are applied in development and shipped as migrations to produ
 **Before this page:** [Databases](./databases).
 :::
 
+To try it on Vercel or Netlify in a few clicks, with a database and storage made for you, use
+the [one-click deploy](./one-click-deploy).
+
 ## Development: automatic
 
 While developing (`NODE_ENV` is not `production`), Easy CMS brings the database in line with
@@ -56,7 +59,9 @@ When `EASY_CMS_SECRET` is missing, the API answers `500` and the log says
 - Start the server **from the project root**: relative database paths, migrations and uploads
   resolve from the working directory
 - Uploads on local disk need a persistent volume; on serverless platforms use
-  [S3 storage](./uploads#s3-cloudflare-r2-and-minio)
+  [S3 storage](./uploads#s3-cloudflare-r2-and-minio), [Vercel Blob](./uploads#vercel-blob) or
+  [Netlify Blobs](./uploads#netlify-blobs)
+- `EASY_CMS_SETUP_CODE` set until the first admin exists, so nobody else can claim the site
 - Build on the same OS and architecture as the server when using SQLite (native driver)
 - Behind a trusted proxy, enable `trustProxy` for per-IP login rate limiting
 - Set `auth.trustedOrigins` if the admin or frontend call the API from another origin

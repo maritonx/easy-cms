@@ -1,9 +1,9 @@
 # Software Requirements Specification — Easy CMS
 
-- **เวอร์ชันเอกสาร:** 3.11
+- **เวอร์ชันเอกสาร:** 3.12
 - **วันที่:** 2026-10-05
 - **ผู้เขียน:** Kanawoot K.
-- **ครอบคลุม:** v0.1 (baseline) ถึง v0.36
+- **ครอบคลุม:** v0.1 (baseline) ถึง v0.37
 - **สถานะ:** Living document (อัปเดตทุกครั้งที่เพิ่มฟีเจอร์)
 - **เอกสารที่เกี่ยวข้อง:** [DESIGN.md](DESIGN.md), [ADRs](adr/)
 
@@ -443,6 +443,8 @@ AI assistant ► /api/cms/mcp ──┘                     └──► Webhook
 | FR-INS-11 | `create-easy-cms` ต้องรองรับ npm, pnpm, Yarn (1 และ 2+ แบบ node-modules) และ Bun: เลือกจาก `--pm`, `packageManager`, lockfile หรือ user agent ติดตั้งและแสดงขั้นต่อไปด้วยคำสั่งของตัวนั้น และบอกวิธีติดตั้งเมื่อไม่พบ | 0.22 | MUST |
 | FR-INS-12 | CI ต้องทดสอบการสร้างโปรเจกต์ ติดตั้ง migrate และรัน server ด้วยทั้ง 4 ตัวจาก registry จำลอง | 0.22 | MUST |
 | FR-INS-13 | บล็อกคำสั่งในเอกสารต้องมีแท็บ npm, pnpm, Yarn และ Bun ที่แปลงด้วยกฎเดียวกับ CLI และจำตัวที่เลือก | 0.22 | SHOULD |
+| FR-INS-14 | ต้องมีปุ่ม Deploy to Vercel และ Deploy to Netlify ที่ได้เว็บพร้อมหน้า admin ฐานข้อมูล Postgres และที่เก็บไฟล์ โดยกรอกแค่รหัส setup ([ADR-0040](adr/0040-one-click-deploy.md)) | 0.37 | SHOULD |
+| FR-INS-15 | CI ต้องทดสอบ template ของปุ่ม deploy กับ package ของ commit นั้น (build, start, หน้าเว็บ) และการออกรุ่นต้องอัปเดตเวอร์ชันใน template | 0.37 | MUST |
 | FR-SEO-13 | `seoMeta({ breadcrumbs })` ต้องสร้าง BreadcrumbList JSON-LD | 0.21 | SHOULD |
 
 ### 3.23e Upload หลายไฟล์ (UPL) — [ADR-0026](adr/0026-upload-has-many.md)
@@ -464,6 +466,7 @@ AI assistant ► /api/cms/mcp ──┘                     └──► Webhook
 | FR-AUTH-14 | ผู้ใช้ต้องเข้าสู่ระบบหน้า admin ด้วยผู้ให้บริการใน `auth.providers` ได้ (OIDC, Google, Microsoft, GitHub) จับคู่ด้วย `sub` หรืออีเมลที่ยืนยันแล้ว และสร้างผู้ใช้ใหม่ได้เฉพาะโดเมนใน `allowSignUp` ([ADR-0038](adr/0038-single-sign-on.md)) | 0.35 | SHOULD |
 | FR-AUTH-15 | `auth.password: false` ต้องให้เฉพาะ admin ใช้รหัสผ่าน และคำเชิญต้องชี้ไปที่การเข้าสู่ระบบด้วยผู้ให้บริการ | 0.35 | SHOULD |
 | FR-AUTH-16 | ผู้ใช้ต้องเชื่อมและยกเลิกบัญชีภายนอกได้ในหน้า Account (ยกเลิกทางเข้าสุดท้ายไม่ได้) และ admin ต้องเห็น callback URL ใน ตั้งค่า → SSO | 0.35 | SHOULD |
+| FR-AUTH-17 | ถ้าตั้ง `auth.setupCode` (`EASY_CMS_SETUP_CODE`) การสร้าง admin คนแรกต้องใช้รหัสนั้น และจำกัดจำนวนครั้งที่ลองผิด ([ADR-0040](adr/0040-one-click-deploy.md)) | 0.37 | MUST |
 | NFR-SEC-12 | การเข้าสู่ระบบด้วยผู้ให้บริการต้องใช้ Authorization Code + PKCE + `state` + `nonce` ตรวจ ID token ด้วย key ของผู้ให้บริการ redirect ได้เฉพาะหน้าใน admin และการเชื่อมบัญชีต้องผ่าน CSRF | 0.35 | MUST |
 | NFR-SEC-11 | บน production ลิงก์ต้องสร้างจาก `serverURL` เท่านั้น ไม่ใช้ Host ของ request และต้องจำกัดจำนวนคำขอต่ออีเมลและ IP | 0.24 | MUST |
 
@@ -735,6 +738,7 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 0.18 | SEO สำหรับ AI: crawler ของ AI, llms.txt, Markdown, IndexNow | FR-SEO-09..12 | [0021](adr/0021-seo-for-ai.md) |
 | 0.19 | Redirects plugin, `admin.group: 'settings'` | FR-RDR-*, FR-ADM-19 | [0022](adr/0022-redirects-plugin.md) |
 | 0.20 | อีเมลใน core, email-smtp, form builder | FR-EML-*, FR-FRM-*, FR-STA-06 | [0023](adr/0023-email-and-form-builder.md) |
+| 0.37 | Deploy ด้วยคลิกเดียว: template Next.js, Vercel Blob, Netlify Blobs, รหัส setup | FR-AUTH-17, FR-INS-14..15 | [0040](adr/0040-one-click-deploy.md) |
 | 0.36 | Audit log: การเปลี่ยนแปลงระดับ field การเข้าสู่ระบบ การจัดการระบบ ลายเซ็น และการเตือน | FR-OPS-05, NFR-SEC-13 | [0039](adr/0039-audit-log.md) |
 | 0.35 | Single sign-on: `@easy-cms/auth-oauth` (OIDC, Google, Microsoft, GitHub), `auth.password: false` | FR-AUTH-14..16, NFR-SEC-12 | [0038](adr/0038-single-sign-on.md) |
 | 0.34 | เฉพาะเอกสารของตัวเอง (`createdBy`, `ownerField`), สิทธิ์ระดับ field, โอนเอกสารเมื่อลบผู้ใช้ | FR-ACL-10..13 | [0037](adr/0037-own-documents-and-field-permissions.md) |
@@ -764,6 +768,7 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 1.3 | 2026-09-25 | M5: FR-REST-08 (อัปโหลด/ไฟล์), FR-CFG-07 (`routes.api`, `serverURL`), ระบุว่า drafts ใน v0.1 ไม่มี version แยก |
 | 1.4 | 2026-09-25 | M6: ผลวัด NFR-PERF-01/02 บน Postgres 17 (Local API p95 2.7 ms, REST p95 4.3 ms), Next.js adapter ใช้ `getEasyCMS(config)` |
 | 1.5 | 2026-09-25 | M7: ผลตรวจรับ v0.1 (7.1) |
+| 3.12 | 2026-10-06 | 0.37: FR-AUTH-17, FR-INS-14..15 |
 | 3.11 | 2026-10-05 | 0.36: FR-OPS-05, NFR-SEC-13 |
 | 3.10 | 2026-10-05 | 0.35: FR-AUTH-14..16, NFR-SEC-12 |
 | 3.9 | 2026-10-05 | 0.34: FR-ACL-10..13 |

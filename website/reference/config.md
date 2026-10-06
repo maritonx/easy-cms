@@ -122,6 +122,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `providers` | `AuthProvider[]` | `[]` | Signing in to the admin with outside accounts, e.g. `[google()]` from `@easy-cms/auth-oauth`. [Single sign-on](/guide/sso) |
 | `allowSignUp` | `{ domains, role? }` | — | With `providers`: people from these email domains get an account on their first sign-in, with `role` (not `admin`). |
 | `password` | `boolean` | `true` | `false`: only admins sign in with a password; everyone else uses `providers`. |
+| `setupCode` | `string` | `EASY_CMS_SETUP_CODE` | The code the first admin must enter on `/admin`, so nobody else claims a fresh site. Without one, no code is asked. [One-click deploy](/guide/one-click-deploy) |
 | `tokenExpiration` | `number` | `604800` (7 days) | Session lifetime in seconds. |
 | `maxLoginAttempts` | `number` | `5` | Failed logins allowed per email (and IP) within `lockWindow`. |
 | `lockWindow` | `number` | `900` (15 minutes) | In seconds. |

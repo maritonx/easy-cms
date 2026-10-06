@@ -383,6 +383,12 @@ export interface AuthConfig {
    * everyone else signs in with `providers`. Default `true`.
    */
   readonly password?: boolean
+  /**
+   * A code the first admin must enter to create their account, so nobody else can claim a
+   * freshly deployed site. Default: the `EASY_CMS_SETUP_CODE` environment variable; without it,
+   * no code is asked.
+   */
+  readonly setupCode?: string
   /** Your own text for the password emails, e.g. in your brand's voice. Default: English or Thai. */
   readonly emails?: {
     readonly resetPassword?: PasswordEmailFn

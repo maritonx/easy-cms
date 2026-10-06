@@ -67,6 +67,7 @@ describe('forgot password', () => {
       passwordReset: true,
       providers: [],
       password: true,
+      setupCode: false,
     })
   })
 

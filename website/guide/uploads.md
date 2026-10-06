@@ -211,6 +211,32 @@ server is not involved. Serve it from a **different domain** than your site: the
 Content Security Policy is not applied there, so an uploaded SVG could otherwise run scripts
 with your site's origin.
 
+## Vercel Blob
+
+On Vercel, whose disk doesn't keep files, connect a Blob store to the project (Storage → Blob):
+it sets `BLOB_READ_WRITE_TOKEN`.
+
+```ts
+import { vercelBlobStorage } from '@easy-cms/storage-vercel-blob'
+
+upload: { storage: vercelBlobStorage() }, // public files on the Blob CDN
+```
+
+`vercelBlobStorage({ access: 'private', prefix: 'backups/' })` keeps files private (served through
+the API), e.g. for `backups.storage`.
+
+## Netlify Blobs
+
+On Netlify, Blobs need no setup:
+
+```ts
+import { netlifyBlobsStorage } from '@easy-cms/storage-netlify-blobs'
+
+upload: { storage: netlifyBlobsStorage() }, // served through <api>/media/file/…
+```
+
+Outside Netlify's runtime (a script, another host), pass `siteID` and a personal access `token`.
+
 ## Custom storage
 
 Implement `StorageAdapter` (`put`, `get`, `delete`, optional `url` and `init`) and pass it as

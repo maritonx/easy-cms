@@ -30,6 +30,7 @@ import {
   passwordFingerprint,
   passwordTokenMatches,
   readPasswordToken,
+  safeEqual,
   signPasswordToken,
   signToken,
   unsignToken,
@@ -144,13 +145,27 @@ export class Auth {
     return session
   }
 
-  /** Creates the first admin. Only works while there are no users. */
+  /**
+   * Creates the first admin. Only works while there are no users, and with `auth.setupCode`
+   * (`EASY_CMS_SETUP_CODE`) only with that code.
+   */
   async registerFirstUser(args: {
     email: string
     password: string
     name?: string
+    setupCode?: string
+    ip?: string | undefined
   }): Promise<Session> {
     if (await this.hasUsers()) throw new ForbiddenError('An admin already exists')
+    const code = this.config.auth.setupCode
+    if (code) {
+      const key = `setup|${args.ip ?? ''}`
+      await this.checkRateLimit(key)
+      if (!safeEqual(String(args.setupCode ?? ''), code)) {
+        await this.recordFailure(key)
+        throw new ValidationError(USERS, [{ field: 'setupCode', message: 'is not the setup code' }])
+      }
+    }
     const user = await this.cms.create(USERS, {
       email: args.email,
       password: args.password,

@@ -205,6 +205,31 @@ request
 แบบ sandbox ไม่ได้ถูกใช้ที่นั่น มิฉะนั้น SVG ที่อัปโหลดมาอาจรันสคริปต์ภายใต้ origin
 ของเว็บไซต์คุณได้
 
+## Vercel Blob {#vercel-blob}
+
+บน Vercel ซึ่งดิสก์ไม่เก็บไฟล์ถาวร ให้เชื่อม Blob store กับโปรเจกต์ (Storage → Blob) ระบบจะตั้ง `BLOB_READ_WRITE_TOKEN` ให้
+
+```ts
+import { vercelBlobStorage } from '@easy-cms/storage-vercel-blob'
+
+upload: { storage: vercelBlobStorage() }, // ไฟล์สาธารณะบน CDN ของ Blob
+```
+
+`vercelBlobStorage({ access: 'private', prefix: 'backups/' })` เก็บไฟล์แบบส่วนตัว (เสิร์ฟผ่าน API) เช่น สำหรับ
+`backups.storage`
+
+## Netlify Blobs {#netlify-blobs}
+
+บน Netlify ใช้ Blobs ได้โดยไม่ต้องตั้งค่า:
+
+```ts
+import { netlifyBlobsStorage } from '@easy-cms/storage-netlify-blobs'
+
+upload: { storage: netlifyBlobsStorage() }, // เสิร์ฟผ่าน <api>/media/file/…
+```
+
+นอก runtime ของ Netlify (สคริปต์ หรือ host อื่น) ให้ส่ง `siteID` และ personal access `token`
+
 ## การจัดเก็บแบบกำหนดเอง {#custom-storage}
 
 implement `StorageAdapter` (`put`, `get`, `delete` และ `url` กับ `init` ที่ไม่บังคับ) แล้วส่งเป็น

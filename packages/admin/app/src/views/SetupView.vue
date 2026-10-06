@@ -4,12 +4,13 @@ import { useRouter } from 'vue-router'
 import AuthCard from '../components/AuthCard.vue'
 import { ApiError } from '../lib/api'
 import { t } from '../lib/i18n'
-import { registerFirstUser } from '../lib/session'
+import { registerFirstUser, session } from '../lib/session'
 
 const router = useRouter()
 const name = ref('')
 const email = ref('')
 const password = ref('')
+const setupCode = ref('')
 const errors = ref<Record<string, string[]>>({})
 const error = ref('')
 const busy = ref(false)
@@ -23,6 +24,7 @@ async function submit() {
       email: email.value,
       password: password.value,
       ...(name.value ? { name: name.value } : {}),
+      ...(session.setupCode ? { setupCode: setupCode.value } : {}),
     })
     await router.replace('/')
   } catch (e) {
@@ -43,6 +45,13 @@ async function submit() {
     <p class="muted intro">{{ t('setup.intro') }}</p>
     <form class="form" @submit.prevent="submit">
       <p v-if="error" class="notice notice-error" role="alert">{{ error }}</p>
+      <!-- A freshly deployed site: only whoever deployed it knows the code. -->
+      <label v-if="session.setupCode" class="field">
+        <span class="field-label">{{ t('setup.code') }}</span>
+        <input v-model="setupCode" class="input" autocomplete="off" required :aria-invalid="!!errors.setupCode" />
+        <span class="field-hint">{{ t('setup.codeHint') }}</span>
+        <span v-for="m in errors.setupCode" :key="m" class="field-error">{{ m }}</span>
+      </label>
       <label class="field">
         <span class="field-label">{{ t('setup.name') }}</span>
         <input v-model="name" class="input" autocomplete="name" />

@@ -1,0 +1,50 @@
+{
+  "name": "@easy-cms/storage-vercel-blob",
+  "version": "0.36.0",
+  "description": "Vercel Blob upload storage for Easy CMS",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@vercel/blob": "^2.8.0"
+  },
+  "peerDependencies": {
+    "@easy-cms/core": "workspace:^"
+  },
+  "devDependencies": {
+    "@easy-cms/core": "workspace:^"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maritonx/easy-cms.git",
+    "directory": "packages/storage-vercel-blob"
+  },
+  "keywords": [
+    "easy-cms",
+    "storage",
+    "uploads",
+    "vercel",
+    "blob"
+  ]
+}

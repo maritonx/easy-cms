@@ -13,7 +13,7 @@
     "lint": "biome check .",
     "format": "biome check --write .",
     "changeset": "changeset",
-    "version-packages": "changeset version",
+    "version-packages": "changeset version && node scripts/sync-template.mjs",
     "release": "turbo run build && changeset publish",
     "test:e2e": "pnpm --filter easy-cms-e2e test:e2e",
     "docs:screenshots": "pnpm --filter easy-cms-e2e screenshots"

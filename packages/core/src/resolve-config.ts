@@ -105,6 +105,7 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
       providers: config.auth?.providers ?? [],
       allowSignUp: config.auth?.allowSignUp ?? { domains: [] },
       password: config.auth?.password !== false,
+      setupCode: config.auth?.setupCode ?? process.env.EASY_CMS_SETUP_CODE ?? '',
       tokenExpiration: config.auth?.tokenExpiration ?? DEFAULT_TOKEN_EXPIRATION,
       maxLoginAttempts: config.auth?.maxLoginAttempts ?? 5,
       lockWindow: config.auth?.lockWindow ?? 15 * 60,

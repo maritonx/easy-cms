@@ -1,0 +1,9 @@
+.env
+.next/
+.pglite/
+next-env.d.ts
+uploads/
+tsconfig.tsbuildinfo
+node_modules/
+.vercel/
+.netlify/

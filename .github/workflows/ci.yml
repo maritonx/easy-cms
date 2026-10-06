@@ -150,6 +150,22 @@ jobs:
 
   # A user's path with each package manager: `<pm> create easy-cms`, install, migrate, serve.
   # The packages come from this commit, published to a local registry (Verdaccio).
+  template:
+    # templates/next-starter (the one-click deploy) with this commit's packages: build, start, pages.
+    needs: scope
+    if: needs.scope.outputs.full == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo run build --filter="./packages/*"
+      - run: node scripts/check-template.mjs
+
   smoke:
     needs: scope
     if: needs.scope.outputs.full == 'true'

@@ -20,6 +20,8 @@ interface SessionState {
   providers: SsoProviderRef[]
   /** `false`: only admins sign in with a password (`auth.password: false`). */
   password: boolean
+  /** Creating the first admin needs the setup code (`EASY_CMS_SETUP_CODE`). */
+  setupCode: boolean
   schema: AdminSchema | null
 }
 
@@ -30,6 +32,7 @@ export const session = reactive<SessionState>({
   passwordReset: false,
   providers: [],
   password: true,
+  setupCode: false,
   schema: null,
 })
 
@@ -48,11 +51,13 @@ export async function loadSession(): Promise<void> {
       passwordReset?: boolean
       providers?: SsoProviderRef[]
       password?: boolean
+      setupCode?: boolean
     }>('GET', '/users/init')
     session.hasUsers = init.hasUsers
     session.passwordReset = init.passwordReset === true
     session.providers = init.providers ?? []
     session.password = init.password !== false
+    session.setupCode = init.setupCode === true
   }
   session.loaded = true
 }
@@ -73,7 +78,12 @@ export async function resetPassword(token: string, password: string, locale: str
   await loadSession()
 }
 
-export async function registerFirstUser(data: { email: string; password: string; name?: string }) {
+export async function registerFirstUser(data: {
+  email: string
+  password: string
+  name?: string
+  setupCode?: string
+}) {
   await api('POST', '/users/first-register', data)
   await loadSession()
 }

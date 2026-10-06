@@ -21,6 +21,9 @@ your repository, the admin and APIs come with it, and there is no extra server t
 [Examples](#examples) ·
 [Sponsor](https://github.com/sponsors/maritonx)
 
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fmaritonx%2Feasy-cms%2Ftree%2Fmain%2Ftemplates%2Fnext-starter&project-name=easy-cms&repository-name=easy-cms&env=EASY_CMS_SETUP_CODE&envDescription=A+code+you+choose%3A+you+type+it+to+create+the+first+admin+at+%2Fadmin&envLink=https%3A%2F%2Fmaritonx.github.io%2Feasy-cms%2Fguide%2Fone-click-deploy&stores=%5B%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22neon%22%2C%22productSlug%22%3A%22neon%22%2C%22protocol%22%3A%22storage%22%7D%2C%7B%22type%22%3A%22blob%22%2C%22access%22%3A%22public%22%7D%5D)
+[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/maritonx/easy-cms&create_from_path=templates/next-starter)
+
 </div>
 
 <picture>
@@ -47,6 +50,10 @@ your repository, the admin and APIs come with it, and there is no extra server t
 > [Backups & upgrades](https://maritonx.github.io/easy-cms/guide/backups) before upgrading.
 
 ## Quick start
+
+To try it without installing anything, use the **Deploy** buttons above: a blog with its admin on
+Vercel or Netlify, with a database and file storage made for you
+([one-click deploy](https://maritonx.github.io/easy-cms/guide/one-click-deploy)).
 
 In a Nuxt 4 or Next.js 15+ project:
 
@@ -172,6 +179,8 @@ also add field types, such as `color` from [`@easy-cms/fields`](packages/fields)
 | [`@easy-cms/db-sqlite`](packages/db-sqlite) | SQLite / libSQL database adapter |
 | [`@easy-cms/db-postgres`](packages/db-postgres) | Postgres adapter (postgres.js or PGlite) |
 | [`@easy-cms/storage-s3`](packages/storage-s3) | Uploads on S3, Cloudflare R2 or MinIO |
+| [`@easy-cms/storage-vercel-blob`](packages/storage-vercel-blob) | Uploads on Vercel Blob |
+| [`@easy-cms/storage-netlify-blobs`](packages/storage-netlify-blobs) | Uploads on Netlify Blobs |
 | [`@easy-cms/email-smtp`](packages/email-smtp) | Email over SMTP |
 | [`@easy-cms/auth-oauth`](packages/auth-oauth) | Single sign-on: Google, Microsoft, GitHub, OpenID Connect |
 | [`@easy-cms/richtext`](packages/richtext) | Rich text to safe HTML or Markdown |

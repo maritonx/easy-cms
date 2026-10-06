@@ -11,8 +11,8 @@ const { isDark } = useData()
 
 const COPY = {
   en: {
-    badge: 'New in 0.36: an audit log of who changed what, and when',
-    badgeLink: 'audit-log',
+    badge: 'New in 0.37: deploy to Vercel or Netlify in one click',
+    badgeLink: 'one-click-deploy',
     title: 'Your CMS,',
     titleAccent: 'inside your app',
     tagline:
@@ -186,8 +186,8 @@ const COPY = {
     ctaGuide: 'Read the guide',
   },
   th: {
-    badge: 'ใหม่ใน 0.36: audit log บันทึกว่าใครแก้อะไรเมื่อไร',
-    badgeLink: 'audit-log',
+    badge: 'ใหม่ใน 0.37: deploy ขึ้น Vercel หรือ Netlify ในคลิกเดียว',
+    badgeLink: 'one-click-deploy',
     title: 'CMS ที่อยู่',
     titleAccent: 'ในแอปของคุณ',
     tagline: 'กำหนดเนื้อหาด้วย TypeScript ได้หน้า admin, API ที่มี type และ plugin โดยไม่ต้องดูแล server แยก',

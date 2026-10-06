@@ -27,6 +27,7 @@ describe('resolveConfig', () => {
       providers: [],
       allowSignUp: { domains: [] },
       password: true,
+      setupCode: '',
       tokenExpiration: 7 * 24 * 60 * 60,
       maxLoginAttempts: 5,
       lockWindow: 15 * 60,

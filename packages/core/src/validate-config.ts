@@ -326,6 +326,8 @@ function validateAuth(config: Config, add: Add) {
     add('auth.rbac', 'must be true or false')
   if (auth.password !== undefined && typeof auth.password !== 'boolean')
     add('auth.password', 'must be true or false')
+  if (auth.setupCode !== undefined && typeof auth.setupCode !== 'string')
+    add('auth.setupCode', 'must be a string')
   const providers: unknown = auth.providers
   if (providers !== undefined) {
     if (!Array.isArray(providers)) {

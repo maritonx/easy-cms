@@ -1,0 +1,11 @@
+# Netlify: Next.js, a Neon database from Netlify DB (installed with @netlify/neon, which sets
+# NETLIFY_DATABASE_URL), and uploads in Netlify Blobs.
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[template]
+  required-extensions = ["neon"]
+
+[template.environment]
+  EASY_CMS_SETUP_CODE = "A code you choose: you type it to create the first admin at /admin"
