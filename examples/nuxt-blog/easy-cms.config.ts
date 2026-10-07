@@ -38,6 +38,8 @@ export default defineConfig({
     fromURL: { allowedHosts: ['*'] },
     // Folders in the media library; admins choose which roles use each (Settings → Roles).
     folders: true,
+    // Images, documents (PDF, Word, Excel, PowerPoint, CSV…), audio and video.
+    mimeTypes: ['image/*', 'documents', 'audio/*', 'video/*'],
   },
   // Settings → Backups: a compressed copy of the database every night, the newest 7 kept.
   backups: { every: 'day', at: '03:00', keep: 7 },

@@ -1,7 +1,7 @@
 # Uploads & media
 
 ::: info What you'll learn
-The media library and its folders, image sizes, file limits, and storing files on disk or S3, Cloudflare R2 and MinIO.
+The media library, its folders and file types, image sizes, file limits, and storing files on disk or S3, Cloudflare R2 and MinIO.
 
 **Before this page:** [Fields](./fields).
 :::
@@ -14,7 +14,18 @@ Files live in the built-in `media` collection. Link them with `upload` fields:
 { name: 'cover', type: 'upload' }
 ```
 
-Editors upload in the admin's Media library (drag and drop) or from an upload field's picker.
+Editors upload in the admin's Media library or from an upload field's picker: choose or drop
+several files at once. They upload three at a time, each with its progress; a file can be
+cancelled, and one that failed tried again. Files larger than `upload.maxFileSize` are refused
+before they are sent. The files just uploaded stay selected, ready to move to a folder.
+
+The Media page shows a grid of cards (pictures, or an icon in each file type's color) or, with
+the switch beside the search, a table. A file's page previews it by type: images, a player for
+audio and video, the browser's PDF viewer, the start of text and CSV files (CSV as a table, Thai
+text from Excel read as Windows-874). Word, Excel, PowerPoint and zip files show their icon and a
+**Download** button; they are never sent to an outside viewer.
+
+<Screenshot name="media-preview" alt="A CSV file's page: its first rows as a table" />
 
 ## Several files: galleries
 
@@ -171,10 +182,42 @@ set it if every user who can upload may reach your internal network.
 `allowPrivate`. Called with `user` and `overrideAccess: false`, as the REST API does, it needs
 both.
 
+## File types
+
+Easy CMS recognizes these from their contents:
+
+| | Types |
+|---|---|
+| Images | JPEG, PNG, GIF, WebP, AVIF, SVG |
+| Documents | PDF; Word, Excel, PowerPoint (`docx`, `xlsx`, `pptx`); OpenDocument (`odt`, `ods`, `odp`); CSV; text |
+| Audio | MP3, WAV, Ogg, M4A |
+| Video | MP4, WebM, MOV |
+| Archives | zip |
+
+Older Office files (`doc`, `xls`, `ppt`) are not recognized. Allow what you need with MIME types,
+`type/*`, or these groups:
+
+```ts
+upload: {
+  // documents: PDF, Word, Excel, PowerPoint, OpenDocument, CSV and text
+  // office: docx, xlsx, pptx · archives: zip
+  mimeTypes: ['image/*', 'documents', 'audio/*', 'video/*'],
+}
+```
+
+An upload field's `mimeTypes` takes the same names, e.g. `{ type: 'upload', mimeTypes: ['office'] }`.
+
+::: tip Large files on serverless hosts
+Each request to a Vercel function can carry about 4.5 MB, whatever `maxFileSize` says, so long
+videos won't upload there. Host them elsewhere (a video platform, or your storage directly) and
+link to them.
+:::
+
 ## What happens to a file
 
 - **The type is detected from the contents**, not the name or the client's Content-Type. It must
-  match `upload.mimeTypes` (default `image/*`, `application/pdf`).
+  match `upload.mimeTypes` (default `image/*`, `application/pdf`). Only CSV is told apart from
+  plain text by its name.
 - **Size** is limited by `upload.maxFileSize` (default 10 MB); larger files get `413`.
 - **Names** become `<name>-<random>.<detected extension>`, so they are safe and unique, and
   Thai names stay readable.
@@ -216,7 +259,9 @@ writable by logged-in users; declare a `media` collection to change that or add 
 ## Serving and storage
 
 Files are served at `/api/cms/media/file/<name>` with long-lived caching and a sandboxing Content
-Security Policy, so an uploaded SVG can't run scripts. Set `serverURL` for absolute URLs.
+Security Policy, so an uploaded SVG can't run scripts. PDFs are served without it: browsers won't
+show a PDF in a sandbox, and their PDF viewers run apart from your site. Set `serverURL` for
+absolute URLs.
 
 The default storage is the local disk (`upload.dir`, default `uploads/`), which needs a persistent
 filesystem. On serverless hosts (Vercel, Netlify) and in containers without a volume, use S3.

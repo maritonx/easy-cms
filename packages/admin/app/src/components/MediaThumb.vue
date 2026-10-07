@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import { Play } from '@lucide/vue'
 import { computed } from 'vue'
+import { extensionOf, fileKind, KIND_ICON } from '../lib/filetypes'
 import { t } from '../lib/i18n'
 
 type Media = Record<string, unknown>
 
-const props = withDefaults(defineProps<{ media: Media; size?: 'small' | 'large' }>(), {
+const props = withDefaults(defineProps<{ media: Media; size?: 'small' | 'card' | 'large' }>(), {
   size: 'small',
 })
 
@@ -15,18 +17,13 @@ const src = computed(() => {
   const sizes = (props.media.sizes ?? {}) as Record<string, { url?: string }>
   // Prefer a small resized copy for thumbnails.
   const small =
-    props.size === 'small' ? (sizes.thumbnail?.url ?? Object.values(sizes)[0]?.url) : undefined
+    props.size !== 'large' ? (sizes.thumbnail?.url ?? Object.values(sizes)[0]?.url) : undefined
   return String(small ?? props.media.url ?? '')
 })
 /** The image's own size, so the page keeps its space while it loads. */
 const dimension = (value: unknown) => (typeof value === 'number' && value > 0 ? value : undefined)
-const extension = computed(
-  () =>
-    String(props.media.filename ?? '')
-      .split('.')
-      .pop()
-      ?.toUpperCase() ?? '',
-)
+const kind = computed(() => fileKind(props.media.mimeType))
+const extension = computed(() => extensionOf(props.media.filename))
 </script>
 
 <template>
@@ -47,7 +44,12 @@ const extension = computed(
       />
     </a>
     <img v-else-if="isImage && src" :src="src" :alt="String(media.alt ?? '')" loading="lazy" />
-    <span v-else class="file" aria-hidden="true">{{ extension }}</span>
+    <!-- Other files: their type's icon and color, with the extension. -->
+    <span v-else :class="['file', `kind-${kind}`]" aria-hidden="true">
+      <component :is="KIND_ICON[kind]" class="file-icon" :stroke-width="1.6" />
+      <span v-if="extension" class="ext">{{ extension }}</span>
+      <span v-if="kind === 'video' || kind === 'audio'" class="play"><Play :size="10" /></span>
+    </span>
   </div>
 </template>
 
@@ -93,9 +95,73 @@ const extension = computed(
   max-width: 100%;
   max-height: 70vh;
 }
+.card {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+}
+.card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+/* Files without a picture: a soft tint of their type's color behind the icon. */
+.thumb:has(.file) {
+  background: color-mix(in srgb, var(--kind) 9%, var(--surface));
+  border-color: color-mix(in srgb, var(--kind) 22%, var(--border));
+}
+.thumb:has(.kind-pdf) { --kind: var(--kind-pdf); }
+.thumb:has(.kind-word) { --kind: var(--kind-word); }
+.thumb:has(.kind-sheet) { --kind: var(--kind-sheet); }
+.thumb:has(.kind-slides) { --kind: var(--kind-slides); }
+.thumb:has(.kind-archive) { --kind: var(--kind-archive); }
+.thumb:has(.kind-audio) { --kind: var(--kind-audio); }
+.thumb:has(.kind-video) { --kind: var(--kind-video); }
+.thumb:has(.kind-text) { --kind: var(--kind-text); }
+.thumb:has(.kind-image) { --kind: var(--kind-image); }
+.thumb:has(.kind-file) { --kind: var(--kind-file); }
 .file {
-  font-size: 0.75rem;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  color: var(--kind);
+}
+.file-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+.card .file-icon {
+  width: 2.75rem;
+  height: 2.75rem;
+}
+.large .file-icon {
+  width: 4rem;
+  height: 4rem;
+}
+.ext {
+  font-size: 0.6rem;
   font-weight: 700;
-  color: var(--text-muted);
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+.small .ext {
+  display: none;
+}
+.card .ext,
+.large .ext {
+  font-size: 0.75rem;
+}
+.play {
+  position: absolute;
+  top: -0.2rem;
+  right: -0.35rem;
+  display: grid;
+  place-items: center;
+  width: 0.95rem;
+  height: 0.95rem;
+  border-radius: 50%;
+  background: var(--kind);
+  color: var(--surface);
 }
 </style>

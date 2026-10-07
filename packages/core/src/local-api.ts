@@ -402,7 +402,7 @@ export class EasyCMS<C extends Config = Config> {
     }
     if (file.data.byteLength === 0)
       throw new ValidationError(MEDIA, [{ field: 'file', message: 'is empty' }])
-    const mimeType = sniffMimeType(file.data)
+    const mimeType = sniffMimeType(file.data, file.name)
     if (!mimeType || !mimeAllowed(mimeType, mimeTypes)) {
       throw new ValidationError(MEDIA, [
         {

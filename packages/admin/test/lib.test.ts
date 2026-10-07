@@ -9,9 +9,11 @@ import {
   toFormValues,
   toLocalInput,
 } from '../app/src/lib/fields'
+import { extensionOf, fileKind } from '../app/src/lib/filetypes'
 import { humanize, label, setLocale, singularize, t } from '../app/src/lib/i18n'
 import { ICON_NAMES } from '../app/src/lib/icons'
 import { menuOrder } from '../app/src/lib/menu'
+import { decodeText, parseCsv } from '../app/src/lib/text-preview'
 import { initials, textOn } from '../app/src/lib/theme'
 import { inLocale, missingLocales } from '../app/src/lib/translation'
 
@@ -207,5 +209,40 @@ describe('translations', () => {
       title: 'A',
       slug: 'a',
     })
+  })
+})
+
+describe('file types and text previews', () => {
+  it('names a file kind from its type', () => {
+    expect(fileKind('application/pdf')).toBe('pdf')
+    expect(fileKind('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')).toBe(
+      'sheet',
+    )
+    expect(fileKind('text/csv')).toBe('sheet')
+    expect(fileKind('video/webm')).toBe('video')
+    expect(fileKind('audio/mpeg')).toBe('audio')
+    expect(fileKind('application/x-unknown')).toBe('file')
+    expect(fileKind(undefined)).toBe('file')
+    expect(extensionOf('รายงาน-1a2b3c4d.docx')).toBe('DOCX')
+    expect(extensionOf('noextension')).toBe('')
+  })
+
+  it("parses CSV with quotes, and Excel's semicolons", () => {
+    expect(parseCsv('a,b\n"x, y","say ""hi"""\n')).toEqual([
+      ['a', 'b'],
+      ['x, y', 'say "hi"'],
+    ])
+    expect(parseCsv('name;price\r\nชา;30')).toEqual([
+      ['name', 'price'],
+      ['ชา', '30'],
+    ])
+  })
+
+  it('decodes UTF-8, UTF-16 and Thai Windows-874 text', () => {
+    expect(decodeText(new TextEncoder().encode('สวัสดี'))).toBe('สวัสดี')
+    expect(decodeText(new Uint8Array([0xef, 0xbb, 0xbf, 0x41]))).toBe('A')
+    expect(decodeText(new Uint8Array([0xff, 0xfe, 0x41, 0x00]))).toBe('A')
+    // "สวัสดี" in Windows-874.
+    expect(decodeText(new Uint8Array([0xca, 0xc7, 0xd1, 0xca, 0xb4, 0xd5]))).toBe('สวัสดี')
   })
 })

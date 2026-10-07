@@ -32,7 +32,63 @@ describe('sniffMimeType', () => {
     expect(sniffMimeType(text('สวัสดี'))).toBe('text/plain')
     expect(sniffMimeType(new Uint8Array([0, 1, 2, 3, 255]))).toBeUndefined()
   })
+
+  it('tells CSV from plain text by the name only', () => {
+    expect(sniffMimeType(text('name,price\nชา,30\n'), 'prices.CSV')).toBe('text/csv')
+    expect(sniffMimeType(text('name,price\n'), 'notes.txt')).toBe('text/plain')
+    // A binary file named .csv is still not text.
+    expect(sniffMimeType(new Uint8Array([0, 1, 2]), 'a.csv')).toBeUndefined()
+  })
+
+  it('detects Office, OpenDocument and zip files from their entries', () => {
+    const office = 'application/vnd.openxmlformats-officedocument'
+    expect(sniffMimeType(zip({ '[Content_Types].xml': '<x/>', 'word/document.xml': '<w/>' }))).toBe(
+      `${office}.wordprocessingml.document`,
+    )
+    expect(sniffMimeType(zip({ '[Content_Types].xml': '', 'xl/workbook.xml': '' }))).toBe(
+      `${office}.spreadsheetml.sheet`,
+    )
+    expect(sniffMimeType(zip({ '[Content_Types].xml': '', 'ppt/presentation.xml': '' }))).toBe(
+      `${office}.presentationml.presentation`,
+    )
+    expect(
+      sniffMimeType(
+        zip({ mimetype: 'application/vnd.oasis.opendocument.text', 'content.xml': '<x/>' }),
+      ),
+    ).toBe('application/vnd.oasis.opendocument.text')
+    expect(sniffMimeType(zip({ 'readme.txt': 'hi' }))).toBe('application/zip')
+    // An odd "mimetype" entry makes a plain zip, not whatever it claims.
+    expect(sniffMimeType(zip({ mimetype: 'text/html' }))).toBe('application/zip')
+  })
+
+  it('detects audio and video', () => {
+    const bytes = (...parts: (number[] | string)[]) =>
+      new Uint8Array(parts.flatMap((p) => (typeof p === 'string' ? [...Buffer.from(p)] : p)))
+    expect(sniffMimeType(bytes('ID3', [4, 0, 0, 0, 0, 0, 0]))).toBe('audio/mpeg')
+    expect(sniffMimeType(bytes([0xff, 0xfb, 0x90, 0x64, 0, 0]))).toBe('audio/mpeg')
+    expect(sniffMimeType(bytes('RIFF', [0, 0, 0, 0], 'WAVEfmt '))).toBe('audio/wav')
+    expect(sniffMimeType(bytes('OggS', [0, 2, 0, 0]))).toBe('audio/ogg')
+    expect(sniffMimeType(bytes([0, 0, 0, 0x20], 'ftypM4A ', [0, 0, 0, 0]))).toBe('audio/mp4')
+    expect(sniffMimeType(bytes([0, 0, 0, 0x14], 'ftypqt  ', [0, 0, 0, 0]))).toBe('video/quicktime')
+    expect(
+      sniffMimeType(bytes([0x1a, 0x45, 0xdf, 0xa3, 0x9f, 0x42, 0x82, 0x84], 'webm', [0x42, 0x87])),
+    ).toBe('video/webm')
+  })
 })
+
+/** A zip with stored (uncompressed) entries: local headers only, enough for detection. */
+function zip(entries: Record<string, string>): Uint8Array {
+  const parts: Buffer[] = []
+  for (const [name, content] of Object.entries(entries)) {
+    const header = Buffer.alloc(30)
+    header.writeUInt32LE(0x04034b50, 0)
+    header.writeUInt32LE(Buffer.byteLength(content), 18)
+    header.writeUInt32LE(Buffer.byteLength(content), 22)
+    header.writeUInt16LE(Buffer.byteLength(name), 26)
+    parts.push(header, Buffer.from(name), Buffer.from(content))
+  }
+  return new Uint8Array(Buffer.concat(parts))
+}
 
 describe('imageDimensions', () => {
   it.each(['png', 'jpeg', 'webp', 'gif'] as const)(
@@ -59,6 +115,16 @@ describe('imageDimensions', () => {
 })
 
 describe('mimeAllowed', () => {
+  it('knows groups of types', () => {
+    const docx = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    expect(mimeAllowed(docx, ['documents'])).toBe(true)
+    expect(mimeAllowed(docx, ['office'])).toBe(true)
+    expect(mimeAllowed('text/csv', ['documents'])).toBe(true)
+    expect(mimeAllowed('application/zip', ['documents'])).toBe(false)
+    expect(mimeAllowed('application/zip', ['archives'])).toBe(true)
+    expect(mimeAllowed('image/png', ['documents'])).toBe(false)
+  })
+
   it('matches exact types and wildcards', () => {
     expect(mimeAllowed('image/png', ['image/*'])).toBe(true)
     expect(mimeAllowed('application/pdf', ['image/*', 'application/pdf'])).toBe(true)

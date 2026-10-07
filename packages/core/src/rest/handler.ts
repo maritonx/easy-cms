@@ -1071,17 +1071,23 @@ async function serveFile(cms: EasyCMS, key: string, head: boolean): Promise<Resp
   const file = await cms.storage.get(key)
   if (!file) throw new HttpError('Not found', 404)
   const extension = key.slice(key.lastIndexOf('.') + 1)
+  const type = TYPE_BY_EXTENSION[extension] ?? 'application/octet-stream'
   return new Response(
     head ? null : (file.body as unknown as ConstructorParameters<typeof Response>[0]),
     {
       status: 200,
       headers: {
-        'content-type': TYPE_BY_EXTENSION[extension] ?? 'application/octet-stream',
+        'content-type': type,
         'content-length': String(file.size),
         'cache-control': 'public, max-age=31536000, immutable',
         'x-content-type-options': 'nosniff',
-        'content-security-policy':
-          "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox",
+        // Browsers won't show a PDF in a sandbox; their PDF viewers run apart from the site.
+        ...(type === 'application/pdf'
+          ? {}
+          : {
+              'content-security-policy':
+                "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox",
+            }),
         'cross-origin-resource-policy': 'cross-origin',
       },
     },

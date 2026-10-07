@@ -138,7 +138,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 |---|---|---|---|
 | `dir` | `string` | `uploads` | Folder for the default local storage, from the project root. |
 | `maxFileSize` | `number` | `10485760` (10 MB) | In bytes. |
-| `mimeTypes` | `string[]` | `['image/*', 'application/pdf']` | Allowed types, detected from file contents. |
+| `mimeTypes` | `string[]` | `['image/*', 'application/pdf']` | Allowed types, detected from file contents: MIME types, `type/*`, or `documents`, `office`, `archives`. See [File types](/guide/uploads#file-types). |
 | `storage` | `StorageAdapter` | local disk | E.g. `s3Storage()` from `@easy-cms/storage-s3`. [Uploads](/guide/uploads) |
 | `imageSizes` | `ImageSize[]` | `[]` | Resized copies (needs `sharp`). See [image sizes](#image-sizes). |
 | `fromURL` | `UploadFromURLConfig` | off | Uploads from links. See [fromURL](#fromurl). |

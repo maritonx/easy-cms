@@ -1,5 +1,6 @@
 import type { AuthUser, FieldAccess, ID, Where } from './access.js'
 import type { EasyCMS } from './local-api.js'
+import { expandMimeTypes } from './media.js'
 
 /** A label shown in the admin UI. Either one string or one string per admin locale. */
 export type Label = string | { readonly [locale: string]: string }
@@ -207,7 +208,7 @@ export const isHasMany = (field: Field): boolean =>
 /** Whether a MIME type is one of `patterns` (`image/*` matches every image). */
 export function mimeAllowedBy(mimeType: string, patterns: readonly string[]): boolean {
   const type = mimeType.toLowerCase()
-  return patterns.some((pattern) => {
+  return expandMimeTypes(patterns).some((pattern) => {
     const p = pattern.toLowerCase()
     return p.endsWith('/*') ? type.startsWith(p.slice(0, -1)) : type === p
   })

@@ -8,7 +8,7 @@ import ConfirmDialog from '../components/ConfirmDialog.vue'
 import IdentitiesPanel from '../components/IdentitiesPanel.vue'
 import LivePreview from '../components/LivePreview.vue'
 import LocaleSwitcher from '../components/LocaleSwitcher.vue'
-import MediaThumb from '../components/MediaThumb.vue'
+import MediaPreview from '../components/MediaPreview.vue'
 import PluginElement from '../components/PluginElement.vue'
 import ScheduleControl from '../components/ScheduleControl.vue'
 import TransferDialog from '../components/TransferDialog.vue'
@@ -518,7 +518,7 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
           <p v-for="m in slugField ? errors[slugField.name] : []" :key="m" class="field-error">{{ m }}</p>
         </div>
         <template v-if="isMedia && doc">
-          <MediaThumb :media="doc" size="large" />
+          <MediaPreview :media="doc" />
           <p class="muted media-meta">
             <a :href="String(doc.url)" target="_blank" rel="noopener">{{ doc.filename }}</a>
             · {{ doc.mimeType }}

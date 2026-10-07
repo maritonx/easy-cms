@@ -586,6 +586,18 @@ function validateUpload(config: Config, add: Add) {
   if (upload.dir !== undefined && (typeof upload.dir !== 'string' || upload.dir.length === 0)) {
     add('upload.dir', 'must be a non-empty string')
   }
+  const mimeTypes: unknown = upload.mimeTypes
+  if (
+    mimeTypes !== undefined &&
+    (!Array.isArray(mimeTypes) ||
+      mimeTypes.length === 0 ||
+      !mimeTypes.every((t) => typeof t === 'string' && MIME_PATTERN.test(t)))
+  )
+    add(
+      'upload.mimeTypes',
+      'must be a list of MIME types or groups (documents, office, archives)',
+      "e.g. mimeTypes: ['image/*', 'documents']",
+    )
   if (upload.folders !== undefined && typeof upload.folders !== 'boolean')
     add('upload.folders', 'must be true or false')
   const fromURL: unknown = upload.fromURL
@@ -615,6 +627,9 @@ function validateUpload(config: Config, add: Add) {
 }
 
 /** `*`, `host.name` or `*.host.name`: no scheme, port or path. */
+/** A MIME type, `type/*`, or a group of types (`documents`, `office`, `archives`). */
+const MIME_PATTERN = /^([\w.+-]+\/(\*|[\w.+-]+)|documents|office|archives)$/i
+
 const HOST_PATTERN =
   /^(\*|(\*\.)?[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*)$/i
 
@@ -945,9 +960,13 @@ function validateField(
         if (
           !Array.isArray(types) ||
           types.length === 0 ||
-          !types.every((t) => typeof t === 'string' && /^[\w.+-]+\/(\*|[\w.+-]+)$/.test(t))
+          !types.every((t) => typeof t === 'string' && MIME_PATTERN.test(t))
         ) {
-          add(`${path}.mimeTypes`, 'must be a list of MIME types', "e.g. mimeTypes: ['image/*']")
+          add(
+            `${path}.mimeTypes`,
+            'must be a list of MIME types or groups (documents, office, archives)',
+            "e.g. mimeTypes: ['image/*', 'documents']",
+          )
         }
       }
       break

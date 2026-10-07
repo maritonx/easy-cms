@@ -205,6 +205,53 @@ describe('REST uploads and files', () => {
     await cms.destroy()
   })
 
+  it('takes documents by group, and serves PDFs so browsers can show them', async () => {
+    const cms = await open(
+      defineConfig({
+        secret: SECRET,
+        db: db(),
+        upload: { mimeTypes: ['image/*', 'documents'] },
+        collections: [
+          { slug: 'posts', fields: [{ name: 'brochure', type: 'upload', mimeTypes: ['office'] }] },
+        ],
+      }),
+    )
+    const handler = createRestHandler(cms)
+    // A Word file is a zip with word/document.xml; only the entry name matters here.
+    const entry = (name: string) => {
+      const header = Buffer.alloc(30)
+      header.writeUInt32LE(0x04034b50, 0)
+      header.writeUInt16LE(Buffer.byteLength(name), 26)
+      return new Uint8Array(Buffer.concat([header, Buffer.from(name)]))
+    }
+    const docx = await cms.upload({ data: entry('word/document.xml'), name: 'report.docx' })
+    expect(docx).toMatchObject({
+      mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      filename: expect.stringMatching(/\.docx$/),
+    })
+    const csv = await cms.upload({
+      data: new TextEncoder().encode('a,b\n1,2\n'),
+      name: 'prices.csv',
+    })
+    expect(csv).toMatchObject({ mimeType: 'text/csv', filename: expect.stringMatching(/\.csv$/) })
+    await expect(cms.upload({ data: entry('readme.txt'), name: 'a.zip' })).rejects.toThrow(
+      /application\/zip is not allowed/,
+    )
+    // The field takes Office files only.
+    await expect(cms.create('posts', { brochure: csv.id })).rejects.toThrow(ValidationError)
+    await cms.create('posts', { brochure: docx.id })
+
+    const pdf = await cms.upload({ data: new TextEncoder().encode('%PDF-1.7\n'), name: 'a.pdf' })
+    const served = await handler(new Request(`http://cms.test${pdf.url}`))
+    expect(served.headers.get('content-type')).toBe('application/pdf')
+    expect(served.headers.get('content-security-policy')).toBeNull()
+    expect(served.headers.get('x-content-type-options')).toBe('nosniff')
+    const text = await handler(new Request(`http://cms.test${csv.url}`))
+    expect(text.headers.get('content-type')).toBe('text/csv')
+    expect(text.headers.get('content-security-policy')).toContain('sandbox')
+    await cms.destroy()
+  })
+
   it('checks access, content type and size', async () => {
     const { cms, handler, upload } = await setup()
     const form = new FormData()

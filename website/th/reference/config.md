@@ -137,7 +137,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 |---|---|---|---|
 | `dir` | `string` | `uploads` | โฟลเดอร์ของที่เก็บไฟล์ในเครื่อง นับจาก root ของโปรเจกต์ |
 | `maxFileSize` | `number` | `10485760` (10 MB) | เป็น byte |
-| `mimeTypes` | `string[]` | `['image/*', 'application/pdf']` | ประเภทไฟล์ที่อนุญาต ตรวจจากเนื้อไฟล์ |
+| `mimeTypes` | `string[]` | `['image/*', 'application/pdf']` | ประเภทไฟล์ที่อนุญาต ตรวจจากเนื้อไฟล์: MIME type, `type/*` หรือ `documents`, `office`, `archives` ดู[ชนิดไฟล์](/th/guide/uploads#file-types) |
 | `storage` | `StorageAdapter` | ดิสก์ในเครื่อง | เช่น `s3Storage()` จาก `@easy-cms/storage-s3` [อัปโหลด](/th/guide/uploads) |
 | `imageSizes` | `ImageSize[]` | `[]` | รูปย่อ (ต้องมี `sharp`) ดู [ขนาดรูป](#image-sizes) |
 | `fromURL` | `UploadFromURLConfig` | ปิด | อัปโหลดจากลิงก์ ดู [fromURL](#fromurl) |

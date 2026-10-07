@@ -212,7 +212,8 @@ test.describe('logged in as admin', () => {
       .click()
     await page.getByLabel('Upload files').setInputFiles(PHOTO)
     await expect(page.getByText('Uploaded 1 file(s)')).toBeVisible()
-    const row = page.getByRole('row').filter({ hasText: /photo-[0-9a-f]{8}\.png/ })
+    // The library is a grid of cards.
+    const row = page.locator('.media-card').filter({ hasText: /photo-[0-9a-f]{8}\.png/ })
     await expect(row.locator('img')).toBeVisible()
     await shot(page, '05-media-library')
 
@@ -277,7 +278,7 @@ test.describe('logged in as admin', () => {
       .setInputFiles({ name: 'square.png', mimeType: 'image/png', buffer: square })
     await expect(page.getByText('Uploaded 1 file(s)')).toBeVisible()
     await page
-      .getByRole('row')
+      .locator('.media-card')
       .filter({ hasText: /square-[0-9a-f]{8}\.png/ })
       .getByRole('link')
       .click()

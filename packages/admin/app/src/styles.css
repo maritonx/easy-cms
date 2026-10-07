@@ -29,6 +29,17 @@
   --shadow-sm: 0 1px 2px rgb(24 24 27 / 8%);
   --font: "Anuphan Variable", "Noto Sans Thai", system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  /* File types in the media library. */
+  --kind-pdf: #c0362c;
+  --kind-word: #2b5cb8;
+  --kind-sheet: #1f7a45;
+  --kind-slides: #c4561d;
+  --kind-archive: #6b6b74;
+  --kind-audio: #7c3aed;
+  --kind-video: #be2a6c;
+  --kind-text: #52525b;
+  --kind-image: #0f766e;
+  --kind-file: #6b6b74;
   color-scheme: light;
 }
 
@@ -56,6 +67,16 @@
   --focus: var(--accent-ink);
   --shadow: 0 12px 32px rgb(0 0 0 / 45%), 0 2px 6px rgb(0 0 0 / 30%);
   --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
+  --kind-pdf: #f97066;
+  --kind-word: #7cabf6;
+  --kind-sheet: #5fd394;
+  --kind-slides: #f8a26b;
+  --kind-archive: #a1a1aa;
+  --kind-audio: #b79cf9;
+  --kind-video: #f582b4;
+  --kind-text: #b4b4bc;
+  --kind-image: #5ed2c4;
+  --kind-file: #a1a1aa;
   color-scheme: dark;
 }
 
@@ -83,6 +104,16 @@
     --focus: var(--accent-ink);
     --shadow: 0 12px 32px rgb(0 0 0 / 45%), 0 2px 6px rgb(0 0 0 / 30%);
     --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
+    --kind-pdf: #f97066;
+    --kind-word: #7cabf6;
+    --kind-sheet: #5fd394;
+    --kind-slides: #f8a26b;
+    --kind-archive: #a1a1aa;
+    --kind-audio: #b79cf9;
+    --kind-video: #f582b4;
+    --kind-text: #b4b4bc;
+    --kind-image: #5ed2c4;
+    --kind-file: #a1a1aa;
     color-scheme: dark;
   }
 }

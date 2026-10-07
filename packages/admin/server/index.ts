@@ -54,6 +54,8 @@ export const SECURITY_HEADERS: Readonly<Record<string, string>> = {
     // Live preview shows the site in a frame; the site may be on another origin (standalone).
     "frame-src 'self' http: https:",
     "font-src 'self' data:",
+    // Audio and video previews of files in the media library, which may be on a CDN.
+    "media-src 'self' blob: https:",
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",

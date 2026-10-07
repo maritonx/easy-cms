@@ -6,6 +6,7 @@ import { EMAIL_DELIVERIES, INTERNAL_COLLECTIONS, USERS, WEBHOOK_DELIVERIES } fro
 import type { AdminLocale, AdminViewAccess, CollectionConfig, GlobalConfig } from '../config.js'
 import type { AdminComponent, Field, Label } from '../fields.js'
 import type { EasyCMS } from '../local-api.js'
+import { expandMimeTypes } from '../media.js'
 import type { RoleOperation } from '../roles.js'
 import { adminModuleUrls } from './admin-modules.js'
 
@@ -134,6 +135,8 @@ export interface AdminSchema {
   modules: string[]
   /** Files can be uploaded from links (`upload.fromURL`). */
   uploadFromURL: boolean
+  /** What the media library takes (`upload.maxFileSize`, `upload.mimeTypes` with groups expanded). */
+  upload: { maxFileSize: number; mimeTypes: string[] }
   /**
    * The media library has folders (`upload.folders`); `permissions`: this user may choose which
    * roles use each folder (admins, with `auth.rbac`).
@@ -231,7 +234,7 @@ async function serializeFields(
         if (field.hasMany) f.hasMany = true
         if (field.minRows !== undefined) f.minRows = field.minRows
         if (field.maxRows !== undefined) f.maxRows = field.maxRows
-        if (field.mimeTypes) f.mimeTypes = [...field.mimeTypes]
+        if (field.mimeTypes) f.mimeTypes = expandMimeTypes(field.mimeTypes)
         break
       case 'array':
         if (field.minRows !== undefined) f.minRows = field.minRows
@@ -392,6 +395,10 @@ export async function adminSchema(
     globals: await Promise.all(cms.config.globals.map((g) => global(cms, g, user, localized))),
     modules: adminModuleUrls(cms),
     uploadFromURL: cms.config.upload.fromURL !== undefined,
+    upload: {
+      maxFileSize: cms.config.upload.maxFileSize,
+      mimeTypes: expandMimeTypes(cms.config.upload.mimeTypes),
+    },
     ...(cms.folders.enabled ? { folders: { permissions: admin && cms.roles.enabled } } : {}),
     views,
     rbac: cms.roles.enabled,

@@ -154,7 +154,14 @@ export {
   type UpdateOptions,
 } from './local-api.js'
 export { consoleLogger, type Logger, silentLogger } from './logger.js'
-export { EXTENSIONS, imageDimensions, mimeAllowed, sniffMimeType } from './media.js'
+export {
+  EXTENSIONS,
+  expandMimeTypes,
+  imageDimensions,
+  MIME_GROUPS,
+  mimeAllowed,
+  sniffMimeType,
+} from './media.js'
 export {
   FOLDER_LEVELS,
   type FolderLevel,

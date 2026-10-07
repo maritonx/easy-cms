@@ -101,6 +101,57 @@ export function uploadFile(file: File, alt?: string, folder?: Id | null): Promis
   return api<Doc>('POST', '/media?depth=0', form)
 }
 
+/** An upload in progress: its result, and a way to cancel it. */
+export interface Upload {
+  done: Promise<Doc>
+  abort: () => void
+}
+
+/** Thrown by a cancelled upload. */
+export class UploadCancelled extends Error {}
+
+/**
+ * Uploads one file to the media library, reporting progress from 0 to 1 (`fetch` can't report
+ * an upload's progress, so this uses XMLHttpRequest).
+ */
+export function uploadWithProgress(
+  file: File,
+  options: { alt?: string; folder?: Id | null | undefined },
+  onProgress: (fraction: number) => void,
+): Upload {
+  const xhr = new XMLHttpRequest()
+  const done = new Promise<Doc>((resolve, reject) => {
+    const form = new FormData()
+    form.set('file', file)
+    if (options.alt) form.set('alt', options.alt)
+    if (options.folder !== undefined && options.folder !== null)
+      form.set('folder', String(options.folder))
+    xhr.open('POST', `${settings.apiPath}/media?depth=0`)
+    xhr.withCredentials = true
+    xhr.setRequestHeader('accept', 'application/json')
+    const csrf = cookie('ecms-csrf')
+    if (csrf) xhr.setRequestHeader('x-csrf-token', csrf)
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) onProgress(event.loaded / event.total)
+    }
+    xhr.onload = () => {
+      let data: { errors?: ApiErrorItem[] } | undefined
+      try {
+        data = xhr.responseText ? JSON.parse(xhr.responseText) : undefined
+      } catch {
+        data = undefined
+      }
+      if (xhr.status >= 200 && xhr.status < 300) return resolve(data as unknown as Doc)
+      if (xhr.status === 401) onUnauthorized()
+      reject(new ApiError(xhr.status, data?.errors ?? []))
+    }
+    xhr.onerror = () => reject(new Error('Network error'))
+    xhr.onabort = () => reject(new UploadCancelled('Cancelled'))
+    xhr.send(form)
+  })
+  return { done, abort: () => xhr.abort() }
+}
+
 /** Has the server download a file from a link into the media library (`upload.fromURL`). */
 export function uploadFromURL(url: string, alt?: string, folder?: Id | null): Promise<Doc> {
   return api<Doc>('POST', '/media?depth=0', {

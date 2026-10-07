@@ -57,7 +57,12 @@ export default defineConfig({
   secret: secret(),
   db: databaseURL ? postgres({ url: databaseURL }) : postgres({ pglite: '.pglite' }),
   // Folders in the media library; admins choose which roles use each.
-  upload: { folders: true, ...(uploads ? { storage: uploads } : {}) },
+  upload: {
+    folders: true,
+    // Images and documents: PDF, Word, Excel, PowerPoint, OpenDocument, CSV, text.
+    mimeTypes: ['image/*', 'documents'],
+    ...(uploads ? { storage: uploads } : {}),
+  },
   admin: { brand: { name: 'Easy CMS Starter' }, menu: ['posts', 'categories', 'media'] },
   // Settings → Roles and Settings → Audit log.
   auth: { rbac: true },

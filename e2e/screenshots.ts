@@ -129,8 +129,13 @@ async function main() {
 
         // Folders: inside one, then who may use another.
         await page.goto(`${ORIGIN}/admin/collections/media?folder=${ids.folder}`)
-        await page.locator('tbody img').first().waitFor()
+        await page.locator('.media-card img').first().waitFor()
         await shot('media-folders')
+
+        // A CSV file's page: its first rows as a table.
+        await page.goto(`${ORIGIN}/admin/collections/media/${ids.csv}`)
+        await page.locator('.preview table').waitFor()
+        await shot('media-preview')
         await page.goto(`${ORIGIN}/admin/collections/media`)
         await page.getByRole('button', { name: t.brandActions }).click()
         await page.getByRole('menuitem', { name: t.whoCanUse }).click()
@@ -358,6 +363,21 @@ async function seed() {
   await cover(340, 'campaign-banner', 'แบนเนอร์แคมเปญ', call, campaign.id)
   await cover(190, 'campaign-poster', 'โปสเตอร์แคมเปญ', call, campaign.id)
   await cover(100, 'campaign-email', 'ภาพอีเมลแคมเปญ', call, campaign.id)
+  // Documents next to the pictures: a price list and a brochure.
+  const file = (name: string, body: BlobPart) => {
+    const form = new FormData()
+    form.set('file', new File([body], name))
+    return call('POST', '/media?depth=0', form)
+  }
+  const csv = await file(
+    'ราคาสินค้า.csv',
+    'สินค้า,ราคา (บาท),คงเหลือ\nชาไทยเย็น,45,120\nกาแฟดำ,40,85\nโกโก้,50,64\nน้ำมะพร้าว,35,40\n"ขนมปัง, เนยสด",25,30\n',
+  )
+  await file(
+    'brochure.pdf',
+    '%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n',
+  )
+  await file('บันทึกการประชุม.txt', 'บันทึกการประชุมทีมเนื้อหา\n- ออกแบบหน้าแรกใหม่\n- เพิ่มบทความ 3 เรื่อง\n')
 
   const posts = [
     {
@@ -582,6 +602,7 @@ async function seed() {
     team,
     invited,
     folder: campaign.id,
+    csv: csv.id,
   }
 }
 

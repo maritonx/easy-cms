@@ -12,6 +12,8 @@ import {
   FolderInput,
   FolderPlus,
   Inbox,
+  LayoutGrid,
+  List as ListIcon,
   Lock,
   Pencil,
   Plus,
@@ -38,6 +40,7 @@ import UploadDropzone from '../components/UploadDropzone.vue'
 import { ApiError, api, type Doc, type Id, type Paginated, toQuery } from '../lib/api'
 import { localeName } from '../lib/content-locale'
 import { titleOf } from '../lib/fields'
+import { extensionOf } from '../lib/filetypes'
 import {
   atLeast,
   buildTree,
@@ -51,7 +54,7 @@ import {
   type FolderTree as Tree,
   within,
 } from '../lib/folders'
-import { formatDate, humanize, label, t } from '../lib/i18n'
+import { formatBytes, formatDate, humanize, label, t } from '../lib/i18n'
 import { findCollection, session } from '../lib/session'
 import { notify } from '../lib/toast'
 import { inLocale, missingLocales } from '../lib/translation'
@@ -196,6 +199,37 @@ function whereOf() {
     if (inFolder) parts.push(inFolder)
   }
   return parts.length === 0 ? undefined : parts.length === 1 ? parts[0] : { and: parts }
+}
+
+// --- Media: grid or table, and what was just uploaded -----------------------------------------
+
+const VIEW_KEY = 'easy-cms-media-view'
+function storedView(): 'grid' | 'table' {
+  try {
+    return localStorage.getItem(VIEW_KEY) === 'table' ? 'table' : 'grid'
+  } catch {
+    return 'grid'
+  }
+}
+/** The media library shows a grid of cards unless the table was chosen. */
+const view = ref<'grid' | 'table'>(isMedia ? storedView() : 'table')
+const grid = computed(() => isMedia && view.value === 'grid')
+function setView(next: 'grid' | 'table') {
+  view.value = next
+  try {
+    localStorage.setItem(VIEW_KEY, next)
+  } catch {
+    // private mode: for this page only
+  }
+}
+/** A file's type and size under its name, e.g. "PDF · 1.2 MB". */
+const fileMeta = (doc: Doc) =>
+  [extensionOf(doc.filename), formatBytes(doc.filesize)].filter(Boolean).join(' · ')
+
+/** After uploading: the list again, with the new files selected to move or edit next. */
+async function onUploaded(docs: Doc[]) {
+  await load()
+  selected.value = new Set(docs.map((d) => d.id))
 }
 
 // --- Media folders (`upload.folders`) ---------------------------------------------------------
@@ -757,7 +791,15 @@ async function deleteSelected(query = '') {
         <X :size="14" aria-hidden="true" />
         {{ t('list.clearFilters') }}
       </button>
-      <div v-if="columnFields.length" ref="columnsMenu" class="columns">
+      <div v-if="isMedia" class="view-switch" role="group" :aria-label="t('list.view')">
+        <button type="button" :class="['btn', 'btn-sm', 'btn-icon', { on: view === 'grid' }]" :aria-pressed="view === 'grid'" :aria-label="t('list.viewGrid')" :title="t('list.viewGrid')" @click="setView('grid')">
+          <LayoutGrid :size="15" aria-hidden="true" />
+        </button>
+        <button type="button" :class="['btn', 'btn-sm', 'btn-icon', { on: view === 'table' }]" :aria-pressed="view === 'table'" :aria-label="t('list.viewTable')" :title="t('list.viewTable')" @click="setView('table')">
+          <ListIcon :size="15" aria-hidden="true" />
+        </button>
+      </div>
+      <div v-if="columnFields.length && !grid" ref="columnsMenu" class="columns">
         <button type="button" class="btn btn-sm" :aria-expanded="columnsOpen" aria-haspopup="true" @click="columnsOpen = !columnsOpen">
           <Columns3 :size="15" aria-hidden="true" />
           {{ t('list.columns') }}
@@ -824,14 +866,81 @@ async function deleteSelected(query = '') {
     <UploadDropzone
       v-if="isMedia && collection.permissions.create && (!useFolders || canUploadHere)"
       class="dropzone"
+      :accept="session.schema?.upload?.mimeTypes.join(',')"
       :folder="useFolders ? currentFolder : undefined"
-      @uploaded="load"
+      @uploaded="onUploaded"
     />
 
     <p v-if="error" class="notice notice-error" role="alert">{{ error }}</p>
 
-    <div class="card table-wrap" :aria-busy="loading">
-      <table>
+    <div :class="['card', 'table-wrap', { 'grid-wrap': grid }]" :aria-busy="loading">
+      <template v-if="grid">
+        <label v-if="rows.length" class="grid-all">
+          <input type="checkbox" :checked="allSelected" @change="toggleAll" />
+          {{ t('list.selectAll') }}
+        </label>
+        <ul class="media-grid">
+          <li
+            v-for="{ doc } in rows"
+            :key="doc.id"
+            :class="['media-card', { selected: selected.has(doc.id), selecting: selected.size > 0 }]"
+            :draggable="useFolders && collection.permissions.update"
+            @dragstart="onRowDragStart($event, doc)"
+          >
+            <RouterLink :to="docLink(doc.id)" class="media-card-link">
+              <MediaThumb :media="doc" size="card" />
+              <span class="media-card-name" :title="titleOf(collection, doc)">{{ doc.alt || titleOf(collection, doc) }}</span>
+              <span class="media-card-meta muted">{{ fileMeta(doc) }}</span>
+            </RouterLink>
+            <input
+              class="media-card-check"
+              type="checkbox"
+              :checked="selected.has(doc.id)"
+              :aria-label="t('list.selectRow', { title: titleOf(collection, doc) })"
+              @change="toggle(doc.id)"
+            />
+            <div class="row-menu media-card-menu">
+              <button
+                type="button"
+                class="btn btn-ghost btn-sm btn-icon"
+                :aria-label="t('list.rowActions', { title: titleOf(collection, doc) })"
+                :aria-expanded="rowMenu === doc.id"
+                aria-haspopup="menu"
+                @click="rowMenu = rowMenu === doc.id ? null : doc.id"
+              >
+                <Ellipsis :size="16" aria-hidden="true" />
+              </button>
+              <div v-if="rowMenu === doc.id" class="menu" role="menu">
+                <RouterLink :to="docLink(doc.id)" class="menu-item" role="menuitem">
+                  <Pencil :size="15" aria-hidden="true" />
+                  {{ t('list.open') }}
+                </RouterLink>
+                <button
+                  v-if="useFolders && collection.permissions.update"
+                  type="button"
+                  class="menu-item"
+                  role="menuitem"
+                  @click="rowMenu = null; moving = { files: [doc.id] }"
+                >
+                  <FolderInput :size="15" aria-hidden="true" />
+                  {{ t('folders.moveTo') }}
+                </button>
+                <button
+                  v-if="collection.permissions.delete"
+                  type="button"
+                  class="menu-item danger"
+                  role="menuitem"
+                  @click="rowMenu = null; deleting = doc"
+                >
+                  <Trash2 :size="15" aria-hidden="true" />
+                  {{ t('edit.delete') }}
+                </button>
+              </div>
+            </div>
+          </li>
+        </ul>
+      </template>
+      <table v-else>
         <thead>
           <tr>
             <th class="check">
@@ -1099,6 +1208,113 @@ async function deleteSelected(query = '') {
 </template>
 
 <style scoped>
+.view-switch {
+  display: flex;
+  gap: 0.15rem;
+  padding: 0.15rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.view-switch .btn {
+  border-color: transparent;
+}
+.view-switch .btn.on {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+.grid-wrap {
+  padding: 0.75rem;
+}
+.grid-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 0 0.6rem 0.25rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+.media-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.media-card {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+.media-card:hover {
+  border-color: var(--border-strong);
+}
+.media-card.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+.media-card-link {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.4rem 0.4rem 0.55rem;
+  color: var(--text);
+  text-decoration: none;
+}
+.media-card-link :deep(.thumb) {
+  margin-bottom: 0.35rem;
+}
+.media-card-name {
+  overflow: hidden;
+  padding: 0 0.15rem;
+  font-size: 0.85rem;
+  font-weight: 550;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.media-card-meta {
+  padding: 0 0.15rem;
+  font-size: 0.75rem;
+}
+/* The checkbox and menu show on hover, while selecting, and always on touch screens. */
+.media-card-check {
+  position: absolute;
+  top: 0.7rem;
+  left: 0.7rem;
+  width: 1.05rem;
+  height: 1.05rem;
+  opacity: 0;
+}
+.media-card .media-card-menu {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.55rem;
+  opacity: 0;
+}
+.media-card-menu .btn {
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+.media-card:hover .media-card-check,
+.media-card:hover .media-card-menu,
+.media-card:focus-within .media-card-check,
+.media-card:focus-within .media-card-menu,
+.media-card.selecting .media-card-check,
+.media-card.selected .media-card-check,
+.media-card-menu:has([aria-expanded='true']) {
+  opacity: 1;
+}
+@media (hover: none) {
+  .media-card-check,
+  .media-card-menu {
+    opacity: 1;
+  }
+}
+.media-card-menu .menu {
+  right: 0;
+  min-width: 10rem;
+}
 .library {
   display: grid;
   grid-template-columns: 15rem minmax(0, 1fr);
