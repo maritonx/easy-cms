@@ -65,7 +65,12 @@ jobs:
       - run: pnpm typecheck
       # --continue: report failures in every package, not just the first. The output is kept so
       # the next step can annotate failures: annotations are public, job logs need a login.
-      - run: pnpm turbo run test --continue 2>&1 | tee test-output.log
+      # The integration suite (SQLite and PGlite, ~70 files) runs on its own afterwards: run
+      # alongside every other package on a 3-core macOS runner, PGlite starved for minutes.
+      - run: pnpm turbo run test --continue --filter='!easy-cms-integration-tests' 2>&1 | tee test-output.log
+        shell: bash
+      - if: success() || failure()
+        run: pnpm turbo run test --filter=easy-cms-integration-tests 2>&1 | tee -a test-output.log
         shell: bash
       - if: failure()
         run: node .github/scripts/annotate-failures.mjs test-output.log "Tests failed (${{ matrix.os }}, Node ${{ matrix.node }})"

@@ -3,6 +3,7 @@
 //   node smoke/scaffold.ts <npm|pnpm|yarn|bun> [registry]
 import { type ChildProcess, spawn } from 'node:child_process'
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { stripVTControlCharacters } from 'node:util'
@@ -128,8 +129,16 @@ await cms('migrate:create', 'init')
 await cms('migrate')
 await cms('create-admin', '--email', 'admin@smoke.test')
 
-// 3. The production server (`start`), until /healthz answers.
-const port = String(4000 + Math.floor(Math.random() * 1000))
+// 3. The production server (`start`), until /healthz answers. A port the system says is free:
+// a random one could be taken, e.g. by the registry on 4873.
+const port = await new Promise<string>((resolve, reject) => {
+  const probe = createServer()
+  probe.once('error', reject)
+  probe.listen(0, () => {
+    const address = probe.address()
+    probe.close(() => resolve(String(typeof address === 'object' && address ? address.port : 0)))
+  })
+})
 const start: Record<typeof PM, [string, string[]]> = {
   npm: ['npm', ['run', 'start', '--', '--port', port]],
   pnpm: ['pnpm', ['start', '--port', port]],
@@ -144,19 +153,32 @@ const server: ChildProcess = spawn(start[PM][0], start[PM][1], {
   shell: windows,
   detached: !windows,
 })
+// A server that stops by itself (a crash, a port in use) fails the check at once, with its code.
+let exited: number | null | undefined
+server.on('exit', (code) => {
+  exited = code
+})
 const stop = () => {
   if (windows) spawn('taskkill', ['/pid', String(server.pid), '/T', '/F'])
   else if (server.pid) process.kill(-server.pid, 'SIGTERM')
 }
 try {
   let ok = false
-  for (let i = 0; i < 60 && !ok; i++) {
+  const started = Date.now()
+  // Slow runners can take a while to start Node and open the database.
+  for (let i = 0; i < 120 && !ok && exited === undefined; i++) {
     await new Promise((resolve) => setTimeout(resolve, 1000))
     ok = await fetch(`http://localhost:${port}/healthz`)
       .then((r) => r.ok)
       .catch(() => false)
   }
-  if (!ok) throw new Error('the server did not answer /healthz')
+  if (exited !== undefined)
+    throw new Error(`the server stopped (exit code ${exited}) before /healthz answered`)
+  if (!ok)
+    throw new Error(
+      `the server did not answer /healthz in ${Math.round((Date.now() - started) / 1000)} s`,
+    )
+  console.log(`✓ /healthz answered after ${Math.round((Date.now() - started) / 1000)} s`)
   const init = (await (await fetch(`http://localhost:${port}/api/cms/users/init`)).json()) as {
     hasUsers?: boolean
   }
