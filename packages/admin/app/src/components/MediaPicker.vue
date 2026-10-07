@@ -63,38 +63,39 @@ const urlInput = ref('')
 // Folders (`upload.folders`): the picker opens where the user last worked.
 const useFolders = foldersOn()
 const tree = ref<FolderTree>({ roots: [], byId: new Map() })
-const folder = ref<Id | null>(null)
+/** The folder the picker shows; `null`: the top level. */
+const openId = ref<Id | null>(null)
 /** With `folderOnly`: the picker's top, which it can't go above. */
 const top = computed<Id | null>(() => (props.folder?.only ? props.folder.id : null))
 const crumbs = computed(() => {
-  const path = pathTo(tree.value, folder.value)
+  const path = pathTo(tree.value, openId.value)
   if (top.value === null) return path
   const start = path.findIndex((n) => String(n.id) === String(top.value))
   return start === -1 ? path : path.slice(start + 1)
 })
 const subfolders = computed(() =>
-  folder.value === null
+  openId.value === null
     ? tree.value.roots
-    : (tree.value.byId.get(String(folder.value))?.children ?? []),
+    : (tree.value.byId.get(String(openId.value))?.children ?? []),
 )
 const canUpload = computed(() => {
   if (!useFolders) return true
-  if (folder.value === null) return !!findCollection('media')?.permissions.create
-  return atLeast(tree.value.byId.get(String(folder.value))?.level, 'edit')
+  if (openId.value === null) return !!findCollection('media')?.permissions.create
+  return atLeast(tree.value.byId.get(String(openId.value))?.level, 'edit')
 })
 async function loadTree() {
   if (!useFolders) return
   tree.value = buildTree(await loadFolders().catch(() => []))
   // The field's folder, else where the user last was.
   if (props.folder) {
-    folder.value = props.folder.id
+    openId.value = props.folder.id
     return
   }
   const last = lastFolder()
-  folder.value = last === null ? null : (tree.value.byId.get(last)?.id ?? null)
+  openId.value = last === null ? null : (tree.value.byId.get(last)?.id ?? null)
 }
 function openFolder(id: Id | null) {
-  folder.value = id ?? top.value
+  openId.value = id ?? top.value
   if (!props.folder) rememberFolder(id)
   search.value = ''
   void load()
@@ -103,7 +104,7 @@ function openFolder(id: Id | null) {
 async function load(reset = true) {
   if (reset) page.value = 1
   const where: Record<string, unknown> = {}
-  const inFolder = useFolders ? folderWhere(tree.value, folder.value, !!search.value) : undefined
+  const inFolder = useFolders ? folderWhere(tree.value, openId.value, !!search.value) : undefined
   if (inFolder) Object.assign(where, inFolder)
   if (search.value)
     where.or = [{ filename: { like: search.value } }, { alt: { like: search.value } }]
@@ -167,7 +168,7 @@ function insertUrl() {
       <button type="button" class="btn btn-ghost btn-icon" :aria-label="t('common.cancel')" @click="emit('close')">✕</button>
     </header>
     <nav v-if="useFolders" class="crumbs" :aria-label="t('folders.path')">
-      <button type="button" class="crumb" :aria-current="String(folder) === String(top) ? 'page' : undefined" @click="openFolder(null)">
+      <button type="button" class="crumb" :aria-current="String(openId) === String(top) ? 'page' : undefined" @click="openFolder(null)">
         {{ top === null ? t('folders.top') : (tree.byId.get(String(top))?.name ?? t('folders.top')) }}
       </button>
       <template v-for="(node, i) in crumbs" :key="String(node.id)">
@@ -175,7 +176,7 @@ function insertUrl() {
         <button type="button" class="crumb" :aria-current="i === crumbs.length - 1 ? 'page' : undefined" @click="openFolder(node.id)">{{ node.name }}</button>
       </template>
     </nav>
-    <UploadDropzone v-if="canUpload" :accept="accept" :multiple="!!multiple" :folder="useFolders ? folder : undefined" @uploaded="onUploaded" />
+    <UploadDropzone v-if="canUpload" :accept="accept" :multiple="!!multiple" :folder="useFolders ? openId : undefined" @uploaded="onUploaded" />
     <input v-model="search" class="input" type="search" :placeholder="t('field.searchRelation')" />
     <ul v-if="useFolders && !search && subfolders.length" class="subfolders">
       <li v-for="node in subfolders" :key="String(node.id)">
