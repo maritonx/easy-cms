@@ -22,8 +22,9 @@ const value = computed<Permissions>(() =>
     : {},
 )
 
-// Keys never reach users or other keys, so those rows are not offered.
-const EXCLUDED = new Set(['users', 'api-keys'])
+// Keys never reach users or other keys, so those rows are not offered; media folders follow
+// the key's media row.
+const EXCLUDED = new Set(['users', 'api-keys', 'media-folders'])
 const collections = computed(
   () => session.schema?.collections.filter((c) => !EXCLUDED.has(c.slug)) ?? [],
 )

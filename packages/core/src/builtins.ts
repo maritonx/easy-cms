@@ -1,9 +1,10 @@
-import { type Access, anyone, isAdmin, isLoggedIn } from './access.js'
+import { type Access, anyone, type ID, isAdmin, isLoggedIn } from './access.js'
 import type { CollectionConfig, Config } from './config.js'
 import type { Field } from './fields.js'
 
 export const USERS = 'users'
 export const MEDIA = 'media'
+export const MEDIA_FOLDERS = 'media-folders'
 export const SESSIONS = 'sessions'
 export const LOGIN_ATTEMPTS = 'login-attempts'
 export const VERSIONS = 'document-versions'
@@ -186,20 +187,88 @@ interface StoredSize {
   height?: number
 }
 
+/** Only admins (signed in, not API keys) see and set a folder's permissions. */
+const adminField = {
+  read: ({ user }: { user: { role: string; apiKey?: unknown } | null }) =>
+    user?.role === 'admin' && !user.apiKey,
+  update: ({ user }: { user: { role: string; apiKey?: unknown } | null }) =>
+    user?.role === 'admin' && !user.apiKey,
+}
+
+/**
+ * Folders of the media library (`upload.folders`). Roles' grants on `media` apply to them too;
+ * with `auth.rbac`, a folder's `permissions` narrow them for its files and subfolders.
+ */
+export const mediaFoldersCollection: CollectionConfig = {
+  slug: MEDIA_FOLDERS,
+  labels: {
+    singular: { en: 'Folder', th: 'โฟลเดอร์' },
+    plural: { en: 'Folders', th: 'โฟลเดอร์' },
+  },
+  icon: 'folder',
+  useAsTitle: 'name',
+  admin: { list: { tree: 'parent', sort: 'name' } },
+  access: { read: isLoggedIn, create: isLoggedIn, update: isLoggedIn, delete: isLoggedIn },
+  hooks: {
+    // What the reader may do here (`view`, `edit`, `manage`), for the admin's buttons.
+    afterRead: [
+      async ({ doc, user, cms }) => ({
+        ...doc,
+        level: await cms.folders.level(user, doc.id as ID),
+      }),
+    ],
+  },
+  fields: [
+    {
+      name: 'name',
+      type: 'text',
+      required: true,
+      maxLength: 120,
+      label: { en: 'Name', th: 'ชื่อ' },
+    },
+    {
+      name: 'parent',
+      type: 'relationship',
+      to: MEDIA_FOLDERS,
+      index: true,
+      label: { en: 'In folder', th: 'อยู่ในโฟลเดอร์' },
+    },
+    // `null`: as the parent folder. Otherwise each role's level (`view`, `edit`, `manage`);
+    // roles not listed get nothing.
+    {
+      name: 'permissions',
+      type: 'json',
+      access: adminField,
+      label: { en: 'Permissions', th: 'สิทธิ์เข้าถึง' },
+    },
+  ],
+}
+
+const folderField: Field = {
+  name: 'folder',
+  type: 'relationship',
+  to: MEDIA_FOLDERS,
+  index: true,
+  position: 'sidebar',
+  label: { en: 'Folder', th: 'โฟลเดอร์' },
+}
+
 /**
  * Adds the built-in media collection, merging a user-supplied `media`
  * collection into it like `withUsers`. Files are public; metadata is readable by anyone
- * so frontends can populate uploads, and writable by logged-in users.
+ * so frontends can populate uploads, and writable by logged-in users. With `upload.folders`,
+ * also the folders and each file's `folder`.
  */
 export function withMedia(config: Config): Config {
   const custom = config.collections?.find((c) => c.slug === MEDIA)
+  const folders = config.upload?.folders === true
   const media: CollectionConfig = {
     slug: MEDIA,
     labels: { singular: { en: 'Media', th: 'สื่อ' }, plural: { en: 'Media', th: 'คลังสื่อ' } },
     icon: 'image',
     useAsTitle: 'filename',
     ...custom,
-    fields: [...mediaFields(), ...(custom?.fields ?? [])],
+    fields: [...mediaFields(), ...(folders ? [folderField] : []), ...(custom?.fields ?? [])],
     access: {
       read: anyone,
       create: isLoggedIn,
@@ -237,7 +306,15 @@ export function withMedia(config: Config): Config {
     },
   }
   const others = (config.collections ?? []).filter((c) => c.slug !== MEDIA)
-  return { ...config, collections: [...others.slice(0, 1), media, ...others.slice(1)] }
+  return {
+    ...config,
+    collections: [
+      ...others.slice(0, 1),
+      media,
+      ...(folders ? [mediaFoldersCollection] : []),
+      ...others.slice(1),
+    ],
+  }
 }
 
 const nobody: Access = () => false

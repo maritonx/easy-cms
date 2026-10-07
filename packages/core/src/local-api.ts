@@ -23,6 +23,7 @@ import {
   EMAIL_DELIVERIES,
   INTERNAL_COLLECTIONS,
   MEDIA,
+  MEDIA_FOLDERS,
   SCHEDULED_JOBS,
   USERS,
   WEBHOOK_DELIVERIES,
@@ -68,6 +69,7 @@ import {
 } from './localization.js'
 import { consoleLogger, type Logger } from './logger.js'
 import { imageDimensions, mimeAllowed, sniffMimeType, storageKey } from './media.js'
+import { MediaFolders } from './media-folders.js'
 import { DEFAULT_DEPTH, type Loader, MAX_DEPTH, populate } from './populate.js'
 import { fetchRemoteFile, RemoteFileError } from './remote-file.js'
 import { resolveConfig } from './resolve-config.js'
@@ -238,6 +240,8 @@ export class EasyCMS<C extends Config = Config> {
   readonly roles: Roles
   /** Who did what (`audit`, Settings → Audit log). */
   readonly audit: AuditLog
+  /** Folders of the media library and their permissions (`upload.folders`). */
+  readonly folders: MediaFolders
   private readonly versions: VersionStore
   private readonly webhooks: Webhooks
   private readonly mailer: Mailer
@@ -262,6 +266,7 @@ export class EasyCMS<C extends Config = Config> {
       (entry) => this.audit.record(entry),
     )
     this.audit = new AuditLog(this as unknown as EasyCMS)
+    this.folders = new MediaFolders(config, db, this.roles)
     this.webhooks = new Webhooks(
       config.webhooks ?? [],
       logger,
@@ -389,6 +394,7 @@ export class EasyCMS<C extends Config = Config> {
       await this.checkGrant(guard, { collection: MEDIA }, 'create')
       const allowed = await evaluateAccess(config.access?.create, { user: guard.user, data })
       if (allowed !== true) throw deny(guard.user)
+      await this.folders.checkTarget(guard.user, MEDIA, folderOf(MEDIA, data))
     }
     const { maxFileSize, mimeTypes, imageSizes } = this.config.upload
     if (file.data.byteLength > maxFileSize) {
@@ -818,6 +824,11 @@ export class EasyCMS<C extends Config = Config> {
       parsed === undefined ? null : await this.db.findById({ collection, id: parsed })
     if (!existing || parsed === undefined) throw new NotFoundError(collection, id)
     await this.checkDocumentAccess(config, 'update', guard, parsed, raw)
+    if (guard.enforce && inFolders(this.config, collection)) {
+      const key = collection === MEDIA ? 'folder' : 'parent'
+      if (Object.hasOwn(raw, key) && String(raw[key] ?? null) !== String(existing[key] ?? null))
+        await this.folders.checkTarget(guard.user, collection, folderOf(collection, raw))
+    }
     if (config.drafts && (mode === 'unpublish' || raw.status === 'published'))
       await this.checkDocumentGrant(guard, collection, 'publish', parsed)
     // With separate drafts, edits apply to the pending draft when there is one.
@@ -895,12 +906,14 @@ export class EasyCMS<C extends Config = Config> {
 
     if (config.slug === USERS) await this.guardLastAdmin(parsed, existing, prepared)
     if (password !== undefined) prepared.passwordHash = await hashPassword(password)
+    if (collection === MEDIA_FOLDERS) await this.folders.validate(prepared, parsed)
 
     const doc = await this.db.update({
       collection,
       id: parsed,
       data: { ...prepared, createdAt: existing.createdAt, updatedAt: now },
     })
+    if (collection === MEDIA_FOLDERS) this.folders.invalidate()
     // Upkeep, not an edit: no version (which would also hide a pending draft behind it).
     if (!live) await this.saveVersion(config, collectionParent(collection), parsed, doc, guard)
     // A new password signs the user out everywhere.
@@ -952,7 +965,10 @@ export class EasyCMS<C extends Config = Config> {
       await this.auth.revokeSessions(parsed)
       await this.auth.sso.forget(parsed)
     }
+    // A folder's files and subfolders move up to its parent.
+    if (collection === MEDIA_FOLDERS) await this.folders.release(existing)
     await this.db.delete({ collection, id: parsed })
+    if (collection === MEDIA_FOLDERS) this.folders.invalidate()
     if (versionLimit(config)) await this.versions.deleteAll(collectionParent(collection), parsed)
     if (config.schedule) {
       for (const job of await this.pendingJobs(collection, parsed))
@@ -1655,11 +1671,18 @@ export class EasyCMS<C extends Config = Config> {
   ): Promise<true | Where> {
     if (!guard.enforce) return true
     const name = 'collection' in target ? target.collection : target.global
-    if (!keyAllows(guard.user, target, operation))
+    // Folders are part of the media library: grants on `media` cover them.
+    const folders = 'collection' in target && target.collection === MEDIA_FOLDERS
+    const granted = folders ? { collection: MEDIA } : target
+    if (!keyAllows(guard.user, granted, operation))
       throw new ForbiddenError(`This API key may not ${operation} "${name}"`)
-    const role = await this.roles.allows(guard.user, target, operation)
+    let role = await this.roles.allows(guard.user, granted, operation)
     if (role === false) throw deny(guard.user)
-    return role
+    // "Own documents only" on media: folders they created.
+    if (folders && role !== true && guard.user) role = { createdBy: { equals: guard.user.id } }
+    const inFolder = await this.folders.where(guard.user, name, operation)
+    if (inFolder === true) return role
+    return role === true ? inFolder : { and: [role, inFolder] }
   }
 
   /** The query constraint read access adds, or `undefined` when there is none. Throws when denied. */
@@ -1837,6 +1860,8 @@ export class EasyCMS<C extends Config = Config> {
       if (typeof allowed === 'object')
         throw new QueryError(`create access of "${collection}" must return a boolean`)
       if (!allowed) throw deny(guard.user)
+      if (inFolders(this.config, collection))
+        await this.folders.checkTarget(guard.user, collection, folderOf(collection, raw))
     }
 
     // A user without a password can't log in until they set one from an invitation link.
@@ -1874,12 +1899,14 @@ export class EasyCMS<C extends Config = Config> {
       prepared,
     )
     if (password !== undefined) prepared.passwordHash = await hashPassword(password)
+    if (collection === MEDIA_FOLDERS) await this.folders.validate(prepared, undefined)
 
     const now = new Date().toISOString()
     const doc = await this.db.create({
       collection,
       data: { ...prepared, createdAt: now, updatedAt: now },
     })
+    if (collection === MEDIA_FOLDERS) this.folders.invalidate()
     await this.saveVersion(config, collectionParent(collection), doc.id, doc, guard)
     await this.notify(config.hooks?.afterChange, 'afterChange', collection, {
       ...base,
@@ -2010,7 +2037,14 @@ export class EasyCMS<C extends Config = Config> {
   ) {
     if (!this.audit.enabled) return
     let action: string = event
-    if (event === 'update' || event === 'draft') {
+    // Who may use a folder: recorded as a change of permissions.
+    if (
+      config.slug === MEDIA_FOLDERS &&
+      event === 'update' &&
+      JSON.stringify(doc.permissions ?? null) !== JSON.stringify(previous?.permissions ?? null)
+    )
+      action = 'folder.permissions'
+    else if (event === 'update' || event === 'draft') {
       const was = previous?.status
       if (mode === 'restore') action = 'restore'
       else if (config.drafts && doc.status === 'published' && was !== 'published')
@@ -2447,4 +2481,15 @@ function asObject(data: unknown, name: string): Data {
     throw new ValidationError(name, [{ field: '', message: 'data must be an object' }])
   }
   return data as Data
+}
+
+/** Collections whose documents are in media folders (`upload.folders`). */
+function inFolders(config: ResolvedConfig, collection: string): boolean {
+  return config.upload.folders && (collection === MEDIA || collection === MEDIA_FOLDERS)
+}
+
+/** The folder a file (`folder`) or folder (`parent`) is put in; `null`: the top level. */
+function folderOf(collection: string, data: Record<string, unknown>): ID | null {
+  const value = data[collection === MEDIA ? 'folder' : 'parent']
+  return value === undefined || value === '' ? null : (value as ID | null)
 }

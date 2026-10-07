@@ -89,17 +89,23 @@ export interface Paginated<T> {
   hasPrevPage: boolean
 }
 
-export type Doc = Record<string, unknown> & { id: number | string }
+export type Id = number | string
+export type Doc = Record<string, unknown> & { id: Id }
 
 /** Uploads one file to the media library. */
-export function uploadFile(file: File, alt?: string): Promise<Doc> {
+export function uploadFile(file: File, alt?: string, folder?: Id | null): Promise<Doc> {
   const form = new FormData()
   form.set('file', file)
   if (alt) form.set('alt', alt)
+  if (folder !== undefined && folder !== null) form.set('folder', String(folder))
   return api<Doc>('POST', '/media?depth=0', form)
 }
 
 /** Has the server download a file from a link into the media library (`upload.fromURL`). */
-export function uploadFromURL(url: string, alt?: string): Promise<Doc> {
-  return api<Doc>('POST', '/media?depth=0', { url, ...(alt ? { alt } : {}) })
+export function uploadFromURL(url: string, alt?: string, folder?: Id | null): Promise<Doc> {
+  return api<Doc>('POST', '/media?depth=0', {
+    url,
+    ...(alt ? { alt } : {}),
+    ...(folder !== undefined && folder !== null ? { folder } : {}),
+  })
 }

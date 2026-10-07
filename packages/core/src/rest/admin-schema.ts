@@ -134,6 +134,11 @@ export interface AdminSchema {
   modules: string[]
   /** Files can be uploaded from links (`upload.fromURL`). */
   uploadFromURL: boolean
+  /**
+   * The media library has folders (`upload.folders`); `permissions`: this user may choose which
+   * roles use each folder (admins, with `auth.rbac`).
+   */
+  folders?: { permissions: boolean }
   /** Which saved deliveries the admin can show (webhooks, emails), for users who may see them. */
   deliveries?: { webhook: boolean; email: boolean }
   /** Admin pages this user may open: Settings → Backups, Email, Roles; deliveries; the status panel. */
@@ -387,6 +392,7 @@ export async function adminSchema(
     globals: await Promise.all(cms.config.globals.map((g) => global(cms, g, user, localized))),
     modules: adminModuleUrls(cms),
     uploadFromURL: cms.config.upload.fromURL !== undefined,
+    ...(cms.folders.enabled ? { folders: { permissions: admin && cms.roles.enabled } } : {}),
     views,
     rbac: cms.roles.enabled,
     providers: cms.auth.sso.providers(),

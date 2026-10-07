@@ -1,8 +1,20 @@
 <script setup lang="ts">
-import { Check } from '@lucide/vue'
+import { Check, ChevronRight, Folder } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
-import { api, type Doc, type Paginated, toQuery } from '../lib/api'
+import { api, type Doc, type Id, type Paginated, toQuery } from '../lib/api'
+import {
+  atLeast,
+  buildTree,
+  type FolderTree,
+  foldersOn,
+  folderWhere,
+  lastFolder,
+  loadFolders,
+  pathTo,
+  rememberFolder,
+} from '../lib/folders'
 import { t } from '../lib/i18n'
+import { findCollection } from '../lib/session'
 import MediaThumb from './MediaThumb.vue'
 import UploadDropzone from './UploadDropzone.vue'
 
@@ -45,9 +57,39 @@ const page = ref(1)
 const hasMore = ref(false)
 const urlInput = ref('')
 
+// Folders (`upload.folders`): the picker opens where the user last worked.
+const useFolders = foldersOn()
+const tree = ref<FolderTree>({ roots: [], byId: new Map() })
+const folder = ref<Id | null>(null)
+const crumbs = computed(() => pathTo(tree.value, folder.value))
+const subfolders = computed(() =>
+  folder.value === null
+    ? tree.value.roots
+    : (tree.value.byId.get(String(folder.value))?.children ?? []),
+)
+const canUpload = computed(() => {
+  if (!useFolders) return true
+  if (folder.value === null) return !!findCollection('media')?.permissions.create
+  return atLeast(tree.value.byId.get(String(folder.value))?.level, 'edit')
+})
+async function loadTree() {
+  if (!useFolders) return
+  tree.value = buildTree(await loadFolders().catch(() => []))
+  const last = lastFolder()
+  folder.value = last === null ? null : (tree.value.byId.get(last)?.id ?? null)
+}
+function openFolder(id: Id | null) {
+  folder.value = id
+  rememberFolder(id)
+  search.value = ''
+  void load()
+}
+
 async function load(reset = true) {
   if (reset) page.value = 1
   const where: Record<string, unknown> = {}
+  const inFolder = useFolders ? folderWhere(tree.value, folder.value, !!search.value) : undefined
+  if (inFolder) Object.assign(where, inFolder)
   if (search.value)
     where.or = [{ filename: { like: search.value } }, { alt: { like: search.value } }]
   if (types.value)
@@ -74,7 +116,7 @@ watch(
     if (open) {
       chosen.value = []
       dialog.value?.showModal()
-      void load()
+      void loadTree().then(() => load())
     } else {
       dialog.value?.close()
     }
@@ -86,7 +128,7 @@ watch(search, () => {
   timer = setTimeout(() => load(), 250)
 })
 onMounted(() => {
-  if (props.open) void load()
+  if (props.open) void loadTree().then(() => load())
 })
 
 function onUploaded(docs: Doc[]) {
@@ -109,8 +151,23 @@ function insertUrl() {
       <h2>{{ t('media.pickerTitle') }}</h2>
       <button type="button" class="btn btn-ghost btn-icon" :aria-label="t('common.cancel')" @click="emit('close')">✕</button>
     </header>
-    <UploadDropzone :accept="accept" :multiple="!!multiple" @uploaded="onUploaded" />
+    <nav v-if="useFolders" class="crumbs" :aria-label="t('folders.path')">
+      <button type="button" class="crumb" :aria-current="folder === null ? 'page' : undefined" @click="openFolder(null)">{{ t('folders.top') }}</button>
+      <template v-for="(node, i) in crumbs" :key="String(node.id)">
+        <ChevronRight :size="13" aria-hidden="true" />
+        <button type="button" class="crumb" :aria-current="i === crumbs.length - 1 ? 'page' : undefined" @click="openFolder(node.id)">{{ node.name }}</button>
+      </template>
+    </nav>
+    <UploadDropzone v-if="canUpload" :accept="accept" :multiple="!!multiple" :folder="useFolders ? folder : undefined" @uploaded="onUploaded" />
     <input v-model="search" class="input" type="search" :placeholder="t('field.searchRelation')" />
+    <ul v-if="useFolders && !search && subfolders.length" class="subfolders">
+      <li v-for="node in subfolders" :key="String(node.id)">
+        <button type="button" class="subfolder" @click="openFolder(node.id)">
+          <Folder :size="16" aria-hidden="true" />
+          <span>{{ node.name }}</span>
+        </button>
+      </li>
+    </ul>
     <p v-if="!items.length" class="muted">{{ t('media.empty') }}</p>
     <ul class="grid">
       <li v-for="item in items" :key="String(item.id)">
@@ -235,6 +292,57 @@ function insertUrl() {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.15rem;
+  color: var(--faint);
+}
+.crumb {
+  padding: 0.15rem 0.35rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.crumb:hover {
+  background: var(--surface-2);
+}
+.crumb[aria-current='page'] {
+  color: var(--text);
+  font-weight: 600;
+}
+.subfolders {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.subfolder {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.subfolder:hover {
+  border-color: var(--accent);
+}
+.subfolder :deep(svg) {
+  color: var(--accent);
 }
 .url-row {
   display: flex;

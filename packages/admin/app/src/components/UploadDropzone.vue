@@ -4,7 +4,12 @@ import { ApiError, type Doc, uploadFile, uploadFromURL } from '../lib/api'
 import { t } from '../lib/i18n'
 import { session } from '../lib/session'
 
-const props = defineProps<{ accept?: string | undefined; multiple?: boolean }>()
+const props = defineProps<{
+  accept?: string | undefined
+  multiple?: boolean
+  /** The media folder files go in (`upload.folders`). */
+  folder?: number | string | null | undefined
+}>()
 const emit = defineEmits<{ uploaded: [Doc[]] }>()
 
 const input = ref<HTMLInputElement>()
@@ -31,7 +36,11 @@ async function run(items: (File | string)[]) {
     busy.value =
       typeof item === 'string' ? t('media.importing', { name }) : t('media.uploading', { name })
     try {
-      uploaded.push(typeof item === 'string' ? await uploadFromURL(item) : await uploadFile(item))
+      uploaded.push(
+        typeof item === 'string'
+          ? await uploadFromURL(item, undefined, props.folder)
+          : await uploadFile(item, undefined, props.folder),
+      )
     } catch (e) {
       errors.value.push(t('media.failed', { name, message: messageOf(e) }))
     }

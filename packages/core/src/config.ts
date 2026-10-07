@@ -332,6 +332,11 @@ export interface UploadConfig {
   readonly imageSizes?: readonly ImageSize[]
   /** Lets users upload from a link. Off by default. */
   readonly fromURL?: UploadFromURLConfig
+  /**
+   * Folders in the media library (`media-folders`; a file is in one folder at most). With
+   * `auth.rbac`, admins can also choose which roles see and change each folder. Off by default.
+   */
+  readonly folders?: boolean
 }
 
 export interface RoutesConfig {

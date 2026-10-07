@@ -20,6 +20,7 @@ describe('resolveConfig', () => {
       maxFileSize: 10 * 1024 * 1024,
       mimeTypes: ['image/*', 'application/pdf'],
       imageSizes: [],
+      folders: false,
     })
     expect(config.auth).toEqual({
       roles: ['admin', 'editor'],

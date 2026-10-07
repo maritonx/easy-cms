@@ -56,7 +56,8 @@ const uploads = storage()
 export default defineConfig({
   secret: secret(),
   db: databaseURL ? postgres({ url: databaseURL }) : postgres({ pglite: '.pglite' }),
-  ...(uploads ? { upload: { storage: uploads } } : {}),
+  // Folders in the media library; admins choose which roles use each.
+  upload: { folders: true, ...(uploads ? { storage: uploads } : {}) },
   admin: { brand: { name: 'Easy CMS Starter' }, menu: ['posts', 'categories', 'media'] },
   // Settings → Roles and Settings → Audit log.
   auth: { rbac: true },

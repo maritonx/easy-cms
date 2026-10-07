@@ -96,6 +96,7 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
       maxFileSize: config.upload?.maxFileSize ?? DEFAULT_MAX_FILE_SIZE,
       mimeTypes: config.upload?.mimeTypes ?? ['image/*', 'application/pdf'],
       imageSizes: config.upload?.imageSizes ?? [],
+      folders: config.upload?.folders === true,
       ...(config.upload?.storage ? { storage: config.upload.storage } : {}),
       ...(config.upload?.fromURL ? { fromURL: config.upload.fromURL } : {}),
     },

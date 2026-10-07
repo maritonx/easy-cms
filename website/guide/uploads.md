@@ -1,7 +1,7 @@
 # Uploads & media
 
 ::: info What you'll learn
-The media library, image sizes, file limits, and storing files on disk or S3, Cloudflare R2 and MinIO.
+The media library and its folders, image sizes, file limits, and storing files on disk or S3, Cloudflare R2 and MinIO.
 
 **Before this page:** [Fields](./fields).
 :::
@@ -50,6 +50,70 @@ only, use an `array` with an `upload` and a `text` field instead: see the
 
 `mimeTypes` works on single uploads too, e.g. a cover that must be an image, or
 `['application/pdf']` for a brochure.
+
+## Folders
+
+<Screenshot name="media-folders" alt="The media library with folders: the tree on the left, a folder open with its files" />
+
+Turn on folders to sort the media library:
+
+```ts
+upload: { folders: true }
+```
+
+The Media page gets a folder tree, a path and the open folder's subfolders above its files.
+**New folder** adds one in the open folder; uploads go into it; drag files onto a folder, or select
+some and use **Move to…**. A folder's **⋯** menu renames, moves or deletes it. Deleting a folder
+deletes no file: what it holds moves up to its parent. Searching looks in the open folder and its
+subfolders. Upload fields' pickers browse folders too, and open where you last were.
+
+A file is in one folder at most. Folders are records in the `media-folders` collection (`name`,
+`parent`); files have a `folder`. Their URLs don't change when they move. Over REST:
+
+```http
+GET /api/cms/media?where[folder][equals]=4        files in folder 4
+GET /api/cms/media?where[folder][exists]=false    files at the top
+POST /api/cms/media-folders  { "name": "Banners", "parent": 4 }
+```
+
+Uploads take a `folder` too (a form field, or in the JSON with `url`). Folder names are unique
+within their folder, ignoring case. Folders follow the role's [Media permissions](./roles), and are
+visible to signed-in users only.
+
+### Who can use a folder
+
+With [roles](./roles) (`auth.rbac`), admins choose who can use each folder from its menu: **Who can
+use it**. A folder follows the folder it is in until it is given its own list; then each role gets
+one of:
+
+| | |
+|---|---|
+| **View** | sees the folder and its files, and uses them in content |
+| **Edit** | also uploads, renames, moves and deletes files there |
+| **Manage** | also adds, renames, moves and deletes its folders |
+
+Roles not listed don't see the folder. The top level is open to every role that may use Media.
+
+<Screenshot name="media-folder-permissions" alt="Who can use a folder: each role's level" />
+
+- A folder only narrows what the role may do with Media in Settings → Roles: a role without Delete
+  on Media can't delete files anywhere.
+- Admins can do everything, and only they set who can use a folder; changes are in the
+  [audit log](./audit-log) as **Folder access changed**.
+- API keys use their own Media permissions; folders don't limit them.
+- A post can keep a file from a folder its editor can't see: the field shows "A file you may not
+  see", and the file stays unless they change or remove it.
+
+::: warning This sorts the team's work
+Files are still public: anyone with a file's link can open it, and requests that are not signed in
+list every file as before. Keep what must stay private out of the media library.
+:::
+
+Turning folders on adds the `media-folders` table and the media `folder` column:
+
+```sh
+npx easy-cms migrate:create media-folders
+```
 
 ## Uploading from code
 

@@ -586,6 +586,8 @@ function validateUpload(config: Config, add: Add) {
   if (upload.dir !== undefined && (typeof upload.dir !== 'string' || upload.dir.length === 0)) {
     add('upload.dir', 'must be a non-empty string')
   }
+  if (upload.folders !== undefined && typeof upload.folders !== 'boolean')
+    add('upload.folders', 'must be true or false')
   const fromURL: unknown = upload.fromURL
   if (fromURL === undefined) return
   if (typeof fromURL !== 'object' || fromURL === null) {

@@ -111,6 +111,9 @@ When a role may edit posts but not read categories, a post's category field show
 is, says the user can't open categories, and keeps the value on save. Settings → Roles warns about
 this when the role is saved. Upload fields need Read on Media to choose files, and Create to upload.
 
+With [media folders](./uploads#folders), admins can narrow Media further for each folder: who may
+view, edit or manage it.
+
 ## Setting it up
 
 Roles are stored in the `ecms_user_roles` table, and their history with

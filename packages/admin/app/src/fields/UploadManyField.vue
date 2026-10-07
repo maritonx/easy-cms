@@ -28,6 +28,8 @@ const ids = computed<Id[]>(() =>
   Array.isArray(props.modelValue) ? (props.modelValue as Id[]) : [],
 )
 const byId = ref<Record<string, Doc>>({})
+/** Ids asked for: one not found then is a file the user may not see. */
+const asked = ref<Set<string>>(new Set())
 const picking = ref(false)
 const room = computed(() =>
   props.maxRows === undefined ? undefined : Math.max(0, props.maxRows - ids.value.length),
@@ -48,6 +50,7 @@ async function load(list: Id[]) {
     } catch {
       // no read access: the ids still show
     }
+    asked.value = new Set([...asked.value, ...chunk.map(String)])
   }
 }
 watch(ids, load, { immediate: true })
@@ -95,7 +98,8 @@ function onDrop(index: number) {
 
 const nameOf = (id: Id) => {
   const doc = byId.value[String(id)]
-  return String(doc?.alt || doc?.filename || `#${id}`)
+  if (doc) return String(doc.alt || doc.filename)
+  return asked.value.has(String(id)) ? t('media.noAccess') : `#${id}`
 }
 </script>
 

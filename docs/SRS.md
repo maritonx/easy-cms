@@ -1,9 +1,9 @@
 # Software Requirements Specification — Easy CMS
 
-- **เวอร์ชันเอกสาร:** 3.12
-- **วันที่:** 2026-10-05
+- **เวอร์ชันเอกสาร:** 3.13
+- **วันที่:** 2026-10-07
 - **ผู้เขียน:** Kanawoot K.
-- **ครอบคลุม:** v0.1 (baseline) ถึง v0.37
+- **ครอบคลุม:** v0.1 (baseline) ถึง v0.38
 - **สถานะ:** Living document (อัปเดตทุกครั้งที่เพิ่มฟีเจอร์)
 - **เอกสารที่เกี่ยวข้อง:** [DESIGN.md](DESIGN.md), [ADRs](adr/)
 
@@ -222,6 +222,7 @@ AI assistant ► /api/cms/mcp ──┘                     └──► Webhook
 | FR-ACL-11 | admin ต้องจำกัด อ่าน แก้ไข ลบ และเผยแพร่ ของบทบาทให้เป็น "เฉพาะเอกสารของตัวเอง" ได้ต่อ collection และบทบาทนั้นต้องเปลี่ยนเจ้าของเอกสารไม่ได้ | SHOULD |
 | FR-ACL-12 | admin ต้องตั้ง field ชั้นบนสุดเป็นแก้ได้ อ่านอย่างเดียว หรือซ่อน ต่อบทบาทได้ field ที่บังคับกรอกต้องแก้ได้เสมอสำหรับบทบาทที่สร้างเอกสาร และ field ที่อ่านไม่ได้ (จากบทบาทหรือ `access.read`) ต้องใช้กรองหรือเรียงไม่ได้ | SHOULD |
 | FR-ACL-13 | การลบผู้ใช้ต้องโอนเอกสารที่ผู้ใช้เป็นเจ้าของให้ผู้ใช้อีกคนได้ (`transferTo`) หรือให้ไม่มีเจ้าของ และหน้า admin ต้องให้เลือกก่อนลบ | SHOULD |
+| FR-ACL-14 | เมื่อเปิด `upload.folders` กับ `auth.rbac` admin ต้องกำหนดได้ต่อโฟลเดอร์ว่าแต่ละบทบาท ดู แก้ไข หรือจัดการได้ (ไม่อยู่ในรายการ = ไม่เห็น) โฟลเดอร์ย่อยใช้ตามแม่จนกว่าจะตั้งเอง สิทธิ์โฟลเดอร์ต้องจำกัดสิทธิ์ Media ของบทบาทให้แคบลงเท่านั้น ตรวจฝั่ง server ไม่มีผลกับ API key และผู้ที่ไม่ได้ login และการเปลี่ยนต้องบันทึกใน audit log ([ADR-0041](adr/0041-media-folders.md)) | SHOULD |
 | FR-ACL-09 | บทบาทใน `auth.roles` ต้องลบไม่ได้ บทบาทที่ยังมีผู้ใช้ต้องลบไม่ได้ เมื่อเปิดใช้ครั้งแรกบทบาทเดิมต้องได้สิทธิ์เท่าที่เคยมี และ collection/global ที่เพิ่มภายหลังต้องเริ่มแบบไม่อนุญาต | MUST |
 
 ### 3.9 Drafts และ Publishing (DRF)
@@ -246,6 +247,7 @@ AI assistant ► /api/cms/mcp ──┘                     └──► Webhook
 | FR-UPL-05 | ชื่อไฟล์ที่บันทึกต้องผ่านการ sanitize และไม่ซ้ำกัน เพื่อป้องกัน path traversal และการเขียนทับ | MUST |
 | FR-UPL-06 | ถ้าติดตั้ง `sharp` ไว้ ระบบต้องสร้าง thumbnail ตาม `imageSizes` ที่กำหนด | SHOULD |
 | FR-UPL-07 | Storage ต้องเป็น interface (`put/get/delete/url`) เพื่อเพิ่ม adapter อื่นได้ | MUST |
+| FR-UPL-09 | (0.38) เมื่อตั้ง `upload.folders` คลังสื่อต้องมีโฟลเดอร์ซ้อนกันได้ (`media-folders`) ไฟล์หนึ่งอยู่ได้โฟลเดอร์เดียว ชื่อไม่ซ้ำในโฟลเดอร์เดียวกัน ย้ายไฟล์และโฟลเดอร์ได้โดย URL ของไฟล์ไม่เปลี่ยน การลบโฟลเดอร์ต้องย้ายของข้างในขึ้นไปที่โฟลเดอร์แม่ และหน้า admin ต้องเรียกดู สร้าง เปลี่ยนชื่อ ย้าย (ลากวางและ "ย้ายไป…") ได้ทั้งในคลังสื่อและตัวเลือกไฟล์ ([ADR-0041](adr/0041-media-folders.md)) | SHOULD |
 | FR-UPL-08 | (0.28) เมื่อตั้ง `upload.fromURL` ผู้ใช้ต้องอัปโหลดจากลิงก์ได้ (`cms.uploadFromURL`, `POST <api>/media` แบบ JSON `{ url }`, ช่อง "จากลิงก์" และการวางลิงก์ใน admin) โดยไฟล์ผ่านการตรวจเดียวกับการอัปโหลดปกติ | MUST |
 
 ### 3.11 Rich Text (RTX)
@@ -738,6 +740,7 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 0.18 | SEO สำหรับ AI: crawler ของ AI, llms.txt, Markdown, IndexNow | FR-SEO-09..12 | [0021](adr/0021-seo-for-ai.md) |
 | 0.19 | Redirects plugin, `admin.group: 'settings'` | FR-RDR-*, FR-ADM-19 | [0022](adr/0022-redirects-plugin.md) |
 | 0.20 | อีเมลใน core, email-smtp, form builder | FR-EML-*, FR-FRM-*, FR-STA-06 | [0023](adr/0023-email-and-form-builder.md) |
+| 0.38 | โฟลเดอร์ในคลังสื่อ และสิทธิ์ของบทบาทต่อโฟลเดอร์ | FR-UPL-09, FR-ACL-14 | [0041](adr/0041-media-folders.md) |
 | 0.37 | Deploy ด้วยคลิกเดียว: template Next.js, Vercel Blob, Netlify Blobs, รหัส setup | FR-AUTH-17, FR-INS-14..15 | [0040](adr/0040-one-click-deploy.md) |
 | 0.36 | Audit log: การเปลี่ยนแปลงระดับ field การเข้าสู่ระบบ การจัดการระบบ ลายเซ็น และการเตือน | FR-OPS-05, NFR-SEC-13 | [0039](adr/0039-audit-log.md) |
 | 0.35 | Single sign-on: `@easy-cms/auth-oauth` (OIDC, Google, Microsoft, GitHub), `auth.password: false` | FR-AUTH-14..16, NFR-SEC-12 | [0038](adr/0038-single-sign-on.md) |
@@ -768,6 +771,7 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 1.3 | 2026-09-25 | M5: FR-REST-08 (อัปโหลด/ไฟล์), FR-CFG-07 (`routes.api`, `serverURL`), ระบุว่า drafts ใน v0.1 ไม่มี version แยก |
 | 1.4 | 2026-09-25 | M6: ผลวัด NFR-PERF-01/02 บน Postgres 17 (Local API p95 2.7 ms, REST p95 4.3 ms), Next.js adapter ใช้ `getEasyCMS(config)` |
 | 1.5 | 2026-09-25 | M7: ผลตรวจรับ v0.1 (7.1) |
+| 3.13 | 2026-10-07 | 0.38: FR-UPL-09, FR-ACL-14 |
 | 3.12 | 2026-10-06 | 0.37: FR-AUTH-17, FR-INS-14..15 |
 | 3.11 | 2026-10-05 | 0.36: FR-OPS-05, NFR-SEC-13 |
 | 3.10 | 2026-10-05 | 0.35: FR-AUTH-14..16, NFR-SEC-12 |

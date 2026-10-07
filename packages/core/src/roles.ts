@@ -3,6 +3,7 @@ import { API_KEYS } from './api-keys.js'
 import {
   EMAIL_DELIVERIES,
   INTERNAL_COLLECTIONS,
+  MEDIA_FOLDERS,
   ROLES,
   USERS,
   VERSIONS,
@@ -122,7 +123,8 @@ export const rolesCollection: CollectionConfig = {
 
 /** Collections roles are given access to: not internal ones, nor API keys (each user has their own). */
 export function governed(slug: string): boolean {
-  return !INTERNAL_COLLECTIONS.has(slug) && slug !== API_KEYS
+  // Media folders follow the role's grants on `media`.
+  return !INTERNAL_COLLECTIONS.has(slug) && slug !== API_KEYS && slug !== MEDIA_FOLDERS
 }
 
 /** Fields roles can be given rules for: the top-level ones the admin shows. */

@@ -20,7 +20,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { counts, refreshCounts } from '../lib/counts'
 import { label, locale, setLocale, t } from '../lib/i18n'
 import { collectionIcon, globalIcon } from '../lib/icons'
-import { menuOrder } from '../lib/menu'
+import { listed, menuOrder } from '../lib/menu'
 import { logout, session } from '../lib/session'
 import { settings } from '../lib/settings'
 import { brandName, initials, setTheme, type ThemeMode, themeMode } from '../lib/theme'
@@ -29,7 +29,7 @@ const router = useRouter()
 const route = useRoute()
 const readable = computed(() =>
   menuOrder(
-    session.schema?.collections.filter((c) => c.permissions.read) ?? [],
+    session.schema?.collections.filter((c) => c.permissions.read && listed(c)) ?? [],
     session.schema?.menu,
   ),
 )

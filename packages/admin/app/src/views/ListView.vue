@@ -8,12 +8,17 @@ import {
   Columns3,
   Ellipsis,
   Eye,
+  Folder as FolderIcon,
+  FolderInput,
+  FolderPlus,
   Inbox,
+  Lock,
   Pencil,
   Plus,
   Search,
   SearchX,
   Send,
+  Shield,
   Trash2,
   UserRound,
   X,
@@ -22,13 +27,30 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import DocumentDrawer from '../components/DocumentDrawer.vue'
+import FolderMoveDialog from '../components/FolderMoveDialog.vue'
+import FolderNameDialog from '../components/FolderNameDialog.vue'
+import FolderPermissionsDialog from '../components/FolderPermissionsDialog.vue'
+import FolderTree from '../components/FolderTree.vue'
 import MediaThumb from '../components/MediaThumb.vue'
 import PluginElement from '../components/PluginElement.vue'
 import TransferDialog from '../components/TransferDialog.vue'
 import UploadDropzone from '../components/UploadDropzone.vue'
-import { ApiError, api, type Doc, type Paginated, toQuery } from '../lib/api'
+import { ApiError, api, type Doc, type Id, type Paginated, toQuery } from '../lib/api'
 import { localeName } from '../lib/content-locale'
 import { titleOf } from '../lib/fields'
+import {
+  atLeast,
+  buildTree,
+  type FolderLevel,
+  type FolderNode,
+  foldersOn,
+  folderWhere,
+  loadFolders,
+  pathTo,
+  rememberFolder,
+  type FolderTree as Tree,
+  within,
+} from '../lib/folders'
 import { formatDate, humanize, label, t } from '../lib/i18n'
 import { findCollection, session } from '../lib/session'
 import { notify } from '../lib/toast'
@@ -112,6 +134,8 @@ function onDocumentClick(event: MouseEvent) {
     columnsOpen.value = false
   if (rowMenu.value !== null && !(event.target as Element).closest?.('.row-menu'))
     rowMenu.value = null
+  if (folderMenu.value !== null && !(event.target as Element).closest?.('.folder-menu'))
+    folderMenu.value = null
 }
 
 function cell(field: AdminField, value: unknown): string {
@@ -166,7 +190,171 @@ function whereOf() {
     const value = f.type === 'relationship' && !f.hasMany ? filterValue(f.name) : ''
     if (value) parts.push({ [f.name]: { equals: value } })
   }
+  // The open folder; a search also looks in its subfolders.
+  if (useFolders) {
+    const inFolder = folderWhere(tree.value, currentFolder.value, !!search.value)
+    if (inFolder) parts.push(inFolder)
+  }
   return parts.length === 0 ? undefined : parts.length === 1 ? parts[0] : { and: parts }
+}
+
+// --- Media folders (`upload.folders`) ---------------------------------------------------------
+
+const useFolders = isMedia && foldersOn()
+/** Admins choose which roles use each folder (`auth.rbac`). */
+const canSetPermissions = !!session.schema?.folders?.permissions
+const tree = ref<Tree>({ roots: [], byId: new Map() })
+/** The open folder, `null` for the top level (`?folder=<id>`). */
+const currentFolder = computed<Id | null>(() => {
+  const value = route.query.folder
+  if (typeof value !== 'string' || value === '') return null
+  return tree.value.byId.get(value)?.id ?? value
+})
+const here = computed(() =>
+  currentFolder.value === null ? null : (tree.value.byId.get(String(currentFolder.value)) ?? null),
+)
+/** The top level is open to everyone who may use the media library. */
+const rootLevel: FolderLevel = collection?.permissions.create ? 'manage' : 'view'
+const levelOf = (folder: Id | null): FolderLevel =>
+  folder === null ? rootLevel : (tree.value.byId.get(String(folder))?.level ?? 'view')
+const hereLevel = computed(() => levelOf(currentFolder.value))
+const crumbs = computed(() => pathTo(tree.value, currentFolder.value))
+const subfolders = computed(() =>
+  currentFolder.value === null ? tree.value.roots : (here.value?.children ?? []),
+)
+const canAddFolder = computed(
+  () => !!collection?.permissions.create && atLeast(hereLevel.value, 'manage'),
+)
+const canUploadHere = computed(
+  () => !!collection?.permissions.create && atLeast(hereLevel.value, 'edit'),
+)
+
+async function loadTree() {
+  if (!useFolders) return
+  try {
+    tree.value = buildTree(await loadFolders())
+  } catch (e) {
+    notify('error', (e as Error).message)
+  }
+}
+function openFolder(id: Id | null) {
+  rememberFolder(id)
+  search.value = ''
+  setQuery({ folder: id === null ? undefined : String(id), q: undefined, page: undefined })
+}
+
+const folderMenu = ref<string | null>(null)
+const naming = ref<{ mode: 'new' } | { mode: 'rename'; folder: FolderNode } | null>(null)
+const namingError = ref('')
+const errorText = (e: unknown) =>
+  e instanceof ApiError
+    ? e.status === 403
+      ? t('common.forbidden')
+      : (e.errors[0]?.message ?? e.message)
+    : String(e)
+
+async function saveName(name: string) {
+  const target = naming.value
+  if (!target) return
+  namingError.value = ''
+  try {
+    if (target.mode === 'new')
+      await api('POST', '/media-folders?depth=0', {
+        name,
+        ...(currentFolder.value !== null ? { parent: currentFolder.value } : {}),
+      })
+    else await api('PATCH', `/media-folders/${target.folder.id}?depth=0`, { name })
+    naming.value = null
+    notify('success', t(target.mode === 'new' ? 'folders.created' : 'folders.renamed', { name }))
+    await loadTree()
+  } catch (e) {
+    namingError.value =
+      e instanceof ApiError && e.errors[0]?.field === 'name'
+        ? t('folders.nameTaken', { name })
+        : errorText(e)
+  }
+}
+
+/** What is being moved: files (by id) or one folder. */
+const moving = ref<{ files: Id[] } | { folder: FolderNode } | null>(null)
+const movingExclude = computed(() =>
+  moving.value && 'folder' in moving.value ? within(tree.value, moving.value.folder.id) : [],
+)
+async function moveFiles(ids: Id[], to: Id | null) {
+  if (ids.length === 0) return
+  busy.value = true
+  let count = 0
+  try {
+    for (const id of ids) {
+      await api('PATCH', `/media/${id}?depth=0`, { folder: to })
+      count++
+    }
+    const name = to === null ? t('folders.top') : (tree.value.byId.get(String(to))?.name ?? '')
+    notify('success', t('folders.movedFiles', { count, name }))
+  } catch (e) {
+    notify('error', errorText(e))
+  } finally {
+    busy.value = false
+  }
+  await load()
+}
+async function moveTo(to: Id | null) {
+  const what = moving.value
+  moving.value = null
+  if (!what) return
+  if ('files' in what) return moveFiles(what.files, to)
+  try {
+    await api('PATCH', `/media-folders/${what.folder.id}?depth=0`, { parent: to })
+    notify('success', t('folders.movedFolder', { name: what.folder.name }))
+    await loadTree()
+  } catch (e) {
+    notify('error', errorText(e))
+  }
+}
+
+/** Files dragged from the list onto a folder: the selection, or the row dragged. */
+const dragged = ref<Id[]>([])
+function onRowDragStart(event: DragEvent, doc: Doc) {
+  dragged.value = selected.value.has(doc.id) ? [...selected.value] : [doc.id]
+  event.dataTransfer?.setData('text/plain', dragged.value.join(','))
+  if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move'
+}
+const overFolder = ref<string | null>(null)
+function onFolderDrop(to: Id | null) {
+  overFolder.value = null
+  const ids = dragged.value
+  dragged.value = []
+  if (ids.length === 0) return
+  if (!atLeast(levelOf(to), 'edit')) return notify('error', t('common.forbidden'))
+  void moveFiles(ids, to)
+}
+
+const permissionsOf = ref<FolderNode | null>(null)
+function onPermissionsSaved() {
+  permissionsOf.value = null
+  notify('success', t('folders.permissionsSaved'))
+  void loadTree()
+}
+const deletingFolder = ref<FolderNode | null>(null)
+async function deleteFolder() {
+  const folder = deletingFolder.value
+  deletingFolder.value = null
+  if (!folder) return
+  try {
+    await api('DELETE', `/media-folders/${folder.id}`)
+    notify('success', t('folders.deleted', { name: folder.name }))
+    if (currentFolder.value !== null && within(tree.value, folder.id).includes(currentFolder.value))
+      openFolder(folder.parent)
+    await loadTree()
+    await load()
+  } catch (e) {
+    notify('error', errorText(e))
+  }
+}
+const parentName = (folder: FolderNode | null) => {
+  const parent =
+    folder?.parent === null || !folder ? null : tree.value.byId.get(String(folder.parent))
+  return parent ? parent.name : t('folders.top')
 }
 
 // --- Tree (`admin.list.tree`) -----------------------------------------------------------------
@@ -379,9 +567,11 @@ function onDrawerDeleted() {
   closeDrawer()
   void load()
 }
-onMounted(() => {
-  void load()
+onMounted(async () => {
   document.addEventListener('click', onDocumentClick)
+  // Searching a folder looks in its subfolders, so the tree comes first.
+  await loadTree()
+  void load()
 })
 // A pending search must not apply its query to the next page.
 onBeforeUnmount(() => {
@@ -499,6 +689,10 @@ async function deleteSelected(query = '') {
         <span v-if="result" class="count">{{ t((treeTotal ?? result.totalDocs) === 1 ? 'list.countOne' : 'list.count', { count: treeTotal ?? result.totalDocs }) }}</span>
       </div>
       <div class="toolbar-actions">
+        <button v-if="useFolders && canAddFolder" type="button" class="btn" @click="namingError = ''; naming = { mode: 'new' }">
+          <FolderPlus :size="16" aria-hidden="true" />
+          {{ t('folders.new') }}
+        </button>
         <!-- Media is created by uploading, below. -->
         <RouterLink v-if="collection.permissions.create && !isMedia" :to="newLink" class="btn btn-primary">
           <Plus :size="16" aria-hidden="true" />
@@ -507,11 +701,23 @@ async function deleteSelected(query = '') {
       </div>
     </header>
 
+    <div :class="{ library: useFolders }">
+    <aside v-if="useFolders" class="library-tree card">
+      <FolderTree :tree="tree" :current="currentFolder" :label="t('folders.tree')" @select="openFolder" @drop="onFolderDrop" />
+    </aside>
+    <div :class="{ 'library-main': useFolders }">
+    <nav v-if="useFolders" class="folder-crumbs" :aria-label="t('folders.path')">
+      <button type="button" class="crumb" :aria-current="currentFolder === null ? 'page' : undefined" @click="openFolder(null)">{{ t('folders.top') }}</button>
+      <template v-for="(node, i) in crumbs" :key="String(node.id)">
+        <ChevronRight :size="14" aria-hidden="true" />
+        <button type="button" class="crumb" :aria-current="i === crumbs.length - 1 ? 'page' : undefined" @click="openFolder(node.id)">{{ node.name }}</button>
+      </template>
+    </nav>
     <div class="filters">
       <label v-if="titleField" class="search">
         <span class="visually-hidden">{{ t('list.search', { field: titleLabel }) }}</span>
         <Search :size="16" class="search-icon" aria-hidden="true" />
-        <input v-model="search" class="input" type="search" :placeholder="t('list.search', { field: titleLabel })" />
+        <input v-model="search" class="input" type="search" :placeholder="useFolders && currentFolder !== null ? t('folders.searchIn', { name: here?.name ?? '' }) : t('list.search', { field: titleLabel })" />
       </label>
       <label v-if="collection.drafts" :class="['filter', { on: statusFilter }]">
         <span class="visually-hidden">{{ t('list.status') }}</span>
@@ -566,7 +772,61 @@ async function deleteSelected(query = '') {
       </div>
     </div>
 
-    <UploadDropzone v-if="isMedia && collection.permissions.create" class="dropzone" @uploaded="load" />
+    <ul v-if="useFolders && !search && subfolders.length" class="folders">
+      <li
+        v-for="folder in subfolders"
+        :key="String(folder.id)"
+        :class="['folder', { over: overFolder === String(folder.id) }]"
+        @dragover.prevent="overFolder = String(folder.id)"
+        @dragleave="overFolder = null"
+        @drop.prevent="onFolderDrop(folder.id)"
+      >
+        <button type="button" class="folder-open" @click="openFolder(folder.id)">
+          <FolderIcon :size="20" aria-hidden="true" class="folder-icon" />
+          <span class="folder-name">{{ folder.name }}</span>
+          <Lock v-if="folder.permissions" :size="13" class="folder-lock" :aria-label="t('folders.restricted')" />
+        </button>
+        <div v-if="atLeast(folder.level, 'manage') || canSetPermissions" class="folder-menu">
+          <button
+            type="button"
+            class="btn btn-ghost btn-sm btn-icon"
+            :aria-label="t('folders.actions', { name: folder.name })"
+            :aria-expanded="folderMenu === String(folder.id)"
+            aria-haspopup="menu"
+            @click="folderMenu = folderMenu === String(folder.id) ? null : String(folder.id)"
+          >
+            <Ellipsis :size="16" aria-hidden="true" />
+          </button>
+          <div v-if="folderMenu === String(folder.id)" class="menu" role="menu">
+            <template v-if="atLeast(folder.level, 'manage')">
+              <button type="button" class="menu-item" role="menuitem" @click="folderMenu = null; namingError = ''; naming = { mode: 'rename', folder }">
+                <Pencil :size="15" aria-hidden="true" />
+                {{ t('folders.rename') }}
+              </button>
+              <button type="button" class="menu-item" role="menuitem" @click="folderMenu = null; moving = { folder }">
+                <FolderInput :size="15" aria-hidden="true" />
+                {{ t('folders.moveFolder') }}
+              </button>
+            </template>
+            <button v-if="canSetPermissions" type="button" class="menu-item" role="menuitem" @click="folderMenu = null; permissionsOf = folder">
+              <Shield :size="15" aria-hidden="true" />
+              {{ t('folders.permissions') }}
+            </button>
+            <button v-if="atLeast(folder.level, 'manage')" type="button" class="menu-item danger" role="menuitem" @click="folderMenu = null; deletingFolder = folder">
+              <Trash2 :size="15" aria-hidden="true" />
+              {{ t('folders.delete') }}
+            </button>
+          </div>
+        </div>
+      </li>
+    </ul>
+
+    <UploadDropzone
+      v-if="isMedia && collection.permissions.create && (!useFolders || canUploadHere)"
+      class="dropzone"
+      :folder="useFolders ? currentFolder : undefined"
+      @uploaded="load"
+    />
 
     <p v-if="error" class="notice notice-error" role="alert">{{ error }}</p>
 
@@ -607,7 +867,13 @@ async function deleteSelected(query = '') {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="{ doc, depth } in rows" :key="doc.id" :class="{ selected: selected.has(doc.id) }">
+          <tr
+            v-for="{ doc, depth } in rows"
+            :key="doc.id"
+            :class="{ selected: selected.has(doc.id) }"
+            :draggable="useFolders && collection.permissions.update"
+            @dragstart="onRowDragStart($event, doc)"
+          >
             <td class="check">
               <input
                 type="checkbox"
@@ -725,6 +991,8 @@ async function deleteSelected(query = '') {
         </nav>
       </div>
     </div>
+    </div>
+    </div>
 
     <Transition name="bulk">
       <div v-if="selected.size" class="bulk" role="toolbar" :aria-label="t('list.bulkActions')">
@@ -737,6 +1005,10 @@ async function deleteSelected(query = '') {
           <Eye :size="15" aria-hidden="true" />
           {{ t('list.unpublishSelected') }}
         </button>
+        <button v-if="useFolders && collection.permissions.update" type="button" class="bulk-btn" :disabled="busy" @click="moving = { files: [...selected] }">
+          <FolderInput :size="15" aria-hidden="true" />
+          {{ t('folders.moveTo') }}
+        </button>
         <button v-if="collection.permissions.delete" type="button" class="bulk-btn danger" :disabled="busy" @click="confirming = true">
           <Trash2 :size="15" aria-hidden="true" />
           {{ t('list.deleteSelected') }}
@@ -747,6 +1019,41 @@ async function deleteSelected(query = '') {
       </div>
     </Transition>
 
+    <template v-if="useFolders">
+      <FolderNameDialog
+        :open="naming !== null"
+        :title="naming?.mode === 'rename' ? t('folders.renameTitle', { name: naming.folder.name }) : t('folders.newTitle')"
+        :initial="naming?.mode === 'rename' ? naming.folder.name : ''"
+        :error="namingError"
+        @save="saveName"
+        @cancel="naming = null"
+      />
+      <FolderMoveDialog
+        :open="moving !== null"
+        :title="moving && 'folder' in moving ? t('folders.moveFolderTitle', { name: moving.folder.name }) : t('folders.moveFilesTitle', { count: moving && 'files' in moving ? moving.files.length : 0 })"
+        :tree="tree"
+        :need="moving && 'folder' in moving ? 'manage' : 'edit'"
+        :root-level="rootLevel"
+        :exclude="movingExclude"
+        :from="moving && 'folder' in moving ? moving.folder.parent : currentFolder"
+        @move="moveTo"
+        @cancel="moving = null"
+      />
+      <FolderPermissionsDialog
+        :open="permissionsOf !== null"
+        :folder="permissionsOf"
+        :tree="tree"
+        @saved="onPermissionsSaved"
+        @cancel="permissionsOf = null"
+      />
+      <ConfirmDialog
+        :open="deletingFolder !== null"
+        :message="t('folders.confirmDelete', { name: deletingFolder?.name ?? '', parent: parentName(deletingFolder) })"
+        :confirm-label="t('folders.delete')"
+        @confirm="deleteFolder"
+        @cancel="deletingFolder = null"
+      />
+    </template>
     <DocumentDrawer
       v-if="drawerId !== undefined"
       :key="String(drawerId)"
@@ -792,6 +1099,114 @@ async function deleteSelected(query = '') {
 </template>
 
 <style scoped>
+.library {
+  display: grid;
+  grid-template-columns: 15rem minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+.library-tree {
+  position: sticky;
+  top: 1rem;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  padding: 0.5rem;
+}
+@media (max-width: 900px) {
+  .library {
+    display: block;
+  }
+  .library-tree {
+    display: none;
+  }
+}
+.folder-crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem;
+  margin-bottom: 0.75rem;
+  color: var(--faint);
+}
+.crumb {
+  padding: 0.15rem 0.35rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.crumb:hover {
+  background: var(--surface-2);
+}
+.crumb[aria-current='page'] {
+  color: var(--text);
+  font-weight: 600;
+}
+.folders {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  gap: 0.6rem;
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+}
+.folder {
+  position: relative;
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+.folder:hover {
+  border-color: var(--border-strong);
+}
+.folder.over {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+.folder-open {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex: 1;
+  min-width: 0;
+  padding: 0.65rem 0.75rem;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-weight: 550;
+  text-align: left;
+  cursor: pointer;
+}
+.folder-icon {
+  flex: none;
+  color: var(--accent);
+}
+.folder-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.folder-lock {
+  flex: none;
+  color: var(--faint);
+}
+.folder-menu {
+  position: relative;
+  margin-right: 0.25rem;
+}
+.folder-menu .menu {
+  right: 0;
+  min-width: 11rem;
+}
+tr[draggable='true'] {
+  cursor: grab;
+}
 .crumbs {
   display: flex;
   align-items: center;

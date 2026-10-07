@@ -127,6 +127,16 @@ async function main() {
         await page.locator('img').nth(2).waitFor()
         await shot('media')
 
+        // Folders: inside one, then who may use another.
+        await page.goto(`${ORIGIN}/admin/collections/media?folder=${ids.folder}`)
+        await page.locator('tbody img').first().waitFor()
+        await shot('media-folders')
+        await page.goto(`${ORIGIN}/admin/collections/media`)
+        await page.getByRole('button', { name: t.brandActions }).click()
+        await page.getByRole('menuitem', { name: t.whoCanUse }).click()
+        await page.locator('.levels select').first().waitFor()
+        await shot('media-folder-permissions')
+
         await page.goto(`${ORIGIN}/admin/collections/categories?edit=${ids.category}`)
         await page.getByRole('dialog').waitFor()
         await shot('drawer')
@@ -225,6 +235,8 @@ const EN = {
   expandAbout: 'Show pages under เกี่ยวกับเรา',
   team: 'ทีมงาน',
   trail: 'Where this page sits',
+  brandActions: 'Actions for แบรนด์',
+  whoCanUse: 'Who can use it',
 }
 const TH = {
   preview: 'ตัวอย่างผลการค้นหา',
@@ -239,6 +251,8 @@ const TH = {
   expandAbout: 'แสดงหน้าย่อยของ เกี่ยวกับเรา',
   team: 'ทีมงาน',
   trail: 'ตำแหน่งของหน้านี้',
+  brandActions: 'การจัดการ แบรนด์',
+  whoCanUse: 'ใครใช้ได้บ้าง',
 }
 
 async function login(page: Page) {
@@ -293,6 +307,7 @@ async function cover(
   name: string,
   alt: string,
   call: Awaited<ReturnType<typeof client>>,
+  folder?: number,
 ) {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630">
     <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
@@ -308,6 +323,7 @@ async function cover(
   const form = new FormData()
   form.set('file', new File([png], `${name}.png`, { type: 'image/png' }))
   form.set('alt', alt)
+  if (folder !== undefined) form.set('folder', String(folder))
   return call('POST', '/media?depth=0', form)
 }
 
@@ -331,6 +347,17 @@ async function seed() {
     await cover(28, 'seo-plugin', 'ภาพปก: plugin SEO', call),
     await cover(280, 'thai-slugs', 'ภาพปก: slug ภาษาไทย', call),
   ]
+  // Media folders: banners for a campaign, and brand files only some roles may change.
+  const campaign = await call('POST', '/media-folders', { name: 'แคมเปญ 2026' })
+  await call('POST', '/media-folders', { name: 'กิจกรรม' })
+  await call('POST', '/media-folders', {
+    name: 'แบรนด์',
+    permissions: { editor: 'view' },
+  })
+  await call('POST', '/media-folders', { name: 'โซเชียล', parent: campaign.id })
+  await cover(340, 'campaign-banner', 'แบนเนอร์แคมเปญ', call, campaign.id)
+  await cover(190, 'campaign-poster', 'โปสเตอร์แคมเปญ', call, campaign.id)
+  await cover(100, 'campaign-email', 'ภาพอีเมลแคมเปญ', call, campaign.id)
 
   const posts = [
     {
@@ -547,7 +574,15 @@ async function seed() {
     await call('POST', '/users', { email: 'nok@example.com', name: 'Nok', role: 'editor' })
   ).id as number
 
-  return { featured, category: guides.id, form: form.id, redirect: redirect.id, team, invited }
+  return {
+    featured,
+    category: guides.id,
+    form: form.id,
+    redirect: redirect.id,
+    team,
+    invited,
+    folder: campaign.id,
+  }
 }
 
 try {

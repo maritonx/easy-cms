@@ -1,5 +1,6 @@
 import { reactive } from 'vue'
 import { api, type Paginated } from './api'
+import { listed } from './menu'
 import { session } from './session'
 
 /** Documents per collection (drafts included), for the menu and the dashboard. */
@@ -12,7 +13,8 @@ export async function refreshCounts(force = false) {
   const now = Date.now()
   if (!force && now - last < 3000) return
   last = now
-  const collections = session.schema?.collections.filter((c) => c.permissions.read) ?? []
+  const collections =
+    session.schema?.collections.filter((c) => c.permissions.read && listed(c)) ?? []
   await Promise.all(
     collections.map(async (c) => {
       try {

@@ -123,7 +123,9 @@ const canCreate = computed(
     !target.drafts &&
     !target.versions &&
     !target.preview &&
-    target.slug !== 'media',
+    // Files are uploaded, and folders made, in the media library.
+    target.slug !== 'media' &&
+    target.slug !== 'media-folders',
 )
 const creating = ref(false)
 /** The search text becomes the new document's title. */

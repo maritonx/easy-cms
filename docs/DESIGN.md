@@ -238,6 +238,7 @@ Endpoint ของ plugin อยู่ใต้ `routes.api` เดียวก�
 - ไฟล์เสิร์ฟผ่าน `<api>/media/file/<key>` พร้อม CSP `sandbox` และ `nosniff` เป็น default ส่วน S3 ตั้ง `publicUrl` ไปที่ CDN ได้
 - **รูปภาพ:** `sharp` เป็น optional dependency สำหรับสร้าง thumbnail และ resize
 - ตรวจ MIME type จากเนื้อหาไฟล์และขนาดไฟล์ตอนอัปโหลด → ดู [ADR-0008](adr/0008-media-drafts-hooks.md)
+- **โฟลเดอร์** (`upload.folders`): collection `media-folders` ซ้อนได้ ไฟล์อยู่ได้โฟลเดอร์เดียว ไม่เปลี่ยน key ของไฟล์ และกับ `auth.rbac` admin กำหนดระดับ ดู/แก้ไข/จัดการ ของแต่ละบทบาทต่อโฟลเดอร์ (สืบทอดลงไป จำกัดสิทธิ์ Media ให้แคบลงเท่านั้น) → ดู [ADR-0041](adr/0041-media-folders.md)
 
 ## 11. Content features
 
@@ -388,3 +389,4 @@ CI รัน lint, typecheck, build และ test บน Linux, macOS และ
 - [ADR-0038](adr/0038-single-sign-on.md) — Single sign-on สำหรับหน้า admin
 - [ADR-0039](adr/0039-audit-log.md) — Audit log
 - [ADR-0040](adr/0040-one-click-deploy.md) — Deploy ด้วยคลิกเดียว (Vercel และ Netlify)
+- [ADR-0041](adr/0041-media-folders.md) — โฟลเดอร์ในคลังสื่อและสิทธิ์ต่อโฟลเดอร์

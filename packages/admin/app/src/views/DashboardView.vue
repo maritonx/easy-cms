@@ -8,12 +8,12 @@ import { counts, refreshCounts } from '../lib/counts'
 import { titleOf } from '../lib/fields'
 import { formatDate, label, locale, singularize, t } from '../lib/i18n'
 import { collectionIcon } from '../lib/icons'
-import { menuOrder } from '../lib/menu'
+import { listed, menuOrder } from '../lib/menu'
 import { session } from '../lib/session'
 import { settings } from '../lib/settings'
 
 const collections = menuOrder(
-  (session.schema?.collections ?? []).filter((c) => c.permissions.read),
+  (session.schema?.collections ?? []).filter((c) => c.permissions.read && listed(c)),
   session.schema?.menu,
 )
 /** Number tiles: content only, in menu order (users and other settings are in the menu). */

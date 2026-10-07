@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ImageUp, Trash2, Upload } from '@lucide/vue'
+import { ImageUp, Lock, Trash2, Upload } from '@lucide/vue'
 import { ref, watch } from 'vue'
 import MediaPicker from '../components/MediaPicker.vue'
 import MediaThumb from '../components/MediaThumb.vue'
@@ -58,6 +58,23 @@ function choose(doc: Doc) {
         </button>
       </div>
     </div>
+    <!-- A file in a folder the user may not see: it stays unless they change or remove it. -->
+    <div v-else-if="modelValue !== null && modelValue !== undefined && modelValue !== ''" class="selected card">
+      <span class="locked" aria-hidden="true"><Lock :size="18" /></span>
+      <div class="info">
+        <span class="name muted">{{ t('media.noAccess') }}</span>
+      </div>
+      <div v-if="!readOnly" class="actions">
+        <button type="button" class="btn btn-sm" @click="picking = true">
+          <Upload :size="15" aria-hidden="true" />
+          {{ t('media.change') }}
+        </button>
+        <button type="button" class="btn btn-sm btn-ghost" @click="emit('update:modelValue', null)">
+          <Trash2 :size="15" aria-hidden="true" />
+          {{ t('media.remove') }}
+        </button>
+      </div>
+    </div>
     <button v-else-if="!readOnly" type="button" class="btn choose" @click="picking = true">
       <ImageUp :size="18" aria-hidden="true" />
       {{ t('media.choose') }}
@@ -92,6 +109,15 @@ function choose(doc: Doc) {
 .actions {
   display: flex;
   gap: 0.25rem;
+}
+.locked {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--faint);
 }
 .choose {
   width: 100%;

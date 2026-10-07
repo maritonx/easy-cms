@@ -27,6 +27,7 @@ export const AUDIT_ACTIONS = [
   'role.create',
   'role.update',
   'role.delete',
+  'folder.permissions',
   'backup.start',
   'backup.download',
   'backup.delete',

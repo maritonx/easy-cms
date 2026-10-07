@@ -44,7 +44,7 @@ export {
   type BackupState,
   writeBackupFile,
 } from './backups.js'
-export { INTERNAL_COLLECTIONS, MEDIA } from './builtins.js'
+export { INTERNAL_COLLECTIONS, MEDIA, MEDIA_FOLDERS } from './builtins.js'
 export type {
   AdminConfig,
   AdminLocale,
@@ -155,6 +155,12 @@ export {
 } from './local-api.js'
 export { consoleLogger, type Logger, silentLogger } from './logger.js'
 export { EXTENSIONS, imageDimensions, mimeAllowed, sniffMimeType } from './media.js'
+export {
+  FOLDER_LEVELS,
+  type FolderLevel,
+  type FolderPermissions,
+  MediaFolders,
+} from './media-folders.js'
 export { DEFAULT_DEPTH, MAX_DEPTH, populate } from './populate.js'
 export {
   applyPlugins,
