@@ -1,6 +1,6 @@
 {
   "name": "@easy-cms/drizzle",
-  "version": "0.37.2",
+  "version": "0.38.0",
   "description": "Shared Drizzle ORM layer for Easy CMS database adapters",
   "license": "MIT",
   "type": "module",
