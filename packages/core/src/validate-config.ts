@@ -576,6 +576,25 @@ function validateCors(cors: unknown, add: Add) {
 
 function validateUpload(config: Config, add: Add) {
   const upload = config.upload
+  // Upload fields put in a folder need folders.
+  if (upload?.folders !== true) {
+    const walk = (fields: readonly Field[], path: string) => {
+      for (const [i, field] of fields.entries()) {
+        const at = `${path}.fields[${i}]`
+        if (field.type === 'upload' && field.folder !== undefined)
+          add(`${at}.folder`, 'needs upload.folders: true', 'upload: { folders: true }')
+        if ((field.type === 'group' || field.type === 'array') && Array.isArray(field.fields))
+          walk(field.fields, at)
+        if (field.type === 'blocks' && Array.isArray(field.blocks))
+          for (const [b, block] of field.blocks.entries())
+            if (Array.isArray(block?.fields)) walk(block.fields, `${at}.blocks[${b}]`)
+      }
+    }
+    for (const [i, c] of (config.collections ?? []).entries())
+      if (Array.isArray(c?.fields)) walk(c.fields, `collections[${i}]`)
+    for (const [i, g] of (config.globals ?? []).entries())
+      if (Array.isArray(g?.fields)) walk(g.fields, `globals[${i}]`)
+  }
   if (upload === undefined) return
   if (
     upload.maxFileSize !== undefined &&
@@ -600,6 +619,14 @@ function validateUpload(config: Config, add: Add) {
     )
   if (upload.folders !== undefined && typeof upload.folders !== 'boolean')
     add('upload.folders', 'must be true or false')
+  const privateStorage: unknown = upload.privateStorage
+  if (
+    privateStorage !== undefined &&
+    (typeof privateStorage !== 'object' ||
+      privateStorage === null ||
+      typeof (privateStorage as { get?: unknown }).get !== 'function')
+  )
+    add('upload.privateStorage', 'must be a storage adapter', 'e.g. s3Storage({ … })')
   const fromURL: unknown = upload.fromURL
   if (fromURL === undefined) return
   if (typeof fromURL !== 'object' || fromURL === null) {
@@ -627,6 +654,9 @@ function validateUpload(config: Config, add: Add) {
 }
 
 /** `*`, `host.name` or `*.host.name`: no scheme, port or path. */
+/** A media folder's key (`upload` fields' `folder`). */
+const FOLDER_KEY = /^[a-z0-9][a-z0-9_-]{0,59}$/
+
 /** A MIME type, `type/*`, or a group of types (`documents`, `office`, `archives`). */
 const MIME_PATTERN = /^([\w.+-]+\/(\*|[\w.+-]+)|documents|office|archives)$/i
 
@@ -955,6 +985,14 @@ function validateField(
       break
     case 'upload':
       validateManyRange(field, path, add)
+      if (field.folder !== undefined && !FOLDER_KEY.test(String(field.folder)))
+        add(
+          `${path}.folder`,
+          'must be a folder key: lowercase letters, digits, "-" or "_"',
+          "e.g. folder: 'banners'",
+        )
+      if (field.folderOnly !== undefined && field.folder === undefined)
+        add(`${path}.folderOnly`, 'needs folder')
       if (field.mimeTypes !== undefined) {
         const types: unknown = field.mimeTypes
         if (

@@ -5,6 +5,7 @@ import { api, type Doc, type Id, type Paginated, toQuery } from '../lib/api'
 import {
   atLeast,
   buildTree,
+  type FieldFolder,
   type FolderTree,
   foldersOn,
   folderWhere,
@@ -28,6 +29,8 @@ const props = defineProps<{
   /** How many more files fit (`maxRows`), when picking several. */
   room?: number | undefined
   allowUrl?: boolean
+  /** An upload field's folder (`folder`): the picker opens there; `only`: and stays inside it. */
+  folder?: FieldFolder | undefined
 }>()
 const emit = defineEmits<{ select: [Doc]; selectMany: [Doc[]]; url: [string]; close: [] }>()
 
@@ -61,7 +64,14 @@ const urlInput = ref('')
 const useFolders = foldersOn()
 const tree = ref<FolderTree>({ roots: [], byId: new Map() })
 const folder = ref<Id | null>(null)
-const crumbs = computed(() => pathTo(tree.value, folder.value))
+/** With `folderOnly`: the picker's top, which it can't go above. */
+const top = computed<Id | null>(() => (props.folder?.only ? props.folder.id : null))
+const crumbs = computed(() => {
+  const path = pathTo(tree.value, folder.value)
+  if (top.value === null) return path
+  const start = path.findIndex((n) => String(n.id) === String(top.value))
+  return start === -1 ? path : path.slice(start + 1)
+})
 const subfolders = computed(() =>
   folder.value === null
     ? tree.value.roots
@@ -75,12 +85,17 @@ const canUpload = computed(() => {
 async function loadTree() {
   if (!useFolders) return
   tree.value = buildTree(await loadFolders().catch(() => []))
+  // The field's folder, else where the user last was.
+  if (props.folder) {
+    folder.value = props.folder.id
+    return
+  }
   const last = lastFolder()
   folder.value = last === null ? null : (tree.value.byId.get(last)?.id ?? null)
 }
 function openFolder(id: Id | null) {
-  folder.value = id
-  rememberFolder(id)
+  folder.value = id ?? top.value
+  if (!props.folder) rememberFolder(id)
   search.value = ''
   void load()
 }
@@ -152,7 +167,9 @@ function insertUrl() {
       <button type="button" class="btn btn-ghost btn-icon" :aria-label="t('common.cancel')" @click="emit('close')">✕</button>
     </header>
     <nav v-if="useFolders" class="crumbs" :aria-label="t('folders.path')">
-      <button type="button" class="crumb" :aria-current="folder === null ? 'page' : undefined" @click="openFolder(null)">{{ t('folders.top') }}</button>
+      <button type="button" class="crumb" :aria-current="String(folder) === String(top) ? 'page' : undefined" @click="openFolder(null)">
+        {{ top === null ? t('folders.top') : (tree.byId.get(String(top))?.name ?? t('folders.top')) }}
+      </button>
       <template v-for="(node, i) in crumbs" :key="String(node.id)">
         <ChevronRight :size="13" aria-hidden="true" />
         <button type="button" class="crumb" :aria-current="i === crumbs.length - 1 ? 'page' : undefined" @click="openFolder(node.id)">{{ node.name }}</button>

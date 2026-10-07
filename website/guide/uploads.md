@@ -111,16 +111,67 @@ Roles not listed don't see the folder. The top level is open to every role that 
   on Media can't delete files anywhere.
 - Admins can do everything, and only they set who can use a folder; changes are in the
   [audit log](./audit-log) as **Folder access changed**.
-- API keys use their own Media permissions; folders don't limit them.
+- API keys use their own Media permissions; folders don't limit them, unless the key is
+  [limited to some folders](./api-keys#what-a-key-may-do).
 - A post can keep a file from a folder its editor can't see: the field shows "A file you may not
   see", and the file stays unless they change or remove it.
 
 ::: warning This sorts the team's work
-Files are still public: anyone with a file's link can open it, and requests that are not signed in
-list every file as before. Keep what must stay private out of the media library.
+Files in other folders are still public: anyone with a file's link can open it, and requests that
+are not signed in list them as before. For files that must stay private, use a private folder.
 :::
 
-Turning folders on adds the `media-folders` table and the media `folder` column:
+### Private folders
+
+An admin ticks **Private** in a folder's **Who can use it**: its files and subfolders become
+private. They are kept apart from public files and served only through the API, at
+`/api/cms/media/private/<name>`:
+
+- to signed-in users who may see the folder (their role, and the folder's permissions);
+- to anyone with a **signed link** your code makes, until it expires.
+
+Requests that are not signed in don't list private files, and a post's private cover isn't sent to
+visitors. Moving a file into or out of a private folder (or making a folder private or public)
+moves it to the other storage and gives it a new URL: the admin asks first, saying how many
+documents use it.
+
+```ts
+// A download link for a member, valid for an hour (the default; at most 7 days).
+const link = cms.signedMediaURL(report, { expiresIn: '1h' })
+// A resized copy:
+cms.signedMediaURL(photo, { expiresIn: '30m', size: 'thumbnail' })
+```
+
+Links stop working when they expire, when `secret` changes, or when the file stops being private.
+Public files get their usual URL.
+
+**Where private files go.** On the local disk and Netlify Blobs, which serve nothing publicly, with
+the other files. A storage with public URLs (S3 with `publicUrl`, a public Vercel Blob store) needs
+`upload.privateStorage` before folders can be private:
+
+```ts
+upload: {
+  folders: true,
+  storage: vercelBlobStorage(),
+  privateStorage: vercelBlobStorage({ access: 'private', prefix: 'private/' }),
+}
+```
+
+<Screenshot name="media-folder-permissions" alt="A folder's access: private, and each role's level" />
+
+### Upload fields with a folder
+
+Point an upload field at a folder by its key, and its picker opens there and its uploads land
+there. The folder is made at the top level the first time it's needed; rename or move it in the
+admin and the key stays.
+
+```ts
+{ name: 'banner', type: 'upload', folder: 'banners' }
+// Only files from that folder (and the folders inside it), checked when saving:
+{ name: 'logo', type: 'upload', folder: 'brand', folderOnly: true }
+```
+
+Turning folders on adds the `media-folders` table and the media `folder` and `private` columns:
 
 ```sh
 npx easy-cms migrate:create media-folders

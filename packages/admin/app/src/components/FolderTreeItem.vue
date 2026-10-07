@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChevronRight, Folder, FolderOpen, Lock } from '@lucide/vue'
+import { ChevronRight, EyeOff, Folder, FolderOpen, Lock } from '@lucide/vue'
 import { computed } from 'vue'
 import type { Id } from '../lib/api'
 import type { FolderNode } from '../lib/folders'
@@ -50,6 +50,7 @@ const active = computed(() => props.current !== null && String(props.current) ==
         <component :is="active ? FolderOpen : Folder" :size="15" aria-hidden="true" />
         <span class="text">{{ node.name }}</span>
         <Lock v-if="node.permissions" :size="12" class="lock" :aria-label="t('folders.restricted')" />
+        <EyeOff v-if="node.private" :size="12" class="lock" :aria-label="t('folders.private')" />
       </button>
     </div>
     <ul v-if="open && node.children.length" class="children">

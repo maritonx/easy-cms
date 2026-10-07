@@ -273,6 +273,7 @@ function onNumber(value: string) {
       :read-only="readOnly || noMedia"
       :invalid="invalid"
       :mime-types="field.mimeTypes"
+      :folder="field.folder"
       :min-rows="field.minRows"
       :max-rows="field.maxRows"
       @update:model-value="set"
@@ -284,6 +285,7 @@ function onNumber(value: string) {
       :read-only="readOnly || noMedia"
       :invalid="invalid"
       :mime-types="field.mimeTypes"
+      :folder="field.folder"
       @update:model-value="set"
     />
 

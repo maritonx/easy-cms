@@ -146,6 +146,14 @@ export interface UploadField extends BaseField<'upload', never> {
    * offers only these, and saving refuses others.
    */
   readonly mimeTypes?: readonly string[]
+  /**
+   * With `upload.folders`: the `key` of the media folder this field's files go in, e.g.
+   * `'banners'`. Its picker opens there and its uploads land there; the folder is made when it
+   * is first needed.
+   */
+  readonly folder?: string
+  /** With `folder`: only files in that folder (and its subfolders) may be chosen. */
+  readonly folderOnly?: boolean
 }
 
 export interface FilterOptionsArgs {

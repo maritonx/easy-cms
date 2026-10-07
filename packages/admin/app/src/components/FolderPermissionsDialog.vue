@@ -4,6 +4,7 @@ import { computed, ref, useId, watch } from 'vue'
 import { ApiError, api } from '../lib/api'
 import { type FolderLevel, type FolderNode, type FolderTree, pathTo } from '../lib/folders'
 import { t } from '../lib/i18n'
+import { session } from '../lib/session'
 
 /**
  * Who may use a folder (admins, `auth.rbac`): as its parent, or each role's level. Admins can
@@ -19,6 +20,17 @@ const mode = ref<'inherit' | 'own'>('inherit')
 const levels = ref<Record<string, FolderLevel | ''>>({})
 const error = ref('')
 const busy = ref(false)
+/** Roles per folder (`auth.rbac`), and private folders (`upload.privateStorage`): admins only. */
+const canPermissions = !!session.schema?.folders?.permissions
+const canPrivate = !!session.schema?.folders?.private
+const isPrivate = ref(false)
+/** Private through a folder above it: then this one is private whatever it says. */
+const privateAbove = computed(() =>
+  props.folder ? pathTo(props.tree, props.folder.parent).some((n) => n.private === true) : false,
+)
+const privacyChanges = computed(
+  () => canPrivate && isPrivate.value !== (props.folder?.private === true) && !privateAbove.value,
+)
 
 watch(
   () => props.open,
@@ -28,7 +40,9 @@ watch(
     const own = props.folder?.permissions ?? null
     mode.value = own ? 'own' : 'inherit'
     levels.value = { ...(own ?? {}) }
+    isPrivate.value = props.folder?.private === true
     dialog.value?.showModal()
+    if (!canPermissions) return
     try {
       roles.value = (await api<AdminRoles>('GET', '/admin/roles')).roles.filter(
         (r) => r.key !== 'admin',
@@ -68,7 +82,10 @@ async function save() {
       ? null
       : Object.fromEntries(Object.entries(levels.value).filter(([, level]) => level !== ''))
   try {
-    await api('PATCH', `/media-folders/${props.folder.id}?depth=0`, { permissions })
+    await api('PATCH', `/media-folders/${props.folder.id}?depth=0`, {
+      ...(canPermissions ? { permissions } : {}),
+      ...(canPrivate ? { private: isPrivate.value } : {}),
+    })
     emit('saved')
   } catch (e) {
     error.value = e instanceof ApiError ? (e.errors[0]?.message ?? e.message) : String(e)
@@ -82,6 +99,17 @@ async function save() {
   <dialog ref="dialog" class="dialog card" :aria-labelledby="`${id}-title`" @cancel.prevent="emit('cancel')">
     <form @submit.prevent="save">
       <h2 :id="`${id}-title`">{{ t('folders.permissionsOf', { name: folder?.name ?? '' }) }}</h2>
+      <label v-if="canPrivate" class="private-toggle">
+        <input v-model="isPrivate" type="checkbox" :disabled="privateAbove" />
+        <span>
+          <strong>{{ t('folders.private') }}</strong>
+          <span class="muted hint">{{ privateAbove ? t('folders.privateAbove') : t('folders.privateHint') }}</span>
+        </span>
+      </label>
+      <p v-if="privacyChanges" class="warning" role="status">
+        {{ isPrivate ? t('folders.privateMoveIn') : t('folders.privateMoveOut') }}
+      </p>
+      <template v-if="canPermissions">
       <p class="muted intro">{{ t('folders.permissionsIntro') }}</p>
       <fieldset class="modes">
         <legend class="visually-hidden">{{ t('folders.permissions') }}</legend>
@@ -129,7 +157,8 @@ async function save() {
         <div><dt>{{ t('folders.level.edit') }}</dt><dd>{{ t('folders.levelHint.edit') }}</dd></div>
         <div><dt>{{ t('folders.level.manage') }}</dt><dd>{{ t('folders.levelHint.manage') }}</dd></div>
       </dl>
-      <p class="note muted">{{ t('folders.publicNote') }}</p>
+      </template>
+      <p class="note muted">{{ isPrivate || privateAbove ? t('folders.privateNote') : t('folders.publicNote') }}</p>
       <p v-if="error" class="error" role="alert">{{ error }}</p>
       <div class="actions">
         <button type="button" class="btn" @click="emit('cancel')">{{ t('common.cancel') }}</button>
@@ -153,6 +182,36 @@ async function save() {
 h2 {
   margin: 0 0 0.35rem;
   font-size: 1.05rem;
+}
+.private-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin: 0.5rem 0 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.private-toggle:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.private-toggle input {
+  margin-top: 0.2rem;
+}
+.private-toggle > span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.warning {
+  margin: 0 0 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-sm);
+  background: var(--warning-soft);
+  color: var(--warning-text);
+  font-size: 0.85rem;
 }
 .intro {
   margin: 0 0 1rem;

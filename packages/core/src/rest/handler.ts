@@ -17,7 +17,7 @@ import {
   ValidationError,
 } from '../errors.js'
 import type { EasyCMS } from '../local-api.js'
-import { EXTENSIONS } from '../media.js'
+import { EXTENSIONS, PRIVATE_KEY } from '../media.js'
 import {
   deleteDelivery,
   deleteFailedDeliveries,
@@ -517,6 +517,17 @@ async function route(
     return { body: await cms.roles.owned(parsed) }
   }
 
+  // How many documents use these files (`?ids=1,2`), before they move to or from a private folder.
+  if (first === 'admin' && second === 'media-usage' && segments.length === 2) {
+    if (!ctx.user || ctx.user.apiKey) throw new UnauthorizedError()
+    if (method !== 'GET') throw methodNotAllowed(ctx, 'GET')
+    const ids = (ctx.url.searchParams.get('ids') ?? '')
+      .split(',')
+      .map((id) => parseId(id))
+      .filter((id) => id !== undefined)
+    return { body: { count: await cms.mediaUsage(ids) } }
+  }
+
   // Settings → Roles (`auth.rbac`), for admins: the roles, add, change, delete, history.
   if (first === 'admin' && second === 'roles') {
     if (!ctx.user) throw new UnauthorizedError()
@@ -679,6 +690,11 @@ async function route(
   if (first === MEDIA && second === 'file' && third !== undefined && segments.length === 3) {
     if (method !== 'GET' && method !== 'HEAD') throw methodNotAllowed(ctx, 'GET, HEAD')
     return { body: await serveFile(cms, third, method === 'HEAD') }
+  }
+  // Files in private folders: for users who may see the file, or with a signed link.
+  if (first === MEDIA && second === 'private' && third !== undefined && segments.length === 3) {
+    if (method !== 'GET' && method !== 'HEAD') throw methodNotAllowed(ctx, 'GET, HEAD')
+    return { body: await servePrivateFile(cms, ctx, third, method === 'HEAD') }
   }
   if (first === MEDIA && second === undefined && method === 'POST') {
     // `{ url, ...data }` as JSON: the server downloads the file (upload.fromURL).
@@ -1082,6 +1098,64 @@ async function serveFile(cms: EasyCMS, key: string, head: boolean): Promise<Resp
         'cache-control': 'public, max-age=31536000, immutable',
         'x-content-type-options': 'nosniff',
         // Browsers won't show a PDF in a sandbox; their PDF viewers run apart from the site.
+        ...(type === 'application/pdf'
+          ? {}
+          : {
+              'content-security-policy':
+                "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox",
+            }),
+        'cross-origin-resource-policy': 'cross-origin',
+      },
+    },
+  )
+}
+
+/**
+ * Serves a private file (`<name>.private.<ext>`): with a valid signed link, or to a signed-in
+ * user who may read its media document (roles and folder permissions). Anything else is a 404,
+ * so private file names can't be probed.
+ */
+async function servePrivateFile(
+  cms: EasyCMS,
+  ctx: Context,
+  key: string,
+  head: boolean,
+): Promise<Response> {
+  if (!PRIVATE_KEY.test(key) || !cms.privateStorage) throw new HttpError('Not found', 404)
+  const query = ctx.url.searchParams
+  const signed = cms.verifyMediaSignature(key, query.get('expires'), query.get('signature'))
+  if (!signed) {
+    const token = /-([0-9a-f]{8})\.private[.-]/.exec(key)?.[1]
+    if (!ctx.user || !token) throw new HttpError('Not found', 404)
+    const found = await cms.find(MEDIA, {
+      where: { filename: { like: `-${token}.private.` } },
+      limit: 5,
+      depth: 0,
+      user: ctx.user,
+      overrideAccess: false,
+    })
+    const owns = found.docs.some(
+      (d) =>
+        d.filename === key ||
+        Object.values((d.sizes ?? {}) as Record<string, { filename?: string }>).some(
+          (s) => s.filename === key,
+        ),
+    )
+    if (!owns) throw new HttpError('Not found', 404)
+  }
+  const file = await cms.privateStorage.get(key)
+  if (!file) throw new HttpError('Not found', 404)
+  const type = TYPE_BY_EXTENSION[key.slice(key.lastIndexOf('.') + 1)] ?? 'application/octet-stream'
+  return new Response(
+    head ? null : (file.body as unknown as ConstructorParameters<typeof Response>[0]),
+    {
+      status: 200,
+      headers: {
+        'content-type': type,
+        'content-length': String(file.size),
+        // Not in shared caches; a short while in the browser.
+        'cache-control': 'private, max-age=300',
+        'x-content-type-options': 'nosniff',
         ...(type === 'application/pdf'
           ? {}
           : {

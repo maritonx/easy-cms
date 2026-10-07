@@ -99,6 +99,7 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
       folders: config.upload?.folders === true,
       ...(config.upload?.storage ? { storage: config.upload.storage } : {}),
       ...(config.upload?.fromURL ? { fromURL: config.upload.fromURL } : {}),
+      ...(config.upload?.privateStorage ? { privateStorage: config.upload.privateStorage } : {}),
     },
     auth: {
       roles: config.auth?.roles ?? DEFAULT_ROLES,

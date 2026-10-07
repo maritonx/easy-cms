@@ -181,6 +181,16 @@ function mediaFields(): Field[] {
   ]
 }
 
+/** Set by Easy CMS from the file's folder (`upload.folders`): only served to who may see it. */
+const privateField: Field = {
+  name: 'private',
+  type: 'boolean',
+  index: true,
+  access: systemField,
+  position: 'sidebar',
+  label: { en: 'Private', th: 'ส่วนตัว' },
+}
+
 interface StoredSize {
   filename: string
   width?: number
@@ -233,6 +243,22 @@ export const mediaFoldersCollection: CollectionConfig = {
       index: true,
       label: { en: 'In folder', th: 'อยู่ในโฟลเดอร์' },
     },
+    // For code to find the folder (`folder: 'banners'` on upload fields); set when it is made.
+    {
+      name: 'key',
+      type: 'text',
+      unique: true,
+      maxLength: 60,
+      access: { update: ({ id }) => id === undefined },
+      label: { en: 'Key', th: 'คีย์' },
+    },
+    // Its files and subfolders are private: only for users who may see them, and signed links.
+    {
+      name: 'private',
+      type: 'boolean',
+      access: { update: adminField.update },
+      label: { en: 'Private', th: 'ส่วนตัว' },
+    },
     // `null`: as the parent folder. Otherwise each role's level (`view`, `edit`, `manage`);
     // roles not listed get nothing.
     {
@@ -268,7 +294,11 @@ export function withMedia(config: Config): Config {
     icon: 'image',
     useAsTitle: 'filename',
     ...custom,
-    fields: [...mediaFields(), ...(folders ? [folderField] : []), ...(custom?.fields ?? [])],
+    fields: [
+      ...mediaFields(),
+      ...(folders ? [folderField, privateField] : []),
+      ...(custom?.fields ?? []),
+    ],
     access: {
       read: anyone,
       create: isLoggedIn,
@@ -297,8 +327,9 @@ export function withMedia(config: Config): Config {
       afterDelete: [
         async ({ doc, cms }) => {
           const sizes = Object.values((doc.sizes ?? {}) as Record<string, StoredSize>)
+          const storage = cms.storageFor(doc.private === true)
           for (const key of [doc.filename, ...sizes.map((s) => s.filename)]) {
-            if (typeof key === 'string') await cms.storage.delete(key)
+            if (typeof key === 'string') await storage.delete(key)
           }
         },
         ...(custom?.hooks?.afterDelete ?? []),

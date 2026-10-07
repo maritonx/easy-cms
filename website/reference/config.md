@@ -142,6 +142,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `storage` | `StorageAdapter` | local disk | E.g. `s3Storage()` from `@easy-cms/storage-s3`. [Uploads](/guide/uploads) |
 | `imageSizes` | `ImageSize[]` | `[]` | Resized copies (needs `sharp`). See [image sizes](#image-sizes). |
 | `fromURL` | `UploadFromURLConfig` | off | Uploads from links. See [fromURL](#fromurl). |
+| `privateStorage` | `StorageAdapter` | `storage` without public URLs | Where files in private folders go. See [Private folders](/guide/uploads#private-folders). |
 | `folders` | `boolean` | `false` | Folders in the media library, and with `auth.rbac` who can use each. See [Folders](/guide/uploads#folders). |
 
 <!-- api: UploadFromURLConfig -->

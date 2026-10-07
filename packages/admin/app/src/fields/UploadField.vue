@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ImageUp, Lock, Trash2, Upload } from '@lucide/vue'
+import { EyeOff, ImageUp, Lock, Trash2, Upload } from '@lucide/vue'
 import { ref, watch } from 'vue'
 import MediaPicker from '../components/MediaPicker.vue'
 import MediaThumb from '../components/MediaThumb.vue'
 import { api, type Doc } from '../lib/api'
+import type { FieldFolder } from '../lib/folders'
 import { t } from '../lib/i18n'
 
 const props = defineProps<{
@@ -13,6 +14,8 @@ const props = defineProps<{
   invalid: boolean
   /** Allowed file types (`mimeTypes`), e.g. `image/*`. */
   mimeTypes?: readonly string[] | undefined
+  /** The media folder the picker opens in (`folder`). */
+  folder?: FieldFolder | undefined
 }>()
 const emit = defineEmits<{ 'update:modelValue': [unknown] }>()
 
@@ -46,6 +49,11 @@ function choose(doc: Doc) {
       <div class="info">
         <RouterLink :to="`/collections/media/${media.id}`" class="name">{{ media.alt || media.filename }}</RouterLink>
         <span class="muted small">{{ media.mimeType }}</span>
+        <!-- A private file: visitors to the site can't open it. -->
+        <span v-if="media.private" class="private small" :title="t('media.privateHint')">
+          <EyeOff :size="13" aria-hidden="true" />
+          {{ t('media.private') }} · {{ t('media.privateHint') }}
+        </span>
       </div>
       <div v-if="!readOnly" class="actions">
         <button type="button" class="btn btn-sm" @click="picking = true">
@@ -80,7 +88,7 @@ function choose(doc: Doc) {
       {{ t('media.choose') }}
     </button>
     <span v-else class="muted">—</span>
-    <MediaPicker :open="picking" :mime-types="mimeTypes" @select="choose" @close="picking = false" />
+    <MediaPicker :open="picking" :mime-types="mimeTypes" :folder="folder" @select="choose" @close="picking = false" />
   </div>
 </template>
 
@@ -109,6 +117,12 @@ function choose(doc: Doc) {
 .actions {
   display: flex;
   gap: 0.25rem;
+}
+.private {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--warning-text);
 }
 .locked {
   display: grid;

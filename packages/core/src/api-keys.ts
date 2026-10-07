@@ -15,6 +15,11 @@ export type ApiKeyGlobalOperation = (typeof API_KEY_GLOBAL_OPERATIONS)[number]
 export interface ApiKeyPermissions {
   readonly collections?: Readonly<Record<string, readonly ApiKeyOperation[]>>
   readonly globals?: Readonly<Record<string, readonly ApiKeyGlobalOperation[]>>
+  /**
+   * With `upload.folders`: the media folders (ids) the key may use, with their subfolders. Empty
+   * or missing: every folder.
+   */
+  readonly folders?: readonly (string | number)[]
 }
 
 /** Set on `AuthUser.apiKey` when a request authenticated with an API key. */
@@ -177,8 +182,14 @@ export function cleanPermissions(
     }
     return out
   }
+  const folders = Array.isArray(input.folders)
+    ? input.folders.filter(
+        (f): f is string | number => typeof f === 'string' || typeof f === 'number',
+      )
+    : []
   return {
     collections: pick(input.collections, known.collections, API_KEY_OPERATIONS),
     globals: pick(input.globals, known.globals, API_KEY_GLOBAL_OPERATIONS),
+    ...(folders.length > 0 ? { folders } : {}),
   }
 }

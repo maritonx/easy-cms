@@ -41,6 +41,16 @@ function storage(): StorageAdapter | undefined {
 }
 
 /**
+ * Where files in private folders go: on Vercel, private blobs (the public store's files have
+ * public URLs). Netlify Blobs and the local disk serve nothing publicly, so they keep both.
+ */
+function privateStorage(): StorageAdapter | undefined {
+  if (env('BLOB_READ_WRITE_TOKEN') || onVercel)
+    return vercelBlobStorage({ access: 'private', prefix: 'private/' })
+  return undefined
+}
+
+/**
  * Signs sessions and links. Set EASY_CMS_SECRET (`openssl rand -hex 32`); a one-click deploy
  * without it gets one made from the database URL, so it works at once.
  */
@@ -52,6 +62,7 @@ function secret(): string {
 }
 
 const uploads = storage()
+const privateUploads = privateStorage()
 
 export default defineConfig({
   secret: secret(),
@@ -62,6 +73,7 @@ export default defineConfig({
     // Images and documents: PDF, Word, Excel, PowerPoint, OpenDocument, CSV, text.
     mimeTypes: ['image/*', 'documents'],
     ...(uploads ? { storage: uploads } : {}),
+    ...(privateUploads ? { privateStorage: privateUploads } : {}),
   },
   admin: { brand: { name: 'Easy CMS Starter' }, menu: ['posts', 'categories', 'media'] },
   // Settings → Roles and Settings → Audit log.

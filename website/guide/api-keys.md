@@ -80,6 +80,9 @@ Each row of the table is a collection or global; each column an action:
   can't create keys.
 - **Saving as a draft needs no publish**: a key with create and update but not publish writes
   drafts that people review and publish.
+- **Media folders** ([`upload.folders`](./uploads#folders)): a key with Media can use every folder,
+  or **only some**, with the folders inside them. A limited key sees and changes only files in those
+  folders, uploads only into them, and reads [private files](./uploads#private-folders) only there.
 
 ## Manage keys
 

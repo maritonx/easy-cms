@@ -194,3 +194,26 @@ export function storageKey(originalName: string, type: string, random: string): 
       .slice(0, 60) || 'file'
   return `${base}-${random}.${EXTENSIONS[type] ?? 'bin'}`
 }
+
+/**
+ * Files in private folders have `.private` before the extension (`photo-3f9a2c1b.private.jpg`;
+ * resized copies `photo-3f9a2c1b.private-thumbnail.jpg`). The public file route never serves
+ * such names, whatever storage holds them.
+ */
+export function isPrivateKey(key: string): boolean {
+  return /\.private[.-]/.test(key)
+}
+
+/** The name of a file once it is private, or public again. */
+export function withPrivacy(key: string, isPrivate: boolean): string {
+  const plain = key.replace(/\.private(?=\.[^.]+$)/, '')
+  return isPrivate ? plain.replace(/\.([^.]+)$/, '.private.$1') : plain
+}
+
+/** The name of a resized copy: `photo-3f9a2c1b-thumbnail.jpg`. */
+export function sizeKey(filename: string, size: string): string {
+  return filename.replace(/\.([^.]+)$/, `-${size}.$1`)
+}
+
+/** What a private file name may look like in a URL. */
+export const PRIVATE_KEY = /^[\p{L}\p{M}\p{N}-]+\.private(-[\p{L}\p{N}_-]+)?\.[a-z0-9]+$/u

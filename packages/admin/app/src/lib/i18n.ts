@@ -331,6 +331,28 @@ const en = {
   'media.empty': 'No files yet. Upload one.',
   'media.preview': 'Preview',
   'media.size': '{width} × {height} px · {size}',
+  'media.private': 'Private',
+  'media.privateHint': "visitors to the site can't open it",
+  'folders.private': 'Private',
+  'folders.privateHint':
+    'Its files and folders are kept apart: only for signed-in users who may see them, and links you sign.',
+  'folders.privateAbove': 'Private already: a folder it is in is private.',
+  'folders.privateMoveIn':
+    'Its files move to private storage and get new URLs; links to them elsewhere stop working.',
+  'folders.privateMoveOut': 'Its files become public: anyone with their new URLs can open them.',
+  'folders.privateNote':
+    'Private files open only for signed-in users who may see the folder, or with a signed link from your code.',
+  'folders.confirmPrivate':
+    "Make {count} file(s) private? They get new URLs; {uses} document(s) use them, and visitors to the site won't see them there.",
+  'folders.confirmPublic':
+    'Make {count} file(s) public? They get new URLs that anyone can open; {uses} document(s) use them.',
+  'folders.confirmFolderPrivate':
+    'Move "{name}" into a private folder? Its files become private and get new URLs.',
+  'folders.confirmFolderPublic':
+    'Move "{name}" out of the private folder? Its files become public and get new URLs.',
+  'apiKey.folders': 'Media folders',
+  'apiKey.foldersAll': 'Every folder',
+  'apiKey.foldersSome': 'Only these folders, with the folders inside them:',
   'media.tooBig': 'Larger than {max}, the most the media library takes',
   'media.uploadingCount': 'Uploading… {done} of {total}',
   'media.uploadedSome': 'Uploaded {done} file(s); {failed} failed',
@@ -970,6 +992,25 @@ const th: Record<MessageKey, string> = {
   'media.empty': 'ยังไม่มีไฟล์ อัปโหลดไฟล์แรกได้เลย',
   'media.preview': 'ตัวอย่าง',
   'media.size': '{width} × {height} px · {size}',
+  'media.private': 'ส่วนตัว',
+  'media.privateHint': 'ผู้เยี่ยมชมเว็บเปิดไฟล์นี้ไม่ได้',
+  'folders.private': 'ส่วนตัว',
+  'folders.privateHint': 'ไฟล์และโฟลเดอร์ข้างในเก็บแยกไว้ เปิดได้เฉพาะผู้ที่ล็อกอินและมีสิทธิ์ดู หรือผ่านลิงก์ที่เซ็นจากโค้ด',
+  'folders.privateAbove': 'เป็นส่วนตัวอยู่แล้ว เพราะโฟลเดอร์ที่อยู่เป็นส่วนตัว',
+  'folders.privateMoveIn': 'ไฟล์ข้างในจะย้ายไปที่เก็บไฟล์ส่วนตัวและได้ URL ใหม่ ลิงก์เดิมที่ใช้ที่อื่นจะเปิดไม่ได้',
+  'folders.privateMoveOut': 'ไฟล์ข้างในจะเป็นสาธารณะ ใครมี URL ใหม่ก็เปิดได้',
+  'folders.privateNote': 'ไฟล์ส่วนตัวเปิดได้เฉพาะผู้ที่ล็อกอินและมีสิทธิ์ดูโฟลเดอร์ หรือผ่านลิงก์ที่เซ็นจากโค้ดของคุณ',
+  'folders.confirmPrivate':
+    'ทำให้ {count} ไฟล์เป็นส่วนตัวไหม? ไฟล์จะได้ URL ใหม่ มี {uses} เอกสารที่ใช้ไฟล์เหล่านี้ และผู้เยี่ยมชมเว็บจะไม่เห็นไฟล์ในเอกสารนั้น',
+  'folders.confirmPublic':
+    'ทำให้ {count} ไฟล์เป็นสาธารณะไหม? ไฟล์จะได้ URL ใหม่ที่ใครก็เปิดได้ มี {uses} เอกสารที่ใช้ไฟล์เหล่านี้',
+  'folders.confirmFolderPrivate':
+    'ย้าย "{name}" เข้าโฟลเดอร์ส่วนตัวไหม? ไฟล์ข้างในจะเป็นส่วนตัวและได้ URL ใหม่',
+  'folders.confirmFolderPublic':
+    'ย้าย "{name}" ออกจากโฟลเดอร์ส่วนตัวไหม? ไฟล์ข้างในจะเป็นสาธารณะและได้ URL ใหม่',
+  'apiKey.folders': 'โฟลเดอร์สื่อ',
+  'apiKey.foldersAll': 'ทุกโฟลเดอร์',
+  'apiKey.foldersSome': 'เฉพาะโฟลเดอร์เหล่านี้ รวมโฟลเดอร์ย่อย:',
   'media.tooBig': 'ใหญ่กว่า {max} ซึ่งเป็นขนาดสูงสุดที่คลังสื่อรับได้',
   'media.uploadingCount': 'กำลังอัปโหลด… {done} จาก {total}',
   'media.uploadedSome': 'อัปโหลดแล้ว {done} ไฟล์ ล้ม {failed} ไฟล์',

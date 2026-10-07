@@ -8,6 +8,7 @@ import {
   Columns3,
   Ellipsis,
   Eye,
+  EyeOff,
   Folder as FolderIcon,
   FolderInput,
   FolderPlus,
@@ -50,6 +51,7 @@ import {
   folderWhere,
   loadFolders,
   pathTo,
+  privateAt,
   rememberFolder,
   type FolderTree as Tree,
   within,
@@ -236,7 +238,8 @@ async function onUploaded(docs: Doc[]) {
 
 const useFolders = isMedia && foldersOn()
 /** Admins choose which roles use each folder (`auth.rbac`). */
-const canSetPermissions = !!session.schema?.folders?.permissions
+const canSetPermissions =
+  !!session.schema?.folders?.permissions || !!session.schema?.folders?.private
 const tree = ref<Tree>({ roots: [], byId: new Map() })
 /** The open folder, `null` for the top level (`?folder=<id>`). */
 const currentFolder = computed<Id | null>(() => {
@@ -332,14 +335,65 @@ async function moveFiles(ids: Id[], to: Id | null) {
   }
   await load()
 }
+/**
+ * Moving files to or from a private folder moves them to the other storage and changes their
+ * URLs: say so first, with how many documents use them.
+ */
+const confirmMove = ref<{ message: string; run: () => Promise<void> } | null>(null)
+async function guardedMoveFiles(ids: Id[], to: Id | null) {
+  const toPrivate = privateAt(tree.value, to)
+  const changing = (result.value?.docs ?? []).filter(
+    (d) => ids.some((id) => String(id) === String(d.id)) && (d.private === true) !== toPrivate,
+  )
+  if (changing.length === 0) return moveFiles(ids, to)
+  let uses = 0
+  try {
+    uses = (
+      await api<{ count: number }>(
+        'GET',
+        `/admin/media-usage?ids=${changing.map((d) => d.id).join(',')}`,
+      )
+    ).count
+  } catch {
+    // Not known: the message still says the URLs change.
+  }
+  confirmMove.value = {
+    message: t(toPrivate ? 'folders.confirmPrivate' : 'folders.confirmPublic', {
+      count: changing.length,
+      uses,
+    }),
+    run: () => moveFiles(ids, to),
+  }
+}
+async function runConfirmedMove() {
+  const pending = confirmMove.value
+  confirmMove.value = null
+  await pending?.run()
+}
+
 async function moveTo(to: Id | null) {
   const what = moving.value
   moving.value = null
   if (!what) return
-  if ('files' in what) return moveFiles(what.files, to)
+  if ('files' in what) return guardedMoveFiles(what.files, to)
+  // A folder moving in or out of a private one takes its files along.
+  const was = privateAt(tree.value, what.folder.id)
+  const will = what.folder.private === true || privateAt(tree.value, to)
+  if (was !== will) {
+    confirmMove.value = {
+      message: t(will ? 'folders.confirmFolderPrivate' : 'folders.confirmFolderPublic', {
+        name: what.folder.name,
+      }),
+      run: () => moveFolder(what.folder, to),
+    }
+    return
+  }
+  await moveFolder(what.folder, to)
+}
+async function moveFolder(folder: FolderNode, to: Id | null) {
   try {
-    await api('PATCH', `/media-folders/${what.folder.id}?depth=0`, { parent: to })
-    notify('success', t('folders.movedFolder', { name: what.folder.name }))
+    await api('PATCH', `/media-folders/${folder.id}?depth=0`, { parent: to })
+    notify('success', t('folders.movedFolder', { name: folder.name }))
     await loadTree()
   } catch (e) {
     notify('error', errorText(e))
@@ -360,7 +414,7 @@ function onFolderDrop(to: Id | null) {
   dragged.value = []
   if (ids.length === 0) return
   if (!atLeast(levelOf(to), 'edit')) return notify('error', t('common.forbidden'))
-  void moveFiles(ids, to)
+  void guardedMoveFiles(ids, to)
 }
 
 const permissionsOf = ref<FolderNode | null>(null)
@@ -827,6 +881,7 @@ async function deleteSelected(query = '') {
           <FolderIcon :size="20" aria-hidden="true" class="folder-icon" />
           <span class="folder-name">{{ folder.name }}</span>
           <Lock v-if="folder.permissions" :size="13" class="folder-lock" :aria-label="t('folders.restricted')" />
+          <EyeOff v-if="folder.private" :size="13" class="folder-lock" :aria-label="t('folders.private')" />
         </button>
         <div v-if="atLeast(folder.level, 'manage') || canSetPermissions" class="folder-menu">
           <button
@@ -1154,6 +1209,13 @@ async function deleteSelected(query = '') {
         :tree="tree"
         @saved="onPermissionsSaved"
         @cancel="permissionsOf = null"
+      />
+      <ConfirmDialog
+        :open="confirmMove !== null"
+        :message="confirmMove?.message ?? ''"
+        :confirm-label="t('folders.move')"
+        @confirm="runConfirmedMove"
+        @cancel="confirmMove = null"
       />
       <ConfirmDialog
         :open="deletingFolder !== null"

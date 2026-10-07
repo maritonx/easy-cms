@@ -141,6 +141,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `storage` | `StorageAdapter` | ดิสก์ในเครื่อง | เช่น `s3Storage()` จาก `@easy-cms/storage-s3` [อัปโหลด](/th/guide/uploads) |
 | `imageSizes` | `ImageSize[]` | `[]` | รูปย่อ (ต้องมี `sharp`) ดู [ขนาดรูป](#image-sizes) |
 | `fromURL` | `UploadFromURLConfig` | ปิด | อัปโหลดจากลิงก์ ดู [fromURL](#fromurl) |
+| `privateStorage` | `StorageAdapter` | `storage` ที่ไม่มี URL สาธารณะ | ที่เก็บไฟล์ในโฟลเดอร์ส่วนตัว ดู[โฟลเดอร์ส่วนตัว](/th/guide/uploads#private-folders) |
 | `folders` | `boolean` | `false` | โฟลเดอร์ในคลังสื่อ และเมื่อเปิด `auth.rbac` กำหนดได้ว่าใครใช้แต่ละโฟลเดอร์ ดู[โฟลเดอร์](/th/guide/uploads#folders) |
 
 <!-- api: UploadFromURLConfig -->

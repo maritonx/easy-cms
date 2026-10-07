@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Play } from '@lucide/vue'
+import { EyeOff, Play } from '@lucide/vue'
 import { computed } from 'vue'
 import { extensionOf, fileKind, KIND_ICON } from '../lib/filetypes'
 import { t } from '../lib/i18n'
@@ -50,6 +50,10 @@ const extension = computed(() => extensionOf(props.media.filename))
       <span v-if="extension" class="ext">{{ extension }}</span>
       <span v-if="kind === 'video' || kind === 'audio'" class="play"><Play :size="10" /></span>
     </span>
+    <!-- In a private folder: only for who may see it. -->
+    <span v-if="media.private && size !== 'large'" class="private" :title="t('media.private')">
+      <EyeOff :size="size === 'small' ? 10 : 13" :aria-label="t('media.private')" />
+    </span>
   </div>
 </template>
 
@@ -94,6 +98,26 @@ const extension = computed(() => extensionOf(props.media.filename))
   height: auto;
   max-width: 100%;
   max-height: 70vh;
+}
+.thumb {
+  position: relative;
+}
+.private {
+  position: absolute;
+  bottom: 0.25rem;
+  left: 0.25rem;
+  display: grid;
+  place-items: center;
+  padding: 0.2rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  color: var(--warning-text);
+  line-height: 0;
+}
+.small .private {
+  bottom: 0.1rem;
+  left: 0.1rem;
+  padding: 0.12rem;
 }
 .card {
   width: 100%;

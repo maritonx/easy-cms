@@ -41,6 +41,23 @@ export interface BuiltinApiKeysCollection {
   ]
 }
 
+/** The built-in media folders (`upload.folders: true`). */
+export interface BuiltinMediaFoldersCollection {
+  readonly slug: 'media-folders'
+  readonly fields: readonly [
+    { readonly name: 'name'; readonly type: 'text'; readonly required: true },
+    { readonly name: 'parent'; readonly type: 'relationship'; readonly to: 'media-folders' },
+    { readonly name: 'key'; readonly type: 'text' },
+    { readonly name: 'private'; readonly type: 'boolean' },
+    { readonly name: 'permissions'; readonly type: 'json' },
+  ]
+}
+
+/** `media-folders` when the config turns folders on. */
+type FoldersOf<C extends Config> = C extends { readonly upload: { readonly folders: true } }
+  ? BuiltinMediaFoldersCollection
+  : never
+
 /** `api-keys` when the config turns API keys on. */
 type ApiKeysOf<C extends Config> = C extends { readonly apiKeys: true }
   ? BuiltinApiKeysCollection
@@ -100,6 +117,7 @@ type AllCollections<C extends Config> =
   | BuiltinUsersCollection
   | BuiltinMediaCollection
   | ApiKeysOf<C>
+  | FoldersOf<C>
   | PluginCollections<C>
 
 /** The built-in media collection; its documents are typed as `MediaDocument`. */
@@ -142,7 +160,11 @@ export interface MediaDocument {
   width?: number | null
   height?: number | null
   alt?: string | null
-  /** Public URL of the file. */
+  /** Its media folder (`upload.folders`), when it is in one. */
+  folder?: ID | null
+  /** In a private folder: `url` needs a signed-in user who may see it, or `cms.signedMediaURL()`. */
+  private?: boolean | null
+  /** URL of the file: public, or for private files the API's, which checks who asks. */
   url: string
   /** Resized copies, when `upload.imageSizes` is set and sharp is installed. */
   sizes: Record<string, MediaSize>
@@ -254,6 +276,7 @@ export type CollectionSlug<C extends Config> =
   | 'users'
   | 'media'
   | ApiKeysOf<C>['slug']
+  | FoldersOf<C>['slug']
   | PluginCollections<C>['slug']
 export type GlobalSlug<C extends Config> = NonNullable<C['globals']>[number]['slug']
 

@@ -1,4 +1,4 @@
-import type { Access, AuthUser } from '../access.js'
+import type { Access, AuthUser, ID } from '../access.js'
 import { evaluateAccess, FieldAccessChecker } from '../access-control.js'
 import { API_KEYS } from '../api-keys.js'
 import type { SsoProviderRef } from '../auth/sso.js'
@@ -36,6 +36,8 @@ export interface AdminField {
   to?: string
   /** An upload's allowed file types, e.g. `image/*`. */
   mimeTypes?: string[]
+  /** An upload's media folder (`folder`): where its picker opens; `only`: nowhere else. */
+  folder?: { id: ID; only: boolean }
   /** A relationship with `filterOptions`: the picker asks the server which documents fit. */
   filtered?: boolean
   from?: string
@@ -141,7 +143,7 @@ export interface AdminSchema {
    * The media library has folders (`upload.folders`); `permissions`: this user may choose which
    * roles use each folder (admins, with `auth.rbac`).
    */
-  folders?: { permissions: boolean }
+  folders?: { permissions: boolean; private: boolean }
   /** Which saved deliveries the admin can show (webhooks, emails), for users who may see them. */
   deliveries?: { webhook: boolean; email: boolean }
   /** Admin pages this user may open: Settings → Backups, Email, Roles; deliveries; the status panel. */
@@ -181,6 +183,8 @@ async function serializeFields(
   fields: readonly Field[],
   checks: { update: FieldAccessChecker; read: FieldAccessChecker },
   localized: boolean,
+  /** A media folder's id from its key (`upload.folders`). */
+  folderId?: (key: string) => Promise<ID>,
 ): Promise<AdminField[]> {
   const { update } = checks
   const out: AdminField[] = []
@@ -235,11 +239,13 @@ async function serializeFields(
         if (field.minRows !== undefined) f.minRows = field.minRows
         if (field.maxRows !== undefined) f.maxRows = field.maxRows
         if (field.mimeTypes) f.mimeTypes = expandMimeTypes(field.mimeTypes)
+        if (field.folder && folderId)
+          f.folder = { id: await folderId(field.folder), only: field.folderOnly === true }
         break
       case 'array':
         if (field.minRows !== undefined) f.minRows = field.minRows
         if (field.maxRows !== undefined) f.maxRows = field.maxRows
-        f.fields = await serializeFields(field.fields, checks, localized)
+        f.fields = await serializeFields(field.fields, checks, localized, folderId)
         break
       case 'blocks':
         if (field.minRows !== undefined) f.minRows = field.minRows
@@ -248,12 +254,12 @@ async function serializeFields(
           field.blocks.map(async (block) => ({
             slug: block.slug,
             ...(block.labels ? { labels: block.labels } : {}),
-            fields: await serializeFields(block.fields, checks, localized),
+            fields: await serializeFields(block.fields, checks, localized, folderId),
           })),
         )
         break
       case 'group':
-        f.fields = await serializeFields(field.fields, checks, localized)
+        f.fields = await serializeFields(field.fields, checks, localized, folderId)
         break
     }
     out.push(f)
@@ -291,7 +297,12 @@ async function collection(
   roles: { key: string; name: string }[],
 ): Promise<AdminCollection> {
   const target = { collection: config.slug }
-  const fields = await serializeFields(config.fields, await checkers(cms, user), localized)
+  const fields = await serializeFields(
+    config.fields,
+    await checkers(cms, user),
+    localized,
+    folderIds(cms),
+  )
   // With roles from the admin, a user's role is one of Settings → Roles.
   if (config.slug === USERS && cms.roles.enabled) {
     const role = fields.find((f) => f.name === 'role')
@@ -345,7 +356,7 @@ async function global(
     versions: Boolean(config.versions),
     preview: typeof config.preview === 'function',
     schedule: config.schedule === true,
-    fields: await serializeFields(config.fields, checks, localized),
+    fields: await serializeFields(config.fields, checks, localized, folderIds(cms)),
     permissions: {
       read: await may(cms, config.access?.read, user, target, 'read'),
       update: await may(cms, config.access?.update, user, target, 'update'),
@@ -399,7 +410,15 @@ export async function adminSchema(
       maxFileSize: cms.config.upload.maxFileSize,
       mimeTypes: expandMimeTypes(cms.config.upload.mimeTypes),
     },
-    ...(cms.folders.enabled ? { folders: { permissions: admin && cms.roles.enabled } } : {}),
+    ...(cms.folders.enabled
+      ? {
+          folders: {
+            permissions: admin && cms.roles.enabled,
+            // Admins can make folders private when there is somewhere private to keep files.
+            private: admin && cms.privateStorage !== null,
+          },
+        }
+      : {}),
     views,
     rbac: cms.roles.enabled,
     providers: cms.auth.sso.providers(),
@@ -451,4 +470,9 @@ async function widgets(cms: EasyCMS, user: AuthUser): Promise<AdminWidgetRef[]> 
     out.push({ component: componentRef(widget.component), width: widget.width ?? 'half' })
   }
   return out
+}
+
+/** Media folders by key, made when first needed; `undefined` without `upload.folders`. */
+function folderIds(cms: EasyCMS): ((key: string) => Promise<ID>) | undefined {
+  return cms.folders.enabled ? (key) => cms.folders.keyed(key) : undefined
 }

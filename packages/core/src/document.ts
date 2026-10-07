@@ -171,6 +171,8 @@ export interface Reference {
   readonly filterOptions?: FilterOptions
   /** The upload's `mimeTypes`, checked when saving. */
   readonly mimeTypes?: readonly string[]
+  /** The upload's `folder` with `folderOnly`: the file must be in it, checked when saving. */
+  readonly folderOnly?: string
 }
 
 export interface ValidateOptions {
@@ -378,6 +380,9 @@ async function normalizeValue(
             ? { filterOptions: field.filterOptions }
             : {}),
           ...(field.type === 'upload' && field.mimeTypes ? { mimeTypes: field.mimeTypes } : {}),
+          ...(field.type === 'upload' && field.folder && field.folderOnly
+            ? { folderOnly: field.folder }
+            : {}),
         })
       }
       return many ? ids : ids[0]

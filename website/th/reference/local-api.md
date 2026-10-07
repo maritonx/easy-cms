@@ -42,7 +42,11 @@ Local API เชื่อผู้เรียกและข้ามกฎส�
 |---|---|---|
 | `upload({ data, name }, fields?, options?)` | เอกสาร media | เก็บไฟล์ รูปจะได้ขนาดและรูปย่อ |
 | `uploadFromURL(url, fields?, options?)` | เอกสาร media | ดาวน์โหลดไฟล์จากลิงก์ แล้วทำแบบ `upload` [จากลิงก์](/th/guide/uploads#from-a-link) |
-| `mediaURL(key)` | `string` | URL สาธารณะของไฟล์ที่เก็บไว้ |
+| `mediaURL(key)` | `string` | URL ของไฟล์ที่เก็บไว้: URL สาธารณะ หรือ URL ของ API สำหรับไฟล์ส่วนตัว |
+| `signedMediaURL(doc, { expiresIn?, size? })` | `string` | ลิงก์ไปไฟล์ส่วนตัวที่เปิดได้โดยไม่ต้องล็อกอินจนกว่าจะหมดอายุ (ค่าเริ่มต้น `'1h'` สูงสุด `'7d'`) [โฟลเดอร์ส่วนตัว](/th/guide/uploads#private-folders) |
+| `verifyMediaSignature(key, expires, signature)` | `boolean` | ลิงก์ที่เซ็นนั้นของจริงและยังไม่หมดอายุไหม |
+| `storageFor(isPrivate)` | `StorageAdapter` | storage ของไฟล์สาธารณะหรือไฟล์ส่วนตัว (`upload.privateStorage`) |
+| `mediaUsage(ids)` | `number` | จำนวนเอกสารที่ใช้ไฟล์เหล่านี้ใน upload field ชั้นบนสุด |
 
 ### ฉบับร่างและเวอร์ชัน {#drafts-and-versions}
 

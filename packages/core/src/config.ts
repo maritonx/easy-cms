@@ -337,6 +337,13 @@ export interface UploadConfig {
    * `auth.rbac`, admins can also choose which roles see and change each folder. Off by default.
    */
   readonly folders?: boolean
+  /**
+   * Where files in private folders are kept: never served publicly, only through the API to
+   * users who may see them or with `cms.signedMediaURL()`. Default: `storage`, when it has no
+   * public URL (the local disk, Netlify Blobs); a storage with public URLs (S3 with `publicUrl`,
+   * a public Vercel Blob store) needs one, e.g. `vercelBlobStorage({ access: 'private' })`.
+   */
+  readonly privateStorage?: StorageAdapter
 }
 
 export interface RoutesConfig {
@@ -618,8 +625,8 @@ export interface ResolvedConfig
   readonly localization: Required<LocalizationConfig> | null
   readonly routes: Required<RoutesConfig>
   readonly admin: Required<AdminConfig>
-  readonly upload: Required<Omit<UploadConfig, 'storage' | 'fromURL'>> &
-    Pick<UploadConfig, 'storage' | 'fromURL'>
+  readonly upload: Required<Omit<UploadConfig, 'storage' | 'fromURL' | 'privateStorage'>> &
+    Pick<UploadConfig, 'storage' | 'fromURL' | 'privateStorage'>
   readonly auth: Required<AuthConfig>
   /** `false` without an audit log. */
   readonly audit: Required<AuditConfig> | false

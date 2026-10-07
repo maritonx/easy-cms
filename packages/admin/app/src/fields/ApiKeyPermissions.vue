@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import type { Id } from '../lib/api'
+import { buildTree, type FolderNode, foldersOn, loadFolders } from '../lib/folders'
 import { label, t } from '../lib/i18n'
 import { session } from '../lib/session'
 
@@ -11,6 +13,8 @@ type Ops = Record<string, string[]>
 interface Permissions {
   collections?: Ops
   globals?: Ops
+  /** Media folders the key is limited to (`upload.folders`); none: every folder. */
+  folders?: Id[]
 }
 
 const props = defineProps<{ modelValue: unknown; readOnly: boolean; labelledby?: string }>()
@@ -81,6 +85,35 @@ function toggle(row: Row, op: string, on: boolean) {
   emit('update:modelValue', { ...value.value, [row.group]: group })
 }
 
+// --- Media folders (`upload.folders`): every folder, or only some (with their subfolders) ---
+
+const usesMedia = computed(() => (value.value.collections?.media?.length ?? 0) > 0)
+const folderRows = ref<{ node: FolderNode; depth: number }[]>([])
+/** "Only these folders" is chosen, even before any is ticked. */
+const some = ref((value.value.folders?.length ?? 0) > 0)
+onMounted(async () => {
+  if (!foldersOn()) return
+  const tree = buildTree(await loadFolders().catch(() => []))
+  const out: { node: FolderNode; depth: number }[] = []
+  const walk = (list: FolderNode[], depth: number) => {
+    for (const node of list) {
+      out.push({ node, depth })
+      walk(node.children, depth + 1)
+    }
+  }
+  walk(tree.roots, 0)
+  folderRows.value = out
+})
+const chosen = (id: Id) => value.value.folders?.some((f) => String(f) === String(id)) ?? false
+function setFolders(folders: Id[]) {
+  const { folders: _old, ...rest } = value.value
+  emit('update:modelValue', folders.length ? { ...rest, folders } : rest)
+}
+function toggleFolder(id: Id, on: boolean) {
+  const current = (value.value.folders ?? []).filter((f) => String(f) !== String(id))
+  setFolders(on ? [...current, id] : current)
+}
+
 const opLabel = (row: Row, op: string) =>
   op === 'create' && row.slug === 'media' ? t('apiKey.upload') : t(`apiKey.${op}` as 'apiKey.read')
 </script>
@@ -117,6 +150,25 @@ const opLabel = (row: Row, op: string) =>
         </tbody>
       </table>
     </div>
+    <fieldset v-if="foldersOn() && usesMedia" class="folders" :disabled="readOnly">
+      <legend>{{ t('apiKey.folders') }}</legend>
+      <label class="choice">
+        <input type="radio" :checked="!some" @change="some = false; setFolders([])" />
+        {{ t('apiKey.foldersAll') }}
+      </label>
+      <label class="choice">
+        <input type="radio" :checked="some" @change="some = true" />
+        {{ t('apiKey.foldersSome') }}
+      </label>
+      <ul v-if="some" class="folder-list">
+        <li v-for="{ node, depth } in folderRows" :key="String(node.id)" :style="{ '--depth': depth }">
+          <label class="choice">
+            <input type="checkbox" :checked="chosen(node.id)" @change="toggleFolder(node.id, ($event.target as HTMLInputElement).checked)" />
+            {{ node.name }}
+          </label>
+        </li>
+      </ul>
+    </fieldset>
   </div>
 </template>
 
@@ -156,6 +208,36 @@ tbody th {
   text-align: left;
   font-weight: 500;
   white-space: nowrap;
+}
+.folders {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0.25rem 0 0;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.folders legend {
+  padding: 0 0.25rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.choice {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.875rem;
+}
+.folder-list {
+  max-height: 14rem;
+  margin: 0;
+  padding: 0.25rem 0 0;
+  overflow-y: auto;
+  list-style: none;
+}
+.folder-list li {
+  padding: 0.15rem 0 0.15rem calc(1.4rem + var(--depth) * 1rem);
 }
 .kind {
   margin-left: 0.4rem;

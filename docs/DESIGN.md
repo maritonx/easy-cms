@@ -238,7 +238,7 @@ Endpoint ของ plugin อยู่ใต้ `routes.api` เดียวก�
 - ไฟล์เสิร์ฟผ่าน `<api>/media/file/<key>` พร้อม CSP `sandbox` และ `nosniff` เป็น default ส่วน S3 ตั้ง `publicUrl` ไปที่ CDN ได้
 - **รูปภาพ:** `sharp` เป็น optional dependency สำหรับสร้าง thumbnail และ resize
 - ตรวจ MIME type จากเนื้อหาไฟล์และขนาดไฟล์ตอนอัปโหลด → ดู [ADR-0008](adr/0008-media-drafts-hooks.md) รวมถึงเอกสาร Office/OpenDocument, zip, เสียงและวิดีโอ และกลุ่ม `documents`/`office`/`archives` → ดู [ADR-0042](adr/0042-media-types-and-previews.md)
-- **โฟลเดอร์** (`upload.folders`): collection `media-folders` ซ้อนได้ ไฟล์อยู่ได้โฟลเดอร์เดียว ไม่เปลี่ยน key ของไฟล์ และกับ `auth.rbac` admin กำหนดระดับ ดู/แก้ไข/จัดการ ของแต่ละบทบาทต่อโฟลเดอร์ (สืบทอดลงไป จำกัดสิทธิ์ Media ให้แคบลงเท่านั้น) → ดู [ADR-0041](adr/0041-media-folders.md)
+- **โฟลเดอร์** (`upload.folders`): collection `media-folders` ซ้อนได้ ไฟล์อยู่ได้โฟลเดอร์เดียว ไม่เปลี่ยน key ของไฟล์ และกับ `auth.rbac` admin กำหนดระดับ ดู/แก้ไข/จัดการ ของแต่ละบทบาทต่อโฟลเดอร์ (สืบทอดลงไป จำกัดสิทธิ์ Media ให้แคบลงเท่านั้น) → ดู [ADR-0041](adr/0041-media-folders.md) โฟลเดอร์ส่วนตัวเก็บไฟล์ใน `upload.privateStorage` ชื่อไฟล์มี `.private` และเสิร์ฟผ่าน `<api>/media/private/<key>` ให้ผู้มีสิทธิ์หรือลิงก์ที่เซ็น → ดู [ADR-0043](adr/0043-private-files.md)
 
 ## 11. Content features
 
@@ -391,3 +391,4 @@ CI รัน lint, typecheck, build และ test บน Linux, macOS และ
 - [ADR-0040](adr/0040-one-click-deploy.md) — Deploy ด้วยคลิกเดียว (Vercel และ Netlify)
 - [ADR-0041](adr/0041-media-folders.md) — โฟลเดอร์ในคลังสื่อและสิทธิ์ต่อโฟลเดอร์
 - [ADR-0042](adr/0042-media-types-and-previews.md) — อัปโหลดหลายไฟล์ ชนิดไฟล์ และตัวอย่างในคลังสื่อ
+- [ADR-0043](adr/0043-private-files.md) — ไฟล์ส่วนตัว key ของโฟลเดอร์ และ API key ตามโฟลเดอร์

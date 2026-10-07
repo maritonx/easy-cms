@@ -13,7 +13,17 @@ export interface Folder {
   parent: Id | null
   /** Each role's level, or `null` to follow the parent; only admins see it. */
   permissions?: Record<string, FolderLevel> | null
+  /** For code: upload fields' `folder`. */
+  key?: string | null
+  /** Its files and subfolders are private. */
+  private?: boolean | null
   level: FolderLevel
+}
+
+/** An upload field's folder (`folder`), and whether only it may be used (`folderOnly`). */
+export interface FieldFolder {
+  id: Id
+  only: boolean
 }
 
 export interface FolderNode extends Folder {
@@ -110,4 +120,9 @@ export function rememberFolder(id: Id | null) {
   } catch {
     // private mode: the picker opens at the top
   }
+}
+
+/** Whether files in a folder are private: it, or a folder above it, is. */
+export function privateAt(tree: FolderTree, id: Id | null): boolean {
+  return pathTo(tree, id).some((node) => node.private === true)
 }

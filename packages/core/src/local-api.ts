@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto'
+import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
 import type { AuthUser, ID, Where } from './access.js'
 import {
   andWhere,
@@ -41,6 +41,7 @@ import {
 } from './document.js'
 import { type EmailMessage, type EmailQueue, Mailer, type QueuedEmail } from './email.js'
 import {
+  EasyCMSError,
   type FieldError,
   ForbiddenError,
   NotFoundError,
@@ -68,8 +69,16 @@ import {
   toLocaleMaps,
 } from './localization.js'
 import { consoleLogger, type Logger } from './logger.js'
-import { imageDimensions, mimeAllowed, sniffMimeType, storageKey } from './media.js'
-import { MediaFolders } from './media-folders.js'
+import {
+  imageDimensions,
+  isPrivateKey,
+  mimeAllowed,
+  sizeKey,
+  sniffMimeType,
+  storageKey,
+  withPrivacy,
+} from './media.js'
+import { MediaFolders, PUBLIC_FILES } from './media-folders.js'
 import { DEFAULT_DEPTH, type Loader, MAX_DEPTH, populate } from './populate.js'
 import { fetchRemoteFile, RemoteFileError } from './remote-file.js'
 import { resolveConfig } from './resolve-config.js'
@@ -184,6 +193,7 @@ export async function createEasyCMS<const C extends Config>(
   const cwd = options.cwd ?? process.cwd()
   const storage = resolved.upload.storage ?? localStorage({ dir: resolved.upload.dir })
   await storage.init?.({ cwd })
+  if (resolved.upload.privateStorage) await resolved.upload.privateStorage.init?.({ cwd })
   const db = await resolved.db.init({
     config: resolved,
     cwd,
@@ -234,6 +244,11 @@ export class EasyCMS<C extends Config = Config> {
   readonly auth: Auth
   /** Where uploaded files are stored. */
   readonly storage: StorageAdapter
+  /**
+   * Where files in private folders are stored (`upload.privateStorage`, else `storage` when it has
+   * no public URLs); `null` when private folders can't be used.
+   */
+  readonly privateStorage: StorageAdapter | null
   /** Project root: relative paths in the config (e.g. `admin.modules`) start here. */
   readonly cwd: string
   /** Roles and their permissions (`auth.rbac`, Settings → Roles). */
@@ -252,11 +267,17 @@ export class EasyCMS<C extends Config = Config> {
     logger: Logger = consoleLogger,
     storage: StorageAdapter = localStorage({ dir: config.upload.dir }),
     cwd: string = process.cwd(),
+    privateStorage?: StorageAdapter | null,
   ) {
     this.config = config
     this.db = db
     this.logger = logger
     this.storage = storage
+    // A storage that can give files public URLs (S3, Vercel Blob…) never holds private files.
+    this.privateStorage =
+      privateStorage !== undefined
+        ? privateStorage
+        : (config.upload.privateStorage ?? (typeof storage.url === 'function' ? null : storage))
     this.cwd = cwd
     this.versions = new VersionStore(db)
     this.roles = new Roles(
@@ -413,17 +434,28 @@ export class EasyCMS<C extends Config = Config> {
     }
 
     const random = randomBytes(4).toString('hex')
-    const filename = storageKey(file.name, mimeType, random)
+    // A file in a private folder goes to the private storage, under a private name.
+    const isPrivate = await this.folders.isPrivate(folderOf(MEDIA, data))
+    const storage = this.storageFor(isPrivate)
+    const filename = withPrivacy(storageKey(file.name, mimeType, random), isPrivate)
     const stored: string[] = []
     try {
-      await this.storage.put(filename, file.data, { contentType: mimeType })
+      await storage.put(filename, file.data, { contentType: mimeType })
       stored.push(filename)
       const dimensions = imageDimensions(file.data, mimeType)
-      const sizes = await this.resizeImage(file.data, mimeType, filename, imageSizes, stored)
+      const sizes = await this.resizeImage(
+        file.data,
+        mimeType,
+        filename,
+        imageSizes,
+        stored,
+        storage,
+      )
       const doc = await this.createDocument(
         config,
         {
           ...data,
+          ...(this.folders.enabled ? { private: isPrivate } : {}),
           filename,
           originalName: file.name.slice(0, 255),
           mimeType,
@@ -439,7 +471,7 @@ export class EasyCMS<C extends Config = Config> {
       return doc as unknown as MediaDocument
     } catch (error) {
       // Don't leave orphaned files behind when the document could not be created.
-      for (const key of stored) await this.storage.delete(key).catch(() => {})
+      for (const key of stored) await storage.delete(key).catch(() => {})
       throw error
     }
   }
@@ -530,9 +562,154 @@ export class EasyCMS<C extends Config = Config> {
 
   /** Public URL of a stored file. */
   mediaURL(key: string): string {
+    const base = `${this.config.serverURL?.replace(/\/+$/, '') ?? ''}${this.config.routes.api}`
+    // Private files only through the API, which checks who asks.
+    if (isPrivateKey(key)) return `${base}/media/private/${encodeURIComponent(key)}`
     const custom = this.storage.url?.(key)
     if (custom) return custom
-    return `${this.config.serverURL?.replace(/\/+$/, '') ?? ''}${this.config.routes.api}/media/file/${encodeURIComponent(key)}`
+    return `${base}/media/file/${encodeURIComponent(key)}`
+  }
+
+  /**
+   * A link to a private file that works without signing in until it expires: `expiresIn` in
+   * seconds or as `'30m'`, `'1h'` (the default), `'7d'` (the most). Public files get their usual
+   * URL. `size`: one of the file's resized copies. Links stop working when `secret` changes or
+   * the file stops being private.
+   */
+  signedMediaURL(
+    doc: { filename?: unknown; private?: unknown; sizes?: unknown },
+    options: { expiresIn?: number | string; size?: string } = {},
+  ): string {
+    const sizes = (doc.sizes ?? {}) as Record<string, { filename?: string }>
+    const key = options.size ? sizes[options.size]?.filename : doc.filename
+    if (typeof key !== 'string' || !key)
+      throw new QueryError(
+        options.size ? `The file has no "${options.size}" size` : 'The document is not a file',
+      )
+    if (!isPrivateKey(key)) return this.mediaURL(key)
+    const seconds = durationSeconds(options.expiresIn ?? '1h')
+    const expires = Math.floor(Date.now() / 1000) + seconds
+    return `${this.mediaURL(key)}?expires=${expires}&signature=${this.mediaSignature(key, expires)}`
+  }
+
+  /** Whether a signed link to a private file is genuine and not expired. */
+  verifyMediaSignature(key: string, expires: string | null, signature: string | null): boolean {
+    const at = Number(expires)
+    if (!signature || !Number.isInteger(at) || at < Date.now() / 1000) return false
+    const expected = Buffer.from(this.mediaSignature(key, at))
+    const given = Buffer.from(signature)
+    return expected.length === given.length && timingSafeEqual(expected, given)
+  }
+
+  private mediaSignature(key: string, expires: number): string {
+    return createHmac('sha256', this.config.secret)
+      .update(`media:${key}:${expires}`)
+      .digest('base64url')
+  }
+
+  /**
+   * How many documents use any of these files in a top-level upload field (rich text and fields
+   * inside groups, arrays and blocks are not counted). Drafts count too.
+   */
+  async mediaUsage(ids: readonly ID[]): Promise<number> {
+    if (ids.length === 0) return 0
+    let count = 0
+    for (const config of this.config.collections) {
+      if (INTERNAL_COLLECTIONS.has(config.slug)) continue
+      for (const field of config.fields) {
+        if (field.type !== 'upload') continue
+        count += await this.db.count({
+          collection: config.slug,
+          where: { [field.name]: { in: [...ids] } },
+        })
+      }
+    }
+    return count
+  }
+
+  /** The storage for public files, or for private ones. */
+  storageFor(isPrivate: boolean): StorageAdapter {
+    if (!isPrivate) return this.storage
+    if (!this.privateStorage)
+      throw new EasyCMSError(
+        'Private folders need upload.privateStorage: the storage has public URLs, so private files must be kept elsewhere',
+        500,
+      )
+    return this.privateStorage
+  }
+
+  /**
+   * Copies a file and its resized copies to the other storage under their new names (`.private`
+   * added or removed). Returns the fields to save, and `cleanUp` to delete the old copies once
+   * the document points to the new ones.
+   */
+  private async relocate(doc: RawDocument, toPrivate: boolean) {
+    const from = this.storageFor(doc.private === true)
+    const to = this.storageFor(toPrivate)
+    const contentType = String(doc.mimeType ?? 'application/octet-stream')
+    const filename = withPrivacy(String(doc.filename), toPrivate)
+    const old = [String(doc.filename)]
+    const copy = async (source: string, target: string) => {
+      const file = await from.get(source)
+      // A copy that is gone already has nothing to move.
+      if (file) await to.put(target, file.body, { contentType })
+    }
+    await copy(String(doc.filename), filename)
+    const sizes: Record<string, Record<string, unknown>> = {}
+    for (const [name, size] of Object.entries(
+      (doc.sizes ?? {}) as Record<string, Record<string, unknown>>,
+    )) {
+      const key = sizeKey(filename, name)
+      await copy(String(size.filename), key)
+      old.push(String(size.filename))
+      sizes[name] = { ...size, filename: key }
+    }
+    return {
+      patch: { filename, sizes, private: toPrivate },
+      cleanUp: async () => {
+        for (const key of old) await from.delete(key).catch(() => {})
+      },
+    }
+  }
+
+  /** A folder's name, parent and permissions; private only with somewhere private to keep files. */
+  private async validateFolder(data: Data, self: ID | undefined): Promise<void> {
+    await this.folders.validate(data, self)
+    if (data.private === true && !this.privateStorage)
+      throw new ValidationError(MEDIA_FOLDERS, [
+        {
+          field: 'private',
+          message:
+            'needs upload.privateStorage: the storage gives files public URLs, so private files must be kept elsewhere',
+        },
+      ])
+  }
+
+  /** After a folder became private or public (or moved): its files follow, in every subfolder. */
+  private async settlePrivacy(folder: ID): Promise<void> {
+    for (const f of await this.folders.subtree(folder))
+      await this.settleFiles({ folder: { equals: f.id } }, f.private)
+  }
+
+  /** Files at the top level are public. */
+  private async settleTopLevel(): Promise<void> {
+    await this.settleFiles({ folder: { exists: false } }, false)
+  }
+
+  private async settleFiles(where: Where, isPrivate: boolean): Promise<void> {
+    const found = await this.db.find({
+      collection: MEDIA,
+      where: andWhere(where, isPrivate ? PUBLIC_FILES : { private: { equals: true } }),
+      sort: [],
+      limit: 0,
+      page: 1,
+    })
+    for (const doc of found.docs) {
+      const moved = await this.relocate(doc, isPrivate)
+      const { id, ...rest } = doc
+      await this.db.update({ collection: MEDIA, id, data: { ...rest, ...moved.patch } })
+      await moved.cleanUp()
+    }
   }
 
   async update<S extends Slug<C>>(
@@ -906,14 +1083,32 @@ export class EasyCMS<C extends Config = Config> {
 
     if (config.slug === USERS) await this.guardLastAdmin(parsed, existing, prepared)
     if (password !== undefined) prepared.passwordHash = await hashPassword(password)
-    if (collection === MEDIA_FOLDERS) await this.folders.validate(prepared, parsed)
+    if (collection === MEDIA_FOLDERS) await this.validateFolder(prepared, parsed)
+    // A file moved between a public and a private folder moves to the other storage, renamed.
+    let moved: Awaited<ReturnType<typeof this.relocate>> | undefined
+    if (collection === MEDIA && this.folders.enabled) {
+      const toPrivate = await this.folders.isPrivate(folderOf(MEDIA, prepared))
+      if (toPrivate !== (existing.private === true)) {
+        moved = await this.relocate(existing, toPrivate)
+        Object.assign(prepared, moved.patch)
+      }
+    }
 
     const doc = await this.db.update({
       collection,
       id: parsed,
       data: { ...prepared, createdAt: existing.createdAt, updatedAt: now },
     })
-    if (collection === MEDIA_FOLDERS) this.folders.invalidate()
+    if (moved) await moved.cleanUp()
+    if (collection === MEDIA_FOLDERS) {
+      this.folders.invalidate()
+      // Made private (or public), or moved into a private folder: its files follow.
+      if (
+        prepared.private !== existing.private ||
+        String(prepared.parent ?? null) !== String(existing.parent ?? null)
+      )
+        await this.settlePrivacy(parsed)
+    }
     // Upkeep, not an edit: no version (which would also hide a pending draft behind it).
     if (!live) await this.saveVersion(config, collectionParent(collection), parsed, doc, guard)
     // A new password signs the user out everywhere.
@@ -968,7 +1163,13 @@ export class EasyCMS<C extends Config = Config> {
     // A folder's files and subfolders move up to its parent.
     if (collection === MEDIA_FOLDERS) await this.folders.release(existing)
     await this.db.delete({ collection, id: parsed })
-    if (collection === MEDIA_FOLDERS) this.folders.invalidate()
+    if (collection === MEDIA_FOLDERS) {
+      this.folders.invalidate()
+      // What moved up may now be public (or private).
+      const parent = (existing.parent as ID | null | undefined) ?? null
+      if (parent !== null) await this.settlePrivacy(parent)
+      else await this.settleTopLevel()
+    }
     if (versionLimit(config)) await this.versions.deleteAll(collectionParent(collection), parsed)
     if (config.schedule) {
       for (const job of await this.pendingJobs(collection, parsed))
@@ -1899,7 +2100,7 @@ export class EasyCMS<C extends Config = Config> {
       prepared,
     )
     if (password !== undefined) prepared.passwordHash = await hashPassword(password)
-    if (collection === MEDIA_FOLDERS) await this.folders.validate(prepared, undefined)
+    if (collection === MEDIA_FOLDERS) await this.validateFolder(prepared, undefined)
 
     const now = new Date().toISOString()
     const doc = await this.db.create({
@@ -2139,6 +2340,7 @@ export class EasyCMS<C extends Config = Config> {
     filename: string,
     sizes: readonly ImageSize[],
     stored: string[],
+    storage: StorageAdapter = this.storage,
   ): Promise<
     Record<string, { filename: string; width: number; height: number; filesize: number }>
   > {
@@ -2168,8 +2370,8 @@ export class EasyCMS<C extends Config = Config> {
           withoutEnlargement: true,
         })
         .toBuffer({ resolveWithObject: true })
-      const key = filename.replace(/\.([^.]+)$/, `-${size.name}.$1`)
-      await this.storage.put(key, new Uint8Array(out), { contentType: mimeType })
+      const key = sizeKey(filename, size.name)
+      await storage.put(key, new Uint8Array(out), { contentType: mimeType })
       stored.push(key)
       result[size.name] = {
         filename: key,
@@ -2391,6 +2593,19 @@ export class EasyCMS<C extends Config = Config> {
               : `must be ${ref.mimeTypes.join(', ')} (${doc.filename ?? ref.id} is ${type || 'unknown'})`,
           })
         }
+        // `folderOnly`: a file from that folder or one inside it.
+        if (
+          ref.folderOnly &&
+          this.folders.enabled &&
+          !(await this.folders.inKeyed(
+            ref.folderOnly,
+            (doc.folder as ID | null | undefined) ?? null,
+          ))
+        )
+          errors.push({
+            field: ref.field,
+            message: `must be a file from the "${ref.folderOnly}" folder (${doc.filename ?? ref.id} is not)`,
+          })
       }
     }
     return errors
@@ -2492,4 +2707,21 @@ function inFolders(config: ResolvedConfig, collection: string): boolean {
 function folderOf(collection: string, data: Record<string, unknown>): ID | null {
   const value = data[collection === MEDIA ? 'folder' : 'parent']
   return value === undefined || value === '' ? null : (value as ID | null)
+}
+
+const MAX_LINK = 7 * 24 * 60 * 60
+
+/** `3600`, `'30m'`, `'1h'`, `'7d'` as seconds; at most 7 days. */
+function durationSeconds(value: number | string): number {
+  const match = typeof value === 'string' ? /^(\d+)\s*([smhd])$/.exec(value.trim()) : null
+  const seconds =
+    typeof value === 'number'
+      ? value
+      : match
+        ? Number(match[1]) * { s: 1, m: 60, h: 3600, d: 86400 }[match[2] as 's' | 'm' | 'h' | 'd']
+        : Number.NaN
+  if (!Number.isFinite(seconds) || seconds <= 0)
+    throw new QueryError(`expiresIn must be seconds or like '30m', '1h', '7d' (got ${value})`)
+  if (seconds > MAX_LINK) throw new QueryError('expiresIn can be at most 7 days')
+  return Math.floor(seconds)
 }

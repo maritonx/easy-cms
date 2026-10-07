@@ -22,7 +22,22 @@ interface FolderRow {
   id: ID
   parent: ID | null
   name: string
+  key: string | null
+  /** Set on the folder itself; its subfolders are private too. */
+  private: boolean
   permissions: FolderPermissions | null
+}
+
+/** Files that are not private; files from before private folders have no value. */
+export const PUBLIC_FILES: Where = {
+  or: [{ private: { equals: false } }, { private: { exists: false } }],
+}
+
+/** The folders an API key is limited to (`permissions.folders`), with their subfolders. */
+function keyFolders(user: AuthUser | null): readonly ID[] | undefined {
+  const key = user?.apiKey as { permissions?: { folders?: readonly ID[] } } | undefined
+  const folders = key?.permissions?.folders
+  return folders && folders.length > 0 ? folders : undefined
 }
 
 /** The level an operation needs: on files (`media`) or on folders themselves. */
@@ -68,6 +83,8 @@ export class MediaFolders {
         id: doc.id,
         parent: (doc.parent as ID | null | undefined) ?? null,
         name: String(doc.name ?? ''),
+        key: typeof doc.key === 'string' && doc.key ? doc.key : null,
+        private: doc.private === true,
         permissions:
           permissions && typeof permissions === 'object' && !Array.isArray(permissions)
             ? (permissions as FolderPermissions)
@@ -93,6 +110,91 @@ export class MediaFolders {
     return 'manage'
   }
 
+  /** Whether files in a folder (`null`: the top level) are private: it or a folder above is. */
+  private privateIn(rows: Map<string, FolderRow>, id: ID | null): boolean {
+    const seen = new Set<string>()
+    let current = id === null ? undefined : rows.get(String(id))
+    while (current && !seen.has(String(current.id))) {
+      if (current.private) return true
+      seen.add(String(current.id))
+      current = current.parent === null ? undefined : rows.get(String(current.parent))
+    }
+    return false
+  }
+
+  /** Whether files put in this folder are private. */
+  async isPrivate(id: ID | null): Promise<boolean> {
+    if (!this.enabled || id === null) return false
+    return this.privateIn(await this.rows(), id)
+  }
+
+  /** The folder and every folder inside it. */
+  private within(rows: Map<string, FolderRow>, ids: readonly ID[]): ID[] {
+    const out = new Set(ids.map(String))
+    let grew = true
+    while (grew) {
+      grew = false
+      for (const row of rows.values())
+        if (row.parent !== null && out.has(String(row.parent)) && !out.has(String(row.id))) {
+          out.add(String(row.id))
+          grew = true
+        }
+    }
+    return [...rows.values()].filter((r) => out.has(String(r.id))).map((r) => r.id)
+  }
+
+  /** Folders whose privacy follows this one: it and those inside, with their privacy now. */
+  async subtree(id: ID): Promise<{ id: ID; private: boolean }[]> {
+    const rows = await this.fresh()
+    return this.within(rows, [id]).map((f) => ({ id: f, private: this.privateIn(rows, f) }))
+  }
+
+  /**
+   * The folder with this key (`folder: 'banners'` on upload fields), made at the top level when
+   * there is none yet.
+   */
+  async keyed(key: string): Promise<ID> {
+    const find = async () => [...(await this.rows()).values()].find((r) => r.key === key)
+    let found = await find()
+    if (!found) {
+      // Maybe made since the folders were read.
+      this.invalidate()
+      found = await find()
+    }
+    if (found) return found.id
+    const now = new Date().toISOString()
+    try {
+      const doc = await this.db.create({
+        collection: MEDIA_FOLDERS,
+        data: {
+          name: key,
+          key,
+          parent: null,
+          permissions: null,
+          private: false,
+          createdAt: now,
+          updatedAt: now,
+        },
+      })
+      this.invalidate()
+      return doc.id
+    } catch (error) {
+      // Made at the same time by another request.
+      this.invalidate()
+      const again = await find()
+      if (again) return again.id
+      throw error
+    }
+  }
+
+  /** Whether a file in `folder` is in the folder with this key, or below it. */
+  async inKeyed(key: string, folder: ID | null): Promise<boolean> {
+    if (folder === null) return false
+    const rows = await this.rows()
+    const root = [...rows.values()].find((r) => r.key === key)
+    return !!root && this.within(rows, [root.id]).some((id) => String(id) === String(folder))
+  }
+
   /** The user's level in a folder (`null`: the top level). */
   async level(user: AuthUser | null, id: ID | null): Promise<FolderLevel | 'none'> {
     if (!this.applies(user)) return 'manage'
@@ -104,7 +206,17 @@ export class MediaFolders {
    * they add none (no folder limits this user).
    */
   async where(user: AuthUser | null, collection: string, operation: string): Promise<true | Where> {
-    if ((collection !== MEDIA && collection !== MEDIA_FOLDERS) || !this.applies(user)) return true
+    if (!this.enabled || (collection !== MEDIA && collection !== MEDIA_FOLDERS)) return true
+    // Not signed in: no private files.
+    if (!user) return collection === MEDIA ? PUBLIC_FILES : true
+    // API keys limited to some folders: those and their subfolders, nothing at the top level.
+    const limited = keyFolders(user)
+    if (limited) {
+      const ids = this.within(await this.rows(), limited)
+      if (collection === MEDIA_FOLDERS) return { id: { in: ids } }
+      return operation === 'create' ? true : { folder: { in: ids } }
+    }
+    if (!this.applies(user)) return true
     if (operation === 'create') return true
     const need = RANK[needed(collection, operation)]
     const rows = await this.rows()
@@ -122,6 +234,13 @@ export class MediaFolders {
 
   /** Refuses putting a file (`media`) or a subfolder in a folder the user may not. */
   async checkTarget(user: AuthUser | null, collection: string, folder: ID | null): Promise<void> {
+    const limited = keyFolders(user)
+    if (limited) {
+      const ids = this.within(await this.rows(), limited).map(String)
+      if (folder === null || !ids.includes(String(folder)))
+        throw new ForbiddenError('This API key may not add to this folder')
+      return
+    }
     if (!this.applies(user)) return
     const need = collection === MEDIA ? 'edit' : 'manage'
     if (RANK[await this.level(user, folder)] < RANK[need])

@@ -44,7 +44,11 @@ to apply them, as the REST API does.
 |---|---|---|
 | `upload({ data, name }, fields?, options?)` | media document | Stores a file; images get dimensions and resized copies. |
 | `uploadFromURL(url, fields?, options?)` | media document | Downloads a file from a link, then as `upload`. [From a link](/guide/uploads#from-a-link) |
-| `mediaURL(key)` | `string` | Public URL of a stored file. |
+| `mediaURL(key)` | `string` | URL of a stored file: public, or the API's for private files. |
+| `signedMediaURL(doc, { expiresIn?, size? })` | `string` | A link to a private file that works without signing in until it expires (default `'1h'`, at most `'7d'`). [Private folders](/guide/uploads#private-folders) |
+| `verifyMediaSignature(key, expires, signature)` | `boolean` | Whether a signed link is genuine and not expired. |
+| `storageFor(isPrivate)` | `StorageAdapter` | The storage for public or private files (`upload.privateStorage`). |
+| `mediaUsage(ids)` | `number` | How many documents use these files in a top-level upload field. |
 
 ### Drafts and versions
 

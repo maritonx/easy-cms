@@ -5,6 +5,7 @@ import MediaPicker from '../components/MediaPicker.vue'
 import MediaThumb from '../components/MediaThumb.vue'
 import UploadDropzone from '../components/UploadDropzone.vue'
 import { api, type Doc, type Paginated, toQuery } from '../lib/api'
+import type { FieldFolder } from '../lib/folders'
 import { t } from '../lib/i18n'
 import { notify } from '../lib/toast'
 
@@ -19,6 +20,8 @@ const props = defineProps<{
   readOnly: boolean
   invalid: boolean
   mimeTypes?: readonly string[] | undefined
+  /** The media folder the picker opens in (`folder`). */
+  folder?: FieldFolder | undefined
   minRows?: number | undefined
   maxRows?: number | undefined
 }>()
@@ -157,7 +160,7 @@ const nameOf = (id: Id) => {
         <ImagePlus :size="16" aria-hidden="true" />
         {{ t('media.choose') }}
       </button>
-      <UploadDropzone v-if="room !== 0" :accept="accept" multiple @uploaded="add" />
+      <UploadDropzone v-if="room !== 0" :accept="accept" multiple :folder="folder?.id" @uploaded="add" />
     </div>
     <p v-if="maxRows !== undefined || minRows !== undefined" class="count muted">
       {{ maxRows !== undefined ? t('media.count', { count: ids.length, max: maxRows }) : t('media.countMin', { count: ids.length, min: minRows ?? 0 }) }}
@@ -168,6 +171,7 @@ const nameOf = (id: Id) => {
     :open="picking"
     multiple
     :mime-types="mimeTypes"
+    :folder="folder"
     :room="room"
     @select-many="add"
     @close="picking = false"
