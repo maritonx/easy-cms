@@ -11,14 +11,15 @@ const { isDark } = useData()
 
 const COPY = {
   en: {
-    badge: 'New in 0.37: deploy to Vercel or Netlify in one click',
-    badgeLink: 'one-click-deploy',
+    badge: 'New in 0.39: multi-file uploads, previews and folders',
+    badgeLink: 'uploads',
     title: 'Your CMS,',
     titleAccent: 'inside your app',
     tagline:
       'Define content in TypeScript. Get an admin, typed APIs and plugins, with no separate server to run.',
     start: 'Get started',
     github: 'GitHub',
+    deployLabel: 'Or try it with a database, in one click:',
     copy: 'Copy',
     copied: 'Copied',
     heroAlt: 'The Easy CMS admin: editing a post',
@@ -36,18 +37,41 @@ const COPY = {
             'Rich text',
             'A Tiptap editor with images from the media library, rendered to safe HTML.',
           ],
-          ['Media library', 'Uploads with resized images, on disk or S3, Cloudflare R2 and MinIO.'],
+          [
+            'Media library',
+            'Folders, images, Office documents, audio and video, uploaded many at a time and previewed in place.',
+          ],
         ],
       },
       {
         name: 'Work as a team',
         items: [
           [
-            'Drafts and versions',
-            'Save drafts, keep the published page live, restore any earlier version.',
+            'Drafts, versions and scheduling',
+            'Keep the published page live while you edit, publish at a set time, restore any version.',
           ],
-          ['Scheduling', 'Publish and unpublish at a set time, with a cron or the built-in timer.'],
           ['Live preview', 'See unsaved changes on the real page, side by side with the form.'],
+          [
+            'Thai and English',
+            'The admin in both languages, and content in as many locales as you need.',
+          ],
+        ],
+      },
+      {
+        name: 'Stay in control',
+        items: [
+          [
+            'Roles and permissions',
+            'Tick what each role may do, per collection, field and media folder, without code.',
+          ],
+          [
+            'Single sign-on',
+            'Sign in with Google, Microsoft, GitHub or any OpenID Connect provider.',
+          ],
+          [
+            'Audit log',
+            'Who changed which fields, sign-ins and admin actions, signed against tampering.',
+          ],
         ],
       },
       {
@@ -59,11 +83,28 @@ const COPY = {
           ],
           [
             'SQLite or Postgres',
-            'Start with a file, deploy on Postgres. Migrations are generated from the config.',
+            'A file or Turso, or Postgres (PGlite while developing). Only its own tables are touched.',
           ],
           [
-            'Thai and English',
-            'The admin in both languages, and content in as many locales as you need.',
+            'Deploy in one click',
+            'A starter on Vercel or Netlify with a database and file storage, ready in minutes.',
+          ],
+        ],
+      },
+      {
+        name: 'Keep it running',
+        items: [
+          [
+            'Backups',
+            'Database backups on a schedule or by hand from the admin, ready to download.',
+          ],
+          [
+            'Health at a glance',
+            'The dashboard tells admins what needs attention: failed webhooks, stuck emails, late jobs.',
+          ],
+          [
+            'Migrations',
+            'Generated from the config, reviewed in pull requests, run before each deploy.',
           ],
         ],
       },
@@ -94,7 +135,7 @@ const COPY = {
         'Read typed documents with the Local API, or over REST from any frontend.',
       ],
     ],
-    tour: ['Dashboard', 'Posts', 'Live preview', 'Translate', 'Media'],
+    tour: ['Dashboard', 'Posts', 'Live preview', 'Translate', 'Media', 'Roles', 'Audit log'],
     pluginsTitle: 'Plugins',
     pluginsLead:
       'A plugin is a function over your config. It can add fields, REST endpoints, admin components, pages and dashboard panels.',
@@ -186,13 +227,14 @@ const COPY = {
     ctaGuide: 'Read the guide',
   },
   th: {
-    badge: 'ใหม่ใน 0.37: deploy ขึ้น Vercel หรือ Netlify ในคลิกเดียว',
-    badgeLink: 'one-click-deploy',
+    badge: 'ใหม่ใน 0.39: อัปโหลดหลายไฟล์ ตัวอย่างไฟล์ และโฟลเดอร์',
+    badgeLink: 'uploads',
     title: 'CMS ที่อยู่',
     titleAccent: 'ในแอปของคุณ',
     tagline: 'กำหนดเนื้อหาด้วย TypeScript ได้หน้า admin, API ที่มี type และ plugin โดยไม่ต้องดูแล server แยก',
     start: 'เริ่มใช้งาน',
     github: 'GitHub',
+    deployLabel: 'หรือลองพร้อมฐานข้อมูลในคลิกเดียว:',
     copy: 'คัดลอก',
     copied: 'คัดลอกแล้ว',
     heroAlt: 'หน้า admin ของ Easy CMS ขณะแก้ไขบทความ',
@@ -204,15 +246,29 @@ const COPY = {
         items: [
           ['Field และ blocks', 'field 15 ประเภท รวม group, array และ blocks ให้บรรณาธิการจัดหน้าเองได้'],
           ['Rich text', 'editor แบบ Tiptap ใส่รูปจากคลังสื่อได้ และแปลงเป็น HTML ที่ปลอดภัย'],
-          ['คลังสื่อ', 'อัปโหลดพร้อมย่อรูปอัตโนมัติ เก็บบนดิสก์ หรือ S3, Cloudflare R2 และ MinIO'],
+          ['คลังสื่อ', 'โฟลเดอร์ รูป เอกสาร Office เสียงและวิดีโอ อัปโหลดทีละหลายไฟล์ และดูตัวอย่างได้ในหน้า'],
         ],
       },
       {
         name: 'ทำงานเป็นทีม',
         items: [
-          ['ฉบับร่างและเวอร์ชัน', 'บันทึกร่างโดยหน้าเว็บที่เผยแพร่ยังอยู่ และย้อนกลับไปเวอร์ชันไหนก็ได้'],
-          ['ตั้งเวลาเผยแพร่', 'เผยแพร่และยกเลิกตามเวลาที่ตั้ง ใช้ cron หรือตัวจับเวลาในตัว'],
+          ['ฉบับร่าง เวอร์ชัน และตั้งเวลา', 'แก้ได้โดยหน้าที่เผยแพร่ยังอยู่ ตั้งเวลาเผยแพร่ และย้อนกลับไปเวอร์ชันไหนก็ได้'],
           ['ตัวอย่างสด', 'เห็นการแก้ที่ยังไม่บันทึกบนหน้าเว็บจริง คู่กับฟอร์ม'],
+          ['ภาษาไทยและอังกฤษ', 'หน้า admin สองภาษา และเนื้อหาได้หลายภาษาตามต้องการ'],
+        ],
+      },
+      {
+        name: 'ควบคุมได้',
+        items: [
+          [
+            'บทบาทและสิทธิ์',
+            'ติ๊กว่าแต่ละบทบาททำอะไรได้ ต่อ collection, field และโฟลเดอร์สื่อ โดยไม่ต้องเขียนโค้ด',
+          ],
+          [
+            'Single sign-on',
+            'เข้าสู่ระบบด้วย Google, Microsoft, GitHub หรือผู้ให้บริการ OpenID Connect ใดก็ได้',
+          ],
+          ['Audit log', 'ใครแก้ field ไหน การเข้าสู่ระบบ และการจัดการระบบ ลงลายเซ็นกันการแก้ย้อนหลัง'],
         ],
       },
       {
@@ -222,8 +278,19 @@ const COPY = {
             'Nuxt, Next.js หรือ standalone',
             'เป็น Nuxt module, route handler ของ Next.js หรือ server ของตัวเองสำหรับ frontend ใดก็ได้',
           ],
-          ['SQLite หรือ Postgres', 'เริ่มจากไฟล์ แล้ว deploy บน Postgres migration สร้างจาก config ให้'],
-          ['ภาษาไทยและอังกฤษ', 'หน้า admin สองภาษา และเนื้อหาได้หลายภาษาตามต้องการ'],
+          [
+            'SQLite หรือ Postgres',
+            'ไฟล์หรือ Turso หรือ Postgres (PGlite ตอนพัฒนา) แตะเฉพาะตารางของตัวเอง',
+          ],
+          ['Deploy คลิกเดียว', 'starter บน Vercel หรือ Netlify พร้อมฐานข้อมูลและที่เก็บไฟล์ ใช้ได้ในไม่กี่นาที'],
+        ],
+      },
+      {
+        name: 'ดูแลระบบ',
+        items: [
+          ['Backups', 'สำรองฐานข้อมูลตามเวลาหรือกดเองในหน้า admin และดาวน์โหลดได้'],
+          ['สถานะในที่เดียว', 'แดชบอร์ดบอก admin ว่ามีอะไรต้องดูแล: webhook ที่ล้ม อีเมลค้าง งานตั้งเวลาที่ช้า'],
+          ['Migration', 'สร้างจาก config ตรวจใน pull request และรันก่อน deploy ทุกครั้ง'],
         ],
       },
       {
@@ -241,7 +308,7 @@ const COPY = {
       ['เปิดหน้า admin', 'ที่ /admin ในแอปของคุณ บรรณาธิการได้ฟอร์ม ฉบับร่าง ประวัติ และตัวอย่างสด'],
       ['ใช้ในหน้าเว็บ', 'อ่านเอกสารแบบมี type ด้วย Local API หรือผ่าน REST จาก frontend ใดก็ได้'],
     ],
-    tour: ['แดชบอร์ด', 'บทความ', 'ตัวอย่างสด', 'แปลภาษา', 'คลังสื่อ'],
+    tour: ['แดชบอร์ด', 'บทความ', 'ตัวอย่างสด', 'แปลภาษา', 'คลังสื่อ', 'บทบาท', 'Audit log'],
     pluginsTitle: 'Plugins',
     pluginsLead:
       'plugin คือฟังก์ชันที่ปรับ config เพิ่ม field, REST endpoint, component หน้าของตัวเอง และกล่องบนแดชบอร์ดในหน้า admin ได้',
@@ -326,10 +393,18 @@ const guide = (slug: string) => withBase(`${prefix.value}/guide/${slug}`)
 const shot = (name: string) =>
   withBase(`/screenshots/${name}-${props.lang}-${isDark.value ? 'dark' : 'light'}.webp`)
 
-const TOUR = ['dashboard', 'posts', 'preview', 'translate', 'media'] as const
+const TOUR = ['dashboard', 'posts', 'preview', 'translate', 'media', 'roles', 'audit'] as const
 const tour = ref(0)
 
 const command = 'npx create-easy-cms'
+
+/** The one-click deploy buttons, as in the README and the guide. */
+const DEPLOY = {
+  vercel:
+    'https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fmaritonx%2Feasy-cms%2Ftree%2Fmain%2Ftemplates%2Fnext-starter&project-name=easy-cms&repository-name=easy-cms&env=EASY_CMS_SETUP_CODE&envDescription=A+code+you+choose%3A+you+type+it+to+create+the+first+admin+at+%2Fadmin&envLink=https%3A%2F%2Fmaritonx.github.io%2Feasy-cms%2Fguide%2Fone-click-deploy&stores=%5B%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22neon%22%2C%22productSlug%22%3A%22neon%22%2C%22protocol%22%3A%22storage%22%7D%2C%7B%22type%22%3A%22blob%22%2C%22access%22%3A%22public%22%7D%5D',
+  netlify:
+    'https://app.netlify.com/start/deploy?repository=https://github.com/maritonx/easy-cms&create_from_path=templates/next-starter',
+}
 const copied = ref(false)
 async function copy() {
   try {
@@ -357,15 +432,27 @@ function show(i: number) {
 
 /** Lucide paths (MIT) for the feature cards, in the order of the groups above. */
 const ICONS = [
+  // Model your content
   'M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z',
   'M4 7V4h16v3M9 20h6M12 4v16',
   'M21 15l-5-5L5 21M3 3h18v18H3zM9 9a1 1 0 1 0 0-2 1 1 0 0 0 0 2',
+  // Work as a team
   'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M16 13H8M16 17H8',
-  'M12 6v6l4 2M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20',
   'M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6',
+  'M5 8l6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6',
+  // Stay in control
+  'M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1zM9 12l2 2 4-4',
+  'M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3',
+  'M3 17l2 2 4-4M3 7l2 2 4-4M13 6h8M13 12h8M13 18h8',
+  // Ship it
   'M16 18l6-6-6-6M8 6l-6 6 6 6',
   'M3 5c0-1.7 4-3 9-3s9 1.3 9 3-4 3-9 3-9-1.3-9-3M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5M3 12c0 1.7 4 3 9 3s9-1.3 9-3',
-  'M5 8l6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6',
+  'M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09zM12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2zM9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5',
+  // Keep it running
+  'M21 8v13H3V8M1 3h22v5H1zM10 12h4',
+  'M22 12h-4l-3 9L9 3l-3 9H2',
+  'M18 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6M6 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6M6 21V9a9 9 0 0 0 9 9',
+  // Connect
   'M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4zM16.5 7.5a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1',
   'M18 16.98h-5.99c-1.1 0-1.95.94-2.48 1.9A4 4 0 0 1 2 17c.01-.7.2-1.4.57-2M6 17l3.13-5.78c.53-.97.1-2.18-.5-3.1a4 4 0 1 1 6.89-4.06M12 6l3.13 5.73C15.66 12.7 16.9 13 18 13a4 4 0 0 1 0 8',
   'M22 7l-8.99 5.73a2 2 0 0 1-2.02 0L2 7M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z',
@@ -389,6 +476,11 @@ const ICONS = [
         <div class="command">
           <code><span class="prompt" aria-hidden="true">$</span> {{ command }}</code>
           <button type="button" :aria-label="t.copy" @click="copy">{{ copied ? t.copied : t.copy }}</button>
+        </div>
+        <div class="deploy">
+          <span>{{ t.deployLabel }}</span>
+          <a :href="DEPLOY.vercel"><img src="https://vercel.com/button" alt="Deploy with Vercel" height="32" /></a>
+          <a :href="DEPLOY.netlify"><img src="https://www.netlify.com/img/deploy/button.svg" alt="Deploy to Netlify" height="32" /></a>
         </div>
       </div>
       <figure class="frame hero-shot">
@@ -659,6 +751,26 @@ p {
 }
 .btn.alt:hover {
   background: var(--vp-button-alt-hover-bg);
+}
+.deploy {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  margin-top: 14px;
+  color: var(--vp-c-text-2);
+  font-size: 14px;
+}
+.deploy span {
+  flex-basis: 100%;
+}
+.deploy a {
+  display: inline-flex;
+  line-height: 0;
+}
+.deploy img {
+  height: 32px;
+  width: auto;
 }
 .command {
   display: flex;

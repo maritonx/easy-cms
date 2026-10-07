@@ -113,7 +113,9 @@ cd my-cms && npm run dev       # http://localhost:4000/admin
 **Content modeling**
 - 15 field types: text, rich text (Tiptap), number, date, select, relationship, upload, array,
   group, blocks, JSON and more, with validation and per-field access
-- Uploads with several files and drag-to-order (galleries), limited to the file types you allow
+- Uploads with several files and drag-to-order (galleries), limited to the file types you allow:
+  images, PDF, Word, Excel, PowerPoint, OpenDocument, CSV, audio, video and zip, detected from
+  their contents
 - Collections and globals, drafts and publishing, hooks
 - Localization: one value per language, translation status in the lists
 - Version history with restore, and drafts kept apart from the published version
@@ -121,7 +123,10 @@ cd my-cms && npm run dev       # http://localhost:4000/admin
 **Admin**
 - Lists with search, filters, columns, bulk actions and tree views; forms with a side panel
 - Live preview of unsaved changes on your real pages
-- Scheduled publish and unpublish, a media library with image sizes
+- Scheduled publish and unpublish
+- A media library with folders (and who may use each), many files uploaded at once with their
+  progress, icons by file type, a grid view, and previews: images, audio and video players, PDFs,
+  text and CSV
 - A dashboard that tells admins what needs attention: failed webhooks, stuck emails, late
   scheduled publishing
 - Roles from the admin: tick what each role may do per collection, page and field, or on its own
@@ -140,7 +145,9 @@ cd my-cms && npm run dev       # http://localhost:4000/admin
 **Data and operations**
 - SQLite (libSQL) or Postgres (postgres.js or PGlite) through Drizzle
 - Schema push in development, reviewed migration files in production
-- Uploads on disk or S3, Cloudflare R2 and MinIO, also from links (the server downloads them)
+- Uploads on disk, S3, Cloudflare R2, MinIO, Vercel Blob or Netlify Blobs, also from links (the
+  server downloads them)
+- One-click deploy to Vercel or Netlify, with a database and file storage
 - Database backups on a schedule or by hand from the admin, downloadable
 - `easy-cms` CLI: migrations, backups, copying between databases, scheduled jobs
 

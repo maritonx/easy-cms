@@ -10,8 +10,10 @@ your app's server, so there is no separate CMS service to host, pay for or keep 
 
 - **You define content in code.** Collections, fields, access rules and hooks go in
   `easy-cms.config.ts`, which you review and version like any other code.
-- **Editors get an admin** at `/admin`: lists, generated forms, rich text, a media library,
-  drafts, history, live preview, in Thai and English.
+- **Editors get an admin** at `/admin`: lists, generated forms, rich text, a media library with
+  folders and previews, drafts, history, live preview, in Thai and English.
+- **Teams stay in control**: [roles and permissions](./roles) set in the admin,
+  [single sign-on](./sso) and an [audit log](./audit-log) of who changed what.
 - **Your pages read content** with the typed [Local API](./local-api) on the server
   (`useEasyCMS()` in Nuxt, `getEasyCMS(config)` in Next.js), and any client can use the
   [REST API](./rest-api) at `/api/cms`.
@@ -67,6 +69,7 @@ your app's server, so there is no separate CMS service to host, pay for or keep 
 - You deploy one app server with a database (a VPS, a container, a platform like Railway or
   Render, or serverless with Postgres).
 - Your editors work in Thai, English or both.
+- You want to try it on Vercel or Netlify first: [deploy a starter in one click](./one-click-deploy).
 
 ## When it doesn't
 

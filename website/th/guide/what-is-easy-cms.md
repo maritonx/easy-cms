@@ -9,8 +9,10 @@ Easy CMS คือ headless CMS ที่ติดตั้งเข้าไป
 
 - **กำหนดเนื้อหาด้วยโค้ด** collection, field, กฎสิทธิ์ และ hook อยู่ใน `easy-cms.config.ts`
   ซึ่ง review และเก็บเวอร์ชันได้เหมือนโค้ดส่วนอื่น
-- **ผู้แก้เนื้อหาได้หน้า admin** ที่ `/admin`: รายการ ฟอร์มที่สร้างให้อัตโนมัติ rich text คลังสื่อ
-  ฉบับร่าง ประวัติ และตัวอย่างสด เป็นภาษาไทยและอังกฤษ
+- **ผู้แก้เนื้อหาได้หน้า admin** ที่ `/admin`: รายการ ฟอร์มที่สร้างให้อัตโนมัติ rich text คลังสื่อที่มี
+  โฟลเดอร์และตัวอย่างไฟล์ ฉบับร่าง ประวัติ และตัวอย่างสด เป็นภาษาไทยและอังกฤษ
+- **ทีมควบคุมได้**: [บทบาทและสิทธิ์](./roles) ที่ตั้งในหน้า admin [single sign-on](./sso) และ
+  [audit log](./audit-log) ว่าใครเปลี่ยนอะไร
 - **หน้าเว็บอ่านเนื้อหา** ผ่าน [Local API](./local-api) ที่มี type บน server (`useEasyCMS()` ใน Nuxt,
   `getEasyCMS(config)` ใน Next.js) และ client ใดก็ใช้ [REST API](./rest-api) ที่ `/api/cms` ได้
 - **ข้อมูลอยู่ในฐานข้อมูลของคุณ**: SQLite (ไฟล์ หรือ Turso) หรือ Postgres (server หรือ PGlite
@@ -63,6 +65,7 @@ Easy CMS คือ headless CMS ที่ติดตั้งเข้าไป
 - คุณ deploy แอป server หนึ่งตัวคู่กับฐานข้อมูล (VPS, container, แพลตฟอร์มอย่าง Railway หรือ Render
   หรือ serverless คู่กับ Postgres)
 - ผู้แก้เนื้อหาทำงานเป็นภาษาไทย อังกฤษ หรือทั้งสองภาษา
+- คุณอยากลองบน Vercel หรือ Netlify ก่อน: [deploy starter ในคลิกเดียว](./one-click-deploy)
 
 ## เมื่อไหร่ที่ไม่เหมาะ {#when-it-doesnt}
 
