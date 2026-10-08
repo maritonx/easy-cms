@@ -1,5 +1,13 @@
 # @easy-cms/plugin-form-builder
 
+## 0.41.0
+
+### Patch Changes
+
+- Updated dependencies [7a43c55]
+  - @easy-cms/core@0.41.0
+  - @easy-cms/richtext@0.41.0
+
 ## 0.40.0
 
 ### Patch Changes
