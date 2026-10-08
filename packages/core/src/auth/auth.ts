@@ -19,6 +19,7 @@ import {
   ValidationError,
 } from '../errors.js'
 import type { EasyCMS } from '../local-api.js'
+import { SESSION_COOKIE } from './cookie.js'
 import { DEFAULT_PASSWORD_EMAILS } from './emails.js'
 import { fakeVerify, verifyPassword } from './password.js'
 import { SingleSignOn } from './sso.js'
@@ -195,6 +196,23 @@ export class Auth {
         target: 'auth',
         user: await this.toAuthUser(user),
       })
+  }
+
+  /**
+   * The user a request's headers carry: a Bearer token (session or API key) or the session
+   * cookie; `null` when there is none or it is not valid. For frameworks' pages and handlers.
+   */
+  async userFromHeaders(headers: {
+    get(name: string): string | null | undefined
+  }): Promise<AuthUser | null> {
+    const authorization = headers.get('authorization')
+    if (authorization?.startsWith('Bearer ')) return this.verify(authorization.slice(7).trim())
+    for (const part of headers.get('cookie')?.split(';') ?? []) {
+      const eq = part.indexOf('=')
+      if (eq > 0 && part.slice(0, eq).trim() === SESSION_COOKIE)
+        return this.verify(decodeURIComponent(part.slice(eq + 1).trim()))
+    }
+    return null
   }
 
   /**

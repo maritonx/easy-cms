@@ -131,6 +131,11 @@ export {
   type FieldTypeValidateContext,
 } from './field-types.js'
 export * from './fields.js'
+export {
+  type ApiHandlerOptions,
+  createApiHandler,
+  sharedEasyCMS,
+} from './framework.js'
 export type * from './infer.js'
 export {
   CONFIG_FILE_NAMES,

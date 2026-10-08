@@ -55,6 +55,13 @@
             "en": "Standalone server",
             "th": "Standalone server"
           }
+        },
+        {
+          "path": "guide/other-frameworks",
+          "title": {
+            "en": "Other frameworks",
+            "th": "Framework อื่นๆ"
+          }
         }
       ]
     },

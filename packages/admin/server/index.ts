@@ -93,6 +93,35 @@ export function renderShell(
 }
 
 /** Serves the admin SPA: static assets, and index.html for every other path under `basePath`. */
+/** What `adminHandlerFor` reads from a resolved config (`resolveConfig()`, `cms.config`). */
+export interface AdminConfigLike {
+  readonly admin: {
+    readonly path: string
+    readonly locale: 'en' | 'th'
+    readonly brand: NonNullable<AdminHandlerOptions['brand']>
+    readonly siteUrl: string
+  }
+  readonly routes: { readonly api: string }
+}
+
+/**
+ * The admin handler for a resolved config: its path, API, language, brand and site link, which
+ * `overrides` can change (e.g. `siteUrl: '/'` when the site is the same app).
+ */
+export function adminHandlerFor(
+  config: AdminConfigLike,
+  overrides: Omit<AdminHandlerOptions, 'basePath' | 'apiPath'> = {},
+): AdminHandler {
+  return createAdminHandler({
+    basePath: config.admin.path,
+    apiPath: config.routes.api,
+    locale: config.admin.locale,
+    brand: config.admin.brand,
+    siteUrl: config.admin.siteUrl,
+    ...overrides,
+  })
+}
+
 export function createAdminHandler(options: AdminHandlerOptions = {}): AdminHandler {
   const basePath = trimSlashes(options.basePath ?? '/admin')
   const appDir = options.appDir ?? APP_DIR

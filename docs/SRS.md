@@ -1,9 +1,9 @@
 # Software Requirements Specification — Easy CMS
 
-- **เวอร์ชันเอกสาร:** 3.16
+- **เวอร์ชันเอกสาร:** 3.17
 - **วันที่:** 2026-10-08
 - **ผู้เขียน:** Kanawoot K.
-- **ครอบคลุม:** v0.1 (baseline) ถึง v0.41
+- **ครอบคลุม:** v0.1 (baseline) ถึง v0.42
 - **สถานะ:** Living document (อัปเดตทุกครั้งที่เพิ่มฟีเจอร์)
 - **เอกสารที่เกี่ยวข้อง:** [DESIGN.md](DESIGN.md), [ADRs](adr/)
 
@@ -305,6 +305,7 @@ AI assistant ► /api/cms/mcp ──┘                     └──► Webhook
 | FR-ADP-03 | ทุก adapter (Nuxt, Next และ standalone) ต้องผ่านชุด E2E test เดียวกันทั้งหมด | MUST |
 | FR-ADP-04 | Adapter ต้องไม่มี business logic และเรียกใช้ core handler เท่านั้น | MUST |
 | FR-ADP-05 | Adapter ต้องรวมไฟล์ที่ต้องใช้ตอนรัน (admin app, migrations, admin modules ของ plugin) ไว้ใน build output ของ framework | MUST |
+| FR-ADP-06 | (0.42) core ต้องมีชุดเครื่องมือกลางสำหรับ framework: `sharedEasyCMS` (instance เดียวต่อ server เทียบ config ตามโครงสร้าง), `createApiHandler` (REST API พร้อม IP ของผู้ใช้) และ `cms.auth.userFromHeaders` ส่วน `@easy-cms/admin` มี `adminHandlerFor` และแพ็กเกจ Next, Nuxt และ standalone ต้องใช้ชุดนี้ ([ADR-0045](adr/0045-framework-kit.md)) | SHOULD |
 
 ### 3.15 Standalone และ CORS (STA) — [ADR-0011](adr/0011-standalone-mode.md)
 
@@ -748,6 +749,7 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 0.18 | SEO สำหรับ AI: crawler ของ AI, llms.txt, Markdown, IndexNow | FR-SEO-09..12 | [0021](adr/0021-seo-for-ai.md) |
 | 0.19 | Redirects plugin, `admin.group: 'settings'` | FR-RDR-*, FR-ADM-19 | [0022](adr/0022-redirects-plugin.md) |
 | 0.20 | อีเมลใน core, email-smtp, form builder | FR-EML-*, FR-FRM-*, FR-STA-06 | [0023](adr/0023-email-and-form-builder.md) |
+| 0.42 | ชุดเครื่องมือกลางสำหรับ framework และเอกสาร Framework อื่นๆ | FR-ADP-06 | [0045](adr/0045-framework-kit.md) |
 | 0.41 | อัปโหลดไฟล์ใหญ่ตรงไปที่ storage (S3, Vercel Blob) และจำกัดการย้ายไฟล์ 200 ไฟล์ | FR-UPL-15..16 | [0044](adr/0044-direct-uploads.md) |
 | 0.40 | ไฟล์ส่วนตัว ลิงก์ที่เซ็น key ของโฟลเดอร์ใน upload field และ API key ตามโฟลเดอร์ | FR-UPL-13..14, FR-ACL-15 | [0043](adr/0043-private-files.md) |
 | 0.39 | อัปโหลดหลายไฟล์ ชนิดไฟล์เอกสารและสื่อ icon ตัวอย่าง และมุมมองกริด | FR-UPL-10..12 | [0042](adr/0042-media-types-and-previews.md) |
@@ -782,6 +784,7 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 1.3 | 2026-09-25 | M5: FR-REST-08 (อัปโหลด/ไฟล์), FR-CFG-07 (`routes.api`, `serverURL`), ระบุว่า drafts ใน v0.1 ไม่มี version แยก |
 | 1.4 | 2026-09-25 | M6: ผลวัด NFR-PERF-01/02 บน Postgres 17 (Local API p95 2.7 ms, REST p95 4.3 ms), Next.js adapter ใช้ `getEasyCMS(config)` |
 | 1.5 | 2026-09-25 | M7: ผลตรวจรับ v0.1 (7.1) |
+| 3.17 | 2026-10-08 | 0.42: FR-ADP-06 |
 | 3.16 | 2026-10-08 | 0.41: FR-UPL-15..16 |
 | 3.15 | 2026-10-07 | 0.40: FR-UPL-13..14, FR-ACL-15 |
 | 3.14 | 2026-10-07 | 0.39: FR-UPL-10..12 |

@@ -2,6 +2,7 @@ import type { AuthUser } from '../access.js'
 import { API_KEYS, type ApiKeyPermissions } from '../api-keys.js'
 import { auditContext } from '../audit.js'
 import type { Session } from '../auth/auth.js'
+import { SESSION_COOKIE } from '../auth/cookie.js'
 import { SSO_COOKIE } from '../auth/sso.js'
 import { safeEqual } from '../auth/tokens.js'
 import { deleteBackup, downloadBackup, listBackups, startBackup } from '../backups.js'
@@ -32,7 +33,7 @@ import { adminStatus } from './admin-status.js'
 import { pickerFilter } from './filter-options.js'
 import { parseDepth, parseListQuery } from './query.js'
 
-export const SESSION_COOKIE = 'ecms-session'
+export { SESSION_COOKIE }
 export const CSRF_COOKIE = 'ecms-csrf'
 export const CSRF_HEADER = 'x-csrf-token'
 const MAX_BODY_BYTES = 1024 * 1024

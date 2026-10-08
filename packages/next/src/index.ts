@@ -1,51 +1,25 @@
 import { existsSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
-import { APP_DIR, createAdminHandler, SHELL_FILE } from '@easy-cms/admin'
+import { type AdminHandler, APP_DIR, adminHandlerFor, SHELL_FILE } from '@easy-cms/admin'
 import {
   type AuthUser,
   type Config,
-  configSignature,
-  createEasyCMS,
-  createRestHandler,
+  createApiHandler,
   type EasyCMS,
-  readCookie,
   resolveConfig,
-  SESSION_COOKIE,
+  sharedEasyCMS,
 } from '@easy-cms/core'
 
 type Handler = (request: Request) => Promise<Response>
 
-interface Cached {
-  /** `configSignature()` of the config the instance was made from. */
-  signature: string
-  promise: Promise<unknown>
-}
-
-const KEY = Symbol.for('easy-cms.next')
-const store = globalThis as unknown as { [KEY]?: Cached }
-
 /**
  * The Easy CMS Local API for this server, typed from your config. Use it in Server
- * Components, Route Handlers and Server Actions. The instance survives hot reloads.
+ * Components, Route Handlers and Server Actions. The instance survives hot reloads, and is the
+ * same for every server layer, which Next.js each bundles the config into.
  */
 export function getEasyCMS<const C extends Config>(config: C): Promise<EasyCMS<C>> {
-  const cached = store[KEY]
-  // By structure, not identity: Next.js bundles the config into each server layer (route
-  // handlers, Server Components), so every layer has its own config object. Replacing the
-  // instance whenever the layer changed closed the database under requests still using it.
-  // In development, a change to fields or options recreates it; a change to a hook's code
-  // alone needs a restart.
-  const signature = configSignature(config)
-  if (cached?.signature === signature) return cached.promise as Promise<EasyCMS<C>>
-  if (cached) void (cached.promise as Promise<EasyCMS>).then((cms) => cms.destroy()).catch(() => {})
-  const promise = createEasyCMS(config)
-  store[KEY] = { signature, promise }
-  promise.catch(() => {
-    // Let the next call retry instead of caching the failure.
-    if (store[KEY]?.promise === promise) delete store[KEY]
-  })
-  return promise
+  return sharedEasyCMS(config)
 }
 
 export interface RouteHandlerOptions {
@@ -63,21 +37,7 @@ export interface RouteHandlerOptions {
  * ```
  */
 export function createRouteHandlers(config: Config, options: RouteHandlerOptions = {}) {
-  const handlers = new WeakMap<EasyCMS, Handler>()
-  const handle: Handler = async (request) => {
-    const cms = (await getEasyCMS(config)) as EasyCMS
-    let handler = handlers.get(cms)
-    if (!handler) {
-      handler = createRestHandler(cms, {
-        getClientIp: (r) =>
-          options.trustProxy
-            ? r.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || undefined
-            : undefined,
-      })
-      handlers.set(cms, handler)
-    }
-    return handler(request)
-  }
+  const handle: Handler = createApiHandler(config, { trustProxy: options.trustProxy === true })
   return {
     GET: handle,
     HEAD: handle,
@@ -99,14 +59,10 @@ export function createRouteHandlers(config: Config, options: RouteHandlerOptions
  * ```
  */
 export function createAdminRouteHandlers(config: Config, options: { appDir?: string } = {}) {
-  let handler: Promise<Handler> | undefined
+  let handler: Promise<AdminHandler> | undefined
   const handle: Handler = async (request) => {
     handler ??= resolveConfig(config).then((resolved) =>
-      createAdminHandler({
-        basePath: resolved.admin.path,
-        apiPath: resolved.routes.api,
-        locale: resolved.admin.locale,
-        brand: resolved.admin.brand,
+      adminHandlerFor(resolved, {
         // The site is this Next.js app.
         siteUrl: resolved.admin.siteUrl || '/',
         appDir: options.appDir ?? adminAppDir(),
@@ -123,15 +79,8 @@ export function createAdminRouteHandlers(config: Config, options: { appDir?: str
 export async function getEasyCMSUser(config: Config): Promise<AuthUser | null> {
   // next/headers only works inside a request; import it lazily so this module loads anywhere.
   const { headers } = await import('next/headers.js')
-  const all = await headers()
   const cms = (await getEasyCMS(config)) as EasyCMS
-  const authorization = all.get('authorization')
-  if (authorization?.startsWith('Bearer ')) return cms.auth.verify(authorization.slice(7).trim())
-  const cookie = all.get('cookie')
-  const token = cookie
-    ? readCookie(new Request('http://x', { headers: { cookie } }), SESSION_COOKIE)
-    : undefined
-  return cms.auth.verify(token)
+  return cms.auth.userFromHeaders(await headers())
 }
 
 /**

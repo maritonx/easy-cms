@@ -393,3 +393,4 @@ CI รัน lint, typecheck, build และ test บน Linux, macOS และ
 - [ADR-0042](adr/0042-media-types-and-previews.md) — อัปโหลดหลายไฟล์ ชนิดไฟล์ และตัวอย่างในคลังสื่อ
 - [ADR-0043](adr/0043-private-files.md) — ไฟล์ส่วนตัว key ของโฟลเดอร์ และ API key ตามโฟลเดอร์
 - [ADR-0044](adr/0044-direct-uploads.md) — อัปโหลดไฟล์ใหญ่ตรงไปที่ storage และจำกัดการย้ายไฟล์
+- [ADR-0045](adr/0045-framework-kit.md) — ชุดเครื่องมือกลางสำหรับ framework

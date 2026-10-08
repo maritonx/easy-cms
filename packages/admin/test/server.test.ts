@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { createAdminHandler, renderShell } from '../server/index.js'
+import { adminHandlerFor, createAdminHandler, renderShell } from '../server/index.js'
 
 const appDir = fileURLToPath(new URL('./fixtures/app', import.meta.url))
 const handler = createAdminHandler({
@@ -104,5 +104,24 @@ describe('without the trailing slash redirect', () => {
     const res = await bare(new Request('http://x.test/cms'))
     expect(res.status).toBe(200)
     expect(await res.text()).toContain('<base href="/cms/">')
+  })
+})
+
+describe('adminHandlerFor', () => {
+  it('takes its paths, language and brand from a resolved config', async () => {
+    const admin = adminHandlerFor(
+      {
+        admin: { path: '/backoffice', locale: 'th', brand: { name: 'Acme' }, siteUrl: '' },
+        routes: { api: '/api/cms' },
+      },
+      { siteUrl: '/', appDir },
+    )
+    const redirect = await admin(new Request('http://cms.test/backoffice'))
+    expect(redirect.status).toBe(308)
+    expect(redirect.headers.get('location')).toBe('/backoffice/')
+    const html = await (await admin(new Request('http://cms.test/backoffice/'))).text()
+    expect(html).toContain('Acme')
+    expect(html).toContain('&quot;locale&quot;:&quot;th&quot;')
+    expect(html).toContain('&quot;siteUrl&quot;:&quot;/&quot;')
   })
 })

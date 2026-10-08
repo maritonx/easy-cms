@@ -3,7 +3,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import type { AddressInfo } from 'node:net'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
-import { createAdminHandler } from '@easy-cms/admin'
+import { adminHandlerFor } from '@easy-cms/admin'
 import {
   type Config,
   createEasyCMS,
@@ -33,13 +33,7 @@ export function createStandaloneHandler<C extends Config>(cms: EasyCMS<C>): Hand
   const getClientIp = (request: Request) => clientIps.get(request)
   const api = createRestHandler(cms, { getClientIp })
   const rootEndpoints = createRootEndpointHandler(cms, { getClientIp })
-  const admin = createAdminHandler({
-    basePath: adminPath,
-    apiPath: config.routes.api,
-    locale: config.admin.locale,
-    brand: config.admin.brand,
-    siteUrl: config.admin.siteUrl,
-  })
+  const admin = adminHandlerFor(config, {})
   const under = (path: string, base: string) => path === base || path.startsWith(`${base}/`)
 
   return async (request, clientIp) => {
