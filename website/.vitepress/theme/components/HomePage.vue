@@ -11,8 +11,8 @@ const { isDark } = useData()
 
 const COPY = {
   en: {
-    badge: 'New in 0.39: multi-file uploads, previews and folders',
-    badgeLink: 'uploads',
+    badge: 'New in 0.40: private folders and expiring download links',
+    badgeLink: 'uploads#private-folders',
     title: 'Your CMS,',
     titleAccent: 'inside your app',
     tagline:
@@ -227,8 +227,8 @@ const COPY = {
     ctaGuide: 'Read the guide',
   },
   th: {
-    badge: 'ใหม่ใน 0.39: อัปโหลดหลายไฟล์ ตัวอย่างไฟล์ และโฟลเดอร์',
-    badgeLink: 'uploads',
+    badge: 'ใหม่ใน 0.40: โฟลเดอร์ส่วนตัวและลิงก์ดาวน์โหลดที่มีอายุ',
+    badgeLink: 'uploads#private-folders',
     title: 'CMS ที่อยู่',
     titleAccent: 'ในแอปของคุณ',
     tagline: 'กำหนดเนื้อหาด้วย TypeScript ได้หน้า admin, API ที่มี type และ plugin โดยไม่ต้องดูแล server แยก',
