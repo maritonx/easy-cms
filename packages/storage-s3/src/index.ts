@@ -100,6 +100,29 @@ export function s3Storage(options: S3StorageOptions): StorageAdapter {
       if (!response.ok) throw await s3Error('PUT', key, response)
     },
 
+    // Large files from the browser: a presigned PUT (the bucket needs CORS for the admin's
+    // origin). The size is checked once the file is there.
+    async uploadURL(key, { contentType, expiresIn }) {
+      if (!client) throw new Error('s3Storage used before init()')
+      const url = new URL(objectURL(prefix + key))
+      url.searchParams.set('X-Amz-Expires', String(expiresIn))
+      const signed = await client.sign(url.toString(), { method: 'PUT', aws: { signQuery: true } })
+      return { url: signed.url, method: 'PUT', headers: { 'content-type': contentType } }
+    },
+
+    async getStart(key, bytes): Promise<StoredFile | null> {
+      const response = await request(key, {
+        method: 'GET',
+        headers: { range: `bytes=0-${bytes - 1}` },
+      })
+      if (response.status === 404) return null
+      if (!response.ok) throw await s3Error('GET', key, response)
+      const body = new Uint8Array(await response.arrayBuffer())
+      // 206: the size after the slash of Content-Range; 200: the file was smaller than asked.
+      const total = Number(response.headers.get('content-range')?.split('/')[1])
+      return { body, size: Number.isFinite(total) && total > 0 ? total : body.byteLength }
+    },
+
     async get(key): Promise<StoredFile | null> {
       const response = await request(key, { method: 'GET' })
       if (response.status === 404) return null

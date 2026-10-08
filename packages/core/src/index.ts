@@ -221,6 +221,7 @@ export {
   Roles,
 } from './roles.js'
 export {
+  type DirectUpload,
   type LocalStorageOptions,
   localStorage,
   type StorageAdapter,

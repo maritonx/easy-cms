@@ -19,6 +19,28 @@ export interface StorageAdapter {
    * (`<api>/media/file/<key>`), as the local adapter does.
    */
   url?(key: string): string | undefined
+  /**
+   * Lets a browser send a file straight to the storage (large files, past a host's request
+   * limit): where to send it and how. The URL must work for `expiresIn` seconds and accept at
+   * most `size` bytes. Without it, files are uploaded through the server.
+   */
+  uploadURL?(
+    key: string,
+    options: { contentType: string; size: number; expiresIn: number },
+  ): Promise<DirectUpload>
+  /**
+   * The first `bytes` of a file and its whole size, without reading it all (to check a file
+   * uploaded straight to the storage); `null` when there is no such file. Default: `get`.
+   */
+  getStart?(key: string, bytes: number): Promise<StoredFile | null>
+}
+
+/** Where and how a browser sends a file straight to the storage (`StorageAdapter.uploadURL`). */
+export interface DirectUpload {
+  readonly url: string
+  readonly method: 'PUT' | 'POST'
+  /** Headers to send with the file. */
+  readonly headers: Readonly<Record<string, string>>
 }
 
 export interface LocalStorageOptions {

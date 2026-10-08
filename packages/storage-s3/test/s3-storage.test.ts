@@ -89,6 +89,37 @@ describe('s3Storage', () => {
     ).rejects.toThrow('S3 PUT a.png failed (403): AccessDenied: Access Denied')
   })
 
+  it('presigns PUTs for browsers, and reads the start of a file', async () => {
+    const { fetch, calls } = fakeFetch(
+      () =>
+        new Response(new Uint8Array([37, 80, 68, 70]), {
+          status: 206,
+          headers: { 'content-range': 'bytes 0-3/123456' },
+        }),
+    )
+    const storage = s3Storage({ bucket: 'site', region: 'eu-central-1', ...credentials, fetch })
+    await storage.init?.({ cwd: '/' })
+    const upload = await storage.uploadURL?.('big-1a2b.mp4', {
+      contentType: 'video/mp4',
+      size: 50_000_000,
+      expiresIn: 900,
+    })
+    expect(upload?.method).toBe('PUT')
+    const url = new URL(upload?.url ?? '')
+    expect(url.origin + url.pathname).toBe(
+      'https://site.s3.eu-central-1.amazonaws.com/big-1a2b.mp4',
+    )
+    expect(url.searchParams.get('X-Amz-Expires')).toBe('900')
+    expect(url.searchParams.get('X-Amz-Signature')).toMatch(/^[0-9a-f]{64}$/)
+    expect(upload?.headers).toEqual({ 'content-type': 'video/mp4' })
+    // Nothing is sent to S3 for that: the browser sends the file.
+    expect(calls).toEqual([])
+
+    const start = await storage.getStart?.('big-1a2b.mp4', 4)
+    expect(calls[0]?.headers.get('range')).toBe('bytes=0-3')
+    expect(start).toEqual({ body: new Uint8Array([37, 80, 68, 70]), size: 123456 })
+  })
+
   it('serves through the API unless publicUrl is set', () => {
     expect(s3Storage({ bucket: 'b' }).url?.('a.png')).toBeUndefined()
     const storage = s3Storage({ bucket: 'b', prefix: 'media', publicUrl: 'https://cdn.test/' })

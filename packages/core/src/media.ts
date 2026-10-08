@@ -180,6 +180,14 @@ export function imageDimensions(
   return undefined
 }
 
+/** The type a file name says, from its extension (`report.docx`); `undefined` when unknown. */
+export function typeFromName(name: string): string | undefined {
+  const extension = /\.([a-z0-9]+)$/i.exec(name)?.[1]?.toLowerCase()
+  if (!extension) return undefined
+  if (extension === 'jpeg') return 'image/jpeg'
+  return Object.entries(EXTENSIONS).find(([, ext]) => ext === extension)?.[0]
+}
+
 /** A safe, unique storage key: `hello-world-3f9a2c1b.png`. */
 export function storageKey(originalName: string, type: string, random: string): string {
   // Only the file name counts: clients may send paths like "C:\\photos\\a.png" or "../a.png".

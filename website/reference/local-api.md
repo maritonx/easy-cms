@@ -48,6 +48,8 @@ to apply them, as the REST API does.
 | `signedMediaURL(doc, { expiresIn?, size? })` | `string` | A link to a private file that works without signing in until it expires (default `'1h'`, at most `'7d'`). [Private folders](/guide/uploads#private-folders) |
 | `verifyMediaSignature(key, expires, signature)` | `boolean` | Whether a signed link is genuine and not expired. |
 | `storageFor(isPrivate)` | `StorageAdapter` | The storage for public or private files (`upload.privateStorage`). |
+| `createUpload({ name, size, type? }, fields?, options?)` | `{ ticket, upload }` | Starts an upload straight to the storage. [Large files](/guide/uploads#large-files) |
+| `completeUpload(ticket, options?)` | media document | Checks a file sent straight to the storage and makes its document. |
 | `mediaUsage(ids)` | `number` | How many documents use these files in a top-level upload field. |
 
 ### Drafts and versions

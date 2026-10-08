@@ -150,6 +150,25 @@ export class MediaFolders {
   }
 
   /**
+   * The privacy each folder of a subtree would have after a change to its top folder: made
+   * private or public, moved, or (as `private: false`) deleted with its contents moving up.
+   */
+  async privacyAfter(
+    id: ID,
+    change: { private?: boolean; parent?: ID | null },
+  ): Promise<{ id: ID; private: boolean }[]> {
+    const rows = new Map(await this.fresh())
+    const row = rows.get(String(id))
+    if (!row) return []
+    rows.set(String(id), {
+      ...row,
+      ...(change.private !== undefined ? { private: change.private } : {}),
+      ...(change.parent !== undefined ? { parent: change.parent } : {}),
+    })
+    return this.within(rows, [id]).map((f) => ({ id: f, private: this.privateIn(rows, f) }))
+  }
+
+  /**
    * The folder with this key (`folder: 'banners'` on upload fields), made at the top level when
    * there is none yet.
    */

@@ -258,11 +258,31 @@ upload: {
 
 An upload field's `mimeTypes` takes the same names, e.g. `{ type: 'upload', mimeTypes: ['office'] }`.
 
-::: tip Large files on serverless hosts
-Each request to a Vercel function can carry about 4.5 MB, whatever `maxFileSize` says, so long
-videos won't upload there. Host them elsewhere (a video platform, or your storage directly) and
-link to them.
-:::
+### Large files
+
+Hosts limit how much one request carries: about 4.5 MB on Vercel, 6 MB on Netlify. With S3
+(R2, MinIO) or Vercel Blob, the admin sends files larger than 4 MB from the browser straight to the
+storage, so only `upload.maxFileSize` limits them:
+
+1. `POST /api/cms/media/uploads` with `{ "name", "size", "type", ...fields }` checks who uploads
+   what where, as any upload, and returns a signed `ticket` and where to send the file:
+   `upload: { url, method, headers }` (valid for 15 minutes), or `upload: null` when the storage
+   can't take files directly (send it to `POST /api/cms/media` instead).
+2. The browser sends the file there.
+3. `POST /api/cms/media/uploads/complete` with `{ "ticket" }` checks the file in the storage, its
+   size and its type from its contents, and makes the media document. A file that fails is
+   deleted.
+
+From code: `cms.createUpload({ name, size }, fields, options)` and `cms.completeUpload(ticket)`.
+
+- **S3, R2, MinIO:** the bucket needs CORS for the admin's origin, allowing `PUT` with a
+  `content-type` header.
+- **Vercel Blob:** nothing to set up.
+- **Netlify Blobs and the local disk** take files through the server: on Netlify, up to about
+  6 MB.
+
+A file sent but never completed (the page closed in between) stays in the storage, linked from
+nowhere; on S3, a lifecycle rule can delete what nothing points to.
 
 ## What happens to a file
 
@@ -400,7 +420,9 @@ Outside Netlify's runtime (a script, another host), pass `siteID` and a personal
 ## Custom storage
 
 Implement `StorageAdapter` (`put`, `get`, `delete`, optional `url` and `init`) and pass it as
-`upload.storage`.
+`upload.storage`. For [large files](#large-files) straight from the browser, add `uploadURL(key,
+{ contentType, size, expiresIn })` (where and how to send the file) and `getStart(key, bytes)` (the
+start of a file and its size, without reading it all).
 
 ## Next steps
 

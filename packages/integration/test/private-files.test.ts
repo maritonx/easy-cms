@@ -182,6 +182,22 @@ describe('private folders', () => {
     expect(await res.json()).toEqual({ count: 2 })
   })
 
+  it('moves at most 200 files in one change', async () => {
+    const big = await cms.create('media-folders', { name: 'Big' })
+    for (let i = 0; i < 201; i++)
+      await cms.upload({ data: pdf(String(i)), name: `f${i}.pdf` }, { folder: big.id })
+    await expect(cms.update('media-folders', big.id, { private: true })).rejects.toThrow(
+      /201 files would move/,
+    )
+    expect((await cms.findById('media-folders', big.id))?.private).toBeFalsy()
+    // One file fewer is fine.
+    const [one] = (await cms.find('media', { where: { folder: { equals: big.id } }, limit: 1 }))
+      .docs
+    await cms.delete('media', one?.id as number)
+    const done = await cms.update('media-folders', big.id, { private: true })
+    expect(done.private).toBe(true)
+  })
+
   it('lets only admins make folders private, and says so in the schema', async () => {
     const folder = await cms.create('media-folders', { name: 'Open' })
     const res = await patch(`/media-folders/${folder.id}`, 'hank', { private: true })

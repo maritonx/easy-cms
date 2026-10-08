@@ -70,12 +70,14 @@ import {
 } from './localization.js'
 import { consoleLogger, type Logger } from './logger.js'
 import {
+  EXTENSIONS,
   imageDimensions,
   isPrivateKey,
   mimeAllowed,
   sizeKey,
   sniffMimeType,
   storageKey,
+  typeFromName,
   withPrivacy,
 } from './media.js'
 import { MediaFolders, PUBLIC_FILES } from './media-folders.js'
@@ -83,7 +85,7 @@ import { DEFAULT_DEPTH, type Loader, MAX_DEPTH, populate } from './populate.js'
 import { fetchRemoteFile, RemoteFileError } from './remote-file.js'
 import { resolveConfig } from './resolve-config.js'
 import { Roles } from './roles.js'
-import { localStorage, type StorageAdapter } from './storage.js'
+import { type DirectUpload, localStorage, type StorageAdapter } from './storage.js'
 import {
   collectionParent,
   globalParent,
@@ -411,12 +413,7 @@ export class EasyCMS<C extends Config = Config> {
   ): Promise<MediaDocument> {
     const config = this.collection(MEDIA)
     const guard = guardOf(options)
-    if (guard.enforce) {
-      await this.checkGrant(guard, { collection: MEDIA }, 'create')
-      const allowed = await evaluateAccess(config.access?.create, { user: guard.user, data })
-      if (allowed !== true) throw deny(guard.user)
-      await this.folders.checkTarget(guard.user, MEDIA, folderOf(MEDIA, data))
-    }
+    await this.checkUpload(guard, data, folderOf(MEDIA, data))
     const { maxFileSize, mimeTypes, imageSizes } = this.config.upload
     if (file.data.byteLength > maxFileSize) {
       throw new PayloadTooLargeError(`File is larger than ${maxFileSize} bytes`)
@@ -473,6 +470,165 @@ export class EasyCMS<C extends Config = Config> {
       // Don't leave orphaned files behind when the document could not be created.
       for (const key of stored) await storage.delete(key).catch(() => {})
       throw error
+    }
+  }
+
+  /**
+   * Starts an upload straight to the storage, for files too large to send through the server
+   * (`POST <api>/media/uploads`): checks who uploads what where, as `upload()` does, and returns
+   * a signed ticket and where to send the file. `upload` is `null` when the storage can't take
+   * files directly: send it to `upload()` instead. Then `completeUpload(ticket)`.
+   */
+  async createUpload(
+    file: { name: string; size: number; type?: string },
+    data: Record<string, unknown> = {},
+    options: AccessOptions = {},
+  ): Promise<{ ticket: string; upload: DirectUpload | null }> {
+    const guard = guardOf(options)
+    const folder = folderOf(MEDIA, data)
+    await this.checkUpload(guard, data, folder)
+    const { maxFileSize, mimeTypes } = this.config.upload
+    const size = Number(file.size)
+    if (!Number.isInteger(size) || size <= 0)
+      throw new ValidationError(MEDIA, [{ field: 'size', message: 'must be the size in bytes' }])
+    if (size > maxFileSize)
+      throw new PayloadTooLargeError(`File is larger than ${maxFileSize} bytes`)
+    // The type the name says (browsers' types vary), checked against the contents once uploaded.
+    const name = String(file.name ?? '').slice(0, 255)
+    const type = typeFromName(name) ?? file.type ?? ''
+    if (!EXTENSIONS[type] || !mimeAllowed(type, mimeTypes))
+      throw new ValidationError(MEDIA, [
+        {
+          field: 'file',
+          message: `file type ${type || 'unknown'} is not allowed (allowed: ${mimeTypes.join(', ')})`,
+        },
+      ])
+    const isPrivate = await this.folders.isPrivate(folder)
+    const storage = this.storageFor(isPrivate)
+    const key = withPrivacy(storageKey(name, type, randomBytes(4).toString('hex')), isPrivate)
+    const upload = storage.uploadURL
+      ? await storage.uploadURL(key, { contentType: type, size, expiresIn: UPLOAD_URL_SECONDS })
+      : null
+    const ticket = this.sign('upload', {
+      key,
+      private: isPrivate,
+      name,
+      size,
+      type,
+      user: guard.user?.id ?? null,
+      expires: Math.floor(Date.now() / 1000) + UPLOAD_TICKET_SECONDS,
+      data,
+    } satisfies UploadTicket)
+    return { ticket, upload }
+  }
+
+  /**
+   * Finishes an upload made with `createUpload()` (`POST <api>/media/uploads/complete`): checks
+   * the file in the storage like any upload (its size, and its type from its contents), then
+   * makes its media document. A file that fails is deleted.
+   */
+  async completeUpload(ticket: string, options: DepthOptions = {}): Promise<MediaDocument> {
+    const guard = guardOf(options)
+    const t = this.verify<UploadTicket>('upload', ticket)
+    if (!t || t.expires < Date.now() / 1000)
+      throw new ValidationError(MEDIA, [
+        { field: 'ticket', message: 'is not valid or has expired' },
+      ])
+    if (guard.enforce && String(guard.user?.id ?? null) !== String(t.user)) throw deny(guard.user)
+    await this.checkUpload(guard, t.data, folderOf(MEDIA, t.data))
+    // Finished already: the file belongs to that document now.
+    if ((await this.db.count({ collection: MEDIA, where: { filename: { equals: t.key } } })) > 0)
+      throw new ValidationError(MEDIA, [{ field: 'ticket', message: 'was used already' }])
+    const storage = this.storageFor(t.private)
+    const start = storage.getStart
+      ? await storage.getStart(t.key, SNIFF_BYTES)
+      : await storage.get(t.key)
+    if (!start) throw new ValidationError(MEDIA, [{ field: 'file', message: 'was not uploaded' }])
+    const refuse = async (message: string): Promise<never> => {
+      await storage.delete(t.key).catch(() => {})
+      throw new ValidationError(MEDIA, [{ field: 'file', message }])
+    }
+    if (start.size !== t.size) await refuse(`is ${start.size} bytes, not the ${t.size} announced`)
+    if (start.size > this.config.upload.maxFileSize)
+      await refuse(`is larger than ${this.config.upload.maxFileSize} bytes`)
+    const mimeType = sniffMimeType(start.body.subarray(0, SNIFF_BYTES), t.name)
+    if (mimeType !== t.type)
+      await refuse(`contains ${mimeType ?? 'an unknown type'}, not ${t.type}`)
+
+    const stored: string[] = []
+    try {
+      // Images: their size, and resized copies, need the whole file.
+      let dimensions: { width: number; height: number } | undefined
+      let sizes: Record<string, unknown> = {}
+      if (t.type.startsWith('image/')) {
+        const whole = await storage.get(t.key)
+        if (whole) {
+          dimensions = imageDimensions(whole.body, t.type)
+          sizes = await this.resizeImage(
+            whole.body,
+            t.type,
+            t.key,
+            this.config.upload.imageSizes,
+            stored,
+            storage,
+          )
+        }
+      }
+      const doc = await this.createDocument(
+        this.collection(MEDIA),
+        {
+          ...t.data,
+          ...(this.folders.enabled ? { private: t.private } : {}),
+          filename: t.key,
+          originalName: t.name,
+          mimeType: t.type,
+          filesize: start.size,
+          width: dimensions?.width ?? null,
+          height: dimensions?.height ?? null,
+          sizes,
+        },
+        { ...options, overrideAccess: true },
+        guard,
+      )
+      return doc as unknown as MediaDocument
+    } catch (error) {
+      for (const key of [t.key, ...stored]) await storage.delete(key).catch(() => {})
+      throw error
+    }
+  }
+
+  /** Who may upload, and into which folder: `upload()` and direct uploads. */
+  private async checkUpload(guard: Guard, data: Record<string, unknown>, folder: ID | null) {
+    if (!guard.enforce) return
+    await this.checkGrant(guard, { collection: MEDIA }, 'create')
+    const allowed = await evaluateAccess(this.collection(MEDIA).access?.create, {
+      user: guard.user,
+      data,
+    })
+    if (allowed !== true) throw deny(guard.user)
+    await this.folders.checkTarget(guard.user, MEDIA, folder)
+  }
+
+  /** A value with its HMAC (`secret`), for `purpose` only: `<base64url JSON>.<signature>`. */
+  private sign(purpose: string, value: unknown): string {
+    const payload = Buffer.from(JSON.stringify(value)).toString('base64url')
+    const mac = createHmac('sha256', this.config.secret).update(`${purpose}:${payload}`)
+    return `${payload}.${mac.digest('base64url')}`
+  }
+
+  /** The value of a token made by `sign`, or `undefined` when it isn't genuine. */
+  private verify<T>(purpose: string, token: string): T | undefined {
+    const [payload, signature] = String(token).split('.')
+    if (!payload || !signature) return undefined
+    const expected = Buffer.from(
+      createHmac('sha256', this.config.secret).update(`${purpose}:${payload}`).digest('base64url'),
+    )
+    const given = Buffer.from(signature)
+    if (expected.length !== given.length || !timingSafeEqual(expected, given)) return undefined
+    try {
+      return JSON.parse(Buffer.from(payload, 'base64url').toString()) as T
+    } catch {
+      return undefined
     }
   }
 
@@ -681,6 +837,29 @@ export class EasyCMS<C extends Config = Config> {
           field: 'private',
           message:
             'needs upload.privateStorage: the storage gives files public URLs, so private files must be kept elsewhere',
+        },
+      ])
+  }
+
+  /**
+   * Refuses a change that would move more than 200 files between storages in one request: they
+   * are copied one by one, which could outlast a serverless function.
+   */
+  private async checkMoveLimit(folders: readonly { id: ID; private: boolean }[]): Promise<void> {
+    let count = 0
+    for (const f of folders)
+      count += await this.db.count({
+        collection: MEDIA,
+        where: andWhere(
+          { folder: { equals: f.id } },
+          f.private ? PUBLIC_FILES : { private: { equals: true } },
+        ),
+      })
+    if (count > MAX_FILES_TO_MOVE)
+      throw new ValidationError(MEDIA_FOLDERS, [
+        {
+          field: 'private',
+          message: `${count} files would move between public and private storage; move at most ${MAX_FILES_TO_MOVE} at a time (folder by folder)`,
         },
       ])
   }
@@ -1083,7 +1262,19 @@ export class EasyCMS<C extends Config = Config> {
 
     if (config.slug === USERS) await this.guardLastAdmin(parsed, existing, prepared)
     if (password !== undefined) prepared.passwordHash = await hashPassword(password)
-    if (collection === MEDIA_FOLDERS) await this.validateFolder(prepared, parsed)
+    if (collection === MEDIA_FOLDERS) {
+      await this.validateFolder(prepared, parsed)
+      if (
+        prepared.private !== existing.private ||
+        String(prepared.parent ?? null) !== String(existing.parent ?? null)
+      )
+        await this.checkMoveLimit(
+          await this.folders.privacyAfter(parsed, {
+            private: prepared.private === true,
+            parent: (prepared.parent as ID | null | undefined) ?? null,
+          }),
+        )
+    }
     // A file moved between a public and a private folder moves to the other storage, renamed.
     let moved: Awaited<ReturnType<typeof this.relocate>> | undefined
     if (collection === MEDIA && this.folders.enabled) {
@@ -1160,8 +1351,11 @@ export class EasyCMS<C extends Config = Config> {
       await this.auth.revokeSessions(parsed)
       await this.auth.sso.forget(parsed)
     }
-    // A folder's files and subfolders move up to its parent.
-    if (collection === MEDIA_FOLDERS) await this.folders.release(existing)
+    // A folder's files and subfolders move up to its parent (as if it were no longer private).
+    if (collection === MEDIA_FOLDERS) {
+      await this.checkMoveLimit(await this.folders.privacyAfter(parsed, { private: false }))
+      await this.folders.release(existing)
+    }
     await this.db.delete({ collection, id: parsed })
     if (collection === MEDIA_FOLDERS) {
       this.folders.invalidate()
@@ -2710,6 +2904,27 @@ function folderOf(collection: string, data: Record<string, unknown>): ID | null 
 }
 
 const MAX_LINK = 7 * 24 * 60 * 60
+/** How long a browser may take to start sending a file straight to the storage. */
+const UPLOAD_URL_SECONDS = 15 * 60
+/** How long after `createUpload` it may be completed (a large file can take a while). */
+const UPLOAD_TICKET_SECONDS = 24 * 60 * 60
+/** Enough of a file to tell its type, Office files included. */
+const SNIFF_BYTES = 64 * 1024
+
+/** What `createUpload` signs, for `completeUpload`. */
+interface UploadTicket {
+  key: string
+  private: boolean
+  name: string
+  size: number
+  type: string
+  user: ID | null
+  /** Unix seconds. */
+  expires: number
+  data: Record<string, unknown>
+}
+/** Files one request may move between public and private storage. */
+const MAX_FILES_TO_MOVE = 200
 
 /** `3600`, `'30m'`, `'1h'`, `'7d'` as seconds; at most 7 days. */
 function durationSeconds(value: number | string): number {

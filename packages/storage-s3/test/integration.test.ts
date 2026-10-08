@@ -88,4 +88,45 @@ describe.skipIf(!endpoint)('s3Storage against a real server', () => {
       await cms.destroy()
     }
   })
+
+  it('takes files straight from the browser with a presigned PUT', async () => {
+    const cms = await createEasyCMS(
+      {
+        secret: 'x'.repeat(32),
+        db: sqlite({ url: `file:${join(cwd, 'direct.db')}` }),
+        upload: { storage: s3Storage(options) },
+        collections: [],
+      },
+      { cwd, logger: silentLogger },
+    )
+    try {
+      const pdf = new TextEncoder().encode('%PDF-1.4\n% a brochure\n')
+      const started = await cms.createUpload({ name: 'brochure.pdf', size: pdf.byteLength })
+      expect(started.upload?.method).toBe('PUT')
+      // What the browser does, with what it was told.
+      const sent = await fetch(started.upload?.url as string, {
+        method: 'PUT',
+        headers: started.upload?.headers ?? {},
+        body: pdf,
+      })
+      expect(sent.ok).toBe(true)
+      const media = await cms.completeUpload(started.ticket)
+      expect(media).toMatchObject({ mimeType: 'application/pdf', filesize: pdf.byteLength })
+
+      // Contents that aren't what was announced are refused, and the file is deleted.
+      const lie = await cms.createUpload({ name: 'notes.pdf', size: 5 })
+      await fetch(lie.upload?.url as string, {
+        method: 'PUT',
+        headers: lie.upload?.headers ?? {},
+        body: new TextEncoder().encode('hello'),
+      })
+      await expect(cms.completeUpload(lie.ticket)).rejects.toThrow(/not application\/pdf/)
+      const key = JSON.parse(
+        Buffer.from(lie.ticket.split('.')[0] as string, 'base64url').toString(),
+      ).key
+      expect(await cms.storage.get(key)).toBeNull()
+    } finally {
+      await cms.destroy()
+    }
+  })
 })

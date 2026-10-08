@@ -696,6 +696,31 @@ async function route(
     if (method !== 'GET' && method !== 'HEAD') throw methodNotAllowed(ctx, 'GET, HEAD')
     return { body: await servePrivateFile(cms, ctx, third, method === 'HEAD') }
   }
+  // Large files straight to the storage: a ticket and where to send the file, then complete.
+  if (first === MEDIA && second === 'uploads' && segments.length <= 3) {
+    if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
+    const body = await readJson(ctx.request)
+    if (third === 'complete' && segments.length === 3) {
+      if (typeof body.ticket !== 'string' || body.ticket === '')
+        throw new ValidationError(MEDIA, [{ field: 'ticket', message: 'is required' }])
+      return {
+        status: 201,
+        body: await cms.completeUpload(body.ticket, { ...access, ...parseDepth(ctx.url) }),
+      }
+    }
+    if (third !== undefined) throw new HttpError('Not found', 404)
+    const { name, size, type, ...data } = body
+    if (typeof name !== 'string' || name === '')
+      throw new ValidationError(MEDIA, [{ field: 'name', message: 'is required' }])
+    return {
+      status: 201,
+      body: await cms.createUpload(
+        { name, size: Number(size), ...(typeof type === 'string' ? { type } : {}) },
+        data,
+        access,
+      ),
+    }
+  }
   if (first === MEDIA && second === undefined && method === 'POST') {
     // `{ url, ...data }` as JSON: the server downloads the file (upload.fromURL).
     if (

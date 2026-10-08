@@ -240,10 +240,25 @@ upload: {
 
 `mimeTypes` ของ upload field ใช้ชื่อเดียวกันได้ เช่น `{ type: 'upload', mimeTypes: ['office'] }`
 
-::: tip ไฟล์ใหญ่บนโฮสต์แบบ serverless
-แต่ละ request ไปยัง function ของ Vercel ส่งได้ประมาณ 4.5 MB ไม่ว่าจะตั้ง `maxFileSize` เท่าไร วิดีโอยาวๆ จึงอัปโหลดที่นั่นไม่ได้
-ให้เก็บไว้ที่อื่น (แพลตฟอร์มวิดีโอ หรือ storage โดยตรง) แล้วใส่ลิงก์แทน
-:::
+### ไฟล์ใหญ่ {#large-files}
+
+โฮสต์จำกัดขนาดของแต่ละ request: ราว 4.5 MB บน Vercel และ 6 MB บน Netlify เมื่อใช้ S3 (R2, MinIO) หรือ Vercel Blob
+admin จะส่งไฟล์ที่ใหญ่กว่า 4 MB จาก browser ตรงไปที่ storage จึงจำกัดด้วย `upload.maxFileSize` อย่างเดียว:
+
+1. `POST /api/cms/media/uploads` พร้อม `{ "name", "size", "type", ...fields }` ตรวจว่าใครอัปอะไรไปที่ไหนเหมือนการอัปโหลดปกติ
+   แล้วคืน `ticket` ที่เซ็นไว้ และที่ส่งไฟล์ `upload: { url, method, headers }` (ใช้ได้ 15 นาที) หรือ `upload: null` เมื่อ
+   storage รับไฟล์ตรงไม่ได้ (ให้ส่งที่ `POST /api/cms/media` แทน)
+2. browser ส่งไฟล์ไปที่นั่น
+3. `POST /api/cms/media/uploads/complete` พร้อม `{ "ticket" }` ตรวจไฟล์ใน storage ทั้งขนาดและชนิดจากเนื้อหา แล้วสร้าง
+   เอกสาร media ไฟล์ที่ไม่ผ่านจะถูกลบ
+
+จากโค้ด: `cms.createUpload({ name, size }, fields, options)` และ `cms.completeUpload(ticket)`
+
+- **S3, R2, MinIO:** bucket ต้องตั้ง CORS ให้ origin ของ admin ใช้ `PUT` พร้อม header `content-type` ได้
+- **Vercel Blob:** ไม่ต้องตั้งอะไร
+- **Netlify Blobs และดิสก์ในเครื่อง** รับไฟล์ผ่าน server บน Netlify ได้ราว 6 MB
+
+ไฟล์ที่ส่งแล้วแต่ไม่ได้ complete (ปิดหน้าไประหว่างนั้น) จะค้างอยู่ใน storage โดยไม่มีที่ไหนลิงก์ถึง บน S3 ตั้ง lifecycle rule ลบได้
 
 ## สิ่งที่เกิดขึ้นกับไฟล์ {#what-happens-to-a-file}
 
@@ -378,7 +393,8 @@ upload: { storage: netlifyBlobsStorage() }, // เสิร์ฟผ่าน <a
 ## การจัดเก็บแบบกำหนดเอง {#custom-storage}
 
 implement `StorageAdapter` (`put`, `get`, `delete` และ `url` กับ `init` ที่ไม่บังคับ) แล้วส่งเป็น
-`upload.storage`
+`upload.storage` สำหรับ[ไฟล์ใหญ่](#large-files)ที่ส่งตรงจาก browser ให้เพิ่ม `uploadURL(key, { contentType, size, expiresIn })` (ส่งไฟล์ไปที่ไหน
+อย่างไร) และ `getStart(key, bytes)` (ส่วนต้นของไฟล์และขนาด โดยไม่ต้องอ่านทั้งไฟล์)
 
 ## ขั้นต่อไป {#next-steps}
 

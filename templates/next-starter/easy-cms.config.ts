@@ -72,6 +72,8 @@ export default defineConfig({
     folders: true,
     // Images and documents: PDF, Word, Excel, PowerPoint, OpenDocument, CSV, text.
     mimeTypes: ['image/*', 'documents'],
+    // Large files go from the browser straight to Vercel Blob, past the 4.5 MB request limit.
+    maxFileSize: 100 * 1024 * 1024,
     ...(uploads ? { storage: uploads } : {}),
     ...(privateUploads ? { privateStorage: privateUploads } : {}),
   },

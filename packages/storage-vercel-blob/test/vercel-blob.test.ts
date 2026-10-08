@@ -47,6 +47,46 @@ describe('vercelBlobStorage', () => {
     expect(await storage.get('photo-1.png')).toBeNull()
   })
 
+  it('lets browsers send large files with a token for that file, and reads their start', async () => {
+    const { client } = fakeClient()
+    const asked: Record<string, unknown>[] = []
+    const storage = vercelBlobStorage(
+      { token: TOKEN, prefix: 'media/' },
+      {
+        ...client,
+        clientToken: (async (options: Record<string, unknown>) => {
+          asked.push(options)
+          return 'vercel_blob_client_x'
+        }) as never,
+      },
+    )
+    const upload = await storage.uploadURL?.('big-1a2b.mp4', {
+      contentType: 'video/mp4',
+      size: 50_000_000,
+      expiresIn: 900,
+    })
+    expect(upload?.url).toBe('https://vercel.com/api/blob/?pathname=media%2Fbig-1a2b.mp4')
+    expect(upload?.headers).toMatchObject({
+      authorization: 'Bearer vercel_blob_client_x',
+      'x-vercel-blob-access': 'public',
+      'x-content-type': 'video/mp4',
+      'x-add-random-suffix': '0',
+    })
+    expect(asked[0]).toMatchObject({
+      token: TOKEN,
+      pathname: 'media/big-1a2b.mp4',
+      maximumSizeInBytes: 50_000_000,
+      allowedContentTypes: ['video/mp4'],
+      addRandomSuffix: false,
+    })
+
+    await storage.put('doc-1.pdf', new Uint8Array([1, 2, 3, 4, 5, 6]), {
+      contentType: 'application/pdf',
+    })
+    const start = await storage.getStart?.('doc-1.pdf', 4)
+    expect([...(start?.body ?? [])]).toEqual([1, 2, 3, 4])
+  })
+
   it('keeps private files behind the API', () => {
     const storage = vercelBlobStorage({ token: TOKEN, access: 'private' }, fakeClient().client)
     expect(storage.url?.('backup.db.gz')).toBeUndefined()

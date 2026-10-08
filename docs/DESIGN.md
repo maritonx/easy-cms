@@ -233,7 +233,7 @@ Endpoint ของ plugin อยู่ใต้ `routes.api` เดียวก�
 
 ## 10. Media
 
-- **Storage adapter interface:** `put / get / delete / url? / init?`
+- **Storage adapter interface:** `put / get / delete / url? / init?` และ `uploadURL? / getStart?` สำหรับไฟล์ใหญ่ที่ browser ส่งตรงไปที่ storage → ดู [ADR-0044](adr/0044-direct-uploads.md)
 - **Local disk** (default) และ **S3-compatible** (`@easy-cms/storage-s3`, AWS S3, Cloudflare R2, MinIO ผ่าน aws4fetch) สำหรับ Vercel/serverless → ดู [ADR-0010](adr/0010-s3-storage.md)
 - ไฟล์เสิร์ฟผ่าน `<api>/media/file/<key>` พร้อม CSP `sandbox` และ `nosniff` เป็น default ส่วน S3 ตั้ง `publicUrl` ไปที่ CDN ได้
 - **รูปภาพ:** `sharp` เป็น optional dependency สำหรับสร้าง thumbnail และ resize
@@ -392,3 +392,4 @@ CI รัน lint, typecheck, build และ test บน Linux, macOS และ
 - [ADR-0041](adr/0041-media-folders.md) — โฟลเดอร์ในคลังสื่อและสิทธิ์ต่อโฟลเดอร์
 - [ADR-0042](adr/0042-media-types-and-previews.md) — อัปโหลดหลายไฟล์ ชนิดไฟล์ และตัวอย่างในคลังสื่อ
 - [ADR-0043](adr/0043-private-files.md) — ไฟล์ส่วนตัว key ของโฟลเดอร์ และ API key ตามโฟลเดอร์
+- [ADR-0044](adr/0044-direct-uploads.md) — อัปโหลดไฟล์ใหญ่ตรงไปที่ storage และจำกัดการย้ายไฟล์

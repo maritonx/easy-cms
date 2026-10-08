@@ -1,5 +1,6 @@
 import { EasyCMSError, type StorageAdapter } from '@easy-cms/core'
 import { del, get, put } from '@vercel/blob'
+import { generateClientTokenFromReadWriteToken } from '@vercel/blob/client'
 
 export interface VercelBlobStorageOptions {
   /** The store's read-write token. Default: `BLOB_READ_WRITE_TOKEN` (set when a store is connected). */
@@ -18,7 +19,13 @@ export interface VercelBlobClient {
   put: typeof put
   del: typeof del
   get: typeof get
+  /** Optional: makes the token a browser uploads a large file with. */
+  clientToken?: typeof generateClientTokenFromReadWriteToken
 }
+
+/** Where browsers send files (`@vercel/blob/client` does the same). */
+const API = 'https://vercel.com/api/blob'
+const API_VERSION = '12'
 
 /** The store id in a read-write token: `vercel_blob_rw_<store id>_<secret>`. */
 function storeIdOf(token: string): string {
@@ -33,7 +40,7 @@ function storeIdOf(token: string): string {
  */
 export function vercelBlobStorage(
   options: VercelBlobStorageOptions = {},
-  client: VercelBlobClient = { put, del, get },
+  client: VercelBlobClient = { put, del, get, clientToken: generateClientTokenFromReadWriteToken },
 ): StorageAdapter {
   const access = options.access ?? 'public'
   const prefix = options.prefix ?? ''
@@ -66,6 +73,54 @@ export function vercelBlobStorage(
       if (found?.statusCode !== 200) return null
       const body = new Uint8Array(await new Response(found.stream).arrayBuffer())
       return { body, size: body.byteLength }
+    },
+    // Large files from the browser: a token for this one file, its size and type, for a while.
+    async uploadURL(key, { contentType, size, expiresIn }) {
+      const pathname = `${prefix}${key}`
+      const clientToken = await (client.clientToken ?? generateClientTokenFromReadWriteToken)({
+        token: token(),
+        pathname,
+        maximumSizeInBytes: size,
+        allowedContentTypes: [contentType],
+        addRandomSuffix: false,
+        validUntil: Date.now() + expiresIn * 1000,
+      })
+      return {
+        url: `${API}/?${new URLSearchParams({ pathname })}`,
+        method: 'PUT',
+        headers: {
+          authorization: `Bearer ${clientToken}`,
+          'x-api-version': API_VERSION,
+          'x-vercel-blob-access': access,
+          'x-content-type': contentType,
+          'x-add-random-suffix': '0',
+        },
+      }
+    },
+    // The start of a file, and its size, without reading it all (to check its type).
+    async getStart(key, bytes) {
+      const value = configured()
+      if (!value) return null
+      const found = await client.get(`${prefix}${key}`, { access, token: value })
+      if (found?.statusCode !== 200) return null
+      const reader = found.stream.getReader()
+      const chunks: Uint8Array[] = []
+      let read = 0
+      while (read < bytes) {
+        const { done, value: chunk } = await reader.read()
+        if (done) break
+        chunks.push(chunk)
+        read += chunk.byteLength
+      }
+      await reader.cancel().catch(() => {})
+      const body = new Uint8Array(Math.min(read, bytes))
+      let offset = 0
+      for (const chunk of chunks) {
+        const part = chunk.subarray(0, body.length - offset)
+        body.set(part, offset)
+        offset += part.byteLength
+      }
+      return { body, size: found.blob.size ?? read }
     },
     async delete(key) {
       await client.del(`${prefix}${key}`, { token: token() })

@@ -46,6 +46,8 @@ Local API เชื่อผู้เรียกและข้ามกฎส�
 | `signedMediaURL(doc, { expiresIn?, size? })` | `string` | ลิงก์ไปไฟล์ส่วนตัวที่เปิดได้โดยไม่ต้องล็อกอินจนกว่าจะหมดอายุ (ค่าเริ่มต้น `'1h'` สูงสุด `'7d'`) [โฟลเดอร์ส่วนตัว](/th/guide/uploads#private-folders) |
 | `verifyMediaSignature(key, expires, signature)` | `boolean` | ลิงก์ที่เซ็นนั้นของจริงและยังไม่หมดอายุไหม |
 | `storageFor(isPrivate)` | `StorageAdapter` | storage ของไฟล์สาธารณะหรือไฟล์ส่วนตัว (`upload.privateStorage`) |
+| `createUpload({ name, size, type? }, fields?, options?)` | `{ ticket, upload }` | เริ่มอัปโหลดตรงไปที่ storage [ไฟล์ใหญ่](/th/guide/uploads#large-files) |
+| `completeUpload(ticket, options?)` | เอกสาร media | ตรวจไฟล์ที่ส่งตรงไปที่ storage แล้วสร้างเอกสาร |
 | `mediaUsage(ids)` | `number` | จำนวนเอกสารที่ใช้ไฟล์เหล่านี้ใน upload field ชั้นบนสุด |
 
 ### ฉบับร่างและเวอร์ชัน {#drafts-and-versions}
