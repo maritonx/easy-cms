@@ -1,6 +1,6 @@
 {
   "name": "@easy-cms/plugin-graphql",
-  "version": "0.42.0",
+  "version": "0.43.0",
   "description": "GraphQL API for Easy CMS: queries and mutations for every collection and global, with the same access rules as REST",
   "license": "MIT",
   "type": "module",
