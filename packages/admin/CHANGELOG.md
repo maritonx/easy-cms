@@ -1,5 +1,9 @@
 # @easy-cms/admin
 
+## 0.43.0
+
+No changes in this release.
+
 ## 0.42.0
 
 ### Minor Changes

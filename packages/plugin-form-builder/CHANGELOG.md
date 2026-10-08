@@ -1,5 +1,12 @@
 # @easy-cms/plugin-form-builder
 
+## 0.43.0
+
+### Patch Changes
+
+- @easy-cms/core@0.43.0
+  - @easy-cms/richtext@0.43.0
+
 ## 0.42.0
 
 ### Patch Changes
