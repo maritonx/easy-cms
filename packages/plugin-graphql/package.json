@@ -1,0 +1,52 @@
+{
+  "name": "@easy-cms/plugin-graphql",
+  "version": "0.42.0",
+  "description": "GraphQL API for Easy CMS: queries and mutations for every collection and global, with the same access rules as REST",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "dataloader": "^2.2.3",
+    "graphql": "^16.11.0 || ^17.0.0"
+  },
+  "peerDependencies": {
+    "@easy-cms/core": "workspace:^"
+  },
+  "devDependencies": {
+    "@easy-cms/core": "workspace:^",
+    "@easy-cms/db-sqlite": "workspace:^"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maritonx/easy-cms.git",
+    "directory": "packages/plugin-graphql"
+  },
+  "keywords": [
+    "easy-cms",
+    "easy-cms-plugin",
+    "graphql",
+    "api",
+    "headless-cms"
+  ]
+}

@@ -52,6 +52,7 @@ Easy CMS คือ headless CMS ที่ติดตั้งเข้าไป
 | **ฉบับร่าง (draft)** | เวอร์ชันที่ยังไม่เผยแพร่ ผู้แก้ทำต่อได้ ดู [ฉบับร่าง](./drafts) |
 | **Local API** | ฟังก์ชันอย่าง `cms.find()` ที่เรียกในโค้ดฝั่ง server ไม่ผ่าน HTTP |
 | **REST API** | การทำงานชุดเดียวกันผ่าน HTTP ที่ `/api/cms` สำหรับ browser และแอปอื่น |
+| **GraphQL** | การทำงานชุดเดียวกันเป็น GraphQL API ที่ `/api/cms/graphql` จาก plugin ดู [GraphQL](./graphql) |
 | **กฎสิทธิ์ (access rule)** | ฟังก์ชันที่ตัดสินว่าใครอ่านหรือแก้อะไรได้ ดู [การควบคุมสิทธิ์](./access-control) |
 | **Hook** | โค้ดของคุณที่ทำงานเมื่อเอกสารเปลี่ยน ดู [Hooks](./hooks) |
 | **Plugin** | ฟังก์ชันที่เพิ่ม field, endpoint หรือ UI ในหน้า admin ดู [Plugins](./plugins) |
@@ -70,7 +71,7 @@ Easy CMS คือ headless CMS ที่ติดตั้งเข้าไป
 ## เมื่อไหร่ที่ไม่เหมาะ {#when-it-doesnt}
 
 - ผู้แก้เนื้อหาต้องเปลี่ยนโครงสร้างเนื้อหาเองโดยไม่มีนักพัฒนา เพราะที่นี่โครงสร้างคือโค้ด
-- คุณต้องใช้ GraphQL หรือ edge runtime (Easy CMS ต้องใช้ Node.js 22.12 ขึ้นไป)
+- คุณต้องใช้ edge runtime: Easy CMS ต้องใช้ Node.js 22.12 ขึ้นไป
 - คุณต้องการ integration สำเร็จรูปจำนวนมากตั้งแต่วันนี้
 
 ## ขั้นต่อไป {#next-steps}

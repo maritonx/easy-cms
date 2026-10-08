@@ -56,6 +56,7 @@ your app's server, so there is no separate CMS service to host, pay for or keep 
 | **Draft** | An unpublished version editors can keep working on. See [Drafts](./drafts). |
 | **Local API** | Functions like `cms.find()` you call in server code. No HTTP involved. |
 | **REST API** | The same operations over HTTP at `/api/cms`, for browsers and other apps. |
+| **GraphQL** | The same again as a GraphQL API at `/api/cms/graphql`, from a plugin. See [GraphQL](./graphql). |
 | **Access rule** | A function deciding who may read or change what. See [Access control](./access-control). |
 | **Hook** | Your code that runs when documents change. See [Hooks](./hooks). |
 | **Plugin** | A function that adds fields, endpoints or admin UI. See [Plugins](./plugins). |
@@ -74,7 +75,7 @@ your app's server, so there is no separate CMS service to host, pay for or keep 
 ## When it doesn't
 
 - Editors must change the content model themselves without a developer: here the model is code.
-- You need GraphQL, or edge runtimes (Easy CMS needs Node.js 22.12 or newer).
+- You need edge runtimes: Easy CMS needs Node.js 22.12 or newer.
 - You need a large marketplace of ready-made integrations today.
 
 ## Next steps

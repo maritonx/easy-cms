@@ -1,9 +1,9 @@
 # Software Requirements Specification — Easy CMS
 
-- **เวอร์ชันเอกสาร:** 3.17
+- **เวอร์ชันเอกสาร:** 3.18
 - **วันที่:** 2026-10-08
 - **ผู้เขียน:** Kanawoot K.
-- **ครอบคลุม:** v0.1 (baseline) ถึง v0.42
+- **ครอบคลุม:** v0.1 (baseline) ถึง v0.43
 - **สถานะ:** Living document (อัปเดตทุกครั้งที่เพิ่มฟีเจอร์)
 - **เอกสารที่เกี่ยวข้อง:** [DESIGN.md](DESIGN.md), [ADRs](adr/)
 
@@ -28,7 +28,7 @@ Easy CMS เป็น Headless CMS แบบ open source (MIT) ที่ติ�
 - Official plugins: `@easy-cms/plugin-seo`, `@easy-cms/plugin-mcp`, `@easy-cms/plugin-redirects` และ `@easy-cms/plugin-form-builder`
 - Email adapter: `@easy-cms/email-smtp`
 
-**นอกขอบเขต (ปัจจุบัน):** UI สร้าง content type, GraphQL, Edge runtime, MySQL, auth ภายนอก (OAuth/SSO), ลืมรหัสผ่านผ่าน email, MCP แบบ stdio, หน้าเต็มและ widget บน dashboard จาก plugin, BreadcrumbList, บริการ hosting
+**นอกขอบเขต (ปัจจุบัน):** UI สร้าง content type, GraphQL subscriptions, Edge runtime, MySQL, auth ภายนอก (OAuth/SSO), ลืมรหัสผ่านผ่าน email, MCP แบบ stdio, หน้าเต็มและ widget บน dashboard จาก plugin, BreadcrumbList, บริการ hosting
 
 ### 1.3 คำศัพท์
 
@@ -505,6 +505,20 @@ AI assistant ► /api/cms/mcp ──┘                     └──► Webhook
 | FR-MCP-06 | Error ต้องกลับเป็นข้อความที่ผู้ช่วยนำไปแก้ได้ (เช่น field ที่ validation ไม่ผ่าน) และต้องไม่มี tool ของ users, api-keys หรือการแก้ schema | 0.16 | MUST |
 | FR-MCP-07 | ตัวเลือก `path`, `name`, `instructions`, `collections`, `globals` ต้องปรับ server ได้ | 0.16 | SHOULD |
 
+### 3.25b GraphQL plugin (GQL) — [ADR-0046](adr/0046-graphql-plugin.md)
+
+| ID | ความต้องการ | ตั้งแต่ | ระดับ |
+|---|---|---|---|
+| FR-GQL-01 | `graphqlPlugin()` ต้องเปิด GraphQL API ที่ `GET`/`POST <api>/graphql` ตาม GraphQL over HTTP โดย `GET` รับเฉพาะ query (mutation ได้ 405) และยืนยันตัวตนแบบเดียวกับ REST (session cookie, Bearer token, API key) พร้อม CSRF check | 0.43 | MUST |
+| FR-GQL-02 | Schema ต้องสร้างจาก config ที่ resolve แล้ว: type, query เดียว (`post`), query list (`posts` แบ่งหน้าแบบ REST) และ `create`/`update`/`delete` ต่อ collection, query และ `update` ต่อ global และ `me` โดยไม่มี api-keys, collection ภายใน และ field ที่ `hidden` | 0.43 | MUST |
+| FR-GQL-03 | ชื่อต้องมาจาก slug ตั้งเองได้ด้วย `names` และเมื่อชื่อชนกันหรือใช้ไม่ได้ แอปต้องไม่เริ่มทำงานและบอกวิธีแก้ | 0.43 | MUST |
+| FR-GQL-04 | ทุก operation ต้องผ่าน Local API ด้วยสิทธิ์ของผู้เรียก (`overrideAccess: false`) รวมสิทธิ์ระดับ field, drafts (`draft` เฉพาะผู้ที่ล็อกอิน) และ locale | 0.43 | MUST |
+| FR-GQL-05 | `where` ต้องมี type ต่อ collection (operator ของ REST, `AND`/`OR`, field ใน group) และ `sort` เป็น enum ส่วน `limit` ต้องอยู่ระหว่าง 1–100 | 0.43 | MUST |
+| FR-GQL-06 | relationship และ upload ต้อง resolve เป็นเอกสารที่ผู้อ่านเห็นได้ โหลดเป็นชุดต่อ request (ไม่มี N+1) ใน locale และ draft เดียวกับเอกสารต้นทาง | 0.43 | MUST |
+| FR-GQL-07 | ต้องจำกัดความลึกของ query (ค่าเริ่มต้น 7, ไม่นับ introspection) และจำนวนเอกสารต่อ request (ค่าเริ่มต้น 2000) ปรับได้ด้วย `limits` | 0.43 | MUST |
+| FR-GQL-08 | error ต้องมี `extensions.code` ตาม REST (`VALIDATION_ERROR` พร้อม `fields`) และ error ที่ไม่คาดคิดต้องไม่เปิดเผยข้อความใน production | 0.43 | MUST |
+| FR-GQL-09 | `extend` ต้องเพิ่ม query, mutation และ field ลงใน type ที่สร้างได้, `buildGraphQLSchema`/`createContext` ต้องใช้กับ GraphQL server อื่นได้ และ `easy-cms generate:graphql` ต้องเขียน SDL, introspection และ GraphiQL (นอก production) ปิดได้ | 0.43 | SHOULD |
+
 ### 3.26 สำรองและย้ายข้อมูล (OPS)
 
 | ID | ความต้องการ | ตั้งแต่ | ระดับ |
@@ -784,6 +798,7 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 1.3 | 2026-09-25 | M5: FR-REST-08 (อัปโหลด/ไฟล์), FR-CFG-07 (`routes.api`, `serverURL`), ระบุว่า drafts ใน v0.1 ไม่มี version แยก |
 | 1.4 | 2026-09-25 | M6: ผลวัด NFR-PERF-01/02 บน Postgres 17 (Local API p95 2.7 ms, REST p95 4.3 ms), Next.js adapter ใช้ `getEasyCMS(config)` |
 | 1.5 | 2026-09-25 | M7: ผลตรวจรับ v0.1 (7.1) |
+| 3.18 | 2026-10-08 | 0.43: FR-GQL-01..09 |
 | 3.17 | 2026-10-08 | 0.42: FR-ADP-06 |
 | 3.16 | 2026-10-08 | 0.41: FR-UPL-15..16 |
 | 3.15 | 2026-10-07 | 0.40: FR-UPL-13..14, FR-ACL-15 |

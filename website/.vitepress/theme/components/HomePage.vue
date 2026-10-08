@@ -11,8 +11,8 @@ const { isDark } = useData()
 
 const COPY = {
   en: {
-    badge: 'New in 0.40: private folders and expiring download links',
-    badgeLink: 'uploads#private-folders',
+    badge: 'New in 0.43: a GraphQL API',
+    badgeLink: 'graphql',
     title: 'Your CMS,',
     titleAccent: 'inside your app',
     tagline:
@@ -112,14 +112,17 @@ const COPY = {
         name: 'Connect',
         items: [
           [
+            'REST and GraphQL',
+            'A REST API with typed queries, and GraphQL from a plugin, both with your access rules.',
+          ],
+          [
             'API keys',
             'Keys for scripts, other apps and AI assistants, limited to the collections they need.',
           ],
           [
-            'Webhooks',
-            'Signed events on publish and change, retried for a day, to rebuild a static site.',
+            'Webhooks and email',
+            'Signed events on publish and change, and email over SMTP, queued and retried.',
           ],
-          ['Email', 'SMTP or your own adapter, queued and retried, for forms and your hooks.'],
         ],
       },
     ],
@@ -132,7 +135,7 @@ const COPY = {
       ['Open the admin', 'At /admin, in your app. Editors get forms, drafts, history and preview.'],
       [
         'Use it on your pages',
-        'Read typed documents with the Local API, or over REST from any frontend.',
+        'Read typed documents with the Local API, or over REST or GraphQL from any frontend.',
       ],
     ],
     tour: ['Dashboard', 'Posts', 'Live preview', 'Translate', 'Media', 'Roles', 'Audit log'],
@@ -227,8 +230,8 @@ const COPY = {
     ctaGuide: 'Read the guide',
   },
   th: {
-    badge: 'ใหม่ใน 0.40: โฟลเดอร์ส่วนตัวและลิงก์ดาวน์โหลดที่มีอายุ',
-    badgeLink: 'uploads#private-folders',
+    badge: 'ใหม่ใน 0.43: GraphQL API',
+    badgeLink: 'graphql',
     title: 'CMS ที่อยู่',
     titleAccent: 'ในแอปของคุณ',
     tagline: 'กำหนดเนื้อหาด้วย TypeScript ได้หน้า admin, API ที่มี type และ plugin โดยไม่ต้องดูแล server แยก',
@@ -296,9 +299,9 @@ const COPY = {
       {
         name: 'เชื่อมต่อ',
         items: [
+          ['REST และ GraphQL', 'REST API ที่ query แบบมี type และ GraphQL จาก plugin ทั้งคู่ใช้กฎสิทธิ์ของคุณ'],
           ['API keys', 'key สำหรับสคริปต์ แอปอื่น และผู้ช่วย AI จำกัดเฉพาะ collection ที่ต้องใช้'],
-          ['Webhooks', 'event ที่ลงลายเซ็นเมื่อเผยแพร่หรือแก้ไข ส่งซ้ำได้นานหนึ่งวัน ใช้ build เว็บ static ใหม่'],
-          ['อีเมล', 'ผ่าน SMTP หรือ adapter ของคุณเอง มีคิวและส่งซ้ำ ใช้กับฟอร์มและ hook ของคุณ'],
+          ['Webhooks และอีเมล', 'event ที่ลงลายเซ็นเมื่อเผยแพร่หรือแก้ไข และอีเมลผ่าน SMTP มีคิวและส่งซ้ำ'],
         ],
       },
     ],
@@ -306,7 +309,7 @@ const COPY = {
     steps: [
       ['อธิบายเนื้อหา', 'collection และ field ในไฟล์ TypeScript ไฟล์เดียว type สร้างจากไฟล์นี้'],
       ['เปิดหน้า admin', 'ที่ /admin ในแอปของคุณ บรรณาธิการได้ฟอร์ม ฉบับร่าง ประวัติ และตัวอย่างสด'],
-      ['ใช้ในหน้าเว็บ', 'อ่านเอกสารแบบมี type ด้วย Local API หรือผ่าน REST จาก frontend ใดก็ได้'],
+      ['ใช้ในหน้าเว็บ', 'อ่านเอกสารแบบมี type ด้วย Local API หรือผ่าน REST หรือ GraphQL จาก frontend ใดก็ได้'],
     ],
     tour: ['แดชบอร์ด', 'บทความ', 'ตัวอย่างสด', 'แปลภาษา', 'คลังสื่อ', 'บทบาท', 'Audit log'],
     pluginsTitle: 'Plugins',

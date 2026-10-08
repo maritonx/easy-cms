@@ -68,6 +68,9 @@ importers:
       '@easy-cms/plugin-form-builder':
         specifier: workspace:^
         version: link:../../packages/plugin-form-builder
+      '@easy-cms/plugin-graphql':
+        specifier: workspace:^
+        version: link:../../packages/plugin-graphql
       '@easy-cms/plugin-mcp':
         specifier: workspace:^
         version: link:../../packages/plugin-mcp
@@ -129,6 +132,9 @@ importers:
       '@easy-cms/plugin-form-builder':
         specifier: workspace:^
         version: link:../../packages/plugin-form-builder
+      '@easy-cms/plugin-graphql':
+        specifier: workspace:^
+        version: link:../../packages/plugin-graphql
       '@easy-cms/plugin-mcp':
         specifier: workspace:^
         version: link:../../packages/plugin-mcp
@@ -175,6 +181,9 @@ importers:
       '@easy-cms/plugin-form-builder':
         specifier: workspace:^
         version: link:../../packages/plugin-form-builder
+      '@easy-cms/plugin-graphql':
+        specifier: workspace:^
+        version: link:../../packages/plugin-graphql
       '@easy-cms/plugin-mcp':
         specifier: workspace:^
         version: link:../../packages/plugin-mcp
@@ -448,6 +457,22 @@ importers:
       happy-dom:
         specifier: ^20.14.5
         version: 20.14.5
+
+  packages/plugin-graphql:
+    dependencies:
+      dataloader:
+        specifier: ^2.2.3
+        version: 2.2.3
+      graphql:
+        specifier: ^16.11.0 || ^17.0.0
+        version: 17.0.2
+    devDependencies:
+      '@easy-cms/core':
+        specifier: workspace:^
+        version: link:../core
+      '@easy-cms/db-sqlite':
+        specifier: workspace:^
+        version: link:../db-sqlite
 
   packages/plugin-mcp:
     dependencies:
@@ -3608,6 +3633,9 @@ packages:
   csstype@3.2.3:
     resolution: {integrity: sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ==}
 
+  dataloader@2.2.3:
+    resolution: {integrity: sha512-y2krtASINtPFS1rSDjacrFgn1dcUuoREVabwlOGOe4SdxenREqwjwjElAdwvbGM7kgZz9a3KVicWR7vcz8rnzA==}
+
   db0@0.3.4:
     resolution: {integrity: sha512-RiXXi4WaNzPTHEOu8UPQKMooIbqOEyqA1t7Z6MsdxSCeb8iUC9ko3LcmsLmeUt2SM5bctfArZKkRQggKZz7JNw==}
     peerDependencies:
@@ -4152,6 +4180,10 @@ packages:
 
   graceful-fs@4.2.11:
     resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
+
+  graphql@17.0.2:
+    resolution: {integrity: sha512-FRWbddMxfkjiB7z+aQDWIR+E34xo9I8c9mtK2RPv8PmMzKRvrdsreHL/Ui/TmwHJfhHChEtsFPyMHKI+xuarQQ==}
+    engines: {node: ^22.0.0 || ^24.0.0 || ^25.0.0 || >=26.0.0}
 
   gzip-size@7.0.0:
     resolution: {integrity: sha512-O1Ld7Dr+nqPnmGpdhzLmMTQ4vAsD+rHwMm1NLUmoUFFymBOMKxCCrtDxqdBRYXdeEPEi3SyoR4TizJLQrnKBNA==}
@@ -9599,6 +9631,8 @@ snapshots:
 
   csstype@3.2.3: {}
 
+  dataloader@2.2.3: {}
+
   db0@0.3.4(@electric-sql/pglite@0.5.8)(@libsql/client@0.18.0)(drizzle-orm@0.45.3(@electric-sql/pglite@0.5.8)(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(postgres@3.4.9)):
     optionalDependencies:
       '@electric-sql/pglite': 0.5.8
@@ -10147,6 +10181,8 @@ snapshots:
   gopd@1.2.0: {}
 
   graceful-fs@4.2.11: {}
+
+  graphql@17.0.2: {}
 
   gzip-size@7.0.0:
     dependencies:

@@ -4,6 +4,7 @@ import { sqlite } from '@easy-cms/db-sqlite'
 import { smtp } from '@easy-cms/email-smtp'
 import { color } from '@easy-cms/fields'
 import { formBuilderPlugin } from '@easy-cms/plugin-form-builder'
+import { graphqlPlugin } from '@easy-cms/plugin-graphql'
 import { mcpPlugin } from '@easy-cms/plugin-mcp'
 import { nestedDocsPlugin } from '@easy-cms/plugin-nested-docs'
 import { redirectsPlugin } from '@easy-cms/plugin-redirects'
@@ -254,6 +255,8 @@ export default defineConfig({
     formBuilderPlugin({ defaultTo: process.env.FORMS_TO ?? 'owner@localhost' }),
     // AI assistants (Claude, Cursor…) at /api/cms/mcp, with an API key.
     mcpPlugin(),
+    // A GraphQL API at /api/cms/graphql (GraphiQL in the browser outside production).
+    graphqlPlugin(),
     // Pages inside pages (About → Team): a tree in the admin, paths kept up to date.
     nestedDocsPlugin({ collections: ['pages'] }),
     // Redirects under Settings in the admin; a post whose slug changes redirects from its old

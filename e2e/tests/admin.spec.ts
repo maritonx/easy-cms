@@ -769,6 +769,32 @@ test.describe('logged in as admin', () => {
       'find_posts',
       'get_posts',
     ])
+
+    // And the GraphQL plugin: the same access rules, for the key and for the admin's session.
+    const graphql = async (query: string) => {
+      const response = await page.request.post(`${api}/api/cms/graphql`, {
+        headers,
+        data: { query },
+      })
+      expect(response.status()).toBe(200)
+      return response.json()
+    }
+    const read = await graphql(
+      '{ posts(where: { title: { like: "API key" } }, draft: true) { totalDocs } }',
+    )
+    expect(read).toEqual({ data: { posts: { totalDocs: 1 } } })
+    const written = await graphql(
+      'mutation { createPost(data: { title: "Written over GraphQL" }) { title status } }',
+    )
+    expect(written).toEqual({
+      data: { createPost: { title: 'Written over GraphQL', status: 'draft' } },
+    })
+    const forbidden = await graphql('{ categories { totalDocs } }')
+    expect(forbidden.errors[0].extensions.code).toBe('FORBIDDEN')
+    const me = await page.request.get(
+      `${api}/api/cms/graphql?query=${encodeURIComponent('{ me { email } }')}`,
+    )
+    expect(await me.json()).toEqual({ data: { me: { email: ADMIN.email } } })
   })
 
   test('redirects old addresses, and renamed posts (redirects plugin)', async ({ page }) => {

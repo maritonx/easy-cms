@@ -435,6 +435,13 @@
           }
         },
         {
+          "path": "guide/graphql",
+          "title": {
+            "en": "GraphQL",
+            "th": "GraphQL"
+          }
+        },
+        {
           "path": "guide/cli",
           "title": {
             "en": "CLI",

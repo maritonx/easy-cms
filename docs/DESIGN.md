@@ -3,7 +3,7 @@
 - **สถานะ:** Accepted (living document)
 - **วันที่:** 2026-10-01 (ฉบับแรก 2026-09-25)
 - **ผู้เขียน:** Kanawoot K.
-- **ครอบคลุม:** v0.1 ถึง v0.37
+- **ครอบคลุม:** v0.1 ถึง v0.43
 - **Requirements:** [SRS.md](SRS.md)
 
 ---
@@ -28,7 +28,7 @@ License MIT, ดูแลโดยนักพัฒนาคนเดียว�
 
 **ไม่ใช่เป้าหมาย**
 - UI สำหรับสร้าง content type แบบลากวาง (คงแนวทาง code-first)
-- GraphQL, Edge runtime, MySQL (ยังไม่มีแผน)
+- Edge runtime, MySQL (ยังไม่มีแผน)
 - บริการ SaaS / hosting
 
 ## 3. ผู้ใช้
@@ -48,6 +48,7 @@ License MIT, ดูแลโดยนักพัฒนาคนเดียว�
 │  Browser ──────► REST: /api/cms/posts          (cookie หรือ CORS)             │
 │  Script ───────► REST + Authorization: Bearer ecms_…  (API key)              │
 │  ผู้ช่วย AI ───► /api/cms/mcp                   (plugin-mcp + API key)        │
+│  Frontend ─────► /api/cms/graphql               (plugin-graphql)              │
 │  Editor ───────► /admin  (Vue SPA ที่ build มาพร้อม package + Web Components) │
 │                      │                                                       │
 │    @easy-cms/nuxt  |  @easy-cms/next  |  standalone (CLI)  (adapter บางๆ)    │
@@ -66,7 +67,7 @@ License MIT, ดูแลโดยนักพัฒนาคนเดียว�
 `@easy-cms/core` เปิด handler ตามมาตรฐาน Web `(Request) => Promise<Response>` และ Local API
 Adapter มีหน้าที่แค่ต่อ route ของ framework เข้ากับ handler และส่ง instance ของ CMS เข้า server context → ดู [ADR-0001](adr/0001-embedded-web-standard-core.md)
 
-ทุกช่องทาง (Local API ที่ส่ง `user`, REST, MCP) ไปจบที่ Local API ชุดเดียว สิทธิ์ hooks validation versions และ webhooks จึงทำงานเหมือนกันเสมอ
+ทุกช่องทาง (Local API ที่ส่ง `user`, REST, GraphQL, MCP) ไปจบที่ Local API ชุดเดียว สิทธิ์ hooks validation versions และ webhooks จึงทำงานเหมือนกันเสมอ
 
 ### 4.2 Admin UI
 เขียนด้วย Vue 3 + Vite, build เป็น static SPA และเสิร์ฟที่ `/admin` ใช้ได้เหมือนกันทั้งใน Nuxt, Next และ standalone → ดู [ADR-0002](adr/0002-prebuilt-vue-admin-spa.md), [ADR-0007](adr/0007-admin-ui.md)
@@ -94,6 +95,9 @@ Plugin ยังเป็น `(config) => config` เหมือน v0.1 คว
 - **`@easy-cms/plugin-mcp`** เป็น endpoint `POST <api>/mcp` แบบ stateless (สร้าง server ใหม่ทุก request) จึงใช้บน serverless ได้ tool สร้างจาก collection และสิทธิ์ของ key
 → ดู [ADR-0019](adr/0019-api-keys-and-mcp.md)
 
+### 4.6 GraphQL (0.43)
+- **`@easy-cms/plugin-graphql`** สร้าง schema จาก config ที่ resolve แล้ว ทุก resolver เรียก Local API ด้วย `overrideAccess: false` ความสัมพันธ์โหลดผ่าน DataLoader ต่อ request จำกัดความลึก 7 และ 2000 เอกสารต่อ request ต่อยอดด้วย `extend` และ `buildGraphQLSchema` → ดู [ADR-0046](adr/0046-graphql-plugin.md)
+
 ## 5. Packages
 
 ทุก package ใช้เวอร์ชันเดียวกัน (Changesets fixed group) และ publish ผ่าน npm Trusted Publishing
@@ -111,6 +115,7 @@ Plugin ยังเป็น `(config) => config` เหมือน v0.1 คว
 | `@easy-cms/storage-s3` | S3 / R2 / MinIO | 0.2 |
 | `@easy-cms/plugin-seo` | field `meta`, ตัวนับความยาว, ตัวอย่างผลการค้นหา, `seoMeta()`, sitemap, robots.txt, hreflang, JSON-LD (0.17), crawler ของ AI, llms.txt, Markdown, IndexNow (0.18) | 0.13 |
 | `@easy-cms/plugin-mcp` | MCP server สำหรับผู้ช่วย AI | 0.16 |
+| `@easy-cms/plugin-graphql` | GraphQL API: query และ mutation ของทุก collection/global, `extend`, `generate:graphql` | 0.43 |
 | `@easy-cms/plugin-redirects` | redirect ในหน้า admin, redirect อัตโนมัติเมื่อที่อยู่เปลี่ยน, `resolveRedirect()` | 0.19 |
 | `@easy-cms/plugin-form-builder` | ฟอร์มในหน้า admin, submissions, อีเมลแจ้งเตือน, กันสแปม, `<easy-form>`, ภาพรวมฟอร์มและกล่องบนแดชบอร์ด (0.27) | 0.20 |
 | `@easy-cms/email-smtp` | email adapter ผ่าน SMTP (nodemailer) | 0.20 |
@@ -124,7 +129,7 @@ Repo: **pnpm workspaces + Turborepo + Changesets + Biome**
 ```
 easy-cms/
 ├── packages/   core, admin, nuxt, next, drizzle, db-sqlite, db-postgres, richtext, storage-s3,
-│               plugin-seo, plugin-mcp, plugin-redirects, plugin-form-builder, plugin-nested-docs, fields, email-smtp, cli,
+│               plugin-seo, plugin-mcp, plugin-graphql, plugin-redirects, plugin-form-builder, plugin-nested-docs, fields, email-smtp, cli,
 │               create-easy-cms, integration (test เท่านั้น)
 ├── examples/   nuxt-blog, next-blog, standalone   (ใช้เป็น fixture ของ E2E ด้วย)
 ├── e2e/        Playwright ชุดเดียวสำหรับทั้งสามแอป + สคริปต์ถ่าย screenshot ของเอกสาร
@@ -205,12 +210,13 @@ export default defineConfig({
 | **Local API** | Server-side ใน Nuxt/Next | `await cms.find('posts', { locale: 'en' })` |
 | **REST** | Client-side / ภายนอก / standalone | `GET /api/cms/posts?where[slug][equals]=hello` |
 | **REST + API key** | สคริปต์ แอปอื่น | `Authorization: Bearer ecms_…` |
+| **GraphQL** | frontend ที่ใช้ Apollo/urql/Relay | `POST /api/cms/graphql` (plugin-graphql) |
 | **MCP** | ผู้ช่วย AI | `POST /api/cms/mcp` (plugin-mcp) |
 | **Webhooks** | แจ้งบริการภายนอกเมื่อเนื้อหาเปลี่ยน | POST ที่ลงลายเซ็น `x-easy-cms-signature` |
 | **Types** | ฝั่งหน้าเว็บ | `easy-cms generate:types` → `easy-cms-types.ts` |
 
 Local API อนุมาน type จาก config ได้เองแม้ยังไม่ได้ generate
-Endpoint ของ plugin อยู่ใต้ `routes.api` เดียวกัน GraphQL ยังไม่มีแผน
+Endpoint ของ plugin อยู่ใต้ `routes.api` เดียวกัน รวมถึง GraphQL (0.43)
 
 **Next.js:** config ถูก bundle แยกตาม server layer (route handler กับ RSC) จึงได้ object ต่างกัน `getEasyCMS()` เทียบ config ด้วยโครงสร้าง (`configSignature()`, นับ function เป็นค่าเดียวกัน) เพื่อให้ทั้ง server มี instance เดียว (0.16.1)
 
@@ -394,3 +400,4 @@ CI รัน lint, typecheck, build และ test บน Linux, macOS และ
 - [ADR-0043](adr/0043-private-files.md) — ไฟล์ส่วนตัว key ของโฟลเดอร์ และ API key ตามโฟลเดอร์
 - [ADR-0044](adr/0044-direct-uploads.md) — อัปโหลดไฟล์ใหญ่ตรงไปที่ storage และจำกัดการย้ายไฟล์
 - [ADR-0045](adr/0045-framework-kit.md) — ชุดเครื่องมือกลางสำหรับ framework
+- [ADR-0046](adr/0046-graphql-plugin.md) — GraphQL เป็น plugin

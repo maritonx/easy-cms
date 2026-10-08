@@ -42,7 +42,7 @@ your repository, the admin and APIs come with it, and there is no extra server t
   API.
 - **An admin editors like**, in English and Thai: drafts, version history, live preview,
   scheduled publishing, blocks, translations, a media library and a light and dark theme.
-- **Official plugins** for SEO, forms, redirects, nested pages and AI assistants (MCP).
+- **Official plugins** for SEO, forms, redirects, nested pages, GraphQL and AI assistants (MCP).
 
 > [!NOTE]
 > Easy CMS is pre-1.0: the API may change between minor versions. Each release lists its changes in
@@ -135,8 +135,8 @@ cd my-cms && npm run dev       # http://localhost:4000/admin
 - English and Thai interface, light and dark themes, works on phones
 
 **APIs**
-- Typed Local API (fields that plugins add included), REST API with `where` queries, and
-  generated types for frontends in other repositories
+- Typed Local API (fields that plugins add included), REST API with `where` queries, a GraphQL
+  API (plugin), and generated types for frontends in other repositories
 - Users and roles, function-based access rules per collection, document and field; forgotten
   passwords and invitations by email; single sign-on with Google, Microsoft, GitHub or any OpenID
   Connect provider
@@ -164,6 +164,7 @@ cd my-cms && npm run dev       # http://localhost:4000/admin
 | [`@easy-cms/plugin-form-builder`](packages/plugin-form-builder) | Forms built in the admin, submissions with an overview and a dashboard panel, email notifications, spam protection, `<easy-form>` | [Forms](https://maritonx.github.io/easy-cms/guide/forms) |
 | [`@easy-cms/plugin-redirects`](packages/plugin-redirects) | Redirects managed in the admin, automatic redirects when a page moves | [Redirects](https://maritonx.github.io/easy-cms/guide/redirects) |
 | [`@easy-cms/plugin-nested-docs`](packages/plugin-nested-docs) | Pages inside pages: parents, full paths, breadcrumbs, a tree in the admin | [Nested pages](https://maritonx.github.io/easy-cms/guide/nested-docs) |
+| [`@easy-cms/plugin-graphql`](packages/plugin-graphql) | GraphQL API: queries and mutations for every collection and global, with your access rules | [GraphQL](https://maritonx.github.io/easy-cms/guide/graphql) |
 | [`@easy-cms/plugin-mcp`](packages/plugin-mcp) | Model Context Protocol server for AI assistants | [MCP](https://maritonx.github.io/easy-cms/guide/mcp) |
 
 Plugins are functions over your config: write your own with fields, endpoints, admin components,

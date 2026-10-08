@@ -19,6 +19,7 @@
     "@easy-cms/fields": "workspace:^",
     "@easy-cms/nuxt": "workspace:^",
     "@easy-cms/plugin-form-builder": "workspace:^",
+    "@easy-cms/plugin-graphql": "workspace:^",
     "@easy-cms/plugin-mcp": "workspace:^",
     "@easy-cms/plugin-nested-docs": "workspace:^",
     "@easy-cms/plugin-redirects": "workspace:^",

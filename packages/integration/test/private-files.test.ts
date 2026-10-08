@@ -127,7 +127,9 @@ describe('private folders', () => {
     const link = cms.signedMediaURL(contract as never, { expiresIn: '10m' })
     expect(link).toMatch(/\?expires=\d+&signature=/)
     expect((await get(link)).status).toBe(200)
-    expect((await get(link.replace(/signature=./, 'signature=x'))).status).toBe(404)
+    // Another first character, whatever it was.
+    const forged = link.replace(/signature=(.)/, (_, c) => `signature=${c === 'x' ? 'y' : 'x'}`)
+    expect((await get(forged)).status).toBe(404)
     const expired = link.replace(/expires=\d+/, `expires=${Math.floor(Date.now() / 1000) - 1}`)
     expect((await get(expired)).status).toBe(404)
     expect(() => cms.signedMediaURL(contract as never, { expiresIn: '8d' })).toThrow(/7 days/)
