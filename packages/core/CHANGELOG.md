@@ -1,5 +1,11 @@
 # @easy-cms/core
 
+## 0.42.0
+
+### Minor Changes
+
+- 4afac22: A kit for running Easy CMS inside any framework that handles Web `Request`s: `sharedEasyCMS(config)` (one instance per server, compared by structure, kept across hot reloads), `createApiHandler(config, { trustProxy })` (the REST API on it), `cms.auth.userFromHeaders(headers)`, and `adminHandlerFor(resolvedConfig)` in `@easy-cms/admin`. The Next.js and Nuxt packages and the standalone server now use it; Nuxt compares configs by structure like Next.js. New guide: Other frameworks.
+
 ## 0.41.0
 
 ### Minor Changes
