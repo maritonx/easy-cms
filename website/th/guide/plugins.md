@@ -147,10 +147,12 @@ handler ได้รับ:
 `UnauthorizedError`, `ForbiddenError`, `NotFoundError` หรือ `ValidationError` จาก `@easy-cms/core`
 
 - การเขียนข้อมูลจาก browser ต้องผ่าน[การตรวจ CSRF](./security)เหมือน API ในตัว
-- segment แรกห้ามเป็น slug ของ collection หรือ `users`, `globals`, `admin`, `jobs`, `media`
-  ให้ขึ้นต้นด้วยชื่อ plugin เช่น `/seo/generate`
+- segment แรกห้ามเป็น slug ของ collection หรือชื่อที่ API ในตัวใช้: `users`, `globals`, `admin`, `jobs`,
+  `media`, `api-keys`, `auth` รวมถึง `system`, `health`, `internal` (กันไว้สำหรับเวอร์ชันถัดไป) path แบบนี้
+  จะ error ตั้งแต่ตอนเริ่มระบบ ให้ขึ้นต้นด้วยชื่อ plugin เช่น `/seo/generate`
 - segment ที่ตายตัวชนะ parameter: `/stats/summary` มาก่อน `/stats/:collection`
-- path ที่ถูกแต่ method ผิดจะได้ `405` พร้อม header `Allow`
+- request ที่ path ตรงแต่ method ไม่ตรง จะส่งต่อไปที่ API ในตัว ถ้า API ในตัวก็ไม่มี route นั้น จะได้ `405`
+  พร้อม header `Allow`
 - `root: true` เสิร์ฟ path จาก root ของเว็บแทน เช่น `/robots.txt` มีแต่[standalone server](./standalone)ที่เสิร์ฟ
   endpoint แบบนี้ เพราะแอป Nuxt หรือ Next.js เป็นเจ้าของ root เอง plugin ที่มี root endpoint จึงควรมี helper
   ให้แอปใช้ใน route ของตัวเองด้วย (แบบ[plugin SEO](./seo#robots-txt)) path แบบ root อยู่ใต้ `routes.api`,
@@ -226,7 +228,7 @@ plugin เพิ่ม module ของตัวเองได้แบบน�
 `admin: { ...config.admin, modules: [...(config.admin?.modules ?? []), '@acme/easy-cms-plugin-color/admin'] }`
 
 server หาไฟล์ให้ (export ของแพ็กเกจต้องมี condition `default`) แล้วส่งให้ผู้ใช้ที่ login แล้วที่
-`<api>/admin/modules/<n>.js` หน้า admin จะ import ทุก module หลัง login ห้ามใช้ URL ของเว็บอื่น
+`<api>/admin/ui/modules/<n>.js` หน้า admin จะ import ทุก module หลัง login ห้ามใช้ URL ของเว็บอื่น
 ถ้า module โหลดไม่ได้ หน้า admin ยังใช้งานได้และแจ้งว่า component ไหนหายไป
 
 ```js

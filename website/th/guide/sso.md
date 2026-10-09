@@ -123,6 +123,9 @@ oidc({
 ระบบอ่าน `/.well-known/openid-configuration` ของผู้ให้บริการเพื่อหา endpoint และ ID token ต้องมี `email` กับ
 `email_verified` (scope `email`)
 
+`id` ห้ามซ้ำกับ action ของการเข้าสู่ระบบใต้ `/auth/` (`login`, `logout`, `me`, `init`, `signup`,
+`verify-email`, `forgot-password`, `reset-password`, `first-register`) หรือ `identities`
+
 ## ความปลอดภัย {#how-it-is-kept-safe}
 
 - ใช้ Authorization Code flow แบบ **PKCE** พร้อม `state` และ `nonce` (OpenID Connect) เก็บไว้ใน cookie ที่ลงลายเซ็น

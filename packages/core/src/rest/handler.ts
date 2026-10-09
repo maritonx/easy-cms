@@ -185,8 +185,7 @@ async function respond(
     const result = await auditContext.run(audit, async () =>
       root
         ? await customEndpoint(cms, ctx, method, segments, true, options)
-        : ((await customEndpoint(cms, ctx, method, segments, false, options)) ??
-          (await route(cms, ctx, method, segments, options))),
+        : await customOrBuiltIn(cms, ctx, method, segments, options),
     )
     if (!result) throw new HttpError('Not found', 404)
     if (result.body instanceof Response) return result.body
@@ -195,6 +194,32 @@ async function respond(
     return errorResponse(cms, error, headers, production)
   }
 }
+
+/** `/auth/<action>`: signing in and out, sign-up and password links. */
+export const AUTH_ACTIONS = new Set([
+  'login',
+  'logout',
+  'me',
+  'init',
+  'signup',
+  'verify-email',
+  'forgot-password',
+  'reset-password',
+  'first-register',
+])
+
+/** Routes under `/admin/ui/`: what the admin UI alone uses, outside semver. */
+const ADMIN_UI_ROUTES = new Set([
+  'schema',
+  'counts',
+  'search',
+  'modules',
+  'scheduled',
+  'access',
+  'media-usage',
+  'owned',
+  'sso',
+])
 
 const CORS_METHODS = 'GET, HEAD, POST, PATCH, PUT, DELETE'
 const CORS_HEADERS = `authorization, content-type, ${CSRF_HEADER}`
@@ -273,9 +298,46 @@ async function customEndpoint(
   }
   if (pathMatched) {
     const allow = own.filter((e) => matchPath(e.path, segments)).map((e) => e.method.toUpperCase())
-    throw methodNotAllowed(ctx, [...new Set(allow)].join(', '))
+    const list = [...new Set(allow)].join(', ')
+    if (root) throw methodNotAllowed(ctx, list)
+    throw new PluginMethodError(list)
   }
   return undefined
+}
+
+/**
+ * A plugin's endpoint, else the built-in API. A path a plugin answers with other methods falls
+ * through to the built-in routes, and is a 405 only when none of them has it either.
+ */
+async function customOrBuiltIn(
+  cms: EasyCMS,
+  ctx: Context,
+  method: string,
+  segments: string[],
+  options: RestHandlerOptions,
+): Promise<Result | undefined> {
+  try {
+    return (
+      (await customEndpoint(cms, ctx, method, segments, false, options)) ??
+      (await route(cms, ctx, method, segments, options))
+    )
+  } catch (error) {
+    if (!(error instanceof PluginMethodError)) throw error
+    try {
+      return await route(cms, ctx, method, segments, options)
+    } catch (builtIn) {
+      if (builtIn instanceof HttpError && builtIn.status === 404)
+        throw methodNotAllowed(ctx, error.allow)
+      throw builtIn
+    }
+  }
+}
+
+/** A plugin answers the path, but not with this method. */
+class PluginMethodError extends Error {
+  constructor(readonly allow: string) {
+    super('Method not allowed')
+  }
 }
 
 const fixedSegments = (endpoint: { path: string }) =>
@@ -298,10 +360,16 @@ async function route(
   cms: EasyCMS,
   ctx: Context,
   method: string,
-  segments: string[],
+  path: string[],
   options: RestHandlerOptions,
 ): Promise<Result> {
+  // What the admin UI alone uses lives under `/admin/ui/` and may change in any release; those
+  // routes aren't served at their old place.
+  const ui = path[0] === 'admin' && path[1] === 'ui'
+  const segments = ui ? ['admin', ...path.slice(2)] : path
   const [first, second, third] = segments
+  if (first === 'admin' && second !== undefined && ADMIN_UI_ROUTES.has(second) !== ui)
+    throw new HttpError('Not found', 404)
   const access = {
     overrideAccess: false,
     user: ctx.user,
@@ -316,11 +384,16 @@ async function route(
   // Site members (`auth.members`, e.g. customers) never get into the admin.
   if (first === 'admin' && ctx.user?.member === true) throw new ForbiddenError()
 
+  // Signing in: `/auth/<action>` (`/users/<action>` works too, for clients written before 0.60).
+  const authAction =
+    third === undefined && second !== undefined
+      ? (first === 'auth' && AUTH_ACTIONS.has(second)) || (first === USERS && !/^\d+$/.test(second))
+      : false
   // Signing in with outside accounts (`auth.providers`).
-  if (first === 'auth') return ssoRoute(cms, ctx, method, segments)
+  if (first === 'auth' && !authAction) return ssoRoute(cms, ctx, method, segments)
 
   // Auth endpoints
-  if (first === USERS && second !== undefined && third === undefined && !/^\d+$/.test(second)) {
+  if (authAction && second !== undefined) {
     switch (`${method} ${second}`) {
       case 'POST login': {
         const body = await readJson(ctx.request)
@@ -689,7 +762,7 @@ async function route(
     if (!ctx.user) throw new UnauthorizedError()
     if (second === 'schema' && third === undefined)
       return { body: await adminSchema(cms, ctx.user, ctx.url.origin, ctx.context) }
-    // /admin/counts → the menu's numbers; /admin/search?q= → the command palette's documents
+    // /admin/ui/counts → the menu's numbers; /admin/ui/search?q= → the command palette's documents
     if (second === 'counts' && third === undefined)
       return { body: await adminCounts(cms, { user: ctx.user, context: ctx.context }) }
     if (second === 'search' && third === undefined)
@@ -702,7 +775,7 @@ async function route(
           ),
         },
       }
-    // /admin/modules/:n.js → an admin module's code (`admin.modules`)
+    // /admin/ui/modules/:n.js → an admin module's code (`admin.modules`)
     if (second === 'modules' && third !== undefined && segments.length === 3) {
       const index = /^(\d+)\.js$/.exec(third)?.[1]
       const file = index === undefined ? undefined : await readAdminModule(cms, Number(index))
@@ -722,7 +795,7 @@ async function route(
       if (!(await cms.roles.canView(ctx.user, 'status'))) throw new ForbiddenError()
       return { body: await adminStatus(cms) }
     }
-    // /admin/scheduled → the next scheduled publishes the user may manage (dashboard)
+    // /admin/ui/scheduled → the next scheduled publishes the user may manage (dashboard)
     if (second === 'scheduled' && third === undefined)
       return {
         body: await cms.upcomingSchedules({
@@ -731,7 +804,7 @@ async function route(
           overrideAccess: false,
         }),
       }
-    // /admin/access/:collection/:id → what the user may do with that document
+    // /admin/ui/access/:collection/:id → what the user may do with that document
     const [, , collection, id, extra] = segments
     if (second === 'access' && collection && id && extra === undefined) {
       if (
@@ -764,11 +837,12 @@ async function route(
       }
       return { body: await cms.findGlobal(second, { ...access, ...parseDepth(ctx.url), draft }) }
     }
-    if (method === 'POST') {
+    // PATCH, as for documents; POST as well, as before 0.60.
+    if (method === 'PATCH' || method === 'POST') {
       const body = await readJson(ctx.request)
       return { body: await cms.updateGlobal(second, body, { ...access, ...parseDepth(ctx.url) }) }
     }
-    throw methodNotAllowed(ctx, 'GET, POST')
+    throw methodNotAllowed(ctx, 'GET, PATCH')
   }
 
   // Media files are public and immutable (their names are unique).
@@ -1078,10 +1152,10 @@ function scheduleJob(body: Record<string, unknown>) {
   }
 }
 
-/** `?locale=` (a content locale or `all`) and `?fallback-locale=false`. */
+/** `?locale=` (a content locale or `all`) and `?fallbackLocale=false` (or `fallback-locale`). */
 function parseLocale(url: URL): { locale?: string; fallbackLocale?: boolean } {
   const locale = url.searchParams.get('locale')
-  const fallback = url.searchParams.get('fallback-locale')
+  const fallback = url.searchParams.get('fallbackLocale') ?? url.searchParams.get('fallback-locale')
   return {
     ...(locale ? { locale } : {}),
     ...(fallback === 'false' || fallback === 'true' ? { fallbackLocale: fallback === 'true' } : {}),
@@ -1191,7 +1265,7 @@ function checkCsrf(cms: EasyCMS, ctx: Context) {
     const given = ctx.request.headers.get(CSRF_HEADER)
     if (!expected || !given || !safeEqual(given, expected)) {
       throw new ForbiddenError(
-        `CSRF check failed: send the ${CSRF_HEADER} header from GET /users/me`,
+        `CSRF check failed: send the ${CSRF_HEADER} header from GET /auth/me`,
       )
     }
   }

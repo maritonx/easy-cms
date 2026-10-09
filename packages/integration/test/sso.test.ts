@@ -229,7 +229,7 @@ describe('linked accounts', () => {
     // Linking needs the CSRF token, like any change.
     expect((await call('/auth/acme/link', admin, { method: 'POST' })).status).toBe(403)
 
-    const settings = (await (await call('/admin/sso', admin)).json()) as AdminSso
+    const settings = (await (await call('/admin/ui/sso', admin)).json()) as AdminSso
     expect(settings).toMatchObject({
       providers: [
         { id: 'acme', name: 'Acme', callbackURL: `${ORIGIN}/api/cms/auth/acme/callback` },
@@ -239,7 +239,7 @@ describe('linked accounts', () => {
       signUp: { domains: ['acme.test'], role: 'editor' },
     })
     expect(
-      (await call('/admin/sso', (await signIn({ sub: 'ann-1', email: 'ann@x.co' })).jar)).status,
+      (await call('/admin/ui/sso', (await signIn({ sub: 'ann-1', email: 'ann@x.co' })).jar)).status,
     ).toBe(403)
   })
 

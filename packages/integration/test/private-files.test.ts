@@ -179,7 +179,7 @@ describe('private folders', () => {
     await cms.create('posts', {})
     expect(await cms.mediaUsage([a.id])).toBe(2)
     expect(await cms.mediaUsage([b.id])).toBe(1)
-    const res = await get(`/api/cms/admin/media-usage?ids=${a.id},${b.id}`, 'eve')
+    const res = await get(`/api/cms/admin/ui/media-usage?ids=${a.id},${b.id}`, 'eve')
     // Two documents use one or both.
     expect(await res.json()).toEqual({ count: 2 })
   })
@@ -205,7 +205,7 @@ describe('private folders', () => {
     const res = await patch(`/media-folders/${folder.id}`, 'hank', { private: true })
     expect(res.status).toBe(200)
     expect((await cms.findById('media-folders', folder.id))?.private).toBeFalsy()
-    const admin = (await (await get('/api/cms/admin/schema', 'admin')).json()) as AdminSchema
+    const admin = (await (await get('/api/cms/admin/ui/schema', 'admin')).json()) as AdminSchema
     expect(admin.folders).toEqual({ permissions: true, private: true })
   })
 })
@@ -278,7 +278,7 @@ describe('upload fields with a folder', () => {
     await cms.create('users', { email: 'a@x.co', password: 'password123', role: 'admin' })
     const { token } = await cms.auth.login({ email: 'a@x.co', password: 'password123' })
     const res = await createRestHandler(cms)(
-      new Request('http://cms.test/api/cms/admin/schema', {
+      new Request('http://cms.test/api/cms/admin/ui/schema', {
         headers: { authorization: `Bearer ${token}` },
       }),
     )

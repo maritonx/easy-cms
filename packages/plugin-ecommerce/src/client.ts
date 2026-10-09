@@ -210,7 +210,7 @@ export function createShopClient(options: ShopClientOptions = {}): ShopClient {
   }
 
   async function me() {
-    const result = await call<{ user: ShopUser | null; csrfToken?: string }>('GET', '/users/me')
+    const result = await call<{ user: ShopUser | null; csrfToken?: string }>('GET', '/auth/me')
     csrf = result.csrfToken
     return result.user
   }
@@ -298,7 +298,7 @@ export function createShopClient(options: ShopClientOptions = {}): ShopClient {
 
     async login(email, password) {
       return busy(async () => {
-        const result = await call<{ user: ShopUser; csrfToken?: string }>('POST', '/users/login', {
+        const result = await call<{ user: ShopUser; csrfToken?: string }>('POST', '/auth/login', {
           email,
           password,
         })
@@ -307,7 +307,7 @@ export function createShopClient(options: ShopClientOptions = {}): ShopClient {
       })
     },
     async logout() {
-      await call('POST', '/users/logout').catch(() => {})
+      await call('POST', '/auth/logout').catch(() => {})
       csrf = undefined
       set({ user: null, cart: null })
     },
@@ -315,14 +315,14 @@ export function createShopClient(options: ShopClientOptions = {}): ShopClient {
       return busy(async () => {
         // The form's token: fetched once the form is in use, and fresh within a day.
         if (!signupToken || Date.now() - signupToken.at > 12 * 3_600_000) {
-          const form = await call<{ token: string }>('GET', '/users/signup')
+          const form = await call<{ token: string }>('GET', '/auth/signup')
           signupToken = { token: form.token, at: Date.now() }
           // Sign-ups sent at once look like bots: give the token its moment.
           await new Promise((resolve) => setTimeout(resolve, 2_100))
         }
         const result = await call<{ verify?: boolean; user?: ShopUser; csrfToken?: string }>(
           'POST',
-          '/users/signup',
+          '/auth/signup',
           { ...data, token: signupToken.token, locale },
         )
         if (result.verify) return { verify: true }
@@ -334,19 +334,19 @@ export function createShopClient(options: ShopClientOptions = {}): ShopClient {
     async verifyEmail(token) {
       const result = await call<{ user: ShopUser; csrfToken?: string }>(
         'POST',
-        '/users/verify-email',
+        '/auth/verify-email',
         { token },
       )
       csrf = result.csrfToken
       return signedIn(result.user)
     },
     async forgotPassword(email) {
-      await call('POST', '/users/forgot-password', { email, locale })
+      await call('POST', '/auth/forgot-password', { email, locale })
     },
     async resetPassword(token, password) {
       const result = await call<{ user: ShopUser; csrfToken?: string }>(
         'POST',
-        '/users/reset-password',
+        '/auth/reset-password',
         { token, password, locale },
       )
       csrf = result.csrfToken

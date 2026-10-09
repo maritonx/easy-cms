@@ -377,6 +377,8 @@ function validateAuth(config: Config, add: Add) {
         }
         if (typeof p.id !== 'string' || !PAGE_PATH.test(p.id))
           add(`${path}.id`, 'must be lowercase letters, digits and "-"')
+        else if (RESERVED_PROVIDER_IDS.has(p.id))
+          add(`${path}.id`, `"${p.id}" is a route of /auth`, 'give the provider another id')
         else if (ids.has(p.id))
           add(`${path}.id`, `"${p.id}" is used by another provider`, 'give one of them its own id')
         else ids.add(p.id)
@@ -1343,6 +1345,24 @@ const RESERVED_ENDPOINT_ROOTS = new Set([
   'media',
   'api-keys',
   'auth',
+  // Kept free for later versions.
+  'system',
+  'health',
+  'internal',
+])
+
+/** `/auth/<id>/…` of providers can't be `/auth/<action>`. */
+const RESERVED_PROVIDER_IDS = new Set([
+  'login',
+  'logout',
+  'me',
+  'init',
+  'signup',
+  'verify-email',
+  'forgot-password',
+  'reset-password',
+  'first-register',
+  'identities',
 ])
 
 function validateCommands(config: Config, add: Add) {

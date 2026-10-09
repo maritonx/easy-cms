@@ -221,7 +221,7 @@ describe('root endpoints', () => {
 
 describe('admin components', () => {
   it('puts components, panels and module URLs in the admin schema', async () => {
-    const response = await call('/admin/schema', { headers: await login() })
+    const response = await call('/admin/ui/schema', { headers: await login() })
     const schema = (await response.json()) as AdminSchema
     const posts = schema.collections.find((c) => c.slug === 'posts') as AdminCollection
     expect(posts.sidebar).toEqual([{ tag: 'ecms-stats-panel', props: { compact: true } }])
@@ -231,13 +231,15 @@ describe('admin components', () => {
       component: { tag: 'ecms-color', props: { swatches: ['#fff'] } },
     })
     // The missing package is skipped (and logged); the plugin's module is the second entry.
-    expect(schema.modules).toEqual(['/admin/modules/1.js'])
+    expect(schema.modules).toEqual(['/admin/ui/modules/1.js'])
     expect(errors.join('\n')).toContain('@easy-cms/missing-plugin/admin')
   })
 
   it('lists the pages and dashboard panels each user may see', async () => {
     const schemaFor = async (email?: string) =>
-      (await (await call('/admin/schema', { headers: await login(email) })).json()) as AdminSchema
+      (await (
+        await call('/admin/ui/schema', { headers: await login(email) })
+      ).json()) as AdminSchema
     const admin = await schemaFor()
     expect(admin.pages).toEqual([
       {
@@ -278,18 +280,18 @@ describe('admin components', () => {
   })
 
   it('serves module code to logged-in users, with an ETag', async () => {
-    expect((await call('/admin/modules/1.js')).status).toBe(401)
+    expect((await call('/admin/ui/modules/1.js')).status).toBe(401)
     const headers = await login()
-    const response = await call('/admin/modules/1.js', { headers })
+    const response = await call('/admin/ui/modules/1.js', { headers })
     expect(response.status).toBe(200)
     expect(response.headers.get('content-type')).toContain('text/javascript')
     expect(await response.text()).toContain("customElements.define('ecms-stats-panel'")
     const etag = response.headers.get('etag') as string
-    const cached = await call('/admin/modules/1.js', {
+    const cached = await call('/admin/ui/modules/1.js', {
       headers: { ...headers, 'if-none-match': etag },
     })
     expect(cached.status).toBe(304)
-    expect((await call('/admin/modules/0.js', { headers })).status).toBe(404)
-    expect((await call('/admin/modules/..%2Fx.js', { headers })).status).toBe(404)
+    expect((await call('/admin/ui/modules/0.js', { headers })).status).toBe(404)
+    expect((await call('/admin/ui/modules/..%2Fx.js', { headers })).status).toBe(404)
   })
 })

@@ -16,7 +16,7 @@ export async function refreshCounts(force = false) {
   try {
     const result = await api<{ counts: Record<string, number>; badges: Record<string, number> }>(
       'GET',
-      '/admin/counts',
+      '/admin/ui/counts',
     )
     Object.assign(counts, result.counts)
     for (const key of Object.keys(badges)) if (!(key in result.badges)) delete badges[key]

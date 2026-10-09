@@ -123,9 +123,9 @@ export default defineConfig({
 })
 ```
 
-Over REST: `POST /api/cms/users/forgot-password` with `{ email }`, then
-`POST /api/cms/users/reset-password` with `{ token, password }` (which logs in);
-`GET /api/cms/users/reset-password?token=…` checks a link first. Admins send links with
+Over REST: `POST /api/cms/auth/forgot-password` with `{ email }`, then
+`POST /api/cms/auth/reset-password` with `{ token, password }` (which logs in);
+`GET /api/cms/auth/reset-password?token=…` checks a link first. Admins send links with
 `POST /api/cms/users/:id/password-link`. In code: `cms.auth.requestPasswordReset({ email })` and
 `cms.auth.sendPasswordLink(userId)`.
 
@@ -133,11 +133,11 @@ Over REST: `POST /api/cms/users/forgot-password` with `{ email }`, then
 
 Logging in creates a session:
 
-1. `POST /api/cms/users/login` with `{ email, password }` sets an HttpOnly session cookie (valid
+1. `POST /api/cms/auth/login` with `{ email, password }` sets an HttpOnly session cookie (valid
    for 7 days, `auth.tokenExpiration` in seconds) and returns a CSRF token.
 2. Browsers send the cookie on their own. Writes must also send the CSRF token in the
    `x-csrf-token` header (see [REST API](./rest-api#authentication)).
-3. `POST /api/cms/users/logout` ends it.
+3. `POST /api/cms/auth/logout` ends it.
 
 Logging out, changing the password or deactivating a user ends all of their sessions.
 
@@ -151,7 +151,7 @@ session can't lock them out. Admins changing other users don't. An account witho
 Scripts and apps on other origins can send the session token instead of a cookie:
 
 ```bash
-curl -s -X POST https://example.com/api/cms/users/login \
+curl -s -X POST https://example.com/api/cms/auth/login \
   -H 'content-type: application/json' \
   -d '{"email":"bot@example.com","password":"…"}' -c cookies.txt
 # Use the ecms-session value from cookies.txt:

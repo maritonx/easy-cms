@@ -153,10 +153,12 @@ Return a value to send it as JSON, or a `Response` for anything else. Throw `Una
 API's format.
 
 - Writes from the browser pass the same [CSRF check](./security) as the built-in API.
-- The first segment can't be a collection slug or `users`, `globals`, `admin`, `jobs`, `media`.
-  Start with your plugin's name: `/seo/generate`.
+- The first segment can't be a collection slug or one the built-in API uses: `users`, `globals`,
+  `admin`, `jobs`, `media`, `api-keys`, `auth`, and `system`, `health`, `internal` (kept free for
+  later versions). Such a path is an error at start. Start with your plugin's name: `/seo/generate`.
 - A fixed segment wins over a parameter: `/stats/summary` before `/stats/:collection`.
-- A path with the wrong method gets `405` with an `Allow` header.
+- A request whose path matches but whose method doesn't falls through to the built-in API; when
+  that has no such route either, it gets `405` with an `Allow` header.
 - `root: true` serves the path from the site's root instead, e.g. `/robots.txt`. Only the
   [standalone server](./standalone) serves these: a Nuxt or Next.js app owns its root, so a
   plugin with a root endpoint should also offer a helper for the app's own route (as the
@@ -236,7 +238,7 @@ A plugin adds its module itself:
 `admin: { ...config.admin, modules: [...(config.admin?.modules ?? []), '@acme/easy-cms-plugin-color/admin'] }`.
 
 The server finds the file (a package export needs the `default` condition) and serves it to
-logged-in users at `<api>/admin/modules/<n>.js`; the admin imports every module after login.
+logged-in users at `<api>/admin/ui/modules/<n>.js`; the admin imports every module after login.
 URLs of other sites are not allowed. If a module fails to load, the admin works without it and
 shows which component is missing.
 

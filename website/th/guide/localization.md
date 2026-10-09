@@ -56,7 +56,7 @@ await cms.update('posts', id, { title: 'Hello' }, { locale: 'en' }) // Thai titl
 - slug ที่ localized จะถูกสร้างและรักษาความไม่ซ้ำแยกตามภาษา ค่าที่เป็น `unique` ก็เช่นกัน
 - เวอร์ชันเก็บทุกภาษา และการกู้คืนจะนำทุกภาษากลับมาพร้อมกัน
 
-ผ่าน REST ให้เติม `?locale=en` (หรือ `all`) และ `?fallback-locale=false` ได้ทั้งการอ่านและการเขียน
+ผ่าน REST ให้เติม `?locale=en` (หรือ `all`) และ `?fallbackLocale=false` ได้ทั้งการอ่านและการเขียน
 
 ## หน้า admin {#admin}
 

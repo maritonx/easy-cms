@@ -138,7 +138,7 @@ afterAll(() => cms.destroy())
 
 describe('the menu', () => {
   it('groups collections, globals, pages and settings, in order', async () => {
-    const schema = await get<AdminSchema>('/admin/schema')
+    const schema = await get<AdminSchema>('/admin/ui/schema')
     expect(shape(schema.nav)).toEqual([
       { content: ['collection:pages', 'collection:posts'] },
       'collection:media',
@@ -167,7 +167,7 @@ describe('the menu', () => {
   })
 
   it('leaves out what a user may not open, and empty groups', async () => {
-    const schema = await get<AdminSchema>('/admin/schema', 'editor')
+    const schema = await get<AdminSchema>('/admin/ui/schema', 'editor')
     const settings = schema.nav.find((n) => n.kind === 'group' && n.id === 'settings')
     // Editors have no Settings pages; they still see the site global.
     expect(settings && shape([settings])).toEqual([
@@ -183,7 +183,7 @@ describe('the menu', () => {
 
 describe('edit layouts and conditions', () => {
   it('sends the layout, with fields not placed in the first tab and unreadable ones left out', async () => {
-    const schema = await get<AdminSchema>('/admin/schema', 'editor')
+    const schema = await get<AdminSchema>('/admin/ui/schema', 'editor')
     const products = schema.collections.find((c) => c.slug === 'products')
     expect(products?.layout).toEqual([
       {
@@ -256,7 +256,7 @@ describe('edit layouts and conditions', () => {
 describe('numbers and search', () => {
   it('counts documents and badges for the menu', async () => {
     const result = await get<{ counts: Record<string, number>; badges: Record<string, number> }>(
-      '/admin/counts',
+      '/admin/ui/counts',
     )
     expect(result.counts).toMatchObject({ orders: 3, posts: 0 })
     expect(result.counts.notes).toBeUndefined()
@@ -265,15 +265,15 @@ describe('numbers and search', () => {
 
   it('finds documents by title, and by id', async () => {
     const found = await get<{ docs: { collection: string; title: string }[] }>(
-      '/admin/search?q=mug',
+      '/admin/ui/search?q=mug',
     )
     expect(found.docs.map((d) => d.title).sort()).toEqual(['Blue mug', 'Red mug'])
-    const byId = await get<{ docs: { collection: string; id: number }[] }>('/admin/search?q=1')
+    const byId = await get<{ docs: { collection: string; id: number }[] }>('/admin/ui/search?q=1')
     expect(byId.docs.some((d) => d.collection === 'orders' && d.id === 1)).toBe(true)
   })
 
   it('needs a user', async () => {
-    const response = await handle(new Request(`${BASE}/admin/search?q=mug`))
+    const response = await handle(new Request(`${BASE}/admin/ui/search?q=mug`))
     expect(response.status).toBe(401)
   })
 })

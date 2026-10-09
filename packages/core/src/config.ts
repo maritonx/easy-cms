@@ -491,16 +491,16 @@ export interface MembersConfig {
    * collections they use, e.g. with `isSignedIn`.
    */
   readonly roles: readonly string[]
-  /** Visitors create their own account: `POST <api>/users/signup`. */
+  /** Visitors create their own account: `POST <api>/auth/signup`. */
   readonly signUp?: MembersSignup
   /**
    * The site's pages that open the links of members' emails, given `?token=`: paths on
    * `admin.siteURL` (else `serverURL`), or full URLs. Without them, links go to the admin's pages.
    */
   readonly pages?: {
-    /** Confirms the email of a new account: `POST <api>/users/verify-email` with the token. */
+    /** Confirms the email of a new account: `POST <api>/auth/verify-email` with the token. */
     readonly verifyEmail?: string
-    /** Sets a forgotten password: `POST <api>/users/reset-password` with the token. */
+    /** Sets a forgotten password: `POST <api>/auth/reset-password` with the token. */
     readonly resetPassword?: string
   }
   /** Your own text for the email that confirms an address. Default: English or Thai. */

@@ -23,7 +23,7 @@ onMounted(async () => {
   try {
     const found = await api<{ email: string; purpose: 'reset' | 'invite' }>(
       'GET',
-      `/users/reset-password?token=${encodeURIComponent(token)}`,
+      `/auth/reset-password?token=${encodeURIComponent(token)}`,
     )
     email.value = found.email
     purpose.value = found.purpose

@@ -149,7 +149,7 @@ export interface AdminCollection {
   sidebar?: AdminComponentRef[]
   /** Tabs, sections and rows of the edit page (`admin.layout`). */
   layout?: AdminLayoutNode[]
-  /** A number in the menu (`admin.badge`); the menu's counts come from `GET <api>/admin/counts`. */
+  /** A number in the menu (`admin.badge`); the menu's counts come from `GET <api>/admin/ui/counts`. */
   badge?: { tone: 'accent' | 'warning' | 'danger'; label?: Label }
   /** No document count beside it in the menu (`admin.count: false`). */
   noCount?: boolean

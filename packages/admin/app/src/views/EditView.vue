@@ -290,7 +290,7 @@ async function load() {
       ),
       api<{ update: boolean; delete: boolean }>(
         'GET',
-        `/admin/access/${slug}/${encodeURIComponent(id)}`,
+        `/admin/ui/access/${slug}/${encodeURIComponent(id)}`,
       ),
     ])
     doc.value = loaded

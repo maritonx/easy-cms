@@ -146,7 +146,7 @@ describe('roles from the admin', () => {
     expect((await call('/admin/deliveries', 'GET', 'editor')).status).toBe(403)
 
     // The admin UI is told the same.
-    const schema = await json<AdminSchema>(call('/admin/schema', 'GET', 'editor'))
+    const schema = await json<AdminSchema>(call('/admin/ui/schema', 'GET', 'editor'))
     const posts = schema.collections.find((c) => c.slug === 'posts')
     expect(posts?.permissions).toEqual({
       read: true,

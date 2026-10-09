@@ -17,14 +17,13 @@ Served at `routes.api` (default `/api/cms`). All responses are JSON; access rule
 | GET | `/:collection/:id` | One document. Query: `depth`, `draft`, `preview` (a [preview token](./live-preview#preview-tokens): the current draft, no login) |
 | PATCH | `/:collection/:id` | Update the given fields |
 | DELETE | `/:collection/:id` | Delete |
-| GET / POST | `/globals/:slug` | Read / update a global |
+| GET / PATCH | `/globals/:slug` | Read / update a global (`POST` works too) |
 | POST | `/media` | Upload (`multipart/form-data`, field `file`), or JSON `{ url }` to download it ([from a link](/guide/uploads#from-a-link)) |
 | GET | `/media/file/:name` | A stored file (public) |
 | GET | `/auth/:provider/login` | Starts signing in with a provider (`?redirect=` an admin page); `/auth/:provider/callback` finishes. `POST /auth/:provider/link` (signed in) returns `{ url }` to link an account; `GET /auth/identities` and `DELETE /auth/identities/:id` list and unlink them ([Single sign-on](/guide/sso)) |
 | GET | `/admin/audit` | For admins and roles given it: audit log entries, newest first (`action`, `target`, `doc`, `actor`, `from`, `to`, `page`). `/admin/audit.csv` exports them; `POST /admin/audit/verify` checks their signatures ([Audit log](/guide/audit-log)) |
-| GET | `/admin/sso` | For admins: the providers, their callback URLs, who may use a password |
 | GET | `/admin/status` | For admins (and [roles](/guide/roles) given it): the system and what needs attention ([Health checks](/guide/health-checks)) |
-| GET | `/admin/roles` | For admins, with `auth.rbac`: the roles and what can be given. `POST /admin/roles` with `{ key, name?, permissions? }` adds one; `PATCH /admin/roles/:id` with `{ name?, permissions? }` changes one; `DELETE /admin/roles/:id` deletes one; `GET /admin/roles/:id/history` lists its changes; `GET /admin/owned/:userId` says what a user owns, by collection ([Roles](/guide/roles)) |
+| GET | `/admin/roles` | For admins, with `auth.rbac`: the roles and what can be given. `POST /admin/roles` with `{ key, name?, permissions? }` adds one; `PATCH /admin/roles/:id` with `{ name?, permissions? }` changes one; `DELETE /admin/roles/:id` deletes one; `GET /admin/roles/:id/history` lists its changes ([Roles](/guide/roles)) |
 | GET | `/admin/backups` | For admins: the backup settings and backups. `POST /admin/backups` backs up now (202); `GET /admin/backups/:id/download` downloads one; `DELETE /admin/backups/:id` deletes one |
 | GET | `/admin/email` | For admins: the email adapter and its settings (never secrets). `POST /admin/email/verify` checks the connection; `POST /admin/email/test` with `{ to?, locale? }` sends a test email now (5 in 10 minutes) |
 | GET | `/admin/deliveries` | For admins (and roles given it): saved webhook deliveries or emails (`kind=webhook\|email`, `state=failed\|pending`, `page`). `POST /admin/deliveries/:kind/:id/retry` and `/:kind/retry` (all failed) send now; `DELETE /admin/deliveries/:kind/:id` and `/:kind` (all failed) delete |
@@ -41,6 +40,10 @@ Served at `routes.api` (default `/api/cms`). All responses are JSON; access rule
 Globals have the same version routes under `/globals/:slug/…` (`versions`, `versions/:version`,
 `versions/:version/restore`, `unpublish`, `discard-draft`, `preview`, `schedule`). Version and preview routes need update access.
 
+What the admin UI alone uses lives under `/admin/ui/…` (`schema`, `counts`, `search`, `modules`,
+`scheduled`, `access`, `media-usage`, `owned`, `sso`). Those routes are internal, not part of the
+public API, and may change in any release; build on the routes above instead.
+
 `where` uses brackets or JSON:
 
 ```
@@ -50,24 +53,30 @@ GET /api/cms/posts?where={"or":[{"featured":{"equals":true}},{"views":{"gt":100}
 
 `in` / `not_in` accept comma-separated values, `exists` takes `true`/`false`, and `equals=null`
 matches empty values. `draft=true` only works for logged-in users. With
-[localization](./localization), `locale` (`th`, `en`… or `all`) and `fallback-locale=false` work on
+[localization](./localization), `locale` (`th`, `en`… or `all`) and `fallbackLocale=false` work on
 every read and write.
 
 ## Authentication
 
 | Method | Path | |
 |---|---|---|
-| POST | `/users/login` | `{ email, password }` → session cookie, `{ user, exp, csrfToken }` |
-| POST | `/users/logout` | Ends the session |
-| GET | `/users/me` | `{ user, csrfToken }` for the current session |
-| GET | `/users/init` | `{ hasUsers }` |
-| POST | `/users/first-register` | Creates the first admin while there are no users |
-| GET | `/users/signup` | With `auth.members.signUp`: `{ token, turnstile, verifyEmail }` for a sign-up form ([Site members](./members)) |
-| POST | `/users/signup` | `{ email, password, name?, token }` → `202 { verify: true }`, or a session without email confirmation |
-| POST | `/users/verify-email` | `{ token }` from the confirmation email → confirms it and signs in |
+| POST | `/auth/login` | `{ email, password }` → session cookie, `{ user, exp, csrfToken }` |
+| POST | `/auth/logout` | Ends the session |
+| GET | `/auth/me` | `{ user, csrfToken }` for the current session |
+| GET | `/auth/init` | `{ hasUsers }` |
+| POST | `/auth/first-register` | Creates the first admin while there are no users |
+| GET | `/auth/signup` | With `auth.members.signUp`: `{ token, turnstile, verifyEmail }` for a sign-up form ([Site members](./members)) |
+| POST | `/auth/signup` | `{ email, password, name?, token }` → `202 { verify: true }`, or a session without email confirmation |
+| POST | `/auth/verify-email` | `{ token }` from the confirmation email → confirms it and signs in |
+| POST | `/auth/forgot-password` | `{ email }` → emails a link to set a new password ([Authentication](./auth)) |
+| GET | `/auth/reset-password` | `?token=` → checks a password link |
+| POST | `/auth/reset-password` | `{ token, password }` → sets the new password and signs in |
+
+These routes used to live under `/users/…` (`/users/login`, `/users/me`…). The old paths keep
+working as aliases through 1.x.
 
 **Browsers** send the session cookie. Every POST, PATCH, PUT and DELETE made with the cookie
-must include the CSRF token as `x-csrf-token` (from the login response, `GET /users/me` or the
+must include the CSRF token as `x-csrf-token` (from the login response, `GET /auth/me` or the
 `ecms-csrf` cookie), and come from the API's own origin or one in `auth.trustedOrigins`.
 
 **Servers and apps** send `Authorization: Bearer <token>` with the session token; no CSRF token

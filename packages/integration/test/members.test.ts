@@ -205,7 +205,7 @@ describe('signing up', () => {
 describe('members', () => {
   it('are not let into the admin, nor count as logged in by default', async () => {
     const { token } = await cms.auth.login({ email: 'cat@example.com', password: 'cat-password-1' })
-    expect((await call('/admin/schema', { headers: bearer(token) })).status).toBe(403)
+    expect((await call('/admin/ui/schema', { headers: bearer(token) })).status).toBe(403)
     expect(
       (
         await call('/products', {

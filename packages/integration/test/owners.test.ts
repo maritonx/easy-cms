@@ -145,7 +145,7 @@ describe('own documents only', () => {
     await call('/notes', 'POST', 'ben', { title: 'Ben note' })
     const list = await json<{ docs: { title: string }[] }>(call('/notes', 'GET', 'ann'))
     expect(list.docs.map((d) => d.title)).toEqual(['Ann note'])
-    const schema = await json<AdminSchema>(call('/admin/schema', 'GET', 'ann'))
+    const schema = await json<AdminSchema>(call('/admin/ui/schema', 'GET', 'ann'))
     expect(schema.rbac).toBe(true)
     expect(schema.collections.find((c) => c.slug === 'posts')?.owner).toBe('author')
     expect(schema.collections.find((c) => c.slug === 'notes')?.owner).toBe('createdBy')
@@ -167,7 +167,7 @@ describe('field rules', () => {
     await call(`/notes/${note.id}`, 'PATCH', 'ann', { summary: 'Changed' })
     expect((await cms.findById('notes', note.id))?.summary).toBe('From code')
 
-    const fields = (await json<AdminSchema>(call('/admin/schema', 'GET', 'ann'))).collections
+    const fields = (await json<AdminSchema>(call('/admin/ui/schema', 'GET', 'ann'))).collections
       .find((c) => c.slug === 'notes')
       ?.fields.map((f) => [f.name, f.readOnly === true])
     expect(fields).toEqual([
@@ -221,13 +221,13 @@ describe('deleting a user who owns documents', () => {
 
   it('says what they own, and gives it to another user', async () => {
     const owned = await json<{ collection: string; count: number }[]>(
-      call(`/admin/owned/${ids.ben}`, 'GET', 'admin'),
+      call(`/admin/ui/owned/${ids.ben}`, 'GET', 'admin'),
     )
     expect(owned).toEqual([
       { collection: 'posts', count: 2 },
       { collection: 'notes', count: 1 },
     ])
-    expect((await call(`/admin/owned/${ids.ben}`, 'GET', 'ann')).status).toBe(403)
+    expect((await call(`/admin/ui/owned/${ids.ben}`, 'GET', 'ann')).status).toBe(403)
     expect((await call(`/users/${ids.ben}?transferTo=${ids.ben}`, 'DELETE', 'admin')).status).toBe(
       400,
     )

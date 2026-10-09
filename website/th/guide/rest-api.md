@@ -17,14 +17,13 @@ HTTP API ที่ `/api/cms`: endpoint, การ query, การยืนย�
 | GET | `/:collection/:id` | เอกสารหนึ่งรายการ Query: `depth`, `draft`, `preview` ([preview token](./live-preview#preview-tokens): ฉบับร่างปัจจุบันโดยไม่ต้องเข้าสู่ระบบ) |
 | PATCH | `/:collection/:id` | อัปเดต field ที่ระบุ |
 | DELETE | `/:collection/:id` | ลบ |
-| GET / POST | `/globals/:slug` | อ่าน / อัปเดต global |
+| GET / PATCH | `/globals/:slug` | อ่าน / อัปเดต global (ใช้ `POST` ก็ได้) |
 | POST | `/media` | อัปโหลด (`multipart/form-data`, field `file`) หรือ JSON `{ url }` เพื่อดาวน์โหลด ([จากลิงก์](/th/guide/uploads#from-a-link)) |
 | GET | `/media/file/:name` | ไฟล์ที่จัดเก็บไว้ (สาธารณะ) |
 | GET | `/auth/:provider/login` | เริ่มเข้าสู่ระบบด้วยผู้ให้บริการ (`?redirect=` หน้าใน admin) ส่วน `/auth/:provider/callback` ปิดท้าย `POST /auth/:provider/link` (ต้อง login อยู่) คืน `{ url }` สำหรับเชื่อมบัญชี `GET /auth/identities` และ `DELETE /auth/identities/:id` ดูและยกเลิกการเชื่อม ([Single sign-on](/th/guide/sso)) |
 | GET | `/admin/audit` | สำหรับ admin และบทบาทที่ได้รับสิทธิ์: รายการ audit log ใหม่สุดก่อน (`action`, `target`, `doc`, `actor`, `from`, `to`, `page`) `/admin/audit.csv` ส่งออก `POST /admin/audit/verify` ตรวจลายเซ็น ([Audit log](/th/guide/audit-log)) |
-| GET | `/admin/sso` | สำหรับ admin: ผู้ให้บริการ callback URL และใครใช้รหัสผ่านได้ |
 | GET | `/admin/status` | สำหรับ admin (และ [role](/th/guide/roles) ที่ได้รับสิทธิ์): ข้อมูลระบบและสิ่งที่ต้องดูแล ([ตรวจสุขภาพระบบ](/th/guide/health-checks)) |
-| GET | `/admin/roles` | สำหรับ admin เมื่อเปิด `auth.rbac`: รายการ role และสิ่งที่ให้สิทธิ์ได้ `POST /admin/roles` พร้อม `{ key, name?, permissions? }` เพิ่ม role `PATCH /admin/roles/:id` พร้อม `{ name?, permissions? }` แก้ไข `DELETE /admin/roles/:id` ลบ `GET /admin/roles/:id/history` ประวัติการแก้ไข `GET /admin/owned/:userId` บอกว่าผู้ใช้เป็นเจ้าของเอกสารอะไรบ้าง แยกตาม collection ([บทบาทและสิทธิ์](/th/guide/roles)) |
+| GET | `/admin/roles` | สำหรับ admin เมื่อเปิด `auth.rbac`: รายการ role และสิ่งที่ให้สิทธิ์ได้ `POST /admin/roles` พร้อม `{ key, name?, permissions? }` เพิ่ม role `PATCH /admin/roles/:id` พร้อม `{ name?, permissions? }` แก้ไข `DELETE /admin/roles/:id` ลบ `GET /admin/roles/:id/history` ประวัติการแก้ไข ([บทบาทและสิทธิ์](/th/guide/roles)) |
 | GET | `/admin/backups` | สำหรับ admin: การตั้งค่าและรายการ backup `POST /admin/backups` เริ่ม backup ทันที (202) `GET /admin/backups/:id/download` ดาวน์โหลด `DELETE /admin/backups/:id` ลบ |
 | GET | `/admin/email` | สำหรับ admin: email adapter และค่าที่ใช้อยู่ (ไม่มีความลับ) `POST /admin/email/verify` ตรวจการเชื่อมต่อ `POST /admin/email/test` พร้อม `{ to?, locale? }` ส่งอีเมลทดสอบทันที (ไม่เกิน 5 ครั้งใน 10 นาที) |
 | GET | `/admin/deliveries` | สำหรับ admin (และ role ที่ได้รับสิทธิ์): webhook หรืออีเมลที่บันทึกไว้ (`kind=webhook\|email`, `state=failed\|pending`, `page`) `POST /admin/deliveries/:kind/:id/retry` และ `/:kind/retry` (ที่ล้มทั้งหมด) ส่งทันที `DELETE /admin/deliveries/:kind/:id` และ `/:kind` (ที่ล้มทั้งหมด) ลบ |
@@ -41,6 +40,10 @@ HTTP API ที่ `/api/cms`: endpoint, การ query, การยืนย�
 global มี route ของเวอร์ชันชุดเดียวกันใต้ `/globals/:slug/…` (`versions`, `versions/:version`,
 `versions/:version/restore`, `unpublish`, `discard-draft`, `preview`, `schedule`) route ของเวอร์ชันและตัวอย่างต้องมีสิทธิ์แก้ไข
 
+สิ่งที่หน้า admin ใช้เองอยู่ใต้ `/admin/ui/…` (`schema`, `counts`, `search`, `modules`,
+`scheduled`, `access`, `media-usage`, `owned`, `sso`) route เหล่านี้ใช้ภายใน ไม่นับเป็น API สาธารณะ
+และอาจเปลี่ยนได้ในทุกรุ่น ให้ใช้ route ด้านบนแทน
+
 `where` ใช้รูปแบบวงเล็บเหลี่ยมหรือ JSON:
 
 ```
@@ -50,24 +53,29 @@ GET /api/cms/posts?where={"or":[{"featured":{"equals":true}},{"views":{"gt":100}
 
 `in` / `not_in` รับค่าที่คั่นด้วยจุลภาค `exists` รับ `true`/`false` และ `equals=null`
 จะตรงกับค่าว่าง `draft=true` ใช้ได้เฉพาะผู้ใช้ที่เข้าสู่ระบบแล้ว เมื่อใช้
-[หลายภาษา](./localization) `locale` (`th`, `en`… หรือ `all`) และ `fallback-locale=false` ใช้ได้กับ
+[หลายภาษา](./localization) `locale` (`th`, `en`… หรือ `all`) และ `fallbackLocale=false` ใช้ได้กับ
 ทุกการอ่านและเขียน
 
 ## การยืนยันตัวตน {#authentication}
 
 | Method | Path | |
 |---|---|---|
-| POST | `/users/login` | `{ email, password }` → session cookie, `{ user, exp, csrfToken }` |
-| POST | `/users/logout` | ยุติ session |
-| GET | `/users/me` | `{ user, csrfToken }` ของ session ปัจจุบัน |
-| GET | `/users/init` | `{ hasUsers }` |
-| POST | `/users/first-register` | สร้าง admin คนแรกในขณะที่ยังไม่มีผู้ใช้ |
-| GET | `/users/signup` | เมื่อตั้ง `auth.members.signUp`: `{ token, turnstile, verifyEmail }` สำหรับฟอร์มสมัครสมาชิก ([สมาชิกของเว็บ](./members)) |
-| POST | `/users/signup` | `{ email, password, name?, token }` → `202 { verify: true }` หรือ session ทันทีถ้าไม่ต้องยืนยันอีเมล |
-| POST | `/users/verify-email` | `{ token }` จากอีเมลยืนยัน → ยืนยันอีเมลแล้วเข้าสู่ระบบ |
+| POST | `/auth/login` | `{ email, password }` → session cookie, `{ user, exp, csrfToken }` |
+| POST | `/auth/logout` | ยุติ session |
+| GET | `/auth/me` | `{ user, csrfToken }` ของ session ปัจจุบัน |
+| GET | `/auth/init` | `{ hasUsers }` |
+| POST | `/auth/first-register` | สร้าง admin คนแรกในขณะที่ยังไม่มีผู้ใช้ |
+| GET | `/auth/signup` | เมื่อตั้ง `auth.members.signUp`: `{ token, turnstile, verifyEmail }` สำหรับฟอร์มสมัครสมาชิก ([สมาชิกของเว็บ](./members)) |
+| POST | `/auth/signup` | `{ email, password, name?, token }` → `202 { verify: true }` หรือ session ทันทีถ้าไม่ต้องยืนยันอีเมล |
+| POST | `/auth/verify-email` | `{ token }` จากอีเมลยืนยัน → ยืนยันอีเมลแล้วเข้าสู่ระบบ |
+| POST | `/auth/forgot-password` | `{ email }` → ส่งลิงก์สำหรับตั้งรหัสผ่านใหม่ทางอีเมล ([ผู้ใช้และการยืนยันตัวตน](./auth)) |
+| GET | `/auth/reset-password` | `?token=` → ตรวจว่าลิงก์ยังใช้ได้ |
+| POST | `/auth/reset-password` | `{ token, password }` → ตั้งรหัสผ่านใหม่แล้วเข้าสู่ระบบ |
+
+route เหล่านี้เคยอยู่ใต้ `/users/…` (`/users/login`, `/users/me`…) path เดิมยังใช้ได้ต่อตลอด 1.x
 
 **เบราว์เซอร์** ส่ง session cookie ทุก request แบบ POST, PATCH, PUT และ DELETE ที่ใช้ cookie
-ต้องแนบ CSRF token เป็น `x-csrf-token` (ได้จาก response ของการเข้าสู่ระบบ, `GET /users/me` หรือ
+ต้องแนบ CSRF token เป็น `x-csrf-token` (ได้จาก response ของการเข้าสู่ระบบ, `GET /auth/me` หรือ
 cookie `ecms-csrf`) และต้องมาจาก origin ของ API เองหรือ origin ที่อยู่ใน `auth.trustedOrigins`
 
 **Server และแอป** ส่ง `Authorization: Bearer <token>` พร้อม session token โดยไม่ต้องใช้ CSRF token

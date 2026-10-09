@@ -119,9 +119,9 @@ export default defineConfig({
 })
 ```
 
-ผ่าน REST: `POST /api/cms/users/forgot-password` พร้อม `{ email }` แล้ว
-`POST /api/cms/users/reset-password` พร้อม `{ token, password }` (ซึ่ง login ให้ด้วย)
-ส่วน `GET /api/cms/users/reset-password?token=…` ใช้ตรวจลิงก์ก่อน admin ส่งลิงก์ด้วย
+ผ่าน REST: `POST /api/cms/auth/forgot-password` พร้อม `{ email }` แล้ว
+`POST /api/cms/auth/reset-password` พร้อม `{ token, password }` (ซึ่ง login ให้ด้วย)
+ส่วน `GET /api/cms/auth/reset-password?token=…` ใช้ตรวจลิงก์ก่อน admin ส่งลิงก์ด้วย
 `POST /api/cms/users/:id/password-link` ในโค้ดใช้ `cms.auth.requestPasswordReset({ email })` และ
 `cms.auth.sendPasswordLink(userId)`
 
@@ -129,11 +129,11 @@ export default defineConfig({
 
 การ login จะสร้าง session:
 
-1. `POST /api/cms/users/login` พร้อม `{ email, password }` จะตั้ง session cookie แบบ HttpOnly (ใช้ได้ 7 วัน
+1. `POST /api/cms/auth/login` พร้อม `{ email, password }` จะตั้ง session cookie แบบ HttpOnly (ใช้ได้ 7 วัน
    ปรับด้วย `auth.tokenExpiration` เป็นวินาที) และคืน CSRF token
 2. browser ส่ง cookie ไปเอง การเขียนข้อมูลต้องส่ง CSRF token ใน header `x-csrf-token` ด้วย
    (ดู [REST API](./rest-api#authentication))
-3. `POST /api/cms/users/logout` ปิด session
+3. `POST /api/cms/auth/logout` ปิด session
 
 การ logout การเปลี่ยนรหัสผ่าน หรือการปิดใช้งานผู้ใช้ จะปิดทุก session ของคนนั้น
 
@@ -146,7 +146,7 @@ export default defineConfig({
 สคริปต์และแอปบน origin อื่นส่ง session token แทน cookie ได้:
 
 ```bash
-curl -s -X POST https://example.com/api/cms/users/login \
+curl -s -X POST https://example.com/api/cms/auth/login \
   -H 'content-type: application/json' \
   -d '{"email":"bot@example.com","password":"…"}' -c cookies.txt
 # ใช้ค่า ecms-session จาก cookies.txt:

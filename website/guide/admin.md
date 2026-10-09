@@ -98,7 +98,7 @@ Arrow keys move through the menu; left and right fold and unfold groups.
 
 - **Go to** any collection, global, page or setting, by name or group.
 - **Create** a document of any collection you may create in.
-- **Documents**: titles in every collection you may read (`GET <api>/admin/search?q=`), and ids.
+- **Documents**: titles in every collection you may read and ids.
 - **Recently opened** documents, before you type.
 - **Commands**: theme, language, collapsing the menu, shortcuts, logging out, and your own:
 

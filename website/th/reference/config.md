@@ -148,7 +148,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | ตัวเลือก | Type | |
 |---|---|---|
 | `roles` | `string[]` | role ของสมาชิก (ต้องอยู่ใน `roles` ด้วย) สมาชิกเข้าระบบจัดการไม่ได้ และ `isStaff` (ค่าเริ่มต้นของทุก collection) ไม่นับพวกเขา [สมาชิกของเว็บ](/th/guide/members) |
-| `signUp` | `MembersSignup` | ให้ผู้เยี่ยมชมสมัครบัญชีเองได้: `POST <api>/users/signup` |
+| `signUp` | `MembersSignup` | ให้ผู้เยี่ยมชมสมัครบัญชีเองได้: `POST <api>/auth/signup` |
 | `pages` | `{ verifyEmail?, resetPassword? }` | หน้าของเว็บที่เปิดลิงก์ในอีเมลของสมาชิกพร้อม `?token=` เป็น path บน `admin.siteURL` (หรือ `serverURL`) หรือ URL เต็ม ค่าเริ่มต้นคือหน้าของระบบจัดการ |
 | `emails` | `{ verifyEmail? }` | ข้อความอีเมลยืนยันที่อยู่อีเมลของคุณเอง |
 
@@ -317,7 +317,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 
 | ตัวเลือก | Type | |
 |---|---|---|
-| `path` | `string` | ใต้ `routes.api` เช่น `/seo/generate` หรือ `/stats/:collection` |
+| `path` | `string` | ใต้ `routes.api` เช่น `/seo/generate` หรือ `/stats/:collection` segment แรกห้ามเป็น slug ของ collection หรือชื่อที่ API ในตัวใช้ ([path ที่สงวนไว้](/th/guide/plugins#endpoints)) |
 | `method` | `'get' \| 'post' \| 'put' \| 'patch' \| 'delete'` | |
 | `handler` | `(request: EndpointRequest) => unknown` | คืน `Response` หรือค่าที่ส่งเป็น JSON [Endpoints](/th/guide/plugins#endpoints) |
 | `root` | `boolean` | เสิร์ฟ path จาก root ของเว็บ (เฉพาะ standalone server) เช่น `/robots.txt` ค่าเริ่มต้น `false` |

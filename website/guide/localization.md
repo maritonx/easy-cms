@@ -57,7 +57,7 @@ await cms.update('posts', id, { title: 'Hello' }, { locale: 'en' }) // Thai titl
 - Localized slugs are generated and kept unique per locale; so are `unique` values.
 - Versions keep every locale, and restoring brings them all back.
 
-Over REST add `?locale=en` (or `all`) and `?fallback-locale=false`, on reads and writes.
+Over REST add `?locale=en` (or `all`) and `?fallbackLocale=false`, on reads and writes.
 
 ## Admin
 

@@ -150,7 +150,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | Option | Type | |
 |---|---|---|
 | `roles` | `string[]` | Their roles, also in `roles`. Members never get into the admin, and `isStaff` (every collection's default) doesn't count them. [Site members](/guide/members) |
-| `signUp` | `MembersSignup` | Visitors create their own account: `POST <api>/users/signup`. |
+| `signUp` | `MembersSignup` | Visitors create their own account: `POST <api>/auth/signup`. |
 | `pages` | `{ verifyEmail?, resetPassword? }` | The site's pages that open members' email links with `?token=`: paths on `admin.siteURL` (else `serverURL`) or URLs. Default: the admin's pages. |
 | `emails` | `{ verifyEmail? }` | Your own text for the email that confirms an address. |
 
@@ -321,7 +321,7 @@ Every hook also gets `user`, `cms` and `slug`.
 
 | Option | Type | |
 |---|---|---|
-| `path` | `string` | Under `routes.api`, e.g. `/seo/generate` or `/stats/:collection`. |
+| `path` | `string` | Under `routes.api`, e.g. `/seo/generate` or `/stats/:collection`. The first segment can't be a collection slug or one the built-in API uses ([reserved paths](/guide/plugins#endpoints)). |
 | `method` | `'get' \| 'post' \| 'put' \| 'patch' \| 'delete'` | |
 | `handler` | `(request: EndpointRequest) => unknown` | Returns a `Response`, or a value sent as JSON. [Endpoints](/guide/plugins#endpoints) |
 | `root` | `boolean` | Serve the path from the site's root (standalone server only), e.g. `/robots.txt`. Default `false`. |

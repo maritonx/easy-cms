@@ -224,9 +224,9 @@ describe('folders (upload.folders)', () => {
   })
 
   it('tells the admin about folders', async () => {
-    const admin = await json<AdminSchema>(call('/admin/schema', 'GET', 'admin'))
+    const admin = await json<AdminSchema>(call('/admin/ui/schema', 'GET', 'admin'))
     expect(admin.folders).toEqual({ permissions: true, private: true })
-    const mia = await json<AdminSchema>(call('/admin/schema', 'GET', 'mia'))
+    const mia = await json<AdminSchema>(call('/admin/ui/schema', 'GET', 'mia'))
     expect(mia.folders).toEqual({ permissions: false, private: false })
   })
 })

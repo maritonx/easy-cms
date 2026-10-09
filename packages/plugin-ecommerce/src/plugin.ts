@@ -79,7 +79,7 @@ export interface EcommerceOptions<Cur extends string = string> {
     /** Default `customer`. */
     readonly role?: string
     /**
-     * Visitors create an account themselves (`POST <api>/users/signup`), confirming their email.
+     * Visitors create an account themselves (`POST <api>/auth/signup`), confirming their email.
      * `false` to make accounts some other way. Default `true`.
      */
     readonly signup?: boolean | Omit<MembersSignup, 'role'>

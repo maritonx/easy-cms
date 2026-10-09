@@ -49,9 +49,9 @@ With `signUp`, visitors create their own account with its `role`:
 
 ```ts
 // The form's token, when the form is shown: proves it wasn't filled in by a bot at once.
-const { token } = await fetch('/api/cms/users/signup').then((r) => r.json())
+const { token } = await fetch('/api/cms/auth/signup').then((r) => r.json())
 
-await fetch('/api/cms/users/signup', {
+await fetch('/api/cms/auth/signup', {
   method: 'POST',
   headers: { 'content-type': 'application/json' },
   body: JSON.stringify({ email, password, name, token, website: '' }),
@@ -63,7 +63,7 @@ await fetch('/api/cms/users/signup', {
    `true`). The answer is the same whether or not the email has an account, so nobody learns who
    is signed up.
 2. The email's link opens `pages.verifyEmail` on the site with `?token=`. The page sends it to
-   `POST /api/cms/users/verify-email` (`{ token }`), which confirms the email and signs in.
+   `POST /api/cms/auth/verify-email` (`{ token }`), which confirms the email and signs in.
 3. Without `verifyEmail`, signing up signs in at once (`201` with the session).
 
 Spam protection is the same as the [form builder's](./forms): the token (sent too quickly or
@@ -77,15 +77,15 @@ as a full URL, or `serverURL`.
 ## Email links
 
 Members' "forgot password" links open `pages.resetPassword` on the site, which sends the token
-and the new password to `POST /api/cms/users/reset-password`. Pages can be paths (on
+and the new password to `POST /api/cms/auth/reset-password`. Pages can be paths (on
 `admin.siteURL`, else `serverURL`) or full URLs. Without them, links open the admin's pages.
 
 `emails.verifyEmail` changes the confirmation email's text, like `auth.emails`.
 
 ## Signing in on the site
 
-Members sign in like admins: `POST /api/cms/users/login` sets the session cookie (send
-`x-csrf-token` from `GET /api/cms/users/me` with writes), or returns a token for
+Members sign in like admins: `POST /api/cms/auth/login` sets the session cookie (send
+`x-csrf-token` from `GET /api/cms/auth/me` with writes), or returns a token for
 `Authorization: Bearer`. The session's user has `member: true`. In server code,
 `cms.forRequest(request)` gives the user.
 

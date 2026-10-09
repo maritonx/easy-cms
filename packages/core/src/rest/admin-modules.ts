@@ -53,7 +53,7 @@ function files(cms: EasyCMS): (string | undefined)[] {
 
 /** URLs (under the API) of the admin modules that exist, for the admin schema. */
 export function adminModuleUrls(cms: EasyCMS): string[] {
-  return files(cms).flatMap((file, i) => (file ? [`/admin/modules/${i}.js`] : []))
+  return files(cms).flatMap((file, i) => (file ? [`/admin/ui/modules/${i}.js`] : []))
 }
 
 /** One admin module's code, read on each request so edits show up without a restart. */

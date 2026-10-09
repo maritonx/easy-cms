@@ -394,7 +394,7 @@ async function guardedMoveFiles(ids: Id[], to: Id | null) {
     uses = (
       await api<{ count: number }>(
         'GET',
-        `/admin/media-usage?ids=${changing.map((d) => d.id).join(',')}`,
+        `/admin/ui/media-usage?ids=${changing.map((d) => d.id).join(',')}`,
       )
     ).count
   } catch {

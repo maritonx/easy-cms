@@ -89,7 +89,7 @@ collection คือประเภทของเนื้อหาที่ม
 ที่ใช้ slug เดียวกันเพื่อเพิ่ม field กฎสิทธิ์ หรือ hook ให้กับ collection เหล่านี้
 
 slug ที่สงวนไว้: `admin`, `globals`, `jobs`, `sessions`, `login-attempts`, `document-versions`,
-`scheduled-jobs`, `migrations`, `access`
+`scheduled-jobs`, `migrations`, `access`, `auth`
 
 ## Globals {#globals}
 

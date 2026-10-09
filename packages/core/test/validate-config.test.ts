@@ -353,6 +353,12 @@ describe('validateConfig', () => {
     ])
   })
 
+  it('keeps provider ids off the routes of /auth', () => {
+    const login = { id: 'login', name: 'Login', authorizationURL: () => {}, callback: () => {} }
+    const issues = validateConfig(baseConfig({ auth: { providers: [login as never] } }))
+    expect(issues.map((i) => i.path)).toEqual(['auth.providers[0].id'])
+  })
+
   it('checks the audit log options', () => {
     const audit = (value: unknown) =>
       validateConfig(baseConfig({ audit: value as never })).map((i) => i.path)

@@ -48,9 +48,9 @@ export default defineConfig({
 
 ```ts
 // token ของฟอร์ม ตอนแสดงฟอร์ม: ยืนยันว่าไม่ใช่บอตที่กรอกทันที
-const { token } = await fetch('/api/cms/users/signup').then((r) => r.json())
+const { token } = await fetch('/api/cms/auth/signup').then((r) => r.json())
 
-await fetch('/api/cms/users/signup', {
+await fetch('/api/cms/auth/signup', {
   method: 'POST',
   headers: { 'content-type': 'application/json' },
   body: JSON.stringify({ email, password, name, token, website: '' }),
@@ -60,7 +60,7 @@ await fetch('/api/cms/users/signup', {
 
 1. บัญชีใหม่ล็อกอินไม่ได้จนกว่าจะยืนยันอีเมล (`signUp.verifyEmail` ค่าเริ่มต้น `true`) คำตอบเหมือนกันไม่ว่าอีเมลนั้นมีบัญชี
    หรือไม่ จึงไม่มีใครรู้ว่าใครสมัครไว้
-2. ลิงก์ในอีเมลเปิด `pages.verifyEmail` บนเว็บพร้อม `?token=` หน้านั้นส่ง token ไปที่ `POST /api/cms/users/verify-email`
+2. ลิงก์ในอีเมลเปิด `pages.verifyEmail` บนเว็บพร้อม `?token=` หน้านั้นส่ง token ไปที่ `POST /api/cms/auth/verify-email`
    (`{ token }`) เพื่อยืนยันอีเมลและเข้าสู่ระบบ
 3. ถ้าไม่เปิด `verifyEmail` การสมัครจะเข้าสู่ระบบทันที (`201` พร้อม session)
 
@@ -73,15 +73,15 @@ await fetch('/api/cms/users/signup', {
 ## ลิงก์ในอีเมล {#email-links}
 
 ลิงก์ "ลืมรหัสผ่าน" ของสมาชิกเปิด `pages.resetPassword` บนเว็บ ซึ่งส่ง token และรหัสผ่านใหม่ไปที่
-`POST /api/cms/users/reset-password` หน้าเหล่านี้เป็น path (บน `admin.siteURL` หรือ `serverURL`) หรือ URL เต็มก็ได้ ถ้าไม่ตั้ง
+`POST /api/cms/auth/reset-password` หน้าเหล่านี้เป็น path (บน `admin.siteURL` หรือ `serverURL`) หรือ URL เต็มก็ได้ ถ้าไม่ตั้ง
 ลิงก์จะเปิดหน้าของระบบจัดการ
 
 `emails.verifyEmail` เปลี่ยนข้อความอีเมลยืนยันได้ เหมือน `auth.emails`
 
 ## การล็อกอินบนหน้าเว็บ {#signing-in-on-the-site}
 
-สมาชิกล็อกอินแบบเดียวกับ admin: `POST /api/cms/users/login` ตั้ง session cookie (ส่ง `x-csrf-token` จาก
-`GET /api/cms/users/me` มากับการเขียน) หรือใช้ token กับ `Authorization: Bearer` ผู้ใช้ของ session มี `member: true` ในโค้ดฝั่ง
+สมาชิกล็อกอินแบบเดียวกับ admin: `POST /api/cms/auth/login` ตั้ง session cookie (ส่ง `x-csrf-token` จาก
+`GET /api/cms/auth/me` มากับการเขียน) หรือใช้ token กับ `Authorization: Bearer` ผู้ใช้ของ session มี `member: true` ในโค้ดฝั่ง
 server ใช้ `cms.forRequest(request)` เพื่อรู้ว่าเป็นใคร
 
 เมื่อใช้ [plugin multi-tenant](./multi-tenant) สมาชิกไม่ได้สังกัด tenant: ใช้เว็บของ request (โดเมนหรือ header) บัญชีเดียวจึงใช้ได้

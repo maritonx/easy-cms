@@ -89,7 +89,7 @@ Two collections are built in: [`users`](./auth) and [`media`](./uploads). Declar
 with the same slug to add fields, access rules or hooks to them.
 
 Reserved slugs: `admin`, `globals`, `jobs`, `sessions`, `login-attempts`, `document-versions`,
-`scheduled-jobs`, `migrations`, `access`.
+`scheduled-jobs`, `migrations`, `access`, `auth`.
 
 ## Globals
 

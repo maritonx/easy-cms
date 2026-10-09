@@ -74,7 +74,7 @@ export interface SignupArgs {
   readonly email: string
   readonly password: string
   readonly name?: string | undefined
-  /** From `GET <api>/users/signup`: the form was loaded a moment ago. */
+  /** From `GET <api>/auth/signup`: the form was loaded a moment ago. */
   readonly token?: unknown
   /** The hidden field; bots fill it in. */
   readonly honeypot?: unknown

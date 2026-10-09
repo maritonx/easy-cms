@@ -82,7 +82,7 @@ async function latest(collection: AdminCollection, where?: unknown): Promise<Lat
 
 async function loadScheduled() {
   try {
-    const jobs = await api<Job[]>('GET', '/admin/scheduled')
+    const jobs = await api<Job[]>('GET', '/admin/ui/scheduled')
     // Titles of the documents, so the list says what will be published.
     await Promise.all(
       jobs.map(async (job) => {

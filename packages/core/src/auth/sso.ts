@@ -13,14 +13,14 @@ export const SSO_COOKIE = 'ecms-sso'
 /** How long a sign-in may take at the provider. */
 const PENDING_TTL = 10 * 60_000
 
-/** A provider as the login page shows it (`GET <api>/users/init`). */
+/** A provider as the login page shows it (`GET <api>/auth/init`). */
 export interface SsoProviderRef {
   id: string
   name: string
   icon: string
 }
 
-/** Settings → SSO (`GET <api>/admin/sso`). */
+/** Settings → SSO (`GET <api>/admin/ui/sso`). */
 export interface AdminSso {
   providers: (SsoProviderRef & {
     /** Give this to the provider as the redirect (callback) URL. */

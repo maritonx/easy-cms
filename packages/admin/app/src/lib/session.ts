@@ -43,11 +43,11 @@ export const session = reactive<SessionState>({
 
 /** Loads the current user and, when logged in, the admin schema. */
 export async function loadSession(): Promise<void> {
-  const me = await api<{ user: (User & { member?: boolean }) | null }>('GET', '/users/me')
+  const me = await api<{ user: (User & { member?: boolean }) | null }>('GET', '/auth/me')
   // Site members (e.g. customers) are signed in on the site, not here.
   session.user = me.user?.member ? null : me.user
   if (session.user) {
-    session.schema = await api<AdminSchema>('GET', '/admin/schema')
+    session.schema = await api<AdminSchema>('GET', '/admin/ui/schema')
     // Components from admin modules; views wait for the ones they show.
     void loadModules(session.schema.modules ?? [])
   } else {
@@ -58,7 +58,7 @@ export async function loadSession(): Promise<void> {
       providers?: SsoProviderRef[]
       password?: boolean
       setupCode?: boolean
-    }>('GET', '/users/init')
+    }>('GET', '/auth/init')
     session.hasUsers = init.hasUsers
     session.passwordReset = init.passwordReset === true
     session.providers = init.providers ?? []
@@ -72,7 +72,7 @@ export async function loadSession(): Promise<void> {
 export class MemberAccountError extends Error {}
 
 export async function login(email: string, password: string): Promise<void> {
-  const result = await api<{ user: { member?: boolean } }>('POST', '/users/login', {
+  const result = await api<{ user: { member?: boolean } }>('POST', '/auth/login', {
     email,
     password,
   })
@@ -82,12 +82,12 @@ export async function login(email: string, password: string): Promise<void> {
 
 /** Asks for a link to set a new password; the answer is the same whether the email exists. */
 export async function forgotPassword(email: string, locale: string): Promise<void> {
-  await api('POST', '/users/forgot-password', { email, locale })
+  await api('POST', '/auth/forgot-password', { email, locale })
 }
 
 /** Sets the password from a link and signs in. */
 export async function resetPassword(token: string, password: string, locale: string) {
-  await api('POST', '/users/reset-password', { token, password, locale })
+  await api('POST', '/auth/reset-password', { token, password, locale })
   await loadSession()
 }
 
@@ -97,12 +97,12 @@ export async function registerFirstUser(data: {
   name?: string
   setupCode?: string
 }) {
-  await api('POST', '/users/first-register', data)
+  await api('POST', '/auth/first-register', data)
   await loadSession()
 }
 
 export async function logout(): Promise<void> {
-  await api('POST', '/users/logout').catch(() => {})
+  await api('POST', '/auth/logout').catch(() => {})
   session.user = null
   session.schema = null
 }

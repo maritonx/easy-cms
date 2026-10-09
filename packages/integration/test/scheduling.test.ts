@@ -115,7 +115,7 @@ describe('scheduled publishing (FR-SCH)', () => {
     } as never)
     const { token } = await cms.auth.createSession(admin.id)
     const res = await handle(
-      new Request('http://cms.test/api/cms/admin/scheduled', {
+      new Request('http://cms.test/api/cms/admin/ui/scheduled', {
         headers: { authorization: `Bearer ${token}` },
       }),
     )
@@ -170,7 +170,9 @@ describe('scheduled publishing (FR-SCH)', () => {
       emails: { sent: 0, failed: 0 },
       jobs: { ran: 0, failed: 0 },
     })
-    expect((await call('POST', '/jobs/run')).json).toMatchObject({ scheduled: { ran: 0, failed: 0 } })
+    expect((await call('POST', '/jobs/run')).json).toMatchObject({
+      scheduled: { ran: 0, failed: 0 },
+    })
 
     const job = (
       await call('POST', `/posts/${post.id}/schedule`, {

@@ -78,7 +78,7 @@ async function call(path: string, { method = 'GET', body, headers = {} }: Call =
 
 /** Logs in and returns headers that authenticate like a browser (cookie + CSRF header). */
 async function browser(email: string) {
-  const login = await call('/users/login', { method: 'POST', body: { email, password: PASSWORD } })
+  const login = await call('/auth/login', { method: 'POST', body: { email, password: PASSWORD } })
   expect(login.status).toBe(200)
   const cookies = login.headers.getSetCookie()
   const session = cookies.find((c) => c.startsWith('ecms-session='))?.split(';')[0] as string
@@ -419,9 +419,40 @@ describe('globals', () => {
     const { headers } = await browser('admin@x.co')
     expect((await call('/globals/site')).json).toMatchObject({ name: null })
     expect(
-      (await call('/globals/site', { method: 'POST', body: { name: 'Easy' }, headers })).json,
+      (await call('/globals/site', { method: 'PATCH', body: { name: 'Easy' }, headers })).json,
     ).toMatchObject({ name: 'Easy' })
+    // POST too, as before 0.60.
+    expect(
+      (await call('/globals/site', { method: 'POST', body: { name: 'Easier' }, headers })).json,
+    ).toMatchObject({ name: 'Easier' })
     expect((await call('/globals/nope')).status).toBe(404)
+  })
+})
+
+describe('routes of 0.60', () => {
+  it('signs in at /auth/*, and still at /users/*', async () => {
+    const viaAuth = await browser('editor@x.co')
+    expect((await call('/auth/me', { headers: viaAuth.headers })).json.user.email).toBe(
+      'editor@x.co',
+    )
+    const viaUsers = await call('/users/login', {
+      method: 'POST',
+      body: { email: 'editor@x.co', password: PASSWORD },
+    })
+    expect(viaUsers.status).toBe(200)
+    expect((await call('/users/init')).json.hasUsers).toBe(true)
+  })
+
+  it('serves what only the admin UI uses under /admin/ui, and not where it was', async () => {
+    const { headers } = await browser('admin@x.co')
+    expect((await call('/admin/ui/schema', { headers })).status).toBe(200)
+    expect((await call('/admin/schema', { headers })).status).toBe(404)
+    expect((await call('/admin/ui/status', { headers })).status).toBe(404)
+    expect((await call('/admin/status', { headers })).status).toBe(200)
+  })
+
+  it('takes fallbackLocale as well as fallback-locale', async () => {
+    expect((await call('/posts?fallbackLocale=nope')).status).not.toBe(500)
   })
 })
 
@@ -493,9 +524,9 @@ describe('unexpected errors (FR-REST-06)', () => {
 
 describe('admin endpoints', () => {
   it('returns the schema with permissions for the current user, without hidden fields', async () => {
-    expect((await call('/admin/schema')).status).toBe(401)
+    expect((await call('/admin/ui/schema')).status).toBe(401)
     const editor = await browser('editor@x.co')
-    const { json } = await call('/admin/schema', { headers: editor.headers })
+    const { json } = await call('/admin/ui/schema', { headers: editor.headers })
     const slugs = json.collections.map((c: { slug: string }) => c.slug)
     expect(slugs).toEqual(['users', 'media', 'posts', 'pages'])
     const users = json.collections[0]
@@ -546,15 +577,21 @@ describe('admin endpoints', () => {
     const self = editor.login.json.user.id
     const admin = (await cms.find('users', { where: { email: { equals: 'admin@x.co' } } })).docs[0]
       ?.id
-    expect((await call(`/admin/access/users/${self}`, { headers: editor.headers })).json).toEqual({
+    expect(
+      (await call(`/admin/ui/access/users/${self}`, { headers: editor.headers })).json,
+    ).toEqual({
       update: true,
       delete: false,
     })
-    expect((await call(`/admin/access/users/${admin}`, { headers: editor.headers })).json).toEqual({
+    expect(
+      (await call(`/admin/ui/access/users/${admin}`, { headers: editor.headers })).json,
+    ).toEqual({
       update: false,
       delete: false,
     })
-    expect((await call('/admin/access/sessions/1', { headers: editor.headers })).status).toBe(404)
+    expect((await call('/admin/ui/access/sessions/1', { headers: editor.headers })).status).toBe(
+      404,
+    )
     expect((await call('/admin/nope', { headers: editor.headers })).status).toBe(404)
   })
 })

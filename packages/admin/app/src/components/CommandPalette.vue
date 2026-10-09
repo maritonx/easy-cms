@@ -219,7 +219,7 @@ watch(query, (q) => {
     try {
       const result = await api<{ docs: SearchHit[] }>(
         'GET',
-        `/admin/search?q=${encodeURIComponent(text)}`,
+        `/admin/ui/search?q=${encodeURIComponent(text)}`,
       )
       if (ask === asked) hits.value = result.docs
     } catch {

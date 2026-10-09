@@ -93,7 +93,7 @@ async function load() {
       api<Doc>('GET', `${path}?depth=0&draft=true${localeQuery({ editing: true })}`),
       api<{ update: boolean; delete: boolean }>(
         'GET',
-        `/admin/access/${props.slug}/${encodeURIComponent(props.id)}`,
+        `/admin/ui/access/${props.slug}/${encodeURIComponent(props.id)}`,
       ),
     ])
     doc.value = loaded

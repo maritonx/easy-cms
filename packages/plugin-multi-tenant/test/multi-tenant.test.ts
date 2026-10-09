@@ -246,7 +246,7 @@ describe('documents of a tenant', () => {
 
   it("have folders per tenant, made where an upload field's key says", async () => {
     const folderOf = async (as: string, tenant?: string) => {
-      const schema = (await call('GET', '/admin/schema', { as, ...(tenant ? { tenant } : {}) }))
+      const schema = (await call('GET', '/admin/ui/schema', { as, ...(tenant ? { tenant } : {}) }))
         .body
       const posts = (schema.collections as Body[]).find((c) => c.slug === 'posts') as Body
       return (posts.fields as Body[]).find((f) => f.name === 'cover')?.folder.id
@@ -322,11 +322,11 @@ describe('roles per tenant', () => {
       (await call('GET', '/users/me', { as: 'bob', ...(tenant ? { tenant } : {}) })).body.user
     expect(await me()).toMatchObject({ role: 'admin', scoped: true })
     expect(await me('b')).toMatchObject({ role: 'editor', scoped: true })
-    const schema = (await call('GET', '/admin/schema', { as: 'bob' })).body
+    const schema = (await call('GET', '/admin/ui/schema', { as: 'bob' })).body
     expect(schema.views).toMatchObject({ backups: false, roles: false })
     expect(schema.switcher).toMatchObject({ cookie: 'ecms-tenant', options: '/tenant-options' })
     expect((await call('GET', '/admin/backups', { as: 'bob' })).status).toBe(403)
-    const root = (await call('GET', '/admin/schema', { as: 'root' })).body
+    const root = (await call('GET', '/admin/ui/schema', { as: 'root' })).body
     expect(root.views.backups).toBe(true)
   })
 
@@ -454,7 +454,7 @@ describe('audit log', () => {
 
 describe('tenants', () => {
   it('ask to type their name before deleting, saying what goes', async () => {
-    const schema = (await call('GET', '/admin/schema', { as: 'root' })).body
+    const schema = (await call('GET', '/admin/ui/schema', { as: 'root' })).body
     const tenants = (schema.collections as Body[]).find((c) => c.slug === 'tenants') as Body
     expect(tenants.confirmDelete).toEqual({ typeTitle: true, impact: '/tenant-impact' })
     const impact = await call('GET', `/tenant-impact?id=${b}`, { as: 'root' })

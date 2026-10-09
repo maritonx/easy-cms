@@ -132,6 +132,9 @@ oidc({
 The provider's `/.well-known/openid-configuration` is read for its endpoints. Its ID token needs
 `email` and `email_verified` (the `email` scope).
 
+The `id` can't be one of the sign-in actions under `/auth/` (`login`, `logout`, `me`, `init`,
+`signup`, `verify-email`, `forgot-password`, `reset-password`, `first-register`) or `identities`.
+
 ## How it is kept safe
 
 - The Authorization Code flow with **PKCE**, a `state` and (OpenID Connect) a `nonce`, kept in a

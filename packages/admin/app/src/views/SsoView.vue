@@ -14,7 +14,7 @@ const copied = ref('')
 
 onMounted(async () => {
   try {
-    sso.value = await api<AdminSso>('GET', '/admin/sso')
+    sso.value = await api<AdminSso>('GET', '/admin/ui/sso')
   } catch (e) {
     failed.value = e instanceof ApiError ? (e.errors[0]?.message ?? e.message) : String(e)
   }

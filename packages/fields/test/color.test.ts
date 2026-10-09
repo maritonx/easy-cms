@@ -131,7 +131,7 @@ describe('color', () => {
     await cms.create('users', { email: 'a@example.com', password: 'password-123' })
     const { token } = await cms.auth.login({ email: 'a@example.com', password: 'password-123' })
     const response = await handle(
-      new Request('http://localhost/api/cms/admin/schema', {
+      new Request('http://localhost/api/cms/admin/ui/schema', {
         headers: { authorization: `Bearer ${token}` },
       }),
     )

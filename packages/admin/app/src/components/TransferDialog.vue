@@ -34,7 +34,10 @@ watch(
     try {
       const totals = new Map<string, number>()
       for (const id of props.userIds) {
-        const list = await api<{ collection: string; count: number }[]>('GET', `/admin/owned/${id}`)
+        const list = await api<{ collection: string; count: number }[]>(
+          'GET',
+          `/admin/ui/owned/${id}`,
+        )
         for (const row of list)
           totals.set(row.collection, (totals.get(row.collection) ?? 0) + row.count)
       }
