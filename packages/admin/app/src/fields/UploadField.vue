@@ -4,6 +4,7 @@ import { ref, watch } from 'vue'
 import MediaPicker from '../components/MediaPicker.vue'
 import MediaThumb from '../components/MediaThumb.vue'
 import { api, type Doc } from '../lib/api'
+import { useFilterQuery } from '../lib/filter'
 import type { FieldFolder } from '../lib/folders'
 import { t } from '../lib/i18n'
 
@@ -16,8 +17,12 @@ const props = defineProps<{
   mimeTypes?: readonly string[] | undefined
   /** The media folder the picker opens in (`folder`). */
   folder?: FieldFolder | undefined
+  /** The field's path, when its `filterOptions` limit the choices. */
+  filterPath?: string | undefined
 }>()
 const emit = defineEmits<{ 'update:modelValue': [unknown] }>()
+/** The server applies the field's `filterOptions` for this document. */
+const filterQuery = useFilterQuery(() => props.filterPath)
 
 const media = ref<Doc | null>(null)
 const picking = ref(false)
@@ -88,7 +93,8 @@ function choose(doc: Doc) {
       {{ t('media.choose') }}
     </button>
     <span v-else class="muted">—</span>
-    <MediaPicker :open="picking" :mime-types="mimeTypes" :folder="folder" @select="choose" @close="picking = false" />
+    <MediaPicker :open="picking" :mime-types="mimeTypes" :folder="folder"
+    :filter-query="filterQuery()" @select="choose" @close="picking = false" />
   </div>
 </template>
 

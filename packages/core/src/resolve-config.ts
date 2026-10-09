@@ -157,5 +157,6 @@ function resolveAudit(audit: AuditConfig): Required<AuditConfig> {
     keep: audit.keep ?? DEFAULT_AUDIT_KEEP,
     values: audit.values !== false,
     failedLogins: audit.failedLogins ?? DEFAULT_FAILED_LOGINS,
+    scope: audit.scope ?? null,
   }
 }

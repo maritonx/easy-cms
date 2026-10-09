@@ -17,7 +17,14 @@ import {
 } from '@easy-cms/core'
 import { getTree, rebuildNestedDocs } from './helpers.js'
 import { INFO } from './info.js'
-import { type ID, idOf, NESTED_SOURCE, type NestedCollection, type NestedSource } from './shared.js'
+import {
+  type ID,
+  idOf,
+  NESTED_SOURCE,
+  type NestedCollection,
+  type NestedSource,
+  pathScopeFields,
+} from './shared.js'
 import { descendants, liveChildren, syncChildren, trailData, trailOf } from './tree.js'
 
 export interface NestedDocsPluginOptions {
@@ -236,12 +243,17 @@ export function nestedDocsPlugin<
             { field: names.parent, message: `is too deep: pages go at most ${maxDepth} levels` },
           ])
         }
+        // Paths differ among pages of the same scope only, e.g. of one tenant.
+        const scope = pathScopeFields(cms, nested).map((name) => ({
+          [name]: { equals: data[name] ?? null },
+        }))
         for (const [locale, path] of trail.path) {
           if (!path) continue
           const taken = await cms.find(collection.slug, {
             where: {
               and: [
                 { [names.path]: { equals: path } },
+                ...scope,
                 ...(selfId === null ? [] : [{ id: { not_equals: selfId } }]),
               ],
             },

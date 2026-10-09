@@ -3,7 +3,7 @@
 - **สถานะ:** Accepted (living document)
 - **วันที่:** 2026-10-01 (ฉบับแรก 2026-09-25)
 - **ผู้เขียน:** Kanawoot K.
-- **ครอบคลุม:** v0.1 ถึง v0.44
+- **ครอบคลุม:** v0.1 ถึง v0.45
 - **Requirements:** [SRS.md](SRS.md)
 
 ---
@@ -99,6 +99,7 @@ Plugin ยังเป็น `(config) => config` เหมือน v0.1 คว
 - **`onRequest`** ใน config หา `context` ของแต่ละ request และผู้ใช้ใน context นั้น ส่งต่อให้ access, hook, `filterOptions` และ Local API (`context`) ผู้ใช้ที่ `scoped` เป็น admin ของส่วนของตัวเองเท่านั้น (`isSystemAdmin`)
 - **global ที่มี `scope`** เก็บค่าต่อ scope (`<slug>@<scope>`), **`uniqueWithin`** ใช้ได้ทุก field ที่ unique พร้อม index `(scope, field)`, **`admin.switcher`** ตัวเลือกด้านบนเมนูเก็บใน cookie
 - **`@easy-cms/plugin-multi-tenant`** แยก tenant แบบ row-level ในฐานข้อมูลเดียว: collection `tenants`, field `tenant`, สมาชิกและบทบาทต่อ tenant, global ต่อ tenant, ตัวสลับ และหน้า Members → ดู [ADR-0047](adr/0047-multi-tenant.md)
+- **0.45:** upload `filterOptions`, `uniqueWithin` หลาย field, `cms.uniqueScope()` ให้ plugin หาเอกสารตาม key ใน scope ที่ถูก (โฟลเดอร์, หน้าย่อย, redirects, ฟอร์ม), `audit.scope`, `admin.confirmDelete` และตัวเลือก field ใน admin (`defaultValue`, `column`, `allowCreate`) → ดู [ADR-0048](adr/0048-multi-tenant-follow-ups.md)
 
 ### 4.6 GraphQL (0.43)
 - **`@easy-cms/plugin-graphql`** สร้าง schema จาก config ที่ resolve แล้ว ทุก resolver เรียก Local API ด้วย `overrideAccess: false` ความสัมพันธ์โหลดผ่าน DataLoader ต่อ request จำกัดความลึก 7 และ 2000 เอกสารต่อ request ต่อยอดด้วย `extend` และ `buildGraphQLSchema` → ดู [ADR-0046](adr/0046-graphql-plugin.md)
@@ -408,3 +409,4 @@ CI รัน lint, typecheck, build และ test บน Linux, macOS และ
 - [ADR-0045](adr/0045-framework-kit.md) — ชุดเครื่องมือกลางสำหรับ framework
 - [ADR-0046](adr/0046-graphql-plugin.md) — GraphQL เป็น plugin
 - [ADR-0047](adr/0047-multi-tenant.md) — Multi-tenant เป็น plugin บนจุดต่อใน core
+- [ADR-0048](adr/0048-multi-tenant-follow-ups.md) — Multi-tenant ครบขึ้น: ไฟล์ โฟลเดอร์ plugin อื่น audit และการลบ

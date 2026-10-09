@@ -13,7 +13,7 @@
 | `label` | `string \| { en, th }` | ค่าเริ่มต้นคือชื่อ field ที่แปลงให้อ่านง่าย |
 | `required` | `boolean` | ต้องมีค่า (ไม่ตรวจตอนบันทึกฉบับร่าง) |
 | `unique` | `boolean` | เอกสารสองรายการใช้ค่าซ้ำกันไม่ได้ (field ระดับบนสุด) |
-| `uniqueWithin` | `string` | ใช้กับ `unique` หรือ slug: field ข้างเคียง (เช่น `parent`, `tenant`) ค่าห้ามซ้ำเฉพาะเอกสารที่มีค่าใน field นั้นเหมือนกัน |
+| `uniqueWithin` | `string \| string[]` | ใช้กับ `unique` หรือ slug: field ข้างเคียง (เช่น `parent`, `tenant`) ค่าห้ามซ้ำเฉพาะเอกสารที่มีค่าใน field เหล่านั้นเหมือนกัน |
 | `index` | `boolean` | สร้าง index ในฐานข้อมูล |
 | `defaultValue` | ค่าของ field | ใช้เมื่อสร้างเอกสารโดยไม่มีค่านี้ |
 | `validate` | `(value, { data, operation }) => true \| string` | ตรวจเอง เป็น async ได้ |
@@ -32,6 +32,9 @@
 | `component` | `AdminComponent` | Web Component แทนช่องกรอก [Admin components](/th/guide/plugins#admin-components) |
 | `after` | `AdminComponent[]` | component ที่แสดงใต้ field |
 | `cell` | `AdminComponent` | แสดงค่าในคอลัมน์ของหน้ารายการ เช่น จุดสี |
+| `column` | `boolean \| ({ user, context }) => boolean` | แสดงเป็นคอลัมน์ของหน้ารายการตั้งแต่แรก (ผู้ใช้เปลี่ยนเองได้) |
+| `allowCreate` | `boolean` | relationship: ให้สร้างเอกสารที่เชื่อมได้ทันที ค่าเริ่มต้น `true` |
+| `defaultValue` | `({ user, context }) => unknown` | ค่าเริ่มต้นของฟอร์มเอกสารใหม่ต่อผู้ใช้ เช่น จาก context ของ request |
 
 `AdminComponent` คือชื่อ tag ที่ขึ้นต้นด้วย `ecms-` หรือ `{ tag, props }`
 

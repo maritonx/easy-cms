@@ -26,7 +26,10 @@
   },
   "devDependencies": {
     "@easy-cms/core": "workspace:^",
-    "@easy-cms/db-sqlite": "workspace:^"
+    "@easy-cms/db-sqlite": "workspace:^",
+    "@easy-cms/plugin-form-builder": "workspace:^",
+    "@easy-cms/plugin-nested-docs": "workspace:^",
+    "@easy-cms/plugin-redirects": "workspace:^"
   },
   "engines": {
     "node": ">=22.12"

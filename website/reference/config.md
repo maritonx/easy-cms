@@ -113,6 +113,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `keep` | `number` | `365` | Days to keep entries; older ones are deleted. `0`: keep them all. |
 | `values` | `boolean` | `true` | Keep values before and after a change; `false`: only which fields changed. |
 | `failedLogins` | `number` | `20` | Failed sign-ins within an hour that the dashboard warns about. [Audit log](/guide/audit-log) |
+| `scope` | `(context) => string \| null` | — | The part of the site an entry belongs to, e.g. its tenant (usually set by a plugin). Admins of a part (`scoped`) see its entries; others the chosen part's, or all. |
 
 <!-- api: AuthConfig -->
 ## auth
@@ -237,6 +238,7 @@ Every hook also gets `user`, `cms` and `slug`.
 | `group` | `'settings'` | List the collection under Settings in the menu, with Users and API keys. |
 | `list` | `{ tree?, sort? }` | The list page: `tree` names a relationship to the same collection to show a tree (top-level documents first, children open below); `sort` is the default order, e.g. `'title'`. |
 | `ownerField` | `string` | With `auth.rbac`: a relationship field to `users` naming the owner, e.g. `'author'`, for roles given "own documents only". Default: who created it (`createdBy`). [Roles](/guide/roles#own-documents-only) |
+| `confirmDelete` | `{ typeTitle?, impact? }` | Deleting asks more: `typeTitle` has the user type the title; `impact` is a path under the API, called with `?id=`, returning `{ message }` about what goes too. No deleting from a selection. |
 
 <!-- api: GlobalConfig -->
 ## globals

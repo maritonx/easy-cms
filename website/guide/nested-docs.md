@@ -211,6 +211,11 @@ The plugin uses parts of Easy CMS that your own collections can use too:
   leaves a pending draft pending and adds no version.
 - `commands` in the config: `easy-cms <name>` commands from plugins. See [CLI](./cli).
 
+## In several tenants
+
+With the [multi-tenant plugin](./multi-tenant#with-other-plugins), paths only differ within a
+tenant. Pass the request's `context` to `findByPath()` and `getTree()`.
+
 ## Next steps
 
 - [Redirects](./redirects): keep old addresses working.

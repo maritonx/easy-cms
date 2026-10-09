@@ -201,6 +201,11 @@ formBuilderPlugin({
   ส่งข้อมูลแต่ละรายการไป Slack, LINE, n8n หรือ CRM ของคุณ
 - **ผู้ช่วย AI**: ถ้าใช้ [plugin MCP](./mcp) กับ API key ที่อ่าน `form-submissions` ได้ ผู้ช่วยสรุปข้อความที่ได้รับในสัปดาห์นี้ได้
 
+## ในหลาย tenant {#in-several-tenants}
+
+เมื่อใช้ [plugin multi-tenant](./multi-tenant#with-other-plugins) ฟอร์มจะหาจาก tenant ของ request (โดเมนหรือ
+`x-easy-cms-tenant`) และข้อมูลที่ส่งมาเป็นของ tenant นั้น
+
 ## ขั้นต่อไป {#next-steps}
 
 - [อีเมล](./email): SMTP และการส่งซ้ำ

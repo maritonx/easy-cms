@@ -376,9 +376,7 @@ async function normalizeValue(
           field: path,
           collection: target,
           id,
-          ...(field.type === 'relationship' && field.filterOptions
-            ? { filterOptions: field.filterOptions }
-            : {}),
+          ...(field.filterOptions ? { filterOptions: field.filterOptions } : {}),
           ...(field.type === 'upload' && field.mimeTypes ? { mimeTypes: field.mimeTypes } : {}),
           ...(field.type === 'upload' && field.folder && field.folderOnly
             ? { folderOnly: field.folder }

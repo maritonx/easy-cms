@@ -26,6 +26,8 @@ interface FolderRow {
   /** Set on the folder itself; its subfolders are private too. */
   private: boolean
   permissions: FolderPermissions | null
+  /** The whole document, for fields keys are unique within (`uniqueWithin`, e.g. the tenant). */
+  doc: Record<string, unknown>
 }
 
 /** Files that are not private; files from before private folders have no value. */
@@ -89,6 +91,7 @@ export class MediaFolders {
           permissions && typeof permissions === 'object' && !Array.isArray(permissions)
             ? (permissions as FolderPermissions)
             : null,
+        doc,
       })
     }
     this.cache = { at: Date.now(), rows }
@@ -172,8 +175,24 @@ export class MediaFolders {
    * The folder with this key (`folder: 'banners'` on upload fields), made at the top level when
    * there is none yet.
    */
-  async keyed(key: string): Promise<ID> {
-    const find = async () => [...(await this.rows()).values()].find((r) => r.key === key)
+  /**
+   * The folder with this key, made when first needed. `scope`: the values the key is unique
+   * within (`uniqueWithin` of the `key` field, e.g. the tenant), given to a new folder too.
+   * `null` when there is none and `create` is false.
+   */
+  async keyed(key: string, scope?: Readonly<Record<string, unknown>>): Promise<ID>
+  async keyed(
+    key: string,
+    scope: Readonly<Record<string, unknown>>,
+    create: boolean,
+  ): Promise<ID | null>
+  async keyed(
+    key: string,
+    scope: Readonly<Record<string, unknown>> = {},
+    create = true,
+  ): Promise<ID | null> {
+    const find = async () =>
+      [...(await this.rows()).values()].find((r) => r.key === key && inScope(r.doc, scope))
     let found = await find()
     if (!found) {
       // Maybe made since the folders were read.
@@ -181,6 +200,7 @@ export class MediaFolders {
       found = await find()
     }
     if (found) return found.id
+    if (!create) return null
     const now = new Date().toISOString()
     try {
       const doc = await this.db.create({
@@ -191,6 +211,7 @@ export class MediaFolders {
           parent: null,
           permissions: null,
           private: false,
+          ...scope,
           createdAt: now,
           updatedAt: now,
         },
@@ -207,10 +228,14 @@ export class MediaFolders {
   }
 
   /** Whether a file in `folder` is in the folder with this key, or below it. */
-  async inKeyed(key: string, folder: ID | null): Promise<boolean> {
+  async inKeyed(
+    key: string,
+    folder: ID | null,
+    scope: Readonly<Record<string, unknown>> = {},
+  ): Promise<boolean> {
     if (folder === null) return false
     const rows = await this.rows()
-    const root = [...rows.values()].find((r) => r.key === key)
+    const root = [...rows.values()].find((r) => r.key === key && inScope(r.doc, scope))
     return !!root && this.within(rows, [root.id]).some((id) => String(id) === String(folder))
   }
 
@@ -345,4 +370,13 @@ export class MediaFolders {
     this.invalidate()
     return this.rows()
   }
+}
+
+/** Whether a folder row has these values (ids compared as strings). */
+function inScope(row: Record<string, unknown>, scope: Readonly<Record<string, unknown>>) {
+  return Object.entries(scope).every(([name, value]) =>
+    value === null || value === undefined
+      ? row[name] === null || row[name] === undefined
+      : String(row[name]) === String(value),
+  )
 }

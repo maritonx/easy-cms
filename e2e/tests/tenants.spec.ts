@@ -123,3 +123,18 @@ test('serves each tenant to its frontend', async ({ request }) => {
   // Naming no tenant finds nothing.
   expect((await (await request.get('/api/cms/posts')).json()).totalDocs).toBe(0)
 })
+
+test('asks for the name before deleting a tenant, and says what goes', async ({ page }) => {
+  await login(page, ROOT)
+  const brand = await write(page, 'POST', '/tenants', { name: 'Brand C', slug: 'brand-c' })
+  await page.goto(`/admin/collections/tenants/${brand.id}`)
+  await page.getByRole('button', { name: 'Delete', exact: true }).click()
+  const dialog = page.getByRole('dialog')
+  await expect(dialog.getByText(/It has no content/)).toBeVisible()
+  const remove = dialog.getByRole('button', { name: 'Delete', exact: true })
+  await expect(remove).toBeDisabled()
+  await dialog.getByRole('textbox', { name: 'Type “Brand C” to confirm' }).fill('Brand C')
+  await remove.click()
+  await expect(page).toHaveURL(/\/admin\/collections\/tenants$/)
+  await expect(page.getByRole('link', { name: 'Brand C' })).toHaveCount(0)
+})

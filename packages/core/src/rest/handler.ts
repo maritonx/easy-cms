@@ -175,6 +175,7 @@ async function respond(
     // Who and from where, for the audit log of whatever this request changes.
     const audit = {
       user,
+      context,
       ip: options.getClientIp?.(request),
       userAgent: request.headers.get('user-agent'),
     }
@@ -502,7 +503,10 @@ async function route(
       actor: q.get('actor'),
       from: q.get('from'),
       to: q.get('to'),
+      // Users of a part of the site (e.g. one tenant) see its entries; others the chosen part's.
+      scope: cms.audit.scopeOf(ctx.context),
     }
+    if (ctx.user.scoped && !filter.scope) throw new ForbiddenError()
     if (second === 'audit.csv' && third === undefined) {
       if (method !== 'GET') throw methodNotAllowed(ctx, 'GET')
       return {

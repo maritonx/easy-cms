@@ -217,6 +217,15 @@ export class Roles {
   async canView(user: AuthUser, id: string): Promise<boolean> {
     if (isSystemAdmin(user)) return true
     if (user.apiKey) return false
+    // Admins of a part of the site (e.g. a tenant) see its audit log, when entries have a part.
+    if (
+      id === 'audit' &&
+      user.role === 'admin' &&
+      user.scoped === true &&
+      this.config.audit !== false &&
+      typeof this.config.audit.scope === 'function'
+    )
+      return true
     if (!this.enabled) return id.startsWith('page:') || id.startsWith('widget:')
     return (await this.permissionsOf(user.role)).admin?.includes(id) ?? false
   }

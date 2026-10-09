@@ -13,7 +13,7 @@ look in the admin and how they are stored, see [Fields](/guide/fields).
 | `label` | `string \| { en, th }` | Default: the name, humanized. |
 | `required` | `boolean` | Must have a value (not checked while saving a draft). |
 | `unique` | `boolean` | No two documents share the value (top-level fields). |
-| `uniqueWithin` | `string` | With `unique` or on a slug: a sibling field (e.g. `parent`, `tenant`); values only differ among documents with the same value there. |
+| `uniqueWithin` | `string \| string[]` | With `unique` or on a slug: sibling fields (e.g. `parent`, `tenant`); values only differ among documents with the same values there. |
 | `index` | `boolean` | Adds a database index. |
 | `defaultValue` | the field's value | Used when a document is created without it. |
 | `validate` | `(value, { data, operation }) => true \| string` | Custom check; may be async. |
@@ -32,6 +32,9 @@ look in the admin and how they are stored, see [Fields](/guide/fields).
 | `component` | `AdminComponent` | A Web Component instead of the input. [Admin components](/guide/plugins#admin-components) |
 | `after` | `AdminComponent[]` | Components shown below the field. |
 | `cell` | `AdminComponent` | Shows the value in the list's column, e.g. a color swatch. |
+| `column` | `boolean \| ({ user, context }) => boolean` | A column of the list at first (each user can change it). |
+| `allowCreate` | `boolean` | Relationships: offer to create the related document in place. Default `true`. |
+| `defaultValue` | `({ user, context }) => unknown` | The value a new document's form starts with, per user, e.g. from the request's context. |
 
 An `AdminComponent` is a tag name starting with `ecms-`, or `{ tag, props }`.
 

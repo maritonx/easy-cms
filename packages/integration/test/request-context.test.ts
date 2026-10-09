@@ -126,4 +126,59 @@ describe('request context', () => {
     expect(changed.permissions).toMatchObject({ context: { site: 'a' } })
     await cms.destroy()
   })
+
+  it('narrows uploads with filterOptions, and keeps values unique within several fields', async () => {
+    const cms = await open(
+      defineConfig({
+        secret: SECRET,
+        db: db(),
+        collections: [
+          {
+            slug: 'items',
+            fields: [
+              { name: 'shop', type: 'text' },
+              { name: 'lang', type: 'text' },
+              { name: 'code', type: 'text', unique: true, uniqueWithin: ['shop', 'lang'] },
+              {
+                name: 'photo',
+                type: 'upload',
+                filterOptions: () => ({ alt: { equals: 'approved' } }),
+              },
+            ],
+          },
+        ],
+      }),
+    )
+    const pdf = (alt: string) =>
+      cms.upload({ data: new TextEncoder().encode('%PDF-1.4\n%\n'), name: 'a.pdf' }, { alt })
+    const ok = await pdf('approved')
+    const no = await pdf('draft')
+    await expect(cms.create('items', { code: 'x', photo: no.id } as never)).rejects.toThrow(
+      /photo: is not one of the allowed choices/,
+    )
+    await cms.create('items', { code: 'x', shop: 'a', lang: 'th', photo: ok.id } as never)
+    await cms.create('items', { code: 'x', shop: 'a', lang: 'en' } as never)
+    await cms.create('items', { code: 'x', shop: 'b', lang: 'th' } as never)
+    await expect(
+      cms.create('items', { code: 'x', shop: 'a', lang: 'th' } as never),
+    ).rejects.toThrow(/code: must be unique/)
+    await cms.destroy()
+  })
+
+  it('keeps audit entries of a scope apart', async () => {
+    const cms = await open(
+      defineConfig({
+        ...config(),
+        audit: { scope: (context) => (context.site as string | undefined) ?? null },
+      }),
+    )
+    await cms.create('products', { sku: 'S-1' } as never, { context: { site: 'a' } })
+    await cms.create('products', { sku: 'S-2' } as never, { context: { site: 'b' } })
+    const inA = await cms.audit.list({ scope: 'a' })
+    expect(inA.docs.map((e) => e.action)).toEqual(['create'])
+    expect((await cms.audit.list({})).totalDocs).toBe(2)
+    // Scoped entries are signed with their scope.
+    expect((await cms.audit.verify()).invalid).toEqual([])
+    await cms.destroy()
+  })
 })

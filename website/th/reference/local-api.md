@@ -113,6 +113,7 @@ Local API เชื่อผู้เรียกและข้ามกฎส�
 | `createApiKey({ name, permissions?, expiresAt?, user? }, options?)` | `{ key, doc }` | [API key](/th/guide/api-keys) ใหม่ (เมื่อมี `apiKeys: true`) key จะถูกคืนมาที่นี่ครั้งเดียว |
 | `documentPermissions(collection, id, user)` | `{ update, delete }` | ผู้ใช้ทำอะไรกับเอกสารนี้ได้บ้าง |
 | `destroy()` | — | หยุดตัวจับเวลา รอการส่ง webhook และปิดการเชื่อมต่อฐานข้อมูล |
+| `uniqueScope(collection, field, { user?, context? })` | `{ [field]: value }` | field ที่ unique ห้ามซ้ำภายในอะไรสำหรับการเรียกนี้ (`uniqueWithin` เช่น tenant) ตามที่ hook จะตั้งให้ คืน `{}` ถ้า unique ทั้งระบบ ใช้หาเอกสารด้วย field นั้น |
 | `forRequest(request \| headers)` | `{ user, context }` | ผู้ใช้ (cookie session หรือ Bearer token) และ context (`onRequest`) ของ request แบบเดียวกับ REST ส่งทั้งคู่พร้อม `overrideAccess: false` |
 
 object `cms` ยังมี `config` (config ที่ resolve แล้ว), `auth` (การ login และตรวจ session),

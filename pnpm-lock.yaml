@@ -510,6 +510,15 @@ importers:
       '@easy-cms/db-sqlite':
         specifier: workspace:^
         version: link:../db-sqlite
+      '@easy-cms/plugin-form-builder':
+        specifier: workspace:^
+        version: link:../plugin-form-builder
+      '@easy-cms/plugin-nested-docs':
+        specifier: workspace:^
+        version: link:../plugin-nested-docs
+      '@easy-cms/plugin-redirects':
+        specifier: workspace:^
+        version: link:../plugin-redirects
 
   packages/plugin-nested-docs:
     devDependencies:

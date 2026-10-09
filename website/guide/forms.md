@@ -214,6 +214,11 @@ the REST API: they come only from the form's endpoint, after validation and the 
 - **AI assistants**: with the [MCP plugin](./mcp) and an API key that may read
   `form-submissions`, an assistant can summarize this week's messages.
 
+## In several tenants
+
+With the [multi-tenant plugin](./multi-tenant#with-other-plugins), forms are found in the tenant
+of the request (its domain or `x-easy-cms-tenant`), and submissions belong to it.
+
 ## Next steps
 
 - [Email](./email): SMTP and retries.

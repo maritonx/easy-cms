@@ -4,6 +4,7 @@ import { computed, inject, onMounted, ref, watch } from 'vue'
 import DocumentDrawer from '../components/DocumentDrawer.vue'
 import { api, type Doc, type Paginated, toQuery } from '../lib/api'
 import { titleOf } from '../lib/fields'
+import { useFilterQuery } from '../lib/filter'
 import { label, singularize, t } from '../lib/i18n'
 import { FORM } from '../lib/plugins'
 import { findCollection } from '../lib/session'
@@ -16,6 +17,8 @@ const props = defineProps<{
   hasMany: boolean
   /** The field's path, when its `filterOptions` limit the choices. */
   filterPath?: string | undefined
+  /** No "Create" in place (`admin.allowCreate: false`). */
+  noCreate?: boolean
   modelValue: unknown
   readOnly: boolean
   invalid: boolean
@@ -57,17 +60,7 @@ let timer: ReturnType<typeof setTimeout> | undefined
 
 const form = inject(FORM, null)
 /** The server applies the field's `filterOptions` for this document. */
-function filterQuery() {
-  if (!props.filterPath || !form) return ''
-  const params = new URLSearchParams(
-    form.collection
-      ? { filterFor: `${form.collection}.${props.filterPath}` }
-      : { filterForGlobal: `${form.global}.${props.filterPath}` },
-  )
-  const id = form.id.value
-  if (id !== null && id !== undefined) params.set('filterId', String(id))
-  return `&${params}`
-}
+const filterQuery = useFilterQuery(() => props.filterPath)
 
 async function search() {
   const field = target?.useAsTitle
@@ -125,7 +118,8 @@ const canCreate = computed(
     !target.preview &&
     // Files are uploaded, and folders made, in the media library.
     target.slug !== 'media' &&
-    target.slug !== 'media-folders',
+    target.slug !== 'media-folders' &&
+    !props.noCreate,
 )
 const creating = ref(false)
 /** The search text becomes the new document's title. */

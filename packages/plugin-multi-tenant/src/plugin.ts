@@ -201,7 +201,14 @@ export function multiTenantPlugin<const S extends string, const T extends string
             ...field,
             blocks: field.blocks.map((b) => ({ ...b, fields: withTenantFilters(b.fields) })),
           }
-        if (field.type !== 'relationship' || !scoped.has(field.to)) return field
+        const target =
+          field.type === 'relationship' ? field.to : field.type === 'upload' ? MEDIA : null
+        if (
+          (field.type !== 'relationship' && field.type !== 'upload') ||
+          !target ||
+          !scoped.has(target)
+        )
+          return field
         const own = field.filterOptions
         return {
           ...field,
@@ -224,13 +231,41 @@ export function multiTenantPlugin<const S extends string, const T extends string
       label: { en: 'Tenant', th: 'Tenant' },
       // Set from the tenant the request works in; only users with access to all tenants choose.
       access: { update: ({ user, context }) => superUser(user, context) },
+      admin: {
+        // New documents start in the chosen tenant.
+        defaultValue: ({ context }) => tenantOf(context).tenant ?? undefined,
+        // A column while every tenant is shown.
+        column: ({ user, context }) =>
+          superUser(user, context) && tenantOf(context).tenant === null,
+        allowCreate: false,
+      },
     }
 
-    const fillTenant: BeforeValidateHook = ({ data, operation, context }) => {
-      if (operation !== 'create' || (data[TENANT_FIELD] ?? null) !== null) return data
-      const { tenant } = tenantOf(context)
-      return tenant === null ? data : { ...data, [TENANT_FIELD]: tenant }
-    }
+    /**
+     * A new document gets the tenant the request works in; without one (e.g. a plugin's own
+     * write), the tenant of the first tenant document it points to (a form's submission, a
+     * page's redirect).
+     */
+    const fillTenant =
+      (fields: readonly Field[]): BeforeValidateHook =>
+      async ({ data, operation, context, cms }) => {
+        if (operation !== 'create' || (data[TENANT_FIELD] ?? null) !== null) return data
+        const { tenant } = tenantOf(context)
+        if (tenant !== null) return { ...data, [TENANT_FIELD]: tenant }
+        for (const field of fields) {
+          const target =
+            field.type === 'relationship' ? field.to : field.type === 'upload' ? MEDIA : null
+          if (!target || !scoped.has(target) || field.name === TENANT_FIELD) continue
+          const value = [data[field.name]].flat()[0]
+          const id = value && typeof value === 'object' ? (value as { id?: ID }).id : value
+          if (id === null || id === undefined) continue
+          if (!cms.config.collections.some((c) => c.slug === target)) continue
+          const doc = await cms.findById(target, id as ID, { depth: 0, draft: true })
+          const owner = (doc as Data | null)?.[TENANT_FIELD]
+          if (owner !== null && owner !== undefined) return { ...data, [TENANT_FIELD]: owner }
+        }
+        return data
+      }
     const checkTenant =
       (slug: string): BeforeChangeHook =>
       ({ data, operation, originalDoc, context, user }) => {
@@ -254,8 +289,16 @@ export function multiTenantPlugin<const S extends string, const T extends string
     const scopeCollection = (c: CollectionConfig, builtin?: Partial<Record<Op, Access>>) => {
       const fields = withTenantFilters(
         c.fields.map((f) =>
-          (f.unique || f.type === 'slug') && f.uniqueWithin === undefined
-            ? { ...f, uniqueWithin: TENANT_FIELD }
+          f.unique || f.type === 'slug'
+            ? {
+                ...f,
+                uniqueWithin: [
+                  ...new Set([
+                    ...(f.uniqueWithin === undefined ? [] : [f.uniqueWithin].flat()),
+                    TENANT_FIELD,
+                  ]),
+                ],
+              }
             : f,
         ),
       )
@@ -271,7 +314,7 @@ export function multiTenantPlugin<const S extends string, const T extends string
         },
         hooks: {
           ...c.hooks,
-          beforeValidate: [fillTenant, ...(c.hooks?.beforeValidate ?? [])],
+          beforeValidate: [fillTenant(c.fields), ...(c.hooks?.beforeValidate ?? [])],
           beforeChange: [...(c.hooks?.beforeChange ?? []), checkTenant(c.slug)],
         },
       } satisfies CollectionConfig
@@ -341,7 +384,11 @@ export function multiTenantPlugin<const S extends string, const T extends string
       labels: { singular: { en: 'Tenant', th: 'Tenant' }, plural: { en: 'Tenants', th: 'Tenant' } },
       icon: 'building',
       useAsTitle: 'name',
-      admin: { group: 'settings' },
+      admin: {
+        group: 'settings',
+        // Deleting a tenant deletes its content: its name is typed, and what goes is shown.
+        confirmDelete: { typeTitle: true, impact: '/tenant-impact' },
+      },
       access: tenantsAccess,
       hooks: {
         afterChange: [({ cms }) => forgetTenants(cms)],
@@ -412,7 +459,17 @@ export function multiTenantPlugin<const S extends string, const T extends string
     // The built-in media library (added after plugins) takes these as its own.
     for (const builtin of [MEDIA, MEDIA_FOLDERS]) {
       if (scoped.has(builtin) && !declared.has(builtin))
-        collections.push(scopeCollection({ slug: builtin, fields: [] }, BUILTIN_ACCESS[builtin]))
+        collections.push(
+          scopeCollection(
+            {
+              slug: builtin,
+              // The built-in `key` of folders: unique per tenant (merged into the built-in field).
+              fields:
+                builtin === MEDIA_FOLDERS ? [{ name: 'key', type: 'text', unique: true }] : [],
+            },
+            BUILTIN_ACCESS[builtin],
+          ),
+        )
     }
 
     const globals: GlobalConfig[] = (config.globals ?? []).map((g) => {
@@ -497,6 +554,42 @@ export function multiTenantPlugin<const S extends string, const T extends string
       },
     }
 
+    const impactEndpoint: Endpoint = {
+      path: '/tenant-impact',
+      method: 'get',
+      handler: async ({ user, context, cms, url }) => {
+        if (!superUser(user, context))
+          return Response.json({ errors: [{ message: 'Not allowed' }] }, { status: 403 })
+        const raw = url.searchParams.get('id') ?? ''
+        const id = /^\d+$/.test(raw) ? Number(raw) : raw
+        const counts: { en: string; th: string }[] = []
+        for (const slug of scoped) {
+          const config = cms.config.collections.find((c) => c.slug === slug)
+          if (!config) continue
+          const n = await cms.count(slug, { where: { [TENANT_FIELD]: { equals: id } } })
+          if (n === 0) continue
+          const plural = config.labels?.plural
+          const en = typeof plural === 'string' ? plural : (plural?.en ?? slug)
+          const th = typeof plural === 'string' ? plural : (plural?.th ?? en)
+          counts.push({ en: `${n} ${en}`, th: `${th} ${n} รายการ` })
+        }
+        const members = await cms.count('users', {
+          where: { [`${MEMBERSHIPS_FIELD}.tenant`]: { equals: id } },
+        })
+        return {
+          message: counts.length
+            ? {
+                en: `Also deleted: ${counts.map((c) => c.en).join(', ')}. ${members} members lose this tenant; their accounts stay.`,
+                th: `จะลบไปด้วย: ${counts.map((c) => c.th).join(', ')} สมาชิก ${members} คนจะออกจาก tenant นี้ บัญชียังอยู่`,
+              }
+            : {
+                en: `It has no content. ${members} members lose this tenant; their accounts stay.`,
+                th: `ไม่มีเนื้อหา สมาชิก ${members} คนจะออกจาก tenant นี้ บัญชียังอยู่`,
+              },
+        }
+      },
+    }
+
     const assign: CliCommand = {
       name: 'tenants:assign',
       description: 'Give documents without a tenant to one (after adding the plugin to a site)',
@@ -515,24 +608,36 @@ of its own. Run it once after adding the plugin to a site that has content.
         }
         for (const slug of scoped) {
           if (!cms.config.collections.some((c) => c.slug === slug)) continue
-          let updated = 0
-          for (;;) {
-            const { docs } = await cms.find(slug, {
+          // The ids first: documents leave the list as they get a tenant.
+          const ids: ID[] = []
+          for (let page = 1; ; page++) {
+            const { docs, hasNextPage } = await cms.find(slug, {
               where: { [TENANT_FIELD]: { exists: false } },
-              limit: 100,
+              sort: 'id',
+              limit: 500,
+              page,
               depth: 0,
               draft: true,
             })
-            if (docs.length === 0) break
-            for (const doc of docs) {
-              await cms.update(slug, doc.id, { [TENANT_FIELD]: tenant.id } as never, {
+            ids.push(...docs.map((d) => d.id))
+            if (!hasNextPage) break
+          }
+          let updated = 0
+          const skipped: string[] = []
+          for (const id of ids) {
+            try {
+              await cms.update(slug, id, { [TENANT_FIELD]: tenant.id } as never, {
                 depth: 0,
                 live: true,
               })
               updated++
+            } catch (error) {
+              // E.g. a value the tenant already has (unique per tenant): left as it is.
+              skipped.push(`${slug} ${id}: ${(error as Error).message}`)
             }
           }
           log(`${slug}: ${updated} given to ${tenant.name}`)
+          for (const line of skipped) log(`  not given: ${line}`)
         }
         const context = { tenant: tenant.id, allTenants: false }
         for (const slug of perTenant) {
@@ -556,9 +661,22 @@ of its own. Run it once after adding the plugin to a site that has content.
       endpoints: [
         ...(config.endpoints ?? []),
         optionsEndpoint,
+        impactEndpoint,
         ...membersEndpoints({ tenantsSlug, superUser }),
       ],
       commands: [...(config.commands ?? []), assign],
+      // Audit log entries belong to their tenant: its admins see them.
+      ...(config.audit
+        ? {
+            audit: {
+              ...(config.audit === true ? {} : config.audit),
+              scope: (context: RequestContext) => {
+                const { tenant } = tenantOf(context)
+                return tenant === null ? null : String(tenant)
+              },
+            },
+          }
+        : {}),
       admin: {
         ...config.admin,
         modules: [

@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { createHmac } from 'node:crypto'
-import type { AuthUser, ID, Where } from './access.js'
+import type { AuthUser, ID, RequestContext, Where } from './access.js'
 import { AUDIT_LOGS, INTERNAL_COLLECTIONS } from './builtins.js'
 import type { CollectionConfig, GlobalConfig } from './config.js'
 import type { RawDocument } from './database.js'
@@ -15,6 +15,12 @@ export interface AuditConfig {
   readonly values?: boolean
   /** Failed logins within an hour that the dashboard warns about. Default 20. */
   readonly failedLogins?: number
+  /**
+   * The part of the site an entry belongs to, from the request's context, e.g. its tenant
+   * (usually set by a plugin). Users whose role holds in a part only (`scoped`) see that part's
+   * entries; others see the chosen part's, or all.
+   */
+  readonly scope?: ((context: RequestContext) => string | null | undefined) | null
 }
 
 export const DEFAULT_AUDIT_KEEP = 365
@@ -33,6 +39,8 @@ export interface AuditContext {
   readonly ip?: string | undefined
   readonly userAgent?: string | null
   readonly via?: 'scheduler'
+  /** The request's context (`onRequest`). */
+  readonly context?: RequestContext
 }
 export const auditContext = new AsyncLocalStorage<AuditContext>()
 
@@ -85,6 +93,8 @@ export interface AuditFilter {
   /** ISO dates. */
   from?: string | null
   to?: string | null
+  /** Only entries of this part of the site (`scope`). */
+  scope?: string | null
 }
 
 /** `POST <api>/admin/audit/verify`. */
@@ -158,6 +168,7 @@ export class AuditLog {
         keep: DEFAULT_AUDIT_KEEP,
         values: true,
         failedLogins: DEFAULT_FAILED_LOGINS,
+        scope: null,
       }
     )
   }
@@ -176,10 +187,13 @@ export class AuditLog {
     email?: string | null
     changes?: AuditChange[] | null
     detail?: Record<string, unknown> | null
+    /** The call's context, when it is not the request's. */
+    context?: RequestContext
   }): Promise<void> {
     if (!this.enabled) return
     try {
       const context = auditContext.getStore()
+      const scope = this.scopeOf(entry.context ?? context?.context)
       const user = entry.user !== undefined ? entry.user : (context?.user ?? null)
       const apiKey = user?.apiKey as { name?: string } | undefined
       const row: Record<string, unknown> = {
@@ -201,6 +215,7 @@ export class AuditLog {
         changes: entry.changes && entry.changes.length > 0 ? entry.changes : null,
         detail: apiKey ? { ...entry.detail, apiKey: apiKey.name ?? '' } : (entry.detail ?? null),
         createdAt: new Date().toISOString(),
+        ...(scope ? { scope } : {}),
       }
       row.signature = this.sign(row)
       row.updatedAt = row.createdAt
@@ -224,6 +239,7 @@ export class AuditLog {
     after: Record<string, unknown> | undefined,
     before: Record<string, unknown> | undefined,
     user: AuthUser | null,
+    context?: RequestContext,
   ): Promise<void> {
     if (!this.enabled) return
     if (!global && INTERNAL_COLLECTIONS.has(config.slug)) return
@@ -246,6 +262,7 @@ export class AuditLog {
       // A trusted call without a user keeps the request's (or is the system).
       ...(user ? { user } : {}),
       changes: action === 'delete' ? null : this.diff(config.fields, before ?? {}, after ?? {}),
+      ...(context && Object.keys(context).length > 0 ? { context } : {}),
     })
   }
 
@@ -419,8 +436,17 @@ export class AuditLog {
 
   // -------------------------------------------------------------------------
 
+  /** The part of the site a context is in (`scope`), or `null`. */
+  scopeOf(context: RequestContext | undefined): string | null {
+    const scope = this.settings.scope
+    return (scope && context ? scope(context) : null) ?? null
+  }
+
   private sign(row: Record<string, unknown>): string {
-    const payload = stable(SIGNED.map((key) => row[key] ?? null))
+    // The scope is signed only when there is one, so entries from before scopes stay valid.
+    const values: unknown[] = SIGNED.map((key) => row[key] ?? null)
+    if (typeof row.scope === 'string' && row.scope) values.push(row.scope)
+    const payload = stable(values)
     return createHmac('sha256', this.cms.config.secret)
       .update(`audit:${payload}`)
       .digest('base64url')
@@ -453,6 +479,7 @@ export class AuditLog {
     if (filter.actor) parts.push({ actorEmail: { like: filter.actor } })
     if (filter.from) parts.push({ createdAt: { gte: filter.from } })
     if (filter.to) parts.push({ createdAt: { lte: filter.to } })
+    if (filter.scope) parts.push({ scope: { equals: filter.scope } })
     return parts.length === 0 ? undefined : parts.length === 1 ? parts[0] : { and: parts }
   }
 }

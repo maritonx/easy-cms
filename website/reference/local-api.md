@@ -115,6 +115,7 @@ to apply them, as the REST API does.
 | `createApiKey({ name, permissions?, expiresAt?, user? }, options?)` | `{ key, doc }` | A new [API key](/guide/api-keys) (with `apiKeys: true`); the key is returned only here. |
 | `documentPermissions(collection, id, user)` | `{ update, delete }` | What a user may do with one document. |
 | `destroy()` | — | Stops the scheduler, waits for webhook deliveries and closes the database. |
+| `uniqueScope(collection, field, { user?, context? })` | `{ [field]: value }` | What a unique field's values differ within for a call (`uniqueWithin`, e.g. the tenant), as its hooks would set it; `{}` when unique everywhere. For finding documents by such a field. |
 | `forRequest(request \| headers)` | `{ user, context }` | A request's user (session cookie or Bearer token) and context (`onRequest`), as REST works them out; pass both with `overrideAccess: false`. |
 
 The `cms` object also has `config` (the resolved config), `auth` (login and session checks),

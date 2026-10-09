@@ -10,7 +10,7 @@ import { FORM, setPath } from '../lib/plugins'
 import { findCollection, session } from '../lib/session'
 import { notify } from '../lib/toast'
 import { missingLocales } from '../lib/translation'
-import ConfirmDialog from './ConfirmDialog.vue'
+import DeleteDialog from './DeleteDialog.vue'
 import LocaleSwitcher from './LocaleSwitcher.vue'
 import PluginElement from './PluginElement.vue'
 
@@ -252,10 +252,11 @@ onMounted(() => {
         <button v-if="canSave" type="submit" class="btn btn-primary" :disabled="saving || loading">{{ t('edit.save') }}</button>
       </footer>
     </form>
-    <ConfirmDialog
+    <DeleteDialog
       :open="confirmingDelete"
+      :collection="collection"
+      :doc="id !== null ? { id, title: titleOf(collection, { ...(doc ?? {}), id }) } : null"
       :message="t('edit.confirmDelete')"
-      :confirm-label="t('edit.delete')"
       @confirm="remove"
       @cancel="confirmingDelete = false"
     />

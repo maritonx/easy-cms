@@ -112,6 +112,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `keep` | `number` | `365` | เก็บกี่วัน ที่เก่ากว่าจะถูกลบ `0`: เก็บไว้ทั้งหมด |
 | `values` | `boolean` | `true` | เก็บค่าก่อนและหลังการแก้ `false`: เก็บแค่ชื่อ field ที่เปลี่ยน |
 | `failedLogins` | `number` | `20` | จำนวน login ไม่สำเร็จในหนึ่งชั่วโมงที่แดชบอร์ดจะเตือน [Audit log](/th/guide/audit-log) |
+| `scope` | `(context) => string \| null` | — | ส่วนของเว็บที่ entry เป็นของ เช่น tenant (ปกติ plugin เป็นผู้ตั้ง) admin ของส่วนนั้น (`scoped`) เห็นเฉพาะของส่วนตัวเอง คนอื่นเห็นของส่วนที่เลือกหรือทั้งหมด |
 
 <!-- api: AuthConfig -->
 ## auth {#auth}
@@ -236,6 +237,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `group` | `'settings'` | แสดง collection ใต้ตั้งค่าในเมนู คู่กับ Users และ API keys |
 | `list` | `{ tree?, sort? }` | หน้ารายการ: `tree` คือชื่อ relationship ไปหา collection เดียวกัน เพื่อแสดงเป็นต้นไม้ (เอกสารระดับบนก่อน เอกสารลูกเปิดอยู่ข้างใต้) ส่วน `sort` คือลำดับเริ่มต้น เช่น `'title'` |
 | `ownerField` | `string` | เมื่อเปิด `auth.rbac`: relationship ไปที่ `users` ที่บอกเจ้าของ เช่น `'author'` สำหรับบทบาทที่ได้ "เฉพาะเอกสารของตัวเอง" ค่าเริ่มต้น: ผู้สร้าง (`createdBy`) [บทบาทและสิทธิ์](/th/guide/roles#own-documents-only) |
+| `confirmDelete` | `{ typeTitle?, impact? }` | ถามมากขึ้นก่อนลบ: `typeTitle` ให้พิมพ์ชื่อ `impact` คือ path ใต้ API ที่เรียกพร้อม `?id=` แล้วคืน `{ message }` บอกสิ่งที่จะหายไปด้วย ลบจากการเลือกหลายรายการไม่ได้ |
 
 <!-- api: GlobalConfig -->
 ## globals {#globals}

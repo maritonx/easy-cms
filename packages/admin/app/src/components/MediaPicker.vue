@@ -31,6 +31,8 @@ const props = defineProps<{
   allowUrl?: boolean
   /** An upload field's folder (`folder`): the picker opens there; `only`: and stays inside it. */
   folder?: FieldFolder | undefined
+  /** Query parameters for the field's `filterOptions` (`&filterFor=…`). */
+  filterQuery?: string | undefined
 }>()
 const emit = defineEmits<{ select: [Doc]; selectMany: [Doc[]]; url: [string]; close: [] }>()
 
@@ -120,7 +122,7 @@ async function load(reset = true) {
     ]
   const result = await api<Paginated<Doc>>(
     'GET',
-    `/media${toQuery({ where, limit: 24, page: page.value, sort: '-createdAt', depth: 0 })}`,
+    `/media${toQuery({ where, limit: 24, page: page.value, sort: '-createdAt', depth: 0 })}${props.filterQuery ?? ''}`,
   )
   items.value = reset ? result.docs : [...items.value, ...result.docs]
   hasMore.value = result.hasNextPage

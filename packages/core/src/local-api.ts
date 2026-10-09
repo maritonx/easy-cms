@@ -50,7 +50,7 @@ import {
   UnauthorizedError,
   ValidationError,
 } from './errors.js'
-import { type Field, type FilterOptions, mimeAllowedBy } from './fields.js'
+import { type Field, type FilterOptions, mimeAllowedBy, uniqueWithinOf } from './fields.js'
 import type {
   CollectionDocument,
   CollectionSlug,
@@ -2587,6 +2587,7 @@ export class EasyCMS<C extends Config = Config> {
       event === 'delete' ? undefined : doc,
       event === 'create' ? undefined : previous,
       guard.user,
+      guard.context,
     )
   }
 
@@ -2752,7 +2753,7 @@ export class EasyCMS<C extends Config = Config> {
       await this.makeSlugsUnique(config as CollectionConfig, clean, selfId)
       errors.push(...(await this.checkUnique(config as CollectionConfig, clean, selfId)))
     }
-    errors.push(...(await this.checkReferences(result.references)))
+    errors.push(...(await this.checkReferences(result.references, guard)))
     if (errors.length === 0)
       errors.push(...(await this.checkFilterOptions(result.references, selfId, guard)))
 
@@ -2789,7 +2790,11 @@ export class EasyCMS<C extends Config = Config> {
       const scope: Where | undefined =
         field.uniqueWithin === undefined
           ? undefined
-          : { [field.uniqueWithin]: { equals: data[field.uniqueWithin] ?? null } }
+          : {
+              and: uniqueWithinOf(field).map((name) => ({
+                [name]: { equals: data[name] ?? null },
+              })),
+            }
       const unique = async (path: string, base: string) => {
         let candidate = base
         for (let n = 2; await this.isTaken(config.slug, path, candidate, selfId, scope); n++) {
@@ -2835,7 +2840,11 @@ export class EasyCMS<C extends Config = Config> {
       const scope: Where | undefined =
         field.uniqueWithin === undefined
           ? undefined
-          : { [field.uniqueWithin]: { equals: data[field.uniqueWithin] ?? null } }
+          : {
+              and: uniqueWithinOf(field).map((name) => ({
+                [name]: { equals: data[name] ?? null },
+              })),
+            }
       for (const [path, errorField, v] of checks) {
         if (v === null || v === undefined) continue
         if (await this.isTaken(config.slug, path, v, selfId, scope)) {
@@ -2861,6 +2870,56 @@ export class EasyCMS<C extends Config = Config> {
       ],
     }
     return (await this.db.count({ collection, where })) > 0
+  }
+
+  /**
+   * What folder keys are unique within for a call (`uniqueWithin` of the `key` field of media
+   * folders, e.g. the tenant): the value a folder made by this call would get from its hooks.
+   */
+  private async folderScope(
+    guard: Pick<Guard, 'user' | 'context'>,
+  ): Promise<Record<string, unknown>> {
+    return this.uniqueScope(MEDIA_FOLDERS, 'key', guard)
+  }
+
+  /**
+   * Where a unique field's values must differ for a call (`uniqueWithin`, e.g. the tenant): the
+   * value a document created by this call would get there from its hooks, as `{ [field]: value }`;
+   * `{}` when the field is unique everywhere. For finding documents by such a field, e.g. a page
+   * by its path in the current tenant.
+   */
+  async uniqueScope(
+    collection: string,
+    field: string,
+    options: Pick<AccessOptions, 'user' | 'context'> = {},
+  ): Promise<Record<string, unknown>> {
+    const config = this.config.collections.find((c) => c.slug === collection)
+    const target = config?.fields.find((f) => f.name === field)
+    const within = target ? uniqueWithinOf(target) : []
+    if (!config || within.length === 0) return {}
+    const guard = {
+      enforce: false,
+      user: options.user ?? null,
+      context: options.context ?? NO_CONTEXT,
+    }
+    // Hooks that need more than an empty document leave the scope unknown.
+    const data = await this.transform(
+      config.hooks?.beforeValidate,
+      'data',
+      { ...this.hookArgs(config, guard), operation: 'create' },
+      {},
+    ).catch(() => ({}) as Data)
+    return Object.fromEntries(within.map((name) => [name, data[name] ?? null]))
+  }
+
+  /**
+   * @internal The id of the media folder with this key (`folder` of upload fields), made when
+   * needed; `null` when the call has no scope to make it in (e.g. all tenants) and none exists.
+   */
+  async keyedFolder(key: string, options: AccessOptions = {}): Promise<ID | null> {
+    const scope = await this.folderScope(guardOf(options))
+    const complete = Object.values(scope).every((v) => v !== null && v !== undefined)
+    return this.folders.keyed(key, scope, complete)
   }
 
   /** Each reference is one its relationship's `filterOptions` allow. */
@@ -2895,7 +2954,10 @@ export class EasyCMS<C extends Config = Config> {
     return errors
   }
 
-  private async checkReferences(references: readonly Reference[]): Promise<FieldError[]> {
+  private async checkReferences(
+    references: readonly Reference[],
+    guard: Pick<Guard, 'user' | 'context'>,
+  ): Promise<FieldError[]> {
     const byCollection = new Map<string, Reference[]>()
     for (const ref of references) {
       // `media` is checked once it exists (M5).
@@ -2933,6 +2995,7 @@ export class EasyCMS<C extends Config = Config> {
           !(await this.folders.inKeyed(
             ref.folderOnly,
             (doc.folder as ID | null | undefined) ?? null,
+            await this.folderScope(guard),
           ))
         )
           errors.push({

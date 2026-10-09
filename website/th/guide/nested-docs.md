@@ -207,6 +207,11 @@ Plugin นี้สร้างจากความสามารถของ 
 - `update(…, { live: true })` ใน [Local API](./local-api): ดูแลค่าของเวอร์ชันที่เผยแพร่อยู่ โดยไม่แตะ draft ที่ค้างไว้และไม่เพิ่ม version
 - `commands` ใน config: คำสั่ง `easy-cms <name>` จาก plugin ดู [CLI](./cli)
 
+## ในหลาย tenant {#in-several-tenants}
+
+เมื่อใช้ [plugin multi-tenant](./multi-tenant#with-other-plugins) path ห้ามซ้ำแค่ภายใน tenant ส่ง `context` ของ request ให้
+`findByPath()` และ `getTree()`
+
 ## ขั้นต่อไป {#next-steps}
 
 - [Redirects](./redirects): ให้ที่อยู่เดิมยังใช้ได้

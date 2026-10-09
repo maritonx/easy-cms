@@ -16,6 +16,7 @@ const config = defineConfig({
   secret: 'x'.repeat(32),
   db: sqlite({ url: 'file:./cms.db' }),
   apiKeys: true,
+  audit: true,
   upload: { folders: true },
   collections: [
     {
@@ -25,11 +26,13 @@ const config = defineConfig({
     },
     {
       slug: 'posts',
+      useAsTitle: 'title',
       access: { read: () => true },
       fields: [
         { name: 'title', type: 'text', required: true },
         { name: 'slug', type: 'slug', from: 'title' },
         { name: 'category', type: 'relationship', to: 'categories' },
+        { name: 'cover', type: 'upload', folder: 'covers' },
       ],
     },
     // Shared by every tenant.
@@ -222,6 +225,47 @@ describe('documents of a tenant', () => {
     expect(idOf(media.tenant)).toBe(a)
     expect((await call('GET', '/media', { tenant: 'a' })).body.totalDocs).toBe(1)
     expect((await call('GET', '/media', { tenant: 'b' })).body.totalDocs).toBe(0)
+    // Another tenant's file can't be used, even by id.
+    const theirs = await cms.upload(
+      { data: new TextEncoder().encode('%PDF-1.4\n% b\n'), name: 'b.pdf' },
+      {},
+      { context: { tenant: b } },
+    )
+    expect(idOf(theirs.tenant)).toBe(b)
+    const refused = await call('POST', '/posts', {
+      as: 'alice',
+      body: { title: 'With their file', cover: theirs.id },
+    })
+    expect(refused.status).toBe(400)
+    expect(refused.body.errors[0]).toMatchObject({ field: 'cover' })
+    expect(
+      (await call('POST', '/posts', { as: 'alice', body: { title: 'Mine', cover: media.id } }))
+        .status,
+    ).toBe(201)
+  })
+
+  it("have folders per tenant, made where an upload field's key says", async () => {
+    const folderOf = async (as: string, tenant?: string) => {
+      const schema = (await call('GET', '/admin/schema', { as, ...(tenant ? { tenant } : {}) }))
+        .body
+      const posts = (schema.collections as Body[]).find((c) => c.slug === 'posts') as Body
+      return (posts.fields as Body[]).find((f) => f.name === 'cover')?.folder.id
+    }
+    const inA = await folderOf('alice')
+    const inB = await folderOf('bob', 'b')
+    expect(inA).toBeDefined()
+    expect(inB).not.toBe(inA)
+    expect(await folderOf('bob')).toBe(inA)
+    const folders = await cms.find('media-folders', { where: { key: { equals: 'covers' } } })
+    expect(folders.docs.map((f) => idOf((f as Body).tenant)).sort()).toEqual([a, b].sort())
+  })
+
+  it('made by plugins take the tenant of what they point to', async () => {
+    const category = await cms.create('categories', { name: 'In A', tenant: a } as never)
+    const post = await cms.create('posts', { title: 'Follows', category: category.id } as never, {
+      depth: 0,
+    })
+    expect(post.tenant).toBe(a)
   })
 })
 
@@ -351,7 +395,34 @@ describe('API keys', () => {
   })
 })
 
+describe('audit log', () => {
+  it("shows the admins of a tenant that tenant's entries", async () => {
+    const titles = async (as: string, tenant?: string) => {
+      const response = await call('GET', '/admin/audit', { as, ...(tenant ? { tenant } : {}) })
+      return response.status === 200
+        ? (response.body.docs as Body[]).map((e) => e.title).filter(Boolean)
+        : response.status
+    }
+    const inA = (await titles('bob')) as string[]
+    expect(inA).toContain('Hello A')
+    expect(inA).not.toContain('Hello B')
+    expect(await titles('alice')).toBe(403)
+    const all = (await titles('root')) as string[]
+    expect(all).toEqual(expect.arrayContaining(['Hello A', 'Hello B']))
+    expect(await titles('root', 'b')).not.toContain('Hello A')
+  })
+})
+
 describe('tenants', () => {
+  it('ask to type their name before deleting, saying what goes', async () => {
+    const schema = (await call('GET', '/admin/schema', { as: 'root' })).body
+    const tenants = (schema.collections as Body[]).find((c) => c.slug === 'tenants') as Body
+    expect(tenants.confirmDelete).toEqual({ typeTitle: true, impact: '/tenant-impact' })
+    const impact = await call('GET', `/tenant-impact?id=${b}`, { as: 'root' })
+    expect(impact.body.message.en).toMatch(/Also deleted: \d+ posts/)
+    expect((await call('GET', `/tenant-impact?id=${b}`, { as: 'bob' })).status).toBe(403)
+  })
+
   it('are managed by users with access to all', async () => {
     expect((await call('POST', '/tenants', { as: 'bob', body: { name: 'C' } })).status).toBe(403)
     expect((await call('GET', '/tenants', { as: 'alice' })).body.totalDocs).toBe(1)

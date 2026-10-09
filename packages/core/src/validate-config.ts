@@ -946,21 +946,24 @@ function validateField(
     }
   }
   if (field.uniqueWithin !== undefined) {
-    const scope = siblings.get(field.uniqueWithin)
-    if (!field.unique && field.type !== 'slug') {
+    if (!field.unique && field.type !== 'slug')
       add(`${path}.uniqueWithin`, 'needs `unique: true` (or a slug field)')
-    } else if (!scope || scope === field) {
-      add(`${path}.uniqueWithin`, `no sibling field named "${field.uniqueWithin}"`)
-    } else if (
-      !['relationship', 'select', 'text', 'number'].includes(scope.type) ||
-      ('hasMany' in scope && scope.hasMany) ||
-      scope.localized
-    ) {
-      add(
-        `${path}.uniqueWithin`,
-        `"${field.uniqueWithin}" must be a single, unlocalized relationship, select, text or number field`,
-      )
-    }
+    else
+      for (const name of [field.uniqueWithin].flat()) {
+        const scope = siblings.get(name)
+        if (!scope || scope === field) {
+          add(`${path}.uniqueWithin`, `no sibling field named "${name}"`)
+        } else if (
+          !['relationship', 'select', 'text', 'number'].includes(scope.type) ||
+          ('hasMany' in scope && scope.hasMany) ||
+          scope.localized
+        ) {
+          add(
+            `${path}.uniqueWithin`,
+            `"${name}" must be a single, unlocalized relationship, select, text or number field`,
+          )
+        }
+      }
   }
   switch (field.type) {
     case 'text':

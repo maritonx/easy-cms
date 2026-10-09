@@ -66,6 +66,10 @@ export interface AdminField {
   position?: 'sidebar'
   /** Components from admin modules: instead of the input, below the field, and in lists. */
   admin?: { component?: AdminComponentRef; after?: AdminComponentRef[]; cell?: AdminComponentRef }
+  /** A column of the list at first (`admin.column`). */
+  column?: boolean
+  /** A relationship that offers no "Create" in place (`admin.allowCreate: false`). */
+  noCreate?: boolean
   /** A field of an added type (`fieldTypes`), e.g. `color`; `type` is the base it's stored as. */
   customType?: string
 }
@@ -101,6 +105,8 @@ export interface AdminCollection {
   }
   /** With `auth.rbac`: the field naming a document's owner (`createdBy` or `admin.ownerField`). */
   owner?: string
+  /** Deleting asks to type the title, and says what goes too (`admin.confirmDelete`). */
+  confirmDelete?: { typeTitle?: boolean; impact?: string }
 }
 
 export interface AdminGlobal {
@@ -202,7 +208,9 @@ async function serializeFields(
   checks: { update: FieldAccessChecker; read: FieldAccessChecker },
   localized: boolean,
   /** A media folder's id from its key (`upload.folders`). */
-  folderId?: (key: string) => Promise<ID>,
+  folderId: ((key: string) => Promise<ID | null>) | undefined,
+  /** For options worked out per request (`admin.column`, `admin.defaultValue`). */
+  who: { user: AuthUser; context: RequestContext },
 ): Promise<AdminField[]> {
   const { update } = checks
   const out: AdminField[] = []
@@ -214,6 +222,13 @@ async function serializeFields(
     if (field.required) f.required = true
     if (field.unique) f.unique = true
     if (field.defaultValue !== undefined) f.defaultValue = field.defaultValue
+    if (field.admin?.defaultValue) {
+      const value = await field.admin.defaultValue(who)
+      if (value !== undefined) f.defaultValue = value
+    }
+    const column = field.admin?.column
+    if (column === true || (typeof column === 'function' && (await column(who)))) f.column = true
+    if (field.admin?.allowCreate === false) f.noCreate = true
     if (!(await update.allows(field))) f.readOnly = true
     if (field.localized && localized) f.localized = true
     if (field.position === 'sidebar') f.position = 'sidebar'
@@ -254,16 +269,20 @@ async function serializeFields(
       case 'upload':
         f.to = 'media'
         if (field.hasMany) f.hasMany = true
+        if (field.filterOptions) f.filtered = true
         if (field.minRows !== undefined) f.minRows = field.minRows
         if (field.maxRows !== undefined) f.maxRows = field.maxRows
         if (field.mimeTypes) f.mimeTypes = expandMimeTypes(field.mimeTypes)
-        if (field.folder && folderId)
-          f.folder = { id: await folderId(field.folder), only: field.folderOnly === true }
+        if (field.folder && folderId) {
+          // None while no scope is chosen (e.g. all tenants): the picker opens at the top.
+          const id = await folderId(field.folder)
+          if (id !== null) f.folder = { id, only: field.folderOnly === true }
+        }
         break
       case 'array':
         if (field.minRows !== undefined) f.minRows = field.minRows
         if (field.maxRows !== undefined) f.maxRows = field.maxRows
-        f.fields = await serializeFields(field.fields, checks, localized, folderId)
+        f.fields = await serializeFields(field.fields, checks, localized, folderId, who)
         break
       case 'blocks':
         if (field.minRows !== undefined) f.minRows = field.minRows
@@ -272,12 +291,12 @@ async function serializeFields(
           field.blocks.map(async (block) => ({
             slug: block.slug,
             ...(block.labels ? { labels: block.labels } : {}),
-            fields: await serializeFields(block.fields, checks, localized, folderId),
+            fields: await serializeFields(block.fields, checks, localized, folderId, who),
           })),
         )
         break
       case 'group':
-        f.fields = await serializeFields(field.fields, checks, localized, folderId)
+        f.fields = await serializeFields(field.fields, checks, localized, folderId, who)
         break
     }
     out.push(f)
@@ -322,7 +341,8 @@ async function collection(
     config.fields,
     await checkers(cms, user, context),
     localized,
-    folderIds(cms),
+    folderIds(cms, user, context),
+    { user, context },
   )
   // With roles from the admin, a user's role is one of Settings → Roles.
   if (config.slug === USERS && cms.roles.enabled) {
@@ -356,6 +376,7 @@ async function collection(
   if (config.admin?.group === 'settings' || SETTINGS.has(config.slug)) result.group = 'settings'
   if (config.admin?.list?.tree) result.tree = config.admin.list.tree
   if (config.admin?.list?.sort) result.defaultSort = config.admin.list.sort
+  if (config.admin?.confirmDelete) result.confirmDelete = { ...config.admin.confirmDelete }
   const owner = cms.roles.ownerOf(config.slug)
   if (owner && fields.some((f) => f.name === owner)) result.owner = owner
   // Drafts, history and preview need the whole page.
@@ -379,7 +400,10 @@ async function global(
     versions: Boolean(config.versions),
     preview: typeof config.preview === 'function',
     schedule: config.schedule === true,
-    fields: await serializeFields(config.fields, checks, localized, folderIds(cms)),
+    fields: await serializeFields(config.fields, checks, localized, folderIds(cms, user, context), {
+      user,
+      context,
+    }),
     permissions: {
       read: await may(cms, config.access?.read, user, target, 'read', context),
       update: await may(cms, config.access?.update, user, target, 'update', context),
@@ -502,6 +526,10 @@ async function widgets(cms: EasyCMS, user: AuthUser): Promise<AdminWidgetRef[]> 
 }
 
 /** Media folders by key, made when first needed; `undefined` without `upload.folders`. */
-function folderIds(cms: EasyCMS): ((key: string) => Promise<ID>) | undefined {
-  return cms.folders.enabled ? (key) => cms.folders.keyed(key) : undefined
+function folderIds(
+  cms: EasyCMS,
+  user: AuthUser,
+  context: RequestContext,
+): ((key: string) => Promise<ID | null>) | undefined {
+  return cms.folders.enabled ? (key) => cms.keyedFolder(key, { user, context }) : undefined
 }

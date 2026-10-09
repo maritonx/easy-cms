@@ -101,6 +101,13 @@ export interface CollectionAdmin extends ContainerAdmin {
    * `author`, for roles given "own documents only". Default: who created it (`createdBy`).
    */
   readonly ownerField?: string
+  /**
+   * Deleting asks more than "Are you sure?", for documents that take much with them (e.g. a
+   * tenant): `typeTitle` has the user type the document's title; `impact` is a path under the
+   * API, called with `?id=`, that returns `{ message }` (a label) saying what will be lost.
+   * Documents are then deleted one at a time, not from a selection.
+   */
+  readonly confirmDelete?: { readonly typeTitle?: boolean; readonly impact?: string }
 }
 
 export interface CollectionListAdmin {

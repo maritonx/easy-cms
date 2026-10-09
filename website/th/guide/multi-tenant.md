@@ -60,11 +60,41 @@ npx easy-cms tenants:assign brand-a
 | ผู้เยี่ยมชม | tenant ที่ request ระบุ ถ้าไม่ระบุจะไม่เห็นอะไร |
 
 - เอกสารใหม่ได้ tenant ที่ request กำลังทำงานอยู่ เฉพาะผู้ใช้ที่เข้าได้ทุก tenant ที่เลือก tenant อื่นหรือย้ายเอกสารได้
-- relationship ไปยัง collection ของ tenant เลือกและบันทึกได้เฉพาะเอกสารของ tenant เดียวกัน
+- relationship และ upload ที่ชี้ไป collection ของ tenant เลือกและบันทึกได้เฉพาะเอกสารของ tenant เดียวกัน เอกสารที่ plugin
+  สร้างโดยไม่มี tenant (ข้อมูลที่ส่งจากฟอร์ม, redirect ของหน้า) ได้ tenant ตามเอกสารที่มันชี้ไป
+- โฟลเดอร์สื่อเป็นของ tenant field upload ที่ตั้ง `folder: 'banners'` จะเปิดโฟลเดอร์ `banners` ของแต่ละ tenant
 - ค่าที่ unique รวมถึง slug ห้ามซ้ำแค่ภายใน tenant สองแบรนด์จึงมี `/posts/hello` ได้ทั้งคู่
 - เพิ่มคนที่ **สมาชิก** ด้วยอีเมล บัญชีหนึ่งอยู่ได้หลาย tenant คนใหม่จะได้อีเมลให้ตั้งรหัสผ่านเมื่อตั้งค่า[อีเมล](./email)แล้ว
   admin ของ tenant แก้บัญชีของคนอื่นไม่ได้ แก้ได้แค่การเป็นสมาชิก
 - [API key](./api-keys) จำ tenant ที่สร้างไว้ตลอด
+- [Audit log](./audit-log) เก็บ tenant ของแต่ละ entry admin ของ tenant เห็นของ tenant ตัวเอง ผู้ที่เข้าได้ทุก tenant เห็นทั้งหมด
+  หรือของ tenant ที่เลือก
+- ตอนแสดงทุก tenant หน้ารายการมีคอลัมน์ Tenant และตัวสลับใช้กรองเหลือ tenant เดียว
+
+## ใช้กับ plugin อื่น {#with-other-plugins}
+
+ใส่ collection ของ plugin เหล่านั้นใน `collections` เพื่อแยกต่อ tenant และวาง `multiTenantPlugin` ไว้หลัง plugin ที่สร้าง collection:
+
+```ts
+plugins: [
+  nestedDocsPlugin({ collections: ['pages'] }),
+  redirectsPlugin({ collections: ['pages'], url }),
+  formBuilderPlugin(),
+  multiTenantPlugin({
+    collections: ['pages', 'redirects', 'forms', 'form-submissions', 'media'],
+  }),
+]
+```
+
+- **[หน้าย่อย](./nested-docs):** path ห้ามซ้ำแค่ภายใน tenant แต่ละ tenant จึงมี `/about` ได้ ส่ง tenant ให้ helper:
+  `findByPath(cms, 'pages', path, { context })` และ `getTree(cms, 'pages', { context })`
+- **[Redirects](./redirects):** แต่ละ tenant มีของตัวเอง หน้าที่ย้ายจะได้ redirect ใน tenant ของมัน
+  `resolveRedirect(cms, url, { context })` ใช้ของ tenant ของ request
+- **[ฟอร์ม](./forms):** `<easy-form>` และ `/api/cms/form/<slug>` หาฟอร์มของ tenant ของ request (โดเมนหรือ header)
+  และข้อมูลที่ส่งมาเป็นของ tenant นั้น
+- **[SEO](./seo):** ดูด้านล่าง
+
+ในที่นี้ `context` คือ `await tenantContext(cms, { host })` หรือ `(await cms.forRequest(request)).context`
 
 ## Frontend {#frontends}
 
@@ -114,7 +144,8 @@ request ที่ไม่ระบุ tenant จะไม่พบอะไร�
 
 ## ลบ tenant {#deleting-a-tenant}
 
-การลบ tenant ที่ ตั้งค่า → Tenants จะลบเอกสารและไฟล์ใน collection ของ tenant นั้น และเอา tenant ออกจากรายการของสมาชิก ย้อนกลับไม่ได้
+การลบ tenant ที่ ตั้งค่า → Tenants จะลบเอกสารและไฟล์ใน collection ของ tenant นั้น และเอา tenant ออกจากรายการของสมาชิก หน้า admin
+บอกว่าจะหายไปเท่าไร และให้พิมพ์ชื่อ tenant ก่อนลบ ย้อนกลับไม่ได้
 [สำรองข้อมูล](./backups)ก่อน
 
 ## ทำงานอย่างไร {#how-it-works}
@@ -127,6 +158,11 @@ plugin ใช้ส่วนของ core ที่คุณใช้เอง�
 - **global ที่มี `scope`** เก็บค่าแยกตาม scope
 - **`uniqueWithin`** ใช้ได้กับทุก field ที่ unique พร้อม unique index ต่อ scope ในฐานข้อมูล
 - **`admin.switcher`** เพิ่มตัวเลือกด้านบนของเมนู
+- **`audit.scope`** เก็บส่วนของเว็บของแต่ละ entry ใน audit log
+- **`admin.confirmDelete`**, **`admin.defaultValue`**, **`admin.column`** และ **`admin.allowCreate`** ปรับการลบ เอกสารใหม่
+  และหน้ารายการใน admin
+- **`filterOptions` ของ field upload** จำกัดไฟล์ที่เลือกได้
+- **`cms.uniqueScope()`** บอก plugin ว่า field ที่ unique ห้ามซ้ำภายในอะไรสำหรับ request นั้น
 
 ยังไม่มี: สำรองหรือ export ข้อมูลทีละ tenant, webhook ต่อ tenant, tenant ที่สมัครเอง และ single sign-on ที่ใส่คนเข้า tenant ตามโดเมนของอีเมล
 

@@ -1,12 +1,14 @@
-import type { AccessOptions, Config, DocumentOf, EasyCMS, SlugOf } from '@easy-cms/core'
+import type { AccessOptions, Config, DocumentOf, EasyCMS, SlugOf, Where } from '@easy-cms/core'
 import {
   type Doc,
   type ID,
   idOf,
   localApi,
   type NestedCMS,
+  type NestedCollection,
   nestedOf,
   normalizePath,
+  pathScopeFields,
 } from './shared.js'
 import { hasTrail, liveChildren, liveDoc, trailOf } from './tree.js'
 
@@ -33,10 +35,30 @@ export async function findByPath<C extends Config, S extends SlugOf<C>>(
   const { nested } = nestedOf(cms, collection)
   const found = await cms.find(collection, {
     ...options,
-    where: { [nested.pathField]: { equals: normalizePath(path) } },
+    where: {
+      and: [
+        { [nested.pathField]: { equals: normalizePath(path) } },
+        ...(await scopeWhere(cms, nested, options)),
+      ],
+    },
     limit: 1,
   })
   return (found.docs[0] as DocumentOf<C, S> | undefined) ?? null
+}
+
+/**
+ * The pages of the call's scope only (e.g. its tenant, from `context`), when paths are unique
+ * within one; nothing to add otherwise.
+ */
+async function scopeWhere(
+  cms: EasyCMS,
+  nested: NestedCollection,
+  options: AccessOptions,
+): Promise<Where[]> {
+  const names = pathScopeFields(cms, nested)
+  if (names.length === 0 || !options.context) return []
+  const scope = await cms.uniqueScope(nested.slug, nested.slugField, options)
+  return names.map((name) => ({ [name]: { equals: scope[name] ?? null } }))
 }
 
 /** A page in `getTree()`: what a menu or sidebar needs, and the pages under it. */
@@ -65,8 +87,10 @@ export async function getTree<C extends Config>(
 ): Promise<TreeNode[]> {
   const cms = localApi(instance as unknown as NestedCMS)
   const { nested } = nestedOf(cms, collection)
+  const scope = await scopeWhere(cms, nested, options)
   const { docs } = await cms.find(collection, {
     ...options,
+    ...(scope.length ? { where: { and: scope } } : {}),
     limit: 0,
     depth: 0,
     sort: nested.sort,

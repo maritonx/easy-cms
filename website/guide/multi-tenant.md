@@ -64,13 +64,47 @@ npx easy-cms tenants:assign brand-a
 
 - New documents get the tenant the request works in. Only users with access to all tenants
   choose another, or move a document.
-- Relationships to tenant collections offer and accept that tenant's documents only.
+- Relationships and uploads pointing to tenant collections offer and accept that tenant's
+  documents only. A document a plugin writes without a tenant (a form's submission, a page's
+  redirect) takes the tenant of what it points to.
+- Media folders belong to a tenant; an upload field's `folder: 'banners'` opens each tenant's
+  own `banners` folder.
 - Unique values, slugs included, only need to differ within a tenant: two brands can both have
   `/posts/hello`.
 - People are added under **Members**, by email: an account can be in several tenants. New people
   get an email to set a password when [email](./email) is set up. Admins of a tenant can't change
   people's accounts, only their membership.
 - An [API key](./api-keys) keeps the tenant it was created in.
+- The [audit log](./audit-log) keeps each entry's tenant: admins of a tenant see its entries;
+  users with access to all see everything, or the chosen tenant's.
+- While all tenants are shown, lists have a Tenant column; the switcher narrows them to one.
+
+## With other plugins
+
+List their collections in `collections` to keep them per tenant, and add `multiTenantPlugin`
+after the plugins that make them:
+
+```ts
+plugins: [
+  nestedDocsPlugin({ collections: ['pages'] }),
+  redirectsPlugin({ collections: ['pages'], url }),
+  formBuilderPlugin(),
+  multiTenantPlugin({
+    collections: ['pages', 'redirects', 'forms', 'form-submissions', 'media'],
+  }),
+]
+```
+
+- **[Nested pages](./nested-docs):** paths only differ within a tenant, so each can have
+  `/about`. Pass the tenant to the helpers:
+  `findByPath(cms, 'pages', path, { context })` and `getTree(cms, 'pages', { context })`.
+- **[Redirects](./redirects):** each tenant has its own; a page that moves gets a redirect in its
+  tenant. `resolveRedirect(cms, url, { context })` applies the request's.
+- **[Forms](./forms):** `<easy-form>` and `/api/cms/form/<slug>` find the form of the request's
+  tenant (its domain or header), and submissions belong to it.
+- **[SEO](./seo):** see below.
+
+Here `context` is `await tenantContext(cms, { host })` or `(await cms.forRequest(request)).context`.
 
 ## Frontends
 
@@ -123,8 +157,8 @@ A request that names no tenant finds nothing in tenant collections. With
 ## Deleting a tenant
 
 Deleting a tenant under Settings → Tenants deletes its documents and files in the tenant
-collections, and takes it off its members' lists. It can't be undone: make a
-[backup](./backups) first.
+collections, and takes it off its members' lists. The admin says how much goes, and asks for the
+tenant's name typed before deleting. It can't be undone: make a [backup](./backups) first.
 
 ## How it works
 
@@ -138,6 +172,11 @@ The plugin uses parts of the core you can use yourself:
 - **Globals with `scope`** keep a value per scope.
 - **`uniqueWithin`** works on any unique field, with a unique index per scope in the database.
 - **`admin.switcher`** adds the choice at the top of the menu.
+- **`audit.scope`** keeps each audit entry's part of the site.
+- **`admin.confirmDelete`**, **`admin.defaultValue`**, **`admin.column`** and
+  **`admin.allowCreate`** shape deleting, new documents and lists in the admin.
+- **`filterOptions` on upload fields** narrow which files fit.
+- **`cms.uniqueScope()`** tells plugins what a unique field is unique within for a request.
 
 Not yet: a backup or export of one tenant, webhooks per tenant, tenants that sign themselves
 up, and single sign-on that puts people in a tenant by their email's domain.

@@ -5,6 +5,7 @@ import MediaPicker from '../components/MediaPicker.vue'
 import MediaThumb from '../components/MediaThumb.vue'
 import UploadDropzone from '../components/UploadDropzone.vue'
 import { api, type Doc, type Paginated, toQuery } from '../lib/api'
+import { useFilterQuery } from '../lib/filter'
 import type { FieldFolder } from '../lib/folders'
 import { t } from '../lib/i18n'
 import { notify } from '../lib/toast'
@@ -22,10 +23,14 @@ const props = defineProps<{
   mimeTypes?: readonly string[] | undefined
   /** The media folder the picker opens in (`folder`). */
   folder?: FieldFolder | undefined
+  /** The field's path, when its `filterOptions` limit the choices. */
+  filterPath?: string | undefined
   minRows?: number | undefined
   maxRows?: number | undefined
 }>()
 const emit = defineEmits<{ 'update:modelValue': [Id[]] }>()
+/** The server applies the field's `filterOptions` for this document. */
+const filterQuery = useFilterQuery(() => props.filterPath)
 
 const ids = computed<Id[]>(() =>
   Array.isArray(props.modelValue) ? (props.modelValue as Id[]) : [],
@@ -172,6 +177,7 @@ const nameOf = (id: Id) => {
     multiple
     :mime-types="mimeTypes"
     :folder="folder"
+    :filter-query="filterQuery()"
     :room="room"
     @select-many="add"
     @close="picking = false"

@@ -118,6 +118,11 @@ if (response.ok) {
 | `slug` | `'redirects'` | slug ของ collection redirect |
 | `cacheTTL` | `60000` | เวลาที่ server อื่นเก็บ redirect ไว้ในหน่วยความจำ (ms) |
 
+## ในหลาย tenant {#in-several-tenants}
+
+เมื่อใช้ [plugin multi-tenant](./multi-tenant#with-other-plugins) แต่ละ tenant มี redirect ของตัวเอง ส่ง `context` ของ request:
+`resolveRedirect(cms, url, { context })`
+
 ## ขั้นต่อไป {#next-steps}
 
 - [SEO](./seo): sitemap ใช้ที่อยู่ใหม่ของหน้า

@@ -90,3 +90,15 @@ export function normalizePath(path: string): string {
     })
   return `/${(parts ?? []).join('/')}`
 }
+
+/**
+ * What a page's slug is unique within besides its parent (e.g. its tenant, from
+ * `uniqueWithin`): paths only need to differ among pages that share these.
+ */
+export function pathScopeFields(cms: EasyCMS, nested: NestedCollection): string[] {
+  const slug = cms.config.collections
+    .find((c) => c.slug === nested.slug)
+    ?.fields.find((f) => f.name === nested.slugField)
+  const within = slug?.uniqueWithin === undefined ? [] : [slug.uniqueWithin].flat()
+  return within.filter((name) => name !== nested.parentField)
+}

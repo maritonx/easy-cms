@@ -1,9 +1,9 @@
 # Software Requirements Specification — Easy CMS
 
-- **เวอร์ชันเอกสาร:** 3.19
+- **เวอร์ชันเอกสาร:** 3.20
 - **วันที่:** 2026-10-08
 - **ผู้เขียน:** Kanawoot K.
-- **ครอบคลุม:** v0.1 (baseline) ถึง v0.44
+- **ครอบคลุม:** v0.1 (baseline) ถึง v0.45
 - **สถานะ:** Living document (อัปเดตทุกครั้งที่เพิ่มฟีเจอร์)
 - **เอกสารที่เกี่ยวข้อง:** [DESIGN.md](DESIGN.md), [ADRs](adr/)
 
@@ -533,6 +533,12 @@ AI assistant ► /api/cms/mcp ──┘                     └──► Webhook
 | FR-MT-08 | admin ต้องมีตัวสลับ tenant (`admin.switcher`) และหน้า Members ให้ admin ของ tenant เพิ่มคนด้วยอีเมล เปลี่ยนบทบาท และนำออก โดยแก้บัญชีของคนอื่นไม่ได้ | 0.44 | MUST |
 | FR-MT-09 | unique และ slug ต้องห้ามซ้ำเฉพาะใน tenant, relationship ไป collection ของ tenant ต้องชี้ได้เฉพาะเอกสารใน tenant เดียวกัน และ API key ต้องจำ tenant ที่สร้างไว้ | 0.44 | MUST |
 | FR-MT-10 | ลบ tenant แล้วต้องลบเอกสารและไฟล์ของ tenant นั้น และ `easy-cms tenants:assign` ต้องใส่ tenant ให้เอกสารที่ยังไม่มี | 0.44 | SHOULD |
+| FR-MT-11 | field upload ต้องมี `filterOptions` (ตัวเลือกใน admin และตรวจตอนบันทึก) และ multi-tenant ต้องห้ามบันทึกสื่อของ tenant อื่น | 0.45 | MUST |
+| FR-MT-12 | `uniqueWithin` ต้องรับหลาย field และ key ของโฟลเดอร์สื่อต้องไม่ซ้ำแค่ภายใน tenant โดยโฟลเดอร์ของ field upload สร้างใน tenant ที่ทำงานอยู่ | 0.45 | MUST |
+| FR-MT-13 | nested-docs, redirects และ form-builder ต้องหา path, redirect และฟอร์มภายใน tenant ของ request (`context`, `cms.uniqueScope`) และเอกสารที่ plugin สร้างต้องได้ tenant | 0.45 | MUST |
+| FR-MT-14 | audit log ต้องเก็บ scope ของ entry (`audit.scope`) และผู้ใช้ที่ scoped ต้องเห็นเฉพาะ scope ของตัวเอง | 0.45 | MUST |
+| FR-MT-15 | collection ต้องตั้ง `admin.confirmDelete` ได้ (พิมพ์ชื่อและแสดงผลกระทบก่อนลบ) และการลบ tenant ต้องใช้แบบนี้ | 0.45 | SHOULD |
+| FR-MT-16 | field ต้องตั้ง `admin.defaultValue`, `admin.column` และ `admin.allowCreate` ได้ และหน้ารายการต้องแสดงคอลัมน์ relationship ได้ | 0.45 | SHOULD |
 
 ### 3.26 สำรองและย้ายข้อมูล (OPS)
 
@@ -813,6 +819,7 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 1.3 | 2026-09-25 | M5: FR-REST-08 (อัปโหลด/ไฟล์), FR-CFG-07 (`routes.api`, `serverURL`), ระบุว่า drafts ใน v0.1 ไม่มี version แยก |
 | 1.4 | 2026-09-25 | M6: ผลวัด NFR-PERF-01/02 บน Postgres 17 (Local API p95 2.7 ms, REST p95 4.3 ms), Next.js adapter ใช้ `getEasyCMS(config)` |
 | 1.5 | 2026-09-25 | M7: ผลตรวจรับ v0.1 (7.1) |
+| 3.20 | 2026-10-09 | 0.45: FR-MT-11..16 |
 | 3.19 | 2026-10-09 | 0.44: FR-MT-01..10 |
 | 3.18 | 2026-10-08 | 0.43: FR-GQL-01..09 |
 | 3.17 | 2026-10-08 | 0.42: FR-ADP-06 |

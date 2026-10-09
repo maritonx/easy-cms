@@ -29,6 +29,7 @@ import {
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import DeleteDialog from '../components/DeleteDialog.vue'
 import DocumentDrawer from '../components/DocumentDrawer.vue'
 import FolderMoveDialog from '../components/FolderMoveDialog.vue'
 import FolderNameDialog from '../components/FolderNameDialog.vue'
@@ -101,12 +102,17 @@ const COLUMN_TYPES = new Set([
 const SORTABLE_TYPES = new Set(['text', 'email', 'slug', 'number', 'date', 'select'])
 /** Fields that can be shown as extra columns: plain values at the top level. */
 const columnFields = computed<AdminField[]>(
-  () => collection?.fields.filter((f) => COLUMN_TYPES.has(f.type) && f.name !== titleField) ?? [],
+  () =>
+    collection?.fields.filter(
+      (f) =>
+        (COLUMN_TYPES.has(f.type) || (f.type === 'relationship' && !f.hasMany)) &&
+        f.name !== titleField,
+    ) ?? [],
 )
 const columnsKey = `easy-cms-columns:${slug}`
 /** The columns chosen before; at first, fields with a cell of their own (e.g. a color swatch). */
 function storedColumns(): string[] {
-  const shownFirst = columnFields.value.filter((f) => f.admin?.cell).map((f) => f.name)
+  const shownFirst = columnFields.value.filter((f) => f.admin?.cell || f.column).map((f) => f.name)
   try {
     const stored = localStorage.getItem(columnsKey)
     if (stored === null) return shownFirst
@@ -143,8 +149,41 @@ function onDocumentClick(event: MouseEvent) {
     folderMenu.value = null
 }
 
+/** Titles of related documents shown in columns, by field and id. */
+const relatedTitles = ref<Record<string, Record<string, string>>>({})
+async function loadRelatedTitles(docs: Doc[]) {
+  const titles: Record<string, Record<string, string>> = {}
+  for (const field of extraColumns.value) {
+    if (field.type !== 'relationship' || !field.to) continue
+    const ids = [
+      ...new Set(docs.map((d) => d[field.name]).filter((v) => v !== null && v !== undefined)),
+    ]
+    if (ids.length === 0) continue
+    const target = findCollection(field.to)
+    try {
+      const found = await api<Paginated<Doc>>(
+        'GET',
+        `/${field.to}${toQuery({ where: { id: { in: ids.join(',') } }, limit: ids.length, depth: 0 })}`,
+      )
+      titles[field.name] = Object.fromEntries(
+        found.docs.map((d) => [String(d.id), titleOf(target, d)]),
+      )
+    } catch {
+      // Not readable: ids are shown.
+    }
+  }
+  relatedTitles.value = titles
+}
+
+// A relationship column turned on: its titles.
+watch(extraColumns, () => {
+  if (result.value) void loadRelatedTitles(result.value.docs)
+})
+
 function cell(field: AdminField, value: unknown): string {
   if (value === null || value === undefined || value === '') return '—'
+  if (field.type === 'relationship')
+    return relatedTitles.value[field.name]?.[String(value)] ?? `#${String(value)}`
   if (Array.isArray(value) && value.length === 0) return '—'
   if (field.type === 'date') return formatDate(value)
   if (field.type === 'boolean') return value ? t('common.yes') : t('common.no')
@@ -572,6 +611,7 @@ async function load() {
     }
     result.value = found
     selected.value = new Set()
+    void loadRelatedTitles(found.docs)
   } catch (e) {
     error.value =
       e instanceof ApiError && e.status === 403
@@ -1173,7 +1213,7 @@ async function deleteSelected(query = '') {
           <FolderInput :size="15" aria-hidden="true" />
           {{ t('folders.moveTo') }}
         </button>
-        <button v-if="collection.permissions.delete" type="button" class="bulk-btn danger" :disabled="busy" @click="confirming = true">
+        <button v-if="collection.permissions.delete && !collection.confirmDelete" type="button" class="bulk-btn danger" :disabled="busy" @click="confirming = true">
           <Trash2 :size="15" aria-hidden="true" />
           {{ t('list.deleteSelected') }}
         </button>
@@ -1251,10 +1291,11 @@ async function deleteSelected(query = '') {
       />
     </template>
     <template v-else>
-      <ConfirmDialog
+      <DeleteDialog
         :open="deleting !== null"
+        :collection="collection"
+        :doc="deleting ? { id: deleting.id, title: titleOf(collection, deleting) } : null"
         :message="t('list.confirmDelete', { count: 1 })"
-        :confirm-label="t('edit.delete')"
         @confirm="deleteOne()"
         @cancel="deleting = null"
       />

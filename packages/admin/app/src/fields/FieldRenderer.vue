@@ -260,6 +260,7 @@ function onNumber(value: string) {
       :to="field.to ?? ''"
       :has-many="field.hasMany === true"
       :filter-path="field.filtered ? path : undefined"
+      :no-create="field.noCreate === true"
       :model-value="modelValue"
       :read-only="readOnly"
       :invalid="invalid"
@@ -274,6 +275,7 @@ function onNumber(value: string) {
       :invalid="invalid"
       :mime-types="field.mimeTypes"
       :folder="field.folder"
+      :filter-path="field.filtered ? path : undefined"
       :min-rows="field.minRows"
       :max-rows="field.maxRows"
       @update:model-value="set"
@@ -286,6 +288,7 @@ function onNumber(value: string) {
       :invalid="invalid"
       :mime-types="field.mimeTypes"
       :folder="field.folder"
+      :filter-path="field.filtered ? path : undefined"
       @update:model-value="set"
     />
 

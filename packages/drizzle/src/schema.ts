@@ -214,8 +214,9 @@ function buildTable(
   const described: unknown[] = []
   const columnModels: ColumnModel[] = []
   const children: ChildModel[] = []
-  // `within`: unique together with that column (`uniqueWithin`).
-  const indexes: { column: string; unique: boolean; within?: string }[] = []
+  // `within`: unique together with these columns (`uniqueWithin`).
+  // One column as a string, as before several were allowed (the schema's hash stays the same).
+  const indexes: { column: string; unique: boolean; within?: string | readonly string[] }[] = []
 
   const add = (column: string, builderColumn: ColumnBuilder, desc: unknown) => {
     if (Object.hasOwn(columns, column)) {
@@ -341,7 +342,12 @@ function buildTable(
           ) {
             // Unique among documents with the same value there, e.g. per parent or tenant; and
             // an index of its own, for lookups by this field alone.
-            indexes.push({ column, unique: true, within: snake(field.uniqueWithin) })
+            const within = [field.uniqueWithin].flat().map(snake)
+            indexes.push({
+              column,
+              unique: true,
+              within: within.length === 1 ? (within[0] as string) : within,
+            })
             indexes.push({ column, unique: false })
           } else if (topLevel && kind === 'root' && (field.unique || field.type === 'slug')) {
             indexes.push({ column, unique: true })
@@ -363,8 +369,12 @@ function buildTable(
   const table = dialect.table(name, columns, (t: Record<string, AnyColumn>) =>
     indexes.map(({ column, unique, within }) => {
       const col = t[column]
-      if (within)
-        return dialect.uniqueIndex(`${name}_${within}_${column}_unique`).on(t[within], col)
+      if (within) {
+        const columns = [within].flat()
+        return dialect
+          .uniqueIndex(`${name}_${columns.join('_')}_${column}_unique`)
+          .on(...columns.map((w) => t[w] as AnyColumn), col)
+      }
       return unique
         ? dialect.uniqueIndex(`${name}_${column}_unique`).on(col)
         : dialect.index(`${name}_${column}_idx`).on(col)

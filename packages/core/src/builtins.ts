@@ -341,7 +341,16 @@ export function withMedia(config: Config): Config {
   const mediaFolders: CollectionConfig = customFolders
     ? {
         ...mediaFoldersCollection,
-        fields: [...mediaFoldersCollection.fields, ...customFolders.fields],
+        // A field named like a built-in one changes it (e.g. `key` unique per tenant).
+        fields: [
+          ...mediaFoldersCollection.fields.map((field) => {
+            const own = customFolders.fields.find((f) => f.name === field.name)
+            return own ? ({ ...field, ...own } as Field) : field
+          }),
+          ...customFolders.fields.filter(
+            (f) => !mediaFoldersCollection.fields.some((b) => b.name === f.name),
+          ),
+        ],
         access: { ...mediaFoldersCollection.access, ...customFolders.access },
         hooks: {
           ...customFolders.hooks,
@@ -496,6 +505,8 @@ export const auditLogsCollection: CollectionConfig = {
     { name: 'changes', type: 'json' },
     { name: 'detail', type: 'json' },
     { name: 'signature', type: 'text' },
+    // The part of the site, e.g. the tenant (`audit.scope`).
+    { name: 'scope', type: 'text', index: true },
   ],
 }
 

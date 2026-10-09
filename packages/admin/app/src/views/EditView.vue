@@ -5,6 +5,7 @@ import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import ActivityPanel from '../components/ActivityPanel.vue'
 import ApiKeyCreated from '../components/ApiKeyCreated.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import DeleteDialog from '../components/DeleteDialog.vue'
 import IdentitiesPanel from '../components/IdentitiesPanel.vue'
 import LivePreview from '../components/LivePreview.vue'
 import LocaleSwitcher from '../components/LocaleSwitcher.vue'
@@ -676,11 +677,12 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
       @confirm="remove"
       @cancel="confirmingDelete = false"
     />
-    <ConfirmDialog
+    <DeleteDialog
       v-else
       :open="confirmingDelete"
+      :collection="collection"
+      :doc="id ? { id, title: titleOf(collection, { ...(doc ?? {}), id }) } : null"
       :message="t('edit.confirmDelete')"
-      :confirm-label="t('edit.delete')"
       @confirm="remove()"
       @cancel="confirmingDelete = false"
     />

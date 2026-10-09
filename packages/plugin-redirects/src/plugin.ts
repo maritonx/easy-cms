@@ -246,7 +246,7 @@ export function redirectsPlugin<
         // Locales that share an address need one redirect.
         if (!from || !to || from === to || done.has(from)) continue
         done.add(from)
-        await addRedirect(cms, { from, collection: s, id: doc.id, locale, current: to })
+        await addRedirect(cms, { from, collection: s, id: doc.id, locale, current: to, doc })
       }
     }
 
@@ -259,10 +259,23 @@ export function redirectsPlugin<
         id: unknown
         locale: string | null
         current: string
+        doc: Record<string, unknown>
       },
     ) => {
+      // Redirects kept per scope (`uniqueWithin` of `from`, e.g. a tenant): the page's scope.
+      const from = cms.config.collections
+        .find((c) => c.slug === slug)
+        ?.fields.find((f) => f.name === 'from')
+      const scope = Object.fromEntries(
+        (from?.uniqueWithin === undefined ? [] : [from.uniqueWithin].flat()).map((name) => [
+          name,
+          args.doc[name] ?? null,
+        ]),
+      )
+      const inScope = Object.entries(scope).map(([name, value]) => ({ [name]: { equals: value } }))
+      const where = (path: string) => ({ and: [{ from: { equals: path } }, ...inScope] })
       // A redirect away from the page's new address would send visitors in a loop.
-      const loops = await cms.find(slug, { where: { from: { equals: args.current } }, limit: 100 })
+      const loops = await cms.find(slug, { where: where(args.current), limit: 100 })
       for (const loop of loops.docs) await cms.delete(slug, loop.id)
       const data = {
         from: args.from,
@@ -270,8 +283,9 @@ export function redirectsPlugin<
         [targetField(args.collection)]: args.id,
         ...(locales.length > 0 ? { locale: args.locale } : {}),
         type: '301',
+        ...scope,
       }
-      const existing = await cms.find(slug, { where: { from: { equals: args.from } }, limit: 1 })
+      const existing = await cms.find(slug, { where: where(args.from), limit: 1 })
       if (existing.docs[0]) await cms.update(slug, existing.docs[0].id, data)
       else await cms.create(slug, data)
     }
@@ -295,11 +309,11 @@ export function redirectsPlugin<
       method: 'get',
       // Lets `resolveRedirect(cms)` find these options from the resolved config.
       handler: Object.assign(
-        async ({ url, cms }: Parameters<Endpoint['handler']>[0]) => {
+        async ({ url, cms, context }: Parameters<Endpoint['handler']>[0]) => {
           const path = url.searchParams.get('path')
           if (!path)
             return Response.json({ errors: [{ message: 'path is required' }] }, { status: 400 })
-          const redirect = await resolveRedirect(cms, path)
+          const redirect = await resolveRedirect(cms, path, { context })
           if (!redirect)
             return Response.json({ errors: [{ message: 'No redirect' }] }, { status: 404 })
           return Response.json(redirect, { headers: { 'cache-control': 'public, max-age=60' } })

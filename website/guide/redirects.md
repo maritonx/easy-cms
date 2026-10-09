@@ -125,6 +125,11 @@ look the path up in your `not-found` page and call `permanentRedirect()`.
 | `slug` | `'redirects'` | Slug of the redirects collection. |
 | `cacheTTL` | `60000` | How long other servers keep redirects in memory, in ms. |
 
+## In several tenants
+
+With the [multi-tenant plugin](./multi-tenant#with-other-plugins), each tenant has its own
+redirects. Pass the request's `context`: `resolveRedirect(cms, url, { context })`.
+
 ## Next steps
 
 - [SEO](./seo): the sitemap lists pages at their new addresses.

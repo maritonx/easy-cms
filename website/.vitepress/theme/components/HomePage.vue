@@ -11,7 +11,7 @@ const { isDark } = useData()
 
 const COPY = {
   en: {
-    badge: 'New in 0.44: several sites in one CMS (multi-tenant)',
+    badge: 'New in 0.45: multi-tenant with nested pages, redirects and forms',
     badgeLink: 'multi-tenant',
     title: 'Your CMS,',
     titleAccent: 'inside your app',
@@ -230,7 +230,7 @@ const COPY = {
     ctaGuide: 'Read the guide',
   },
   th: {
-    badge: 'ใหม่ใน 0.44: หลายเว็บใน CMS เดียว (multi-tenant)',
+    badge: 'ใหม่ใน 0.45: multi-tenant ใช้กับหน้าย่อย redirects และฟอร์มได้',
     badgeLink: 'multi-tenant',
     title: 'CMS ที่อยู่',
     titleAccent: 'ในแอปของคุณ',

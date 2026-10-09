@@ -33,6 +33,24 @@ export interface FieldAdmin {
   readonly after?: readonly AdminComponent[]
   /** Shows the value in the admin's lists (e.g. a color swatch). Default: the plain value. */
   readonly cell?: AdminComponent
+  /**
+   * A column of the list at first (each user can change it): `true`, or per request, e.g.
+   * only when the admin shows every tenant.
+   */
+  readonly column?: boolean | ((args: AdminFieldArgs) => boolean | Promise<boolean>)
+  /** Relationships: offer to create the related document in place. Default true. */
+  readonly allowCreate?: boolean
+  /**
+   * The value a new document's form starts with, worked out for each user, e.g. from the
+   * request's context. The server's own default (`defaultValue`, hooks) still applies.
+   */
+  readonly defaultValue?: (args: AdminFieldArgs) => unknown
+}
+
+/** What per-request admin options of a field receive. */
+export interface AdminFieldArgs {
+  readonly user: AuthUser
+  readonly context: RequestContext
 }
 
 /**
@@ -66,11 +84,11 @@ interface BaseField<TType extends string, TValue> {
   readonly required?: boolean
   readonly unique?: boolean
   /**
-   * With `unique` (or on a slug field): the name of a sibling field (e.g. `parent` or `tenant`)
+   * With `unique` (or on a slug field): a sibling field (e.g. `parent` or `tenant`), or several,
    * whose documents only need to differ among themselves, so `/about/team` and `/careers/team`
-   * can both be `team`. A single, unlocalized relationship, select, text or number field.
+   * can both be `team`. Single, unlocalized relationship, select, text or number fields.
    */
-  readonly uniqueWithin?: string
+  readonly uniqueWithin?: string | readonly string[]
   readonly index?: boolean
   readonly defaultValue?: TValue
   readonly validate?: FieldValidate<TValue>
@@ -155,6 +173,8 @@ export interface UploadField extends BaseField<'upload', never> {
   readonly folder?: string
   /** With `folder`: only files in that folder (and its subfolders) may be chosen. */
   readonly folderOnly?: boolean
+  /** Which media documents may be chosen, as for relationships: offered and checked on save. */
+  readonly filterOptions?: FilterOptions
 }
 
 export interface FilterOptionsArgs {
@@ -210,6 +230,10 @@ export interface BlocksField extends BaseField<'blocks', never> {
   readonly minRows?: number
   readonly maxRows?: number
 }
+
+/** The fields `uniqueWithin` names, as a list. */
+export const uniqueWithinOf = (field: Field): readonly string[] =>
+  field.uniqueWithin === undefined ? [] : [field.uniqueWithin].flat()
 
 /** Fields with `hasMany`: their value is a list of options, documents or files. */
 export const isHasMany = (field: Field): boolean =>

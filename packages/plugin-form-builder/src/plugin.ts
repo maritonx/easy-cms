@@ -6,6 +6,7 @@ import {
   type EasyCMS,
   type Endpoint,
   type Field,
+  type RequestContext,
   resolveAdminModule,
   type TypedPlugin,
 } from '@easy-cms/core'
@@ -275,10 +276,24 @@ export function formBuilderPlugin<
       ],
     }
 
-    /** The published form with this slug, in `locale`. */
-    const findForm = async (cms: EasyCMS, slug: string, locale: string | null) => {
+    /**
+     * The published form with this slug, in `locale`; with slugs unique per scope (e.g. per
+     * tenant), the request's.
+     */
+    const findForm = async (
+      cms: EasyCMS,
+      slug: string,
+      locale: string | null,
+      context: RequestContext,
+    ) => {
+      const scope = await cms.uniqueScope(forms, 'slug', { context })
       const { docs } = await cms.find(forms, {
-        where: { slug: { equals: slug } },
+        where: {
+          and: [
+            { slug: { equals: slug } },
+            ...Object.entries(scope).map(([name, value]) => ({ [name]: { equals: value } })),
+          ],
+        },
         limit: 1,
         depth: 0,
         ...(locale ? { locale } : {}),
@@ -357,10 +372,10 @@ export function formBuilderPlugin<
     const getEndpoint: Endpoint = {
       path: '/form/:slug',
       method: 'get',
-      handler: async ({ params, url, cms }) => {
+      handler: async ({ params, url, cms, context }) => {
         const slug = params.slug as string
         const locale = localeOf(url.searchParams.get('locale'))
-        const form = await findForm(cms, slug, locale)
+        const form = await findForm(cms, slug, locale, context)
         if (!form) return fail(404, [{ message: `No published form "${slug}"` }])
         return Response.json(publicForm(form, slug, locale), {
           // The token is fresh on every request.
@@ -372,11 +387,11 @@ export function formBuilderPlugin<
     const submitEndpoint: Endpoint = {
       path: '/form/:slug/submit',
       method: 'post',
-      handler: async ({ params, json, ip, cms }) => {
+      handler: async ({ params, json, ip, cms, context }) => {
         const slug = params.slug as string
         const body = await json()
         const locale = localeOf(body.locale)
-        const form = await findForm(cms, slug, locale)
+        const form = await findForm(cms, slug, locale, context)
         if (!form) return fail(404, [{ message: `No published form "${slug}"` }])
         const confirmation = confirmationOf(form, locale)
         const reload =
@@ -433,14 +448,18 @@ export function formBuilderPlugin<
         }
 
         const page = typeof body.page === 'string' ? body.page.slice(0, 500) : null
-        await cms.create(submissions, {
-          form: form.id,
-          data: values,
-          summary: summarize(rowsOf(form), values),
-          locale,
-          page,
-          ...(rateKey ? { rateKey } : {}),
-        })
+        await cms.create(
+          submissions,
+          {
+            form: form.id,
+            data: values,
+            summary: summarize(rowsOf(form), values),
+            locale,
+            page,
+            ...(rateKey ? { rateKey } : {}),
+          },
+          { context },
+        )
         for (const email of buildEmails({
           form,
           fields: rowsOf(form),

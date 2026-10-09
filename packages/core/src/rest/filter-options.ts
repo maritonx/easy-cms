@@ -39,7 +39,8 @@ export async function pickerFilter(
       ? cms.config.collections.find((c) => c.slug === slug)
       : cms.config.globals.find((g) => g.slug === slug)
   const field = owner ? fieldAt(owner.fields, spec.slice(dot + 1)) : undefined
-  if (field?.type !== 'relationship' || field.to !== target)
+  const to = field?.type === 'upload' ? 'media' : field?.type === 'relationship' ? field.to : null
+  if (!field || (field.type !== 'relationship' && field.type !== 'upload') || to !== target)
     throw new QueryError(`filterFor: no relationship to "${target}" at "${spec}"`)
   if (!field.filterOptions) return undefined
   const rawId = url.searchParams.get('filterId')
