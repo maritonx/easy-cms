@@ -10,7 +10,7 @@
 | [หน้า landing page จาก blocks](./landing-page) | ผู้แก้จัดหน้าเองจาก block ส่วนหัว จุดเด่น และปุ่มชวนคลิก |
 | [เมนูนำทางใน global](./navigation-menu) | เมนูเดียวที่แก้ได้สำหรับทั้งเว็บ ทุกภาษา |
 | [แกลเลอรีรูปภาพ](./image-galleries) | หลายรูปในบทความ เรียงตามที่ผู้แก้เลือก |
-| [Deploy บน Vercel ด้วย Postgres และ R2](./vercel) | serverless: Postgres, Cloudflare R2 สำหรับไฟล์ และ cron สำหรับบทความที่ตั้งเวลา |
+| [Deploy บน Vercel](../deploy/vercel) | serverless: Postgres หรือ Turso, Vercel Blob หรือ R2 สำหรับไฟล์ และ cron สำหรับบทความที่ตั้งเวลา |
 | [ย้ายจาก SQLite ไป Postgres](./sqlite-to-postgres) | เปลี่ยนฐานข้อมูลก่อนเปิดตัว หรือย้ายพร้อมข้อมูล |
 | [สำรองข้อมูลอัตโนมัติ](./automate-backups) | สำรองฐานข้อมูลและไฟล์อัปโหลดทุกวัน และซ้อมกู้คืน |
 | [เตรียมเว็บให้เครื่องมือค้นหา](./search-engines) | meta tag, sitemap, robots.txt, hreflang และข้อมูลแบบมีโครงสร้าง แล้วส่งให้ Search Console |

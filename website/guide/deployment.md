@@ -45,7 +45,7 @@ is for development; whether production reads it depends on how the server starts
 |---|---|---|
 | Next.js (`next start`) | Yes | Nothing, or set the variables on the host |
 | Nuxt (`node .output/server/index.mjs`) | **No** | Set the variables on the host, or start with `node --env-file=.env .output/server/index.mjs` |
-| Platforms (Vercel, Netlify, Fly, Docker…) | Use the platform's settings | Add the variables in its dashboard, CLI or compose file |
+| Platforms (Vercel, Netlify, Fly, Docker…) | Use the platform's settings | Add the variables in its dashboard, CLI or compose file; see [Deploy](./deploy/) |
 
 When `EASY_CMS_SECRET` is missing, the API answers `500` and the log says
 `secret: is required`.
@@ -72,5 +72,6 @@ After going live, the dashboard tells admins what needs attention: see
 
 ## Next steps
 
+- [Deploy](./deploy/): step by step on Vercel, Netlify, Docker, a VPS and other hosts.
 - [Backups & upgrades](./backups): back up before upgrading.
 - [Security](./security): a checklist for going live.

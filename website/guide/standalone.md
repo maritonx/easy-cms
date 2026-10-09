@@ -85,21 +85,8 @@ npx easy-cms migrate
 NODE_ENV=production npx easy-cms serve --trust-proxy
 ```
 
-A Dockerfile:
-
-```dockerfile
-FROM node:24-slim
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --omit=dev
-COPY . .
-ENV NODE_ENV=production PORT=4000
-EXPOSE 4000
-HEALTHCHECK CMD node -e "fetch('http://localhost:4000/healthz').then(r => process.exit(r.ok ? 0 : 1))"
-CMD ["sh", "-c", "npx easy-cms migrate && npx easy-cms serve"]
-```
-
-Uploads on local disk need a volume (`/app/uploads`); or use [S3 storage](./uploads#s3-cloudflare-r2-and-minio).
+A Dockerfile, Compose with Postgres or SQLite, a VPS with systemd, and other hosts:
+see [Deploy](./deploy/).
 
 ## Use your own server
 

@@ -73,5 +73,6 @@
 
 ## ขั้นต่อไป {#next-steps}
 
-- [การ deploy](./deployment): migration, environment variable และ host อื่นๆ
+- [การ Deploy](./deploy/): ตั้งค่า Vercel, Netlify, Docker หรือ VPS เอง
+- [Migration และการ deploy](./deployment): migration และ environment variable
 - [บทเรียน](./tutorial): สร้างเว็บด้วย Easy CMS ทีละขั้น

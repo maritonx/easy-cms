@@ -85,21 +85,7 @@ npx easy-cms migrate
 NODE_ENV=production npx easy-cms serve --trust-proxy
 ```
 
-ตัวอย่าง Dockerfile:
-
-```dockerfile
-FROM node:24-slim
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --omit=dev
-COPY . .
-ENV NODE_ENV=production PORT=4000
-EXPOSE 4000
-HEALTHCHECK CMD node -e "fetch('http://localhost:4000/healthz').then(r => process.exit(r.ok ? 0 : 1))"
-CMD ["sh", "-c", "npx easy-cms migrate && npx easy-cms serve"]
-```
-
-การอัปโหลดไปยังดิสก์ในเครื่องต้องใช้ volume (`/app/uploads`) หรือใช้ [S3 storage](./uploads#s3-cloudflare-r2-and-minio)
+Dockerfile, Compose กับ Postgres หรือ SQLite, VPS กับ systemd และโฮสต์อื่นๆ ดู [การ Deploy](./deploy/)
 
 ## ใช้ server ของคุณเอง {#use-your-own-server}
 

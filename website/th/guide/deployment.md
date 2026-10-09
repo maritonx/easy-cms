@@ -44,7 +44,7 @@ field ที่เปลี่ยนไปถูกเปลี่ยนชื�
 |---|---|---|
 | Next.js (`next start`) | อ่าน | ไม่ต้องทำอะไร หรือตั้งค่าตัวแปรบนโฮสต์ |
 | Nuxt (`node .output/server/index.mjs`) | **ไม่อ่าน** | ตั้งค่าตัวแปรบนโฮสต์ หรือเริ่มด้วย `node --env-file=.env .output/server/index.mjs` |
-| แพลตฟอร์ม (Vercel, Netlify, Fly, Docker…) | ใช้การตั้งค่าของแพลตฟอร์ม | เพิ่มตัวแปรใน dashboard, CLI หรือไฟล์ compose ของแพลตฟอร์ม |
+| แพลตฟอร์ม (Vercel, Netlify, Fly, Docker…) | ใช้การตั้งค่าของแพลตฟอร์ม | เพิ่มตัวแปรใน dashboard, CLI หรือไฟล์ compose ของแพลตฟอร์ม ดู [การ Deploy](./deploy/) |
 
 เมื่อไม่มี `EASY_CMS_SECRET` API จะตอบ `500` และ log จะแสดง
 `secret: is required`
@@ -70,5 +70,6 @@ field ที่เปลี่ยนไปถูกเปลี่ยนชื�
 
 ## ขั้นต่อไป {#next-steps}
 
+- [การ Deploy](./deploy/): ทีละขั้นตอนบน Vercel, Netlify, Docker, VPS และโฮสต์อื่นๆ
 - [Backup และการอัปเกรด](./backups): สำรองข้อมูลก่อนอัปเกรด
 - [ความปลอดภัย](./security): เช็กลิสต์ก่อนขึ้นระบบจริง

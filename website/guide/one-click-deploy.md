@@ -80,5 +80,6 @@ Other databases work too: Supabase or any Postgres through `DATABASE_URL`, or Tu
 
 ## Next steps
 
-- [Deployment](./deployment): migrations, environment variables and other hosts.
+- [Deploy](./deploy/): set up Vercel, Netlify, Docker or a VPS yourself.
+- [Migrations & deployment](./deployment): migrations and environment variables.
 - [Tutorial](./tutorial): build a site with Easy CMS step by step.
