@@ -1,5 +1,9 @@
 # @easy-cms/admin
 
+## 0.61.0
+
+No changes in this release.
+
 ## 0.60.0
 
 The same code as 0.49.0, released as 0.60.0 to match the [roadmap](https://github.com/maritonx/easy-cms/blob/main/docs/ROADMAP.md):
