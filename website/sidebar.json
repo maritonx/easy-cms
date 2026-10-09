@@ -344,6 +344,56 @@
     },
     {
       "title": {
+        "en": "Deploy",
+        "th": "การ Deploy"
+      },
+      "items": [
+        {
+          "path": "guide/deploy/index",
+          "title": {
+            "en": "Choosing a host",
+            "th": "เลือกที่ deploy"
+          }
+        },
+        {
+          "path": "guide/deploy/vercel",
+          "title": {
+            "en": "Vercel",
+            "th": "Vercel"
+          }
+        },
+        {
+          "path": "guide/deploy/netlify",
+          "title": {
+            "en": "Netlify",
+            "th": "Netlify"
+          }
+        },
+        {
+          "path": "guide/deploy/docker",
+          "title": {
+            "en": "Docker",
+            "th": "Docker"
+          }
+        },
+        {
+          "path": "guide/deploy/vps",
+          "title": {
+            "en": "VPS (Linux server)",
+            "th": "VPS (เซิร์ฟเวอร์ Linux)"
+          }
+        },
+        {
+          "path": "guide/deploy/other-hosts",
+          "title": {
+            "en": "Other hosts",
+            "th": "โฮสต์อื่นๆ"
+          }
+        }
+      ]
+    },
+    {
+      "title": {
         "en": "Recipes",
         "th": "สูตรสำเร็จ"
       },
@@ -396,13 +446,6 @@
           "title": {
             "en": "Image galleries",
             "th": "แกลเลอรีรูปภาพ"
-          }
-        },
-        {
-          "path": "guide/recipes/vercel",
-          "title": {
-            "en": "Deploy on Vercel",
-            "th": "Deploy บน Vercel"
           }
         },
         {
