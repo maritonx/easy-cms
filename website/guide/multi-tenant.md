@@ -150,7 +150,8 @@ A request that names no tenant finds nothing in tenant collections. With
 | `globals` | `[]` | Globals with a value per tenant. |
 | `tenantsSlug` | `tenants` | The tenants collection; declare it yourself to add fields. |
 | `userHasAccessToAllTenants` | role `admin` | `(user) => boolean`: who sees every tenant and the system. |
-| `publicReads` | `none` | `all`: requests that name no tenant read every tenant's. |
+| `publicReads` | `none` | `all`: requests that name no tenant read every tenant's. Writing still needs a tenant. |
+| `editShared` | `[]` | Shared collections and globals the people of a tenant (its admins too) may change; a change applies to every tenant. Otherwise only users with access to all tenants change shared data. |
 | `header` | `x-easy-cms-tenant` | The header that names the tenant. |
 | `cookie` | `ecms-tenant` | Where the admin keeps the chosen tenant. |
 

@@ -17,6 +17,7 @@ const busy = ref(false)
 /** Back from a provider without signing in (`?sso=<outcome>`). */
 const SSO_ERRORS = [
   'no-account',
+  'link-first',
   'unverified',
   'inactive',
   'failed',

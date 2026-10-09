@@ -498,6 +498,7 @@ const en = {
   'rte.redo': 'Redo',
   'account.title': 'Account',
   'account.changePassword': 'Change password',
+  'account.currentPassword': 'Current password',
   'account.passwordChanged': 'Password changed',
   'account.save': 'Save changes',
   'common.cancel': 'Cancel',
@@ -677,6 +678,8 @@ const en = {
   'sso.passwordAdmins': 'Admins: sign in with a password',
   'sso.useProvider': 'Your account signs in with single sign-on: use the button above.',
   'sso.error.no-account': 'There is no account for that email here. Ask an admin to add you.',
+  'sso.error.link-first':
+    'You already have an account here: sign in with your password, then connect this provider from your account page.',
   'sso.error.unverified':
     'The provider has not verified that email, so it can’t be used to sign in.',
   'sso.error.inactive': 'This account is deactivated.',
@@ -1200,6 +1203,7 @@ const th: Record<MessageKey, string> = {
   'rte.redo': 'ทำซ้ำ',
   'account.title': 'บัญชีของฉัน',
   'account.changePassword': 'เปลี่ยนรหัสผ่าน',
+  'account.currentPassword': 'รหัสผ่านปัจจุบัน',
   'account.passwordChanged': 'เปลี่ยนรหัสผ่านแล้ว',
   'account.save': 'บันทึกการเปลี่ยนแปลง',
   'common.cancel': 'ยกเลิก',
@@ -1373,6 +1377,7 @@ const th: Record<MessageKey, string> = {
   'sso.passwordAdmins': 'ผู้ดูแลระบบ: เข้าสู่ระบบด้วยรหัสผ่าน',
   'sso.useProvider': 'บัญชีของคุณเข้าสู่ระบบด้วย single sign-on ให้ใช้ปุ่มด้านบน',
   'sso.error.no-account': 'ยังไม่มีบัญชีสำหรับอีเมลนี้ ติดต่อผู้ดูแลระบบให้เพิ่มคุณ',
+  'sso.error.link-first': 'คุณมีบัญชีอยู่แล้ว เข้าสู่ระบบด้วยรหัสผ่าน แล้วเชื่อมผู้ให้บริการนี้ที่หน้าบัญชีของคุณ',
   'sso.error.unverified': 'ผู้ให้บริการยังไม่ได้ยืนยันอีเมลนี้ จึงใช้เข้าสู่ระบบไม่ได้',
   'sso.error.inactive': 'บัญชีนี้ถูกปิดใช้งาน',
   'sso.error.failed': 'เข้าสู่ระบบกับผู้ให้บริการไม่สำเร็จ ลองอีกครั้ง',

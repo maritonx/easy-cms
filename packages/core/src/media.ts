@@ -122,10 +122,15 @@ export function sniffMimeType(data: Uint8Array, name = ''): string | undefined {
   return /\.csv$/i.test(name) ? 'text/csv' : 'text/plain'
 }
 
-/** `image/*` style matching; group names (`documents`…) stand for their types. */
+/**
+ * `image/*` style matching; group names (`documents`…) stand for their types. A wildcard leaves
+ * out SVG, which can carry scripts: it is allowed only when listed as `image/svg+xml`.
+ */
 export function mimeAllowed(type: string, allowed: readonly string[]): boolean {
   return expandMimeTypes(allowed).some((pattern) =>
-    pattern.endsWith('/*') ? type.startsWith(pattern.slice(0, -1)) : pattern === type,
+    pattern.endsWith('/*')
+      ? type.startsWith(pattern.slice(0, -1)) && type !== 'image/svg+xml'
+      : pattern === type,
   )
 }
 

@@ -120,7 +120,12 @@ export function s3Storage(options: S3StorageOptions): StorageAdapter {
       const body = new Uint8Array(await response.arrayBuffer())
       // 206: the size after the slash of Content-Range; 200: the file was smaller than asked.
       const total = Number(response.headers.get('content-range')?.split('/')[1])
-      return { body, size: Number.isFinite(total) && total > 0 ? total : body.byteLength }
+      const contentType = response.headers.get('content-type')
+      return {
+        body,
+        size: Number.isFinite(total) && total > 0 ? total : body.byteLength,
+        ...(contentType ? { contentType } : {}),
+      }
     },
 
     async get(key): Promise<StoredFile | null> {

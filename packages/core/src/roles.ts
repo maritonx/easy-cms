@@ -217,6 +217,8 @@ export class Roles {
   async canView(user: AuthUser, id: string): Promise<boolean> {
     if (isSystemAdmin(user)) return true
     if (user.apiKey) return false
+    // Deliveries belong to the whole system, not to a part of it (e.g. a tenant).
+    if (id === 'deliveries' && user.scoped === true) return false
     // Admins of a part of the site (e.g. a tenant) see its audit log, when entries have a part.
     if (
       id === 'audit' &&

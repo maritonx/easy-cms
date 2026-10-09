@@ -16,7 +16,7 @@ import {
 } from './api-keys.js'
 import { AuditLog, auditContext } from './audit.js'
 import { Auth, asMember } from './auth/auth.js'
-import { hashPassword, MIN_PASSWORD_LENGTH } from './auth/password.js'
+import { hashPassword, MIN_PASSWORD_LENGTH, verifyPassword } from './auth/password.js'
 import { signPreviewToken, verifyPreviewToken } from './auth/tokens.js'
 import { runDueBackups } from './backups.js'
 import {
@@ -609,6 +609,9 @@ export class EasyCMS<C extends Config = Config> {
     const mimeType = sniffMimeType(start.body.subarray(0, SNIFF_BYTES), t.name)
     if (mimeType !== t.type)
       await refuse(`contains ${mimeType ?? 'an unknown type'}, not ${t.type}`)
+    // The browser chose the type the storage serves it with: it must be the one checked.
+    const served = start.contentType?.split(';')[0]?.trim().toLowerCase()
+    if (served && served !== t.type) await refuse(`is stored as ${served}, not ${t.type}`)
 
     const stored: string[] = []
     try {
@@ -1306,6 +1309,7 @@ export class EasyCMS<C extends Config = Config> {
     }
 
     const { input, password } = splitPassword(config, raw)
+    if (config.slug === USERS) await this.checkOwnCredentials(guard, existing, raw, password)
     const filtered = await filterInput(
       config.fields,
       input,
@@ -1709,6 +1713,40 @@ export class EasyCMS<C extends Config = Config> {
     this.emitChange(config, 'update', doc, existing.status)
     await this.audited(config, 'update', doc, current, guard, mode)
     return this.readGlobal(config, key, guard, { ...options, draft: true })
+  }
+
+  /**
+   * Users changing their own password or email say their current password first, so a session
+   * someone else got hold of can't lock them out. Admins changing other users don't.
+   */
+  private async checkOwnCredentials(
+    guard: Guard,
+    existing: RawDocument,
+    raw: Data,
+    password: string | undefined,
+  ): Promise<void> {
+    const user = guard.user
+    if (!guard.enforce || !user || user.apiKey || String(user.id) !== String(existing.id)) return
+    const email = typeof raw.email === 'string' ? raw.email.trim().toLowerCase() : undefined
+    const emailChanges = email !== undefined && email !== String(existing.email ?? '').toLowerCase()
+    if (password === undefined && !emailChanges) return
+    const hash = typeof existing.passwordHash === 'string' ? existing.passwordHash : undefined
+    // Without a password (single sign-on only), the email stays; a first password may be set.
+    if (!hash) {
+      if (emailChanges)
+        throw new ValidationError(USERS, [
+          { field: 'email', message: "can't be changed on an account without a password" },
+        ])
+      return
+    }
+    const current = typeof raw.currentPassword === 'string' ? raw.currentPassword : ''
+    if (!current || !(await verifyPassword(current, hash)))
+      throw new ValidationError(USERS, [
+        {
+          field: 'currentPassword',
+          message: current ? 'is not right' : 'is required to change your password or email',
+        },
+      ])
   }
 
   /**
@@ -3196,8 +3234,10 @@ function deny(user: AuthUser | null) {
 
 /** Pulls `password` out of users input and checks it. */
 function splitPassword(config: CollectionConfig, raw: Data): { input: Data; password?: string } {
-  if (config.slug !== USERS || !Object.hasOwn(raw, 'password')) return { input: raw }
-  const { password, ...input } = raw
+  if (config.slug !== USERS) return { input: raw }
+  const { currentPassword: _current, ...rest } = raw
+  if (!Object.hasOwn(rest, 'password')) return { input: rest }
+  const { password, ...input } = rest
   if (password === undefined || password === null || password === '') return { input }
   if (typeof password !== 'string' || password.length < MIN_PASSWORD_LENGTH) {
     throw new ValidationError(USERS, [

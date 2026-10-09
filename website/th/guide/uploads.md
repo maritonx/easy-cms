@@ -240,6 +240,9 @@ upload: {
 
 `mimeTypes` ของ upload field ใช้ชื่อเดียวกันได้ เช่น `{ type: 'upload', mimeTypes: ['office'] }`
 
+**`image/*` ไม่รวม SVG** เพราะ SVG ฝังสคริปต์ได้ จึงต้องระบุชื่อเองถ้าจะอนุญาต: `mimeTypes: ['image/*', 'image/svg+xml']`
+ทำเฉพาะเมื่อไว้ใจคนที่อัปโหลด และดู[ส่วนของ S3](#s3-cloudflare-r2-and-minio) เมื่อเสิร์ฟไฟล์จาก bucket หรือ CDN
+
 ### ไฟล์ใหญ่ {#large-files}
 
 โฮสต์จำกัดขนาดของแต่ละ request: ราว 4.5 MB บน Vercel และ 6 MB บน Netlify เมื่อใช้ S3 (R2, MinIO) หรือ Vercel Blob

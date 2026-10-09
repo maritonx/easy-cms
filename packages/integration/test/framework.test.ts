@@ -31,15 +31,21 @@ describe('framework kit', () => {
     const cms = await sharedEasyCMS(cfg, { cwd })
     await cms.create('users', { email: 'a@x.co', password: 'password123', role: 'admin' })
     const api = createApiHandler(cfg, { trustProxy: true })
+    let spoofed = 0
     const login = (ip: string, password = 'wrong-password') =>
       api(
         new Request('http://cms.test/api/cms/users/login', {
           method: 'POST',
-          headers: { 'content-type': 'application/json', 'x-forwarded-for': `${ip}, 10.0.0.1` },
+          // What the client sent first (anything), then the address the proxy added.
+          headers: {
+            'content-type': 'application/json',
+            'x-forwarded-for': `6.6.6.${spoofed++}, ${ip}`,
+          },
           body: JSON.stringify({ email: 'a@x.co', password }),
         }),
       )
-    // Login attempts count per client IP: from X-Forwarded-For.
+    // Login attempts count per client IP: the one the proxy added to X-Forwarded-For, not what
+    // the client wrote before it.
     await login('1.1.1.1')
     await login('1.1.1.1')
     expect((await login('1.1.1.1', 'password123')).status).toBe(429)

@@ -49,8 +49,33 @@ export interface ApiHandlerOptions {
    * Takes precedence over `trustProxy`.
    */
   readonly getClientIp?: (request: Request) => string | undefined
-  /** Use the first `X-Forwarded-For` address. Only behind a proxy you trust (Vercel, Netlify…). */
+  /**
+   * Behind a proxy that adds the client's address to `X-Forwarded-For`: the last address in it
+   * (the one the proxy added; earlier ones come from the client and can say anything). Vercel
+   * and Netlify are recognized without it.
+   */
   readonly trustProxy?: boolean
+}
+
+/**
+ * The client's address from `X-Forwarded-For` as the nearest proxy wrote it: its last entry.
+ * Earlier entries were sent by the client, so they can't be trusted.
+ */
+export function forwardedClientIp(value: string | null | undefined): string | undefined {
+  const last = value
+    ?.split(',')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .at(-1)
+  return last || undefined
+}
+
+/** The client's address on hosting platforms that set it themselves: Vercel, Netlify. */
+export function platformClientIp(headers: Headers): string | undefined {
+  if (process.env.VERCEL)
+    return headers.get('x-real-ip') ?? forwardedClientIp(headers.get('x-forwarded-for'))
+  if (process.env.NETLIFY) return headers.get('x-nf-client-connection-ip') ?? undefined
+  return undefined
 }
 
 /**
@@ -65,8 +90,8 @@ export function createApiHandler(
   const getClientIp =
     options.getClientIp ??
     (options.trustProxy
-      ? (r: Request) => r.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || undefined
-      : () => undefined)
+      ? (r: Request) => forwardedClientIp(r.headers.get('x-forwarded-for'))
+      : (r: Request) => platformClientIp(r.headers))
   return async (request) => {
     const cms = (await sharedEasyCMS(config)) as EasyCMS
     let handler = handlers.get(cms)

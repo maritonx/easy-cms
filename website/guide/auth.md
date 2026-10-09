@@ -141,6 +141,11 @@ Logging in creates a session:
 
 Logging out, changing the password or deactivating a user ends all of their sessions.
 
+Users changing **their own** password or email send their current one too
+(`PATCH /api/cms/users/<id>` with `{ password, currentPassword }`), so someone who got hold of a
+session can't lock them out. Admins changing other users don't. An account without a password
+(single sign-on only) can't change its email; an admin can.
+
 ### Tokens for other apps
 
 Scripts and apps on other origins can send the session token instead of a cookie:
@@ -160,6 +165,8 @@ Requests with `Authorization: Bearer` need no CSRF token. For scripts and apps, 
 
 After `auth.maxLoginAttempts` failures (5) within `auth.lockWindow` seconds (15 minutes) for an
 email (and IP, when the adapter knows it), login answers `429`. The lock lifts by itself.
+Without the client's IP the count is per email only, so anyone could lock an account for a while:
+see `trustProxy` in [Security](./security).
 
 ## The user in your pages
 

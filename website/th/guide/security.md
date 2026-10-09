@@ -65,7 +65,9 @@ Easy CMS ป้องกันอะไรให้บ้าง อะไรย�
 - [ ] กฎ `read` ของทุก collection เป็นไปตามที่ตั้งใจ ลองทดสอบตอนไม่ได้ login
 - [ ] `cors` และ `auth.trustedOrigins` มีเฉพาะ origin ของคุณเอง
 - [ ] ถ้าอยู่หลัง proxy ที่คุณควบคุม ให้เปิด trust proxy (`trustProxy` สำหรับ Nuxt และ Next.js,
-  `--trust-proxy` สำหรับ standalone) เพื่อให้การจำกัด login เห็น IP จริงของผู้ใช้
+  `--trust-proxy` สำหรับ standalone) เพื่อให้การจำกัด login เห็น IP จริงของผู้ใช้ ระบบใช้ที่อยู่ตัวสุดท้ายของ
+  `X-Forwarded-For` ส่วน Vercel และ Netlify ไม่ต้องตั้งอะไร ถ้าไม่รู้ IP การ login ผิดจะนับต่ออีเมล และ log ของ server จะบอกไว้
+- [ ] `EASY_CMS_SECRET` เป็นค่าสุ่ม (`openssl rand -hex 32`) บน production ค่าที่ดูเหมือนตัวอย่างหรือเป็นรูปแบบซ้ำๆ จะใช้ไม่ได้
 - [ ] admin คนแรกใช้รหัสผ่านที่แข็งแรง และคนอื่นใช้บทบาท `editor`
 - [ ] รัน migration แล้ว (`easy-cms migrate`) และมีการสำรองข้อมูลตามรอบ
 

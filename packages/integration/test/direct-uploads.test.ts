@@ -8,6 +8,8 @@ import { db, open, SECRET } from './helpers.js'
 /** A storage in memory that hands out upload URLs, like S3 or Vercel Blob. */
 function directStorage() {
   const files = new Map<string, Uint8Array>()
+  /** The type a browser sent the file with, which the storage serves it with. */
+  const types = new Map<string, string>()
   const storage: StorageAdapter = {
     name: 'direct',
     async put(key, data) {
@@ -19,7 +21,14 @@ function directStorage() {
     },
     async getStart(key, bytes) {
       const body = files.get(key)
-      return body ? { body: body.subarray(0, bytes), size: body.byteLength } : null
+      const contentType = types.get(key)
+      return body
+        ? {
+            body: body.subarray(0, bytes),
+            size: body.byteLength,
+            ...(contentType ? { contentType } : {}),
+          }
+        : null
     },
     async delete(key) {
       files.delete(key)
@@ -33,8 +42,11 @@ function directStorage() {
     },
   }
   /** What a browser does with the URL. */
-  const send = (url: string, data: Uint8Array) =>
-    files.set(url.replace('https://storage.test/', ''), data)
+  const send = (url: string, data: Uint8Array, contentType?: string) => {
+    const key = url.replace('https://storage.test/', '')
+    files.set(key, data)
+    if (contentType) types.set(key, contentType)
+  }
   return { storage, send, files }
 }
 
@@ -103,6 +115,13 @@ describe('direct uploads', () => {
     send(lie.upload?.url as string, new TextEncoder().encode('hello'))
     await expect(cms.completeUpload(lie.ticket)).rejects.toThrow(/not application\/pdf/)
     expect([...files.keys()].some((k) => k.startsWith('report-'))).toBe(false)
+
+    // A real PDF, but sent to the storage as a web page, which it would serve as one.
+    const data = pdf('a page')
+    const html = await cms.createUpload({ name: 'flyer.pdf', size: data.byteLength })
+    send(html.upload?.url as string, data, 'text/html; charset=utf-8')
+    await expect(cms.completeUpload(html.ticket)).rejects.toThrow(/stored as text\/html/)
+    expect([...files.keys()].some((k) => k.startsWith('flyer-'))).toBe(false)
 
     const bigger = await cms.createUpload({ name: 'a.pdf', size: 10 })
     send(bigger.upload?.url as string, pdf('more than ten bytes'))

@@ -250,14 +250,19 @@ export const isHasMany = (field: Field): boolean =>
   (field.type === 'select' || field.type === 'relationship' || field.type === 'upload') &&
   field.hasMany === true
 
-/** Whether a MIME type is one of `patterns` (`image/*` matches every image). */
+/**
+ * Whether a MIME type is one of `patterns` (`image/*` matches every image but SVG, which can
+ * carry scripts and is allowed only when listed by name: `image/svg+xml`).
+ */
 export function mimeAllowedBy(mimeType: string, patterns: readonly string[]): boolean {
   const type = mimeType.toLowerCase()
   return expandMimeTypes(patterns).some((pattern) => {
     const p = pattern.toLowerCase()
-    return p.endsWith('/*') ? type.startsWith(p.slice(0, -1)) : type === p
+    return p.endsWith('/*') ? type.startsWith(p.slice(0, -1)) && type !== SVG : type === p
   })
 }
+
+const SVG = 'image/svg+xml'
 
 /** Fields whose value is a list of rows: `array` and `blocks`. */
 export const hasRows = (field: Field): field is ArrayField | BlocksField =>

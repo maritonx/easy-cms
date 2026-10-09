@@ -123,6 +123,7 @@ export class Auth {
     const email = typeof args.email === 'string' ? args.email.trim().toLowerCase() : ''
     const password = typeof args.password === 'string' ? args.password : ''
     const key = `${email}|${args.ip ?? ''}`
+    if (args.ip === undefined) this.warnNoClientIp()
     try {
       await this.checkRateLimit(key)
     } catch (error) {
@@ -396,6 +397,20 @@ export class Auth {
 
   async hasUsers(): Promise<boolean> {
     return (await this.db.count({ collection: USERS })) > 0
+  }
+
+  private warnedNoClientIp = false
+
+  /**
+   * Without the client's address, failed logins count per email only, so anyone can lock an
+   * account for a while. Said once, in production.
+   */
+  private warnNoClientIp() {
+    if (this.warnedNoClientIp || process.env.NODE_ENV !== 'production') return
+    this.warnedNoClientIp = true
+    this.cms.logger.warn(
+      "Easy CMS doesn't know the client's IP address, so logins are rate limited per email only. Behind a proxy that sets X-Forwarded-For, set `trustProxy: true` in the adapter.",
+    )
   }
 
   /** Ends the session for a signed token. Unknown tokens are ignored. */

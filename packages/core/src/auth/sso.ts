@@ -53,6 +53,7 @@ export type SsoOutcome =
   | 'expired'
   | 'failed'
   | 'no-account'
+  | 'link-first'
   | 'unverified'
   | 'inactive'
   | 'taken'
@@ -229,6 +230,11 @@ export class SingleSignOn {
       if (!email || !profile.emailVerified)
         return await back('login', email ? 'unverified' : 'no-account')
       user = await this.userByEmail(email)
+      // Staff link a provider from their account page first, unless the provider is trusted to
+      // sign them in by email (`linkByEmail`): an email someone else can get at the provider
+      // shouldn't open an admin's account.
+      if (user && !this.isMember(user) && provider.linkByEmail !== true)
+        return await back('login', 'link-first')
       if (user && user.emailVerified === false) {
         // A sign-up still waiting for its email: the provider confirms the email now, and a
         // password chosen before that (maybe by someone else) goes.
@@ -402,6 +408,11 @@ export class SingleSignOn {
     })
     this.cms.logger.info(`${email} signed up with a provider`)
     return this.cms.db.findById({ collection: USERS, id: created.id as ID })
+  }
+
+  /** A site member (`auth.members`): matched by email, like any shop or site account. */
+  private isMember(user: RawDocument): boolean {
+    return (this.config.auth.members?.roles ?? []).includes(String(user.role))
   }
 
   private defaultRole(): string {

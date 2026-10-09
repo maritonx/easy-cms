@@ -153,7 +153,14 @@ function validateSecret(secret: unknown, add: Add) {
     )
   } else if (secret.length < MIN_SECRET_LENGTH) {
     add('secret', `must be at least ${MIN_SECRET_LENGTH} characters (got ${secret.length})`, hint)
+  } else if (process.env.NODE_ENV === 'production' && guessable(secret)) {
+    add('secret', 'looks like an example or a repeated pattern, not a random string', hint)
   }
+}
+
+/** A placeholder (`change-me`), or so few different characters it can't be random. */
+function guessable(secret: string): boolean {
+  return /change[-_ ]?me|example|placeholder|secret-?key/i.test(secret) || new Set(secret).size < 8
 }
 
 function validateAdmin(config: Config, add: Add) {

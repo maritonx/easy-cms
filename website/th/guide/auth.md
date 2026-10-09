@@ -137,6 +137,10 @@ export default defineConfig({
 
 การ logout การเปลี่ยนรหัสผ่าน หรือการปิดใช้งานผู้ใช้ จะปิดทุก session ของคนนั้น
 
+ผู้ใช้ที่เปลี่ยนรหัสผ่านหรืออีเมลของ**ตัวเอง** ต้องส่งรหัสผ่านปัจจุบันด้วย (`PATCH /api/cms/users/<id>` พร้อม
+`{ password, currentPassword }`) คนที่ได้ session ไปจึงล็อกเจ้าของออกไม่ได้ admin ที่แก้ให้คนอื่นไม่ต้องส่ง บัญชีที่ไม่มีรหัสผ่าน
+(ใช้ single sign-on อย่างเดียว) เปลี่ยนอีเมลเองไม่ได้ ต้องให้ admin เปลี่ยน
+
 ### Token สำหรับแอปอื่น {#tokens-for-other-apps}
 
 สคริปต์และแอปบน origin อื่นส่ง session token แทน cookie ได้:
@@ -155,7 +159,8 @@ request ที่ใช้ `Authorization: Bearer` ไม่ต้องใช�
 ### จำกัดการ login {#login-limits}
 
 ถ้า login ล้มเหลวครบ `auth.maxLoginAttempts` ครั้ง (5) ภายใน `auth.lockWindow` วินาที (15 นาที) ต่อ email
-(และ IP ถ้า adapter รู้) การ login จะตอบ `429` และปลดล็อกเองเมื่อครบเวลา
+(และ IP ถ้า adapter รู้) การ login จะตอบ `429` และปลดล็อกเองเมื่อครบเวลา ถ้าไม่รู้ IP ของ client จะนับต่อ email
+อย่างเดียว ใครก็ล็อกบัญชีคนอื่นได้ชั่วคราว ดู `trustProxy` ใน[ความปลอดภัย](./security)
 
 ## ผู้ใช้ในหน้าเว็บ {#the-user-in-your-pages}
 

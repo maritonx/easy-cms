@@ -41,4 +41,10 @@ export interface AuthProvider {
   callback(request: AuthProviderRequest & { readonly url: URL }): Promise<AuthProviderProfile>
   /** For Settings → SSO: what it connects to, never secrets. */
   describe?(): Readonly<Record<string, string>>
+  /**
+   * Signs staff who have an account in by their verified email the first time, without linking
+   * the provider from their account page. Only for a provider whose emails your organization
+   * controls (e.g. its Google Workspace). Default `false`; site members are always matched.
+   */
+  readonly linkByEmail?: boolean
 }

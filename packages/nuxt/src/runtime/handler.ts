@@ -1,9 +1,15 @@
-import { type Config, createApiHandler } from '@easy-cms/core'
-import { defineEventHandler, getRequestIP, sendWebResponse, toWebRequest } from 'h3'
+import { type Config, createApiHandler, forwardedClientIp, platformClientIp } from '@easy-cms/core'
+import {
+  defineEventHandler,
+  getRequestHeader,
+  getRequestIP,
+  sendWebResponse,
+  toWebRequest,
+} from 'h3'
 
 export interface HandlerOptions {
   readonly basePath: string
-  /** Trust `X-Forwarded-For` for the client IP (only behind a proxy you control). */
+  /** The client IP from `X-Forwarded-For`, its last entry (only behind a proxy you control). */
   readonly trustProxy: boolean
 }
 
@@ -17,7 +23,12 @@ export function createHandler(config: Config, options: HandlerOptions) {
   })
   return defineEventHandler(async (event) => {
     const request = toWebRequest(event)
-    clientIps.set(request, getRequestIP(event, { xForwardedFor: options.trustProxy }))
+    clientIps.set(
+      request,
+      options.trustProxy
+        ? forwardedClientIp(getRequestHeader(event, 'x-forwarded-for'))
+        : (platformClientIp(request.headers) ?? getRequestIP(event)),
+    )
     return sendWebResponse(event, await api(request))
   })
 }

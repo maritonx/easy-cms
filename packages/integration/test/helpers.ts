@@ -26,7 +26,8 @@ function removeTemp(path: string) {
 
 export type Dialect = 'sqlite' | 'pglite' | 'postgres'
 export const DIALECT = (process.env.EASY_CMS_TEST_DIALECT ?? 'sqlite') as Dialect
-export const SECRET = 'x'.repeat(32)
+// Random-looking: in production, secrets that look like examples or patterns are refused.
+export const SECRET = '9b2e7c41d8f05a63e1c4b7d92a0f6e38'
 
 /** Directories made inside a test, removed after it. */
 const dirs: string[] = []

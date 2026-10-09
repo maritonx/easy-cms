@@ -7,6 +7,7 @@ import { loadSession, session } from '../lib/session'
 
 const name = ref(session.user?.name ?? '')
 const password = ref('')
+const currentPassword = ref('')
 const errors = ref<Record<string, string[]>>({})
 const message = ref<{ kind: 'success' | 'error'; text: string } | null>(null)
 const saving = ref(false)
@@ -17,7 +18,11 @@ async function save() {
   errors.value = {}
   message.value = null
   const body: Record<string, unknown> = { name: name.value || null }
-  if (password.value) body.password = password.value
+  if (password.value) {
+    body.password = password.value
+    // The server asks for it when the account has a password.
+    body.currentPassword = currentPassword.value
+  }
   try {
     // Changing your own password ends other sessions; the server sends this browser a new cookie.
     await api('PATCH', `/users/${session.user.id}?depth=0`, body)
@@ -26,6 +31,7 @@ async function save() {
       text: password.value ? t('account.passwordChanged') : t('edit.saved'),
     }
     password.value = ''
+    currentPassword.value = ''
     await loadSession()
   } catch (e) {
     if (e instanceof ApiError) {
@@ -61,6 +67,17 @@ async function save() {
         :aria-invalid="!!errors.password"
       />
       <span v-for="m in errors.password" :key="m" class="field-error">{{ m }}</span>
+    </label>
+    <label v-if="password" class="field">
+      <span class="field-label">{{ t('account.currentPassword') }}</span>
+      <input
+        v-model="currentPassword"
+        class="input"
+        type="password"
+        autocomplete="current-password"
+        :aria-invalid="!!errors.currentPassword"
+      />
+      <span v-for="m in errors.currentPassword" :key="m" class="field-error">{{ m }}</span>
     </label>
     <div class="actions">
       <span v-if="message" :class="['status', message.kind]" role="status" aria-live="polite">{{ message.text }}</span>

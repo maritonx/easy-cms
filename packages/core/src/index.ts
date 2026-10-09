@@ -152,6 +152,8 @@ export * from './fields.js'
 export {
   type ApiHandlerOptions,
   createApiHandler,
+  forwardedClientIp,
+  platformClientIp,
   sharedEasyCMS,
 } from './framework.js'
 export type * from './infer.js'

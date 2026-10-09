@@ -69,8 +69,8 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
 
 - **ทำให้หน้าที่ดึงข้อมูลจาก CMS เป็นแบบ dynamic** (`export const dynamic = 'force-dynamic'`) หรือใช้
   revalidation มิฉะนั้น `next build` จะ prerender หน้าเหล่านั้นและ query ฐานข้อมูลตอน build
-- `createRouteHandlers(config, { trustProxy: true })` ใช้ `X-Forwarded-For` สำหรับจำกัดอัตรา
-  การเข้าสู่ระบบ ให้เปิดใช้เมื่ออยู่หลัง proxy ที่เชื่อถือได้ เช่น Vercel
+- การจำกัดอัตราการเข้าสู่ระบบต้องรู้ IP ของ client บน Vercel และ Netlify หาได้เอง หลัง proxy อื่นที่เพิ่มที่อยู่ลงใน
+  `X-Forwarded-For` ให้ใช้ `createRouteHandlers(config, { trustProxy: true })` ระบบจะใช้ที่อยู่ตัวสุดท้าย (ตัวที่ proxy ของคุณเพิ่ม)
 - Next.js ตัดเครื่องหมาย slash ท้าย URL ออก หน้า admin จึงอยู่ที่ `/admin` (ไม่ใช่ `/admin/`)
 - ระหว่าง `next dev` การแก้ field หรือตัวเลือกจะโหลด CMS ใหม่ให้เอง แต่ถ้าแก้แค่โค้ดของ hook กฎสิทธิ์ หรือฟังก์ชันอื่นใน
   config ให้รีสตาร์ต dev server

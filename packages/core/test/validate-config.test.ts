@@ -58,6 +58,27 @@ describe('validateConfig', () => {
       const issues = validateConfig(baseConfig({ secret: 'x'.repeat(31) }))
       expect(issues).toMatchObject([{ path: 'secret', message: expect.stringContaining('got 31') }])
     })
+
+    it('in production, is not an example or a pattern', () => {
+      const previous = process.env.NODE_ENV
+      process.env.NODE_ENV = 'production'
+      try {
+        for (const secret of [
+          'development-secret-change-me-development-secret',
+          'x'.repeat(32),
+          'abcabcabcabcabcabcabcabcabcabcabc',
+        ])
+          expect(
+            validateConfig(baseConfig({ secret })).map((i) => i.path),
+            secret,
+          ).toEqual(['secret'])
+        expect(validateConfig(baseConfig({ secret: '3f9c1e7a52b84d06a1c9e3f7b25d8c4e' }))).toEqual(
+          [],
+        )
+      } finally {
+        process.env.NODE_ENV = previous
+      }
+    })
   })
 
   it('requires a db adapter', () => {

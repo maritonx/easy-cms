@@ -26,6 +26,8 @@ export interface OidcOptions {
   readonly params?: Readonly<Record<string, string>>
   /** Who signed in, from the ID token's claims. Default: `sub`, `email`, `email_verified`, `name`. */
   readonly profile?: (claims: Claims) => AuthProviderProfile
+  /** Signs staff in by their email the first time, without linking first (see `AuthProvider`). */
+  readonly linkByEmail?: boolean
 }
 
 const str = (value: unknown) => (typeof value === 'string' && value !== '' ? value : undefined)
@@ -76,6 +78,7 @@ export function oidc(options: OidcOptions): AuthProvider {
     id: options.id ?? 'oidc',
     name: options.name ?? 'SSO',
     ...(options.icon ? { icon: options.icon } : {}),
+    ...(options.linkByEmail ? { linkByEmail: true } : {}),
     async authorizationURL(request: AuthProviderRequest) {
       const as = await discover()
       const url = new URL(required(as.authorization_endpoint, 'authorization_endpoint'))
@@ -132,6 +135,8 @@ export interface ClientOptions {
   readonly clientId?: string
   /** Default: the `…_CLIENT_SECRET` environment variable. */
   readonly clientSecret?: string
+  /** Signs staff in by their email the first time, without linking first (see `AuthProvider`). */
+  readonly linkByEmail?: boolean
 }
 
 /**
@@ -150,6 +155,7 @@ export function google(options: ClientOptions & { readonly hd?: string } = {}): 
       'GOOGLE_CLIENT_SECRET',
     ),
     params: { prompt: 'select_account', ...(options.hd ? { hd: options.hd } : {}) },
+    ...(options.linkByEmail ? { linkByEmail: true } : {}),
   })
 }
 
@@ -175,8 +181,10 @@ export function microsoft(
       'MICROSOFT_CLIENT_SECRET',
     ),
     params: { prompt: 'select_account' },
+    ...(options.linkByEmail ? { linkByEmail: true } : {}),
     profile: (claims) => {
-      const email = str(claims.email) ?? str(claims.preferred_username) ?? null
+      // Not `preferred_username`: a sign-in name, which can look like someone else's email.
+      const email = str(claims.email) ?? null
       return {
         subject: String(claims.oid ?? claims.sub),
         email: email?.includes('@') ? email : null,
@@ -235,6 +243,7 @@ export function github(
   return {
     id: 'github',
     name: 'GitHub',
+    ...(options.linkByEmail ? { linkByEmail: true } : {}),
     icon: 'github',
     async authorizationURL(request) {
       const url = new URL(as.authorization_endpoint as string)

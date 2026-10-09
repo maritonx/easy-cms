@@ -71,7 +71,11 @@ What Easy CMS protects for you, what stays your job, and a checklist before goin
 - [ ] Every collection's `read` rule is what you intend; test it logged out.
 - [ ] `cors` and `auth.trustedOrigins` list only your own origins.
 - [ ] Behind a proxy you control, enable trust-proxy (`trustProxy` for Nuxt and Next.js,
-  `--trust-proxy` for standalone) so rate limiting sees real client IPs.
+  `--trust-proxy` for standalone) so rate limiting sees real client IPs: the last address in
+  `X-Forwarded-For` counts. Vercel and Netlify need nothing. Without an IP, failed logins count
+  per email, and the server log says so.
+- [ ] `EASY_CMS_SECRET` is random (`openssl rand -hex 32`): in production, one that looks like an
+  example or a pattern is refused.
 - [ ] The first admin has a strong password; other people have the `editor` role.
 - [ ] Migrations are applied (`easy-cms migrate`) and backups run on a schedule.
 

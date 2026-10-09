@@ -10,6 +10,7 @@ import {
   createRestHandler,
   createRootEndpointHandler,
   type EasyCMS,
+  forwardedClientIp,
   type Logger,
   type ResolvedConfig,
 } from '@easy-cms/core'
@@ -100,7 +101,7 @@ function header(req: IncomingMessage, name: string): string | undefined {
 
 function clientIpOf(req: IncomingMessage, trustProxy: boolean): string | undefined {
   if (trustProxy) {
-    const forwarded = header(req, 'x-forwarded-for')?.split(',')[0]?.trim()
+    const forwarded = forwardedClientIp(header(req, 'x-forwarded-for'))
     if (forwarded) return forwarded
   }
   return req.socket.remoteAddress

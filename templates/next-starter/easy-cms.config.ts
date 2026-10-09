@@ -1,4 +1,4 @@
-import { createHmac } from 'node:crypto'
+import { createHmac, randomBytes } from 'node:crypto'
 import { defineConfig, type StorageAdapter } from '@easy-cms/core'
 import { postgres } from '@easy-cms/db-postgres'
 import { seoPlugin } from '@easy-cms/plugin-seo'
@@ -51,13 +51,27 @@ function privateStorage(): StorageAdapter | undefined {
 }
 
 /**
- * Signs sessions and links. Set EASY_CMS_SECRET (`openssl rand -hex 32`); a one-click deploy
- * without it gets one made from the database URL, so it works at once.
+ * Signs sessions and links. Set EASY_CMS_SECRET (`openssl rand -hex 32`). A one-click deploy
+ * without it gets one made from the database URL, so it works at once (whoever can read that
+ * URL could make it too: set EASY_CMS_SECRET soon). In production without either, a random one
+ * for this process: sign-ins end when it restarts, but nobody can guess it.
  */
 function secret(): string {
   const set = env('EASY_CMS_SECRET')
   if (set) return set
-  if (databaseURL) return createHmac('sha256', databaseURL).update('easy-cms-secret').digest('hex')
+  if (databaseURL) {
+    if (process.env.NODE_ENV === 'production')
+      console.warn(
+        '[easy-cms] EASY_CMS_SECRET is not set: using one made from the database URL. Set it (openssl rand -hex 32).',
+      )
+    return createHmac('sha256', databaseURL).update('easy-cms-secret').digest('hex')
+  }
+  if (process.env.NODE_ENV === 'production') {
+    console.warn(
+      '[easy-cms] EASY_CMS_SECRET is not set: using a random one, so sign-ins end on restart. Set it (openssl rand -hex 32).',
+    )
+    return randomBytes(32).toString('hex')
+  }
   return 'development-secret-change-me-development-secret'
 }
 

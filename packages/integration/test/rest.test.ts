@@ -425,11 +425,17 @@ describe('changing your own password', () => {
     await cms.create('users', { email: 'self@x.co', password: PASSWORD, role: 'editor' })
     const a = await browser('self@x.co')
     const b = await browser('self@x.co')
-    const res = await call(`/users/${a.login.json.user.id}`, {
-      method: 'PATCH',
-      body: { password: 'brand new pass' },
-      headers: a.headers,
-    })
+    const change = (body: object) =>
+      call(`/users/${a.login.json.user.id}`, { method: 'PATCH', body, headers: a.headers })
+    // The current password first: not without it, nor a wrong one; the email neither.
+    const without = await change({ password: 'brand new pass' })
+    expect(without.status).toBe(400)
+    expect(without.json.errors).toMatchObject([{ field: 'currentPassword' }])
+    expect(
+      (await change({ password: 'brand new pass', currentPassword: 'wrong-one' })).status,
+    ).toBe(400)
+    expect((await change({ email: 'mine@x.co' })).status).toBe(400)
+    const res = await change({ password: 'brand new pass', currentPassword: PASSWORD })
     expect(res.status).toBe(200)
     const fresh = res.headers
       .getSetCookie()
@@ -440,6 +446,14 @@ describe('changing your own password', () => {
       (await call('/users/me', { headers: { cookie: fresh as string } })).json.user,
     ).toMatchObject({ email: 'self@x.co' })
     expect((await call('/users/me', { headers: { cookie: b.cookie } })).json.user).toBeNull()
+    // An admin changing someone else's password doesn't need theirs.
+    const boss = await browser('admin@x.co')
+    const byAdmin = await call(`/users/${a.login.json.user.id}`, {
+      method: 'PATCH',
+      body: { password: 'set by admin 1' },
+      headers: boss.headers,
+    })
+    expect(byAdmin.status).toBe(200)
   })
 })
 

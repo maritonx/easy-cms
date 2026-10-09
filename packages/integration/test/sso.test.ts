@@ -38,6 +38,16 @@ const config = (password = true) =>
           issuer: mock.url,
           clientId: mock.clientId,
           clientSecret: mock.clientSecret,
+          // The organization's own provider: staff are signed in by email.
+          linkByEmail: true,
+        }),
+        // Any other provider: staff link it from their account page first.
+        oidc({
+          id: 'other',
+          name: 'Other',
+          issuer: mock.url,
+          clientId: mock.clientId,
+          clientSecret: mock.clientSecret,
         }),
       ],
       allowSignUp: { domains: ['acme.test'], role: 'editor' },
@@ -79,8 +89,9 @@ async function signIn(
   account: MockAccount | null,
   jar: Jar = new Map(),
   redirect = '/admin/collections/posts',
+  provider = 'acme',
 ) {
-  const start = await call(`/auth/acme/login?redirect=${encodeURIComponent(redirect)}`, jar)
+  const start = await call(`/auth/${provider}/login?redirect=${encodeURIComponent(redirect)}`, jar)
   expect(start.status).toBe(302)
   if (account) mock.signInAs(account)
   const atProvider = await fetch(String(start.headers.get('location')), { redirect: 'manual' })
@@ -157,6 +168,25 @@ describe('signing in with a provider', () => {
   })
 })
 
+describe('staff and providers not trusted with their email', () => {
+  it('link the provider from their account first; site members are matched by email', async () => {
+    const staff = await signIn({ sub: 'ann-9', email: 'ann@x.co' }, new Map(), '/admin/', 'other')
+    expect(staff.location).toBe('/admin/login?sso=link-first')
+    await cms.create('users', {
+      email: 'meg@shop.test',
+      password: 'member-pass-1',
+      role: 'customer',
+    } as never)
+    const member = await signIn(
+      { sub: 'meg-1', email: 'meg@shop.test' },
+      new Map(),
+      '/admin/',
+      'other',
+    )
+    expect(member.location).not.toContain('sso=')
+  })
+})
+
 describe('linked accounts', () => {
   it('lists and unlinks them, but not the last way to sign in', async () => {
     const { jar } = await signIn({ sub: 'bob-1', email: 'bob@acme.test' })
@@ -203,6 +233,7 @@ describe('linked accounts', () => {
     expect(settings).toMatchObject({
       providers: [
         { id: 'acme', name: 'Acme', callbackURL: `${ORIGIN}/api/cms/auth/acme/callback` },
+        { id: 'other', name: 'Other', callbackURL: `${ORIGIN}/api/cms/auth/other/callback` },
       ],
       password: 'everyone',
       signUp: { domains: ['acme.test'], role: 'editor' },
@@ -275,7 +306,13 @@ describe('without passwords (auth.password: false)', () => {
         providers: { id: string }[]
         password: boolean
       }
-      expect(init).toMatchObject({ providers: [{ id: 'acme', name: 'Acme' }], password: false })
+      expect(init).toMatchObject({
+        providers: [
+          { id: 'acme', name: 'Acme' },
+          { id: 'other', name: 'Other' },
+        ],
+        password: false,
+      })
 
       const invited = await strict.create('users', { email: 'new@x.co', role: 'editor' })
       mail.sent.length = 0

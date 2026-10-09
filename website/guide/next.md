@@ -69,8 +69,9 @@ in Server Components, Route Handlers and Server Actions.
 
 - **Make CMS-backed pages dynamic** (`export const dynamic = 'force-dynamic'`) or use
   revalidation. Otherwise `next build` prerenders them and queries the database at build time.
-- `createRouteHandlers(config, { trustProxy: true })` uses `X-Forwarded-For` for login rate
-  limiting; enable it behind a proxy you trust, such as Vercel.
+- Login rate limiting needs the client's IP. On Vercel and Netlify it is found by itself.
+  Behind another proxy that adds to `X-Forwarded-For`, use `createRouteHandlers(config,
+  { trustProxy: true })`: the last address in the header counts (the one your proxy added).
 - Next.js removes trailing slashes, so the admin lives at `/admin` (not `/admin/`).
 - In `next dev`, changing fields or options reloads the CMS; after changing only the code of a
   hook, access rule or other function in the config, restart the dev server.

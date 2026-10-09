@@ -49,6 +49,12 @@ export interface MultiTenantOptions<S extends string = string, T extends string 
   readonly collections: readonly S[]
   /** Globals with a value per tenant, e.g. `['site-settings']`. Others are shared. */
   readonly globals?: readonly string[]
+  /**
+   * Shared collections and globals (not listed above) that the people of a tenant, its admins
+   * included, may change. A change applies to every tenant. Default: none; only users with
+   * access to all tenants change shared data.
+   */
+  readonly editShared?: readonly string[]
   /** Slug of the tenants collection. Default `tenants`. */
   readonly tenantsSlug?: T
   /**
@@ -174,6 +180,13 @@ export function multiTenantPlugin<const S extends string, const T extends string
     /** May read every tenant: users with access to all, or reads with `publicReads: 'all'`. */
     const everywhere = (user: AuthUser | null, context: RequestContext | undefined) =>
       tenantOf(context).allTenants || superUser(user, context)
+
+    /** Shared data: the people of one tenant change it only where `editShared` says so. */
+    const editShared = new Set(options.editShared ?? [])
+    const sharedWrite =
+      (slug: string, original: Access | undefined): Access =>
+      async (args) =>
+        args.user?.scoped === true && !editShared.has(slug) ? false : (original ?? isLoggedIn)(args)
 
     /** What the tenant adds to an access rule. */
     const tenantFilter = (args: AccessArgs, op: Op): boolean | Where => {
@@ -459,7 +472,17 @@ export function multiTenantPlugin<const S extends string, const T extends string
           access: { ...c.access, ...usersAccess(c.access) },
         })
       } else if (scoped.has(c.slug)) collections.push(scopeCollection(c, BUILTIN_ACCESS[c.slug]))
-      else collections.push({ ...c, fields: withTenantFilters(c.fields) })
+      else
+        collections.push({
+          ...c,
+          fields: withTenantFilters(c.fields),
+          access: {
+            ...c.access,
+            create: sharedWrite(c.slug, c.access?.create),
+            update: sharedWrite(c.slug, c.access?.update),
+            delete: sharedWrite(c.slug, c.access?.delete),
+          },
+        })
     }
     if (!hasUsers) collections.push({ slug: 'users', fields: [memberships], access: usersAccess() })
     // The built-in media library (added after plugins) takes these as its own.
@@ -480,7 +503,11 @@ export function multiTenantPlugin<const S extends string, const T extends string
 
     const globals: GlobalConfig[] = (config.globals ?? []).map((g) => {
       const filtered = { ...g, fields: withTenantFilters(g.fields) }
-      if (!perTenant.has(g.slug)) return filtered
+      if (!perTenant.has(g.slug))
+        return {
+          ...filtered,
+          access: { ...g.access, update: sharedWrite(g.slug, g.access?.update) },
+        }
       return {
         ...filtered,
         // One value per tenant; none when the request has no tenant.

@@ -39,9 +39,13 @@ Turning providers on adds the `user-identities` table: create a migration
 
 ## Who gets in
 
-- **People who already have an account**, matched by their email. Only emails the provider has
-  verified count. After the first time, the provider's own id for the account is used, so a changed
-  email at the provider doesn't matter.
+- **People who already have an account** link the provider first: they sign in with their
+  password and choose **Link** on their account page. After that, the provider's own id for the
+  account is used, so a changed email at the provider doesn't matter. Someone who tries the
+  provider before linking is told to do so.
+- **Matched by email** instead, for a provider whose emails your organization controls (its own
+  Google Workspace or Entra ID): `google({ linkByEmail: true })`. Only emails the provider has
+  verified count. Site members (`auth.members`) are always matched by email.
 - **People from your domains**, when you allow it: they get an account the first time they sign in.
 
   ```ts
@@ -54,8 +58,8 @@ Turning providers on adds the `user-identities` table: create a migration
 - Nobody else: an unknown email lands back on the login page with a message to ask an admin.
 - Deactivated users can't sign in, whatever the provider says.
 
-To add someone, create their user in **Settings → Users** (with their work email) and tell them to
-sign in with the provider. With email set up, **invite** them as usual.
+To add someone, create their user in **Settings → Users** (with their work email) and invite them;
+they link the provider from their account page, or sign in with it at once with `linkByEmail`.
 
 ## Passwords
 
@@ -98,7 +102,7 @@ and unlink a user's accounts on the user's page. Deleting a user forgets their l
    **Application (client) ID**) and `MICROSOFT_CLIENT_SECRET`, and use `microsoft()`.
 
 Entra ID doesn't mark emails as verified; your organization manages them, so they count as
-verified. Users are matched by their email, or their user principal name when it is one.
+verified. Only the `email` claim is used, never the user principal name.
 
 ### GitHub
 

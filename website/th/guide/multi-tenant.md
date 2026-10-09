@@ -138,7 +138,8 @@ request ที่ไม่ระบุ tenant จะไม่พบอะไร�
 | `globals` | `[]` | global ที่มีค่าแยกต่อ tenant |
 | `tenantsSlug` | `tenants` | collection ของ tenant ประกาศเองเพื่อเพิ่ม field ได้ |
 | `userHasAccessToAllTenants` | role `admin` | `(user) => boolean`: ใครเห็นทุก tenant และส่วนของระบบ |
-| `publicReads` | `none` | `all`: request ที่ไม่ระบุ tenant อ่านของทุก tenant |
+| `publicReads` | `none` | `all`: request ที่ไม่ระบุ tenant อ่านของทุก tenant แต่การเขียนยังต้องระบุ tenant |
+| `editShared` | `[]` | collection และ global ที่ใช้ร่วมกันซึ่งคนของ tenant (รวม admin ของ tenant) แก้ได้ การแก้มีผลกับทุก tenant ถ้าไม่ระบุ แก้ได้เฉพาะผู้มีสิทธิ์ทุก tenant |
 | `header` | `x-easy-cms-tenant` | header ที่ใช้ระบุ tenant |
 | `cookie` | `ecms-tenant` | cookie ที่ admin ใช้จำ tenant ที่เลือก |
 

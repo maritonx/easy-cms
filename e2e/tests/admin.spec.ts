@@ -73,7 +73,7 @@ function passwordToken(userId: string, purpose: 'invite' | 'reset') {
   return `${payload}.${signature}`
 }
 /** The secret in playwright.config.ts. */
-const E2E_SECRET = 'e2e-secret-e2e-secret-e2e-secret-e2e'
+const E2E_SECRET = '3f9c1e7a52b84d06a1c9e3f7b25d8c4e'
 
 async function shot(page: Page, name: string) {
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/${name}.png`, fullPage: true })
@@ -1440,6 +1440,10 @@ test.describe('logged in as editor', () => {
   test('changes their own password (FR-ADM-13)', async ({ page }) => {
     await page.getByRole('link', { name: /Account/ }).click()
     await page.getByLabel('Change password').fill('a-brand-new-password')
+    // Not without the current one.
+    await page.getByRole('button', { name: 'Save changes' }).click()
+    await expect(page.getByText('is required to change your password or email')).toBeVisible()
+    await page.getByLabel('Current password').fill(EDITOR.password)
     await page.getByRole('button', { name: 'Save changes' }).click()
     await expect(page.getByRole('status')).toHaveText('Password changed')
     // Still logged in with the new cookie.
@@ -1457,21 +1461,35 @@ test.describe('single sign-on', () => {
     await english(page)
   })
 
-  test('signs an existing user in with the provider, and lists the account', async ({ page }) => {
+  test('signs an existing user in with the provider once they linked it', async ({ page }) => {
+    const ssoAs = async (email: string) => {
+      await page.getByRole('link', { name: 'Sign in with SSO' }).click()
+      // The provider's own page: who signs in.
+      await page.getByLabel('Email').fill(email)
+      await page.getByRole('button', { name: 'Continue' }).click()
+    }
+    // Staff link the provider from their account first: an email alone doesn't open it.
     await page.goto('/admin/collections/posts')
     await expect(page).toHaveURL(/\/admin\/login/)
-    await page.getByRole('link', { name: 'Sign in with SSO' }).click()
-    // The provider's own page: who signs in.
-    await page.getByLabel('Email').fill(EDITOR.email)
-    await page.getByRole('button', { name: 'Continue' }).click()
-    // Back where they were going, signed in as the editor matched by email.
-    await expect(page).toHaveURL(/\/admin\/collections\/posts$/)
-    await expect(page.getByRole('heading', { name: 'Posts' })).toBeVisible()
+    await ssoAs(EDITOR.email)
+    await expect(page.getByRole('alert')).toContainText('You already have an account here')
 
+    await login(page, { email: EDITOR.email, password: 'a-brand-new-password' })
     await page.getByRole('link', { name: /Account/ }).click()
     const accounts = page.getByRole('region', { name: 'Sign-in accounts' })
+    await accounts.getByRole('button', { name: 'Link SSO' }).click()
+    await page.getByLabel('Email').fill(EDITOR.email)
+    await page.getByRole('button', { name: 'Continue' }).click()
+    await expect(page.getByRole('status')).toContainText('Account linked')
     await expect(accounts.getByRole('listitem')).toContainText(['SSO'])
     await expect(accounts).toContainText(EDITOR.email)
+
+    // Now the provider signs them in, back where they were going.
+    await page.getByRole('button', { name: 'Log out' }).click()
+    await page.goto('/admin/collections/posts')
+    await ssoAs(EDITOR.email)
+    await expect(page).toHaveURL(/\/admin\/collections\/posts$/)
+    await expect(page.getByRole('heading', { name: 'Posts' })).toBeVisible()
   })
 
   test('says when there is no account for the email', async ({ page }) => {

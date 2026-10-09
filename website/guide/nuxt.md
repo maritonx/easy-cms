@@ -46,7 +46,7 @@ export default defineEventHandler(async (event) => {
 | Option | Default | |
 |---|---|---|
 | `configPath` | `easy-cms.config.ts` | Path to the Easy CMS config |
-| `trustProxy` | `false` | Use `X-Forwarded-For` as the client IP for login rate limiting. Only behind a proxy you control. |
+| `trustProxy` | `false` | The client IP for login rate limiting from `X-Forwarded-For`, its last address (the one your proxy added). Only behind a proxy you control; on Vercel and Netlify the IP is found without it. |
 
 ## Notes
 

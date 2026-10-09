@@ -287,6 +287,25 @@ describe('globals per tenant', () => {
     expect((await call('GET', '/globals/footer', { tenant: 'b' })).body.text).toBe('Everyone')
   })
 
+  it('shared data is changed by users with access to all tenants only', async () => {
+    // Bob is an admin of A: shared notes and the shared footer are every tenant's.
+    expect((await call('POST', '/notes', { as: 'bob', body: { text: 'Mine' } })).status).toBe(403)
+    const note = (await cms.find('notes', { limit: 1 })).docs[0] as { id: number }
+    expect(
+      (await call('PATCH', `/notes/${note.id}`, { as: 'bob', body: { text: 'Mine' } })).status,
+    ).toBe(403)
+    expect((await call('DELETE', `/notes/${note.id}`, { as: 'bob' })).status).toBe(403)
+    expect(
+      (await call('POST', '/globals/footer', { as: 'bob', body: { text: 'Only A' } })).status,
+    ).toBe(403)
+    expect((await call('GET', '/globals/footer')).body.text).toBe('Everyone')
+    // They read it as before; root changes it.
+    expect((await call('GET', '/notes', { as: 'bob' })).status).toBe(200)
+    expect((await call('POST', '/notes', { as: 'root', body: { text: 'All' } })).status).toBe(201)
+    // Webhook and email deliveries are the whole system's.
+    expect((await call('GET', '/admin/deliveries', { as: 'bob' })).status).toBe(403)
+  })
+
   it('give the Local API the tenant of a domain', async () => {
     const site = await cms.findGlobal('site', {
       overrideAccess: false,

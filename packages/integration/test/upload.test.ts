@@ -77,8 +77,16 @@ describe('cms.upload (FR-UPL)', () => {
     const svg = new TextEncoder().encode(
       '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"></svg>',
     )
-    expect((await cms.upload({ data: svg, name: 'icon.txt' })).filename).toMatch(/\.svg$/)
+    // SVG can carry scripts: `image/*` leaves it out; listed by name, it's in.
+    await expect(cms.upload({ data: svg, name: 'icon.svg' })).rejects.toMatchObject({
+      errors: [{ field: 'file', message: expect.stringContaining('image/svg+xml is not allowed') }],
+    })
     await cms.destroy()
+    const withSvg = await open(
+      defineConfig({ ...config, db: db(), upload: { mimeTypes: ['image/*', 'image/svg+xml'] } }),
+    )
+    expect((await withSvg.upload({ data: svg, name: 'icon.txt' })).filename).toMatch(/\.svg$/)
+    await withSvg.destroy()
   })
 
   it('rejects files that are too large (FR-UPL-04) or empty', async () => {

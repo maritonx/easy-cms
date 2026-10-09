@@ -46,7 +46,7 @@ export default defineEventHandler(async (event) => {
 | ตัวเลือก | ค่าเริ่มต้น | |
 |---|---|---|
 | `configPath` | `easy-cms.config.ts` | path ไปยัง config ของ Easy CMS |
-| `trustProxy` | `false` | ใช้ `X-Forwarded-For` เป็น IP ของ client สำหรับจำกัดอัตราการเข้าสู่ระบบ ใช้เฉพาะเมื่ออยู่หลัง proxy ที่คุณควบคุมเท่านั้น |
+| `trustProxy` | `false` | ใช้ที่อยู่ตัวสุดท้ายของ `X-Forwarded-For` (ตัวที่ proxy ของคุณเพิ่ม) เป็น IP ของ client สำหรับจำกัดอัตราการเข้าสู่ระบบ ใช้เฉพาะหลัง proxy ที่คุณควบคุม บน Vercel และ Netlify หา IP ได้เองโดยไม่ต้องเปิด |
 
 ## หมายเหตุ {#notes}
 

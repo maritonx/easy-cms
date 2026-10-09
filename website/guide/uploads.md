@@ -258,6 +258,10 @@ upload: {
 
 An upload field's `mimeTypes` takes the same names, e.g. `{ type: 'upload', mimeTypes: ['office'] }`.
 
+**SVG is left out of `image/*`.** An SVG can carry scripts, so it is allowed only when listed by
+name: `mimeTypes: ['image/*', 'image/svg+xml']`. Do that only for people you trust to upload, and
+see [S3, Cloudflare R2 and MinIO](#s3-cloudflare-r2-and-minio) when files are served from a bucket or CDN.
+
 ### Large files
 
 Hosts limit how much one request carries: about 4.5 MB on Vercel, 6 MB on Netlify. With S3

@@ -5,7 +5,8 @@ import { defineConfig, devices } from '@playwright/test'
 
 // Fresh databases per run, so the first-admin flow is always available.
 const scratch = mkdtempSync(join(tmpdir(), 'easy-cms-e2e-'))
-const SECRET = 'e2e-secret-e2e-secret-e2e-secret-e2e'
+// Random-looking: production refuses secrets that look like examples.
+const SECRET = '3f9c1e7a52b84d06a1c9e3f7b25d8c4e'
 const browser = {
   ...devices['Desktop Chrome'],
   // Locally use the installed Chrome; CI installs Playwright's Chromium.
