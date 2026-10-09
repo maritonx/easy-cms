@@ -27,12 +27,12 @@ versions of every `@easy-cms/*` package, which share one version number.
 
 | Version | Security fixes |
 |---|---|
-| Latest minor (0.9.x) | ✅ |
+| Latest minor (0.48.x) | ✅ |
 | Older 0.x | ❌ upgrade to the latest minor |
 
 Easy CMS is pre-1.0: only the latest minor release gets fixes. From 1.0, the latest major and,
 for six months after a new major, the previous one get fixes. See
-[versions and support](https://maritonx.github.io/easy-cms/guide/backups#versioning).
+[versions and support](https://easy-cms-website.vercel.app/docs/backups#versioning).
 
 ## Scope
 
@@ -50,6 +50,11 @@ Out of scope:
 
 ## Hardening
 
-The [security guide](https://maritonx.github.io/easy-cms/guide/security) lists what Easy CMS does
+The [security guide](https://easy-cms-website.vercel.app/docs/security) lists what Easy CMS does
 (password hashing, login rate limiting, CSRF and origin checks, upload sandboxing) and what to set
 up in production.
+
+## Past reviews
+
+- [OWASP ASVS level 1 review](docs/security/asvs-l1.md) (October 2026): what was found and the
+  release that fixed each.
