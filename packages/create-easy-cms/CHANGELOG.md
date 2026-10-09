@@ -1,5 +1,9 @@
 # create-easy-cms
 
+## 0.49.0
+
+No changes in this release.
+
 ## 0.48.0
 
 No changes in this release.
