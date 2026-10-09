@@ -41,6 +41,9 @@ const config = (password = true) =>
         }),
       ],
       allowSignUp: { domains: ['acme.test'], role: 'editor' },
+      // Site members too: their sign-ups wait for the email to be confirmed.
+      roles: ['admin', 'editor', 'customer'],
+      members: { roles: ['customer'], signup: { role: 'customer' } },
     },
     collections: [{ slug: 'posts', fields: [{ name: 'title', type: 'text' }] }],
   })
@@ -207,6 +210,37 @@ describe('linked accounts', () => {
     expect(
       (await call('/admin/sso', (await signIn({ sub: 'ann-1', email: 'ann@x.co' })).jar)).status,
     ).toBe(403)
+  })
+
+  it('are unlinked from someone else only by a system admin', async () => {
+    const admin = (await cms.find('users', { where: { email: { equals: 'admin@x.co' } } })).docs[0]
+    const [identity] = await cms.auth.sso.identities(admin?.id as number)
+    expect(identity).toBeDefined()
+    // The admin of one tenant (multi-tenant plugin) is an admin, but not of the system.
+    const tenantAdmin = { id: 999, email: 'tenant@x.co', role: 'admin', scoped: true }
+    await expect(
+      cms.auth.sso.unlink(tenantAdmin as never, identity?.id as number),
+    ).rejects.toMatchObject({ name: 'ForbiddenError' })
+    expect(await cms.auth.sso.identities(admin?.id as number)).toHaveLength(1)
+  })
+
+  it('confirm an account still waiting for its email, and drop the password set before', async () => {
+    // A sign-up made with someone else's email (never confirmed), and its password.
+    await cms.create('users', {
+      email: 'gus@acme.test',
+      password: 'someone-else-1',
+      role: 'customer',
+      emailVerified: false,
+    } as never)
+    expect(await me((await signIn({ sub: 'gus-1', email: 'gus@acme.test' })).jar)).toMatchObject({
+      email: 'gus@acme.test',
+    })
+    const gus = (await cms.find('users', { where: { email: { equals: 'gus@acme.test' } } }))
+      .docs[0] as { emailVerified?: boolean }
+    expect(gus.emailVerified).toBe(true)
+    await expect(
+      cms.auth.login({ email: 'gus@acme.test', password: 'someone-else-1' }),
+    ).rejects.toThrow()
   })
 
   it('are forgotten with their user', async () => {

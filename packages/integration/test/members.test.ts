@@ -152,6 +152,49 @@ describe('signing up', () => {
     ).toBe('admin')
   })
 
+  it('signs in once with a link, not again', async () => {
+    await call('/users/signup', {
+      method: 'POST',
+      body: { email: 'dot@example.com', password: 'dot-password-1', token: oldToken() },
+      headers: { 'x-test-ip': '10.0.0.21' },
+    })
+    const { token } = await linkTo('dot@example.com')
+    expect((await call('/users/verify-email', { method: 'POST', body: { token } })).status).toBe(
+      200,
+    )
+    expect((await call('/users/verify-email', { method: 'POST', body: { token } })).status).toBe(
+      400,
+    )
+  })
+
+  it('leaves the password to whoever confirms the email', async () => {
+    const signUp = (password: string, ip: string) =>
+      call('/users/signup', {
+        method: 'POST',
+        body: { email: 'eve@example.com', password, token: oldToken() },
+        headers: { 'x-test-ip': ip },
+      })
+    // Someone signs up with another person's email and a password of their own.
+    await signUp('mallory-pass-1', '10.0.0.31')
+    const first = await linkTo('eve@example.com')
+    // The owner signs up too: their password replaces it, and the first link stops working.
+    await signUp('eve-own-pass-1', '10.0.0.32')
+    const second = await linkTo('eve@example.com')
+    expect(second.token).not.toBe(first.token)
+    expect(
+      (await call('/users/verify-email', { method: 'POST', body: { token: first.token } })).status,
+    ).toBe(400)
+    expect(
+      (await call('/users/verify-email', { method: 'POST', body: { token: second.token } })).status,
+    ).toBe(200)
+    await expect(
+      cms.auth.login({ email: 'eve@example.com', password: 'mallory-pass-1' }),
+    ).rejects.toThrow()
+    expect(
+      (await cms.auth.login({ email: 'eve@example.com', password: 'eve-own-pass-1' })).user.email,
+    ).toBe('eve@example.com')
+  })
+
   it("sends members' password links to the site", async () => {
     await call('/users/forgot-password', { method: 'POST', body: { email: 'cat@example.com' } })
     const { url } = await linkTo('cat@example.com')
@@ -219,6 +262,53 @@ describe('signing up without confirming the email', () => {
       if (!result.verify) expect(result.user).toMatchObject({ role: 'customer', member: true })
     } finally {
       await quick.destroy()
+    }
+  })
+})
+
+describe('drafts', () => {
+  it('are never read by site members, whatever they ask, as for visitors', async () => {
+    const withDrafts = await open(
+      defineConfig({
+        ...config,
+        db: db(),
+        collections: [
+          ...config.collections,
+          {
+            slug: 'articles',
+            drafts: true,
+            access: { read: () => true },
+            fields: [{ name: 'title', type: 'text' }],
+          },
+        ],
+      }),
+    )
+    try {
+      await withDrafts.create('articles', { title: 'Out', status: 'published' } as never)
+      await withDrafts.create('articles', { title: 'Coming', status: 'draft' } as never)
+      const member = { id: 1, email: 'carol@example.com', role: 'customer', member: true }
+      const staff = { id: 2, email: 'ed@example.com', role: 'editor' }
+      const titles = async (user: object) =>
+        (
+          await withDrafts.find('articles', {
+            draft: true,
+            overrideAccess: false,
+            user: user as never,
+          })
+        ).docs
+          .map((d) => (d as { title: string }).title)
+          .sort()
+      expect(await titles(member)).toEqual(['Out'])
+      expect(await titles(staff)).toEqual(['Coming', 'Out'])
+      expect(
+        await withDrafts.count('articles', {
+          draft: true,
+          overrideAccess: false,
+          user: member as never,
+        }),
+      ).toBe(1)
+    } finally {
+      await withDrafts.destroy()
     }
   })
 })

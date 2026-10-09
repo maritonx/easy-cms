@@ -134,6 +134,15 @@ for (const publicReads of ['all', 'none'] as const) {
       expect([403, 404]).toContain(moved.status)
     })
 
+    it("aren't taken into a tenant by its admins", async () => {
+      const added = await call('POST', '/tenant-members', {
+        as: 'root',
+        tenant: 'a',
+        body: { email: 'carol@x.co', role: 'editor' },
+      })
+      expect(added.status).toBe(400)
+    })
+
     it('reads published documents like a visitor', async () => {
       const list = await call('GET', '/posts', { as: 'carol', tenant: 'a' })
       expect(list.status).toBe(200)

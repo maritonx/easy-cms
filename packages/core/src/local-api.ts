@@ -370,9 +370,10 @@ export class EasyCMS<C extends Config = Config> {
       throw new QueryError('limit must be a non-negative integer')
     if (!Number.isInteger(page) || page < 1) throw new QueryError('page must be a positive integer')
 
+    const draft = readsDrafts(guard, options.draft)
     const where = this.whereFor(
       config,
-      draftWhere(config, options.draft, await this.readWhere(config, guard, options.where)),
+      draftWhere(config, draft, await this.readWhere(config, guard, options.where)),
       options,
     )
     const requested = options.sort === undefined ? ['-createdAt'] : [options.sort].flat()
@@ -388,8 +389,8 @@ export class EasyCMS<C extends Config = Config> {
             this.config.localization?.locales ?? [],
           )
     const result = await this.db.find({ collection, where, sort, limit, page })
-    const found = options.draft ? await this.withDrafts(config, result.docs) : result.docs
-    const docs = await this.output(config, found, guard, options)
+    const found = draft ? await this.withDrafts(config, result.docs) : result.docs
+    const docs = await this.output(config, found, guard, { ...options, draft })
     return { ...result, docs: docs as Doc<C, S>[] }
   }
 
@@ -402,9 +403,10 @@ export class EasyCMS<C extends Config = Config> {
     const guard = guardOf(options)
     const parsed = parseId(id)
     if (parsed === undefined) return null
+    const draft = readsDrafts(guard, options.draft)
     const where = this.whereFor(
       config,
-      draftWhere(config, options.draft, await this.readWhere(config, guard, undefined)),
+      draftWhere(config, draft, await this.readWhere(config, guard, undefined)),
       options,
     )
     const doc = where
@@ -419,8 +421,8 @@ export class EasyCMS<C extends Config = Config> {
         ).docs[0]
       : await this.db.findById({ collection, id: parsed })
     if (!doc) return null
-    const [current] = options.draft ? await this.withDrafts(config, [doc]) : [doc]
-    const [out] = await this.output(config, [current as RawDocument], guard, options)
+    const [current] = draft ? await this.withDrafts(config, [doc]) : [doc]
+    const [out] = await this.output(config, [current as RawDocument], guard, { ...options, draft })
     return (out ?? null) as Doc<C, S> | null
   }
 
@@ -433,7 +435,7 @@ export class EasyCMS<C extends Config = Config> {
       config,
       draftWhere(
         config,
-        options.draft,
+        readsDrafts(guardOf(options), options.draft),
         await this.readWhere(config, guardOf(options), options.where),
       ),
       options,
@@ -1504,7 +1506,10 @@ export class EasyCMS<C extends Config = Config> {
     options: ReadOptions,
   ): Promise<Data> {
     const saved = key ? await this.db.findGlobal({ slug: key }) : null
-    const stored = saved && options.draft ? await this.globalDraft(config, saved, key) : saved
+    const stored =
+      saved && readsDrafts(guard, options.draft)
+        ? await this.globalDraft(config, saved, key)
+        : saved
     const data = fillMissing(
       config.fields,
       applyDefaults(config.fields, stored ?? {}, this.config.localization),
@@ -2425,6 +2430,7 @@ export class EasyCMS<C extends Config = Config> {
       )
       return (await stripFields(target.fields, hooked, read)) as RawDocument
     }
+    const drafts = readsDrafts(guard, options.draft)
     const load: Loader = async (target, ids) => {
       const where = await this.readWhere(target, guard, { id: { in: [...ids] } }).catch((error) => {
         if (error instanceof ForbiddenError || error instanceof UnauthorizedError) return null
@@ -2433,12 +2439,12 @@ export class EasyCMS<C extends Config = Config> {
       if (where === null) return []
       const found = await this.db.find({
         collection: target.slug,
-        where: this.whereFor(target, draftWhere(target, options.draft, where), options),
+        where: this.whereFor(target, draftWhere(target, drafts, where), options),
         sort: [],
         limit: 0,
         page: 1,
       })
-      const docs = options.draft ? await this.withDrafts(target, found.docs) : found.docs
+      const docs = drafts ? await this.withDrafts(target, found.docs) : found.docs
       return Promise.all(
         docs.map((d) => finish(target, this.pick(target, d, options) as RawDocument)),
       )
@@ -3174,6 +3180,14 @@ function guardOf(options: AccessOptions): Guard {
     user: options.user ?? null,
     context: options.context ?? NO_CONTEXT,
   }
+}
+
+/**
+ * Whether a read gets drafts: trusted calls and staff (API keys included) when they ask; never
+ * visitors or site members (`auth.members`), whatever they ask, as the REST API promises.
+ */
+function readsDrafts(guard: Guard, draft: boolean | undefined): boolean {
+  return draft === true && (!guard.enforce || (guard.user !== null && guard.user.member !== true))
 }
 
 function deny(user: AuthUser | null) {

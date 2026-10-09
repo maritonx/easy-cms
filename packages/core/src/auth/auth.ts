@@ -274,9 +274,19 @@ export class Auth {
       throw new QueryError('Signing up needs `email` in the config, and a site URL in production')
     const existing = email ? await this.findByEmail(email) : undefined
     if (existing && verify) {
-      // The same answer either way; an account still waiting gets its link again.
-      if (existing.emailVerified === false && existing.active !== false)
-        await this.mailVerifyLink(existing, args)
+      // The same answer either way. An account still waiting takes the password of this sign-up
+      // and a new link: whoever confirms the email chose the password, and earlier links (sent
+      // for someone else's password) stop working.
+      if (existing.emailVerified === false && existing.active !== false) {
+        await this.cms.update(USERS, existing.id, { password: args.password } as never, {
+          context: args.context ?? {},
+        })
+        const pending = (await this.db.findById({
+          collection: USERS,
+          id: existing.id,
+        })) as RawDocument
+        await this.mailVerifyLink(pending, args)
+      }
       return { verify: true }
     }
     const created = await this.cms.create(
@@ -318,6 +328,8 @@ export class Auth {
     if (
       !user ||
       user.active === false ||
+      // A link confirms once: it doesn't sign in again afterwards.
+      user.emailVerified !== false ||
       !passwordTokenMatches(this.config.secret, token, passwordFingerprint(user.passwordHash))
     ) {
       await this.recordFailure(key)
@@ -326,7 +338,7 @@ export class Auth {
       ])
     }
     await this.clearFailures(key)
-    if (user.emailVerified === false) {
+    {
       const { id: _id, ...rest } = user
       await this.db.update({
         collection: USERS,

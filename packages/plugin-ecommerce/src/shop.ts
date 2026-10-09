@@ -2,6 +2,7 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
 import {
   type AuthUser,
   type EasyCMS,
+  ForbiddenError,
   type ID,
   type Label,
   NotFoundError,
@@ -868,6 +869,9 @@ export class Orders {
             })
             .catch(() => null)) as Data | null)
     if (!visible) throw new NotFoundError(ORDERS, String(id))
+    // Moving an order (and refunding its money) takes update access to it, not just read.
+    const { update } = await this.cms.documentPermissions(ORDERS, oid as ID, who.user, who.context)
+    if (!update) throw new ForbiddenError()
     const transaction = await this.transactionOf(visible)
     const now = new Date().toISOString()
     const move = async (from: OrderStatus[], to: OrderStatus, extra: Data = {}) => {

@@ -361,6 +361,26 @@ describe('members', () => {
     expect(
       ((await call('GET', '/tenant-members', { as: 'bob' })).body.members as Body[]).length,
     ).toBe(2)
+    // Someone with an account in another tenant: added, with the answer given for someone new.
+    await cms.create('users', {
+      email: 'dora@x.co',
+      name: 'Dora',
+      role: 'editor',
+      password: 'password123',
+      tenants: [{ tenant: b, role: 'editor' }],
+    } as never)
+    const dora = await call('POST', '/tenant-members', {
+      as: 'bob',
+      body: { email: 'dora@x.co', role: 'editor' },
+    })
+    expect(dora.status).toBe(201)
+    expect(dora.body.member).toMatchObject({ email: 'dora@x.co', name: null })
+    // Not someone with access to all tenants.
+    const root = await call('POST', '/tenant-members', {
+      as: 'bob',
+      body: { email: 'root@x.co', role: 'editor' },
+    })
+    expect(root.status).toBe(400)
     // Members can't be given tenants by editing users.
     const alice = (await call('GET', '/users/me', { as: 'alice' })).body.user
     const self = await call('PATCH', `/users/${alice.id}`, {

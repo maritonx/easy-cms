@@ -1,5 +1,5 @@
 import { createHmac, randomBytes } from 'node:crypto'
-import type { AuthUser, ID } from '../access.js'
+import { type AuthUser, type ID, isSystemAdmin } from '../access.js'
 import { USER_IDENTITIES, USERS } from '../builtins.js'
 import type { RawDocument } from '../database.js'
 import { ForbiddenError, NotFoundError, QueryError, ValidationError } from '../errors.js'
@@ -229,6 +229,16 @@ export class SingleSignOn {
       if (!email || !profile.emailVerified)
         return await back('login', email ? 'unverified' : 'no-account')
       user = await this.userByEmail(email)
+      if (user && user.emailVerified === false) {
+        // A sign-up still waiting for its email: the provider confirms the email now, and a
+        // password chosen before that (maybe by someone else) goes.
+        const { id, ...rest } = user
+        user = (await this.cms.db.update({
+          collection: USERS,
+          id,
+          data: { ...rest, emailVerified: true, passwordHash: null },
+        })) as RawDocument
+      }
       if (!user) user = await this.signUp(email, profile.name)
       if (!user) return await back('login', 'no-account')
       await this.addIdentity(user.id, provider.id, subject, email)
@@ -284,7 +294,7 @@ export class SingleSignOn {
     const row = await this.cms.db.findById({ collection: USER_IDENTITIES, id: identityId })
     if (!row) throw new NotFoundError(USER_IDENTITIES, identityId)
     const own = String(row.user) === String(actor.id)
-    if (!own && (actor.role !== 'admin' || actor.apiKey)) throw new ForbiddenError()
+    if (!own && (!isSystemAdmin(actor) || actor.apiKey)) throw new ForbiddenError()
     const user = await this.cms.db.findById({ collection: USERS, id: row.user as ID })
     const others = (await this.identities(row.user as ID)).length - 1
     const password = !!user?.passwordHash && this.passwordAllowed(user)

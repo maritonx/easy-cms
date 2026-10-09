@@ -333,3 +333,4 @@ Every hook also gets `user`, `cms` and `slug`.
 | `ip` | `string \| undefined` | The client's IP address, when the adapter knows it. |
 | `cms` | `EasyCMS` | The [Local API](./local-api). |
 | `json` | `() => Promise<object>` | The JSON body (an object, at most 1 MB). |
+| `text` | `() => Promise<string>` | The body as sent, as text (at most 1 MB), e.g. to check a webhook's signature. |

@@ -116,7 +116,7 @@ export function stripeAdapter(options: StripeAdapterOptions): PaymentAdapter {
             method: 'post',
             handler: async (req) => {
               const signature = req.request.headers.get('stripe-signature') ?? ''
-              const body = await req.request.text()
+              const body = await req.text()
               let event: Awaited<ReturnType<StripeClient['webhooks']['constructEventAsync']>>
               try {
                 event = await (await stripe()).webhooks.constructEventAsync(

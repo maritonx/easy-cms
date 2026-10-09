@@ -1,6 +1,7 @@
 import {
   type AuthUser,
   type EasyCMS,
+  type EmailMessage,
   type Endpoint,
   ForbiddenError,
   type ID,
@@ -15,6 +16,8 @@ type Data = Record<string, unknown>
 interface Options {
   readonly tenantsSlug: string
   readonly superUser: (user: AuthUser | null, context: RequestContext | undefined) => boolean
+  /** Has access to all tenants (`userHasAccessToAllTenants`). */
+  readonly isSuper: (user: AuthUser) => boolean
 }
 
 /** A member as the Members page shows them. */
@@ -30,6 +33,32 @@ export interface Member {
  * role, remove. For admins of that tenant, and users with access to all tenants once they chose
  * one. Users themselves stay: an account may belong to several tenants.
  */
+/** The email to someone who already has an account and was added to a tenant. */
+async function addedEmail(
+  cms: EasyCMS,
+  tenantsSlug: string,
+  tenant: ID,
+  to: string,
+  origin: string,
+): Promise<EmailMessage> {
+  const found = (await cms.findById(tenantsSlug, tenant, { depth: 0 })) as Data | null
+  const name = typeof found?.name === 'string' ? found.name : String(tenant)
+  const admin = `${cms.config.serverURL ?? origin}${cms.config.admin.path}`
+  return {
+    to,
+    subject: `You were added to ${name}`,
+    text: [
+      `An admin of ${name} added you to it. Sign in as before to work there:`,
+      admin,
+      '',
+      `ผู้ดูแลของ ${name} เพิ่มคุณเข้าไปแล้ว เข้าสู่ระบบด้วยบัญชีเดิมเพื่อทำงานที่นั่น:`,
+      admin,
+      '',
+      "If you don't know why, ask your admin. / หากไม่ทราบที่มา โปรดสอบถามผู้ดูแล",
+    ].join('\n'),
+  }
+}
+
 export function membersEndpoints(options: Options): Endpoint[] {
   const tenantFor = (user: AuthUser | null, context: RequestContext): ID => {
     const { tenant } = tenantOf(context)
@@ -100,14 +129,34 @@ export function membersEndpoints(options: Options): Endpoint[] {
         })
         const existing = docs[0] as Data | undefined
         if (existing) {
+          // Site members (customers) and people with access to all tenants aren't for a tenant's
+          // admins to take in.
+          const account = { id: existing.id, email: email, role: existing.role } as AuthUser
+          const memberRoles = cms.config.auth.members?.roles ?? []
+          if (memberRoles.includes(String(existing.role)) || options.isSuper(account))
+            throw new ValidationError('users', [
+              { field: 'email', message: "can't be added to a tenant" },
+            ])
           const list = rows(existing).filter((row) => !sameId(row.tenant, tenant))
-          const doc = await cms.update(
+          const doc = (await cms.update(
             'users',
             existing.id as ID,
             { [MEMBERSHIPS_FIELD]: [...list, { tenant, role }] } as never,
             { depth: 0 },
+          )) as Data
+          // They hear about it; and the answer is the one for someone new (no name), so it
+          // doesn't tell who has an account.
+          let invited = false
+          if (cms.auth.canSendPasswordLinks(url.origin)) {
+            await cms.sendEmail(
+              await addedEmail(cms, options.tenantsSlug, tenant, email, url.origin),
+            )
+            invited = true
+          }
+          return Response.json(
+            { member: { ...member(doc, tenant), name: null }, invited },
+            { status: 201 },
           )
-          return { member: member(doc as Data, tenant), invited: false }
         }
         // Someone new: an account in this tenant only, and an email to set a password.
         const doc = (await cms.create(

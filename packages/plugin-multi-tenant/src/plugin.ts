@@ -674,7 +674,7 @@ of its own. Run it once after adding the plugin to a site that has content.
         ...(config.endpoints ?? []),
         optionsEndpoint,
         impactEndpoint,
-        ...membersEndpoints({ tenantsSlug, superUser }),
+        ...membersEndpoints({ tenantsSlug, superUser, isSuper }),
       ],
       commands: [...(config.commands ?? []), assign],
       // Audit log entries belong to their tenant: its admins see them.

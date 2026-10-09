@@ -130,9 +130,19 @@ describe('helpers', () => {
       'fd00::1',
       'fe80::1',
       '::ffff:192.168.0.1',
+      // IPv4 inside IPv6: NAT64 and the old IPv4-compatible form.
+      '64:ff9b::a9fe:a9fe',
+      '64:ff9b::127.0.0.1',
+      '::127.0.0.1',
     ])
       expect(isPrivateAddress(ip), ip).toBe(true)
-    for (const ip of ['8.8.8.8', '1.1.1.1', '172.32.0.1', '2606:4700:4700::1111'])
+    for (const ip of [
+      '8.8.8.8',
+      '1.1.1.1',
+      '172.32.0.1',
+      '2606:4700:4700::1111',
+      '64:ff9b::808:808',
+    ])
       expect(isPrivateAddress(ip), ip).toBe(false)
   })
 

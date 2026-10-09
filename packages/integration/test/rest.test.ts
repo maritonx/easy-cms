@@ -374,6 +374,28 @@ describe('collections (FR-REST-01..04)', () => {
     ).toBe(413)
   })
 
+  it('stops reading a body sent without a length once it is too large', async () => {
+    // 64 KB at a time, up to 100 MB, with no Content-Length: refused after about 1 MB.
+    let sent = 0
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        if (sent >= 1600) return controller.close()
+        sent++
+        controller.enqueue(new Uint8Array(64 * 1024).fill(32))
+      },
+    })
+    const response = await handle(
+      new Request('http://cms.test/api/cms/users/forgot-password', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body,
+        duplex: 'half',
+      } as RequestInit),
+    )
+    expect(response.status).toBe(413)
+    expect(sent).toBeLessThan(40)
+  })
+
   it('answers 405 for unsupported methods', async () => {
     const res = await call('/posts', { method: 'PUT', body: {}, headers: admin.headers })
     expect(res.status).toBe(405)

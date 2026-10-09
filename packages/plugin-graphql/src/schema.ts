@@ -642,9 +642,10 @@ class Builder {
     }
   }
 
-  /** What a query asked for: drafts only for logged-in users and API keys, as in REST. */
+  /** What a query asked for: drafts only for staff and API keys, as in REST. */
   private readOf(args: Data, ctx: GraphQLContext): ReadArgs {
-    return { ...this.localeOf(args), ...(args.draft === true && ctx.user ? { draft: true } : {}) }
+    const staff = ctx.user !== null && ctx.user !== undefined && ctx.user.member !== true
+    return { ...this.localeOf(args), ...(args.draft === true && staff ? { draft: true } : {}) }
   }
 
   // ---- Filtering and sorting -----------------------------------------------------------------

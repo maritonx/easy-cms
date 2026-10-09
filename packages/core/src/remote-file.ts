@@ -62,13 +62,51 @@ for (const [net, prefix] of [
 ] as const)
   PRIVATE.addSubnet(net, prefix, 'ipv6')
 
+const EMBEDS_IPV4 = new BlockList()
+EMBEDS_IPV4.addSubnet('64:ff9b::', 96, 'ipv6')
+EMBEDS_IPV4.addSubnet('::', 96, 'ipv6')
+
+/** The IPv4 address in the last 32 bits of an IPv6 address that carries one. */
+function embeddedIPv4(address: string): string | undefined {
+  if (address === '::' || address === '::1' || !EMBEDS_IPV4.check(address, 'ipv6')) return undefined
+  const bytes = ipv6Bytes(address)
+  return bytes ? bytes.slice(12).join('.') : undefined
+}
+
+/** The 16 bytes of an IPv6 address (dotted IPv4 tails included). */
+function ipv6Bytes(address: string): number[] | undefined {
+  let text = address
+  const tail = /(\d+)\.(\d+)\.(\d+)\.(\d+)$/.exec(text)
+  if (tail) {
+    const [a, b, c, d] = tail.slice(1).map(Number) as [number, number, number, number]
+    text = `${text.slice(0, tail.index)}${((a << 8) | b).toString(16)}:${((c << 8) | d).toString(16)}`
+  }
+  const [head = '', rest] = text.split('::')
+  const left = head ? head.split(':') : []
+  const right = rest === undefined ? [] : rest ? rest.split(':') : []
+  const groups =
+    rest === undefined
+      ? left
+      : [...left, ...Array(8 - left.length - right.length).fill('0'), ...right]
+  if (groups.length !== 8) return undefined
+  return groups.flatMap((g) => {
+    const n = Number.parseInt(g, 16)
+    return [n >> 8, n & 0xff]
+  })
+}
+
 /** Whether an IP address is on a private network (IPv4-mapped IPv6 counts as its IPv4). */
 export function isPrivateAddress(address: string): boolean {
   const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/i.exec(address)
   if (mapped?.[1]) return PRIVATE.check(mapped[1], 'ipv4')
   const family = isIP(address)
   if (family === 4) return PRIVATE.check(address, 'ipv4')
-  if (family === 6) return PRIVATE.check(address, 'ipv6')
+  if (family === 6) {
+    // IPv4 inside IPv6 (NAT64's 64:ff9b::/96, the old ::/96 form) counts as that IPv4.
+    const embedded = embeddedIPv4(address)
+    if (embedded) return PRIVATE.check(embedded, 'ipv4')
+    return PRIVATE.check(address, 'ipv6')
+  }
   return true
 }
 

@@ -619,6 +619,8 @@ export interface EndpointRequest {
   readonly cms: EasyCMS
   /** The request's JSON body, which must be an object (at most 1 MB). */
   json(): Promise<Record<string, unknown>>
+  /** The request's body as text, as sent (at most 1 MB), e.g. to check a webhook's signature. */
+  text(): Promise<string>
 }
 
 /**

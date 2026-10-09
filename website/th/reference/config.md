@@ -330,3 +330,4 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `ip` | `string \| undefined` | IP ของ client ถ้า adapter รู้ |
 | `cms` | `EasyCMS` | [Local API](./local-api) |
 | `json` | `() => Promise<object>` | body แบบ JSON (ต้องเป็น object ขนาดไม่เกิน 1 MB) |
+| `text` | `() => Promise<string>` | body ตามที่ส่งมาเป็นข้อความ (ไม่เกิน 1 MB) เช่นใช้ตรวจลายเซ็นของ webhook |

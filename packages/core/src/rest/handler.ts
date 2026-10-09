@@ -265,6 +265,7 @@ async function customEndpoint(
       ip: options.getClientIp?.(ctx.request),
       cms,
       json: () => readJson(ctx.request),
+      text: async () => new TextDecoder().decode(await readBody(ctx.request, MAX_BODY_BYTES)),
     })
     return { body: body === undefined ? null : body }
   }
@@ -1301,13 +1302,19 @@ async function readUpload(
       415,
     )
   }
-  const declared = Number(request.headers.get('content-length') ?? 0)
   // Leave room for the multipart envelope and the other fields.
-  if (declared > maxFileSize + 64 * 1024)
-    throw new PayloadTooLargeError(`File is larger than ${maxFileSize} bytes`)
+  const bytes = await readBody(request, maxFileSize + 64 * 1024).catch((error: unknown) => {
+    throw error instanceof HttpError && error.status === 413
+      ? new PayloadTooLargeError(`File is larger than ${maxFileSize} bytes`)
+      : error
+  })
   let form: FormData
   try {
-    form = await request.formData()
+    form = await new Request(request.url, {
+      method: 'POST',
+      headers: { 'content-type': request.headers.get('content-type') ?? '' },
+      body: bytes,
+    }).formData()
   } catch {
     throw new HttpError('Malformed multipart body', 400)
   }
@@ -1324,15 +1331,42 @@ async function readUpload(
   }
 }
 
+/**
+ * A request's body, refused (413) past `max` bytes: by its declared length at once, otherwise as
+ * it arrives, so a body sent in chunks without a length can't fill the memory first.
+ */
+async function readBody(request: Request, max: number): Promise<Uint8Array<ArrayBuffer>> {
+  const tooLarge = () => new HttpError('Request body too large', 413)
+  if (Number(request.headers.get('content-length') ?? 0) > max) throw tooLarge()
+  if (!request.body) return new Uint8Array()
+  const reader = request.body.getReader()
+  const chunks: Uint8Array[] = []
+  let size = 0
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    size += value.byteLength
+    if (size > max) {
+      await reader.cancel().catch(() => {})
+      throw tooLarge()
+    }
+    chunks.push(value)
+  }
+  const body = new Uint8Array(size)
+  let at = 0
+  for (const chunk of chunks) {
+    body.set(chunk, at)
+    at += chunk.byteLength
+  }
+  return body
+}
+
 async function readJson(request: Request): Promise<Record<string, unknown>> {
   const type = request.headers.get('content-type') ?? ''
   if (!type.toLowerCase().startsWith('application/json')) {
     throw new HttpError('Content-Type must be application/json', 415)
   }
-  const declared = Number(request.headers.get('content-length') ?? 0)
-  if (declared > MAX_BODY_BYTES) throw new HttpError('Request body too large', 413)
-  const text = await request.text()
-  if (Buffer.byteLength(text) > MAX_BODY_BYTES) throw new HttpError('Request body too large', 413)
+  const text = new TextDecoder().decode(await readBody(request, MAX_BODY_BYTES))
   let body: unknown
   try {
     body = JSON.parse(text)
