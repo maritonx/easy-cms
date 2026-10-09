@@ -339,6 +339,13 @@
             "en": "Security",
             "th": "ความปลอดภัย"
           }
+        },
+        {
+          "path": "guide/upgrading",
+          "title": {
+            "en": "Upgrading",
+            "th": "การอัปเกรด"
+          }
         }
       ]
     },
