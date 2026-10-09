@@ -18,7 +18,8 @@
   "scripts": {
     "build": "tsup",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepack": "node ../../scripts/check-publish.mjs"
   },
   "dependencies": {
     "aws4fetch": "^1.0.20"

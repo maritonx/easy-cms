@@ -20,7 +20,8 @@
   },
   "scripts": {
     "build": "tsup",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepack": "node ../../scripts/check-publish.mjs"
   },
   "dependencies": {
     "drizzle-kit": "0.31.11",

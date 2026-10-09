@@ -21,7 +21,8 @@
     "build": "vite build && tsup",
     "dev": "vite",
     "typecheck": "tsc --noEmit && vue-tsc --noEmit -p app/tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepack": "node ../../scripts/check-publish.mjs"
   },
   "devDependencies": {
     "@easy-cms/core": "workspace:^",
