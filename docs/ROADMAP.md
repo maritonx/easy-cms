@@ -84,7 +84,7 @@
 | # | Issue | Labels | เสร็จเมื่อ |
 |---|---|---|---|
 | [#83](https://github.com/maritonx/easy-cms/issues/83) | Exit pre mode and release 1.0.0 | area:release, release-blocker | `changeset pre exit`, ทุกแพ็กเกจเป็น `1.0.0` บน `latest`, git tag และ GitHub release |
-| [#84](https://github.com/maritonx/easy-cms/issues/84) | easy-cms.io shows the 1.0 docs and a release announcement | area:docs | เว็บ build จาก 1.0.0 และมีหน้าประกาศ (เปิดให้กลับไปทำงานเว็บได้ที่ milestone นี้) |
+| [#84](https://github.com/maritonx/easy-cms/issues/84) | The website shows the 1.0 docs and a release announcement | area:docs | เว็บ build จาก 1.0.0 และมีหน้าประกาศ (เปิดให้กลับไปทำงานเว็บได้ที่ milestone นี้) |
 | [#85](https://github.com/maritonx/easy-cms/issues/85) | Update SRS and DESIGN for 1.0 | area:docs | SRS §8 และ DESIGN §15 บันทึก 1.0, สัญญาความเสถียร, นโยบายการซัพพอร์ต |
 
 ### M5 — `1.1` (ไม่กำหนดวัน) {#m5}
@@ -112,6 +112,6 @@
 - **Redirects:** export เป็น `_redirects`/`vercel.json`, นำเข้าจาก CSV, pattern/wildcard
 - **SSO:** แมปบทบาทจากกลุ่มฝั่งผู้ให้บริการ, SAML
 - **Audit log:** ส่งออกแบบ real-time (syslog, SIEM)
-- **Deploy คลิกเดียว:** template สำหรับ Nuxt, ปุ่มบน easy-cms.io
+- **Deploy คลิกเดียว:** template สำหรับ Nuxt, ปุ่มบน[เว็บไซต์](https://easy-cms-website.vercel.app)
 - **บทบาท:** สิทธิ์ของ field ย่อยใน group/array/blocks, กำหนดเจ้าของทีละหลายเอกสาร, ผู้ใช้หลายบทบาท
 - **ความปลอดภัย:** pentest โดยภายนอกเมื่อมีผู้ใช้ production จริง

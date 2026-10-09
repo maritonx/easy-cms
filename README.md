@@ -11,17 +11,18 @@ your repository, the admin and APIs come with it, and there is no extra server t
 
 [![npm](https://img.shields.io/npm/v/@easy-cms/core?label=npm&color=2f6f5e)](https://www.npmjs.com/package/@easy-cms/core)
 [![CI](https://github.com/maritonx/easy-cms/actions/workflows/ci.yml/badge.svg)](https://github.com/maritonx/easy-cms/actions/workflows/ci.yml)
-[![Docs](https://img.shields.io/badge/docs-EN%20%7C%20TH-2f6f5e)](https://maritonx.github.io/easy-cms/)
+[![Docs](https://img.shields.io/badge/docs-EN%20%7C%20TH-2f6f5e)](https://easy-cms-website.vercel.app/docs)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522.12-555)](https://nodejs.org)
 [![License: MIT](https://img.shields.io/badge/license-MIT-555)](LICENSE)
 
-[Documentation](https://maritonx.github.io/easy-cms/) ·
-[เอกสารภาษาไทย](https://maritonx.github.io/easy-cms/th/) ·
-[Getting started](https://maritonx.github.io/easy-cms/guide/getting-started) ·
+[Website](https://easy-cms-website.vercel.app) ·
+[Documentation](https://easy-cms-website.vercel.app/docs) ·
+[เอกสารภาษาไทย](https://easy-cms-website.vercel.app/th/docs) ·
+[Getting started](https://easy-cms-website.vercel.app/docs/getting-started) ·
 [Examples](#examples) ·
 [Sponsor](https://github.com/sponsors/maritonx)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fmaritonx%2Feasy-cms%2Ftree%2Fmain%2Ftemplates%2Fnext-starter&project-name=easy-cms&repository-name=easy-cms&env=EASY_CMS_SETUP_CODE&envDescription=A+code+you+choose%3A+you+type+it+to+create+the+first+admin+at+%2Fadmin&envLink=https%3A%2F%2Fmaritonx.github.io%2Feasy-cms%2Fguide%2Fone-click-deploy&stores=%5B%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22neon%22%2C%22productSlug%22%3A%22neon%22%2C%22protocol%22%3A%22storage%22%7D%2C%7B%22type%22%3A%22blob%22%2C%22access%22%3A%22public%22%7D%5D)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fmaritonx%2Feasy-cms%2Ftree%2Fmain%2Ftemplates%2Fnext-starter&project-name=easy-cms&repository-name=easy-cms&env=EASY_CMS_SETUP_CODE&envDescription=A+code+you+choose%3A+you+type+it+to+create+the+first+admin+at+%2Fadmin&envLink=https%3A%2F%2Feasy-cms-website.vercel.app%2Fdocs%2Fone-click-deploy&stores=%5B%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22neon%22%2C%22productSlug%22%3A%22neon%22%2C%22protocol%22%3A%22storage%22%7D%2C%7B%22type%22%3A%22blob%22%2C%22access%22%3A%22public%22%7D%5D)
 [![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/maritonx/easy-cms&create_from_path=templates/next-starter)
 
 </div>
@@ -38,22 +39,25 @@ your repository, the admin and APIs come with it, and there is no extra server t
 - **Code-first and typed.** Collections, fields and access rules are TypeScript. The Local API
   infers document types from the config, so queries are typed without a build step.
 - **Any frontend, too.** Using Vite, React, Vue, a mobile app or a static site? Run the same CMS
-  as a [standalone server](https://maritonx.github.io/easy-cms/guide/standalone) and use its REST
+  as a [standalone server](https://easy-cms-website.vercel.app/docs/standalone) and use its REST
   API.
 - **An admin editors like**, in English and Thai: drafts, version history, live preview,
   scheduled publishing, blocks, translations, a media library and a light and dark theme.
-- **Official plugins** for SEO, forms, redirects, nested pages, GraphQL, several sites in one CMS (multi-tenant) and AI assistants (MCP).
+- **Official plugins** for SEO, forms, redirects, nested pages, a shop, GraphQL, several sites in
+  one CMS (multi-tenant) and AI assistants (MCP).
 
 > [!NOTE]
 > Easy CMS is pre-1.0: the API may change between minor versions. Each release lists its changes in
 > the [changelog](packages/core/CHANGELOG.md); see
-> [Backups & upgrades](https://maritonx.github.io/easy-cms/guide/backups) before upgrading.
+> [Backups & upgrades](https://easy-cms-website.vercel.app/docs/backups) before upgrading.
+> 1.0, the first version meant for production use, is planned for December 2026: see the
+> [roadmap](docs/ROADMAP.md) and its [milestones](https://github.com/maritonx/easy-cms/milestones).
 
 ## Quick start
 
 To try it without installing anything, use the **Deploy** buttons above: a blog with its admin on
 Vercel or Netlify, with a database and file storage made for you
-([one-click deploy](https://maritonx.github.io/easy-cms/guide/one-click-deploy)).
+([one-click deploy](https://easy-cms-website.vercel.app/docs/one-click-deploy)).
 
 In a Nuxt 4 or Next.js 15+ project:
 
@@ -121,7 +125,10 @@ cd my-cms && npm run dev       # http://localhost:4000/admin
 - Version history with restore, and drafts kept apart from the published version
 
 **Admin**
-- Lists with search, filters, columns, bulk actions and tree views; forms with a side panel
+- A menu with groups that fold, badges for what needs attention, and a command palette (⌘K) that
+  finds documents and runs actions
+- Lists with search, filters, columns, bulk actions and tree views; edit forms with tabs, sections,
+  rows, fields shown on conditions, and a side panel
 - Live preview of unsaved changes on your real pages
 - Scheduled publish and unpublish
 - A media library with folders (and who may use each), many files uploaded at once with their
@@ -140,6 +147,7 @@ cd my-cms && npm run dev       # http://localhost:4000/admin
 - Users and roles, function-based access rules per collection, document and field; forgotten
   passwords and invitations by email; single sign-on with Google, Microsoft, GitHub or any OpenID
   Connect provider
+- Site members (customers, subscribers) who sign up on your site, kept out of the admin
 - API keys with per-collection permissions, signed webhooks with retries, email with retries
 
 **Data and operations**
@@ -160,19 +168,19 @@ cd my-cms && npm run dev       # http://localhost:4000/admin
 
 | Plugin | What it adds | Guide |
 |---|---|---|
-| [`@easy-cms/plugin-seo`](packages/plugin-seo) | Meta fields, search preview, sitemap, robots.txt, structured data, llms.txt | [SEO](https://maritonx.github.io/easy-cms/guide/seo) |
-| [`@easy-cms/plugin-form-builder`](packages/plugin-form-builder) | Forms built in the admin, submissions with an overview and a dashboard panel, email notifications, spam protection, `<easy-form>` | [Forms](https://maritonx.github.io/easy-cms/guide/forms) |
-| [`@easy-cms/plugin-redirects`](packages/plugin-redirects) | Redirects managed in the admin, automatic redirects when a page moves | [Redirects](https://maritonx.github.io/easy-cms/guide/redirects) |
-| [`@easy-cms/plugin-nested-docs`](packages/plugin-nested-docs) | Pages inside pages: parents, full paths, breadcrumbs, a tree in the admin | [Nested pages](https://maritonx.github.io/easy-cms/guide/nested-docs) |
-| [`@easy-cms/plugin-graphql`](packages/plugin-graphql) | GraphQL API: queries and mutations for every collection and global, with your access rules | [GraphQL](https://maritonx.github.io/easy-cms/guide/graphql) |
-| [`@easy-cms/plugin-mcp`](packages/plugin-mcp) | Model Context Protocol server for AI assistants | [MCP](https://maritonx.github.io/easy-cms/guide/mcp) |
-| [`@easy-cms/plugin-multi-tenant`](packages/plugin-multi-tenant) | Several sites or clients in one CMS: content, members, roles and settings per tenant, a tenant switcher | [Multi-tenant](https://maritonx.github.io/easy-cms/guide/multi-tenant) |
-| [`@easy-cms/plugin-ecommerce`](packages/plugin-ecommerce) | A shop: products and variants, prices in several currencies, carts, checkout with Stripe or bank transfer, orders, stock, customer accounts, React and Vue hooks | [Shop](https://maritonx.github.io/easy-cms/guide/ecommerce) |
+| [`@easy-cms/plugin-seo`](packages/plugin-seo) | Meta fields, search preview, sitemap, robots.txt, structured data, llms.txt | [SEO](https://easy-cms-website.vercel.app/docs/seo) |
+| [`@easy-cms/plugin-form-builder`](packages/plugin-form-builder) | Forms built in the admin, submissions with an overview and a dashboard panel, email notifications, spam protection, `<easy-form>` | [Forms](https://easy-cms-website.vercel.app/docs/forms) |
+| [`@easy-cms/plugin-redirects`](packages/plugin-redirects) | Redirects managed in the admin, automatic redirects when a page moves | [Redirects](https://easy-cms-website.vercel.app/docs/redirects) |
+| [`@easy-cms/plugin-nested-docs`](packages/plugin-nested-docs) | Pages inside pages: parents, full paths, breadcrumbs, a tree in the admin | [Nested pages](https://easy-cms-website.vercel.app/docs/nested-docs) |
+| [`@easy-cms/plugin-graphql`](packages/plugin-graphql) | GraphQL API: queries and mutations for every collection and global, with your access rules | [GraphQL](https://easy-cms-website.vercel.app/docs/graphql) |
+| [`@easy-cms/plugin-mcp`](packages/plugin-mcp) | Model Context Protocol server for AI assistants | [MCP](https://easy-cms-website.vercel.app/docs/mcp) |
+| [`@easy-cms/plugin-multi-tenant`](packages/plugin-multi-tenant) | Several sites or clients in one CMS: content, members, roles and settings per tenant, a tenant switcher | [Multi-tenant](https://easy-cms-website.vercel.app/docs/multi-tenant) |
+| [`@easy-cms/plugin-ecommerce`](packages/plugin-ecommerce) | A shop: products and variants, prices in several currencies, carts, checkout with Stripe or bank transfer, orders, stock, customer accounts, React and Vue hooks | [Shop](https://easy-cms-website.vercel.app/docs/ecommerce) |
 
 Plugins are functions over your config: write your own with fields, endpoints, admin components,
-admin pages, dashboard panels and CLI commands. See [Plugins](https://maritonx.github.io/easy-cms/guide/plugins). Packages can
-also add field types, such as `color` from [`@easy-cms/fields`](packages/fields): see
-[Custom field types](https://maritonx.github.io/easy-cms/guide/field-types).
+admin pages, dashboard panels and CLI commands. See
+[Plugins](https://easy-cms-website.vercel.app/docs/plugins). Packages can also add field types, such as `color` from [`@easy-cms/fields`](packages/fields): see
+[Custom field types](https://easy-cms-website.vercel.app/docs/field-types).
 
 ## Packages
 
@@ -207,6 +215,8 @@ also add field types, such as `color` from [`@easy-cms/fields`](packages/fields)
 | [`examples/nuxt-blog`](examples/nuxt-blog) | Nuxt 4 blog on SQLite, with every official plugin |
 | [`examples/next-blog`](examples/next-blog) | Next.js 16 blog on Postgres (PGlite locally) |
 | [`examples/standalone`](examples/standalone) | Standalone server with a plain HTML frontend on another origin |
+| [`examples/shop`](examples/shop) | Next.js 16 shop: products, cart, checkout (bank transfer, or Stripe), customer accounts |
+| [`examples/multi-tenant`](examples/multi-tenant) | Two brands in one CMS, each with its own content, media and members |
 
 ## Requirements
 
@@ -228,7 +238,8 @@ Please report security issues privately, as described in [SECURITY.md](SECURITY.
 Easy CMS is built in spare time. If it saves you or your team time, consider
 [sponsoring its development](https://github.com/sponsors/maritonx): sponsorship pays for the work
 toward 1.0, docs (in English and Thai) and faster fixes. Sponsors at $5 a month or more are
-listed here, and company sponsors also get their logo on [easy-cms.io](https://easy-cms.io).
+listed here, and company sponsors also get their logo on
+[the website](https://easy-cms-website.vercel.app).
 
 [![Sponsor Easy CMS](https://img.shields.io/badge/sponsor-%E2%9D%A4-2f6f5e?logo=githubsponsors)](https://github.com/sponsors/maritonx)
 

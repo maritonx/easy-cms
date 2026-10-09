@@ -26,4 +26,4 @@
 - ✅ ลอง Easy CMS บน production ได้ในไม่กี่คลิก มีฐานข้อมูลและที่เก็บไฟล์ให้
 - ✅ ปิดช่องแย่ง admin คนแรกสำหรับทุกการ deploy ที่ตั้งรหัส setup
 - ✅ ทดสอบด้วยบัญชีจริงแล้วทั้งสองแพลตฟอร์ม (2026-10-06): deploy, บทความตัวอย่าง, สร้าง admin ด้วยรหัส setup, อัปโหลดรูป ระหว่างทดสอบพบและแก้ (0.37.1–0.37.2): Vercel ที่ยังไม่ได้ต่อ Blob store, Netlify DB เดิมสร้างไม่ได้แล้ว (เปลี่ยนเป็น Netlify Database) และ CSRF ที่เทียบ Origin กับ URL ภายในของ proxy (เทียบกับ `x-forwarded-host`/`host` ด้วย)
-- ❌ ยังไม่มี template สำหรับ Nuxt และปุ่มบน easy-cms.io
+- ❌ ยังไม่มี template สำหรับ Nuxt และปุ่มบน[เว็บไซต์](https://easy-cms-website.vercel.app)

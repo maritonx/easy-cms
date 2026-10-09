@@ -8,7 +8,7 @@ const base = process.env.DOCS_BASE ?? '/'
 type Locale = 'en' | 'th'
 
 /**
- * The same pages in every language, from sidebar.json (which easy-cms.io reads too);
+ * The same pages in every language, from sidebar.json (which the website reads too);
  * `prefix` is '' for English and '/th' for Thai.
  */
 function sidebar(prefix: string, locale: Locale): DefaultTheme.SidebarItem[] {

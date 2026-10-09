@@ -1,5 +1,5 @@
 {
-  "$comment": "The docs navigation, shared by this VitePress site and easy-cms.io. `path` is the markdown file under website/ (website/th/ for Thai), without .md.",
+  "$comment": "The docs navigation, shared by this VitePress site and the website (easy-cms-website.vercel.app). `path` is the markdown file under website/ (website/th/ for Thai), without .md.",
   "groups": [
     {
       "title": {
