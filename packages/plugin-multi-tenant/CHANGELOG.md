@@ -1,5 +1,12 @@
 # @easy-cms/plugin-multi-tenant
 
+## 0.47.3
+
+### Patch Changes
+
+- b753c14: Security fix: site members (`auth.members`, such as shop customers) never get the rights of users with access to all tenants, whatever `publicReads` is, and see only their own user record. Update now if you use the multi-tenant plugin together with members.
+- @easy-cms/core@0.47.3
+
 ## 0.47.2
 
 ### Patch Changes

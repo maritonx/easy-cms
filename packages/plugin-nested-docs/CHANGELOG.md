@@ -1,5 +1,11 @@
 # @easy-cms/plugin-nested-docs
 
+## 0.47.3
+
+### Patch Changes
+
+- @easy-cms/core@0.47.3
+
 ## 0.47.2
 
 ### Patch Changes
