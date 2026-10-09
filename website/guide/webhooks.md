@@ -42,6 +42,24 @@ export default defineConfig({
 
 Publishing on a [schedule](./drafts#scheduled-publishing) sends the same events.
 
+## Your own events
+
+Plugins and apps send events of their own, e.g. the [shop](./ecommerce)'s `order.paid`. Declare
+them in `events` (plugins do), send them with `cms.emit()`, and list them in a webhook's
+`events`: they go only to webhooks that list them.
+
+```ts
+export default defineConfig({
+  events: ['invoice.sent'],
+  webhooks: [{ url: 'https://erp.example.com/hook', events: ['invoice.sent'], secret }],
+})
+
+cms.emit('invoice.sent', { number: 'INV-1' }, { collection: 'invoices', id: 7 })
+```
+
+The body is `{ event, collection?, id?, doc, timestamp }`, with what was given as `doc`;
+delivery, signatures and retries are the same.
+
 ## Requests
 
 ```http

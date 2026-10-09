@@ -37,6 +37,7 @@ describe('resolveConfig', () => {
       resetPasswordExpiration: 3600,
       inviteExpiration: 604800,
       emails: {},
+      members: { roles: [] },
     })
     expect(config.collections.map((c) => c.slug)).toEqual([
       'users',

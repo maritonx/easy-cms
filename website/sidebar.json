@@ -261,6 +261,20 @@
             "en": "Multi-tenant",
             "th": "Multi-tenant"
           }
+        },
+        {
+          "path": "guide/ecommerce",
+          "title": {
+            "en": "Shop (ecommerce)",
+            "th": "ร้านค้า (ecommerce)"
+          }
+        },
+        {
+          "path": "guide/members",
+          "title": {
+            "en": "Site members",
+            "th": "สมาชิกของเว็บ"
+          }
         }
       ]
     },

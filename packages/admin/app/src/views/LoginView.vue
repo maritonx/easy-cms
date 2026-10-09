@@ -5,7 +5,7 @@ import AuthCard from '../components/AuthCard.vue'
 import ProviderButtons from '../components/ProviderButtons.vue'
 import { ApiError } from '../lib/api'
 import { t } from '../lib/i18n'
-import { login, session } from '../lib/session'
+import { login, MemberAccountError, session } from '../lib/session'
 
 const router = useRouter()
 const route = useRoute()
@@ -42,12 +42,14 @@ async function submit() {
     await router.replace(redirect)
   } catch (e) {
     error.value =
-      e instanceof ApiError && e.status === 429
-        ? t('login.locked')
-        : // `auth.password: false`: the password was right, but only admins use one.
-          e instanceof ApiError && e.status === 401 && e.message.startsWith('Sign in with')
-          ? t('sso.useProvider')
-          : t('login.failed')
+      e instanceof MemberAccountError
+        ? t('login.member')
+        : e instanceof ApiError && e.status === 429
+          ? t('login.locked')
+          : // `auth.password: false`: the password was right, but only admins use one.
+            e instanceof ApiError && e.status === 401 && e.message.startsWith('Sign in with')
+            ? t('sso.useProvider')
+            : t('login.failed')
   } finally {
     busy.value = false
   }

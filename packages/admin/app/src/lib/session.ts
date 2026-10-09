@@ -43,9 +43,10 @@ export const session = reactive<SessionState>({
 
 /** Loads the current user and, when logged in, the admin schema. */
 export async function loadSession(): Promise<void> {
-  const me = await api<{ user: User | null }>('GET', '/users/me')
-  session.user = me.user
-  if (me.user) {
+  const me = await api<{ user: (User & { member?: boolean }) | null }>('GET', '/users/me')
+  // Site members (e.g. customers) are signed in on the site, not here.
+  session.user = me.user?.member ? null : me.user
+  if (session.user) {
     session.schema = await api<AdminSchema>('GET', '/admin/schema')
     // Components from admin modules; views wait for the ones they show.
     void loadModules(session.schema.modules ?? [])
@@ -67,8 +68,15 @@ export async function loadSession(): Promise<void> {
   session.loaded = true
 }
 
+/** Thrown by `login` for an account of a site member (e.g. a customer). */
+export class MemberAccountError extends Error {}
+
 export async function login(email: string, password: string): Promise<void> {
-  await api('POST', '/users/login', { email, password })
+  const result = await api<{ user: { member?: boolean } }>('POST', '/users/login', {
+    email,
+    password,
+  })
+  if (result.user.member) throw new MemberAccountError()
   await loadSession()
 }
 

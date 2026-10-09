@@ -15,7 +15,7 @@ import {
   newApiKey,
 } from './api-keys.js'
 import { AuditLog, auditContext } from './audit.js'
-import { Auth } from './auth/auth.js'
+import { Auth, asMember } from './auth/auth.js'
 import { hashPassword, MIN_PASSWORD_LENGTH } from './auth/password.js'
 import { signPreviewToken, verifyPreviewToken } from './auth/tokens.js'
 import { runDueBackups } from './backups.js'
@@ -153,6 +153,19 @@ export interface UpdateOptions extends DepthOptions {
    * stays, and no version is added to the history.
    */
   readonly live?: boolean
+  /**
+   * Saves only when the stored document still matches this at the moment of writing (compare and
+   * set), e.g. `{ status: { equals: 'pending' } }` so that one of two concurrent calls wins.
+   * `update()` then returns `null` when it doesn't match, after its `before*` hooks ran.
+   */
+  readonly where?: Where
+}
+
+export interface IncrementOptions {
+  /** Only when the result stays at or above this, e.g. `0` for stock. */
+  readonly min?: number
+  /** Only when the result stays at or below this. */
+  readonly max?: number
 }
 
 export interface ReadOptions extends DepthOptions {
@@ -180,8 +193,8 @@ export interface CreateEasyCMSOptions {
   readonly cwd?: string
   /**
    * Run due scheduled jobs and webhook retries every minute in this process. Default: on when
-   * a collection or global has `schedule`, or `webhooks` is set. Turn it off where a cron calls
-   * `runJobs` (or `GET <api>/jobs/run`) instead.
+   * a collection or global has `schedule`, or `webhooks`, `email` or `jobs` is set. Turn it off
+   * where a cron calls `runJobs` (or `GET <api>/jobs/run`) instead.
    */
   readonly scheduler?: boolean
   /** Default `verify` when `NODE_ENV=production`, otherwise `push`. */
@@ -212,7 +225,8 @@ export async function createEasyCMS<const C extends Config>(
   const scheduling =
     [...resolved.collections, ...resolved.globals].some((c) => c.schedule) ||
     (resolved.webhooks?.length ?? 0) > 0 ||
-    resolved.email !== undefined
+    resolved.email !== undefined ||
+    resolved.jobs.length > 0
   if (scheduling && options.scheduler !== false) cms.startScheduler()
   return cms
 }
@@ -336,8 +350,10 @@ export class EasyCMS<C extends Config = Config> {
       user,
       cms: this as unknown as EasyCMS,
     })
+    const changed = result?.user !== undefined ? result.user : user
     return {
-      user: result?.user !== undefined ? result.user : user,
+      // `onRequest` may change the role (e.g. per tenant): membership follows it.
+      user: changed && asMember(changed, this.config.auth.members.roles),
       context: result?.context ?? NO_CONTEXT,
     }
   }
@@ -947,16 +963,46 @@ export class EasyCMS<C extends Config = Config> {
     }
   }
 
+  update<S extends Slug<C>>(
+    collection: S,
+    id: ID,
+    data: Update<C, S>,
+    options: UpdateOptions & { where: Where },
+  ): Promise<Doc<C, S> | null>
+  update<S extends Slug<C>>(
+    collection: S,
+    id: ID,
+    data: Update<C, S>,
+    options?: UpdateOptions & { where?: undefined },
+  ): Promise<Doc<C, S>>
   async update<S extends Slug<C>>(
     collection: S,
     id: ID,
     data: Update<C, S>,
     options: UpdateOptions = {},
-  ): Promise<Doc<C, S>> {
+  ): Promise<Doc<C, S> | null> {
     return (await this.updateDocument(collection, id, asObject(data, collection), options)) as Doc<
       C,
       S
-    >
+    > | null
+  }
+
+  /**
+   * Adds `by` (negative to take away) to a top-level number field in one database statement, so
+   * concurrent calls never lose a change, e.g. stock or a counter. Skips hooks, validation, access
+   * and versions. Returns the new value, or `null` when `min` / `max` would be passed.
+   */
+  async increment<S extends Slug<C>>(
+    collection: S,
+    id: ID,
+    field: string,
+    by: number,
+    options: IncrementOptions = {},
+  ): Promise<number | null> {
+    this.collection(collection)
+    const parsed = parseId(id)
+    if (parsed === undefined) throw new NotFoundError(collection, id)
+    return this.db.increment({ collection, id: parsed, field, by, ...options })
   }
 
   /**
@@ -1233,7 +1279,7 @@ export class EasyCMS<C extends Config = Config> {
     raw: Data,
     options: UpdateOptions,
     mode: 'save' | 'unpublish' | 'restore' = 'save',
-  ): Promise<RawDocument> {
+  ): Promise<RawDocument | null> {
     const config = this.collection(collection)
     const guard = guardOf(options)
     const parsed = parseId(id)
@@ -1312,7 +1358,7 @@ export class EasyCMS<C extends Config = Config> {
         previousDoc: current,
         operation: 'update',
       })
-      this.emit(config, 'draft', draft)
+      this.emitChange(config, 'draft', draft)
       await this.audited(config, 'draft', draft, current, guard, mode)
       const [out] = await this.output(config, [draft as RawDocument], guard, {
         ...options,
@@ -1346,11 +1392,11 @@ export class EasyCMS<C extends Config = Config> {
       }
     }
 
-    const doc = await this.db.update({
-      collection,
-      id: parsed,
-      data: { ...prepared, createdAt: existing.createdAt, updatedAt: now },
-    })
+    const data = { ...prepared, createdAt: existing.createdAt, updatedAt: now }
+    const doc = options.where
+      ? await this.db.update({ collection, id: parsed, data, where: options.where })
+      : await this.db.update({ collection, id: parsed, data })
+    if (!doc) return null
     if (moved) await moved.cleanUp()
     if (collection === MEDIA_FOLDERS) {
       this.folders.invalidate()
@@ -1371,7 +1417,7 @@ export class EasyCMS<C extends Config = Config> {
       previousDoc: current,
       operation: 'update',
     })
-    this.emit(config, 'update', doc, existing.status)
+    this.emitChange(config, 'update', doc, existing.status)
     await this.audited(config, 'update', doc, current, guard, mode)
     const [out] = await this.output(config, [doc], guard, { ...options, draft: true })
     return out as RawDocument
@@ -1435,7 +1481,7 @@ export class EasyCMS<C extends Config = Config> {
       id: parsed,
       doc: existing,
     })
-    this.emit(config, 'delete', existing)
+    this.emitChange(config, 'delete', existing)
     await this.audited(config, 'delete', existing, existing, guard)
     const [out] = await this.output(config, [existing], guard, { depth: 0, draft: true })
     return out as Doc<C, S>
@@ -1642,7 +1688,7 @@ export class EasyCMS<C extends Config = Config> {
         previousDoc: current,
         operation: 'update',
       })
-      this.emit(config, 'draft', draft)
+      this.emitChange(config, 'draft', draft)
       await this.audited(config, 'draft', draft, current, guard, mode)
       return this.readGlobal(config, key, guard, { ...options, draft: true })
     }
@@ -1655,7 +1701,7 @@ export class EasyCMS<C extends Config = Config> {
       previousDoc: current,
       operation: 'update',
     })
-    this.emit(config, 'update', doc, existing.status)
+    this.emitChange(config, 'update', doc, existing.status)
     await this.audited(config, 'update', doc, current, guard, mode)
     return this.readGlobal(config, key, guard, { ...options, draft: true })
   }
@@ -1778,6 +1824,7 @@ export class EasyCMS<C extends Config = Config> {
     failed: number
     webhooks: { sent: number; failed: number }
     emails: { sent: number; failed: number }
+    jobs: { ran: number; failed: number }
   }> {
     // What jobs change is the scheduler's doing, in the audit log.
     return auditContext.run({ via: 'scheduler', user: null }, async () => {
@@ -1793,8 +1840,50 @@ export class EasyCMS<C extends Config = Config> {
         ...scheduled,
         webhooks: await this.retryWebhooks(now),
         emails: await this.mailer.retry(now),
+        jobs: await this.runConfigJobs(now),
       }
     })
+  }
+
+  /** `jobs` of the config that are due; when each last ran is kept in the database. */
+  private async runConfigJobs(now: Date): Promise<{ ran: number; failed: number }> {
+    const { jobs } = this.config
+    if (jobs.length === 0) return { ran: 0, failed: 0 }
+    const last = ((await this.db.findGlobal({ slug: JOB_RUNS })) ?? {}) as Record<string, unknown>
+    const runs: Record<string, string> = {}
+    for (const [name, at] of Object.entries(last)) if (typeof at === 'string') runs[name] = at
+    let ran = 0
+    let failed = 0
+    for (const job of jobs) {
+      const previous = runs[job.name]
+      if (
+        job.every !== undefined &&
+        previous !== undefined &&
+        now.getTime() - Date.parse(previous) < job.every * 1000
+      )
+        continue
+      runs[job.name] = now.toISOString()
+      try {
+        await job.run({ cms: this as unknown as EasyCMS, now })
+        ran++
+      } catch (error) {
+        failed++
+        this.logger.error(`Job ${job.name} failed: ${(error as Error).message}`)
+      }
+    }
+    // `updatedAt` is the globals table's own column.
+    await this.db.updateGlobal({ slug: JOB_RUNS, data: { ...runs, updatedAt: now.toISOString() } })
+    return { ran, failed }
+  }
+
+  /**
+   * Sends an event of the app or a plugin (`events` in the config, e.g. `order.paid`) to the
+   * webhooks that list it. Returns at once; deliveries are queued and retried like content changes.
+   */
+  emit(event: string, data: Record<string, unknown>, about?: { collection: string; id: ID }): void {
+    if (!this.config.events.includes(event))
+      throw new QueryError(`Unknown event "${event}": add it to \`events\` in the config`)
+    this.webhooks.emit(event, about ?? {}, data)
   }
 
   /**
@@ -2435,7 +2524,7 @@ export class EasyCMS<C extends Config = Config> {
       doc,
       operation: 'create',
     })
-    this.emit(config, 'create', doc)
+    this.emitChange(config, 'create', doc)
     await this.audited(config, 'create', doc, undefined, hookGuard ?? guard)
     const [out] = await this.output(config, [doc], hookGuard ?? guard, { ...options, draft: true })
     return out as RawDocument
@@ -2518,7 +2607,7 @@ export class EasyCMS<C extends Config = Config> {
   }
 
   /** Sends webhook events for a change; `before` is the stored status before it, if any. */
-  private emit(
+  private emitChange(
     config: CollectionConfig | GlobalConfig,
     event: WebhookEvent,
     doc: Data,
@@ -3144,6 +3233,8 @@ interface UploadTicket {
 }
 /** Files one request may move between public and private storage. */
 const MAX_FILES_TO_MOVE = 200
+/** The row of the globals table that holds when each of the config's `jobs` last ran. */
+const JOB_RUNS = 'easy-cms:jobs'
 
 /** `3600`, `'30m'`, `'1h'`, `'7d'` as seconds; at most 7 days. */
 function durationSeconds(value: number | string): number {

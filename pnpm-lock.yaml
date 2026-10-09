@@ -176,6 +176,43 @@ importers:
         specifier: workspace:^
         version: link:../../packages/cli
 
+  examples/shop:
+    dependencies:
+      '@easy-cms/core':
+        specifier: workspace:^
+        version: link:../../packages/core
+      '@easy-cms/db-sqlite':
+        specifier: workspace:^
+        version: link:../../packages/db-sqlite
+      '@easy-cms/next':
+        specifier: workspace:^
+        version: link:../../packages/next
+      '@easy-cms/plugin-ecommerce':
+        specifier: workspace:^
+        version: link:../../packages/plugin-ecommerce
+      '@easy-cms/richtext':
+        specifier: workspace:^
+        version: link:../../packages/richtext
+      next:
+        specifier: ^16.3.6
+        version: 16.3.6(@opentelemetry/api@1.9.1)(@playwright/test@1.63.0)(@types/node@22.20.4)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      react:
+        specifier: ^19.3.0
+        version: 19.3.0
+      react-dom:
+        specifier: ^19.3.0
+        version: 19.3.0(react@19.3.0)
+    devDependencies:
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: ^19.0.0
+        version: 19.3.0(@types/react@19.3.0)
+      easy-cms:
+        specifier: workspace:^
+        version: link:../../packages/cli
+
   examples/standalone:
     dependencies:
       '@easy-cms/auth-oauth':
@@ -455,6 +492,34 @@ importers:
         version: 4.5.2(@babel/plugin-syntax-jsx@7.29.7(@babel/core@7.29.7))(@babel/plugin-syntax-typescript@7.29.7(@babel/core@7.29.7))(@biomejs/biome@2.5.14)(@electric-sql/pglite@0.5.8)(@libsql/client@0.18.0)(@oxc-project/types@0.151.0)(@types/node@22.20.4)(@vercel/blob@2.8.0)(@vue/compiler-sfc@3.5.43)(aws4fetch@1.0.20)(cac@6.7.14)(commander@14.0.3)(db0@0.3.4(@electric-sql/pglite@0.5.8)(@libsql/client@0.18.0)(drizzle-orm@0.45.3(@electric-sql/pglite@0.5.8)(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(postgres@3.4.9)))(drizzle-orm@0.45.3(@electric-sql/pglite@0.5.8)(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(postgres@3.4.9))(esbuild@0.28.2)(ioredis@5.11.1)(lightningcss@1.33.0)(magicast@0.5.5)(rolldown@1.2.11)(rollup-plugin-visualizer@7.1.1(rolldown@1.2.11)(rollup@4.63.5))(rollup@4.63.5)(terser@5.51.2)(tsx@4.23.15)(typescript@6.0.3)(vite@8.3.1(@types/node@22.20.4)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))(vue-tsc@3.3.11(typescript@6.0.3))(yaml@2.9.1)
       vue:
         specifier: ^3.5.0
+        version: 3.5.43(typescript@6.0.3)
+
+  packages/plugin-ecommerce:
+    dependencies:
+      stripe:
+        specifier: '>=17.0.0'
+        version: 23.0.0(@types/node@22.20.4)
+    devDependencies:
+      '@easy-cms/core':
+        specifier: workspace:^
+        version: link:../core
+      '@easy-cms/db-sqlite':
+        specifier: workspace:^
+        version: link:../db-sqlite
+      '@easy-cms/plugin-multi-tenant':
+        specifier: workspace:^
+        version: link:../plugin-multi-tenant
+      '@types/react':
+        specifier: ^19.2.0
+        version: 19.3.0
+      happy-dom:
+        specifier: ^20.14.5
+        version: 20.14.5
+      react:
+        specifier: ^19.2.0
+        version: 19.3.0
+      vue:
+        specifier: ^3.5.43
         version: 3.5.43(typescript@6.0.3)
 
   packages/plugin-form-builder:
@@ -5660,6 +5725,15 @@ packages:
 
   strip-literal@4.0.0:
     resolution: {integrity: sha512-PaqAvfUZKBwc/SLmNZtHmzK+v19Z4O4eS3cKPeGvbIv/U3pnyEq4Tuw3/4v/FwfM8VQaEawsyCcOQ0P+kpwWWw==}
+
+  stripe@23.0.0:
+    resolution: {integrity: sha512-MDE2A5ZVVluYURORaZEVghSmnLJc3w6aHAlZSxDQMsOjOb3V0O6ro/CiaeFlJS4N7uIVmsg98ocRsPmUK6YfyA==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      '@types/node': '>=20'
+    peerDependenciesMeta:
+      '@types/node':
+        optional: true
 
   structured-clone-es@2.0.1:
     resolution: {integrity: sha512-10ZL5r77LhknxlP1FBiCW+VdnuWOEFLdSS2SKtjyEV+L4qP1hUEIMIZW94LC3jKxRmT/Dj7KkD1mqh/IY6lhKQ==}
@@ -12040,6 +12114,10 @@ snapshots:
   strip-literal@4.0.0:
     dependencies:
       js-tokens: 10.0.0
+
+  stripe@23.0.0(@types/node@22.20.4):
+    optionalDependencies:
+      '@types/node': 22.20.4
 
   structured-clone-es@2.0.1: {}
 

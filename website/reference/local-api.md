@@ -36,7 +36,8 @@ to apply them, as the REST API does.
 | `findById(collection, id, options?)` | document \| `null` | One document. |
 | `count(collection, options?)` | `number` | How many match `where`. |
 | `create(collection, data, options?)` | document | Validates, runs hooks, saves. |
-| `update(collection, id, data, options?)` | document | Changes the given fields. |
+| `update(collection, id, data, options?)` | document | Changes the given fields. With `where`, only while the stored document matches it (compare and set): `null` when it doesn't, so one of two concurrent calls wins. |
+| `increment(collection, id, field, by, { min?, max? })` | `number \| null` | Adds `by` to a top-level number field in one statement, safe with concurrent calls, e.g. stock. `null` when the result would pass `min` / `max`. Skips hooks and access. |
 | `delete(collection, id, options?)` | the deleted document | Also deletes its versions and scheduled jobs. Deleting a user with `auth.rbac`: `{ transferTo: id }` gives the documents they own to another user; otherwise they have no owner. |
 
 ### Media
@@ -100,7 +101,8 @@ to apply them, as the REST API does.
 
 | Method | Returns | |
 |---|---|---|
-| `runJobs(now?)` | `{ ran, failed, webhooks }` | Due scheduled jobs and webhook retries (what cron and the timer call). |
+| `runJobs(now?)` | `{ ran, failed, webhooks, emails, jobs }` | Due scheduled jobs, webhook and email retries, and the config's `jobs` (what cron and the timer call). |
+| `emit(event, data, about?)` | — | Sends an event of the config's `events` (e.g. `order.paid`) to the webhooks that list it; `about`: `{ collection, id }`. [Webhooks](/guide/webhooks#your-own-events) |
 | `runScheduled(now?)` | `{ ran, failed }` | Only the due scheduled jobs. |
 | `retryWebhooks(now?)` | `{ sent, failed }` | Only the due webhook retries. |
 | `startScheduler(interval?)` | — | Runs `runJobs` every `interval` ms (default one minute). `createEasyCMS` starts it when something is scheduled or webhooks are set. |

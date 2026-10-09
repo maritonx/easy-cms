@@ -53,7 +53,26 @@ export const DEFAULT_PASSWORD_EMAILS: {
   resetPassword: PasswordEmailFn
   invite: PasswordEmailFn
   passwordChanged: PasswordEmailFn
+  verifyEmail: PasswordEmailFn
 } = {
+  verifyEmail: ({ url = '', locale, expiresAt }) =>
+    locale === 'th'
+      ? email(
+          'ยืนยันอีเมลของคุณ',
+          [
+            'ขอบคุณที่สมัครสมาชิก กดปุ่มด้านล่างเพื่อยืนยันอีเมลและเข้าสู่ระบบ',
+            `ลิงก์นี้ใช้ได้ภายใน ${days(expiresAt)} วัน ถ้าคุณไม่ได้สมัคร ไม่ต้องทำอะไร`,
+          ],
+          { label: 'ยืนยันอีเมล', url },
+        )
+      : email(
+          'Confirm your email',
+          [
+            'Thanks for signing up. Confirm your email to sign in.',
+            `The link works within ${days(expiresAt)} day(s). If you didn't sign up, ignore this email.`,
+          ],
+          { label: 'Confirm email', url },
+        ),
   resetPassword: ({ url = '', locale, expiresAt }) =>
     locale === 'th'
       ? email(

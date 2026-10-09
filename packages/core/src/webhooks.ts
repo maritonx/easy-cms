@@ -20,8 +20,11 @@ export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number]
 export interface WebhookConfig {
   /** Where to POST events. */
   readonly url: string
-  /** Events to send. Default: all. */
-  readonly events?: readonly WebhookEvent[]
+  /**
+   * Events to send. Default: every content change. Events of the app or its plugins (`events`
+   * in the config, e.g. `order.paid`) are sent only when listed here.
+   */
+  readonly events?: readonly (WebhookEvent | (string & {}))[]
   /** Collections to send events for. Default: all; `[]` for none. */
   readonly collections?: readonly string[]
   /** Globals to send events for. Default: all; `[]` for none. */
@@ -34,11 +37,15 @@ export interface WebhookConfig {
 
 /** What a webhook receives as JSON. */
 export interface WebhookPayload {
-  readonly event: WebhookEvent
+  /** A content change (`WebhookEvent`), or an event of the app or a plugin, e.g. `order.paid`. */
+  readonly event: string
   readonly collection?: string
   readonly global?: string
   readonly id?: ID
-  /** The stored document (every locale, no hidden fields); for `delete`, as it was. */
+  /**
+   * The stored document (every locale, no hidden fields); for `delete`, as it was. For an event of
+   * the app or a plugin: what `cms.emit()` was given.
+   */
   readonly doc: Record<string, unknown>
   /** ISO time of the change. */
   readonly timestamp: string
@@ -47,7 +54,7 @@ export interface WebhookPayload {
 /** A delivery saved until it succeeds, so it is retried even if the process stops. */
 export interface QueuedDelivery {
   readonly url: string
-  readonly event: WebhookEvent
+  readonly event: string
   /** The JSON body exactly as first sent, so retries are byte-for-byte the same. */
   readonly body: string
   /** Stays the same on every attempt (`x-easy-cms-delivery`), so receivers can skip duplicates. */
@@ -95,8 +102,8 @@ export class Webhooks {
   ) {}
 
   emit(
-    event: WebhookEvent,
-    target: { collection: string; id: ID } | { global: string },
+    event: string,
+    target: { collection: string; id: ID } | { global: string } | Record<string, never>,
     doc: Record<string, unknown>,
   ) {
     if (this.hooks.length === 0) return
@@ -223,7 +230,7 @@ export class Webhooks {
   /** One POST. Client errors other than rate limiting count as done: retrying won't help. */
   private async attempt(
     hook: WebhookConfig,
-    event: WebhookEvent,
+    event: string,
     body: string,
     delivery: string,
   ): Promise<Attempt> {
@@ -256,7 +263,7 @@ export class Webhooks {
     }
   }
 
-  private giveUp(hook: WebhookConfig, event: WebhookEvent, error: string, attempts: number) {
+  private giveUp(hook: WebhookConfig, event: string, error: string, attempts: number) {
     this.logger.error(
       `Webhook ${hook.url} failed for ${event} after ${attempts} attempts: ${error}`,
     )
@@ -265,7 +272,11 @@ export class Webhooks {
 
 const later = (from: Date, ms: number) => new Date(from.getTime() + ms).toISOString()
 
+export const isContentEvent = (event: string): event is WebhookEvent =>
+  (WEBHOOK_EVENTS as readonly string[]).includes(event)
+
 function matches(hook: WebhookConfig, payload: WebhookPayload): boolean {
+  if (!isContentEvent(payload.event)) return hook.events?.includes(payload.event) === true
   if (hook.events && !hook.events.includes(payload.event)) return false
   if (payload.collection !== undefined)
     return !hook.collections || hook.collections.includes(payload.collection)

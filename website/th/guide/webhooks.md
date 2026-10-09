@@ -42,6 +42,22 @@ export default defineConfig({
 
 การเผยแพร่ตาม[เวลาที่ตั้งไว้](./drafts#scheduled-publishing)จะส่ง event เดียวกัน
 
+## Event ของคุณเอง {#your-own-events}
+
+plugin และแอปส่ง event ของตัวเองได้ เช่น `order.paid` ของ[ร้านค้า](./ecommerce) ประกาศชื่อไว้ใน `events`
+(plugin ประกาศให้เอง) ส่งด้วย `cms.emit()` แล้วระบุใน `events` ของ webhook event เหล่านี้ส่งไปเฉพาะ webhook ที่ระบุไว้
+
+```ts
+export default defineConfig({
+  events: ['invoice.sent'],
+  webhooks: [{ url: 'https://erp.example.com/hook', events: ['invoice.sent'], secret }],
+})
+
+cms.emit('invoice.sent', { number: 'INV-1' }, { collection: 'invoices', id: 7 })
+```
+
+body คือ `{ event, collection?, id?, doc, timestamp }` โดย `doc` คือสิ่งที่ส่งให้ `emit` การส่ง ลายเซ็น และการส่งซ้ำเหมือนเดิม
+
 ## Requests {#requests}
 
 ```http

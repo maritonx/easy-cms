@@ -20,6 +20,8 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `cors` | `string[] \| '*'` | `[]` | origin ที่โค้ดใน browser เรียก API ได้ [ความปลอดภัย](/th/guide/security) |
 | `cronSecret` | `string` | `CRON_SECRET` | secret แบบ Bearer สำหรับ `GET <api>/jobs/run` [การตั้งเวลา](/th/guide/drafts#scheduled-publishing) |
 | `webhooks` | `WebhookConfig[]` | `[]` | ดู [webhooks](#webhooks) |
+| `events` | `string[]` | `[]` | event ของแอปหรือ plugin นอกจากการแก้เนื้อหา (`<area>.<what>` เช่น `order.paid`) ส่งด้วย `cms.emit()` ไปยัง webhook ที่ระบุไว้ [Webhooks](/th/guide/webhooks#your-own-events) |
+| `jobs` | `JobConfig[]` | `[]` | งานที่รันพร้อมงานตั้งเวลา เช่นงานเก็บกวาดของ plugin ดู [jobs](#jobs) |
 | `localization` | `LocalizationConfig` | — | ดู [localization](#localization) |
 | `routes` | `RoutesConfig` | | ดู [routes](#routes) |
 | `admin` | `AdminConfig` | | ดู [admin](#admin) |
@@ -132,6 +134,26 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `resetPasswordExpiration` | `number` | `3600` | ลิงก์ "ลืมรหัสผ่าน" ใช้ได้กี่วินาที ต้องมี `email` และ `serverURL` บน production [ลืมรหัสผ่าน](/th/guide/auth#forgotten-passwords-and-invitations) |
 | `inviteExpiration` | `number` | `604800` | ลิงก์คำเชิญใช้ได้กี่วินาที |
 | `emails` | `{ resetPassword?, invite?, passwordChanged? }` | — | ฟังก์ชัน `({ user, url, locale, expiresAt }) => { subject, text, html? }` สำหรับข้อความอีเมลของคุณเอง |
+| `members` | `MembersConfig` | — | คนที่ล็อกอินบนหน้าเว็บ ไม่ใช่ระบบจัดการ เช่น ลูกค้า ดู [members](#members) |
+
+<!-- api: MembersConfig -->
+### members {#members}
+
+| ตัวเลือก | Type | |
+|---|---|---|
+| `roles` | `string[]` | role ของสมาชิก (ต้องอยู่ใน `roles` ด้วย) สมาชิกเข้าระบบจัดการไม่ได้ และ `isLoggedIn` (ค่าเริ่มต้นของทุก collection) ไม่นับพวกเขา [สมาชิกของเว็บ](/th/guide/members) |
+| `signup` | `MembersSignup` | ให้ผู้เยี่ยมชมสมัครบัญชีเองได้: `POST <api>/users/signup` |
+| `pages` | `{ verifyEmail?, resetPassword? }` | หน้าของเว็บที่เปิดลิงก์ในอีเมลของสมาชิกพร้อม `?token=` เป็น path บน `admin.siteUrl` (หรือ `serverURL`) หรือ URL เต็ม ค่าเริ่มต้นคือหน้าของระบบจัดการ |
+| `emails` | `{ verifyEmail? }` | ข้อความอีเมลยืนยันที่อยู่อีเมลของคุณเอง |
+
+<!-- api: MembersSignup -->
+#### signup {#signup}
+
+| ตัวเลือก | Type | ค่าเริ่มต้น | |
+|---|---|---|---|
+| `role` | `string` | — | role ของบัญชีใหม่ ต้องเป็นหนึ่งใน `members.roles` |
+| `verifyEmail` | `boolean` | `true` | บัญชีใหม่ต้องยืนยันอีเมลด้วยลิงก์ก่อนล็อกอิน |
+| `turnstile` | `{ siteKey, secretKey }` | — | Cloudflare Turnstile ตรวจทุกครั้งที่สมัคร |
 
 <!-- api: UploadConfig -->
 ## upload {#upload}
@@ -186,6 +208,19 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `secret` | `string` | — | เซ็น body: `x-easy-cms-signature: sha256=<hex>` |
 | `headers` | `Record<string, string>` | — | header เพิ่มเติม |
 
+`events` รับ `events` ของ config ด้วย (เช่น `order.paid`) event เหล่านี้ส่งไปเฉพาะ webhook ที่ระบุไว้
+
+<!-- api: JobConfig -->
+## jobs {#jobs}
+
+| ตัวเลือก | Type | |
+|---|---|---|
+| `name` | `string` | ไม่ซ้ำกัน ตัวพิมพ์เล็ก ใช้ `-` และ `:` ได้ เช่น `shop:carts` |
+| `every` | `number` | รันห่างกันอย่างน้อยกี่วินาที เวลาที่รันล่าสุดเก็บในฐานข้อมูล ค่าเริ่มต้น: ทุกรอบ |
+| `run` | `({ cms, now }) => unknown` | งานที่ทำ ถ้าล้มเหลวจะบันทึก log และงานอื่นยังรันต่อ |
+
+งานเหล่านี้รันพร้อมงานตั้งเวลา: ทุกนาทีบน server หรือทุกครั้งที่ cron เรียก `GET <api>/jobs/run`
+
 <!-- api: CollectionConfig -->
 ## collections {#collections}
 
@@ -234,7 +269,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | ตัวเลือก | Type | |
 |---|---|---|
 | `sidebar` | `AdminComponent[]` | กล่องในแถบข้างของหน้าแก้ไข [Admin components](/th/guide/plugins#admin-components) |
-| `group` | `'settings'` | แสดง collection ใต้ตั้งค่าในเมนู คู่กับ Users และ API keys |
+| `group` | `'settings' \| Label` | `'settings'`: แสดง collection ใต้ตั้งค่าในเมนู คู่กับ Users และ API keys ถ้าเป็น label เช่น `{ en: 'Shop', th: 'ร้านค้า' }` จะอยู่ใต้หัวข้อชื่อนั้น |
 | `list` | `{ tree?, sort? }` | หน้ารายการ: `tree` คือชื่อ relationship ไปหา collection เดียวกัน เพื่อแสดงเป็นต้นไม้ (เอกสารระดับบนก่อน เอกสารลูกเปิดอยู่ข้างใต้) ส่วน `sort` คือลำดับเริ่มต้น เช่น `'title'` |
 | `ownerField` | `string` | เมื่อเปิด `auth.rbac`: relationship ไปที่ `users` ที่บอกเจ้าของ เช่น `'author'` สำหรับบทบาทที่ได้ "เฉพาะเอกสารของตัวเอง" ค่าเริ่มต้น: ผู้สร้าง (`createdBy`) [บทบาทและสิทธิ์](/th/guide/roles#own-documents-only) |
 | `confirmDelete` | `{ typeTitle?, impact? }` | ถามมากขึ้นก่อนลบ: `typeTitle` ให้พิมพ์ชื่อ `impact` คือ path ใต้ API ที่เรียกพร้อม `?id=` แล้วคืน `{ message }` บอกสิ่งที่จะหายไปด้วย ลบจากการเลือกหลายรายการไม่ได้ |

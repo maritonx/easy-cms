@@ -91,6 +91,8 @@ export function validateConfig(config: Config): ConfigIssue[] {
 
   validateEndpoints(config, collectionSlugs, add)
   validateCommands(config, add)
+  validateJobs(config, add)
+  validateEvents(config, add)
   const apiKeys: unknown = config.apiKeys
   if (apiKeys !== undefined && typeof apiKeys !== 'boolean') add('apiKeys', 'must be true or false')
 
@@ -402,6 +404,7 @@ function validateAuth(config: Config, add: Add) {
       add('auth.roles', 'must include "admin"', "e.g. roles: ['admin', 'editor']")
     }
   }
+  validateMembers(auth.members, (auth.roles ?? ['admin', 'editor']) as readonly string[], add)
   for (const key of [
     'tokenExpiration',
     'maxLoginAttempts',
@@ -461,6 +464,36 @@ const LOCALIZABLE = new Set([
   'blocks',
   'array',
 ])
+
+function validateMembers(members: unknown, roles: readonly string[], add: Add) {
+  if (members === undefined) return
+  const { roles: memberRoles, signup, pages } = (members ?? {}) as Record<string, unknown>
+  if (!Array.isArray(memberRoles) || memberRoles.some((r) => typeof r !== 'string')) {
+    add('auth.members.roles', 'must be an array of roles', "e.g. roles: ['customer']")
+    return
+  }
+  for (const role of memberRoles as string[]) {
+    if (role === 'admin') add('auth.members.roles', 'can\'t include "admin"')
+    else if (!roles.includes(role))
+      add('auth.members.roles', `"${role}" must be one of auth.roles too`)
+  }
+  if (signup !== undefined) {
+    const { role, verifyEmail, turnstile } = (signup ?? {}) as Record<string, unknown>
+    if (typeof role !== 'string' || !(memberRoles as string[]).includes(role))
+      add('auth.members.signup.role', 'must be one of auth.members.roles')
+    if (verifyEmail !== undefined && typeof verifyEmail !== 'boolean')
+      add('auth.members.signup.verifyEmail', 'must be true or false')
+    if (
+      turnstile !== undefined &&
+      (typeof (turnstile as Record<string, unknown>)?.siteKey !== 'string' ||
+        typeof (turnstile as Record<string, unknown>)?.secretKey !== 'string')
+    )
+      add('auth.members.signup.turnstile', 'needs siteKey and secretKey')
+  }
+  for (const [key, value] of Object.entries((pages ?? {}) as Record<string, unknown>))
+    if (value !== undefined && typeof value !== 'string')
+      add(`auth.members.pages.${key}`, 'must be a path or URL', "e.g. '/account/verify'")
+}
 
 function validateLocalization(config: Config, add: Add) {
   const localization = config.localization
@@ -550,14 +583,19 @@ function validateWebhooks(config: Config, add: Add) {
     ...(config.collections ?? []).map((c) => c?.slug),
   ])
   const globals = new Set((config.globals ?? []).map((g) => g?.slug))
+  const custom = new Set(config.events ?? [])
   for (const [i, hook] of hooks.entries()) {
     const path = `webhooks[${i}]`
     if (typeof hook?.url !== 'string' || !/^https?:\/\/\S+$/.test(hook.url)) {
       add(`${path}.url`, 'must be an http(s) URL')
     }
     for (const event of hook?.events ?? []) {
-      if (!(WEBHOOK_EVENTS as readonly string[]).includes(event))
-        add(`${path}.events`, `unknown event "${event}"`, `use: ${WEBHOOK_EVENTS.join(', ')}`)
+      if (!(WEBHOOK_EVENTS as readonly string[]).includes(event) && !custom.has(event))
+        add(
+          `${path}.events`,
+          `unknown event "${event}"`,
+          `use: ${[...WEBHOOK_EVENTS, ...custom].join(', ')}`,
+        )
     }
     for (const slug of hook?.collections ?? [])
       if (!collections.has(slug)) add(`${path}.collections`, `unknown collection "${slug}"`)
@@ -802,8 +840,23 @@ function validateContainer(
       const sidebar: unknown = (admin as { sidebar?: unknown }).sidebar
       if (sidebar !== undefined) validateComponents(sidebar, `${path}.admin.sidebar`, add)
       const group: unknown = (admin as { group?: unknown }).group
-      if (group !== undefined && group !== 'settings')
-        add(`${path}.admin.group`, `must be 'settings' (got ${JSON.stringify(group)})`)
+      // A heading of its own (a label) is for collections; globals are under Settings anyway.
+      if (
+        group !== undefined &&
+        group !== 'settings' &&
+        !(collection && typeof group === 'string' && group !== '') &&
+        !(
+          collection &&
+          typeof group === 'object' &&
+          group !== null &&
+          Object.values(group).every((v) => typeof v === 'string')
+        )
+      )
+        add(
+          `${path}.admin.group`,
+          `must be 'settings' or a label (got ${JSON.stringify(group)})`,
+          "e.g. group: { en: 'Shop', th: 'ร้านค้า' }",
+        )
       const list: unknown = (admin as { list?: unknown }).list
       if (list !== undefined) validateList(list, container, `${path}.admin.list`, add)
       const owner: unknown = (admin as { ownerField?: unknown }).ownerField
@@ -1137,6 +1190,40 @@ function validateCommands(config: Config, add: Add) {
     else seen.add(name)
     if (typeof description !== 'string') add(`${path}.description`, 'must be a string')
     if (typeof run !== 'function') add(`${path}.run`, 'must be a function')
+  })
+}
+
+function validateJobs(config: Config, add: Add) {
+  const jobs: unknown = config.jobs
+  if (jobs === undefined) return
+  if (!Array.isArray(jobs)) {
+    add('jobs', 'must be an array', "e.g. jobs: [{ name: 'shop:clean-up', every: 3600, run }]")
+    return
+  }
+  const seen = new Set<string>()
+  jobs.forEach((job: unknown, i) => {
+    const path = `jobs[${i}]`
+    const { name, every, run } = (job ?? {}) as Record<string, unknown>
+    if (typeof name !== 'string' || !/^[a-z][a-z0-9-]*(:[a-z0-9-]+)*$/.test(name))
+      add(`${path}.name`, 'must be lowercase letters, digits, - and :', "e.g. 'shop:clean-up'")
+    else if (seen.has(name)) add(`${path}.name`, `"${name}" is already used by another job`)
+    else seen.add(name)
+    if (every !== undefined && (typeof every !== 'number' || !(every > 0)))
+      add(`${path}.every`, 'must be a number of seconds above 0')
+    if (typeof run !== 'function') add(`${path}.run`, 'must be a function')
+  })
+}
+
+function validateEvents(config: Config, add: Add) {
+  const events: unknown = config.events
+  if (events === undefined) return
+  if (!Array.isArray(events)) {
+    add('events', 'must be an array', "e.g. events: ['order.paid']")
+    return
+  }
+  events.forEach((event: unknown, i) => {
+    if (typeof event !== 'string' || !/^[a-z][a-z0-9-]*(\.[a-z0-9-]+)+$/.test(event))
+      add(`events[${i}]`, 'must be named <area>.<what> in lowercase', "e.g. 'order.paid'")
   })
 }
 

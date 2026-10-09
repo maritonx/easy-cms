@@ -36,7 +36,21 @@ const readable = computed(() =>
 )
 /** Listed under Settings rather than Content: users, API keys, `admin.group: 'settings'`. */
 const FIRST = ['users', 'api-keys']
-const collections = computed(() => readable.value.filter((c) => c.group !== 'settings'))
+const collections = computed(() =>
+  readable.value.filter((c) => c.group !== 'settings' && c.section === undefined),
+)
+/** Collections under headings of their own (`admin.group` with a label), in menu order. */
+const sections = computed(() => {
+  const found = new Map<string, { title: string; list: typeof readable.value }>()
+  for (const c of readable.value) {
+    if (c.group === 'settings' || c.section === undefined) continue
+    const title = label(c.section, c.slug)
+    const entry = found.get(title) ?? { title, list: [] }
+    entry.list.push(c)
+    found.set(title, entry)
+  }
+  return [...found.values()]
+})
 const settingsCollections = computed(() => {
   const list = readable.value.filter((c) => c.group === 'settings')
   const rank = (slug: string) => (FIRST.includes(slug) ? FIRST.indexOf(slug) : FIRST.length)
@@ -163,6 +177,21 @@ async function onLogout() {
         >
           <component :is="collectionIcon(p.icon)" :size="18" aria-hidden="true" />
           <span>{{ label(p.label, p.path) }}</span>
+        </RouterLink>
+      </template>
+
+      <template v-for="s in sections" :key="s.title">
+        <h2 class="nav-heading">{{ s.title }}</h2>
+        <RouterLink
+          v-for="c in s.list"
+          :key="c.slug"
+          :to="`/collections/${c.slug}`"
+          class="nav-link"
+          active-class="active"
+        >
+          <component :is="collectionIcon(c.icon)" :size="18" aria-hidden="true" />
+          <span>{{ label(c.labels?.plural, c.slug) }}</span>
+          <span v-if="counts[c.slug] !== undefined" class="nav-count" aria-hidden="true">{{ counts[c.slug] }}</span>
         </RouterLink>
       </template>
 

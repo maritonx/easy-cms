@@ -92,6 +92,8 @@ export interface AdminCollection {
   sidebar?: AdminComponentRef[]
   /** Listed under Settings in the menu (users, API keys, `admin.group: 'settings'`). */
   group?: 'settings'
+  /** Listed under a heading of its own in the menu (`admin.group` with a label). */
+  section?: Label
   /** The list is a tree along this relationship field (`admin.list.tree`). */
   tree?: string
   /** The list's default order (`admin.list.sort`). */
@@ -373,7 +375,9 @@ async function collection(
   if (config.useAsTitle) result.useAsTitle = config.useAsTitle
   if (config.icon) result.icon = config.icon
   if (config.admin?.sidebar?.length) result.sidebar = config.admin.sidebar.map(componentRef)
-  if (config.admin?.group === 'settings' || SETTINGS.has(config.slug)) result.group = 'settings'
+  const group = config.admin?.group
+  if (group === 'settings' || SETTINGS.has(config.slug)) result.group = 'settings'
+  else if (group !== undefined) result.section = group
   if (config.admin?.list?.tree) result.tree = config.admin.list.tree
   if (config.admin?.list?.sort) result.defaultSort = config.admin.list.sort
   if (config.admin?.confirmDelete) result.confirmDelete = { ...config.admin.confirmDelete }

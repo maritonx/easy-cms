@@ -1,4 +1,4 @@
-import type { AuthUser, ID } from '../access.js'
+import type { AuthUser, ID, RequestContext } from '../access.js'
 import { stripFields } from '../access-control.js'
 import {
   API_KEYS,
@@ -19,6 +19,7 @@ import {
   ValidationError,
 } from '../errors.js'
 import type { EasyCMS } from '../local-api.js'
+import { checkFormToken, formToken, verifyTurnstile } from '../spam.js'
 import { SESSION_COOKIE } from './cookie.js'
 import { DEFAULT_PASSWORD_EMAILS } from './emails.js'
 import { fakeVerify, verifyPassword } from './password.js'
@@ -54,6 +55,41 @@ export interface Session {
 }
 
 const INVALID = 'Invalid email or password'
+/** What sign-up tokens sign, and the least time between loading the form and sending it. */
+const SIGNUP_FORM = 'easy-cms-signup'
+const SIGNUP_MIN_TIME = 2_000
+/** The hidden field of the sign-up form that bots fill in. */
+export const SIGNUP_HONEYPOT = 'website'
+
+/** Whether a user is a site member (`auth.members.roles`): marks them so. */
+export function asMember(user: AuthUser, memberRoles: readonly string[]): AuthUser {
+  const member = memberRoles.includes(String(user.role))
+  if (member === (user.member === true)) return user
+  if (member) return { ...user, member: true }
+  const { member: _member, ...rest } = user
+  return rest as AuthUser
+}
+
+export interface SignupArgs {
+  readonly email: string
+  readonly password: string
+  readonly name?: string | undefined
+  /** From `GET <api>/users/signup`: the form was loaded a moment ago. */
+  readonly token?: unknown
+  /** The hidden field; bots fill it in. */
+  readonly honeypot?: unknown
+  /** The Cloudflare Turnstile response, with `signup.turnstile`. */
+  readonly turnstile?: unknown
+  readonly ip?: string | undefined
+  /** The request's origin: used for the link only in development, without a site URL. */
+  readonly origin?: string | undefined
+  readonly locale?: string | undefined
+  /** The request's context (`onRequest`), e.g. the tenant: given to the users' hooks. */
+  readonly context?: RequestContext
+}
+
+/** What signing up did: a link was emailed to confirm, or (without `verifyEmail`) a session. */
+export type SignupResult = { readonly verify: true } | (Session & { readonly verify: false })
 /** "Forgot password" requests per email (and IP) within `lockWindow`; more are ignored quietly. */
 const RESET_REQUESTS = 3
 
@@ -127,6 +163,17 @@ export class Auth {
       throw new UnauthorizedError(INVALID)
     }
     await this.clearFailures(key)
+    // Accounts made by signing up confirm their email first.
+    if (user.emailVerified === false) {
+      await this.cms.audit.record({
+        action: 'login.failed',
+        target: 'auth',
+        user: null,
+        email,
+        detail: { reason: 'email not confirmed' },
+      })
+      throw new UnauthorizedError('Confirm your email first: follow the link we sent you')
+    }
     // With `auth.password: false`, only admins sign in with a password.
     if (!this.sso.passwordAllowed(user)) {
       await this.cms.audit.record({
@@ -176,6 +223,163 @@ export class Auth {
     })
     const raw = (await this.db.findById({ collection: USERS, id: user.id })) as RawDocument
     return this.startSession(raw)
+  }
+
+  // --- Members signing up (`auth.members.signup`) ---------------------------------------------
+
+  /** What a sign-up form needs: a token proving when it was loaded, and Turnstile's site key. */
+  signupForm(): { token: string; turnstile: string | null; verifyEmail: boolean } {
+    const signup = this.config.auth.members.signup
+    if (!signup) throw new NotFoundError(USERS, 'signup')
+    return {
+      token: formToken(this.config.secret, SIGNUP_FORM),
+      turnstile: signup.turnstile?.siteKey ?? null,
+      verifyEmail: signup.verifyEmail !== false,
+    }
+  }
+
+  /**
+   * Creates a member's account (`auth.members.signup`). With `verifyEmail` (the default), emails
+   * a link to confirm the address and answers the same whether or not the email has an account;
+   * otherwise starts a session. Throws `ValidationError` for spam checks and bad input.
+   */
+  async signup(args: SignupArgs): Promise<SignupResult> {
+    const signup = this.config.auth.members.signup
+    if (!signup) throw new NotFoundError(USERS, 'signup')
+    const key = `signup|${args.ip ?? ''}`
+    await this.checkRateLimit(key)
+    const refuse = (field: string, message: string) =>
+      new ValidationError(USERS, [{ field, message }])
+    if (typeof args.honeypot === 'string' && args.honeypot !== '') {
+      await this.recordFailure(key)
+      throw refuse('form', 'could not be sent')
+    }
+    const checked = checkFormToken(this.config.secret, SIGNUP_FORM, args.token, SIGNUP_MIN_TIME)
+    if (checked !== 'ok')
+      throw refuse(
+        'form',
+        checked === 'expired' ? 'was open too long: reload the page' : 'could not be sent',
+      )
+    if (
+      signup.turnstile &&
+      !(await verifyTurnstile(signup.turnstile.secretKey, args.turnstile, args.ip))
+    )
+      throw refuse('turnstile', 'is not complete')
+    // Every sign-up counts towards the limit per IP.
+    await this.recordFailure(key)
+
+    const email = typeof args.email === 'string' ? args.email.trim().toLowerCase() : ''
+    const verify = signup.verifyEmail !== false
+    if (verify && !this.canSendPasswordLinks(args.origin))
+      throw new QueryError('Signing up needs `email` in the config, and a site URL in production')
+    const existing = email ? await this.findByEmail(email) : undefined
+    if (existing && verify) {
+      // The same answer either way; an account still waiting gets its link again.
+      if (existing.emailVerified === false && existing.active !== false)
+        await this.mailVerifyLink(existing, args)
+      return { verify: true }
+    }
+    const created = await this.cms.create(
+      USERS,
+      {
+        email,
+        password: args.password,
+        role: signup.role,
+        active: true,
+        emailVerified: !verify,
+        ...(typeof args.name === 'string' && args.name.trim() ? { name: args.name.trim() } : {}),
+      },
+      { context: args.context ?? {} },
+    )
+    const user = (await this.db.findById({ collection: USERS, id: created.id })) as RawDocument
+    await this.cms.audit.record({
+      action: 'signup',
+      target: 'auth',
+      user: await this.toAuthUser(user),
+    })
+    if (verify) {
+      await this.mailVerifyLink(user, args)
+      return { verify: true }
+    }
+    return { ...(await this.startSession(user)), verify: false }
+  }
+
+  /** Confirms a member's email from the link, and signs them in. */
+  async verifyEmail(args: { token: string; ip?: string | undefined }): Promise<Session> {
+    const key = `verify-token|${args.ip ?? ''}`
+    await this.checkRateLimit(key)
+    const token = String(args.token ?? '')
+    const claims = readPasswordToken(token)
+    const id = claims && (/^\d+$/.test(claims.userId) ? Number(claims.userId) : claims.userId)
+    const user =
+      claims && claims.purpose === 'verify' && claims.expiresAt > Date.now() && id !== null
+        ? await this.db.findById({ collection: USERS, id })
+        : null
+    if (
+      !user ||
+      user.active === false ||
+      !passwordTokenMatches(this.config.secret, token, passwordFingerprint(user.passwordHash))
+    ) {
+      await this.recordFailure(key)
+      throw new ValidationError(USERS, [
+        { field: 'token', message: 'This link has expired or is not valid' },
+      ])
+    }
+    await this.clearFailures(key)
+    if (user.emailVerified === false) {
+      const { id: _id, ...rest } = user
+      await this.db.update({
+        collection: USERS,
+        id: user.id,
+        data: { ...rest, emailVerified: true },
+      })
+    }
+    const session = await this.startSession(
+      (await this.db.findById({ collection: USERS, id: user.id })) as RawDocument,
+    )
+    await this.cms.audit.record({ action: 'email.verified', target: 'auth', user: session.user })
+    return session
+  }
+
+  private async mailVerifyLink(user: RawDocument, options: PasswordLinkOptions) {
+    const expiresAt = Date.now() + this.config.auth.inviteExpiration * 1000
+    const token = signPasswordToken(this.config.secret, {
+      userId: String(user.id),
+      purpose: 'verify',
+      expiresAt,
+      fingerprint: passwordFingerprint(user.passwordHash),
+    })
+    const url = this.memberLink('verifyEmail', token, options.origin)
+    const write =
+      this.config.auth.members.emails?.verifyEmail ?? DEFAULT_PASSWORD_EMAILS.verifyEmail
+    const content = await write({
+      user: await this.toAuthUser(user),
+      url,
+      locale: this.localeOf(options.locale),
+      expiresAt: new Date(expiresAt),
+    })
+    await this.cms.sendEmail({ to: String(user.email), ...content })
+  }
+
+  /**
+   * A link to one of the site's pages for members (`auth.members.pages`), else to the admin's
+   * page of the same purpose.
+   */
+  private memberLink(
+    page: 'verifyEmail' | 'resetPassword',
+    token: string,
+    origin: string | undefined,
+  ): string {
+    const target = this.config.auth.members.pages?.[page]
+    const query = `token=${encodeURIComponent(token)}`
+    if (target && /^https?:\/\//.test(target))
+      return `${target}${target.includes('?') ? '&' : '?'}${query}`
+    const site = (this.config.admin.siteUrl || '').replace(/\/+$/, '')
+    const base = site || (this.passwordLinkBase(origin) as string)
+    const path =
+      target ??
+      `${this.config.admin.path}/${page === 'verifyEmail' ? 'verify-email' : 'reset-password'}`
+    return `${base}${path.startsWith('/') ? '' : '/'}${path}${path.includes('?') ? '&' : '?'}${query}`
   }
 
   async hasUsers(): Promise<boolean> {
@@ -381,7 +585,7 @@ export class Auth {
     token: string,
   ): Promise<{ user: RawDocument; purpose: PasswordPurpose } | null> {
     const claims = readPasswordToken(token)
-    if (!claims || claims.expiresAt <= Date.now()) return null
+    if (!claims || claims.purpose === 'verify' || claims.expiresAt <= Date.now()) return null
     const id = /^\d+$/.test(claims.userId) ? Number(claims.userId) : claims.userId
     const user = await this.db.findById({ collection: USERS, id })
     if (!user || user.active === false || !this.sso.passwordAllowed(user)) return null
@@ -412,9 +616,12 @@ export class Auth {
     const sso = this.sso.passwordAllowed(user)
       ? undefined
       : this.config.auth.providers.map((p) => p.name)
+    const member = this.config.auth.members.roles.includes(String(user.role))
     const url = sso
       ? `${base}${this.config.admin.path}/login`
-      : `${base}${this.config.admin.path}/reset-password?token=${encodeURIComponent(token)}`
+      : member
+        ? this.memberLink('resetPassword', token, options.origin)
+        : `${base}${this.config.admin.path}/reset-password?token=${encodeURIComponent(token)}`
     const write =
       purpose === 'invite'
         ? (this.config.auth.emails.invite ?? DEFAULT_PASSWORD_EMAILS.invite)
@@ -518,7 +725,8 @@ export class Auth {
 
   private async toAuthUser(user: RawDocument): Promise<AuthUser> {
     const fields = this.cms.collection(USERS).fields
-    return (await stripFields(fields, user)) as unknown as AuthUser
+    const stripped = (await stripFields(fields, user)) as unknown as AuthUser
+    return asMember(stripped, this.config.auth.members.roles)
   }
 
   private async deleteExpiredSessions(userId: ID) {

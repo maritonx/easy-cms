@@ -36,7 +36,8 @@ Each receives `{ user, id?, data? }` (`user` is `null` when not logged in) and r
 **If you define no rule, only logged-in users are allowed.** Make public content public on
 purpose, e.g. `read: () => true`.
 
-Helpers: `anyone`, `isLoggedIn`, `isAdmin`.
+Helpers: `anyone`, `isLoggedIn`, `isAdmin`, and `isSignedIn`. `isLoggedIn` means a user of the admin:
+[site members](./members) such as customers don't count, `isSignedIn` counts them too.
 
 ### Common patterns
 

@@ -80,8 +80,11 @@ export function verifyPreviewToken(
   }
 }
 
-/** Why a password link was sent: a forgotten password, or an invitation to a new account. */
-export type PasswordPurpose = 'reset' | 'invite'
+/**
+ * Why a link was sent: a forgotten password, an invitation to a new account, or (`verify`) to
+ * confirm the email of an account made by signing up.
+ */
+export type PasswordPurpose = 'reset' | 'invite' | 'verify'
 
 /**
  * What ties a password link to the password it replaces: a link stops working once the password
@@ -115,7 +118,7 @@ export function readPasswordToken(
   try {
     const data = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'))
     if (typeof data.u !== 'string' || typeof data.e !== 'number') return null
-    if (data.p !== 'reset' && data.p !== 'invite') return null
+    if (data.p !== 'reset' && data.p !== 'invite' && data.p !== 'verify') return null
     return { userId: data.u, purpose: data.p, expiresAt: data.e, payload }
   } catch {
     return null

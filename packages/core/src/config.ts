@@ -92,9 +92,10 @@ export interface ContainerAdmin {
 export interface CollectionAdmin extends ContainerAdmin {
   /**
    * `settings` lists the collection under Settings in the admin menu (with Users and API keys)
-   * instead of with the content, e.g. for redirects or forms settings.
+   * instead of with the content, e.g. for redirects or forms settings. A label (e.g.
+   * `{ en: 'Shop', th: 'ร้านค้า' }`) lists it under a heading of that name, after the content.
    */
-  readonly group?: 'settings'
+  readonly group?: 'settings' | Label
   readonly list?: CollectionListAdmin
   /**
    * With `auth.rbac`: the relationship field to `users` that names a document's owner, e.g.
@@ -387,6 +388,41 @@ export interface RoutesConfig {
   readonly api?: string
 }
 
+/**
+ * People who sign in on the site rather than to the admin, e.g. customers of a shop.
+ */
+export interface MembersConfig {
+  /**
+   * Their roles, also listed in `roles`. Members never get into the admin, and access that
+   * defaults to logged-in users (`isLoggedIn`) doesn't count them: give them access in the
+   * collections they use, e.g. with `isSignedIn`.
+   */
+  readonly roles: readonly string[]
+  /** Visitors create their own account: `POST <api>/users/signup`. */
+  readonly signup?: MembersSignup
+  /**
+   * The site's pages that open the links of members' emails, given `?token=`: paths on
+   * `admin.siteUrl` (else `serverURL`), or full URLs. Without them, links go to the admin's pages.
+   */
+  readonly pages?: {
+    /** Confirms the email of a new account: `POST <api>/users/verify-email` with the token. */
+    readonly verifyEmail?: string
+    /** Sets a forgotten password: `POST <api>/users/reset-password` with the token. */
+    readonly resetPassword?: string
+  }
+  /** Your own text for the email that confirms an address. Default: English or Thai. */
+  readonly emails?: { readonly verifyEmail?: PasswordEmailFn }
+}
+
+export interface MembersSignup {
+  /** The role new accounts get: one of `members.roles`. */
+  readonly role: string
+  /** New accounts confirm their email with a link before signing in. Default `true`. */
+  readonly verifyEmail?: boolean
+  /** Cloudflare Turnstile, checked on every sign-up when set. */
+  readonly turnstile?: { readonly siteKey: string; readonly secretKey: string }
+}
+
 export interface AuthConfig {
   /**
    * Roles a user can have. Must include `admin`. Default `['admin', 'editor']`. With `rbac`, these
@@ -437,6 +473,11 @@ export interface AuthConfig {
    * no code is asked.
    */
   readonly setupCode?: string
+  /**
+   * People who sign in on the site, not to the admin, e.g. customers: their roles, signing up,
+   * and the pages their email links open.
+   */
+  readonly members?: MembersConfig
   /** Your own text for the password emails, e.g. in your brand's voice. Default: English or Thai. */
   readonly emails?: {
     readonly resetPassword?: PasswordEmailFn
@@ -487,9 +528,20 @@ export interface EndpointRequest {
 }
 
 /**
- * A custom REST endpoint, served under `routes.api`. Writes from the browser pass the same
- * CSRF check as the built-in endpoints.
+ * Work that runs with the scheduled jobs: every minute in a server, or each time a cron calls
+ * `GET <api>/jobs/run`. E.g. a plugin's clean-up.
  */
+export interface JobConfig {
+  /** Unique, e.g. `ecommerce:carts`. */
+  readonly name: string
+  /**
+   * At most this often, in seconds. Default: every run. The last run is kept in the database, so
+   * it holds across processes and serverless invocations.
+   */
+  readonly every?: number
+  readonly run: (args: { readonly cms: EasyCMS; readonly now: Date }) => MaybePromise<unknown>
+}
+
 /** An `easy-cms <name> [args…]` command. Built-in commands keep their names. */
 export interface CliCommand {
   /** Lowercase, e.g. `nested:rebuild`. */
@@ -507,6 +559,10 @@ export interface CliCommand {
   }) => MaybePromise<number | undefined>
 }
 
+/**
+ * A custom REST endpoint, served under `routes.api`. Writes from the browser pass the same
+ * CSRF check as the built-in endpoints.
+ */
 export interface Endpoint {
   /**
    * Path under the API, e.g. `/seo/generate` or `/stats/:collection`. The first segment must
@@ -620,6 +676,13 @@ export interface Config {
   readonly cronSecret?: string
   /** Endpoints notified when content changes, e.g. to rebuild a static site. */
   readonly webhooks?: readonly WebhookConfig[]
+  /**
+   * Events of the app or its plugins besides content changes, e.g. `order.paid`: sent with
+   * `cms.emit()` to the webhooks that list them in `events`. Named `<area>.<what>`.
+   */
+  readonly events?: readonly string[]
+  /** Work run with the scheduled jobs, e.g. a plugin's clean-up. */
+  readonly jobs?: readonly JobConfig[]
   /** Content in several languages: fields with `localized: true` hold one value per locale. */
   readonly localization?: LocalizationConfig | null
   readonly routes?: RoutesConfig
@@ -697,6 +760,8 @@ export interface ResolvedConfig
   readonly globals: readonly GlobalConfig[]
   readonly endpoints: readonly Endpoint[]
   readonly commands: readonly CliCommand[]
+  readonly events: readonly string[]
+  readonly jobs: readonly JobConfig[]
   readonly fieldTypes: readonly FieldTypeDefinition[]
   /** The config's plugins in order, with their `info` where they give one. */
   readonly installedPlugins: readonly Partial<PluginInfo>[]

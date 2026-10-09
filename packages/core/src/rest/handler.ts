@@ -1,7 +1,7 @@
 import { type AuthUser, isSystemAdmin, type RequestContext } from '../access.js'
 import { API_KEYS, type ApiKeyPermissions } from '../api-keys.js'
 import { auditContext } from '../audit.js'
-import type { Session } from '../auth/auth.js'
+import { type Session, SIGNUP_HONEYPOT } from '../auth/auth.js'
 import { SESSION_COOKIE } from '../auth/cookie.js'
 import { SSO_COOKIE } from '../auth/sso.js'
 import { safeEqual } from '../auth/tokens.js'
@@ -305,9 +305,12 @@ async function route(
     ...parseLocale(ctx.url),
   } as const
   // Drafts are only for logged-in users; anonymous requests always see published documents.
-  const draft = ctx.user !== null && ctx.url.searchParams.get('draft') === 'true'
+  const draft =
+    ctx.user !== null && ctx.user.member !== true && ctx.url.searchParams.get('draft') === 'true'
 
   if (segments.length === 0) throw new HttpError('Not found', 404)
+  // Site members (`auth.members`, e.g. customers) never get into the admin.
+  if (first === 'admin' && ctx.user?.member === true) throw new ForbiddenError()
 
   // Signing in with outside accounts (`auth.providers`).
   if (first === 'auth') return ssoRoute(cms, ctx, method, segments)
@@ -379,6 +382,45 @@ async function route(
           password: String(body.password ?? ''),
           ip: options.getClientIp?.(ctx.request),
           locale: typeof body.locale === 'string' ? body.locale : undefined,
+        })
+        setSessionCookies(cms, ctx, session)
+        return {
+          body: { user: session.user, exp: session.expiresAt, csrfToken: session.csrfToken },
+        }
+      }
+      // Members signing up (`auth.members.signup`): the form's token, then the account.
+      case 'GET signup':
+        return { body: cms.auth.signupForm() }
+      case 'POST signup': {
+        const body = await readJson(ctx.request)
+        const result = await cms.auth.signup({
+          email: String(body.email ?? ''),
+          password: String(body.password ?? ''),
+          name: typeof body.name === 'string' ? body.name : undefined,
+          token: body.token,
+          honeypot: body[SIGNUP_HONEYPOT],
+          turnstile: body.turnstile,
+          ip: options.getClientIp?.(ctx.request),
+          origin: ctx.url.origin,
+          locale: typeof body.locale === 'string' ? body.locale : undefined,
+          context: ctx.context,
+        })
+        if (result.verify)
+          return {
+            status: 202,
+            body: { verify: true, message: 'Check your email for a link to confirm it.' },
+          }
+        setSessionCookies(cms, ctx, result)
+        return {
+          status: 201,
+          body: { user: result.user, exp: result.expiresAt, csrfToken: result.csrfToken },
+        }
+      }
+      case 'POST verify-email': {
+        const body = await readJson(ctx.request)
+        const session = await cms.auth.verifyEmail({
+          token: String(body.token ?? ''),
+          ip: options.getClientIp?.(ctx.request),
         })
         setSessionCookies(cms, ctx, session)
         return {

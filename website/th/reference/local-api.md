@@ -34,7 +34,8 @@ Local API เชื่อผู้เรียกและข้ามกฎส�
 | `findById(collection, id, options?)` | เอกสาร \| `null` | เอกสารเดียว |
 | `count(collection, options?)` | `number` | จำนวนที่ตรง `where` |
 | `create(collection, data, options?)` | เอกสาร | ตรวจข้อมูล รัน hook และบันทึก |
-| `update(collection, id, data, options?)` | เอกสาร | แก้ field ที่ส่งมา |
+| `update(collection, id, data, options?)` | เอกสาร | แก้ field ที่ส่งมา ถ้ามี `where` จะบันทึกก็ต่อเมื่อเอกสารที่เก็บไว้ยังตรงเงื่อนไข (compare and set) ไม่ตรงคืน `null` เมื่อเรียกพร้อมกันสองครั้ง จะมีครั้งเดียวที่สำเร็จ |
+| `increment(collection, id, field, by, { min?, max? })` | `number \| null` | บวก `by` เข้ากับ field ตัวเลขชั้นบนสุดในคำสั่งเดียว ปลอดภัยเมื่อเรียกพร้อมกัน เช่น สต็อก คืน `null` ถ้าผลจะเกิน `min` / `max` ไม่รัน hook และไม่ตรวจสิทธิ์ |
 | `delete(collection, id, options?)` | เอกสารที่ถูกลบ | ลบเวอร์ชันและงานตั้งเวลาของมันด้วย ถ้าลบผู้ใช้เมื่อเปิด `auth.rbac`: `{ transferTo: id }` โอนเอกสารที่ผู้ใช้เป็นเจ้าของให้ผู้ใช้อีกคน ถ้าไม่ระบุ เอกสารจะไม่มีเจ้าของ |
 
 ### Media {#media}
@@ -98,7 +99,8 @@ Local API เชื่อผู้เรียกและข้ามกฎส�
 
 | Method | คืนค่า | |
 |---|---|---|
-| `runJobs(now?)` | `{ ran, failed, webhooks }` | งานตั้งเวลาที่ถึงกำหนดและ webhook ที่ต้องส่งซ้ำ (สิ่งที่ cron และตัวจับเวลาเรียก) |
+| `runJobs(now?)` | `{ ran, failed, webhooks, emails, jobs }` | งานตั้งเวลาที่ถึงกำหนด webhook และอีเมลที่ต้องส่งซ้ำ และ `jobs` ของ config (สิ่งที่ cron และตัวจับเวลาเรียก) |
+| `emit(event, data, about?)` | — | ส่ง event ใน `events` ของ config (เช่น `order.paid`) ไปยัง webhook ที่ระบุไว้ `about` คือ `{ collection, id }` [Webhooks](/th/guide/webhooks#your-own-events) |
 | `runScheduled(now?)` | `{ ran, failed }` | เฉพาะงานตั้งเวลาที่ถึงกำหนด |
 | `retryWebhooks(now?)` | `{ sent, failed }` | เฉพาะ webhook ที่ถึงเวลาส่งซ้ำ |
 | `startScheduler(interval?)` | — | รัน `runJobs` ทุก `interval` ms (ค่าเริ่มต้น 1 นาที) `createEasyCMS` เริ่มให้เองเมื่อมีการตั้งเวลาหรือมี webhook |

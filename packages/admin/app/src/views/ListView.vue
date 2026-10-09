@@ -807,7 +807,13 @@ async function deleteSelected(query = '') {
   <template v-else>
     <nav class="crumbs" :aria-label="t('list.breadcrumb')">
       <!-- The menu section: user accounts and other settings are under Settings. -->
-      <span>{{ collection.group === 'settings' ? t('nav.globals') : t('nav.collections') }}</span>
+      <span>{{
+        collection.group === 'settings'
+          ? t('nav.globals')
+          : collection.section !== undefined
+            ? label(collection.section, collection.slug)
+            : t('nav.collections')
+      }}</span>
       <ChevronRight :size="14" aria-hidden="true" />
       <span class="current">{{ label(collection.labels?.plural, collection.slug) }}</span>
     </nav>
@@ -1111,6 +1117,7 @@ async function deleteSelected(query = '') {
                 :component="f.admin.cell"
                 :value="doc[f.name] ?? null"
                 :field="f"
+                :doc="doc"
                 :label="label(f.label, humanize(f.name))"
                 read-only
               />

@@ -14,6 +14,11 @@ export interface AuthUser {
    * backups, roles, other users' API keys).
    */
   readonly scoped?: boolean
+  /**
+   * A member of the site, e.g. a customer (`auth.members.roles`): signs in on the site, never to
+   * the admin, and `isLoggedIn` doesn't count them.
+   */
+  readonly member?: boolean
   readonly [field: string]: unknown
 }
 
@@ -86,6 +91,13 @@ export interface FieldAccess {
 
 export const anyone: Access = () => true
 
-export const isLoggedIn: Access = ({ user }) => user !== null
+/**
+ * A signed-in user of the admin: not a site member (`auth.members`). What collections allow by
+ * default.
+ */
+export const isLoggedIn: Access = ({ user }) => user !== null && user.member !== true
+
+/** Anyone signed in, site members (e.g. customers) included. */
+export const isSignedIn: Access = ({ user }) => user !== null
 
 export const isAdmin: Access = ({ user }) => user?.role === 'admin'

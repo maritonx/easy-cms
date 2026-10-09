@@ -62,6 +62,9 @@ GET /api/cms/posts?where={"or":[{"featured":{"equals":true}},{"views":{"gt":100}
 | GET | `/users/me` | `{ user, csrfToken }` ของ session ปัจจุบัน |
 | GET | `/users/init` | `{ hasUsers }` |
 | POST | `/users/first-register` | สร้าง admin คนแรกในขณะที่ยังไม่มีผู้ใช้ |
+| GET | `/users/signup` | เมื่อตั้ง `auth.members.signup`: `{ token, turnstile, verifyEmail }` สำหรับฟอร์มสมัครสมาชิก ([สมาชิกของเว็บ](./members)) |
+| POST | `/users/signup` | `{ email, password, name?, token }` → `202 { verify: true }` หรือ session ทันทีถ้าไม่ต้องยืนยันอีเมล |
+| POST | `/users/verify-email` | `{ token }` จากอีเมลยืนยัน → ยืนยันอีเมลแล้วเข้าสู่ระบบ |
 
 **เบราว์เซอร์** ส่ง session cookie ทุก request แบบ POST, PATCH, PUT และ DELETE ที่ใช้ cookie
 ต้องแนบ CSRF token เป็น `x-csrf-token` (ได้จาก response ของการเข้าสู่ระบบ, `GET /users/me` หรือ

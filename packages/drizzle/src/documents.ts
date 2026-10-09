@@ -1,5 +1,5 @@
 import type { ID, RawDocument } from '@easy-cms/core'
-import { asc, eq, inArray } from 'drizzle-orm'
+import { and, asc, eq, inArray, type SQL } from 'drizzle-orm'
 import type { AnyColumn, DrizzleDb } from './dialect.js'
 import type { ChildModel, TableModel } from './schema.js'
 
@@ -214,19 +214,24 @@ export async function insertDocument(
   return id
 }
 
+/** Returns `false` when `condition` didn't match the row: nothing is written. */
 export async function replaceDocument(
   db: Executor,
   model: TableModel,
   id: ID,
   data: Data,
   drafts: boolean,
-) {
-  await db
+  condition?: SQL,
+): Promise<boolean> {
+  const updated = (await db
     .update(model.table)
     .set({ ...dataToRow(model, data), ...systemRow(data as unknown as SystemValues, drafts) })
-    .where(eq(col(model, 'id'), id))
+    .where(condition ? and(eq(col(model, 'id'), id), condition) : eq(col(model, 'id'), id))
+    .returning({ id: col(model, 'id') })) as Row[]
+  if (updated.length === 0) return false
   await deleteChildren(db, model, [id])
   await insertChildren(db, model, id, data)
+  return true
 }
 
 export async function deleteDocument(db: Executor, model: TableModel, id: ID) {

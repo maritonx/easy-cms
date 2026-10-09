@@ -167,6 +167,7 @@ cd my-cms && npm run dev       # http://localhost:4000/admin
 | [`@easy-cms/plugin-graphql`](packages/plugin-graphql) | GraphQL API: queries and mutations for every collection and global, with your access rules | [GraphQL](https://maritonx.github.io/easy-cms/guide/graphql) |
 | [`@easy-cms/plugin-mcp`](packages/plugin-mcp) | Model Context Protocol server for AI assistants | [MCP](https://maritonx.github.io/easy-cms/guide/mcp) |
 | [`@easy-cms/plugin-multi-tenant`](packages/plugin-multi-tenant) | Several sites or clients in one CMS: content, members, roles and settings per tenant, a tenant switcher | [Multi-tenant](https://maritonx.github.io/easy-cms/guide/multi-tenant) |
+| [`@easy-cms/plugin-ecommerce`](packages/plugin-ecommerce) | A shop: products and variants, prices in several currencies, carts, checkout with Stripe or bank transfer, orders, stock, customer accounts, React and Vue hooks | [Shop](https://maritonx.github.io/easy-cms/guide/ecommerce) |
 
 Plugins are functions over your config: write your own with fields, endpoints, admin components,
 admin pages, dashboard panels and CLI commands. See [Plugins](https://maritonx.github.io/easy-cms/guide/plugins). Packages can

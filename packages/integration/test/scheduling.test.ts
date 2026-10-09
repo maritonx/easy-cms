@@ -169,6 +169,7 @@ describe('scheduled publishing (FR-SCH)', () => {
       failed: 0,
       webhooks: { sent: 0, failed: 0 },
       emails: { sent: 0, failed: 0 },
+      jobs: { ran: 0, failed: 0 },
     })
     expect((await call('POST', '/jobs/run')).json).toMatchObject({ ran: 0, failed: 0 })
 

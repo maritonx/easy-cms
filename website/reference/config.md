@@ -21,6 +21,8 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `cors` | `string[] \| '*'` | `[]` | Origins whose browser code may call the API. [Security](/guide/security) |
 | `cronSecret` | `string` | `CRON_SECRET` | Bearer secret for `GET <api>/jobs/run`. [Scheduling](/guide/drafts#scheduled-publishing) |
 | `webhooks` | `WebhookConfig[]` | `[]` | See [webhooks](#webhooks). |
+| `events` | `string[]` | `[]` | Events of the app or its plugins besides content changes (`<area>.<what>`, e.g. `order.paid`), sent with `cms.emit()` to webhooks that list them. [Webhooks](/guide/webhooks#your-own-events) |
+| `jobs` | `JobConfig[]` | `[]` | Work run with the scheduled jobs, e.g. a plugin's clean-up. See [jobs](#jobs). |
 | `localization` | `LocalizationConfig` | — | See [localization](#localization). |
 | `routes` | `RoutesConfig` | | See [routes](#routes). |
 | `admin` | `AdminConfig` | | See [admin](#admin). |
@@ -133,6 +135,26 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `resetPasswordExpiration` | `number` | `3600` | Seconds a "forgot password" link works. Links need `email`, and `serverURL` in production. [Forgotten passwords](/guide/auth#forgotten-passwords-and-invitations) |
 | `inviteExpiration` | `number` | `604800` | Seconds an invitation link works. |
 | `emails` | `{ resetPassword?, invite?, passwordChanged? }` | — | Functions `({ user, url, locale, expiresAt }) => { subject, text, html? }` for your own email text. |
+| `members` | `MembersConfig` | — | People who sign in on the site, not the admin, e.g. customers. See [members](#members). |
+
+<!-- api: MembersConfig -->
+### members
+
+| Option | Type | |
+|---|---|---|
+| `roles` | `string[]` | Their roles, also in `roles`. Members never get into the admin, and `isLoggedIn` (every collection's default) doesn't count them. [Site members](/guide/members) |
+| `signup` | `MembersSignup` | Visitors create their own account: `POST <api>/users/signup`. |
+| `pages` | `{ verifyEmail?, resetPassword? }` | The site's pages that open members' email links with `?token=`: paths on `admin.siteUrl` (else `serverURL`) or URLs. Default: the admin's pages. |
+| `emails` | `{ verifyEmail? }` | Your own text for the email that confirms an address. |
+
+<!-- api: MembersSignup -->
+#### signup
+
+| Option | Type | Default | |
+|---|---|---|---|
+| `role` | `string` | — | The role new accounts get: one of `members.roles`. |
+| `verifyEmail` | `boolean` | `true` | New accounts confirm their email with a link before signing in. |
+| `turnstile` | `{ siteKey, secretKey }` | — | Cloudflare Turnstile, checked on every sign-up. |
 
 <!-- api: UploadConfig -->
 ## upload
@@ -187,6 +209,21 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `secret` | `string` | — | Signs bodies: `x-easy-cms-signature: sha256=<hex>`. |
 | `headers` | `Record<string, string>` | — | Extra request headers. |
 
+`events` also takes the config's own `events` (e.g. `order.paid`): those are sent only to webhooks
+that list them.
+
+<!-- api: JobConfig -->
+## jobs
+
+| Option | Type | |
+|---|---|---|
+| `name` | `string` | Unique, lowercase with `-` and `:`, e.g. `shop:carts`. |
+| `every` | `number` | At most this often, in seconds; when each last ran is kept in the database. Default: every run. |
+| `run` | `({ cms, now }) => unknown` | The work. A failure is logged; the other jobs still run. |
+
+They run with the scheduled jobs: every minute in a server, or each time a cron calls
+`GET <api>/jobs/run`.
+
 <!-- api: CollectionConfig -->
 ## collections
 
@@ -235,7 +272,7 @@ Every hook also gets `user`, `cms` and `slug`.
 | Option | Type | |
 |---|---|---|
 | `sidebar` | `AdminComponent[]` | Panels in the edit page's side column. [Admin components](/guide/plugins#admin-components) |
-| `group` | `'settings'` | List the collection under Settings in the menu, with Users and API keys. |
+| `group` | `'settings' \| Label` | `'settings'`: list the collection under Settings in the menu, with Users and API keys. A label, e.g. `{ en: 'Shop', th: 'ร้านค้า' }`: under a heading of that name. |
 | `list` | `{ tree?, sort? }` | The list page: `tree` names a relationship to the same collection to show a tree (top-level documents first, children open below); `sort` is the default order, e.g. `'title'`. |
 | `ownerField` | `string` | With `auth.rbac`: a relationship field to `users` naming the owner, e.g. `'author'`, for roles given "own documents only". Default: who created it (`createdBy`). [Roles](/guide/roles#own-documents-only) |
 | `confirmDelete` | `{ typeTitle?, impact? }` | Deleting asks more: `typeTitle` has the user type the title; `impact` is a path under the API, called with `?id=`, returning `{ message }` about what goes too. No deleting from a selection. |

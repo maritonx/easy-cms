@@ -3,7 +3,7 @@
 - **สถานะ:** Accepted (living document)
 - **วันที่:** 2026-10-01 (ฉบับแรก 2026-09-25)
 - **ผู้เขียน:** Kanawoot K.
-- **ครอบคลุม:** v0.1 ถึง v0.45
+- **ครอบคลุม:** v0.1 ถึง v0.46
 - **Requirements:** [SRS.md](SRS.md)
 
 ---
@@ -99,6 +99,7 @@ Plugin ยังเป็น `(config) => config` เหมือน v0.1 คว
 - **`onRequest`** ใน config หา `context` ของแต่ละ request และผู้ใช้ใน context นั้น ส่งต่อให้ access, hook, `filterOptions` และ Local API (`context`) ผู้ใช้ที่ `scoped` เป็น admin ของส่วนของตัวเองเท่านั้น (`isSystemAdmin`)
 - **global ที่มี `scope`** เก็บค่าต่อ scope (`<slug>@<scope>`), **`uniqueWithin`** ใช้ได้ทุก field ที่ unique พร้อม index `(scope, field)`, **`admin.switcher`** ตัวเลือกด้านบนเมนูเก็บใน cookie
 - **`@easy-cms/plugin-multi-tenant`** แยก tenant แบบ row-level ในฐานข้อมูลเดียว: collection `tenants`, field `tenant`, สมาชิกและบทบาทต่อ tenant, global ต่อ tenant, ตัวสลับ และหน้า Members → ดู [ADR-0047](adr/0047-multi-tenant.md)
+- **`@easy-cms/plugin-ecommerce`** ร้านค้า: สินค้าและตัวเลือก ราคาหลายสกุลเงิน ตะกร้า (guest ด้วย) ชำระเงินผ่าน Stripe หรือโอนเงิน คำสั่งซื้อที่สร้างครั้งเดียว สต็อก และบัญชีลูกค้า บนจุดต่อใหม่ใน core: `auth.members` และการสมัคร, `update` แบบมีเงื่อนไข, `increment`, `jobs`, `events` → ดู [ADR-0049](adr/0049-ecommerce.md)
 - **0.45:** upload `filterOptions`, `uniqueWithin` หลาย field, `cms.uniqueScope()` ให้ plugin หาเอกสารตาม key ใน scope ที่ถูก (โฟลเดอร์, หน้าย่อย, redirects, ฟอร์ม), `audit.scope`, `admin.confirmDelete` และตัวเลือก field ใน admin (`defaultValue`, `column`, `allowCreate`) → ดู [ADR-0048](adr/0048-multi-tenant-follow-ups.md)
 
 ### 4.6 GraphQL (0.43)
@@ -410,3 +411,4 @@ CI รัน lint, typecheck, build และ test บน Linux, macOS และ
 - [ADR-0046](adr/0046-graphql-plugin.md) — GraphQL เป็น plugin
 - [ADR-0047](adr/0047-multi-tenant.md) — Multi-tenant เป็น plugin บนจุดต่อใน core
 - [ADR-0048](adr/0048-multi-tenant-follow-ups.md) — Multi-tenant ครบขึ้น: ไฟล์ โฟลเดอร์ plugin อื่น audit และการลบ
+- [ADR-0049](adr/0049-ecommerce.md) — ร้านค้า (ecommerce) เป็น plugin พร้อมจุดต่อกลางใน core

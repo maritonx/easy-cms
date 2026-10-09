@@ -1,0 +1,86 @@
+{
+  "name": "@easy-cms/plugin-ecommerce",
+  "version": "0.45.0",
+  "description": "A shop for Easy CMS: products and variants, prices in several currencies, carts (guests too), checkout with Stripe or bank transfer, orders, stock, customer accounts, and React and Vue hooks",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./stripe": {
+      "types": "./dist/stripe.d.ts",
+      "default": "./dist/stripe.js"
+    },
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "default": "./dist/client.js"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "default": "./dist/react.js"
+    },
+    "./vue": {
+      "types": "./dist/vue.d.ts",
+      "default": "./dist/vue.js"
+    },
+    "./admin": "./dist/admin.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "@easy-cms/core": "workspace:^",
+    "react": ">=18.0.0",
+    "stripe": ">=17.0.0",
+    "vue": "^3.4.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "stripe": {
+      "optional": true
+    },
+    "vue": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@easy-cms/core": "workspace:^",
+    "@easy-cms/db-sqlite": "workspace:^",
+    "@easy-cms/plugin-multi-tenant": "workspace:^",
+    "@types/react": "^19.2.0",
+    "happy-dom": "^20.14.5",
+    "react": "^19.2.0",
+    "vue": "^3.5.43"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maritonx/easy-cms.git",
+    "directory": "packages/plugin-ecommerce"
+  },
+  "keywords": [
+    "easy-cms",
+    "easy-cms-plugin",
+    "ecommerce",
+    "shop",
+    "cart",
+    "checkout",
+    "stripe"
+  ]
+}

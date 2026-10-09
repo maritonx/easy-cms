@@ -506,11 +506,17 @@ export function multiTenantPlugin<const S extends string, const T extends string
         ?.permissions?.context
       const boundTenant = bound ? tenantOf(bound) : undefined
 
-      if (user && isSuper(user) && (!boundTenant || boundTenant.tenant === null)) {
+      if (
+        user &&
+        user.member !== true &&
+        isSuper(user) &&
+        (!boundTenant || boundTenant.tenant === null)
+      ) {
         const chosen = asked === ALL ? undefined : findTenant(list, asked)
         return { user, context: { ...context, tenant: chosen?.id ?? null, allTenants: true } }
       }
-      if (user) {
+      // Site members (customers, `auth.members`) use the site of the request, like visitors.
+      if (user && user.member !== true) {
         const mine = membershipsOf(user)
         const member = (t: TenantRef | undefined): Membership | undefined =>
           t ? mine.find((m) => sameId(m.tenant, t.id)) : undefined

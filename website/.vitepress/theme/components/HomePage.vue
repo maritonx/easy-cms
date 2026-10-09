@@ -11,7 +11,7 @@ const { isDark } = useData()
 
 const COPY = {
   en: {
-    badge: 'New in 0.45: multi-tenant with nested pages, redirects and forms',
+    badge: 'New in 0.46: a shop (ecommerce) with Stripe, bank transfer and customer accounts',
     badgeLink: 'multi-tenant',
     title: 'Your CMS,',
     titleAccent: 'inside your app',
@@ -230,7 +230,7 @@ const COPY = {
     ctaGuide: 'Read the guide',
   },
   th: {
-    badge: 'ใหม่ใน 0.45: multi-tenant ใช้กับหน้าย่อย redirects และฟอร์มได้',
+    badge: 'ใหม่ใน 0.46: ร้านค้า (ecommerce) รับ Stripe โอนเงิน และบัญชีลูกค้า',
     badgeLink: 'multi-tenant',
     title: 'CMS ที่อยู่',
     titleAccent: 'ในแอปของคุณ',

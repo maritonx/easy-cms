@@ -24,7 +24,7 @@ export interface ElementContext {
   field: AdminField | undefined
   /** The field's label in the admin's language (field components only). */
   label: string | undefined
-  /** The whole form as edited, not yet saved (a copy). */
+  /** The whole form as edited, not yet saved (a copy); in a list's cell, that row's document. */
   doc: Record<string, unknown>
   collection: string | undefined
   global: string | undefined

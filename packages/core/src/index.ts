@@ -17,7 +17,14 @@ export {
   type AuditPage,
   type AuditVerification,
 } from './audit.js'
-export { Auth, type LoginArgs, type PasswordLinkOptions, type Session } from './auth/auth.js'
+export {
+  Auth,
+  type LoginArgs,
+  type PasswordLinkOptions,
+  type Session,
+  type SignupArgs,
+  type SignupResult,
+} from './auth/auth.js'
 export {
   DEFAULT_PASSWORD_EMAILS,
   type PasswordEmail,
@@ -71,7 +78,10 @@ export type {
   GlobalConfig,
   GlobalHooks,
   ImageSize,
+  JobConfig,
   LocalizationConfig,
+  MembersConfig,
+  MembersSignup,
   OnRequest,
   OnRequestArgs,
   Operation,
@@ -155,6 +165,7 @@ export {
   type DocumentOf,
   EasyCMS,
   type FindOptions,
+  type IncrementOptions,
   type LivePreview,
   type ReadOptions,
   type ScheduledJob,
@@ -228,6 +239,13 @@ export {
   type RolePermissions,
   Roles,
 } from './roles.js'
+export {
+  checkFormToken,
+  formToken,
+  honeypotName,
+  rateKeys,
+  verifyTurnstile,
+} from './spam.js'
 export {
   type DirectUpload,
   type LocalStorageOptions,

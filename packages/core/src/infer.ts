@@ -111,9 +111,17 @@ type WithPluginFields<
       readonly fields: readonly (T['fields'][number] | PluginFields<C, T['slug'], Key>)[]
     }
 
+/**
+ * The config's own collections. A literal config without `collections` has none (only plugins
+ * add some); a loosely typed `Config` has any.
+ */
+type OwnCollections<C extends Config> = 'collections' extends keyof C
+  ? NonNullable<C['collections']>[number]
+  : never
+
 /** Every collection of a config, including the built-in ones and those plugins add. */
 type AllCollections<C extends Config> =
-  | NonNullable<C['collections']>[number]
+  | OwnCollections<C>
   | BuiltinUsersCollection
   | BuiltinMediaCollection
   | ApiKeysOf<C>
@@ -272,7 +280,7 @@ export type InferGlobal<T extends FieldsOwner, C extends Config = Config> = Simp
 >
 
 export type CollectionSlug<C extends Config> =
-  | NonNullable<C['collections']>[number]['slug']
+  | OwnCollections<C>['slug']
   | 'users'
   | 'media'
   | ApiKeysOf<C>['slug']

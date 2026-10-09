@@ -63,8 +63,31 @@ export interface Database {
   count(args: { collection: string; where?: Where | undefined }): Promise<number>
   /** `data` holds every field, `createdAt` and `updatedAt`. Runs in one transaction. */
   create(args: { collection: string; data: Record<string, unknown> }): Promise<RawDocument>
-  /** `data` holds the whole document after merging. Runs in one transaction. */
+  /**
+   * `data` holds the whole document after merging. Runs in one transaction. With `where`, only
+   * when the stored document matches it at the moment of writing (compare and set): `null` when
+   * it doesn't, and nothing is written.
+   */
   update(args: { collection: string; id: ID; data: Record<string, unknown> }): Promise<RawDocument>
+  update(args: {
+    collection: string
+    id: ID
+    data: Record<string, unknown>
+    where: Where
+  }): Promise<RawDocument | null>
+  /**
+   * Adds `by` to a top-level number field in one statement, safe against concurrent calls; an
+   * empty value counts as 0. With `min` / `max`, only when the result stays within them. Returns
+   * the new value, or `null` when it would leave the bounds or the document is gone.
+   */
+  increment(args: {
+    collection: string
+    id: ID
+    field: string
+    by: number
+    min?: number | undefined
+    max?: number | undefined
+  }): Promise<number | null>
   delete(args: { collection: string; id: ID }): Promise<void>
   findGlobal(args: { slug: string }): Promise<Record<string, unknown> | null>
   updateGlobal(args: {

@@ -18,6 +18,9 @@ const OIDC = 'http://localhost:3110'
 /** The multi-tenant example (`examples/multi-tenant`), on the standalone server. */
 const TENANTS = 'http://localhost:3104'
 
+/** The shop example (`examples/shop`, Next.js), as a production build. */
+const SHOP = 'http://localhost:3105'
+
 /** Where the standalone example's frontend is served; the suite uses it as that app's public site. */
 const FRONTEND = 'http://localhost:3103'
 
@@ -64,6 +67,8 @@ export default defineConfig({
     })),
     // Several tenants in one CMS (multi-tenant plugin), on the standalone server.
     { name: 'tenants', testMatch: 'tenants.spec.ts', use: { ...browser, baseURL: TENANTS } },
+    // A shop (ecommerce plugin): guests, customers, checkout and orders.
+    { name: 'shop', testMatch: 'shop.spec.ts', use: { ...browser, baseURL: SHOP } },
   ],
   webServer: [
     ...apps.map((app) => ({
@@ -110,6 +115,18 @@ export default defineConfig({
       env: {
         EASY_CMS_SECRET: SECRET,
         DATABASE_URL: `file:${join(scratch, 'tenants.db')}`,
+      },
+    },
+    {
+      name: 'shop',
+      command: `pnpm --dir ../examples/shop exec next build && pnpm --dir ../examples/shop exec easy-cms migrate && pnpm --dir ../examples/shop exec next start --port ${new URL(SHOP).port}`,
+      url: `${SHOP}/api/cms/users/init`,
+      timeout: 240_000,
+      reuseExistingServer: false,
+      env: {
+        EASY_CMS_SECRET: SECRET,
+        DATABASE_URL: `file:${join(scratch, 'shop.db')}`,
+        NEXT_TELEMETRY_DISABLED: '1',
       },
     },
     // The standalone example's frontend, on its own origin.

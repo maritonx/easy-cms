@@ -10,7 +10,7 @@ import type {
   Where,
 } from '@easy-cms/core'
 import { QueryError } from '@easy-cms/core'
-import { asc, count, eq, getTableColumns, getTableName, inArray } from 'drizzle-orm'
+import { and, asc, count, eq, getTableColumns, getTableName, inArray, sql } from 'drizzle-orm'
 import type { AnyColumn, AnyTable, Dialect, DrizzleDb, SqlRunner } from './dialect.js'
 import {
   deleteDocument,
@@ -211,18 +211,68 @@ class DrizzleDatabase implements Database {
     return (await this.findById({ collection: args.collection, id })) as RawDocument
   }
 
+  update(args: { collection: string; id: ID; data: Record<string, unknown> }): Promise<RawDocument>
+  update(args: {
+    collection: string
+    id: ID
+    data: Record<string, unknown>
+    where: Where
+  }): Promise<RawDocument | null>
   async update(args: {
     collection: string
     id: ID
     data: Record<string, unknown>
-  }): Promise<RawDocument> {
+    where?: Where
+  }): Promise<RawDocument | null> {
     const model = this.model(args.collection)
-    await this.write(() =>
+    const condition = args.where ? this.where(args.collection, args.where) : undefined
+    const written = await this.write(() =>
       this.db.transaction((tx: DrizzleDb) =>
-        replaceDocument(tx, model.root, args.id, args.data, model.config.drafts === true),
+        replaceDocument(
+          tx,
+          model.root,
+          args.id,
+          args.data,
+          model.config.drafts === true,
+          condition,
+        ),
       ),
     )
+    if (!written) return null
     return (await this.findById({ collection: args.collection, id: args.id })) as RawDocument
+  }
+
+  async increment(args: {
+    collection: string
+    id: ID
+    field: string
+    by: number
+    min?: number | undefined
+    max?: number | undefined
+  }): Promise<number | null> {
+    const model = this.model(args.collection)
+    const target = model.root.columns.find(
+      (c) => c.locale === undefined && c.path.length === 1 && c.path[0] === args.field,
+    )
+    if (target?.field.type !== 'number')
+      throw new QueryError(
+        `"${args.field}" of "${args.collection}" is not a top-level number field`,
+      )
+    if (!Number.isFinite(args.by)) throw new QueryError('increment: "by" must be a number')
+    const column = model.root.table[target.column] as AnyColumn
+    const next = sql`coalesce(${column}, 0) + ${args.by}`
+    const conditions = [eq(model.root.table.id as AnyColumn, args.id)]
+    if (args.min !== undefined) conditions.push(sql`${next} >= ${args.min}`)
+    if (args.max !== undefined) conditions.push(sql`${next} <= ${args.max}`)
+    const rows = (await this.write(() =>
+      this.db
+        .update(model.root.table)
+        .set({ [target.column]: next })
+        .where(and(...conditions))
+        .returning({ value: column }),
+    )) as { value: unknown }[]
+    const [row] = rows
+    return row ? Number(row.value) : null
   }
 
   async delete(args: { collection: string; id: ID }): Promise<void> {

@@ -69,7 +69,14 @@ const adminOnly = {
   update: ({ user }: { user: AuthUser | null }) => isSystemAdmin(user),
 }
 
-function userFields(roles: readonly string[], rbac: boolean): Field[] {
+/** Staff read users; members (`auth.members`) only themselves. */
+const staffOrSelf: Access = ({ user }) => {
+  if (!user) return false
+  if (user.member !== true) return true
+  return { id: { equals: user.id } }
+}
+
+function userFields(roles: readonly string[], rbac: boolean, members: boolean): Field[] {
   const defaultRole = roles.includes('editor') ? 'editor' : (roles[roles.length - 1] as string)
   return [
     {
@@ -106,6 +113,18 @@ function userFields(roles: readonly string[], rbac: boolean): Field[] {
       access: adminOnly,
       label: { en: 'Active', th: 'ใช้งาน' },
     },
+    // Accounts made by signing up (`auth.members.signup`) are `false` until the email is confirmed.
+    ...(members
+      ? [
+          {
+            name: 'emailVerified',
+            type: 'boolean',
+            access: adminOnly,
+            position: 'sidebar',
+            label: { en: 'Email confirmed', th: 'ยืนยันอีเมลแล้ว' },
+          } satisfies Field,
+        ]
+      : []),
     { name: 'passwordHash', type: 'text', hidden: true },
   ]
 }
@@ -123,9 +142,12 @@ export function withUsers(config: Config): Config {
     useAsTitle: 'email',
     icon: 'users',
     ...custom,
-    fields: [...userFields(roles, config.auth?.rbac === true), ...(custom?.fields ?? [])],
+    fields: [
+      ...userFields(roles, config.auth?.rbac === true, config.auth?.members?.signup !== undefined),
+      ...(custom?.fields ?? []),
+    ],
     access: {
-      read: isLoggedIn,
+      read: staffOrSelf,
       create: ({ user }) => isSystemAdmin(user),
       update: adminOrSelf,
       delete: ({ user }) => isSystemAdmin(user),

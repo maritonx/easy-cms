@@ -26,6 +26,8 @@ const props = defineProps<{
   field?: AdminField
   label?: string
   readOnly?: boolean
+  /** A list's row: the document a cell shows a value of (outside an edit page). */
+  doc?: Record<string, unknown>
   /** On a page of its own (`admin.pages`): the rest of its path and the query. */
   route?: PageRoute
 }>()
@@ -60,7 +62,7 @@ function context(): ElementContext {
     path: props.path,
     field: props.field,
     label: props.label,
-    doc: JSON.parse(JSON.stringify(form?.doc.value ?? {})),
+    doc: JSON.parse(JSON.stringify(props.doc ?? form?.doc.value ?? {})),
     collection: form?.collection,
     global: form?.global,
     id: form?.id.value ?? null,

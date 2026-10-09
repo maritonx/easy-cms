@@ -116,6 +116,7 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
       resetPasswordExpiration: config.auth?.resetPasswordExpiration ?? 60 * 60,
       inviteExpiration: config.auth?.inviteExpiration ?? 7 * 24 * 60 * 60,
       emails: config.auth?.emails ?? {},
+      members: config.auth?.members ?? { roles: [] },
     },
     audit: config.audit ? resolveAudit(config.audit === true ? {} : config.audit) : false,
     collections: [
@@ -135,6 +136,8 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
     globals: config.globals ?? [],
     endpoints: config.endpoints ?? [],
     commands: config.commands ?? [],
+    events: config.events ?? [],
+    jobs: config.jobs ?? [],
     installedPlugins: (plugins ?? []).map((plugin) =>
       typeof plugin === 'function' && plugin.info ? { ...plugin.info } : {},
     ),
