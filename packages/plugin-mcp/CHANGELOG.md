@@ -1,5 +1,13 @@
 # @easy-cms/plugin-mcp
 
+## 0.47.2
+
+### Patch Changes
+
+- 73a2ef0: Needs `@modelcontextprotocol/sdk` 1.31.0 or newer, which fixes an advisory where the OAuth client could send credentials to an authorization server chosen by the MCP server (GHSA-6qxp-vccf-f47h). The Next.js starter template now asks for Next.js 16.3.8 or newer.
+- Updated dependencies [43833ab]
+  - @easy-cms/core@0.47.2
+
 ## 0.47.1
 
 ### Patch Changes

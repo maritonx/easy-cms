@@ -1,6 +1,6 @@
 {
   "name": "@easy-cms/plugin-multi-tenant",
-  "version": "0.47.1",
+  "version": "0.47.2",
   "description": "Multi-tenant Easy CMS: several sites or clients in one CMS, each with its own content, members and roles",
   "license": "MIT",
   "type": "module",

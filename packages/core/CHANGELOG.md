@@ -1,5 +1,11 @@
 # @easy-cms/core
 
+## 0.47.2
+
+### Patch Changes
+
+- 43833ab: Packing a package with npm or Yarn 1 now stops with a message when its `package.json` still has `workspace:` ranges, which those tools would publish as they are; pnpm, Yarn 2+ and Bun rewrite them and pass.
+
 ## 0.47.1
 
 No changes in this release.
