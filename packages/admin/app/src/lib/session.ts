@@ -8,7 +8,12 @@ export interface User {
   email: string
   name?: string | null
   role: string
+  /** The role holds in part of the site only, e.g. one tenant (see `AuthUser.scoped`). */
+  scoped?: boolean
 }
+
+/** An admin of the whole system, not of a part (`scoped`). */
+export const isSystemAdmin = (user: User | null) => user?.role === 'admin' && user.scoped !== true
 
 interface SessionState {
   loaded: boolean

@@ -1,9 +1,9 @@
 # Software Requirements Specification — Easy CMS
 
-- **เวอร์ชันเอกสาร:** 3.18
+- **เวอร์ชันเอกสาร:** 3.19
 - **วันที่:** 2026-10-08
 - **ผู้เขียน:** Kanawoot K.
-- **ครอบคลุม:** v0.1 (baseline) ถึง v0.43
+- **ครอบคลุม:** v0.1 (baseline) ถึง v0.44
 - **สถานะ:** Living document (อัปเดตทุกครั้งที่เพิ่มฟีเจอร์)
 - **เอกสารที่เกี่ยวข้อง:** [DESIGN.md](DESIGN.md), [ADRs](adr/)
 
@@ -519,6 +519,21 @@ AI assistant ► /api/cms/mcp ──┘                     └──► Webhook
 | FR-GQL-08 | error ต้องมี `extensions.code` ตาม REST (`VALIDATION_ERROR` พร้อม `fields`) และ error ที่ไม่คาดคิดต้องไม่เปิดเผยข้อความใน production | 0.43 | MUST |
 | FR-GQL-09 | `extend` ต้องเพิ่ม query, mutation และ field ลงใน type ที่สร้างได้, `buildGraphQLSchema`/`createContext` ต้องใช้กับ GraphQL server อื่นได้ และ `easy-cms generate:graphql` ต้องเขียน SDL, introspection และ GraphiQL (นอก production) ปิดได้ | 0.43 | SHOULD |
 
+### 3.25c Multi-tenant (MT) — [ADR-0047](adr/0047-multi-tenant.md)
+
+| ID | ความต้องการ | ตั้งแต่ | ระดับ |
+|---|---|---|---|
+| FR-MT-01 | config ต้องมี `onRequest` ที่คืน `context` ของ request และผู้ใช้ใน context นั้น และต้องส่ง `context` ให้ access, field access, hook, `filterOptions`, admin schema, endpoint ของ plugin และ Local API (ตัวเลือก `context`, `cms.forRequest`) | 0.44 | MUST |
+| FR-MT-02 | ผู้ใช้ที่ `scoped` ต้องเข้าส่วนของระบบไม่ได้ (backups, email, SSO, roles, ประวัติผู้ใช้ที่ถูกลบ, งานตั้งเวลา, การแก้ role ของ users, API key ของคนอื่น) แม้มี role `admin` | 0.44 | MUST |
+| FR-MT-03 | global ที่มี `scope` ต้องเก็บค่าแยกต่อ scope รวมถึง versions และงานตั้งเวลา และเมื่อไม่มี scope ต้องอ่านได้ค่าว่างและแก้ไม่ได้ | 0.44 | MUST |
+| FR-MT-04 | `uniqueWithin` ต้องใช้ได้กับทุก field ที่ `unique` และฐานข้อมูลต้องมี unique index ต่อ scope | 0.44 | MUST |
+| FR-MT-05 | `multiTenantPlugin()` ต้องเพิ่ม collection `tenants`, field `tenant` ใน collection ที่ระบุ (ตั้งจาก tenant ที่ทำงานอยู่ ห้ามเขียนหรือย้ายข้าม tenant) และกรองการอ่าน การแก้ และการลบตาม tenant | 0.44 | MUST |
+| FR-MT-06 | ผู้ใช้ต้องมีบทบาทต่อ tenant ได้ และใน request หนึ่งต้องได้บทบาทของ tenant ที่ทำงานอยู่ ส่วนผู้เข้าได้ทุก tenant (`userHasAccessToAllTenants`) เลือก tenant หรือเลือกทุก tenant ได้ | 0.44 | MUST |
+| FR-MT-07 | request ต้องระบุ tenant ได้ด้วย header, `?tenant=`, cookie ของ admin หรือโดเมน และ request ที่ไม่ระบุ tenant ต้องไม่พบเอกสารของ tenant ใด (เว้นแต่ตั้ง `publicReads: 'all'`) | 0.44 | MUST |
+| FR-MT-08 | admin ต้องมีตัวสลับ tenant (`admin.switcher`) และหน้า Members ให้ admin ของ tenant เพิ่มคนด้วยอีเมล เปลี่ยนบทบาท และนำออก โดยแก้บัญชีของคนอื่นไม่ได้ | 0.44 | MUST |
+| FR-MT-09 | unique และ slug ต้องห้ามซ้ำเฉพาะใน tenant, relationship ไป collection ของ tenant ต้องชี้ได้เฉพาะเอกสารใน tenant เดียวกัน และ API key ต้องจำ tenant ที่สร้างไว้ | 0.44 | MUST |
+| FR-MT-10 | ลบ tenant แล้วต้องลบเอกสารและไฟล์ของ tenant นั้น และ `easy-cms tenants:assign` ต้องใส่ tenant ให้เอกสารที่ยังไม่มี | 0.44 | SHOULD |
+
 ### 3.26 สำรองและย้ายข้อมูล (OPS)
 
 | ID | ความต้องการ | ตั้งแต่ | ระดับ |
@@ -798,6 +813,7 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 1.3 | 2026-09-25 | M5: FR-REST-08 (อัปโหลด/ไฟล์), FR-CFG-07 (`routes.api`, `serverURL`), ระบุว่า drafts ใน v0.1 ไม่มี version แยก |
 | 1.4 | 2026-09-25 | M6: ผลวัด NFR-PERF-01/02 บน Postgres 17 (Local API p95 2.7 ms, REST p95 4.3 ms), Next.js adapter ใช้ `getEasyCMS(config)` |
 | 1.5 | 2026-09-25 | M7: ผลตรวจรับ v0.1 (7.1) |
+| 3.19 | 2026-10-09 | 0.44: FR-MT-01..10 |
 | 3.18 | 2026-10-08 | 0.43: FR-GQL-01..09 |
 | 3.17 | 2026-10-08 | 0.42: FR-ADP-06 |
 | 3.16 | 2026-10-08 | 0.41: FR-UPL-15..16 |

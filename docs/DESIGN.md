@@ -3,7 +3,7 @@
 - **สถานะ:** Accepted (living document)
 - **วันที่:** 2026-10-01 (ฉบับแรก 2026-09-25)
 - **ผู้เขียน:** Kanawoot K.
-- **ครอบคลุม:** v0.1 ถึง v0.43
+- **ครอบคลุม:** v0.1 ถึง v0.44
 - **Requirements:** [SRS.md](SRS.md)
 
 ---
@@ -95,6 +95,11 @@ Plugin ยังเป็น `(config) => config` เหมือน v0.1 คว
 - **`@easy-cms/plugin-mcp`** เป็น endpoint `POST <api>/mcp` แบบ stateless (สร้าง server ใหม่ทุก request) จึงใช้บน serverless ได้ tool สร้างจาก collection และสิทธิ์ของ key
 → ดู [ADR-0019](adr/0019-api-keys-and-mcp.md)
 
+### 4.7 Multi-tenant และ context ของ request (0.44)
+- **`onRequest`** ใน config หา `context` ของแต่ละ request และผู้ใช้ใน context นั้น ส่งต่อให้ access, hook, `filterOptions` และ Local API (`context`) ผู้ใช้ที่ `scoped` เป็น admin ของส่วนของตัวเองเท่านั้น (`isSystemAdmin`)
+- **global ที่มี `scope`** เก็บค่าต่อ scope (`<slug>@<scope>`), **`uniqueWithin`** ใช้ได้ทุก field ที่ unique พร้อม index `(scope, field)`, **`admin.switcher`** ตัวเลือกด้านบนเมนูเก็บใน cookie
+- **`@easy-cms/plugin-multi-tenant`** แยก tenant แบบ row-level ในฐานข้อมูลเดียว: collection `tenants`, field `tenant`, สมาชิกและบทบาทต่อ tenant, global ต่อ tenant, ตัวสลับ และหน้า Members → ดู [ADR-0047](adr/0047-multi-tenant.md)
+
 ### 4.6 GraphQL (0.43)
 - **`@easy-cms/plugin-graphql`** สร้าง schema จาก config ที่ resolve แล้ว ทุก resolver เรียก Local API ด้วย `overrideAccess: false` ความสัมพันธ์โหลดผ่าน DataLoader ต่อ request จำกัดความลึก 7 และ 2000 เอกสารต่อ request ต่อยอดด้วย `extend` และ `buildGraphQLSchema` → ดู [ADR-0046](adr/0046-graphql-plugin.md)
 
@@ -116,6 +121,7 @@ Plugin ยังเป็น `(config) => config` เหมือน v0.1 คว
 | `@easy-cms/plugin-seo` | field `meta`, ตัวนับความยาว, ตัวอย่างผลการค้นหา, `seoMeta()`, sitemap, robots.txt, hreflang, JSON-LD (0.17), crawler ของ AI, llms.txt, Markdown, IndexNow (0.18) | 0.13 |
 | `@easy-cms/plugin-mcp` | MCP server สำหรับผู้ช่วย AI | 0.16 |
 | `@easy-cms/plugin-graphql` | GraphQL API: query และ mutation ของทุก collection/global, `extend`, `generate:graphql` | 0.43 |
+| `@easy-cms/plugin-multi-tenant` | หลาย tenant ใน CMS เดียว: เนื้อหา สมาชิก บทบาท และ global ต่อ tenant, ตัวสลับ, `tenants:assign` | 0.44 |
 | `@easy-cms/plugin-redirects` | redirect ในหน้า admin, redirect อัตโนมัติเมื่อที่อยู่เปลี่ยน, `resolveRedirect()` | 0.19 |
 | `@easy-cms/plugin-form-builder` | ฟอร์มในหน้า admin, submissions, อีเมลแจ้งเตือน, กันสแปม, `<easy-form>`, ภาพรวมฟอร์มและกล่องบนแดชบอร์ด (0.27) | 0.20 |
 | `@easy-cms/email-smtp` | email adapter ผ่าน SMTP (nodemailer) | 0.20 |
@@ -129,7 +135,7 @@ Repo: **pnpm workspaces + Turborepo + Changesets + Biome**
 ```
 easy-cms/
 ├── packages/   core, admin, nuxt, next, drizzle, db-sqlite, db-postgres, richtext, storage-s3,
-│               plugin-seo, plugin-mcp, plugin-graphql, plugin-redirects, plugin-form-builder, plugin-nested-docs, fields, email-smtp, cli,
+│               plugin-seo, plugin-mcp, plugin-graphql, plugin-multi-tenant, plugin-redirects, plugin-form-builder, plugin-nested-docs, fields, email-smtp, cli,
 │               create-easy-cms, integration (test เท่านั้น)
 ├── examples/   nuxt-blog, next-blog, standalone   (ใช้เป็น fixture ของ E2E ด้วย)
 ├── e2e/        Playwright ชุดเดียวสำหรับทั้งสามแอป + สคริปต์ถ่าย screenshot ของเอกสาร
@@ -401,3 +407,4 @@ CI รัน lint, typecheck, build และ test บน Linux, macOS และ
 - [ADR-0044](adr/0044-direct-uploads.md) — อัปโหลดไฟล์ใหญ่ตรงไปที่ storage และจำกัดการย้ายไฟล์
 - [ADR-0045](adr/0045-framework-kit.md) — ชุดเครื่องมือกลางสำหรับ framework
 - [ADR-0046](adr/0046-graphql-plugin.md) — GraphQL เป็น plugin
+- [ADR-0047](adr/0047-multi-tenant.md) — Multi-tenant เป็น plugin บนจุดต่อใน core

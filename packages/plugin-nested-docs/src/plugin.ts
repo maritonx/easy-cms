@@ -325,7 +325,7 @@ export function nestedDocsPlugin<
       method: 'get',
       // Lets the helpers find these options from the resolved config.
       handler: Object.assign(
-        async ({ params, url, user, cms }: Parameters<Endpoint['handler']>[0]) => {
+        async ({ params, url, user, context, cms }: Parameters<Endpoint['handler']>[0]) => {
           const collection = params.collection as string
           if (!source.collections.has(collection)) throw new NotFoundError('tree', collection)
           const locale = url.searchParams.get('locale')
@@ -334,6 +334,7 @@ export function nestedDocsPlugin<
             ...(locale ? { locale } : {}),
             ...(Number.isInteger(depth) && depth > 0 ? { depth } : {}),
             user,
+            context,
             overrideAccess: false,
           })
           return Response.json(nodes, { headers: { 'cache-control': 'public, max-age=60' } })

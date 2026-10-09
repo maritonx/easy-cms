@@ -8,8 +8,21 @@ export interface AuthUser {
   readonly id: ID
   readonly email: string
   readonly role: Role
+  /**
+   * Set by `onRequest` (e.g. a multi-tenant plugin) when `role` holds only in part of the site,
+   * such as one tenant: an `admin` there administers that part, not the whole system (Settings,
+   * backups, roles, other users' API keys).
+   */
+  readonly scoped?: boolean
   readonly [field: string]: unknown
 }
+
+/**
+ * An admin of the whole system: role `admin`, signed in (not an API key), and not an admin of a
+ * part only (`scoped`).
+ */
+export const isSystemAdmin = (user: AuthUser | null | undefined): boolean =>
+  user?.role === 'admin' && !user.apiKey && user.scoped !== true
 
 export interface WhereOperators {
   readonly equals?: unknown
@@ -31,9 +44,17 @@ export type Where = {
   readonly [field: string]: WhereOperators | readonly Where[] | undefined
 }
 
+/**
+ * What a request is about besides its user, e.g. the site or tenant it works in: set by
+ * `onRequest` in the config (usually a plugin's), or passed to the Local API as `context`.
+ */
+export type RequestContext = Readonly<Record<string, unknown>>
+
 export interface AccessArgs {
   /** `null` when the request is not logged in. */
   readonly user: AuthUser | null
+  /** The request's context (`onRequest`), `{}` when there is none. */
+  readonly context?: RequestContext
   readonly id?: ID
   readonly data?: Readonly<Record<string, unknown>>
 }

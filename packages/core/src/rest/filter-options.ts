@@ -1,4 +1,4 @@
-import type { AuthUser, ID, Where } from '../access.js'
+import type { AuthUser, ID, RequestContext, Where } from '../access.js'
 import { QueryError } from '../errors.js'
 import type { Field } from '../fields.js'
 import type { EasyCMS } from '../local-api.js'
@@ -26,6 +26,7 @@ export async function pickerFilter(
   url: URL,
   target: string,
   user: AuthUser | null,
+  context: RequestContext = {},
 ): Promise<Where | undefined> {
   const forCollection = url.searchParams.get('filterFor')
   const forGlobal = url.searchParams.get('filterForGlobal')
@@ -44,6 +45,6 @@ export async function pickerFilter(
   const rawId = url.searchParams.get('filterId')
   const id: ID | undefined =
     rawId === null || rawId === '' ? undefined : /^\d+$/.test(rawId) ? Number(rawId) : rawId
-  const where = await field.filterOptions({ id, user, cms })
+  const where = await field.filterOptions({ id, user, cms, context })
   return where === true ? undefined : where
 }

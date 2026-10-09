@@ -1,4 +1,4 @@
-import type { AuthUser } from '../access.js'
+import { type AuthUser, isSystemAdmin, type RequestContext } from '../access.js'
 import { API_KEYS, type ApiKeyPermissions } from '../api-keys.js'
 import { auditContext } from '../audit.js'
 import type { Session } from '../auth/auth.js'
@@ -53,6 +53,8 @@ interface Context {
   readonly request: Request
   readonly url: URL
   readonly user: AuthUser | null
+  /** The request's context (`onRequest`). */
+  readonly context: RequestContext
   /** How the request authenticated; cookie auth needs CSRF protection. */
   readonly via: 'cookie' | 'bearer' | null
   readonly token: string | undefined
@@ -151,11 +153,21 @@ async function respond(
     if (path === null) throw new HttpError('Not found', 404)
     const segments = pathSegments(path)
     const { token, via } = readToken(request)
-    const user = token ? await cms.auth.verify(token) : null
+    const signedIn = token ? await cms.auth.verify(token) : null
     // A script sending a bad key should hear so, not get anonymous access.
-    if (!user && via === 'bearer' && token?.startsWith('ecms_'))
+    if (!signedIn && via === 'bearer' && token?.startsWith('ecms_'))
       throw new UnauthorizedError('Invalid or expired API key')
-    const ctx: Context = { request, url, user, via: user ? via : null, token, headers }
+    // The config's `onRequest` (e.g. a tenant plugin): the context, and the user within it.
+    const { user, context } = await cms.applyOnRequest(request.headers, url, signedIn)
+    const ctx: Context = {
+      request,
+      url,
+      user,
+      context,
+      via: signedIn ? via : null,
+      token,
+      headers,
+    }
 
     const method = request.method.toUpperCase()
     if (method !== 'GET' && method !== 'HEAD') checkCsrf(cms, ctx)
@@ -247,6 +259,7 @@ async function customEndpoint(
       url: ctx.url,
       params,
       user: ctx.user,
+      context: ctx.context,
       ip: options.getClientIp?.(ctx.request),
       cms,
       json: () => readJson(ctx.request),
@@ -284,7 +297,12 @@ async function route(
   options: RestHandlerOptions,
 ): Promise<Result> {
   const [first, second, third] = segments
-  const access = { overrideAccess: false, user: ctx.user, ...parseLocale(ctx.url) } as const
+  const access = {
+    overrideAccess: false,
+    user: ctx.user,
+    context: ctx.context,
+    ...parseLocale(ctx.url),
+  } as const
   // Drafts are only for logged-in users; anonymous requests always see published documents.
   const draft = ctx.user !== null && ctx.url.searchParams.get('draft') === 'true'
 
@@ -392,7 +410,7 @@ async function route(
     const secret = cms.config.cronSecret ?? process.env.CRON_SECRET
     const header = ctx.request.headers.get('authorization') ?? ''
     const byCron = !!secret && safeEqual(header, `Bearer ${secret}`)
-    if (!byCron && ctx.user?.role !== 'admin') {
+    if (!byCron && !isSystemAdmin(ctx.user)) {
       throw ctx.user ? new HttpError('Forbidden', 403) : new UnauthorizedError()
     }
     return { body: await cms.runJobs() }
@@ -401,7 +419,7 @@ async function route(
   // Settings → Backups, for admins: list, back up now, download, delete.
   if (first === 'admin' && second === 'backups') {
     if (!ctx.user) throw new UnauthorizedError()
-    if (ctx.user.role !== 'admin' || ctx.user.apiKey) throw new ForbiddenError()
+    if (!isSystemAdmin(ctx.user)) throw new ForbiddenError()
     const [, , id, action, extra] = segments
     if (extra !== undefined) throw new HttpError('Not found', 404)
     if (id === undefined) {
@@ -445,7 +463,7 @@ async function route(
   // Settings → Email, for admins: the adapter's settings, a connection check and a test email.
   if (first === 'admin' && second === 'email') {
     if (!ctx.user) throw new UnauthorizedError()
-    if (ctx.user.role !== 'admin' || ctx.user.apiKey) throw new ForbiddenError()
+    if (!isSystemAdmin(ctx.user)) throw new ForbiddenError()
     const [, , action, extra] = segments
     if (extra !== undefined) throw new HttpError('Not found', 404)
     if (action === undefined) {
@@ -466,7 +484,7 @@ async function route(
   // Settings → SSO, for admins: the providers, their callback URLs, who may use a password.
   if (first === 'admin' && second === 'sso' && third === undefined) {
     if (!ctx.user) throw new UnauthorizedError()
-    if (ctx.user.role !== 'admin' || ctx.user.apiKey) throw new ForbiddenError()
+    if (!isSystemAdmin(ctx.user)) throw new ForbiddenError()
     if (method !== 'GET') throw methodNotAllowed(ctx, 'GET')
     return { body: cms.auth.sso.settings(ctx.url.origin) }
   }
@@ -511,7 +529,7 @@ async function route(
   // What a user owns, by collection (`auth.rbac`), for admins about to delete them.
   if (first === 'admin' && second === 'owned' && third !== undefined && segments.length === 3) {
     if (!ctx.user) throw new UnauthorizedError()
-    if (ctx.user.role !== 'admin' || ctx.user.apiKey) throw new ForbiddenError()
+    if (!isSystemAdmin(ctx.user)) throw new ForbiddenError()
     if (method !== 'GET') throw methodNotAllowed(ctx, 'GET')
     const parsed = parseId(third)
     if (parsed === undefined) throw new HttpError('Not found', 404)
@@ -532,7 +550,7 @@ async function route(
   // Settings → Roles (`auth.rbac`), for admins: the roles, add, change, delete, history.
   if (first === 'admin' && second === 'roles') {
     if (!ctx.user) throw new UnauthorizedError()
-    if (ctx.user.role !== 'admin' || ctx.user.apiKey) throw new ForbiddenError()
+    if (!isSystemAdmin(ctx.user)) throw new ForbiddenError()
     if (!cms.roles.enabled) throw new HttpError('Not found', 404)
     const [, , id, action, extra] = segments
     if (extra !== undefined) throw new HttpError('Not found', 404)
@@ -623,7 +641,7 @@ async function route(
     if (method !== 'GET') throw methodNotAllowed(ctx, 'GET')
     if (!ctx.user) throw new UnauthorizedError()
     if (second === 'schema' && third === undefined)
-      return { body: await adminSchema(cms, ctx.user, ctx.url.origin) }
+      return { body: await adminSchema(cms, ctx.user, ctx.url.origin, ctx.context) }
     // /admin/modules/:n.js → an admin module's code (`admin.modules`)
     if (second === 'modules' && third !== undefined && segments.length === 3) {
       const index = /^(\d+)\.js$/.exec(third)?.[1]
@@ -646,7 +664,13 @@ async function route(
     }
     // /admin/scheduled → the next scheduled publishes the user may manage (dashboard)
     if (second === 'scheduled' && third === undefined)
-      return { body: await cms.upcomingJobs({ user: ctx.user, overrideAccess: false }) }
+      return {
+        body: await cms.upcomingJobs({
+          user: ctx.user,
+          context: ctx.context,
+          overrideAccess: false,
+        }),
+      }
     // /admin/access/:collection/:id → what the user may do with that document
     const [, , collection, id, extra] = segments
     if (second === 'access' && collection && id && extra === undefined) {
@@ -656,7 +680,7 @@ async function route(
       ) {
         throw new HttpError(`Unknown collection "${collection}"`, 404)
       }
-      return { body: await cms.documentPermissions(collection, id, ctx.user) }
+      return { body: await cms.documentPermissions(collection, id, ctx.user, ctx.context) }
     }
     throw new HttpError('Not found', 404)
   }
@@ -781,7 +805,7 @@ async function route(
   if (second === undefined) {
     if (method === 'GET') {
       const query = parseListQuery(ctx.url)
-      const filter = await pickerFilter(cms, ctx.url, collection, ctx.user)
+      const filter = await pickerFilter(cms, ctx.url, collection, ctx.user, ctx.context)
       if (filter) query.where = query.where ? { and: [query.where, filter] } : filter
       return { body: await cms.find(collection, { ...access, ...query, draft }) }
     }
@@ -848,13 +872,18 @@ async function documentAction(
   id: string,
   path: string[],
 ): Promise<Result> {
-  const access = { overrideAccess: false, user: ctx.user, ...parseLocale(ctx.url) } as const
+  const access = {
+    overrideAccess: false,
+    user: ctx.user,
+    context: ctx.context,
+    ...parseLocale(ctx.url),
+  } as const
   const depth = parseDepth(ctx.url)
   const [action, versionId, extra] = path
   // An admin emails a user a link to set their password (an invitation, or a reset).
   if (collection === USERS && action === 'password-link' && path.length === 1) {
     if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
-    if (ctx.user?.role !== 'admin' || ctx.user.apiKey) throw new ForbiddenError()
+    if (!isSystemAdmin(ctx.user)) throw new ForbiddenError()
     const body = await readJson(ctx.request).catch(() => ({}) as Record<string, unknown>)
     const sent = await cms.auth.sendPasswordLink(/^\d+$/.test(id) ? Number(id) : id, {
       origin: ctx.url.origin,
@@ -923,7 +952,12 @@ async function globalAction(
   slug: string,
   path: string[],
 ): Promise<Result> {
-  const access = { overrideAccess: false, user: ctx.user, ...parseLocale(ctx.url) } as const
+  const access = {
+    overrideAccess: false,
+    user: ctx.user,
+    context: ctx.context,
+    ...parseLocale(ctx.url),
+  } as const
   const depth = parseDepth(ctx.url)
   const [action, versionId, extra] = path
   if (action === 'versions' && versionId === undefined) {
@@ -1158,6 +1192,7 @@ async function servePrivateFile(
       limit: 5,
       depth: 0,
       user: ctx.user,
+      context: ctx.context,
       overrideAccess: false,
     })
     const owns = found.docs.some(
@@ -1289,7 +1324,7 @@ async function ssoRoute(
       // Admins may look at anyone's (`?user=`); others at their own.
       const asked = ctx.url.searchParams.get('user')
       const target = asked === null ? ctx.user.id : (parseId(asked) ?? asked)
-      if (String(target) !== String(ctx.user.id) && (ctx.user.role !== 'admin' || ctx.user.apiKey))
+      if (String(target) !== String(ctx.user.id) && !isSystemAdmin(ctx.user))
         throw new ForbiddenError()
       return { body: await sso.identities(target) }
     }

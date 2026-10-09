@@ -1,4 +1,4 @@
-import { type Access, anyone, type ID, isAdmin, isLoggedIn } from './access.js'
+import { type Access, type AuthUser, anyone, type ID, isLoggedIn, isSystemAdmin } from './access.js'
 import type { CollectionConfig, Config } from './config.js'
 import type { Field } from './fields.js'
 
@@ -61,12 +61,12 @@ export function withCreatedBy(config: Config): Config {
 /** Admins can update anyone; other users only themselves. */
 const adminOrSelf: Access = ({ user }) => {
   if (!user) return false
-  if (user.role === 'admin') return true
+  if (isSystemAdmin(user)) return true
   return { id: { equals: user.id } }
 }
 
 const adminOnly = {
-  update: ({ user }: { user: { role: string } | null }) => user?.role === 'admin',
+  update: ({ user }: { user: AuthUser | null }) => isSystemAdmin(user),
 }
 
 function userFields(roles: readonly string[], rbac: boolean): Field[] {
@@ -126,9 +126,9 @@ export function withUsers(config: Config): Config {
     fields: [...userFields(roles, config.auth?.rbac === true), ...(custom?.fields ?? [])],
     access: {
       read: isLoggedIn,
-      create: isAdmin,
+      create: ({ user }) => isSystemAdmin(user),
       update: adminOrSelf,
-      delete: isAdmin,
+      delete: ({ user }) => isSystemAdmin(user),
       ...custom?.access,
     },
   }
@@ -336,13 +336,31 @@ export function withMedia(config: Config): Config {
       ],
     },
   }
-  const others = (config.collections ?? []).filter((c) => c.slug !== MEDIA)
+  // A `media-folders` collection in the config (e.g. from a plugin) adds fields, access and hooks.
+  const customFolders = config.collections?.find((c) => c.slug === MEDIA_FOLDERS)
+  const mediaFolders: CollectionConfig = customFolders
+    ? {
+        ...mediaFoldersCollection,
+        fields: [...mediaFoldersCollection.fields, ...customFolders.fields],
+        access: { ...mediaFoldersCollection.access, ...customFolders.access },
+        hooks: {
+          ...customFolders.hooks,
+          afterRead: [
+            ...(mediaFoldersCollection.hooks?.afterRead ?? []),
+            ...(customFolders.hooks?.afterRead ?? []),
+          ],
+        },
+      }
+    : mediaFoldersCollection
+  const others = (config.collections ?? []).filter(
+    (c) => c.slug !== MEDIA && c.slug !== MEDIA_FOLDERS,
+  )
   return {
     ...config,
     collections: [
       ...others.slice(0, 1),
       media,
-      ...(folders ? [mediaFoldersCollection] : []),
+      ...(folders ? [mediaFolders] : []),
       ...others.slice(1),
     ],
   }

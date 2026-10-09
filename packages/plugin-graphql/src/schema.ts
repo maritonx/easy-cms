@@ -754,7 +754,8 @@ class Builder {
     const type = this.objects.get(slug) as GraphQLObjectType
     const drafts = c.drafts === true
     const where = this.whereType(c.fields, names.type, drafts, true)
-    const access = (ctx: GraphQLContext) => ({ user: ctx.user, overrideAccess: false }) as const
+    const access = (ctx: GraphQLContext) =>
+      ({ user: ctx.user, context: ctx.context, overrideAccess: false }) as const
 
     query[names.one] = {
       type,
@@ -901,7 +902,8 @@ class Builder {
     const slug = g.slug
     const names = this.names.globals.get(slug) as GlobalNames
     const drafts = g.drafts === true
-    const access = (ctx: GraphQLContext) => ({ user: ctx.user, overrideAccess: false }) as const
+    const access = (ctx: GraphQLContext) =>
+      ({ user: ctx.user, context: ctx.context, overrideAccess: false }) as const
     query[names.one] = {
       type,
       ...describe(g.label),

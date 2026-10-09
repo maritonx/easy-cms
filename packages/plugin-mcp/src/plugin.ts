@@ -38,14 +38,14 @@ export function mcpPlugin(options: McpPluginOptions = {}): Plugin {
     const endpoint: Endpoint = {
       path: options.path ?? '/mcp',
       method: 'post',
-      handler: async ({ request, user, cms }) => {
+      handler: async ({ request, user, context, cms }) => {
         if (!user?.apiKey) {
           return Response.json(
             { errors: [{ message: 'Connect with an API key: Authorization: Bearer ecms_…' }] },
             { status: 401, headers: { 'www-authenticate': 'Bearer' } },
           )
         }
-        const tools = buildTools(cms, user, options)
+        const tools = buildTools(cms, user, options, context)
         const server = new Server(
           { name: options.name ?? 'easy-cms', version: '1.0.0' },
           {

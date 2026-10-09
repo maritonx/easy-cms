@@ -1,3 +1,4 @@
+import type { RequestContext } from '@easy-cms/core'
 import { findSource, type SeoCMS, siteOf, visiblePages } from './source.js'
 
 /** One page in the sitemap, in the shape of Next.js `MetadataRoute.Sitemap`. */
@@ -15,6 +16,11 @@ export interface SitemapOptions {
    * `admin.siteUrl`, then `serverURL`.
    */
   readonly siteUrl?: string
+  /**
+   * The context to read in, e.g. the tenant of the requesting domain (`cms.forRequest(request)`,
+   * or `context` of an endpoint). Default: none.
+   */
+  readonly context?: RequestContext
 }
 
 export interface SitemapXmlOptions extends SitemapOptions {
@@ -45,6 +51,7 @@ export async function sitemap(cms: SeoCMS, options: SitemapOptions = {}): Promis
     await visiblePages(cms, source, {
       locale,
       site,
+      ...(options.context ? { context: options.context } : {}),
       each: ({ key, doc, url }) => {
         const page: Page = pages.get(key) ?? { urls: new Map() }
         page.urls.set(locale, url)

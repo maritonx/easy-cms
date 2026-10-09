@@ -1,4 +1,4 @@
-import type { AuthUser, ID, Where } from './access.js'
+import { type AuthUser, type ID, isSystemAdmin, type Where } from './access.js'
 import { API_KEYS } from './api-keys.js'
 import {
   EMAIL_DELIVERIES,
@@ -215,7 +215,7 @@ export class Roles {
    * it; without roles, nobody else (`status`, `deliveries`) or everybody (plugin pages).
    */
   async canView(user: AuthUser, id: string): Promise<boolean> {
-    if (user.role === 'admin' && !user.apiKey) return true
+    if (isSystemAdmin(user)) return true
     if (user.apiKey) return false
     if (!this.enabled) return id.startsWith('page:') || id.startsWith('widget:')
     return (await this.permissionsOf(user.role)).admin?.includes(id) ?? false

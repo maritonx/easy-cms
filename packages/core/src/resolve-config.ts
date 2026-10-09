@@ -90,6 +90,7 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
       modules: config.admin?.modules ?? [],
       pages: config.admin?.pages ?? [],
       dashboard: config.admin?.dashboard ?? [],
+      switcher: config.admin?.switcher ?? null,
     },
     upload: {
       dir: config.upload?.dir ?? 'uploads',

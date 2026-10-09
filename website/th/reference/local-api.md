@@ -11,6 +11,7 @@ Local API เชื่อผู้เรียกและข้ามกฎส�
 |---|---|---|
 | `overrideAccess` | ทุก method | `false` ใช้กฎสิทธิ์ของ `user` ค่าเริ่มต้น `true` |
 | `user` | ทุก method | ผู้ใช้ที่ใช้ตรวจสิทธิ์ `null` คือไม่ได้ login |
+| `context` | ทุก method | เรื่องอื่นนอกจากผู้ใช้ของการเรียก เช่น tenant ส่งให้กฎสิทธิ์ hook และ `filterOptions` ได้จาก `forRequest` หรือกำหนดเอง |
 | `depth` | การอ่านและเขียน | จำนวนชั้นของ relationship ที่ populate ค่าเริ่มต้น 1 สูงสุด 3 |
 | `locale` | การอ่านและเขียน | ภาษาของเนื้อหา หรือ `'all'` เพื่อได้ `{ [locale]: value }` ค่าเริ่มต้นคือภาษาเริ่มต้น |
 | `draft` | การอ่าน | รวมฉบับร่าง ค่าเริ่มต้นคืนเฉพาะที่เผยแพร่แล้ว |
@@ -112,6 +113,7 @@ Local API เชื่อผู้เรียกและข้ามกฎส�
 | `createApiKey({ name, permissions?, expiresAt?, user? }, options?)` | `{ key, doc }` | [API key](/th/guide/api-keys) ใหม่ (เมื่อมี `apiKeys: true`) key จะถูกคืนมาที่นี่ครั้งเดียว |
 | `documentPermissions(collection, id, user)` | `{ update, delete }` | ผู้ใช้ทำอะไรกับเอกสารนี้ได้บ้าง |
 | `destroy()` | — | หยุดตัวจับเวลา รอการส่ง webhook และปิดการเชื่อมต่อฐานข้อมูล |
+| `forRequest(request \| headers)` | `{ user, context }` | ผู้ใช้ (cookie session หรือ Bearer token) และ context (`onRequest`) ของ request แบบเดียวกับ REST ส่งทั้งคู่พร้อม `overrideAccess: false` |
 
 object `cms` ยังมี `config` (config ที่ resolve แล้ว), `auth` (การ login และตรวจ session),
 `auth.sso` (การเข้าสู่ระบบด้วย `auth.providers`), `audit` (เมื่อเปิด `audit`: `audit.record({ action, target, doc })` เขียนรายการ), `roles` (เมื่อเปิด `auth.rbac`: `roles.allows(user, { collection }, operation)` บอกว่า role ของผู้ใช้อนุญาตอะไร),

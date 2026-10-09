@@ -15,6 +15,9 @@ const browser = {
 /** A mock OpenID Connect provider: Nuxt and standalone sign in with it (single sign-on). */
 const OIDC = 'http://localhost:3110'
 
+/** The multi-tenant example (`examples/multi-tenant`), on the standalone server. */
+const TENANTS = 'http://localhost:3104'
+
 /** Where the standalone example's frontend is served; the suite uses it as that app's public site. */
 const FRONTEND = 'http://localhost:3103'
 
@@ -53,10 +56,15 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? 'github' : 'list',
   use: { trace: 'retain-on-failure', screenshot: 'only-on-failure' },
-  projects: apps.map((app) => ({
-    name: app.name,
-    use: { ...browser, baseURL: `http://localhost:${app.port}` },
-  })),
+  projects: [
+    ...apps.map((app) => ({
+      name: app.name,
+      testMatch: 'admin.spec.ts',
+      use: { ...browser, baseURL: `http://localhost:${app.port}` },
+    })),
+    // Several tenants in one CMS (multi-tenant plugin), on the standalone server.
+    { name: 'tenants', testMatch: 'tenants.spec.ts', use: { ...browser, baseURL: TENANTS } },
+  ],
   webServer: [
     ...apps.map((app) => ({
       name: app.name,
@@ -92,6 +100,17 @@ export default defineConfig({
       command: `node oidc-provider.ts ${new URL(OIDC).port}`,
       url: `${OIDC}/.well-known/openid-configuration`,
       reuseExistingServer: false,
+    },
+    {
+      name: 'tenants',
+      command: `pnpm --dir ../examples/multi-tenant exec easy-cms serve --port ${new URL(TENANTS).port}`,
+      url: `${TENANTS}/api/cms/users/init`,
+      timeout: 180_000,
+      reuseExistingServer: false,
+      env: {
+        EASY_CMS_SECRET: SECRET,
+        DATABASE_URL: `file:${join(scratch, 'tenants.db')}`,
+      },
     },
     // The standalone example's frontend, on its own origin.
     {

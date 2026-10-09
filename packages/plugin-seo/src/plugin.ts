@@ -378,11 +378,12 @@ export function seoPlugin<const C extends string = never, const G extends string
     const api = config.routes?.api ?? '/api/cms'
     const sitemapHandler = (base: (origin: string) => string): Endpoint['handler'] =>
       Object.assign(
-        async ({ url, cms }: Parameters<Endpoint['handler']>[0]) => {
+        async ({ url, cms, context }: Parameters<Endpoint['handler']>[0]) => {
           const site = config.admin?.siteUrl || config.serverURL || url.origin
           return xmlResponse(
             await sitemapXml(cms as never, {
               siteUrl: site,
+              context,
               page: url.searchParams.get('page'),
               base: base(url.origin),
             }),
@@ -431,9 +432,9 @@ export function seoPlugin<const C extends string = never, const G extends string
           path: '/llms.txt',
           method: 'get',
           root: true,
-          handler: async ({ url, cms }) =>
+          handler: async ({ url, cms, context }) =>
             textResponse(
-              await llmsTxt(cms as never, { siteUrl: site(url.origin) }),
+              await llmsTxt(cms as never, { siteUrl: site(url.origin), context }),
               'text/markdown',
             ),
         },
@@ -441,9 +442,9 @@ export function seoPlugin<const C extends string = never, const G extends string
           path: '/llms-full.txt',
           method: 'get',
           root: true,
-          handler: async ({ url, cms }) =>
+          handler: async ({ url, cms, context }) =>
             textResponse(
-              await llmsFullTxt(cms as never, { siteUrl: site(url.origin) }),
+              await llmsFullTxt(cms as never, { siteUrl: site(url.origin), context }),
               'text/markdown',
             ),
         },

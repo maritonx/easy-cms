@@ -24,6 +24,7 @@ import { listed, menuOrder } from '../lib/menu'
 import { logout, session } from '../lib/session'
 import { settings } from '../lib/settings'
 import { brandName, initials, setTheme, type ThemeMode, themeMode } from '../lib/theme'
+import SwitcherSelect from './SwitcherSelect.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -133,6 +134,7 @@ async function onLogout() {
           <X :size="18" aria-hidden="true" />
         </button>
       </div>
+      <SwitcherSelect />
 
       <RouterLink to="/" class="nav-link" exact-active-class="active">
         <LayoutDashboard :size="18" aria-hidden="true" />

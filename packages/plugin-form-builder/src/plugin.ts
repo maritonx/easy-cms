@@ -458,7 +458,7 @@ export function formBuilderPlugin<
     const csvEndpoint: Endpoint = {
       path: '/form/:slug/submissions.csv',
       method: 'get',
-      handler: async ({ params, user, cms }) => {
+      handler: async ({ params, user, context, cms }) => {
         const slug = params.slug as string
         if (!user) return fail(401, [{ message: 'Log in to export submissions' }])
         const { docs } = await cms.find(forms, {
@@ -468,6 +468,7 @@ export function formBuilderPlugin<
           draft: true,
           overrideAccess: false,
           user,
+          context,
         })
         const form = docs[0] as Row | undefined
         if (!form) return fail(404, [{ message: `No form "${slug}"` }])
@@ -481,6 +482,7 @@ export function formBuilderPlugin<
             depth: 0,
             overrideAccess: false,
             user,
+            context,
           })
           rows.push(...(result.docs as Row[]))
           if (!result.hasNextPage) break
@@ -518,7 +520,7 @@ export function formBuilderPlugin<
     const statsEndpoint: Endpoint = {
       path: '/form/stats.json',
       method: 'get',
-      handler: async ({ url, user, cms }) => {
+      handler: async ({ url, user, context, cms }) => {
         if (!user) return fail(401, [{ message: 'Log in to see form statistics' }])
         const days = url.searchParams.get('days') === '30' ? 30 : 7
         const timeZone = validTimeZone(url.searchParams.get('tz'))
@@ -544,6 +546,7 @@ export function formBuilderPlugin<
             draft: true,
             overrideAccess: false,
             user,
+            context,
           })
           formRows.push(...(result.docs as Row[]))
           if (!result.hasNextPage) break
@@ -559,6 +562,7 @@ export function formBuilderPlugin<
             depth: 0,
             overrideAccess: false,
             user,
+            context,
           })
           for (const row of result.docs as Row[]) {
             const perDay = counts.get(String(row.form))

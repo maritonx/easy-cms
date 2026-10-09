@@ -13,6 +13,7 @@ to apply them, as the REST API does.
 |---|---|---|
 | `overrideAccess` | every method | `false` applies access rules for `user`. Default `true`. |
 | `user` | every method | The user to check access for; `null` = not logged in. |
+| `context` | every method | What the call is about besides its user, e.g. its tenant: given to access rules, hooks and `filterOptions`. From `forRequest`, or your own. |
 | `depth` | reads and writes | Levels of relationships to populate. Default 1, at most 3. |
 | `locale` | reads and writes | A content locale, or `'all'` for `{ [locale]: value }`. Default: the default locale. |
 | `draft` | reads | Include drafts. Default: published documents only. |
@@ -114,6 +115,7 @@ to apply them, as the REST API does.
 | `createApiKey({ name, permissions?, expiresAt?, user? }, options?)` | `{ key, doc }` | A new [API key](/guide/api-keys) (with `apiKeys: true`); the key is returned only here. |
 | `documentPermissions(collection, id, user)` | `{ update, delete }` | What a user may do with one document. |
 | `destroy()` | — | Stops the scheduler, waits for webhook deliveries and closes the database. |
+| `forRequest(request \| headers)` | `{ user, context }` | A request's user (session cookie or Bearer token) and context (`onRequest`), as REST works them out; pass both with `overrideAccess: false`. |
 
 The `cms` object also has `config` (the resolved config), `auth` (login and session checks),
 `auth.sso` (signing in with `auth.providers`), `audit` (with `audit`: `audit.record({ action, target, doc })` writes an entry), `roles` (with `auth.rbac`: `roles.allows(user, { collection }, operation)` says what a user's role

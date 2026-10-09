@@ -19,7 +19,14 @@ import { contentLocale, localeQuery, setContentLocale } from '../lib/content-loc
 import { initialValues, snapshot, titleOf, toFormValues } from '../lib/fields'
 import { formatBytes, formatDate, label, singularize, t } from '../lib/i18n'
 import { FORM, setPath } from '../lib/plugins'
-import { findCollection, loadSession, session, setFlash, takeFlash } from '../lib/session'
+import {
+  findCollection,
+  isSystemAdmin,
+  loadSession,
+  session,
+  setFlash,
+  takeFlash,
+} from '../lib/session'
 import { notify, showMessages } from '../lib/toast'
 import { missingLocales } from '../lib/translation'
 
@@ -68,7 +75,7 @@ const form = ref<Record<string, unknown>>(collection ? initialValues(collection.
 const password = ref('')
 // Admins can email a link to set the password instead (needs email in the CMS config).
 const canSendLink = computed(
-  () => isUsers && session.schema?.passwordLinks === true && session.user?.role === 'admin',
+  () => isUsers && session.schema?.passwordLinks === true && isSystemAdmin(session.user),
 )
 const sendingLink = ref(false)
 /** Emails the user a link to set their password: an invitation, or a reset link. */
@@ -554,7 +561,7 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
           <span class="field-hint">{{ t('users.sendLinkHint') }}</span>
         </div>
         <!-- Admins: the outside accounts this user signs in with (`auth.providers`). -->
-        <IdentitiesPanel v-if="isUsers && id && session.user?.role === 'admin'" :user-id="id" class="identities" />
+        <IdentitiesPanel v-if="isUsers && id && isSystemAdmin(session.user)" :user-id="id" class="identities" />
       </div>
 
       <LivePreview

@@ -11,8 +11,8 @@ const { isDark } = useData()
 
 const COPY = {
   en: {
-    badge: 'New in 0.43: a GraphQL API',
-    badgeLink: 'graphql',
+    badge: 'New in 0.44: several sites in one CMS (multi-tenant)',
+    badgeLink: 'multi-tenant',
     title: 'Your CMS,',
     titleAccent: 'inside your app',
     tagline:
@@ -230,8 +230,8 @@ const COPY = {
     ctaGuide: 'Read the guide',
   },
   th: {
-    badge: 'ใหม่ใน 0.43: GraphQL API',
-    badgeLink: 'graphql',
+    badge: 'ใหม่ใน 0.44: หลายเว็บใน CMS เดียว (multi-tenant)',
+    badgeLink: 'multi-tenant',
     title: 'CMS ที่อยู่',
     titleAccent: 'ในแอปของคุณ',
     tagline: 'กำหนดเนื้อหาด้วย TypeScript ได้หน้า admin, API ที่มี type และ plugin โดยไม่ต้องดูแล server แยก',

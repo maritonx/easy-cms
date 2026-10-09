@@ -1,4 +1,4 @@
-import type { AuthUser, FieldAccess, ID, Where } from './access.js'
+import type { AuthUser, FieldAccess, ID, RequestContext, Where } from './access.js'
 import type { EasyCMS } from './local-api.js'
 import { expandMimeTypes } from './media.js'
 
@@ -65,6 +65,12 @@ interface BaseField<TType extends string, TValue> {
   readonly label?: Label
   readonly required?: boolean
   readonly unique?: boolean
+  /**
+   * With `unique` (or on a slug field): the name of a sibling field (e.g. `parent` or `tenant`)
+   * whose documents only need to differ among themselves, so `/about/team` and `/careers/team`
+   * can both be `team`. A single, unlocalized relationship, select, text or number field.
+   */
+  readonly uniqueWithin?: string
   readonly index?: boolean
   readonly defaultValue?: TValue
   readonly validate?: FieldValidate<TValue>
@@ -118,11 +124,6 @@ export interface SelectField extends BaseField<'select', string | readonly strin
 export interface SlugField extends BaseField<'slug', string> {
   /** Name of a sibling `text` field to generate the slug from. */
   readonly from?: string
-  /**
-   * Name of a sibling field (e.g. `parent`): slugs then only need to differ among documents
-   * with the same value there, so `/about/team` and `/careers/team` can both be `team`.
-   */
-  readonly uniqueWithin?: string
 }
 
 /** Tiptap / ProseMirror JSON document. */
@@ -161,6 +162,8 @@ export interface FilterOptionsArgs {
   readonly id: ID | undefined
   readonly user: AuthUser | null
   readonly cms: EasyCMS
+  /** The request's context (`onRequest`), `{}` when there is none. */
+  readonly context: RequestContext
 }
 
 /**

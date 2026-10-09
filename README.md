@@ -42,7 +42,7 @@ your repository, the admin and APIs come with it, and there is no extra server t
   API.
 - **An admin editors like**, in English and Thai: drafts, version history, live preview,
   scheduled publishing, blocks, translations, a media library and a light and dark theme.
-- **Official plugins** for SEO, forms, redirects, nested pages, GraphQL and AI assistants (MCP).
+- **Official plugins** for SEO, forms, redirects, nested pages, GraphQL, several sites in one CMS (multi-tenant) and AI assistants (MCP).
 
 > [!NOTE]
 > Easy CMS is pre-1.0: the API may change between minor versions. Each release lists its changes in
@@ -166,6 +166,7 @@ cd my-cms && npm run dev       # http://localhost:4000/admin
 | [`@easy-cms/plugin-nested-docs`](packages/plugin-nested-docs) | Pages inside pages: parents, full paths, breadcrumbs, a tree in the admin | [Nested pages](https://maritonx.github.io/easy-cms/guide/nested-docs) |
 | [`@easy-cms/plugin-graphql`](packages/plugin-graphql) | GraphQL API: queries and mutations for every collection and global, with your access rules | [GraphQL](https://maritonx.github.io/easy-cms/guide/graphql) |
 | [`@easy-cms/plugin-mcp`](packages/plugin-mcp) | Model Context Protocol server for AI assistants | [MCP](https://maritonx.github.io/easy-cms/guide/mcp) |
+| [`@easy-cms/plugin-multi-tenant`](packages/plugin-multi-tenant) | Several sites or clients in one CMS: content, members, roles and settings per tenant, a tenant switcher | [Multi-tenant](https://maritonx.github.io/easy-cms/guide/multi-tenant) |
 
 Plugins are functions over your config: write your own with fields, endpoints, admin components,
 admin pages, dashboard panels and CLI commands. See [Plugins](https://maritonx.github.io/easy-cms/guide/plugins). Packages can

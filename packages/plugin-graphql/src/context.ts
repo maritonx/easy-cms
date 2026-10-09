@@ -4,6 +4,7 @@ import {
   ForbiddenError,
   type ID,
   type RawDocument,
+  type RequestContext,
   UnauthorizedError,
 } from '@easy-cms/core'
 import DataLoader from 'dataloader'
@@ -18,10 +19,12 @@ export interface ReadArgs {
 
 /** What resolvers receive as their context, yours from `extend` included. */
 export interface GraphQLContext {
-  /** The Local API. Pass `{ user, overrideAccess: false }` to apply the reader's access rules. */
+  /** The Local API. Pass `{ user, context, overrideAccess: false }` to apply the reader's access rules. */
   readonly cms: EasyCMS
   /** The logged-in user or API key, or `null`. */
   readonly user: AuthUser | null
+  /** The request's context (`onRequest`, e.g. its tenant): pass it to the Local API with `user`. */
+  readonly context: RequestContext
   /**
    * One document by id, with the reader's access. Loads in the same tick are batched into one
    * query per collection, and count towards `limits.documents`.
@@ -34,6 +37,8 @@ export interface GraphQLContext {
 export interface ContextOptions {
   /** Most documents one request may load. Default 2000. */
   readonly documents?: number
+  /** The request's context (`onRequest`). */
+  readonly context?: RequestContext
 }
 
 export const DEFAULT_DOCUMENTS = 2000
@@ -67,6 +72,7 @@ export function createContext(
   options: ContextOptions = {},
 ): GraphQLContext {
   const max = options.documents ?? DEFAULT_DOCUMENTS
+  const context = options.context ?? {}
   let loaded = 0
   const count = (documents: number) => {
     loaded += documents
@@ -87,6 +93,7 @@ export function createContext(
           try {
             const found = await cms.find(collection, {
               user,
+              context,
               overrideAccess: false,
               where: { id: { in: [...ids] } },
               limit: 0,
@@ -112,6 +119,7 @@ export function createContext(
   return {
     cms,
     user,
+    context,
     count,
     load: (collection, id, read = {}) => loaderFor(collection, read).load(id),
   }

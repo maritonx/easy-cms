@@ -30,6 +30,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `globals` | `GlobalConfig[]` | `[]` | See [globals](#globals). |
 | `endpoints` | `Endpoint[]` | `[]` | See [endpoints](#endpoints). |
 | `commands` | `CliCommand[]` | `[]` | `easy-cms <name>` commands, e.g. from plugins: `{ name, description, help?, run({ cms, args, log }) }`. [CLI](/guide/cli#commands-from-plugins) |
+| `onRequest` | `({ headers, url, user, cms }) => { context?, user? }` | — | Runs on each API request once its user is known: returns the request's `context` (e.g. its tenant) and may change the user (their role there, `scoped`). Usually set by a plugin. [Multi-tenant](/guide/multi-tenant#how-it-works) |
 | `apiKeys` | `boolean` | `false` | API keys under Settings, for scripts and other apps. [API keys](/guide/api-keys) |
 | `email` | `EmailAdapter` | — | Sends email for plugins, e.g. `smtp()` or `consoleEmail()`. [Email](/guide/email) |
 | `backups` | `BackupsConfig` | by hand only | Database backups on a schedule. See [backups](#backups). |
@@ -57,6 +58,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `modules` | `string[]` | `[]` | Admin modules with Web Components: package exports or paths. [Admin components](/guide/plugins#admin-components) |
 | `pages` | `AdminPage[]` | `[]` | Pages of their own at `<admin>/p/<path>`, e.g. from plugins. See [pages](#pages). |
 | `dashboard` | `DashboardWidget[]` | `[]` | Panels on the dashboard after the built-in ones. See [dashboard](#dashboard). |
+| `switcher` | `{ cookie, label, options }` | — | A choice at the top of the menu for the whole admin, e.g. the tenant, kept in a cookie. `options`: a path under the API returning `{ options: [{ value, label }], all? }`. Usually set by a plugin. |
 
 <!-- api: AdminBrand -->
 ### brand
@@ -250,6 +252,7 @@ Every hook also gets `user`, `cms` and `slug`.
 | `schedule` | `boolean` | `false` | Needs `drafts`. |
 | `preview` | `({ doc, locale }) => string \| null` | — | |
 | `access` | `{ read?, update? }` | logged in | |
+| `scope` | `({ context, user }) => string \| null \| undefined` | — | One value per scope, e.g. per tenant: a string keeps a value of its own, `undefined` the shared one, `null` none (reads give it empty, changes are refused). |
 | `hooks` | `GlobalHooks` | — | See below. |
 | `admin` | `ContainerAdmin` | — | `{ sidebar }`, as for collections. |
 
@@ -281,6 +284,7 @@ Every hook also gets `user`, `cms` and `slug`.
 | `url` | `URL` | Its URL. |
 | `params` | `Record<string, string>` | Values of `:name` segments. |
 | `user` | `AuthUser \| null` | The logged-in user. |
+| `context` | `RequestContext` | The request's context (`onRequest`); pass it to the Local API with `user`. |
 | `ip` | `string \| undefined` | The client's IP address, when the adapter knows it. |
 | `cms` | `EasyCMS` | The [Local API](./local-api). |
 | `json` | `() => Promise<object>` | The JSON body (an object, at most 1 MB). |

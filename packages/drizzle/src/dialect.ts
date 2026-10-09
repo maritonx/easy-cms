@@ -55,8 +55,8 @@ export interface Dialect {
     columns: Record<string, ColumnBuilder>,
     indexes: (t: Record<string, AnyColumn>) => IndexBuilder[],
   ): AnyTable
-  index(name: string): { on(column: AnyColumn): IndexBuilder }
-  uniqueIndex(name: string): { on(column: AnyColumn): IndexBuilder }
+  index(name: string): { on(...columns: AnyColumn[]): IndexBuilder }
+  uniqueIndex(name: string): { on(...columns: AnyColumn[]): IndexBuilder }
 
   /** Auto-incrementing integer primary key. */
   serial(name: string): ColumnBuilder

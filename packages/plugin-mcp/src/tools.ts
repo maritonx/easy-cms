@@ -6,6 +6,7 @@ import {
   type ID,
   INTERNAL_COLLECTIONS,
   keyAllows,
+  type RequestContext,
   type Where,
 } from '@easy-cms/core'
 import { type JsonSchema, objectSchema, prepareInput } from './schema.js'
@@ -54,8 +55,13 @@ const obj = (properties: JsonSchema, required: string[] = []): JsonSchema => ({
  * The tools a user (normally an API key) may use: one per collection or global and operation,
  * only where the key allows it. Access rules are applied again on every call.
  */
-export function buildTools(cms: EasyCMS, user: AuthUser, options: ToolOptions = {}): Tool[] {
-  const access = { user, overrideAccess: false } as const
+export function buildTools(
+  cms: EasyCMS,
+  user: AuthUser,
+  options: ToolOptions = {},
+  context: RequestContext = {},
+): Tool[] {
+  const access = { user, context, overrideAccess: false } as const
   const may = (target: { collection: string } | { global: string }, op: Operation) =>
     keyAllows(user, target, op)
   const tools: Tool[] = []

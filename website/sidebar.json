@@ -254,6 +254,13 @@
             "en": "MCP (AI assistants)",
             "th": "MCP (ผู้ช่วย AI)"
           }
+        },
+        {
+          "path": "guide/multi-tenant",
+          "title": {
+            "en": "Multi-tenant",
+            "th": "Multi-tenant"
+          }
         }
       ]
     },

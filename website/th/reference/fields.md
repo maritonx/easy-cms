@@ -13,6 +13,7 @@
 | `label` | `string \| { en, th }` | ค่าเริ่มต้นคือชื่อ field ที่แปลงให้อ่านง่าย |
 | `required` | `boolean` | ต้องมีค่า (ไม่ตรวจตอนบันทึกฉบับร่าง) |
 | `unique` | `boolean` | เอกสารสองรายการใช้ค่าซ้ำกันไม่ได้ (field ระดับบนสุด) |
+| `uniqueWithin` | `string` | ใช้กับ `unique` หรือ slug: field ข้างเคียง (เช่น `parent`, `tenant`) ค่าห้ามซ้ำเฉพาะเอกสารที่มีค่าใน field นั้นเหมือนกัน |
 | `index` | `boolean` | สร้าง index ในฐานข้อมูล |
 | `defaultValue` | ค่าของ field | ใช้เมื่อสร้างเอกสารโดยไม่มีค่านี้ |
 | `validate` | `(value, { data, operation }) => true \| string` | ตรวจเอง เป็น async ได้ |

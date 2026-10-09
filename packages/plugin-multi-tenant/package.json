@@ -1,0 +1,49 @@
+{
+  "name": "@easy-cms/plugin-multi-tenant",
+  "version": "0.43.0",
+  "description": "Multi-tenant Easy CMS: several sites or clients in one CMS, each with its own content, members and roles",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./admin": "./dist/admin.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "@easy-cms/core": "workspace:^"
+  },
+  "devDependencies": {
+    "@easy-cms/core": "workspace:^",
+    "@easy-cms/db-sqlite": "workspace:^"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maritonx/easy-cms.git",
+    "directory": "packages/plugin-multi-tenant"
+  },
+  "keywords": [
+    "easy-cms",
+    "easy-cms-plugin",
+    "multi-tenant",
+    "multi-site",
+    "tenants"
+  ]
+}

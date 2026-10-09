@@ -1,3 +1,4 @@
+import type { RequestContext } from '@easy-cms/core'
 import { META_FIELD } from './shared.js'
 
 export type Doc = Record<string, unknown>
@@ -139,6 +140,8 @@ export async function visiblePages(
   options: {
     readonly locale: string | null
     readonly site: string | undefined
+    /** The context to read in, e.g. a tenant. */
+    readonly context?: RequestContext
     readonly sort?: string
     /** Populate relationships and uploads, e.g. for images in Markdown. Default 0. */
     readonly depth?: number
@@ -168,6 +171,7 @@ export async function visiblePages(
         cms.find(collection, {
           overrideAccess: false,
           user: null,
+          ...(options.context ? { context: options.context } : {}),
           depth: options.depth ?? 0,
           sort: options.sort ?? 'id',
           limit,
@@ -187,6 +191,7 @@ export async function visiblePages(
       cms.findGlobal(global, {
         overrideAccess: false,
         user: null,
+        ...(options.context ? { context: options.context } : {}),
         depth: options.depth ?? 0,
         ...(locale ? { locale } : {}),
       }),

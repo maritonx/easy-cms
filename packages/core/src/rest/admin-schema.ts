@@ -1,9 +1,21 @@
-import type { Access, AuthUser, ID } from '../access.js'
+import {
+  type Access,
+  type AuthUser,
+  type ID,
+  isSystemAdmin,
+  type RequestContext,
+} from '../access.js'
 import { evaluateAccess, FieldAccessChecker } from '../access-control.js'
 import { API_KEYS } from '../api-keys.js'
 import type { SsoProviderRef } from '../auth/sso.js'
 import { EMAIL_DELIVERIES, INTERNAL_COLLECTIONS, USERS, WEBHOOK_DELIVERIES } from '../builtins.js'
-import type { AdminLocale, AdminViewAccess, CollectionConfig, GlobalConfig } from '../config.js'
+import type {
+  AdminLocale,
+  AdminSwitcher,
+  AdminViewAccess,
+  CollectionConfig,
+  GlobalConfig,
+} from '../config.js'
 import type { AdminComponent, Field, Label } from '../fields.js'
 import type { EasyCMS } from '../local-api.js'
 import { expandMimeTypes } from '../media.js'
@@ -125,6 +137,8 @@ export interface AdminWidgetRef {
 
 export interface AdminSchema {
   locale: AdminLocale
+  /** A choice for the whole admin, e.g. the tenant (`admin.switcher`). */
+  switcher: AdminSwitcher | null
   /** Admins can email users links to set their password (needs `email` and `serverURL`). */
   passwordLinks: boolean
   /** Menu order of collections (`admin.menu`); unlisted ones follow. */
@@ -175,8 +189,12 @@ function componentRef(component: AdminComponent): AdminComponentRef {
 }
 
 /** A `where` result means "some documents", so the action is offered and the server decides per document. */
-async function allowed(access: Access | undefined, user: AuthUser): Promise<boolean> {
-  return (await evaluateAccess(access, { user })) !== false
+async function allowed(
+  access: Access | undefined,
+  user: AuthUser,
+  context: RequestContext,
+): Promise<boolean> {
+  return (await evaluateAccess(access, { user, context })) !== false
 }
 
 async function serializeFields(
@@ -268,11 +286,11 @@ async function serializeFields(
 }
 
 /** Field access for the user: `access` in the code and, with roles, their role's field rules. */
-async function checkers(cms: EasyCMS, user: AuthUser) {
+async function checkers(cms: EasyCMS, user: AuthUser, context: RequestContext) {
   const rules = await cms.roles.fieldRules(user)
   return {
-    update: new FieldAccessChecker('update', { user }, rules),
-    read: new FieldAccessChecker('read', { user }, rules),
+    update: new FieldAccessChecker('update', { user, context }, rules),
+    read: new FieldAccessChecker('read', { user, context }, rules),
   }
 }
 
@@ -283,9 +301,11 @@ async function may(
   user: AuthUser,
   target: { collection: string } | { global: string },
   operation: RoleOperation,
+  context: RequestContext,
 ): Promise<boolean> {
   return (
-    (await allowed(access, user)) && (await cms.roles.allows(user, target, operation)) !== false
+    (await allowed(access, user, context)) &&
+    (await cms.roles.allows(user, target, operation)) !== false
   )
 }
 
@@ -295,11 +315,12 @@ async function collection(
   user: AuthUser,
   localized: boolean,
   roles: { key: string; name: string }[],
+  context: RequestContext,
 ): Promise<AdminCollection> {
   const target = { collection: config.slug }
   const fields = await serializeFields(
     config.fields,
-    await checkers(cms, user),
+    await checkers(cms, user, context),
     localized,
     folderIds(cms),
   )
@@ -319,12 +340,13 @@ async function collection(
     schedule: config.schedule === true,
     fields,
     permissions: {
-      read: await may(cms, config.access?.read, user, target, 'read'),
-      create: await may(cms, config.access?.create, user, target, 'create'),
-      update: await may(cms, config.access?.update, user, target, 'update'),
-      delete: await may(cms, config.access?.delete, user, target, 'delete'),
+      read: await may(cms, config.access?.read, user, target, 'read', context),
+      create: await may(cms, config.access?.create, user, target, 'create', context),
+      update: await may(cms, config.access?.update, user, target, 'update', context),
+      delete: await may(cms, config.access?.delete, user, target, 'delete', context),
       publish:
-        config.drafts === true && (await may(cms, config.access?.update, user, target, 'publish')),
+        config.drafts === true &&
+        (await may(cms, config.access?.update, user, target, 'publish', context)),
     },
   }
   if (config.labels) result.labels = config.labels
@@ -347,9 +369,10 @@ async function global(
   config: GlobalConfig,
   user: AuthUser,
   localized: boolean,
+  context: RequestContext,
 ): Promise<AdminGlobal> {
   const target = { global: config.slug }
-  const checks = await checkers(cms, user)
+  const checks = await checkers(cms, user, context)
   const result: AdminGlobal = {
     slug: config.slug,
     drafts: config.drafts === true,
@@ -358,10 +381,11 @@ async function global(
     schedule: config.schedule === true,
     fields: await serializeFields(config.fields, checks, localized, folderIds(cms)),
     permissions: {
-      read: await may(cms, config.access?.read, user, target, 'read'),
-      update: await may(cms, config.access?.update, user, target, 'update'),
+      read: await may(cms, config.access?.read, user, target, 'read', context),
+      update: await may(cms, config.access?.update, user, target, 'update', context),
       publish:
-        config.drafts === true && (await may(cms, config.access?.update, user, target, 'publish')),
+        config.drafts === true &&
+        (await may(cms, config.access?.update, user, target, 'publish', context)),
     },
   }
   if (config.label !== undefined) result.label = config.label
@@ -375,11 +399,13 @@ export async function adminSchema(
   cms: EasyCMS,
   user: AuthUser,
   origin?: string,
+  context: RequestContext = {},
 ): Promise<AdminSchema> {
   const collections = cms.config.collections.filter((c) => !INTERNAL_COLLECTIONS.has(c.slug))
   const localization = cms.config.localization
   const localized = localization !== null
-  const admin = user.role === 'admin' && !user.apiKey
+  // Settings are for admins of the whole system, not of a part (`scoped`, e.g. one tenant).
+  const admin = isSystemAdmin(user)
   const deliveries = cms.config.collections.some(
     (c) => c.slug === WEBHOOK_DELIVERIES || c.slug === EMAIL_DELIVERIES,
   )
@@ -395,15 +421,18 @@ export async function adminSchema(
   const roles = await cms.roles.options()
   return {
     locale: cms.config.admin.locale,
+    switcher: cms.config.admin.switcher,
     passwordLinks: cms.auth.canSendPasswordLinks(origin),
     menu: [...cms.config.admin.menu],
     localization: localization
       ? { locales: [...localization.locales], defaultLocale: localization.defaultLocale }
       : null,
     collections: await Promise.all(
-      collections.map((c) => collection(cms, c, user, localized, roles)),
+      collections.map((c) => collection(cms, c, user, localized, roles, context)),
     ),
-    globals: await Promise.all(cms.config.globals.map((g) => global(cms, g, user, localized))),
+    globals: await Promise.all(
+      cms.config.globals.map((g) => global(cms, g, user, localized, context)),
+    ),
     modules: adminModuleUrls(cms),
     uploadFromURL: cms.config.upload.fromURL !== undefined,
     upload: {

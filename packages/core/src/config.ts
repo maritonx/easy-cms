@@ -1,4 +1,4 @@
-import type { AuthUser, CollectionAccess, GlobalAccess, ID } from './access.js'
+import type { AuthUser, CollectionAccess, GlobalAccess, ID, RequestContext } from './access.js'
 import type { AuditConfig } from './audit.js'
 import type { PasswordEmailFn } from './auth/emails.js'
 import type { AuthProvider } from './auth/providers.js'
@@ -22,6 +22,8 @@ interface HookBase {
   readonly cms: EasyCMS
   /** Slug of the collection or global. */
   readonly slug: string
+  /** The request's context (`onRequest`, or `context` of a Local API call); `{}` when there is none. */
+  readonly context: RequestContext
 }
 
 export type BeforeValidateHook = (
@@ -159,6 +161,15 @@ export interface GlobalConfig {
   readonly preview?: PreviewURL
   readonly access?: GlobalAccess
   readonly hooks?: GlobalHooks
+  /**
+   * One value per scope, e.g. per tenant (usually set by a plugin): the scope of a call, from its
+   * context (`onRequest`). A string keeps a value of its own; `undefined` the shared value; `null`
+   * means the call has none, so reads give the global empty and changes are refused.
+   */
+  readonly scope?: (args: {
+    readonly context: RequestContext
+    readonly user: AuthUser | null
+  }) => string | null | undefined
   /** Custom admin components. */
   readonly admin?: ContainerAdmin
 }
@@ -291,6 +302,24 @@ export interface AdminConfig {
   readonly pages?: readonly AdminPage[]
   /** Panels on the dashboard, after the built-in ones. */
   readonly dashboard?: readonly DashboardWidget[]
+  /**
+   * A choice at the top of the menu that applies to everything in the admin, e.g. the tenant
+   * (usually set by a plugin). The choice is kept in a cookie, which every request of the admin
+   * sends; `onRequest` reads it.
+   */
+  readonly switcher?: AdminSwitcher | null
+}
+
+/** See `AdminConfig.switcher`. */
+export interface AdminSwitcher {
+  /** Cookie that keeps the choice, e.g. `ecms-tenant`. */
+  readonly cookie: string
+  readonly label: Label
+  /**
+   * Path under the API that lists the choices for the logged-in user:
+   * `{ options: [{ value, label }], all?: Label }`, with `all` to offer "all of them" (value `*`).
+   */
+  readonly options: string
 }
 
 export interface ImageSize {
@@ -409,6 +438,29 @@ export interface AuthConfig {
   }
 }
 
+/** What `onRequest` receives. */
+export interface OnRequestArgs {
+  readonly headers: Headers
+  /** The request's URL; `undefined` when only headers are known (`cms.forRequest(headers)`). */
+  readonly url: URL | undefined
+  /** The user of the session or API key, before `onRequest` changes it; `null` when anonymous. */
+  readonly user: AuthUser | null
+  readonly cms: EasyCMS
+}
+
+/**
+ * Runs on each API request (REST, plugin endpoints, `cms.forRequest`) after the user is known:
+ * returns the request's `context` (e.g. the tenant it works in, from a header) and may change the
+ * user (e.g. their role in that tenant, `scoped`). Plugins that set it call the one before.
+ */
+export type OnRequest = (args: OnRequestArgs) => MaybePromise<
+  | {
+      readonly user?: AuthUser | null
+      readonly context?: RequestContext
+    }
+  | undefined
+>
+
 /** What an endpoint's handler receives. */
 export interface EndpointRequest {
   readonly request: Request
@@ -417,6 +469,8 @@ export interface EndpointRequest {
   readonly params: Readonly<Record<string, string>>
   /** The logged-in user (session cookie or Bearer token), or `null`. */
   readonly user: AuthUser | null
+  /** The request's context (`onRequest`): pass it to the Local API with `user`. */
+  readonly context: RequestContext
   /** The client's IP address, when the adapter knows it (e.g. to rate-limit a public form). */
   readonly ip: string | undefined
   /** The Local API. Pass `{ user, overrideAccess: false }` to apply the user's access rules. */
@@ -575,6 +629,8 @@ export interface Config {
   readonly endpoints?: readonly Endpoint[]
   /** Extra `easy-cms <name>` CLI commands, e.g. from plugins. */
   readonly commands?: readonly CliCommand[]
+  /** The request's context and user, worked out on each API request (usually by a plugin). */
+  readonly onRequest?: OnRequest
   /**
    * Field types from packages, e.g. `color` from `@easy-cms/fields`: fields then use
    * `type: 'color'`. See `defineFieldType`.

@@ -42,6 +42,21 @@ importers:
         specifier: ^0.35.4
         version: 0.35.4(@types/node@22.20.4)
 
+  examples/multi-tenant:
+    dependencies:
+      '@easy-cms/core':
+        specifier: workspace:^
+        version: link:../../packages/core
+      '@easy-cms/db-sqlite':
+        specifier: workspace:^
+        version: link:../../packages/db-sqlite
+      '@easy-cms/plugin-multi-tenant':
+        specifier: workspace:^
+        version: link:../../packages/plugin-multi-tenant
+      easy-cms:
+        specifier: workspace:^
+        version: link:../../packages/cli
+
   examples/next-blog:
     dependencies:
       '@easy-cms/auth-oauth':
@@ -479,6 +494,15 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: ^1.30.1
         version: 1.30.1(zod@4.6.5)
+    devDependencies:
+      '@easy-cms/core':
+        specifier: workspace:^
+        version: link:../core
+      '@easy-cms/db-sqlite':
+        specifier: workspace:^
+        version: link:../db-sqlite
+
+  packages/plugin-multi-tenant:
     devDependencies:
       '@easy-cms/core':
         specifier: workspace:^

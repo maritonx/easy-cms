@@ -13,6 +13,7 @@ look in the admin and how they are stored, see [Fields](/guide/fields).
 | `label` | `string \| { en, th }` | Default: the name, humanized. |
 | `required` | `boolean` | Must have a value (not checked while saving a draft). |
 | `unique` | `boolean` | No two documents share the value (top-level fields). |
+| `uniqueWithin` | `string` | With `unique` or on a slug: a sibling field (e.g. `parent`, `tenant`); values only differ among documents with the same value there. |
 | `index` | `boolean` | Adds a database index. |
 | `defaultValue` | the field's value | Used when a document is created without it. |
 | `validate` | `(value, { data, operation }) => true \| string` | Custom check; may be async. |

@@ -29,6 +29,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `globals` | `GlobalConfig[]` | `[]` | ดู [globals](#globals) |
 | `endpoints` | `Endpoint[]` | `[]` | ดู [endpoints](#endpoints) |
 | `commands` | `CliCommand[]` | `[]` | คำสั่ง `easy-cms <name>` เช่นจาก plugin: `{ name, description, help?, run({ cms, args, log }) }` [CLI](/th/guide/cli#commands-from-plugins) |
+| `onRequest` | `({ headers, url, user, cms }) => { context?, user? }` | — | ทำงานทุก request ของ API เมื่อรู้ผู้ใช้แล้ว: คืน `context` ของ request (เช่น tenant) และเปลี่ยนผู้ใช้ได้ (บทบาทใน tenant นั้น, `scoped`) ปกติ plugin เป็นผู้ตั้ง [Multi-tenant](/th/guide/multi-tenant#how-it-works) |
 | `apiKeys` | `boolean` | `false` | API key ใต้ตั้งค่า สำหรับสคริปต์และแอปอื่น [API keys](/th/guide/api-keys) |
 | `email` | `EmailAdapter` | — | ส่งอีเมลให้ plugin เช่น `smtp()` หรือ `consoleEmail()` [อีเมล](/th/guide/email) |
 | `backups` | `BackupsConfig` | กดทำเองเท่านั้น | backup ฐานข้อมูลตามรอบ ดู [backups](#backups) |
@@ -56,6 +57,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `modules` | `string[]` | `[]` | admin module ที่มี Web Components: export ของแพ็กเกจหรือ path [Admin components](/th/guide/plugins#admin-components) |
 | `pages` | `AdminPage[]` | `[]` | หน้าของตัวเองที่ `<admin>/p/<path>` เช่น จาก plugin ดู [pages](#pages) |
 | `dashboard` | `DashboardWidget[]` | `[]` | กล่องบนแดชบอร์ดต่อจากกล่องที่มีอยู่เดิม ดู [dashboard](#dashboard) |
+| `switcher` | `{ cookie, label, options }` | — | ตัวเลือกด้านบนของเมนูที่ใช้กับทั้ง admin เช่น tenant เก็บใน cookie `options` คือ path ใต้ API ที่คืน `{ options: [{ value, label }], all? }` ปกติ plugin เป็นผู้ตั้ง |
 
 <!-- api: AdminBrand -->
 ### brand {#brand}
@@ -249,6 +251,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `schedule` | `boolean` | `false` | ต้องมี `drafts` |
 | `preview` | `({ doc, locale }) => string \| null` | — | |
 | `access` | `{ read?, update? }` | ต้อง login | |
+| `scope` | `({ context, user }) => string \| null \| undefined` | — | เก็บค่าแยกตาม scope เช่นต่อ tenant: string ได้ค่าของตัวเอง `undefined` ใช้ค่ากลาง `null` ไม่มี (อ่านได้ค่าว่าง แก้ไม่ได้) |
 | `hooks` | `GlobalHooks` | — | ดูด้านล่าง |
 | `admin` | `ContainerAdmin` | — | `{ sidebar }` เหมือน collection |
 
@@ -280,6 +283,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `url` | `URL` | URL ของ request |
 | `params` | `Record<string, string>` | ค่าของ segment แบบ `:name` |
 | `user` | `AuthUser \| null` | ผู้ใช้ที่ login อยู่ |
+| `context` | `RequestContext` | context ของ request (`onRequest`) ส่งต่อให้ Local API พร้อม `user` |
 | `ip` | `string \| undefined` | IP ของ client ถ้า adapter รู้ |
 | `cms` | `EasyCMS` | [Local API](./local-api) |
 | `json` | `() => Promise<object>` | body แบบ JSON (ต้องเป็น object ขนาดไม่เกิน 1 MB) |

@@ -163,6 +163,14 @@ function validateAdmin(config: Config, add: Add) {
       "e.g. siteUrl: 'https://example.com'",
     )
   }
+  const switcher: unknown = admin.switcher
+  if (switcher !== undefined && switcher !== null) {
+    const { cookie, options } = switcher as { cookie?: unknown; options?: unknown }
+    if (typeof cookie !== 'string' || !/^[A-Za-z0-9_-]+$/.test(cookie))
+      add('admin.switcher.cookie', 'must be a cookie name (letters, digits, - and _)')
+    if (typeof options !== 'string' || !options.startsWith('/'))
+      add('admin.switcher.options', 'must be a path under the API starting with "/"')
+  }
   const modules: unknown = admin.modules
   if (modules !== undefined) {
     if (!Array.isArray(modules)) {
@@ -937,6 +945,23 @@ function validateField(
       if (cell !== undefined) validateComponent(cell, `${path}.admin.cell`, add)
     }
   }
+  if (field.uniqueWithin !== undefined) {
+    const scope = siblings.get(field.uniqueWithin)
+    if (!field.unique && field.type !== 'slug') {
+      add(`${path}.uniqueWithin`, 'needs `unique: true` (or a slug field)')
+    } else if (!scope || scope === field) {
+      add(`${path}.uniqueWithin`, `no sibling field named "${field.uniqueWithin}"`)
+    } else if (
+      !['relationship', 'select', 'text', 'number'].includes(scope.type) ||
+      ('hasMany' in scope && scope.hasMany) ||
+      scope.localized
+    ) {
+      add(
+        `${path}.uniqueWithin`,
+        `"${field.uniqueWithin}" must be a single, unlocalized relationship, select, text or number field`,
+      )
+    }
+  }
   switch (field.type) {
     case 'text':
     case 'textarea':
@@ -955,21 +980,6 @@ function validateField(
           add(`${path}.from`, `no sibling field named "${field.from}"`)
         } else if (source.type !== 'text') {
           add(`${path}.from`, `"${field.from}" must be a text field (got ${source.type})`)
-        }
-      }
-      if (field.uniqueWithin !== undefined) {
-        const scope = siblings.get(field.uniqueWithin)
-        if (!scope || scope === field) {
-          add(`${path}.uniqueWithin`, `no sibling field named "${field.uniqueWithin}"`)
-        } else if (
-          !['relationship', 'select', 'text', 'number'].includes(scope.type) ||
-          ('hasMany' in scope && scope.hasMany) ||
-          scope.localized
-        ) {
-          add(
-            `${path}.uniqueWithin`,
-            `"${field.uniqueWithin}" must be a single, unlocalized relationship, select, text or number field`,
-          )
         }
       }
       break

@@ -214,7 +214,8 @@ function buildTable(
   const described: unknown[] = []
   const columnModels: ColumnModel[] = []
   const children: ChildModel[] = []
-  const indexes: { column: string; unique: boolean }[] = []
+  // `within`: unique together with that column (`uniqueWithin`).
+  const indexes: { column: string; unique: boolean; within?: string }[] = []
 
   const add = (column: string, builderColumn: ColumnBuilder, desc: unknown) => {
     if (Object.hasOwn(columns, column)) {
@@ -335,8 +336,14 @@ function buildTable(
           if (
             topLevel &&
             kind === 'root' &&
-            (field.unique || (field.type === 'slug' && field.uniqueWithin === undefined))
+            (field.unique || field.type === 'slug') &&
+            field.uniqueWithin !== undefined
           ) {
+            // Unique among documents with the same value there, e.g. per parent or tenant; and
+            // an index of its own, for lookups by this field alone.
+            indexes.push({ column, unique: true, within: snake(field.uniqueWithin) })
+            indexes.push({ column, unique: false })
+          } else if (topLevel && kind === 'root' && (field.unique || field.type === 'slug')) {
             indexes.push({ column, unique: true })
           } else if (
             field.index ||
@@ -354,8 +361,10 @@ function buildTable(
   walk(fields, [], true)
 
   const table = dialect.table(name, columns, (t: Record<string, AnyColumn>) =>
-    indexes.map(({ column, unique }) => {
+    indexes.map(({ column, unique, within }) => {
       const col = t[column]
+      if (within)
+        return dialect.uniqueIndex(`${name}_${within}_${column}_unique`).on(t[within], col)
       return unique
         ? dialect.uniqueIndex(`${name}_${column}_unique`).on(col)
         : dialect.index(`${name}_${column}_idx`).on(col)

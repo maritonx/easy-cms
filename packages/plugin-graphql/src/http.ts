@@ -4,6 +4,7 @@ import {
   EasyCMSError,
   ForbiddenError,
   NotFoundError,
+  type RequestContext,
   UnauthorizedError,
   ValidationError,
 } from '@easy-cms/core'
@@ -165,6 +166,7 @@ export async function runGraphQL(
   input: GraphQLRequest,
   options: RunOptions,
   onlyQueries = false,
+  context: RequestContext = {},
 ): Promise<{ status: number; body: ExecutionResult | Json; allow?: string }> {
   let document: DocumentNode
   try {
@@ -201,7 +203,7 @@ export async function runGraphQL(
     document,
     variableValues: input.variables ?? undefined,
     operationName: input.operationName ?? undefined,
-    contextValue: createContext(cms, user, { documents: options.documents }),
+    contextValue: createContext(cms, user, { documents: options.documents, context }),
   })
   const body: Json = {
     ...(result.errors ? { errors: result.errors.map((e) => formatError(e, cms)) } : {}),
@@ -217,6 +219,7 @@ export async function handleGraphQL(
     readonly request: Request
     readonly url: URL
     readonly user: AuthUser | null
+    readonly context: RequestContext
     readonly cms: EasyCMS
     json(): Promise<Json>
   },
@@ -233,6 +236,6 @@ export async function handleGraphQL(
   }
   const input = get ? fromSearchParams(url) : fromBody(await args.json())
   if (typeof input === 'string') return requestError(input, request)
-  const { status, body, allow } = await runGraphQL(cms, user, input, options, get)
+  const { status, body, allow } = await runGraphQL(cms, user, input, options, get, args.context)
   return respond(body, status, request, allow ? { allow } : {})
 }

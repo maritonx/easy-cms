@@ -1,5 +1,5 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
-import type { Access, AuthUser } from './access.js'
+import { type Access, type AuthUser, isSystemAdmin, type RequestContext } from './access.js'
 import type { CollectionConfig } from './config.js'
 
 export const API_KEYS = 'api-keys'
@@ -20,6 +20,11 @@ export interface ApiKeyPermissions {
    * or missing: every folder.
    */
   readonly folders?: readonly (string | number)[]
+  /**
+   * The context the key was created in (`onRequest`, e.g. its tenant), kept for good: requests
+   * with the key get it as `user.apiKey.permissions.context`. Set by Easy CMS, not by input.
+   */
+  readonly context?: RequestContext
 }
 
 /** Set on `AuthUser.apiKey` when a request authenticated with an API key. */
@@ -81,10 +86,9 @@ export function keyAllows(
   return allowed?.includes(operation) ?? false
 }
 
-const isAdmin = (user: AuthUser | null) => user?.role === 'admin'
-/** Admins manage every key; other users only their own. API keys never manage keys. */
+/** Admins of the system manage every key; other users only their own. API keys never manage keys. */
 const ownKeys: Access = ({ user }) =>
-  !user || user.apiKey ? false : isAdmin(user) ? true : { user: { equals: user.id } }
+  !user || user.apiKey ? false : isSystemAdmin(user) ? true : { user: { equals: user.id } }
 const system = { update: () => false }
 
 /** The `api-keys` collection, added with `apiKeys: true`. Keys are created with `cms.createApiKey()`. */
@@ -143,18 +147,21 @@ export const apiKeysCollection: CollectionConfig = {
     { name: 'keyHash', type: 'text', hidden: true },
   ],
   hooks: {
-    // Only real collections, globals and operations are kept.
+    // Only real collections, globals and operations are kept. A key keeps the context it was
+    // created in (`createApiKey`), whatever its permissions are changed to.
     beforeChange: [
-      ({ data, cms }) =>
-        data.permissions === undefined
-          ? data
-          : {
-              ...data,
-              permissions: cleanPermissions(data.permissions, {
-                collections: cms.config.collections.map((c) => c.slug),
-                globals: cms.config.globals.map((g) => g.slug),
-              }),
-            },
+      ({ data, cms, operation, originalDoc }) => {
+        if (data.permissions === undefined) return data
+        const context =
+          operation === 'create'
+            ? (data.permissions as ApiKeyPermissions).context
+            : (originalDoc?.permissions as ApiKeyPermissions | undefined)?.context
+        const permissions = cleanPermissions(data.permissions, {
+          collections: cms.config.collections.map((c) => c.slug),
+          globals: cms.config.globals.map((g) => g.slug),
+        })
+        return { ...data, permissions: context ? { ...permissions, context } : permissions }
+      },
     ],
   },
 }

@@ -1,3 +1,4 @@
+import type { RequestContext } from '@easy-cms/core'
 import { renderMarkdown } from '@easy-cms/richtext'
 import { META_FIELD } from './shared.js'
 import {
@@ -17,6 +18,11 @@ import {
 export interface LlmsTxtOptions {
   /** The site's public address, to make links absolute. Default `admin.siteUrl`, then `serverURL`. */
   readonly siteUrl?: string
+  /**
+   * The context to read in, e.g. the tenant of the requesting domain (`cms.forRequest(request)`,
+   * or `context` of an endpoint). Default: none.
+   */
+  readonly context?: RequestContext
 }
 
 export interface LlmsFullTxtOptions extends LlmsTxtOptions {
@@ -47,6 +53,7 @@ export async function llmsTxt(cms: SeoCMS, options: LlmsTxtOptions = {}): Promis
   const site = siteOf(cms, options.siteUrl)
   const sections = new Map<string, string[]>()
   await visiblePages(cms, source, {
+    ...(options.context ? { context: options.context } : {}),
     locale,
     site,
     sort: '-createdAt',
@@ -62,7 +69,7 @@ export async function llmsTxt(cms: SeoCMS, options: LlmsTxtOptions = {}): Promis
       sections.set(heading, [...(sections.get(heading) ?? []), line])
     },
   })
-  const lines = [`# ${inline(await siteTitle(cms, source, locale))}`]
+  const lines = [`# ${inline(await siteTitle(cms, source, locale, options.context))}`]
   if (source.llms.description) lines.push('', `> ${inline(source.llms.description)}`)
   for (const [heading, items] of sections) lines.push('', `## ${inline(heading)}`, '', ...items)
   return `${lines.join('\n')}\n`
@@ -77,12 +84,13 @@ export async function llmsFullTxt(cms: SeoCMS, options: LlmsFullTxtOptions = {})
   const locale = localeOf(cms, source)
   const site = siteOf(cms, options.siteUrl)
   const max = options.maxBytes ?? DEFAULT_MAX_BYTES
-  const header = [`# ${inline(await siteTitle(cms, source, locale))}`]
+  const header = [`# ${inline(await siteTitle(cms, source, locale, options.context))}`]
   if (source.llms.description) header.push('', `> ${inline(source.llms.description)}`)
   const parts: string[] = []
   let bytes = byteLength(header.join('\n'))
   let full = false
   await visiblePages(cms, source, {
+    ...(options.context ? { context: options.context } : {}),
     locale,
     site,
     sort: '-createdAt',
@@ -222,11 +230,21 @@ function localeOf(cms: SeoCMS, source: SeoSource): string | null {
 }
 
 /** `llms.title`, else the name in a global with SEO fields (e.g. `site.siteName`). */
-async function siteTitle(cms: SeoCMS, source: SeoSource, locale: string | null) {
+async function siteTitle(
+  cms: SeoCMS,
+  source: SeoSource,
+  locale: string | null,
+  context: RequestContext | undefined,
+) {
   if (source.llms.title) return source.llms.title
   for (const global of source.globals) {
     const doc = await visitor(() =>
-      cms.findGlobal(global, { overrideAccess: false, user: null, ...(locale ? { locale } : {}) }),
+      cms.findGlobal(global, {
+        overrideAccess: false,
+        user: null,
+        ...(context ? { context } : {}),
+        ...(locale ? { locale } : {}),
+      }),
     )
     const name = text(doc?.siteName) ?? text(doc?.name) ?? text(doc?.title)
     if (name) return name

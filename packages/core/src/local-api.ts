@@ -1,5 +1,5 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
-import type { AuthUser, ID, Where } from './access.js'
+import type { AuthUser, ID, RequestContext, Where } from './access.js'
 import {
   andWhere,
   evaluateAccess,
@@ -129,6 +129,11 @@ export interface AccessOptions {
   readonly overrideAccess?: boolean
   /** The user to check access for. `null` = not logged in. */
   readonly user?: AuthUser | null
+  /**
+   * What the call is about besides its user, e.g. the tenant (see `onRequest`): given to access
+   * functions, hooks and `filterOptions`.
+   */
+  readonly context?: RequestContext
 }
 
 export interface DepthOptions extends AccessOptions {
@@ -236,6 +241,7 @@ const toJob = (row: RawDocument): ScheduledJob => ({
 interface Guard {
   readonly enforce: boolean
   readonly user: AuthUser | null
+  readonly context: RequestContext
 }
 
 export class EasyCMS<C extends Config = Config> {
@@ -303,6 +309,37 @@ export class EasyCMS<C extends Config = Config> {
       config.collections.some((c) => c.slug === EMAIL_DELIVERIES) ? this.emailQueue() : undefined,
     )
     this.auth = new Auth(this as unknown as EasyCMS)
+  }
+
+  /**
+   * The user and context of a request, as the REST API works them out: its session cookie or
+   * Bearer token, then `onRequest`. For framework routes and server code that act for a visitor;
+   * pass both to the Local API with `overrideAccess: false`.
+   */
+  async forRequest(
+    request: Request | Headers,
+  ): Promise<{ user: AuthUser | null; context: RequestContext }> {
+    const headers = request instanceof Headers ? request : request.headers
+    const url = request instanceof Headers ? undefined : new URL(request.url)
+    return this.applyOnRequest(headers, url, await this.auth.userFromHeaders(headers))
+  }
+
+  /** @internal `onRequest` of the config, for a request whose user is known. */
+  async applyOnRequest(
+    headers: Headers,
+    url: URL | undefined,
+    user: AuthUser | null,
+  ): Promise<{ user: AuthUser | null; context: RequestContext }> {
+    const result = await this.config.onRequest?.({
+      headers,
+      url,
+      user,
+      cms: this as unknown as EasyCMS,
+    })
+    return {
+      user: result?.user !== undefined ? result.user : user,
+      context: result?.context ?? NO_CONTEXT,
+    }
   }
 
   async find<S extends Slug<C>>(
@@ -603,6 +640,7 @@ export class EasyCMS<C extends Config = Config> {
     await this.checkGrant(guard, { collection: MEDIA }, 'create')
     const allowed = await evaluateAccess(this.collection(MEDIA).access?.create, {
       user: guard.user,
+      context: guard.context,
       data,
     })
     if (allowed !== true) throw deny(guard.user)
@@ -648,7 +686,11 @@ export class EasyCMS<C extends Config = Config> {
     // Before downloading anything: who may upload, and whether links are allowed at all.
     if (guard.enforce) {
       await this.checkGrant(guard, { collection: MEDIA }, 'create')
-      const allowed = await evaluateAccess(config.access?.create, { user: guard.user, data })
+      const allowed = await evaluateAccess(config.access?.create, {
+        user: guard.user,
+        context: guard.context,
+        data,
+      })
       if (allowed !== true) throw deny(guard.user)
       if (!fromURL)
         throw new ValidationError(MEDIA, [
@@ -689,7 +731,10 @@ export class EasyCMS<C extends Config = Config> {
     const config = this.collection(API_KEYS)
     const guard = guardOf(options)
     if (guard.enforce) {
-      const allowed = await evaluateAccess(config.access?.create, { user: guard.user })
+      const allowed = await evaluateAccess(config.access?.create, {
+        user: guard.user,
+        context: guard.context,
+      })
       if (allowed !== true) throw deny(guard.user)
     }
     const owner = guard.enforce ? guard.user?.id : data.user
@@ -701,7 +746,18 @@ export class EasyCMS<C extends Config = Config> {
       config,
       {
         name: data.name,
-        permissions: data.permissions ?? {},
+        // The context it is created in (e.g. a tenant) stays with the key. Requests can't name
+        // one; trusted calls may.
+        permissions: {
+          ...withoutContext(data.permissions),
+          ...(guard.enforce
+            ? Object.keys(guard.context).length > 0
+              ? { context: guard.context }
+              : {}
+            : data.permissions?.context
+              ? { context: data.permissions.context }
+              : {}),
+        },
         expiresAt: expiresAt ?? null,
         prefix,
         user: owner,
@@ -1026,7 +1082,11 @@ export class EasyCMS<C extends Config = Config> {
     if (id === null) {
       if (guard.enforce) {
         await this.checkGrant(guard, { collection }, 'create')
-        const allowed = await evaluateAccess(config.access?.create, { user: guard.user, data: raw })
+        const allowed = await evaluateAccess(config.access?.create, {
+          user: guard.user,
+          context: guard.context,
+          data: raw,
+        })
         if (allowed !== true) throw deny(guard.user)
       }
     } else {
@@ -1096,8 +1156,9 @@ export class EasyCMS<C extends Config = Config> {
       raw,
       await this.fieldChecker('update', guard, undefined, raw),
     )
-    const saved = (await this.db.findGlobal({ slug })) ?? {}
-    const current = await this.globalDraft(config, saved)
+    const key = this.globalKey(config, guard)
+    const saved = (key ? await this.db.findGlobal({ slug: key }) : null) ?? {}
+    const current = await this.globalDraft(config, saved, key)
     const merged = generateSlugs(
       config.fields,
       applyDefaults(
@@ -1221,7 +1282,7 @@ export class EasyCMS<C extends Config = Config> {
       'update',
       parsed,
       options,
-      guard.user,
+      guard,
     )
     prepared = await this.transform(
       config.hooks?.beforeChange,
@@ -1384,8 +1445,20 @@ export class EasyCMS<C extends Config = Config> {
     const config = this.global(slug)
     const guard = guardOf(options)
     await this.checkGlobalAccess(config, 'read', guard)
-    const saved = await this.db.findGlobal({ slug })
-    const stored = saved && options.draft ? await this.globalDraft(config, saved) : saved
+    return this.readGlobal(config, this.globalKey(config, guard), guard, options) as Promise<
+      GDoc<C, S>
+    >
+  }
+
+  /** A global as stored under `key` (see `globalKey`); empty when there is no key. */
+  private async readGlobal(
+    config: GlobalConfig,
+    key: string | null,
+    guard: Guard,
+    options: ReadOptions,
+  ): Promise<Data> {
+    const saved = key ? await this.db.findGlobal({ slug: key }) : null
+    const stored = saved && options.draft ? await this.globalDraft(config, saved, key) : saved
     const data = fillMissing(
       config.fields,
       applyDefaults(config.fields, stored ?? {}, this.config.localization),
@@ -1396,7 +1469,30 @@ export class EasyCMS<C extends Config = Config> {
     }
     const [out] = await this.output(config, [{ ...data, id: 0 }], guard, options)
     const { id: _id, ...doc } = out as RawDocument
-    return doc as GDoc<C, S>
+    return doc
+  }
+
+  /**
+   * Where a global is kept: its slug, or `<slug>@<scope>` for globals with `scope` (e.g. one per
+   * tenant). `null` when the call has no scope: reads give the global empty. `scope` is given by
+   * scheduled jobs, which have no request.
+   */
+  private globalKey(config: GlobalConfig, guard: Guard, scope?: string): string | null {
+    if (scope !== undefined) return `${config.slug}@${scope}`
+    if (!config.scope) return config.slug
+    const own = config.scope({ context: guard.context, user: guard.user })
+    if (own === undefined) return config.slug
+    return own === null ? null : `${config.slug}@${own}`
+  }
+
+  /** `globalKey` for changes, which need a scope. */
+  private writeKey(config: GlobalConfig, guard: Guard, scope?: string): string {
+    const key = this.globalKey(config, guard, scope)
+    if (key === null)
+      throw new QueryError(
+        `"${config.slug}" has a value per scope (e.g. per tenant): choose one to change it`,
+      )
+    return key
   }
 
   async updateGlobal<S extends GSlug<C>>(
@@ -1418,9 +1514,10 @@ export class EasyCMS<C extends Config = Config> {
     const config = this.global(slug)
     const guard = guardOf(options)
     await this.checkGlobalAccess(config, 'update', guard)
-    const saved = await this.db.findGlobal({ slug })
-    if (saved && (await this.globalDraft(config, saved)) !== saved) {
-      await this.saveVersion(config, globalParent(slug), 0, saved, guard)
+    const key = this.writeKey(config, guard)
+    const saved = await this.db.findGlobal({ slug: key })
+    if (saved && (await this.globalDraft(config, saved, key)) !== saved) {
+      await this.saveVersion(config, globalParent(key), 0, saved, guard)
     }
     return this.findGlobal(slug, { ...options, draft: true })
   }
@@ -1430,8 +1527,8 @@ export class EasyCMS<C extends Config = Config> {
     slug: S,
     options: AccessOptions & { limit?: number; page?: number } = {},
   ): Promise<PaginatedDocs<VersionSummary>> {
-    await this.globalVersionTarget(slug, options)
-    return this.versions.list(globalParent(slug), 0, options.limit ?? 20, options.page ?? 1)
+    const { key } = await this.globalVersionTarget(slug, options)
+    return this.versions.list(globalParent(key), 0, options.limit ?? 20, options.page ?? 1)
   }
 
   async findGlobalVersion<S extends GSlug<C>>(
@@ -1439,8 +1536,8 @@ export class EasyCMS<C extends Config = Config> {
     versionId: ID,
     options: DepthOptions = {},
   ): Promise<Version<GDoc<C, S>> | null> {
-    const config = await this.globalVersionTarget(slug, options)
-    const version = await this.versions.get(globalParent(slug), 0, versionId)
+    const { config, key } = await this.globalVersionTarget(slug, options)
+    const version = await this.versions.get(globalParent(key), 0, versionId)
     if (!version) return null
     const data = fillMissing(
       config.fields,
@@ -1460,8 +1557,8 @@ export class EasyCMS<C extends Config = Config> {
     versionId: ID,
     options: DepthOptions = {},
   ): Promise<GDoc<C, S>> {
-    const config = await this.globalVersionTarget(slug, options)
-    const version = await this.versions.get(globalParent(slug), 0, versionId)
+    const { config, key } = await this.globalVersionTarget(slug, options)
+    const version = await this.versions.get(globalParent(key), 0, versionId)
     if (!version) throw new NotFoundError(`${slug} version`, versionId)
     const { status: _status, ...data } = version.data
     return this.saveGlobal(
@@ -1475,14 +1572,15 @@ export class EasyCMS<C extends Config = Config> {
   private async globalVersionTarget(slug: string, options: AccessOptions) {
     const config = this.global(slug)
     if (!versionLimit(config)) throw new QueryError(`"${slug}" has no versions`)
-    await this.checkGlobalAccess(config, 'update', guardOf(options))
-    return config
+    const guard = guardOf(options)
+    await this.checkGlobalAccess(config, 'update', guard)
+    return { config, key: this.writeKey(config, guard) }
   }
 
   /** The global's pending draft when it has one (see `withDrafts`), otherwise `saved`. */
-  private async globalDraft(config: GlobalConfig, saved: Data): Promise<Data> {
-    if (!this.separateDrafts(config) || saved.status !== 'published') return saved
-    const version = (await this.versions.latest(globalParent(config.slug), [0])).get('0')
+  private async globalDraft(config: GlobalConfig, saved: Data, key: string | null): Promise<Data> {
+    if (!key || !this.separateDrafts(config) || saved.status !== 'published') return saved
+    const version = (await this.versions.latest(globalParent(key), [0])).get('0')
     if (version?.status !== 'draft') return saved
     return { ...version.data, updatedAt: version.createdAt, status: 'draft' }
   }
@@ -1492,10 +1590,13 @@ export class EasyCMS<C extends Config = Config> {
     raw: Data,
     options: DepthOptions,
     mode: 'save' | 'unpublish' | 'restore' = 'save',
+    /** The scope of a scheduled job (see `globalKey`). */
+    scope?: string,
   ): Promise<Data> {
     const config = this.global(slug)
     const guard = guardOf(options)
     await this.checkGlobalAccess(config, 'update', guard)
+    const key = this.writeKey(config, guard, scope)
     if (config.drafts && (mode === 'unpublish' || raw.status === 'published'))
       await this.checkGrant(guard, { global: slug }, 'publish')
     const input = await filterInput(
@@ -1503,8 +1604,8 @@ export class EasyCMS<C extends Config = Config> {
       raw,
       await this.fieldChecker('update', guard, undefined, raw),
     )
-    const existing = (await this.db.findGlobal({ slug })) ?? {}
-    const current = await this.globalDraft(config, existing)
+    const existing = (await this.db.findGlobal({ slug: key })) ?? {}
+    const current = await this.globalDraft(config, existing, key)
     const localized = mode === 'restore' ? input : this.toMaps(config, input, current, options)
 
     const merged = generateSlugs(
@@ -1518,7 +1619,7 @@ export class EasyCMS<C extends Config = Config> {
     )
     if (config.drafts) merged.status = input.status ?? current.status ?? 'draft'
     const base = this.hookArgs(config, guard)
-    let prepared = await this.prepare(config, merged, 'update', undefined, options, guard.user)
+    let prepared = await this.prepare(config, merged, 'update', undefined, options, guard)
     prepared = await this.transform(
       config.hooks?.beforeChange,
       'data',
@@ -1534,7 +1635,7 @@ export class EasyCMS<C extends Config = Config> {
       prepared.status === 'draft'
     ) {
       const draft = { ...prepared, updatedAt: now }
-      await this.saveVersion(config, globalParent(slug), 0, draft, guard)
+      await this.saveVersion(config, globalParent(key), 0, draft, guard)
       await this.notify(config.hooks?.afterChange, 'afterChange', slug, {
         ...base,
         doc: draft,
@@ -1543,11 +1644,11 @@ export class EasyCMS<C extends Config = Config> {
       })
       this.emit(config, 'draft', draft)
       await this.audited(config, 'draft', draft, current, guard, mode)
-      return this.findGlobal(slug, { ...options, draft: true })
+      return this.readGlobal(config, key, guard, { ...options, draft: true })
     }
 
-    const doc = await this.db.updateGlobal({ slug, data: { ...prepared, updatedAt: now } })
-    await this.saveVersion(config, globalParent(slug), 0, doc, guard)
+    const doc = await this.db.updateGlobal({ slug: key, data: { ...prepared, updatedAt: now } })
+    await this.saveVersion(config, globalParent(key), 0, doc, guard)
     await this.notify(config.hooks?.afterChange, 'afterChange', slug, {
       ...base,
       doc,
@@ -1556,7 +1657,7 @@ export class EasyCMS<C extends Config = Config> {
     })
     this.emit(config, 'update', doc, existing.status)
     await this.audited(config, 'update', doc, current, guard, mode)
-    return this.findGlobal(slug, { ...options, draft: true })
+    return this.readGlobal(config, key, guard, { ...options, draft: true })
   }
 
   /**
@@ -1567,11 +1668,12 @@ export class EasyCMS<C extends Config = Config> {
     collection: Slug<C>,
     id: ID,
     user: AuthUser | null,
+    context: RequestContext = NO_CONTEXT,
   ): Promise<{ update: boolean; delete: boolean }> {
     const config = this.collection(collection)
     const parsed = parseId(id)
     if (parsed === undefined) return { update: false, delete: false }
-    const guard: Guard = { enforce: true, user }
+    const guard: Guard = { enforce: true, user, context }
     const check = (operation: 'update' | 'delete') =>
       this.checkDocumentAccess(config, operation, guard, parsed, undefined).then(
         () => true,
@@ -1760,9 +1862,10 @@ export class EasyCMS<C extends Config = Config> {
       const action = row.action as ScheduledJob['action']
       try {
         if (parent.startsWith('global:')) {
-          const slug = parent.slice('global:'.length)
-          if (action === 'publish') await this.saveGlobal(slug, { status: 'published' }, {})
-          else await this.saveGlobal(slug, { status: 'draft' }, {}, 'unpublish')
+          const { slug, scope } = splitGlobalKey(parent.slice('global:'.length))
+          if (action === 'publish')
+            await this.saveGlobal(slug, { status: 'published' }, {}, 'save', scope)
+          else await this.saveGlobal(slug, { status: 'draft' }, {}, 'unpublish', scope)
         } else if (action === 'publish') {
           await this.updateDocument(parent, row.doc as ID, { status: 'published' }, { depth: 0 })
         } else {
@@ -1829,13 +1932,13 @@ export class EasyCMS<C extends Config = Config> {
     job: { action: 'publish' | 'unpublish'; at: Date | string },
     options: AccessOptions = {},
   ): Promise<ScheduledJob> {
-    await this.globalScheduleTarget(slug, options)
-    return this.addJob(`global:${slug}`, 0, job, options)
+    const key = await this.globalScheduleTarget(slug, options)
+    return this.addJob(`global:${key}`, 0, job, options)
   }
 
   async scheduledGlobal<S extends GSlug<C>>(slug: S, options: AccessOptions = {}) {
-    await this.globalScheduleTarget(slug, options)
-    return this.pendingJobs(`global:${slug}`, 0)
+    const key = await this.globalScheduleTarget(slug, options)
+    return this.pendingJobs(`global:${key}`, 0)
   }
 
   async cancelGlobalSchedule<S extends GSlug<C>>(
@@ -1843,8 +1946,8 @@ export class EasyCMS<C extends Config = Config> {
     jobId: ID,
     options: AccessOptions = {},
   ): Promise<void> {
-    await this.globalScheduleTarget(slug, options)
-    await this.removeJob(`global:${slug}`, 0, jobId)
+    const key = await this.globalScheduleTarget(slug, options)
+    await this.removeJob(`global:${key}`, 0, jobId)
   }
 
   private async scheduleTarget(collection: string, id: ID, options: AccessOptions) {
@@ -1862,8 +1965,10 @@ export class EasyCMS<C extends Config = Config> {
   private async globalScheduleTarget(slug: string, options: AccessOptions) {
     const config = this.global(slug)
     if (!config.schedule) throw new QueryError(`"${slug}" has no schedule`)
-    await this.checkGlobalAccess(config, 'update', guardOf(options))
-    await this.checkGrant(guardOf(options), { global: slug }, 'publish')
+    const guard = guardOf(options)
+    await this.checkGlobalAccess(config, 'update', guard)
+    await this.checkGrant(guard, { global: slug }, 'publish')
+    return this.writeKey(config, guard)
   }
 
   private async addJob(
@@ -1929,14 +2034,24 @@ export class EasyCMS<C extends Config = Config> {
       if (!guard.enforce) return true
       const cached = allowed.get(parent)
       if (cached !== undefined) return cached
+      const global = parent.startsWith('global:')
+        ? this.config.globals.find(
+            (g) => g.slug === splitGlobalKey(parent.slice('global:'.length)).slug,
+          )
+        : undefined
+      // A global kept per scope (e.g. tenant): only the jobs of the caller's.
+      if (global && this.globalKey(global, guard) !== parent.slice('global:'.length)) {
+        allowed.set(parent, false)
+        return false
+      }
       const config = parent.startsWith('global:')
-        ? this.config.globals.find((g) => g.slug === parent.slice('global:'.length))
+        ? global
         : this.config.collections.find((c) => c.slug === parent)
       const access = config
-        ? await evaluateAccess(config.access?.update, { user: guard.user })
+        ? await evaluateAccess(config.access?.update, { user: guard.user, context: guard.context })
         : false
       const target = parent.startsWith('global:')
-        ? { global: parent.slice('global:'.length) }
+        ? { global: splitGlobalKey(parent.slice('global:'.length)).slug }
         : { collection: parent }
       const result =
         access !== false && (await this.roles.allows(guard.user, target, 'update')) !== false
@@ -1948,7 +2063,7 @@ export class EasyCMS<C extends Config = Config> {
       const parent = String(row.parent)
       if (!(await may(parent))) continue
       const target = parent.startsWith('global:')
-        ? { global: parent.slice('global:'.length) }
+        ? { global: splitGlobalKey(parent.slice('global:'.length)).slug }
         : { collection: parent }
       jobs.push({ ...toJob(row), ...target, doc: row.doc as ID })
       if (jobs.length === limit) break
@@ -2084,7 +2199,10 @@ export class EasyCMS<C extends Config = Config> {
   private async readWhere(config: CollectionConfig, guard: Guard, where: Where | undefined) {
     if (!guard.enforce) return where
     const own = await this.checkGrant(guard, { collection: config.slug }, 'read')
-    const access = await evaluateAccess(config.access?.read, { user: guard.user })
+    const access = await evaluateAccess(config.access?.read, {
+      user: guard.user,
+      context: guard.context,
+    })
     if (access === false) throw deny(guard.user)
     await this.checkQueryFields(config, guard, where)
     return andWhere(andWhere(where, access), own)
@@ -2101,6 +2219,7 @@ export class EasyCMS<C extends Config = Config> {
     const own = await this.checkGrant(guard, { collection: config.slug }, operation)
     const allowed = await evaluateAccess(config.access?.[operation], {
       user: guard.user,
+      context: guard.context,
       id,
       ...(data ? { data } : {}),
     })
@@ -2124,7 +2243,10 @@ export class EasyCMS<C extends Config = Config> {
   ) {
     if (!guard.enforce) return
     await this.checkGrant(guard, { global: config.slug }, operation)
-    const access = await evaluateAccess(config.access?.[operation], { user: guard.user })
+    const access = await evaluateAccess(config.access?.[operation], {
+      user: guard.user,
+      context: guard.context,
+    })
     if (typeof access === 'object')
       throw new QueryError(`${operation} access of global "${config.slug}" must return a boolean`)
     if (!access) throw deny(guard.user)
@@ -2141,6 +2263,7 @@ export class EasyCMS<C extends Config = Config> {
       kind,
       {
         user: guard.user,
+        context: guard.context,
         ...(id !== undefined ? { id } : {}),
         ...(data ? { data } : {}),
       },
@@ -2251,7 +2374,11 @@ export class EasyCMS<C extends Config = Config> {
       await this.checkGrant(guard, { collection }, 'create')
       if (config.drafts && raw.status === 'published')
         await this.checkGrant(guard, { collection }, 'publish')
-      const allowed = await evaluateAccess(config.access?.create, { user: guard.user, data: raw })
+      const allowed = await evaluateAccess(config.access?.create, {
+        user: guard.user,
+        context: guard.context,
+        data: raw,
+      })
       if (typeof allowed === 'object')
         throw new QueryError(`create access of "${collection}" must return a boolean`)
       if (!allowed) throw deny(guard.user)
@@ -2285,7 +2412,7 @@ export class EasyCMS<C extends Config = Config> {
       'create',
       undefined,
       options,
-      (hookGuard ?? guard).user,
+      hookGuard ?? guard,
     )
     prepared = await this.transform(
       config.hooks?.beforeChange,
@@ -2484,7 +2611,12 @@ export class EasyCMS<C extends Config = Config> {
   }
 
   private hookArgs(config: CollectionConfig | GlobalConfig, guard: Guard) {
-    return { user: guard.user, cms: this as unknown as EasyCMS, slug: config.slug }
+    return {
+      user: guard.user,
+      cms: this as unknown as EasyCMS,
+      slug: config.slug,
+      context: guard.context,
+    }
   }
 
   /**
@@ -2584,7 +2716,7 @@ export class EasyCMS<C extends Config = Config> {
     operation: 'create' | 'update',
     selfId: ID | undefined,
     options: { locale?: string } = {},
-    user: AuthUser | null = null,
+    guard: Pick<Guard, 'user' | 'context'> = { user: null, context: NO_CONTEXT },
   ): Promise<Data> {
     const isDraft = config.drafts === true && (data.status ?? 'draft') === 'draft'
     const locale = this.localeOf(options)
@@ -2622,7 +2754,7 @@ export class EasyCMS<C extends Config = Config> {
     }
     errors.push(...(await this.checkReferences(result.references)))
     if (errors.length === 0)
-      errors.push(...(await this.checkFilterOptions(result.references, selfId, user)))
+      errors.push(...(await this.checkFilterOptions(result.references, selfId, guard)))
 
     if (errors.length > 0) throw new ValidationError(config.slug, errors)
     return clean
@@ -2699,9 +2831,14 @@ export class EasyCMS<C extends Config = Config> {
               v,
             ])
           : [[field.name, field.name, value]]
+      // Only among documents with the same value of `uniqueWithin` (e.g. the same tenant).
+      const scope: Where | undefined =
+        field.uniqueWithin === undefined
+          ? undefined
+          : { [field.uniqueWithin]: { equals: data[field.uniqueWithin] ?? null } }
       for (const [path, errorField, v] of checks) {
         if (v === null || v === undefined) continue
-        if (await this.isTaken(config.slug, path, v, selfId)) {
+        if (await this.isTaken(config.slug, path, v, selfId, scope)) {
           errors.push({ field: errorField, message: 'must be unique' })
         }
       }
@@ -2730,15 +2867,17 @@ export class EasyCMS<C extends Config = Config> {
   private async checkFilterOptions(
     references: readonly Reference[],
     selfId: ID | undefined,
-    user: AuthUser | null,
+    guard: Pick<Guard, 'user' | 'context'>,
   ): Promise<FieldError[]> {
     const errors: FieldError[] = []
     const cms = this as unknown as EasyCMS
+    const { user, context } = guard
     const allowed = new Map<FilterOptions, Where | true>()
     for (const ref of references) {
       const filter = ref.filterOptions
       if (!filter) continue
-      if (!allowed.has(filter)) allowed.set(filter, await filter({ id: selfId, user, cms }))
+      if (!allowed.has(filter))
+        allowed.set(filter, await filter({ id: selfId, user, cms, context }))
       const where = allowed.get(filter) as Where | true
       if (where === true) continue
       const target = this.config.collections.find((c) => c.slug === ref.collection)
@@ -2864,8 +3003,25 @@ function wherePaths(where: Where | undefined): string[] {
   return out
 }
 
+const NO_CONTEXT: RequestContext = Object.freeze({})
+
+function withoutContext(permissions: ApiKeyPermissions | undefined): ApiKeyPermissions {
+  const { context: _context, ...rest } = permissions ?? {}
+  return rest
+}
+
+/** `site@3` → `{ slug: 'site', scope: '3' }` (see `globalKey`). */
+function splitGlobalKey(key: string): { slug: string; scope?: string } {
+  const at = key.indexOf('@')
+  return at < 0 ? { slug: key } : { slug: key.slice(0, at), scope: key.slice(at + 1) }
+}
+
 function guardOf(options: AccessOptions): Guard {
-  return { enforce: options.overrideAccess === false, user: options.user ?? null }
+  return {
+    enforce: options.overrideAccess === false,
+    user: options.user ?? null,
+    context: options.context ?? NO_CONTEXT,
+  }
 }
 
 function deny(user: AuthUser | null) {
