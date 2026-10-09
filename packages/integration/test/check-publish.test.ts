@@ -7,6 +7,11 @@ import { afterAll, describe, expect, it } from 'vitest'
 /** `prepack` of every published package: no `workspace:` ranges unless the packer rewrites them. */
 const script = resolve(import.meta.dirname, '../../../scripts/check-publish.mjs')
 const dirs: string[] = []
+// Without the agent of the package manager running the tests. Windows keeps environment names in
+// any case and the child would see two of them: `NPM_CONFIG_USER_AGENT` from pnpm would win.
+const inherited = Object.fromEntries(
+  Object.entries(process.env).filter(([name]) => name.toLowerCase() !== 'npm_config_user_agent'),
+)
 
 function pack(manifest: object, userAgent: string) {
   const dir = mkdtempSync(join(tmpdir(), 'check-publish-'))
@@ -15,7 +20,7 @@ function pack(manifest: object, userAgent: string) {
   return spawnSync(process.execPath, [script], {
     cwd: dir,
     encoding: 'utf8',
-    env: { ...process.env, npm_config_user_agent: userAgent },
+    env: { ...inherited, npm_config_user_agent: userAgent },
   })
 }
 
