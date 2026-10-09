@@ -2,7 +2,8 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { ConfigError, findConfigFile, loadConfig } from '../src/index.js'
+import { ConfigError, loadConfig } from '../src/index.js'
+import { findConfigFile } from '../src/internal.js'
 
 const fixture = (name: string) => join(import.meta.dirname, 'fixtures', name)
 

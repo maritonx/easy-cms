@@ -1,16 +1,13 @@
 import {
-  API_KEYS,
   type Block,
   type CollectionConfig,
   type Field,
   type GlobalConfig,
-  INTERNAL_COLLECTIONS,
   type Label,
-  MEDIA,
-  MEDIA_FOLDERS,
   type ResolvedConfig,
   type Where,
 } from '@easy-cms/core'
+import { API_KEYS, INTERNAL_COLLECTIONS, MEDIA, MEDIA_FOLDERS } from '@easy-cms/core/internal'
 import {
   type GraphQLArgumentConfig,
   GraphQLBoolean,

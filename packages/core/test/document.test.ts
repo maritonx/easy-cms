@@ -1,14 +1,13 @@
 import { describe, expect, it } from 'vitest'
+import { type Field, slugify } from '../src/index.js'
 import {
   applyDefaults,
-  type Field,
   fillMissing,
   generateSlugs,
   mergeForUpdate,
   parseId,
-  slugify,
   validateFields,
-} from '../src/index.js'
+} from '../src/internal.js'
 
 describe('slugify', () => {
   it.each([

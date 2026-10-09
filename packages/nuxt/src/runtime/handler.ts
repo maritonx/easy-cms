@@ -1,4 +1,5 @@
-import { type Config, createApiHandler, forwardedClientIp, platformClientIp } from '@easy-cms/core'
+import { type Config, createApiHandler } from '@easy-cms/core'
+import { forwardedClientIp, platformClientIp } from '@easy-cms/core/internal'
 import {
   defineEventHandler,
   getRequestHeader,

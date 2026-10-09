@@ -1,5 +1,6 @@
 import type { Field } from '@easy-cms/core'
-import { parseId, QueryError, type Where, type WhereOperators } from '@easy-cms/core'
+import { QueryError, type Where, type WhereOperators } from '@easy-cms/core'
+import { parseId } from '@easy-cms/core/internal'
 import {
   and,
   asc,

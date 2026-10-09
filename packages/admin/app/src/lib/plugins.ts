@@ -1,11 +1,13 @@
-import type { AdminField } from '@easy-cms/core'
+import type { AdminField, AdminLocale } from '@easy-cms/core'
+import { ADMIN_API_VERSION, type AdminElementProps } from '@easy-cms/core/plugin'
 import type { InjectionKey, Ref } from 'vue'
 import type { api } from './api'
 import { settings } from './settings'
 
 /**
  * Admin modules (`admin.modules`) define Web Components that fields and edit pages show. The
- * admin sets these properties on each element and listens for two events:
+ * admin sets these properties on each element and listens for these events (see
+ * `AdminElementProps` in `@easy-cms/core/plugin`, which plugins type their elements with):
  *
  * - `change` (a `CustomEvent` whose `detail` is the new value): sets the field's value.
  * - `set-field` (`detail: { path, value }`): sets another field, e.g. `meta.title`.
@@ -13,7 +15,7 @@ import { settings } from './settings'
  *
  * Bump `API_VERSION` only for changes that break existing components.
  */
-export const API_VERSION = 1
+export const API_VERSION = ADMIN_API_VERSION
 
 export interface ElementContext {
   apiVersion: typeof API_VERSION
@@ -33,7 +35,7 @@ export interface ElementContext {
   /** The content locale being edited (with localization), otherwise `null`. */
   locale: string | null
   /** The admin's language: `en` or `th`. */
-  uiLocale: string
+  uiLocale: AdminLocale
   readOnly: boolean
   /** The component's `props` from the config. */
   options: Record<string, unknown>
@@ -114,3 +116,9 @@ export function loadModules(urls: readonly string[]): Promise<void> {
 export function modulesLoaded(): Promise<void> {
   return loading ?? Promise.resolve()
 }
+
+/** What the admin gives elements must be what `@easy-cms/core/plugin` promises plugins. */
+export type ElementContextMatches =
+  ElementContext extends Omit<AdminElementProps, 'api'> ? true : never
+const elementContextMatches: ElementContextMatches = true
+void elementContextMatches

@@ -7,11 +7,11 @@ import {
   createRestHandler,
   defineConfig,
   defineFieldType,
-  generateTypes,
   resolveConfig,
   silentLogger,
   ValidationError,
 } from '@easy-cms/core'
+import { generateTypes } from '@easy-cms/core/internal'
 import { sqlite } from '@easy-cms/db-sqlite'
 import { afterEach, describe, expect, it } from 'vitest'
 import { color } from '../src/index.js'

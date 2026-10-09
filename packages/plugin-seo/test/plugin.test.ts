@@ -292,7 +292,7 @@ describe('sitemap', () => {
       expect(xml).not.toContain('hidden')
 
       // The same through the API, and from the root for the standalone server.
-      const { createRootEndpointHandler } = await import('@easy-cms/core')
+      const { createRootEndpointHandler } = await import('@easy-cms/core/internal')
       const api = await createRestHandler(cms)(
         new Request('http://cms.test/api/cms/seo/sitemap.xml'),
       )
@@ -506,7 +506,7 @@ describe('llms.txt and Markdown', () => {
       expect(cut).toContain('More pages are listed in /llms.txt')
 
       // The standalone server serves them from the root.
-      const { createRootEndpointHandler } = await import('@easy-cms/core')
+      const { createRootEndpointHandler } = await import('@easy-cms/core/internal')
       const root = createRootEndpointHandler(cms)
       const served = await root(new Request('http://cms.test/llms.txt'))
       expect(served?.headers.get('content-type')).toContain('text/markdown')

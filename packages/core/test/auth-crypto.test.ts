@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { csrfToken, hashToken, newToken, signToken, unsignToken } from '../src/auth/tokens.js'
-import { hashPassword, verifyPassword } from '../src/index.js'
+import { hashPassword, verifyPassword } from '../src/internal.js'
 
 const SECRET = 's'.repeat(32)
 

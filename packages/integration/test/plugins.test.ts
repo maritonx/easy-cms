@@ -6,11 +6,11 @@ import {
   type AdminSchema,
   type Config,
   createRestHandler,
-  createRootEndpointHandler,
   defineConfig,
   ForbiddenError,
   type RestHandler,
 } from '@easy-cms/core'
+import { createRootEndpointHandler } from '@easy-cms/core/internal'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { db, open, SECRET } from './helpers.js'
 

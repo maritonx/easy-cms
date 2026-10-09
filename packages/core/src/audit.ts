@@ -231,6 +231,7 @@ export class AuditLog {
   /**
    * A change to a document or global: what changed between `before` and `after`. Internal
    * collections (sessions, versions…) are not logged.
+   * @internal
    */
   async content(
     config: CollectionConfig | GlobalConfig,
@@ -266,7 +267,10 @@ export class AuditLog {
     })
   }
 
-  /** Fields whose stored value changed. Hidden ones never (the password only as "changed"). */
+  /**
+   * Fields whose stored value changed. Hidden ones never (the password only as "changed").
+   * @internal
+   */
   diff(
     fields: readonly Field[],
     before: Record<string, unknown>,
@@ -384,6 +388,7 @@ export class AuditLog {
   /**
    * Daily upkeep from `runJobs`: deletes entries older than `keep` days, then verifies the log.
    * Runs when the last check is more than a day old.
+   * @internal
    */
   async upkeep(now: Date = new Date()): Promise<void> {
     if (!this.enabled) return
@@ -436,7 +441,7 @@ export class AuditLog {
 
   // -------------------------------------------------------------------------
 
-  /** The part of the site a context is in (`scope`), or `null`. */
+  /** The part of the site a context is in (`scope`), or `null`. @internal */
   scopeOf(context: RequestContext | undefined): string | null {
     const scope = this.settings.scope
     return (scope && context ? scope(context) : null) ?? null

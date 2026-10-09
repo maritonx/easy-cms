@@ -235,6 +235,7 @@ export class Roles {
   /**
    * The field that names a collection's owner, for "own documents only": `admin.ownerField`, or
    * `createdBy`. `undefined` without roles, and for users and collections roles don't cover.
+   * @internal
    */
   ownerOf(slug: string): string | undefined {
     if (!this.enabled || slug === USERS || !governed(slug)) return undefined
@@ -246,6 +247,7 @@ export class Roles {
   /**
    * The user's field rules (top-level fields their role may only read, or not see), for field
    * access checks. Roles that may update only their own documents can't change the owner field.
+   * @internal
    */
   async fieldRules(user: AuthUser | null): Promise<ReadonlyMap<Field, FieldRule> | undefined> {
     if (!this.enabled || !user || user.role === 'admin') return undefined
@@ -278,7 +280,7 @@ export class Roles {
     return rules
   }
 
-  /** A new document is its creator's: sets `createdBy`, and an empty owner field. */
+  /** A new document is its creator's: sets `createdBy`, and an empty owner field. @internal */
   fillOwner(slug: string, data: Record<string, unknown>, user: AuthUser | null) {
     if (!user || !this.ownerOf(slug)) return
     data.createdBy ??= user.id
@@ -302,7 +304,7 @@ export class Roles {
     return out
   }
 
-  /** Gives a deleted user's documents to another user, or to nobody (`null`). */
+  /** Gives a deleted user's documents to another user, or to nobody (`null`). @internal */
   async transfer(from: ID, to: ID | null): Promise<void> {
     for (const c of this.config.collections) {
       for (const column of this.ownerColumns(c.slug))
@@ -310,7 +312,7 @@ export class Roles {
     }
   }
 
-  /** Forgets cached permissions, after a role changed. */
+  /** Forgets cached permissions, after a role changed. @internal */
   invalidate() {
     this.cache = undefined
   }
@@ -318,6 +320,7 @@ export class Roles {
   /**
    * Adds the roles of `auth.roles` that are missing; on the first start, gives them everything.
    * Runs once, on first use (not on startup: `easy-cms migrate` opens the CMS before the table exists).
+   * @internal
    */
   sync(): Promise<void> {
     this.synced ??= this.addMissing().catch((error: unknown) => {

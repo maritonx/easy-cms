@@ -1,7 +1,12 @@
 import { existsSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
-import { applyPlugins, CONFIG_FILE_NAMES, importConfig, resolveAdminModule } from '@easy-cms/core'
+import {
+  applyPlugins,
+  CONFIG_FILE_NAMES,
+  importConfig,
+  resolveAdminModule,
+} from '@easy-cms/core/internal'
 
 /** The subset of Next's config this helper reads and sets. */
 interface NextConfigLike {

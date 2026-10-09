@@ -1,4 +1,4 @@
-import { singularize } from '@easy-cms/core'
+import { singularize } from '@easy-cms/core/internal'
 
 /** What GraphQL allows as a name (types, fields, arguments, enum values). */
 export const VALID_NAME = /^[_A-Za-z][_0-9A-Za-z]*$/

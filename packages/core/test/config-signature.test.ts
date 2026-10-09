@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { configSignature } from '../src/index.js'
+import { configSignature } from '../src/internal.js'
 import { baseConfig } from './helpers.js'
 
 describe('configSignature', () => {

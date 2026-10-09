@@ -8,12 +8,11 @@ import {
   type Config,
   createEasyCMS,
   createRestHandler,
-  createRootEndpointHandler,
   type EasyCMS,
-  forwardedClientIp,
   type Logger,
   type ResolvedConfig,
 } from '@easy-cms/core'
+import { createRootEndpointHandler, forwardedClientIp } from '@easy-cms/core/internal'
 
 export interface StandaloneOptions {
   /** Use `X-Forwarded-For` / `X-Forwarded-Proto` from a reverse proxy you control. */

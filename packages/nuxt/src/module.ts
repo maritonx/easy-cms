@@ -2,15 +2,15 @@ import { existsSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { renderShell, SECURITY_HEADERS, SHELL_FILE } from '@easy-cms/admin'
+import { type Config } from '@easy-cms/core'
 import {
   applyPlugins,
   CONFIG_FILE_NAMES,
-  type Config,
   DEFAULT_ADMIN_PATH,
   DEFAULT_API_PATH,
   importConfig,
   resolveAdminModule,
-} from '@easy-cms/core'
+} from '@easy-cms/core/internal'
 import {
   addImports,
   addServerHandler,

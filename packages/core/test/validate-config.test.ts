@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { type CollectionConfig, type Field, validateConfig } from '../src/index.js'
+import { type CollectionConfig, type Field } from '../src/index.js'
+import { validateConfig } from '../src/internal.js'
 import { baseConfig } from './helpers.js'
 
 const paths = (collections: CollectionConfig[]) =>

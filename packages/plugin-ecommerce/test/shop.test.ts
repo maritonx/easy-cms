@@ -6,9 +6,9 @@ import {
   createEasyCMS,
   createRestHandler,
   defineConfig,
-  formToken,
   silentLogger,
 } from '@easy-cms/core'
+import { formToken } from '@easy-cms/core/internal'
 import { sqlite } from '@easy-cms/db-sqlite'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {

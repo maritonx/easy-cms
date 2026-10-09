@@ -2,7 +2,7 @@ import {
   checkFormToken,
   formToken as coreFormToken,
   rateKeys as coreRateKeys,
-} from '@easy-cms/core'
+} from '@easy-cms/core/internal'
 
 // The form builder's own names in tokens and keys: tokens of pages loaded before an upgrade
 // stay valid.
@@ -29,4 +29,4 @@ export const rateKeys = (
   now = Date.now(),
 ) => coreRateKeys(secret, `easy-form-rate:${ip}:${String(form)}`, window, now)
 
-export { honeypotName, verifyTurnstile } from '@easy-cms/core'
+export { honeypotName, verifyTurnstile } from '@easy-cms/core/internal'

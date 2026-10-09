@@ -18,6 +18,14 @@
       "types": "./dist/conditions.d.ts",
       "default": "./dist/conditions.js"
     },
+    "./plugin": {
+      "types": "./dist/plugin.d.ts",
+      "default": "./dist/plugin.js"
+    },
+    "./internal": {
+      "types": "./dist/internal.d.ts",
+      "default": "./dist/internal.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

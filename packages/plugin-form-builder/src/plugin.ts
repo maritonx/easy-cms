@@ -7,9 +7,9 @@ import {
   type Endpoint,
   type Field,
   type RequestContext,
-  resolveAdminModule,
   type TypedPlugin,
 } from '@easy-cms/core'
+import { resolveAdminModule } from '@easy-cms/core/internal'
 import { renderRichText } from '@easy-cms/richtext'
 import { buildEmails } from './emails.js'
 import { fieldBlocks } from './fields.js'

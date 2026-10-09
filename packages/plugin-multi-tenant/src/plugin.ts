@@ -15,14 +15,13 @@ import {
   type GlobalConfig,
   type ID,
   isLoggedIn,
-  MEDIA,
-  MEDIA_FOLDERS,
   type OnRequest,
   type RequestContext,
   type TypedPlugin,
   ValidationError,
   type Where,
 } from '@easy-cms/core'
+import { MEDIA, MEDIA_FOLDERS } from '@easy-cms/core/internal'
 import { INFO } from './info.js'
 import { membersEndpoints } from './members.js'
 import {

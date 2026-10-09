@@ -466,7 +466,7 @@ export class Auth {
     return this.toAuthUser(user)
   }
 
-  /** The CSRF token clients must echo for a signed session token. */
+  /** The CSRF token clients must echo for a signed session token. @internal */
   csrfFor(signedToken: string): string | undefined {
     const token = unsignToken(this.config.secret, signedToken)
     return token ? csrfToken(this.config.secret, token) : undefined
@@ -497,6 +497,7 @@ export class Auth {
   /**
    * The origin password links point to: `serverURL`, or the request's origin in development. In
    * production the request's Host can't be trusted (a forged one would send the link elsewhere).
+   * @internal
    */
   passwordLinkBase(origin?: string): string | null {
     const configured = this.config.serverURL

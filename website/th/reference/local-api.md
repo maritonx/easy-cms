@@ -121,3 +121,7 @@ Local API เชื่อผู้เรียกและข้ามกฎส�
 object `cms` ยังมี `config` (config ที่ resolve แล้ว), `auth` (การ login และตรวจ session),
 `auth.sso` (การเข้าสู่ระบบด้วย `auth.providers`), `audit` (เมื่อเปิด `audit`: `audit.record({ action, target, doc })` เขียนรายการ), `roles` (เมื่อเปิด `auth.rbac`: `roles.allows(user, { collection }, operation)` บอกว่า role ของผู้ใช้อนุญาตอะไร),
 `db`, `storage`, `logger` และ `cwd`
+
+`db` คือ database adapter ที่อยู่ใต้กฎสิทธิ์ hook และ version สิ่งที่มันมีให้อาจเปลี่ยนได้ระหว่าง minor version ส่วน `config` คือ config
+ที่ resolve แล้ว: option ที่คุณตั้งคงที่ ส่วนที่เหลือ (ค่าเริ่มต้นที่เติมให้) อาจเพิ่มขึ้น `@easy-cms/core/internal` และ `@easy-cms/drizzle`
+เป็นของที่แพ็กเกจ `@easy-cms/*` ใช้ร่วมกัน ไม่ใช่ public API

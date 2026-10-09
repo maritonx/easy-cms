@@ -1,16 +1,15 @@
 import { writeFile } from 'node:fs/promises'
 import { isAbsolute, resolve } from 'node:path'
 import {
-  API_KEYS,
   type CliCommand,
   type Config,
   definePlugin,
   type EasyCMS,
   type Endpoint,
-  INTERNAL_COLLECTIONS,
   type Plugin,
   type ResolvedConfig,
 } from '@easy-cms/core'
+import { API_KEYS, INTERNAL_COLLECTIONS } from '@easy-cms/core/internal'
 import { type GraphQLSchema, printSchema } from 'graphql'
 import { DEFAULT_DOCUMENTS } from './context.js'
 import { handleGraphQL } from './http.js'

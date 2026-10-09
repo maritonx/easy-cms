@@ -318,7 +318,7 @@ export class SingleSignOn {
     })
   }
 
-  /** Forgets a deleted user's outside accounts. */
+  /** Forgets a deleted user's outside accounts. @internal */
   async forget(userId: ID): Promise<void> {
     if (!this.enabled) return
     for (const identity of await this.identities(userId))

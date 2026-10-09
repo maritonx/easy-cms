@@ -4,6 +4,7 @@
  * dashboard panel (`ecms-shop-overview`). Plain DOM, no framework; styles use the admin's CSS
  * variables.
  */
+import type { AdminElementProps } from '@easy-cms/core/plugin'
 
 type Api = (method: string, path: string, body?: unknown) => Promise<unknown>
 type Lang = 'en' | 'th'
@@ -119,7 +120,7 @@ const PROPERTIES = [
   'locale',
   'apiVersion',
   'user',
-] as const
+] as const satisfies readonly (keyof AdminElementProps)[]
 
 abstract class ShopElement extends HTMLElement {
   props: Record<string, unknown> = {}

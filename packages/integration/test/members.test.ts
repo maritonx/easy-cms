@@ -2,10 +2,10 @@ import {
   consoleEmail,
   createRestHandler,
   defineConfig,
-  formToken,
   isSignedIn,
   type RestHandler,
 } from '@easy-cms/core'
+import { formToken } from '@easy-cms/core/internal'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { db, open, SECRET } from './helpers.js'
 

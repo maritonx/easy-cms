@@ -102,7 +102,7 @@ describe('localized arrays and hasMany (FR-L10N-06)', () => {
       cms.create('posts', { faq: [{ question: '' }] }, { locale: 'en' }),
     ).rejects.toMatchObject({ errors: [{ field: 'faq.0.question', message: 'is required' }] })
     await cms.destroy()
-    const { validateConfig } = await import('@easy-cms/core')
+    const { validateConfig } = await import('@easy-cms/core/internal')
     expect(
       validateConfig({
         ...config,

@@ -4,11 +4,10 @@ import {
   type EasyCMS,
   type GlobalConfig,
   type ID,
-  INTERNAL_COLLECTIONS,
-  keyAllows,
   type RequestContext,
   type Where,
 } from '@easy-cms/core'
+import { INTERNAL_COLLECTIONS, keyAllows } from '@easy-cms/core/internal'
 import { type JsonSchema, objectSchema, prepareInput } from './schema.js'
 
 type Data = Record<string, unknown>

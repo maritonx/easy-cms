@@ -283,6 +283,7 @@ export class EasyCMS<C extends Config = Config> {
   private readonly webhooks: Webhooks
   private readonly mailer: Mailer
 
+  /** @internal */
   constructor(
     config: ResolvedConfig,
     db: Database,

@@ -279,7 +279,8 @@ describe('documents from before roles', () => {
 
     const after = await open(config(), cwd)
     try {
-      await after.roles.sync()
+      // `sync` is internal: what a server does when it starts.
+      await (after.roles as unknown as { sync(): Promise<void> }).sync()
       const read = (id: unknown) => after.findById('posts', id as number, { depth: 0, draft: true })
       expect((await read(post.id))?.createdBy).toBe(user.id)
       expect((await read(seed.id))?.createdBy ?? null).toBeNull()

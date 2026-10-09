@@ -1,13 +1,15 @@
 export * from './access.js'
 export {
-  API_KEY_GLOBAL_OPERATIONS,
-  API_KEY_OPERATIONS,
-  API_KEYS,
-  type ApiKeyContext,
-  type ApiKeyGlobalOperation,
-  type ApiKeyOperation,
-  type ApiKeyPermissions,
-  keyAllows,
+  ADMIN_API_VERSION,
+  type AdminElementProps,
+  type AdminPageRoute,
+  type SetFieldDetail,
+} from './admin-elements.js'
+export type {
+  ApiKeyContext,
+  ApiKeyGlobalOperation,
+  ApiKeyOperation,
+  ApiKeyPermissions,
 } from './api-keys.js'
 export {
   type AuditChange,
@@ -25,34 +27,30 @@ export {
   type SignupArgs,
   type SignupResult,
 } from './auth/auth.js'
-export {
-  DEFAULT_PASSWORD_EMAILS,
-  type PasswordEmail,
-  type PasswordEmailArgs,
-  type PasswordEmailFn,
+export type {
+  PasswordEmail,
+  PasswordEmailArgs,
+  PasswordEmailFn,
 } from './auth/emails.js'
-export { hashPassword, MIN_PASSWORD_LENGTH, verifyPassword } from './auth/password.js'
 export type {
   AuthProvider,
   AuthProviderProfile,
   AuthProviderRequest,
 } from './auth/providers.js'
-export {
-  type AdminSso,
-  SSO_COOKIE,
-  type SsoOutcome,
-  type SsoProviderRef,
-  type UserIdentity,
+export type {
+  AdminSso,
+  SingleSignOn,
+  SsoOutcome,
+  SsoProviderRef,
+  UserIdentity,
 } from './auth/sso.js'
 export type { PreviewTarget } from './auth/tokens.js'
-export {
-  type AdminBackup,
-  type AdminBackups,
-  type BackupState,
-  writeBackupFile,
+export type {
+  AdminBackup,
+  AdminBackups,
+  BackupState,
 } from './backups.js'
-export { INTERNAL_COLLECTIONS, MEDIA, MEDIA_FOLDERS } from './builtins.js'
-export * from './conditions.js'
+export { type FieldCondition, matchesCondition } from './conditions.js'
 export type {
   AdminCommand,
   AdminConfig,
@@ -109,18 +107,8 @@ export {
   defineConfig,
   definePlugin,
 } from './config.js'
-export { configSignature } from './config-signature.js'
-export { type CopyProgress, type CopyResult, copyDatabase } from './copy.js'
 export type * from './database.js'
-export {
-  applyDefaults,
-  fillMissing,
-  generateSlugs,
-  mergeForUpdate,
-  parseId,
-  slugify,
-  validateFields,
-} from './document.js'
+export { slugify } from './document.js'
 export {
   consoleEmail,
   type EmailAdapter,
@@ -143,24 +131,19 @@ export {
 } from './errors.js'
 export {
   defineFieldType,
-  FIELD_TYPE_BASES,
   type FieldTypeBase,
   type FieldTypeDefinition,
   type FieldTypeValidateContext,
 } from './field-types.js'
-export * from './fields.js'
+export type * from './fields.js'
+export { FIELD_TYPES } from './fields.js'
 export {
   type ApiHandlerOptions,
   createApiHandler,
-  forwardedClientIp,
-  platformClientIp,
   sharedEasyCMS,
 } from './framework.js'
 export type * from './infer.js'
 export {
-  CONFIG_FILE_NAMES,
-  findConfigFile,
-  importConfig,
   type LoadConfigOptions,
   loadConfig,
 } from './load-config.js'
@@ -179,31 +162,16 @@ export {
   type SlugOf,
   type UpdateOptions,
 } from './local-api.js'
-export { consoleLogger, type Logger, silentLogger } from './logger.js'
 export {
-  EXTENSIONS,
-  expandMimeTypes,
-  imageDimensions,
-  MIME_GROUPS,
-  mimeAllowed,
-  sniffMimeType,
-} from './media.js'
-export {
-  FOLDER_LEVELS,
-  type FolderLevel,
-  type FolderPermissions,
-  MediaFolders,
+  consoleLogger,
+  type Logger,
+  silentLogger,
+} from './logger.js'
+export type {
+  FolderLevel,
+  FolderPermissions,
 } from './media-folders.js'
-export { BUILTIN_NAV } from './nav.js'
-export { DEFAULT_DEPTH, MAX_DEPTH, populate } from './populate.js'
-export {
-  applyPlugins,
-  DEFAULT_ADMIN_PATH,
-  DEFAULT_API_PATH,
-  DEFAULT_MAX_FILE_SIZE,
-  DEFAULT_TOKEN_EXPIRATION,
-  resolveConfig,
-} from './resolve-config.js'
+export { resolveConfig } from './resolve-config.js'
 export type {
   AdminDeliveries,
   AdminDelivery,
@@ -213,7 +181,6 @@ export type {
   DeliveryState,
 } from './rest/admin-deliveries.js'
 export type { AdminEmail, EmailCheck } from './rest/admin-email.js'
-export { resolveAdminModule } from './rest/admin-modules.js'
 export type {
   AdminCollection,
   AdminComponentRef,
@@ -230,14 +197,9 @@ export type {
 export type { SearchHit } from './rest/admin-search.js'
 export type { AdminAttention, AdminStatus } from './rest/admin-status.js'
 export {
-  CSRF_COOKIE,
-  CSRF_HEADER,
   createRestHandler,
-  createRootEndpointHandler,
   type RestHandler,
   type RestHandlerOptions,
-  readCookie,
-  SESSION_COOKIE,
 } from './rest/handler.js'
 export {
   type AdminRole,
@@ -253,23 +215,17 @@ export {
   Roles,
 } from './roles.js'
 export {
-  checkFormToken,
-  formToken,
-  honeypotName,
-  rateKeys,
-  verifyTurnstile,
-} from './spam.js'
-export {
   type DirectUpload,
   type LocalStorageOptions,
   localStorage,
   type StorageAdapter,
   type StoredFile,
 } from './storage.js'
-export { generateTypes, singularize } from './typegen.js'
-export { BUILTIN_COLLECTIONS, MIN_SECRET_LENGTH, validateConfig } from './validate-config.js'
 export { VERSION } from './version.js'
-export { DEFAULT_MAX_VERSIONS, type Version, type VersionSummary } from './versions.js'
+export type {
+  Version,
+  VersionSummary,
+} from './versions.js'
 export {
   WEBHOOK_EVENTS,
   type WebhookConfig,

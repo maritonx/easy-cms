@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import type { CollectionConfig, Field, ResolvedConfig } from '@easy-cms/core'
-import { ConfigError, isHasMany } from '@easy-cms/core'
+import { ConfigError } from '@easy-cms/core'
+import { isHasMany } from '@easy-cms/core/internal'
 import type { AnyColumn, AnyTable, ColumnBuilder, Dialect } from './dialect.js'
 
 /** A scalar field stored as a column of this table. */

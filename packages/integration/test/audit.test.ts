@@ -222,10 +222,11 @@ describe('tamper evidence', () => {
       collection: 'audit-logs',
       data: { action: 'update', via: 'system', createdAt: old, updatedAt: old },
     })
-    // The last check is recent: nothing happens until a day has passed.
-    await cms.audit.upkeep()
+    // The last check is recent: nothing happens until a day has passed. (`upkeep` is internal.)
+    const audit = cms.audit as unknown as { upkeep(now?: Date): Promise<void> }
+    await audit.upkeep()
     expect(await cms.db.findById({ collection: 'audit-logs', id: row.id })).not.toBeNull()
-    await cms.audit.upkeep(new Date(Date.now() + 2 * 86_400_000))
+    await audit.upkeep(new Date(Date.now() + 2 * 86_400_000))
     expect(await cms.db.findById({ collection: 'audit-logs', id: row.id })).toBeNull()
   })
 })

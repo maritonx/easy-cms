@@ -70,7 +70,7 @@ export class MediaFolders {
     return this.enabled && this.roles.enabled && !!user && user.role !== 'admin' && !user.apiKey
   }
 
-  /** Forgets cached folders, after one changed. */
+  /** Forgets cached folders, after one changed. @internal */
   invalidate(): void {
     this.cache = undefined
   }
@@ -146,7 +146,10 @@ export class MediaFolders {
     return [...rows.values()].filter((r) => out.has(String(r.id))).map((r) => r.id)
   }
 
-  /** Folders whose privacy follows this one: it and those inside, with their privacy now. */
+  /**
+   * Folders whose privacy follows this one: it and those inside, with their privacy now.
+   * @internal
+   */
   async subtree(id: ID): Promise<{ id: ID; private: boolean }[]> {
     const rows = await this.fresh()
     return this.within(rows, [id]).map((f) => ({ id: f, private: this.privateIn(rows, f) }))
@@ -155,6 +158,7 @@ export class MediaFolders {
   /**
    * The privacy each folder of a subtree would have after a change to its top folder: made
    * private or public, moved, or (as `private: false`) deleted with its contents moving up.
+   * @internal
    */
   async privacyAfter(
     id: ID,
@@ -227,7 +231,7 @@ export class MediaFolders {
     }
   }
 
-  /** Whether a file in `folder` is in the folder with this key, or below it. */
+  /** Whether a file in `folder` is in the folder with this key, or below it. @internal */
   async inKeyed(
     key: string,
     folder: ID | null,
@@ -276,7 +280,7 @@ export class MediaFolders {
     return allowed.length === 0 ? outside : { or: [{ folder: { in: allowed } }, outside] }
   }
 
-  /** Refuses putting a file (`media`) or a subfolder in a folder the user may not. */
+  /** Refuses putting a file (`media`) or a subfolder in a folder the user may not. @internal */
   async checkTarget(user: AuthUser | null, collection: string, folder: ID | null): Promise<void> {
     const limited = keyFolders(user)
     if (limited) {
@@ -294,6 +298,7 @@ export class MediaFolders {
   /**
    * Checks a folder before it is saved: a name unique among its siblings (ignoring case), a
    * parent that is not itself or inside it, and permissions for roles that exist.
+   * @internal
    */
   async validate(data: Record<string, unknown>, self: ID | undefined): Promise<void> {
     const rows = await this.fresh()
@@ -341,6 +346,7 @@ export class MediaFolders {
   /**
    * Before a folder is deleted: its files and subfolders move up to its parent. Returns how many
    * moved.
+   * @internal
    */
   async release(folder: { id: ID; parent?: unknown }): Promise<{ files: number; folders: number }> {
     const parent = (folder.parent as ID | null | undefined) ?? null

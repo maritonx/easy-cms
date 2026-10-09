@@ -4,11 +4,11 @@ import { join } from 'node:path'
 import {
   type CollectionConfig,
   type Config,
-  copyDatabase,
   createEasyCMS,
   type DatabaseAdapter,
   silentLogger,
 } from '@easy-cms/core'
+import { copyDatabase } from '@easy-cms/core/internal'
 import { postgres } from '@easy-cms/db-postgres'
 import { sqlite } from '@easy-cms/db-sqlite'
 import { afterEach, describe, expect, it } from 'vitest'

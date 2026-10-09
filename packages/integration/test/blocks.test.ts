@@ -1,4 +1,5 @@
-import { defineConfig, generateTypes, resolveConfig } from '@easy-cms/core'
+import { defineConfig, resolveConfig } from '@easy-cms/core'
+import { generateTypes } from '@easy-cms/core/internal'
 import { describe, expect, it } from 'vitest'
 import { db, open, SECRET } from './helpers.js'
 

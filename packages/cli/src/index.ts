@@ -6,16 +6,14 @@ import { parseArgs } from 'node:util'
 import { gzipSync } from 'node:zlib'
 import {
   ConfigError,
-  copyDatabase,
   createEasyCMS,
   type EasyCMS,
   EasyCMSError,
-  generateTypes,
   type Logger,
   loadConfig,
   ValidationError,
-  writeBackupFile,
 } from '@easy-cms/core'
+import { copyDatabase, generateTypes, writeBackupFile } from '@easy-cms/core/internal'
 import { startServer } from './serve.js'
 
 export interface IO {

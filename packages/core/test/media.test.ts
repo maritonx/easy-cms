@@ -3,7 +3,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import sharp from 'sharp'
 import { describe, expect, it } from 'vitest'
-import { imageDimensions, localStorage, mimeAllowed, sniffMimeType } from '../src/index.js'
+import { localStorage } from '../src/index.js'
+import { imageDimensions, mimeAllowed, sniffMimeType } from '../src/internal.js'
 import { storageKey } from '../src/media.js'
 
 const image = async (format: 'png' | 'jpeg' | 'webp' | 'gif' | 'avif', width = 37, height = 21) =>

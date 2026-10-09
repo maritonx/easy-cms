@@ -123,3 +123,8 @@ to apply them, as the REST API does.
 The `cms` object also has `config` (the resolved config), `auth` (login and session checks),
 `auth.sso` (signing in with `auth.providers`), `audit` (with `audit`: `audit.record({ action, target, doc })` writes an entry), `roles` (with `auth.rbac`: `roles.allows(user, { collection }, operation)` says what a user's role
 allows), `db`, `storage`, `logger` and `cwd`.
+
+`db` is the database adapter, beneath access rules, hooks and versions: what it offers can change
+between minor versions. `config` is the resolved config: the options you set are stable, the rest
+(defaults filled in) may grow. `@easy-cms/core/internal` and `@easy-cms/drizzle` are shared by the
+`@easy-cms/*` packages and are not part of the public API.

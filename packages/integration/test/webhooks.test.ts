@@ -258,7 +258,7 @@ describe('webhooks (FR-HOOK)', () => {
   })
 
   it('validates webhook config', async () => {
-    const { validateConfig } = await import('@easy-cms/core')
+    const { validateConfig } = await import('@easy-cms/core/internal')
     const issues = validateConfig({
       secret: SECRET,
       db: db(),

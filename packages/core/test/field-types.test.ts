@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { defineFieldType, generateTypes, resolveConfig } from '../src/index.js'
+import { defineFieldType, resolveConfig } from '../src/index.js'
+import { generateTypes } from '../src/internal.js'
 import { baseConfig } from './helpers.js'
 
 /** A field type from a package: a 1–5 rating stored as a number. */
