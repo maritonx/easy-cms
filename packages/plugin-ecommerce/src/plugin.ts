@@ -17,6 +17,7 @@ import {
   type TypedPlugin,
   UnauthorizedError,
 } from '@easy-cms/core'
+import { checkRenamedOptions } from '@easy-cms/core/internal'
 import {
   CARTS,
   type CollectionOptions,
@@ -41,7 +42,7 @@ import {
   type Who,
 } from './shop.js'
 
-export interface EcommerceOptions<Cur extends string = string> {
+export interface EcommercePluginOptions<Cur extends string = string> {
   /** How customers pay: `stripeAdapter()` from `@easy-cms/plugin-ecommerce/stripe`, `manualAdapter()`. */
   readonly payments: { readonly methods: readonly PaymentAdapter[] }
   readonly currencies?: {
@@ -82,7 +83,7 @@ export interface EcommerceOptions<Cur extends string = string> {
      * Visitors create an account themselves (`POST <api>/auth/signup`), confirming their email.
      * `false` to make accounts some other way. Default `true`.
      */
-    readonly signup?: boolean | Omit<MembersSignup, 'role'>
+    readonly signUp?: boolean | Omit<MembersSignup, 'role'>
     /** The site's pages for email links (`auth.members.pages`). */
     readonly pages?: MembersConfig['pages']
   }
@@ -326,8 +327,9 @@ function cartRef(body: Record<string, unknown>): CartRef | null {
  * events. Pages use the `/client`, `/react` or `/vue` kit.
  */
 export function ecommercePlugin<const Cur extends string = 'THB'>(
-  options: EcommerceOptions<Cur>,
+  options: EcommercePluginOptions<Cur>,
 ): TypedPlugin<EcommercePluginTypes<Cur>> {
+  checkRenamedOptions('ecommercePlugin.customers', options.customers, { signup: 'signUp' })
   const currencies: Currency[] = (options.currencies?.supported ?? ['THB']).map((c) => {
     if (typeof c !== 'string') return c
     const known = CURRENCIES[c.toUpperCase()]
@@ -621,11 +623,11 @@ export function ecommercePlugin<const Cur extends string = 'THB'>(
     const auth = config.auth ?? {}
     const roles = auth.roles ?? ['admin', 'editor']
     const members = auth.members
-    const signup = options.customers?.signup ?? true
+    const signUp = options.customers?.signUp ?? true
     const pages = members?.pages ?? options.customers?.pages
     const memberSignup =
       members?.signUp ??
-      (signup === false ? undefined : { role, ...(signup === true ? {} : signup) })
+      (signUp === false ? undefined : { role, ...(signUp === true ? {} : signUp) })
     return {
       ...config,
       collections: [...(config.collections ?? []), ...collections],

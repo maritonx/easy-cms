@@ -32,7 +32,13 @@ export type {
   PluginTypes,
   TypedPlugin,
 } from './config.js'
-export { ADMIN_ICONS, type AdminIcon, type Config, definePlugin } from './config.js'
+export {
+  ADMIN_ICONS,
+  type AdminIcon,
+  type Config,
+  definePlugin,
+  PLUGIN_API_VERSION,
+} from './config.js'
 export {
   ConfigError,
   EasyCMSError,

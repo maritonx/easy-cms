@@ -14,7 +14,7 @@ import {
   withMedia,
   withUsers,
 } from './builtins.js'
-import type { Config, ResolvedConfig } from './config.js'
+import { type Config, PLUGIN_API_VERSION, type ResolvedConfig } from './config.js'
 import { ConfigError } from './errors.js'
 import { applyFieldTypes, fieldTypeModules } from './field-types.js'
 import { rolesCollection } from './roles.js'
@@ -34,8 +34,20 @@ const resolved = new WeakSet<object>()
 export async function applyPlugins(input: Config): Promise<Config> {
   let config = input
   const plugins = Array.isArray(config?.plugins) ? config.plugins : []
-  for (const plugin of plugins) {
+  for (const [i, plugin] of plugins.entries()) {
     if (typeof plugin !== 'function') break // reported by validateConfig
+    const wanted = plugin.info?.apiVersion
+    if (wanted !== undefined && wanted !== PLUGIN_API_VERSION)
+      throw new ConfigError([
+        {
+          path: `plugins[${i}]`,
+          message: `${plugin.info?.name ?? 'this plugin'} is written for plugin API ${wanted}; this Easy CMS has ${PLUGIN_API_VERSION}`,
+          hint:
+            wanted > PLUGIN_API_VERSION
+              ? 'upgrade Easy CMS (every @easy-cms/* package)'
+              : 'upgrade the plugin to a version for this Easy CMS',
+        },
+      ])
     config = await plugin(config)
   }
   // The admin modules of field types (their inputs and list cells), after the plugins' own.

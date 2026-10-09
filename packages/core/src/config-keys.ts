@@ -1,7 +1,7 @@
 // Option names of the config: errors for names that changed (with the new name), and warnings for
 // names Easy CMS doesn't know (usually a typo, which would otherwise do nothing).
 import type { Config } from './config.js'
-import type { ConfigIssue } from './errors.js'
+import { ConfigError, type ConfigIssue } from './errors.js'
 
 type Add = (issue: ConfigIssue) => void
 type Data = Record<string, unknown>
@@ -173,4 +173,24 @@ export function checkConfigKeys(config: Config, add: Add) {
       checkFields(item.fields, `${at}.fields`, add)
     }
   }
+}
+
+/**
+ * Throws a ConfigError for options of a plugin or adapter whose name changed, so an upgrade
+ * doesn't quietly drop them. `renamed` maps the old name to the new one, maybe followed by a note.
+ */
+export function checkRenamedOptions(
+  where: string,
+  options: object | undefined,
+  renamed: Readonly<Record<string, string>>,
+): void {
+  if (!options) return
+  const issues = Object.keys(options)
+    .filter((key) => Object.hasOwn(renamed, key))
+    .map((key) => {
+      // The new name, then maybe a note: 'minSubmitSeconds (in seconds)'.
+      const [name, ...note] = (renamed[key] as string).split(' ')
+      return { path: `${where}.${key}`, message: `is now \`${name}\` ${note.join(' ')}`.trim() }
+    })
+  if (issues.length) throw new ConfigError(issues)
 }

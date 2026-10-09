@@ -22,7 +22,7 @@ export default defineConfig({
 ```
 
 Credentials default to `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`. Files are served through the
-CMS API (private bucket) unless you set `publicUrl`.
+CMS API (private bucket) unless you set `publicURL`.
 
 ## Links
 

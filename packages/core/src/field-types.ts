@@ -41,10 +41,10 @@ export interface FieldTypeDefinition {
   /** Checks a field's own options when the config loads; return a message for a mistake. */
   readonly checkOptions?: (field: Readonly<Record<string, unknown>>) => string | undefined
   readonly admin?: {
-    /** The input: a Web Component from `module`. */
-    readonly component?: string
+    /** The input: a Web Component from `module`, with fixed `props` of its own if it needs them. */
+    readonly component?: AdminComponent
     /** Shown in the admin's lists. */
-    readonly cell?: string
+    readonly cell?: AdminComponent
     /** The admin module (package export or file) that defines the components. */
     readonly module?: string
     /** The field options its components get (as their `options`), e.g. `['presets']`. */
@@ -104,14 +104,19 @@ export function applyFieldTypes(config: Config): { config: Config; issues: Confi
   if (types.size === 0) return { config, issues }
 
   const component = (
-    tag: string | undefined,
+    base: AdminComponent | undefined,
     field: Readonly<Record<string, unknown>>,
     props?: readonly string[],
   ): AdminComponent | undefined => {
-    if (!tag) return undefined
-    const options = Object.fromEntries(
-      (props ?? []).filter((key) => field[key] !== undefined).map((key) => [key, field[key]]),
-    )
+    if (!base) return undefined
+    const tag = typeof base === 'string' ? base : base.tag
+    // The type's own props, then the field options it passes on (`props`).
+    const options = {
+      ...(typeof base === 'string' ? {} : base.props),
+      ...Object.fromEntries(
+        (props ?? []).filter((key) => field[key] !== undefined).map((key) => [key, field[key]]),
+      ),
+    }
     return Object.keys(options).length ? { tag, props: options } : tag
   }
 

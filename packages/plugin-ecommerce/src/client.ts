@@ -88,7 +88,7 @@ export interface ShopClient {
    * Creates an account. With email confirmation (the default) resolves `{ verify: true }`: a link
    * is on its way; otherwise signs in.
    */
-  signup(data: { email: string; password: string; name?: string; turnstile?: string }): Promise<{
+  signUp(data: { email: string; password: string; name?: string; turnstile?: string }): Promise<{
     verify: boolean
   }>
   /** Confirms the email from the link's `token`, and signs in. */
@@ -311,7 +311,7 @@ export function createShopClient(options: ShopClientOptions = {}): ShopClient {
       csrf = undefined
       set({ user: null, cart: null })
     },
-    async signup(data) {
+    async signUp(data) {
       return busy(async () => {
         // The form's token: fetched once the form is in use, and fresh within a day.
         if (!signupToken || Date.now() - signupToken.at > 12 * 3_600_000) {

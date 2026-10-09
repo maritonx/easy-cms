@@ -72,10 +72,21 @@ import { definePlugin } from '@easy-cms/core'
 import pkg from '../package.json' with { type: 'json' }
 
 export const readingTime = (options: { collections: string[] }) =>
-  definePlugin((config) => ({ /* … */ ...config }), { name: pkg.name, version: pkg.version })
+  definePlugin((config) => ({ /* … */ ...config }), {
+    name: pkg.name,
+    version: pkg.version,
+    apiVersion: 1,
+  })
 ```
 
 plugin ที่ไม่มีชื่อจะถูกนับรวมว่า "ไม่มีชื่อ" plugin ทางการทุกตัวตั้งชื่อตัวเองแล้ว
+
+`apiVersion` (ไม่ใส่ก็ได้) คือเวอร์ชันของ plugin API ที่ plugin เขียนไว้ใช้ ดูได้จาก `PLUGIN_API_VERSION`
+ที่ export จาก `@easy-cms/core` และ `@easy-cms/core/plugin` ถ้า plugin เขียนไว้สำหรับเวอร์ชันอื่น ระบบจะหยุดตอนเริ่มทำงาน
+ด้วย `ConfigError` ที่บอกว่าต้องอัปเกรดอะไร (Easy CMS หรือ plugin) ถ้าไม่ใส่จะข้ามการตรวจนี้
+
+adapter (ฐานข้อมูล storage อีเมล และ auth provider) ทำแบบเดียวกันได้: ใส่ `apiVersion: 1` ใน object
+ของ adapter เพื่อตรวจกับ `ADAPTER_API_VERSION` จาก `@easy-cms/core`
 
 ### ใส่ type ให้ plugin {#typing-your-plugin}
 
@@ -176,7 +187,7 @@ fields: [
 admin: { sidebar: ['ecms-checklist'] },
 ```
 
-component คือชื่อ tag ที่ขึ้นต้นด้วย `ecms-` หรือ `{ tag, props }` โดย `props` ต้องเป็น JSON ธรรมดา
+component คือชื่อ custom element (ตัวพิมพ์เล็ก มี `-` เช่น `acme-color-picker`) หรือ `{ tag, props }` โดย `props` ต้องเป็น JSON ธรรมดา
 element จะได้รับค่านี้เป็น `options`
 
 ### หน้าของ plugin และกล่องบนแดชบอร์ด {#pages-and-dashboard-panels}
@@ -202,6 +213,9 @@ admin: {
   ],
 },
 ```
+
+กล่องบนแดชบอร์ดใส่ `id` ได้ [บทบาท](./roles#setting-it-up) ให้สิทธิ์กล่องตาม `id` นี้ (`widget:<id>`)
+เปลี่ยน tag แล้วสิทธิ์จึงยังอยู่ ค่าเริ่มต้นคือ tag
 
 - หน้า admin วาดส่วนหัวของหน้าให้ (ใช้ `label` เป็นหัวข้อและชื่อแท็บของ browser) element วาดส่วนที่เหลือ
   กล่องบนแดชบอร์ดอยู่ต่อจากกล่องที่มีอยู่เดิมตามลำดับใน config: `half` (ค่าเริ่มต้น) อยู่คอลัมน์ข้าง

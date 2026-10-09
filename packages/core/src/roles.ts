@@ -33,7 +33,7 @@ type FieldRules = Readonly<Record<string, Readonly<Record<string, FieldRule>>>>
 export interface RolePermissions {
   readonly collections?: Readonly<Record<string, readonly RoleOperation[]>>
   readonly globals?: Readonly<Record<string, readonly RoleOperation[]>>
-  /** Admin pages: `status`, `deliveries`, `page:<path>` (`admin.pages`), `widget:<tag>` (`admin.dashboard`). */
+  /** Admin pages: `status`, `deliveries`, `page:<path>` (`admin.pages`), `widget:<id>` (`admin.dashboard`, default the tag). */
   readonly admin?: readonly string[]
   /** Operations of `collections` allowed only on the role's own documents (see `admin.ownerField`). */
   readonly own?: Readonly<Record<string, readonly RoleOperation[]>>
@@ -553,7 +553,7 @@ export class Roles {
         : []),
       ...this.config.admin.pages.map((page) => ({ id: viewId.page(page.path), label: page.label })),
       ...this.config.admin.dashboard.map((widget) => ({
-        id: viewId.widget(tagOf(widget.component)),
+        id: viewId.widget(widget.id ?? tagOf(widget.component)),
         ...(widget.label !== undefined ? { label: widget.label } : {}),
       })),
     ]

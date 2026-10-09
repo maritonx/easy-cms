@@ -55,7 +55,8 @@ Pages that read from the CMS should be dynamic (or use `revalidate`), otherwise 
 tries to query the database while prerendering.
 
 `createRouteHandlers(config, { trustProxy: true })` uses `X-Forwarded-For` for login rate limiting;
-enable it behind a proxy you trust, such as Vercel.
+enable it behind a proxy you trust (Vercel and Netlify are recognized without it). It also takes
+`basePath` and `getClientIp(request)`.
 
 ## Links
 

@@ -36,13 +36,13 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `collections` | `CollectionConfig[]` | `[]` | See [collections](#collections). |
 | `globals` | `GlobalConfig[]` | `[]` | See [globals](#globals). |
 | `endpoints` | `Endpoint[]` | `[]` | See [endpoints](#endpoints). |
-| `cliCommands` | `CliCommand[]` | `[]` | `easy-cms <name>` commands, e.g. from plugins: `{ name, description, help?, run({ cms, args, log }) }`. [CLI](/guide/cli#commands-from-plugins) |
-| `onRequest` | `({ headers, url, user, cms }) => { context?, user? }` | — | Runs on each API request once its user is known: returns the request's `context` (e.g. its tenant) and may change the user (their role there, `scoped`). Usually set by a plugin. [Multi-tenant](/guide/multi-tenant#how-it-works) |
+| `cliCommands` | `CliCommand[]` | `[]` | `easy-cms <name>` commands, e.g. from plugins: `{ name, description, help?, run({ cms, args, flags, log }) }`. [CLI](/guide/cli#commands-from-plugins) |
+| `onRequest` | `OnRequest \| OnRequest[]`: `({ headers, url, user, cms }) => { context?, user? }` | — | Runs on each API request once its user is known: returns the request's `context` (e.g. its tenant) and may change the user (their role there, `scoped`). Usually set by a plugin. A list runs in order: each gets the user the one before returned, and their `context` objects are merged. [Multi-tenant](/guide/multi-tenant#how-it-works) |
 | `apiKeys` | `boolean` | `false` | API keys under Settings, for scripts and other apps. [API keys](/guide/api-keys) |
 | `email` | `EmailAdapter` | — | Sends email for plugins, e.g. `smtp()` or `consoleEmail()`. [Email](/guide/email) |
 | `backups` | `BackupsConfig` | by hand only | Database backups on a schedule. See [backups](#backups). |
 | `audit` | `boolean \| AuditConfig` | off | The audit log: who changed what, sign-ins, admin actions. See [audit](#audit). |
-| `plugins` | `Plugin[]` | `[]` | `(config) => config`, run in order before validation; `definePlugin(fn, { name, version })` names one for the dashboard. [Plugins](/guide/plugins) |
+| `plugins` | `Plugin[]` | `[]` | `(config) => config`, run in order before validation; `definePlugin(fn, { name, version, apiVersion? })` names one for the dashboard; `apiVersion` (`PLUGIN_API_VERSION`) stops startup when the plugin is for another plugin API. [Plugins](/guide/plugins) |
 | `fieldTypes` | `FieldTypeDefinition[]` | `[]` | Field types from packages, e.g. `color` from `@easy-cms/fields`. [Custom field types](/guide/field-types) |
 
 <!-- api: RoutesConfig -->
@@ -95,6 +95,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 
 | Option | Type | |
 |---|---|---|
+| `id` | `string` | What roles are given in Settings → Roles (`widget:<id>`), so a panel keeps them when its tag changes. Default: the component's tag. |
 | `component` | `AdminComponent` | **Required**. The panel's content. |
 | `width` | `'half' \| 'full'` | `half` (default): the side column; `full`: below both columns. One column on phones. |
 | `label` | `Label` | Its name in Settings → Roles (`auth.rbac`). Default: the component's tag. |

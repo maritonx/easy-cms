@@ -76,6 +76,7 @@ export function oidc(options: OidcOptions): AuthProvider {
 
   return {
     id: options.id ?? 'oidc',
+    apiVersion: 1,
     name: options.name ?? 'SSO',
     ...(options.icon ? { icon: options.icon } : {}),
     ...(options.linkByEmail ? { linkByEmail: true } : {}),
@@ -242,6 +243,7 @@ export function github(
   }
   return {
     id: 'github',
+    apiVersion: 1,
     name: 'GitHub',
     ...(options.linkByEmail ? { linkByEmail: true } : {}),
     icon: 'github',

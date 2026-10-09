@@ -175,7 +175,8 @@ for the posts and one for the categories.
 |---|---|---|
 | `path` | `/graphql` | Where under `routes.api` the endpoint is. |
 | `names` | from the slug | Other names, by slug: `{ news: { type: 'NewsItem', one: 'newsItem', many: 'news' } }`. |
-| `exclude` | `[]` | Collections and globals to leave out, by slug. |
+| `collections` | all | Collections in the schema, by slug, e.g. `['posts', 'categories']`. |
+| `globals` | all | Globals in the schema, by slug. |
 | `limits` | `{ depth: 7, documents: 2000 }` | |
 | `introspection` | `true` | Let clients read the schema, as codegen and GraphiQL do. |
 | `graphiql` | outside production | Show GraphiQL to browsers. |

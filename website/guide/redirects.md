@@ -67,7 +67,7 @@ Turn it off with `autoRedirect: false`, or give a list of collections.
 
 `resolveRedirect(cms, url)` returns `{ location, status }` for a path, or `null`. Redirects are
 read once and kept in memory, so it is cheap to call on every request. Changes apply at once on
-the server that made them; other servers (serverless instances) catch up within `cacheTTL`
+the server that made them; other servers (serverless instances) catch up within `cacheMaxAge`
 (60 seconds by default). The visitor's query string is kept.
 
 ::: code-group
@@ -122,8 +122,8 @@ look the path up in your `not-found` page and call `permanentRedirect()`.
 | `collections` | `[]` | Collections a redirect can point to; their pages get automatic redirects. |
 | `url` | — | `({ collection, doc, locale }) => address`: a document's address. Needed with `collections`. |
 | `autoRedirect` | `true` | Add redirects when a published page's address changes; `false`, or a list of collections. |
-| `slug` | `'redirects'` | Slug of the redirects collection. |
-| `cacheTTL` | `60000` | How long other servers keep redirects in memory, in ms. |
+| `slugs.redirects` | `'redirects'` | Slug of the redirects collection. |
+| `cacheMaxAge` | `60` | How long other servers keep redirects in memory, in seconds. |
 
 ## In several tenants
 

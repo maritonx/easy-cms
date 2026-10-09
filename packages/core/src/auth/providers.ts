@@ -28,6 +28,11 @@ export interface AuthProviderProfile {
 export interface AuthProvider {
   /** In URLs and stored identities, e.g. `google`: lowercase letters, digits and `-`. */
   readonly id: string
+  /**
+   * The adapter interface it is written for (`ADAPTER_API_VERSION`); Easy CMS refuses another.
+   * Leave it out to skip the check.
+   */
+  readonly apiVersion?: number
   /** On the sign-in button, e.g. `Google`. */
   readonly name: string
   /** The button's icon in the admin. Default `key`. */

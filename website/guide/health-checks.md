@@ -59,7 +59,7 @@ minutes late. Nothing is running the jobs.
 
 **Fix:** long-running servers (Nuxt, `easy-cms serve`, a self-hosted Next.js) run them every
 minute. On serverless platforms, call `<api>/jobs/run` every minute from a cron with
-`Authorization: Bearer $CRON_SECRET`, or run `npx easy-cms run-scheduled` from one. The late jobs
+`Authorization: Bearer $CRON_SECRET`, or run `npx easy-cms jobs:run` from one. The late jobs
 run on the next call, and so do webhook and email retries.
 
 ## Backups

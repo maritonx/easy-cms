@@ -68,7 +68,7 @@ export function clearRedirects(cms: object): void {
 
 /**
  * The redirect for a request's path, or `null`. Pass the request's URL to keep its query
- * string. Redirects are read once and kept in memory (see `cacheTTL`), so calling this on every
+ * string. Redirects are read once and kept in memory (see `cacheMaxAge`), so calling this on every
  * request is cheap.
  *
  * ```ts
@@ -124,7 +124,7 @@ async function redirects(
   holder[CACHE] ??= new Map()
   const caches = holder[CACHE]
   const cached = caches.get(key)
-  if (cached && Date.now() - cached.at < source.cacheTTL) return cached.map
+  if (cached && Date.now() - cached.at < source.cacheMs) return cached.map
   const map = load(cms, source, scope)
   caches.set(key, { at: Date.now(), map })
   // A failed read is not kept: the next request tries again.

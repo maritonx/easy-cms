@@ -118,6 +118,7 @@ export function postgres(options: PostgresAdapterOptions): DatabaseAdapter {
   }
   return {
     name: 'postgres',
+    apiVersion: 1,
     init: async (args) => {
       const connection = options.pglite
         ? await pgliteConnection(options.pglite, args.cwd)

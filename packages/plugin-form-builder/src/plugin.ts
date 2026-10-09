@@ -9,7 +9,7 @@ import {
   type RequestContext,
   type TypedPlugin,
 } from '@easy-cms/core'
-import { resolveAdminModule } from '@easy-cms/core/internal'
+import { checkRenamedOptions, resolveAdminModule } from '@easy-cms/core/internal'
 import { renderRichText } from '@easy-cms/richtext'
 import { buildEmails } from './emails.js'
 import { fieldBlocks } from './fields.js'
@@ -26,9 +26,9 @@ import { validateSubmission } from './validate.js'
 
 type Row = Record<string, unknown>
 
-export interface FormBuilderOptions {
+export interface FormBuilderPluginOptions {
   /** Field types editors can add. Default: all. */
-  readonly fields?: readonly FieldKind[]
+  readonly fieldKinds?: readonly FieldKind[]
   /** Sender of form emails that don't set one. Default: the email adapter's `from`. */
   readonly defaultFrom?: string
   /** Recipients of form emails whose "To" is empty, e.g. the site owner. */
@@ -38,16 +38,14 @@ export interface FormBuilderOptions {
    * 5 in 600. `false` turns it off.
    */
   readonly rateLimit?: { readonly max?: number; readonly window?: number } | false
-  /** Submissions sent sooner than this after the form loaded are treated as bots. Default 2000 ms. */
-  readonly minSubmitTime?: number
+  /** Submissions sent sooner than this many seconds after the form loaded are treated as bots. Default 2. */
+  readonly minSubmitSeconds?: number
   /** Cloudflare Turnstile, to check that visitors are people. Keys from the Cloudflare dashboard. */
   readonly turnstile?: { readonly siteKey: string; readonly secretKey: string }
   /** Delete submissions older than this many days. Default: keep them. */
   readonly retentionDays?: number
   /** Slugs of the two collections. Default `forms` and `form-submissions`. */
   readonly slugs?: { readonly forms?: string; readonly submissions?: string }
-  /** For tests: the `fetch` for Turnstile. */
-  readonly fetch?: typeof fetch
 }
 
 const ADMIN_MODULE = '@easy-cms/plugin-form-builder/admin'
@@ -113,24 +111,28 @@ export function formBuilderPlugin<
   const F extends string = 'forms',
   const S extends string = 'form-submissions',
 >(
-  options: FormBuilderOptions & {
+  options: FormBuilderPluginOptions & {
     readonly slugs?: { readonly forms?: F; readonly submissions?: S }
   } = {},
 ): TypedPlugin<FormBuilderPluginTypes<F, S>> {
+  checkRenamedOptions('formBuilderPlugin', options, {
+    fields: 'fieldKinds',
+    minSubmitTime: 'minSubmitSeconds (in seconds)',
+  })
   return definePlugin<FormBuilderPluginTypes<F, S>>((config: Config): Config => {
     const forms = options.slugs?.forms ?? 'forms'
     const submissions = options.slugs?.submissions ?? 'form-submissions'
     for (const slug of [forms, submissions])
       if (config.collections?.some((c) => c.slug === slug))
         throw new Error(`formBuilderPlugin: there is already a collection "${slug}"; set \`slugs\``)
-    const kinds = options.fields ?? FIELD_KINDS
+    const kinds = options.fieldKinds ?? FIELD_KINDS
     const localized = !!config.localization
     const l = localized ? { localized: true } : {}
     const secret = config.secret
     const locales = (config.localization || undefined)?.locales ?? []
     const defaultLocale = (config.localization || undefined)?.defaultLocale ?? locales[0] ?? null
     const rate = options.rateLimit === false ? null : { max: 5, window: 600, ...options.rateLimit }
-    const minTime = options.minSubmitTime ?? 2000
+    const minTime = (options.minSubmitSeconds ?? 2) * 1000
     const defaultTo =
       options.defaultTo === undefined
         ? []
@@ -422,7 +424,7 @@ export function formBuilderPlugin<
         if (token !== 'ok') return fail(400, [{ message: reload }])
         if (
           options.turnstile &&
-          !(await verifyTurnstile(options.turnstile.secretKey, body.turnstile, ip, options.fetch))
+          !(await verifyTurnstile(options.turnstile.secretKey, body.turnstile, ip))
         )
           return fail(400, [
             {

@@ -49,16 +49,20 @@ npx easy-cms <command> [--config <file>] [--cwd <dir>]
 | [`migrate`](#migrate) | Apply pending migrations. |
 | [`migrate:create <name>`](#migrate-create) | Write a migration for config changes. |
 | [`migrate:status`](#migrate-status) | List migrations and whether they are applied. |
-| [`create-admin`](#create-admin) | Create a user. |
+| [`admin:create`](#admin-create) | Create a user. |
 | [`generate:types`](#generate-types) | Write TypeScript types for other apps. |
 | [`backup <file>`](#backup) | Copy the database to a SQLite file while the CMS runs. |
 | [`copy --from <config>`](#copy) | Copy all content into another database, e.g. SQLite to Postgres. |
-| [`run-scheduled`](#run-scheduled) | Run due scheduled jobs and webhook retries once. |
+| [`jobs:run`](#jobs-run) | Run due scheduled jobs and webhook retries once. |
 | [`serve`](#serve) | Run the CMS as its own server. |
 
 Options for every command: `--config <file>` (default `easy-cms.config.ts`), `--cwd <dir>`
 (the project root; its `.env` is loaded) and `--help`. Commands exit non-zero on failure, so
-they work in CI and deploy scripts. Set `DEBUG=1` to see stack traces.
+they work in CI and deploy scripts. Set `DEBUG=1` to see stack traces. Built-in commands stop
+on an option they don't know.
+
+`admin:create` and `jobs:run` were called `create-admin` and `run-scheduled` before 0.60. The
+old names still work.
 
 ### migrate
 
@@ -89,11 +93,11 @@ npx easy-cms migrate:status
 # • pending  20260928040614_seo
 ```
 
-### create-admin
+### admin:create
 
 ```bash [pm]
-npx easy-cms create-admin --email ann@example.com --name Ann
-npx easy-cms create-admin --email bob@example.com --role editor
+npx easy-cms admin:create --email ann@example.com --name Ann
+npx easy-cms admin:create --email bob@example.com --role editor
 ```
 
 Creates a user with the `admin` role (or `--role`). The password is asked for in the terminal;
@@ -141,10 +145,10 @@ the same, so relationships, history and logins keep working.
 
 See [Move from SQLite to Postgres](./recipes/sqlite-to-postgres).
 
-### run-scheduled
+### jobs:run
 
 ```bash [pm]
-npx easy-cms run-scheduled
+npx easy-cms jobs:run
 ```
 
 Runs due [scheduled publishes and unpublishes](./drafts#scheduled-publishing) and retries
@@ -190,8 +194,16 @@ export default defineConfig({
 })
 ```
 
-`run` gets the CMS (its schema as it is: run `migrate` first), the words after the command name,
-and `log`. Return a number to exit with it.
+`run` gets the CMS (its schema as it is: run `migrate` first), the words after the command name
+(`args`), the options (`flags`) and `log`. Return a number to exit with it.
+
+`flags` holds every option the CLI doesn't use itself (`--config`, `--cwd` and `--help` are
+its own), in camelCase. Values are strings, or `true` for an option without a value:
+
+| You type | `flags` |
+|---|---|
+| `--dry-run` | `{ dryRun: true }` |
+| `--limit=5` | `{ limit: '5' }` |
 
 ## Next steps
 

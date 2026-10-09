@@ -59,9 +59,9 @@ Commands:
   migrate:create <name>   Create a migration from config changes
   migrate:status          List migrations and whether they are applied
   generate:types          Write TypeScript types for your collections and globals
-  create-admin            Create an admin user
+  admin:create            Create an admin user (also: create-admin)
   serve                   Run the CMS as its own server (admin + REST API)
-  run-scheduled           Run due scheduled publishes, webhook and email retries
+  jobs:run                Run due scheduled publishes, jobs, webhook and email retries (also: run-scheduled)
   backup <file>           Copy the database to a SQLite file while the CMS runs
   copy --from <config>    Copy all content from another config's database into this one
   <plugin command>        Commands from your config's plugins, e.g. nested:rebuild
@@ -93,7 +93,7 @@ Lists migration files and whether each has been applied.
 Writes interfaces for every collection and global (default: easy-cms-types.ts).
 The file has no imports, so a frontend in another repository can copy it.
 `,
-  'create-admin': `Usage: easy-cms create-admin [--email <email>] [--name <name>] [--role <role>] [options]
+  'admin:create': `Usage: easy-cms admin:create [--email <email>] [--name <name>] [--role <role>] [options]
 
 Creates a user (role "admin" unless --role is given). The password is asked for in the
 terminal, or read from EASY_CMS_ADMIN_PASSWORD when there is no terminal.
@@ -118,7 +118,7 @@ development its tables are created, in production run \`easy-cms migrate\` first
 Uploaded files are not copied: they stay in the uploads folder or bucket.
 Stop writing to the source while copying, or copy from a backup.
 `,
-  'run-scheduled': `Usage: easy-cms run-scheduled [options]
+  'jobs:run': `Usage: easy-cms jobs:run [options]
 
 Runs due scheduled publishes and unpublishes, and retries failed webhook deliveries, once:
 for a cron job where no server process keeps running. Servers do this every minute on their own.
@@ -139,22 +139,34 @@ In production (NODE_ENV=production) pending migrations stop the server from star
 
 /** Runs the CLI and returns the exit code. */
 export async function run(argv: readonly string[], io: IO = defaultIO): Promise<number> {
+  // Plugins' commands take options of their own, so only the built-in commands are parsed strictly.
+  const loose = parseArgs({
+    args: [...argv],
+    allowPositionals: true,
+    strict: false,
+    options: OPTIONS,
+  })
+  const [named, ...looseRest] = loose.positionals
+  // Names from before 0.60.
+  const command = named === undefined ? undefined : (RENAMED_COMMANDS[named] ?? named)
+  if (command && !(command in COMMAND_HELP))
+    return await pluginCommand(command, looseRest, loose.values, io)
+
   let parsed: ReturnType<typeof parse>
   try {
     parsed = parse(argv)
   } catch (error) {
     io.err((error as Error).message)
-    io.err(HELP)
+    io.err(command ? (COMMAND_HELP[command] as string) : HELP)
     return 1
   }
-  const { values, positionals } = parsed
-  const [command, ...rest] = positionals
+  const { values } = parsed
+  const rest = parsed.positionals.slice(1)
 
   if (!command) {
     ;(values.help ? io.out : io.err)(HELP)
     return values.help ? 0 : 1
   }
-  if (!(command in COMMAND_HELP)) return await pluginCommand(command, rest, values, io)
   if (values.help) {
     io.out(COMMAND_HELP[command] as string)
     return 0
@@ -176,9 +188,9 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
       return 0
     }
     if (command === 'copy') return await copy(values.from, config, cwd, logger, io)
-    // create-admin writes a user, so the schema must exist: push in development like the app does.
+    // admin:create writes a user, so the schema must exist: push in development like the app does.
     const schema =
-      command === 'create-admin' && process.env.NODE_ENV !== 'production' ? 'push' : 'skip'
+      command === 'admin:create' && process.env.NODE_ENV !== 'production' ? 'push' : 'skip'
     const cms = await createEasyCMS(config, {
       cwd,
       schema,
@@ -219,7 +231,7 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
           io.out(`Backed up the database to ${file}`)
           return 0
         }
-        case 'run-scheduled': {
+        case 'jobs:run': {
           const { scheduled, webhooks, emails } = await cms.runJobs()
           const { ran, failed } = scheduled
           io.out(`Ran ${ran} scheduled job(s)${failed ? `, ${failed} failed` : ''}.`)
@@ -258,12 +270,12 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
           }
           return 0
         }
-        case 'create-admin': {
+        case 'admin:create': {
           const email =
             values.email ?? (io.interactive && io.prompt ? await io.prompt('Email: ') : '')
           if (!email) {
             io.err('Missing --email.\n')
-            io.err(COMMAND_HELP['create-admin'] as string)
+            io.err(COMMAND_HELP['admin:create'] as string)
             return 1
           }
           const password =
@@ -317,10 +329,12 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
 async function pluginCommand(
   command: string,
   args: readonly string[],
-  values: ReturnType<typeof parse>['values'],
+  values: Readonly<Record<string, string | boolean | undefined>>,
   io: IO,
 ): Promise<number> {
-  const cwd = values.cwd ?? process.cwd()
+  const text = (value: unknown) => (typeof value === 'string' ? value : undefined)
+  const cwd = text(values.cwd) ?? process.cwd()
+  const configFile = text(values.config)
   loadDotEnv(cwd)
   const logger: Logger = { info: io.out, warn: (m) => io.err(`warning: ${m}`), error: io.err }
   const unknown = (note?: string) => {
@@ -331,7 +345,7 @@ async function pluginCommand(
   }
   let config: Awaited<ReturnType<typeof loadConfig>>
   try {
-    config = await loadConfig({ cwd, ...(values.config ? { configFile: values.config } : {}) })
+    config = await loadConfig({ cwd, ...(configFile ? { configFile } : {}) })
   } catch (error) {
     return unknown(`(Commands from the config were not loaded: ${(error as Error).message})`)
   }
@@ -353,7 +367,16 @@ async function pluginCommand(
       scheduler: false,
     })
     try {
-      return (await found.run({ cms: cms as unknown as EasyCMS, args, log: io.out })) ?? 0
+      const flags = Object.fromEntries(
+        Object.entries(values)
+          .filter(([key, value]) => !['config', 'cwd', 'help'].includes(key) && value !== undefined)
+          // `--dry-run` → `dryRun`
+          .map(([key, value]) => [
+            key.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase()),
+            value,
+          ]),
+      ) as Record<string, string | boolean>
+      return (await found.run({ cms: cms as unknown as EasyCMS, args, flags, log: io.out })) ?? 0
     } finally {
       await cms.destroy()
     }
@@ -370,25 +393,28 @@ async function pluginCommand(
   }
 }
 
+const RENAMED_COMMANDS: Readonly<Record<string, string>> = {
+  'create-admin': 'admin:create',
+  'run-scheduled': 'jobs:run',
+}
+
+const OPTIONS = {
+  config: { type: 'string' },
+  cwd: { type: 'string' },
+  out: { type: 'string' },
+  from: { type: 'string' },
+  email: { type: 'string' },
+  name: { type: 'string' },
+  role: { type: 'string' },
+  port: { type: 'string' },
+  host: { type: 'string' },
+  watch: { type: 'boolean' },
+  'trust-proxy': { type: 'boolean' },
+  help: { type: 'boolean', short: 'h' },
+} as const
+
 function parse(argv: readonly string[]) {
-  return parseArgs({
-    args: [...argv],
-    allowPositionals: true,
-    options: {
-      config: { type: 'string' },
-      cwd: { type: 'string' },
-      out: { type: 'string' },
-      from: { type: 'string' },
-      email: { type: 'string' },
-      name: { type: 'string' },
-      role: { type: 'string' },
-      port: { type: 'string' },
-      host: { type: 'string' },
-      watch: { type: 'boolean' },
-      'trust-proxy': { type: 'boolean' },
-      help: { type: 'boolean', short: 'h' },
-    },
-  })
+  return parseArgs({ args: [...argv], allowPositionals: true, options: OPTIONS })
 }
 
 async function serve(

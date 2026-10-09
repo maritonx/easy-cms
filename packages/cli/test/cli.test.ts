@@ -148,7 +148,7 @@ describe('easy-cms CLI (FR-INS-06..08)', () => {
         out: expect.stringMatching(/Created admin ada@example\.com\. Log in at \/admin$/),
       })
       // Duplicate emails are reported, not thrown.
-      const again = await cli('create-admin', '--email', 'ada@example.com', '--cwd', dir)
+      const again = await cli('admin:create', '--email', 'ada@example.com', '--cwd', dir)
       expect(again).toMatchObject({ code: 1, err: 'email: must be unique' })
     } finally {
       delete process.env.EASY_CMS_ADMIN_PASSWORD
@@ -159,7 +159,7 @@ describe('easy-cms CLI (FR-INS-06..08)', () => {
     const dir = project()
     process.env.EASY_CMS_ADMIN_PASSWORD = 'a strong password'
     try {
-      await cli('create-admin', '--email', 'ada@example.com', '--cwd', dir)
+      await cli('admin:create', '--email', 'ada@example.com', '--cwd', dir)
     } finally {
       delete process.env.EASY_CMS_ADMIN_PASSWORD
     }
@@ -171,7 +171,7 @@ describe('easy-cms CLI (FR-INS-06..08)', () => {
     process.env.EASY_CMS_ADMIN_PASSWORD = 'a strong password'
     try {
       expect(
-        await cli('create-admin', '--email', 'ada@example.com', '--cwd', restored),
+        await cli('admin:create', '--email', 'ada@example.com', '--cwd', restored),
       ).toMatchObject({ code: 1, err: 'email: must be unique' })
     } finally {
       delete process.env.EASY_CMS_ADMIN_PASSWORD
@@ -191,7 +191,7 @@ describe('easy-cms CLI (FR-INS-06..08)', () => {
     const dir = project()
     process.env.EASY_CMS_ADMIN_PASSWORD = 'a strong password'
     try {
-      await cli('create-admin', '--email', 'ada@example.com', '--cwd', dir)
+      await cli('admin:create', '--email', 'ada@example.com', '--cwd', dir)
       // The old database becomes the source; the project's config moves to a new database.
       writeFileSync(
         join(dir, 'easy-cms.old.config.ts'),
@@ -211,7 +211,7 @@ export default { ...config, db: sqlite({ url: 'file:./cms.db' }) }
       expect(copied).toMatchObject({ code: 0, out: expect.stringContaining('ecms_users: 1') })
       expect(copied.out).toContain('Uploaded files were not copied')
       // The admin is in the new database now.
-      expect(await cli('create-admin', '--email', 'ada@example.com', '--cwd', dir)).toMatchObject({
+      expect(await cli('admin:create', '--email', 'ada@example.com', '--cwd', dir)).toMatchObject({
         code: 1,
         err: 'email: must be unique',
       })
@@ -238,7 +238,7 @@ export default { ...config, db: sqlite({ url: 'file:./cms.db' }) }
       },
     }
     const errors: string[] = []
-    const code = await run(['create-admin', '--cwd', dir], { ...io, err: (l) => errors.push(l) })
+    const code = await run(['admin:create', '--cwd', dir], { ...io, err: (l) => errors.push(l) })
     expect(asked).toEqual([
       { question: 'Email: ', hidden: false },
       { question: 'Password (8+ characters): ', hidden: true },
@@ -249,7 +249,7 @@ export default { ...config, db: sqlite({ url: 'file:./cms.db' }) }
 
   it('needs a password without a terminal', async () => {
     const dir = project()
-    expect(await cli('create-admin', '--email', 'x@example.com', '--cwd', dir)).toMatchObject({
+    expect(await cli('admin:create', '--email', 'x@example.com', '--cwd', dir)).toMatchObject({
       code: 1,
       err: expect.stringContaining('EASY_CMS_ADMIN_PASSWORD'),
     })
@@ -279,8 +279,9 @@ export default defineConfig({
     {
       name: 'posts:hello',
       description: 'Says hello',
-      run: ({ cms, args, log }) => {
+      run: ({ cms, args, flags, log }) => {
         log(\`hello \${args.join(' ')} \${cms.config.collections.some((c) => c.slug === 'posts')}\`)
+        if (Object.keys(flags).length) log(JSON.stringify(flags))
         return args.includes('fail') ? 2 : undefined
       },
     },
@@ -293,6 +294,14 @@ export default defineConfig({
       out: 'hello there true',
     })
     expect((await cli('posts:hello', 'fail', '--cwd', dir)).code).toBe(2)
+    // Options the CLI doesn't know go to the command.
+    expect((await cli('posts:hello', 'x', '--dry-run', '--limit=5', '--cwd', dir)).out).toContain(
+      '{"dryRun":true,"limit":"5"}',
+    )
+    // …but built-in commands still reject them.
+    const typo = await cli('generate:types', '--outt', 'x.ts', '--cwd', dir)
+    expect(typo.code).toBe(1)
+    expect(typo.err).toContain('--outt')
     expect((await cli('posts:hello', '--help', '--cwd', dir)).out).toContain('Says hello')
     const unknown = await cli('posts:nope', '--cwd', dir)
     expect(unknown.code).toBe(1)

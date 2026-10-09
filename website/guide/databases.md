@@ -23,11 +23,11 @@ Uses libSQL. In-memory databases (`:memory:`) are not supported.
 
 SQLite has one writer at a time. Writes from one process wait their turn in a queue; when
 another process writes to the same file (a second server, `easy-cms` commands), a write waits
-for it up to `busyTimeout` (default 10000 ms), during which that process pauses. Many busy
+for it up to `busyTimeoutMs` (default 10000 ms), during which that process pauses. Many busy
 processes writing to one file are better served by Postgres.
 
 ```ts
-db: sqlite({ url: 'file:./cms.db', busyTimeout: 5_000 })
+db: sqlite({ url: 'file:./cms.db', busyTimeoutMs: 5_000 })
 ```
 
 ## Postgres

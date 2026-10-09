@@ -1,11 +1,11 @@
-import {
-  type Block,
-  type CollectionConfig,
-  type Field,
-  type GlobalConfig,
-  type Label,
-  type ResolvedConfig,
-  type Where,
+import type {
+  Block,
+  CollectionConfig,
+  Field,
+  GlobalConfig,
+  Label,
+  ResolvedConfig,
+  Where,
 } from '@easy-cms/core'
 import { API_KEYS, INTERNAL_COLLECTIONS, MEDIA, MEDIA_FOLDERS } from '@easy-cms/core/internal'
 import {
@@ -71,8 +71,10 @@ export interface SchemaOptions {
    * Default: from the slug, `categories` → type `Category`, queries `category` and `categories`.
    */
   readonly names?: NameOverrides
-  /** Collections and globals left out of the schema, by slug. */
-  readonly exclude?: readonly string[]
+  /** Collections in the schema, by slug. Default: all (but internal ones and API keys). */
+  readonly collections?: readonly string[]
+  /** Globals in the schema, by slug. Default: all. */
+  readonly globals?: readonly string[]
   /** Your own queries, mutations and fields. */
   readonly extend?: (args: ExtendArgs) => GraphQLExtension
 }
@@ -135,13 +137,16 @@ const hasMany = (field: Field) => 'hasMany' in field && field.hasMany === true
 const userError = (message: string) =>
   new GraphQLError(message, { extensions: { code: 'BAD_USER_INPUT' } })
 
-/** The collections the schema has: not internal ones, not API keys, not excluded. */
+/** The collections the schema has: not internal ones, not API keys, only the ones listed. */
 export function exposedCollections(
   config: Pick<ResolvedConfig, 'collections'>,
-  exclude: readonly string[] = [],
+  only?: readonly string[],
 ): CollectionConfig[] {
   return config.collections.filter(
-    (c) => !INTERNAL_COLLECTIONS.has(c.slug) && c.slug !== API_KEYS && !exclude.includes(c.slug),
+    (c) =>
+      !INTERNAL_COLLECTIONS.has(c.slug) &&
+      c.slug !== API_KEYS &&
+      (only === undefined || only.includes(c.slug)),
   )
 }
 
@@ -261,9 +266,9 @@ class Builder {
     private readonly config: ResolvedConfig,
     private readonly options: SchemaOptions,
   ) {
-    const exclude = options.exclude ?? []
-    this.collections = exposedCollections(config, exclude)
-    this.globals = config.globals.filter((g) => !exclude.includes(g.slug))
+    this.collections = exposedCollections(config, options.collections)
+    const globals = options.globals
+    this.globals = config.globals.filter((g) => globals === undefined || globals.includes(g.slug))
     this.names = checkNames(
       this.collections.map((c) => c.slug),
       this.globals.map((g) => g.slug),

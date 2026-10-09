@@ -595,7 +595,8 @@ async function widgets(cms: EasyCMS, user: AuthUser): Promise<AdminWidgetRef[]> 
   const out: AdminWidgetRef[] = []
   for (const widget of cms.config.admin.dashboard) {
     const tag = typeof widget.component === 'string' ? widget.component : widget.component.tag
-    if (!(await shown(widget.access, user)) || !(await cms.roles.canView(user, `widget:${tag}`)))
+    const id = widget.id ?? tag
+    if (!(await shown(widget.access, user)) || !(await cms.roles.canView(user, `widget:${id}`)))
       continue
     out.push({ component: componentRef(widget.component), width: widget.width ?? 'half' })
   }

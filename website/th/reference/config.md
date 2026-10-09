@@ -34,13 +34,13 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `collections` | `CollectionConfig[]` | `[]` | ดู [collections](#collections) |
 | `globals` | `GlobalConfig[]` | `[]` | ดู [globals](#globals) |
 | `endpoints` | `Endpoint[]` | `[]` | ดู [endpoints](#endpoints) |
-| `cliCommands` | `CliCommand[]` | `[]` | คำสั่ง `easy-cms <name>` เช่นจาก plugin: `{ name, description, help?, run({ cms, args, log }) }` [CLI](/th/guide/cli#commands-from-plugins) |
-| `onRequest` | `({ headers, url, user, cms }) => { context?, user? }` | — | ทำงานทุก request ของ API เมื่อรู้ผู้ใช้แล้ว: คืน `context` ของ request (เช่น tenant) และเปลี่ยนผู้ใช้ได้ (บทบาทใน tenant นั้น, `scoped`) ปกติ plugin เป็นผู้ตั้ง [Multi-tenant](/th/guide/multi-tenant#how-it-works) |
+| `cliCommands` | `CliCommand[]` | `[]` | คำสั่ง `easy-cms <name>` เช่นจาก plugin: `{ name, description, help?, run({ cms, args, flags, log }) }` [CLI](/th/guide/cli#commands-from-plugins) |
+| `onRequest` | `OnRequest \| OnRequest[]`: `({ headers, url, user, cms }) => { context?, user? }` | — | ทำงานทุก request ของ API เมื่อรู้ผู้ใช้แล้ว: คืน `context` ของ request (เช่น tenant) และเปลี่ยนผู้ใช้ได้ (บทบาทใน tenant นั้น, `scoped`) ปกติ plugin เป็นผู้ตั้ง ถ้าเป็นรายการจะทำงานตามลำดับ แต่ละตัวได้ผู้ใช้ที่ตัวก่อนหน้าคืนมา และรวม `context` ของทุกตัวเข้าด้วยกัน [Multi-tenant](/th/guide/multi-tenant#how-it-works) |
 | `apiKeys` | `boolean` | `false` | API key ใต้ตั้งค่า สำหรับสคริปต์และแอปอื่น [API keys](/th/guide/api-keys) |
 | `email` | `EmailAdapter` | — | ส่งอีเมลให้ plugin เช่น `smtp()` หรือ `consoleEmail()` [อีเมล](/th/guide/email) |
 | `backups` | `BackupsConfig` | กดทำเองเท่านั้น | backup ฐานข้อมูลตามรอบ ดู [backups](#backups) |
 | `audit` | `boolean \| AuditConfig` | ปิด | audit log: ใครแก้อะไร การเข้าสู่ระบบ การจัดการระบบ ดู [audit](#audit) |
-| `plugins` | `Plugin[]` | `[]` | `(config) => config` ทำงานตามลำดับก่อนตรวจ config `definePlugin(fn, { name, version })` ตั้งชื่อให้แสดงบนแดชบอร์ด [Plugins](/th/guide/plugins) |
+| `plugins` | `Plugin[]` | `[]` | `(config) => config` ทำงานตามลำดับก่อนตรวจ config `definePlugin(fn, { name, version, apiVersion? })` ตั้งชื่อให้แสดงบนแดชบอร์ด ส่วน `apiVersion` (`PLUGIN_API_VERSION`) หยุดการเริ่มทำงานถ้า plugin เขียนไว้สำหรับ plugin API เวอร์ชันอื่น [Plugins](/th/guide/plugins) |
 | `fieldTypes` | `FieldTypeDefinition[]` | `[]` | ชนิด field จากแพ็กเกจ เช่น `color` จาก `@easy-cms/fields` [ชนิด field เพิ่มเติม](/th/guide/field-types) |
 
 <!-- api: RoutesConfig -->
@@ -93,6 +93,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 
 | ตัวเลือก | Type | |
 |---|---|---|
+| `id` | `string` | ใช้ให้สิทธิ์ในหน้า Settings → Roles (`widget:<id>`) เปลี่ยน tag แล้วสิทธิ์ยังอยู่ ค่าเริ่มต้น: tag ของ component |
 | `component` | `AdminComponent` | **จำเป็น** เนื้อหาของกล่อง |
 | `width` | `'half' \| 'full'` | `half` (ค่าเริ่มต้น): คอลัมน์ข้าง `full`: ใต้ทั้งสองคอลัมน์ บนมือถือเป็นคอลัมน์เดียว |
 | `label` | `Label` | ชื่อของกล่องในหน้า Settings → Roles (`auth.rbac`) ค่าเริ่มต้น: tag ของ component |

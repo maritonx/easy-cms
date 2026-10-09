@@ -12,7 +12,7 @@ const STATUS: Record<string, string> = {
 }
 
 function SignIn() {
-  const { login, signup, forgotPassword } = useCustomer()
+  const { login, signUp, forgotPassword } = useCustomer()
   const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [message, setMessage] = useState('')
 
@@ -25,7 +25,7 @@ function SignIn() {
     try {
       if (mode === 'login') await login(email, password)
       else {
-        const result = await signup({ email, password, name: String(form.get('name') ?? '') })
+        const result = await signUp({ email, password, name: String(form.get('name') ?? '') })
         if (result.verify) setMessage('ส่งลิงก์ยืนยันไปที่อีเมลแล้ว กดลิงก์เพื่อเข้าสู่ระบบ')
       }
     } catch (e) {

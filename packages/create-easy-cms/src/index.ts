@@ -338,7 +338,7 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
     io.out(`
 Done. Next:
   1. ${cd ? `cd ${cd} && ` : ''}${devCommand}   (http://localhost:4000/admin)
-  2. Create the first admin there (or run: ${cms('create-admin')})
+  2. Create the first admin there (or run: ${cms('admin:create')})
   3. Point your frontend at http://localhost:4000/api/cms and list its origin in \`cors\`
      in easy-cms.config.ts.
   4. Before deploying: ${cms('migrate:create init')}, commit easy-cms/migrations,
@@ -348,7 +348,7 @@ Done. Next:
   io.out(`
 Done. Next:
   1. ${devCommand}
-  2. Open /admin and create the first admin (or run: ${cms('create-admin')})
+  2. Open /admin and create the first admin (or run: ${cms('admin:create')})
   3. Before deploying: ${cms('migrate:create init')}, commit easy-cms/migrations,
      and run ${cms('migrate')} where you deploy.
   4. Set EASY_CMS_SECRET in the production environment.${

@@ -96,8 +96,8 @@ export const rating = defineFieldType({
 | `base` | **Required** | How it is stored: `text`, `textarea`, `email`, `number`, `boolean`, `date` or `json`. |
 | `validate` | | `(value, { field, data, operation, … }) => true \| string`, may be async. `field` has the field's own options. A field's own `validate` runs after it. |
 | `checkOptions` | | `(field) => string \| undefined`: a message makes the config invalid. |
-| `admin.component` | | The input: a Web Component (tag starting with `ecms-`). Without it, the base type's input. |
-| `admin.cell` | | Shows the value in lists. Without it, the value as text. |
+| `admin.component` | | The input: a Web Component, as a tag or `{ tag, props }` ([admin component](./plugins#admin-components)). Without it, the base type's input. |
+| `admin.cell` | | Shows the value in lists, as a tag or `{ tag, props }`. Without it, the value as text. |
 | `admin.module` | | The [admin module](./plugins#the-module) that defines the components; added to `admin.modules` for you. |
 | `admin.props` | | Field options passed to the components as `options`. |
 | `typescript` | | The value's type for `generate:types`. Default: the base type's. |

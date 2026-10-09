@@ -118,14 +118,14 @@ AI assistant ► /api/cms/mcp ──┘                     └──► Webhook
 | FR-INS-01 | `npx create-easy-cms` ต้องตรวจได้ว่าโปรเจกต์ปัจจุบันเป็น Nuxt หรือ Next.js ถ้าเป็นโฟลเดอร์ใหม่หรือว่างให้ตั้งเป็น standalone ส่วนโปรเจกต์อื่นต้องใส่ `--standalone` หรือยืนยันใน terminal | MUST |
 | FR-INS-02 | `create-easy-cms` ต้องติดตั้ง package ที่จำเป็น, สร้าง `easy-cms.config.ts` ตัวอย่าง และลงทะเบียน route `/admin` กับ `/api/cms` | MUST |
 | FR-INS-03 | `create-easy-cms` ต้องถามชนิด database (SQLite/Postgres) และเพิ่ม `EASY_CMS_SECRET` ที่สุ่มขึ้นมาลงใน `.env` ถ้ายังไม่มี | MUST |
-| FR-INS-04 | `easy-cms create-admin` ต้องสร้าง user ที่มี role `admin` จาก email และ password ที่รับเข้ามา | MUST |
+| FR-INS-04 | `easy-cms admin:create` ต้องสร้าง user ที่มี role `admin` จาก email และ password ที่รับเข้ามา | MUST |
 | FR-INS-05 | `easy-cms generate:types` ต้องสร้างไฟล์ `easy-cms-types.ts` ที่มี type ของทุก collection และ global | MUST |
 | FR-INS-06 | `easy-cms migrate:create <name>` ต้องสร้าง migration file จากส่วนต่างระหว่าง config กับ schema ปัจจุบัน | MUST |
 | FR-INS-07 | `easy-cms migrate` ต้องรัน migration ที่ยังไม่ได้รันตามลำดับ และบันทึกผลไว้ใน DB | MUST |
 | FR-INS-08 | ทุกคำสั่งต้องมี `--help` และคืน exit code ≠ 0 เมื่อเกิด error | MUST |
 | FR-INS-09 | `easy-cms migrate:status` ต้องแสดง migration ทั้งหมดและบอกว่ารันแล้วหรือยัง | SHOULD |
 
-คำสั่ง `serve`, `run-scheduled`, `backup` และ `copy` อยู่ในหัวข้อ 3.15, 3.21 และ 3.26
+คำสั่ง `serve`, `jobs:run`, `backup` และ `copy` อยู่ในหัวข้อ 3.15, 3.21 และ 3.26
 
 ### 3.2 Configuration (CFG)
 
@@ -323,7 +323,7 @@ AI assistant ► /api/cms/mcp ──┘                     └──► Webhook
 |---|---|---|---|
 | FR-S3-01 | `@easy-cms/storage-s3` ต้องเก็บไฟล์บน AWS S3, Cloudflare R2, MinIO และบริการที่เข้ากันได้กับ S3 | 0.2 | MUST |
 | FR-S3-02 | Credentials ต้องอ่านตอน `init()` (ไม่ใช่ตอนสร้าง adapter) และมีค่า default จาก `AWS_*` | 0.2 | MUST |
-| FR-S3-03 | Default ต้องเสิร์ฟไฟล์ผ่าน API จาก bucket แบบ private พร้อม header เดียวกับ local storage ส่วน `publicUrl` ต้องชี้ไป CDN หรือ bucket โดยตรงได้ | 0.2 | MUST |
+| FR-S3-03 | Default ต้องเสิร์ฟไฟล์ผ่าน API จาก bucket แบบ private พร้อม header เดียวกับ local storage ส่วน `publicURL` ต้องชี้ไป CDN หรือ bucket โดยตรงได้ | 0.2 | MUST |
 
 ### 3.17 Version history (VER) — [ADR-0012](adr/0012-versions.md)
 
@@ -372,7 +372,7 @@ AI assistant ► /api/cms/mcp ──┘                     └──► Webhook
 | FR-WHK-03 | การส่งต้องไม่ทำให้การบันทึกช้าหรือล้ม และต้องบันทึกลงคิวในฐานข้อมูลก่อนส่งครั้งแรก ส่งซ้ำเมื่อล้มนานประมาณหนึ่งวันแล้วจึงเป็น `failed` | 0.6 / 0.7 / 0.8 | MUST |
 | FR-WHK-04 | `flushWebhooks()` และ `destroy()` ต้องรอการส่งที่ค้างอยู่ สำหรับ serverless | 0.6 | MUST |
 | FR-SCH-01 | `schedule: true` บน collection/global ที่มี drafts ต้องตั้งเวลาเผยแพร่หรือยกเลิกได้ (`cms.schedule`, ปุ่ม Schedule ในหน้า Admin) และงานต้องผ่าน hooks, versions และ webhooks ปกติ | 0.6 | MUST |
-| FR-SCH-02 | Server ที่รันต่อเนื่องต้องรันงานที่ถึงเวลาทุกนาที ส่วน serverless ต้องเรียก `GET <api>/jobs/run` ด้วย `Bearer <cronSecret \| CRON_SECRET>` หรือ `easy-cms run-scheduled` ได้ | 0.6 | MUST |
+| FR-SCH-02 | Server ที่รันต่อเนื่องต้องรันงานที่ถึงเวลาทุกนาที ส่วน serverless ต้องเรียก `GET <api>/jobs/run` ด้วย `Bearer <cronSecret \| CRON_SECRET>` หรือ `easy-cms jobs:run` ได้ | 0.6 | MUST |
 
 ### 3.22 Plugin endpoints และ admin components (PLG) — [ADR-0018](adr/0018-plugin-endpoints-admin-components.md)
 

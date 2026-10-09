@@ -20,9 +20,9 @@ npx easy-cms migrate:create <name>    # a migration for config changes
 npx easy-cms migrate                  # apply pending migrations
 npx easy-cms migrate:status
 npx easy-cms generate:types [--out file.ts]
-npx easy-cms create-admin [--email you@example.com] [--name] [--role]
+npx easy-cms admin:create [--email you@example.com] [--name] [--role]
 npx easy-cms serve [--port 4000] [--watch]
-npx easy-cms run-scheduled            # due scheduled jobs, webhook and email retries (cron)
+npx easy-cms jobs:run            # due scheduled jobs, webhook and email retries (cron)
 npx easy-cms backup <file>            # SQLite snapshot while the CMS runs
 npx easy-cms copy --from <config>     # copy content to another database
 ```

@@ -124,11 +124,16 @@ collection, so create a migration:
 npx easy-cms migrate:create roles
 ```
 
-Plugin dashboard panels are given to roles by their component tag; give each panel its own tag and,
-optionally, a `label` for the Roles page:
+Plugin dashboard panels are given to roles by their `id`, or their component tag without one.
+Give each panel its own `id` (so it keeps its roles when the tag changes) and, optionally, a
+`label` for the Roles page:
 
 ```ts
-admin: { dashboard: [{ component: 'ecms-sales-chart', label: { en: 'Sales', th: 'ยอดขาย' } }] }
+admin: {
+  dashboard: [
+    { id: 'sales', component: 'ecms-sales-chart', label: { en: 'Sales', th: 'ยอดขาย' } },
+  ],
+}
 ```
 
 ## Next steps

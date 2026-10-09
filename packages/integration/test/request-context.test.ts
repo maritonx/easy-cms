@@ -1,4 +1,10 @@
-import { createRestHandler, defineConfig, isSystemAdmin, type RequestContext } from '@easy-cms/core'
+import {
+  type AuthUser,
+  createRestHandler,
+  defineConfig,
+  isSystemAdmin,
+  type RequestContext,
+} from '@easy-cms/core'
 import { describe, expect, it } from 'vitest'
 import { db, open, SECRET } from './helpers.js'
 
@@ -179,6 +185,26 @@ describe('request context', () => {
     expect((await cms.audit.list({})).totalDocs).toBe(2)
     // Scoped entries are signed with their scope.
     expect((await cms.audit.verify()).invalid).toEqual([])
+    await cms.destroy()
+  })
+  it('runs a list of onRequest hooks in order, each seeing the user of the one before', async () => {
+    const cms = await open(
+      defineConfig({
+        secret: SECRET,
+        db: db(),
+        onRequest: [
+          ({ headers }) => ({
+            context: { site: headers.get('x-site') ?? undefined, step: 1 },
+            user: { id: 1, email: 'a@example.com', role: 'admin' } as AuthUser,
+          }),
+          ({ user }) => ({ user: user && { ...user, role: 'editor' }, context: { step: 2 } }),
+          ({ user }) => ({ context: { role: user?.role ?? null } }),
+        ],
+      }),
+    )
+    const { user, context } = await cms.forRequest(new Headers({ 'x-site': 'a' }))
+    expect(user?.role).toBe('editor')
+    expect(context).toMatchObject({ site: 'a', step: 2, role: 'editor' })
     await cms.destroy()
   })
 })

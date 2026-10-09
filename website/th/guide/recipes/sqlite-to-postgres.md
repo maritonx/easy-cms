@@ -32,7 +32,7 @@ npx easy-cms migrate:create init
 ```
 
 commit โฟลเดอร์ใหม่ รัน `npx easy-cms migrate` ในที่ที่ deploy และสร้าง admin คนแรกใหม่
-(`npx easy-cms create-admin`)
+(`npx easy-cms admin:create`)
 
 ## แบบมีเนื้อหาที่ต้องเก็บไว้ {#with-content-to-keep}
 

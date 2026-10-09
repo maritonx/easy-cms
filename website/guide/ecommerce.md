@@ -125,7 +125,7 @@ export default defineNuxtPlugin((nuxtApp) => {
 | `useCart()` | `cart` (lines, `subtotal`, `adjustments`, `total`, `count`), `addItem`, `updateItem`, `incrementItem`, `decrementItem`, `removeItem`, `clearCart`, `busy` |
 | `useCurrency()` | `currency`, `currencies`, `setCurrency`, `formatPrice` |
 | `usePayments()` | `paymentMethods`, `checkout`, `confirm` |
-| `useCustomer()` | `user`, `login`, `logout`, `signup`, `verifyEmail`, `forgotPassword`, `resetPassword` |
+| `useCustomer()` | `user`, `login`, `logout`, `signUp`, `verifyEmail`, `forgotPassword`, `resetPassword` |
 | `useAddresses()` | The customer's `addresses`, `createAddress`, `updateAddress`, `deleteAddress` |
 | `useOrders()` | The customer's `orders`, newest first |
 
@@ -286,7 +286,7 @@ Never trust the page: `confirm` must ask the provider.
 | `addresses.supportedCountries` | `['TH']` | Countries the shop sends to. |
 | `addresses.fields` | Thai address | Name, phone, address lines, sub-district, district, province, postal code, country. |
 | `customers.role` | `customer` | The role of customers' accounts. |
-| `customers.signup` | `true` | Visitors create accounts (`false` for none, or Turnstile keys). |
+| `customers.signUp` | `true` | Visitors create accounts (`false` for none, or Turnstile keys). |
 | `customers.pages` | — | The site's pages for email links ([Site members](./members)). |
 | `totals` | — | Shipping, tax and discounts. |
 | `orders.number` | `1000 + n` | Order numbers. |

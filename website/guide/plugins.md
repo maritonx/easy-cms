@@ -75,11 +75,23 @@ import { definePlugin } from '@easy-cms/core'
 import pkg from '../package.json' with { type: 'json' }
 
 export const readingTime = (options: { collections: string[] }) =>
-  definePlugin((config) => ({ /* … */ ...config }), { name: pkg.name, version: pkg.version })
+  definePlugin((config) => ({ /* … */ ...config }), {
+    name: pkg.name,
+    version: pkg.version,
+    apiVersion: 1,
+  })
 ```
 
 Plugins without a name are counted there as "without a name". The official plugins name
 themselves.
+
+`apiVersion` (optional) is the plugin API your plugin is written for: `PLUGIN_API_VERSION`,
+exported from `@easy-cms/core` and `@easy-cms/core/plugin`. A plugin for another version stops
+startup with a `ConfigError` that says what to upgrade: Easy CMS or the plugin. Leave it out to
+skip the check.
+
+Adapters (database, storage, email, auth providers) can do the same: set `apiVersion: 1` on the
+adapter object to check it against `ADAPTER_API_VERSION` from `@easy-cms/core`.
 
 ### Typing your plugin
 
@@ -184,7 +196,8 @@ fields: [
 admin: { sidebar: ['ecms-checklist'] },
 ```
 
-A component is a tag name starting with `ecms-`, or `{ tag, props }`. `props` must be plain JSON;
+A component is a custom element name (lowercase, with a `-`, e.g. `acme-color-picker`), or
+`{ tag, props }`. `props` must be plain JSON;
 the element receives them as `options`.
 
 ### Pages and dashboard panels
@@ -210,6 +223,9 @@ admin: {
   ],
 },
 ```
+
+A dashboard panel can have an `id`. [Roles](./roles#setting-it-up) are given panels by it
+(`widget:<id>`), so a panel keeps its permissions when its tag changes. Default: the tag.
 
 - The admin draws a page's header (its `label` as the title, also in the browser tab); the
   element draws the rest. Dashboard panels follow the built-in ones in config order: `half`

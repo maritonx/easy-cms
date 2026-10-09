@@ -3,6 +3,7 @@ import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { type AdminHandler, APP_DIR, adminHandlerFor, SHELL_FILE } from '@easy-cms/admin'
 import {
+  type ApiHandlerOptions,
   type AuthUser,
   type Config,
   createApiHandler,
@@ -13,6 +14,8 @@ import {
 
 type Handler = (request: Request) => Promise<Response>
 
+export type { ApiHandlerOptions }
+
 /**
  * The Easy CMS Local API for this server, typed from your config. Use it in Server
  * Components, Route Handlers and Server Actions. The instance survives hot reloads, and is the
@@ -22,10 +25,11 @@ export function getEasyCMS<const C extends Config>(config: C): Promise<EasyCMS<C
   return sharedEasyCMS(config)
 }
 
-export interface RouteHandlerOptions {
-  /** Use `X-Forwarded-For` for the client IP (login rate limiting). Enable behind a proxy you trust, e.g. Vercel. */
-  readonly trustProxy?: boolean
-}
+/**
+ * `basePath`, `getClientIp` and `trustProxy` (use `X-Forwarded-For` for the client IP, only
+ * behind a proxy you trust; Vercel and Netlify are recognized without it).
+ */
+export type RouteHandlerOptions = ApiHandlerOptions
 
 /**
  * REST API route handlers. In `app/api/cms/[...path]/route.ts` (matching `routes.api`):
@@ -37,7 +41,7 @@ export interface RouteHandlerOptions {
  * ```
  */
 export function createRouteHandlers(config: Config, options: RouteHandlerOptions = {}) {
-  const handle: Handler = createApiHandler(config, { trustProxy: options.trustProxy === true })
+  const handle: Handler = createApiHandler(config, options)
   return {
     GET: handle,
     HEAD: handle,

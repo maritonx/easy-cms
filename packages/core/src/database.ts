@@ -134,8 +134,16 @@ export interface DatabaseTransfer {
 }
 
 /** What `sqlite()` / `postgres()` return and what `config.db` holds. */
+/** The version of the adapter interfaces (database, storage, email, sign-in providers). */
+export const ADAPTER_API_VERSION = 1
+
 export interface DatabaseAdapter {
   readonly name: string
+  /**
+   * The adapter interface it is written for (`ADAPTER_API_VERSION`); Easy CMS refuses another.
+   * Leave it out to skip the check.
+   */
+  readonly apiVersion?: number
   init(args: DatabaseInitArgs): Promise<Database>
   /** Hints for bundlers (Nitro, Next.js output tracing) about files static analysis cannot find. */
   readonly bundle?: BundleHints

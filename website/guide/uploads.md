@@ -146,7 +146,7 @@ Links stop working when they expire, when `secret` changes, or when the file sto
 Public files get their usual URL.
 
 **Where private files go.** On the local disk and Netlify Blobs, which serve nothing publicly, with
-the other files. A storage with public URLs (S3 with `publicUrl`, a public Vercel Blob store) needs
+the other files. A storage with public URLs (S3 with `publicURL`, a public Vercel Blob store) needs
 `upload.privateStorage` before folders can be private:
 
 ```ts
@@ -368,7 +368,7 @@ starts, so building without them works.
 | `region` | `AWS_REGION`, then `us-east-1` | `auto` for Cloudflare R2 |
 | `endpoint` | AWS S3 | For S3-compatible services, e.g. `https://<account>.r2.cloudflarestorage.com` |
 | `prefix` | none | Folder for the objects, e.g. `media/` |
-| `publicUrl` | none | Serve files from here (CDN or public bucket) instead of through the API |
+| `publicURL` | none | Serve files from here (CDN or public bucket) instead of through the API |
 | `forcePathStyle` | `true` with `endpoint` | `<endpoint>/<bucket>/<key>` addressing |
 
 Cloudflare R2:
@@ -385,12 +385,12 @@ s3Storage({
 
 The access key needs `s3:PutObject`, `s3:GetObject` and `s3:DeleteObject` on the bucket.
 
-**Private bucket (default).** Without `publicUrl`, files are streamed through
+**Private bucket (default).** Without `publicURL`, files are streamed through
 `/api/cms/media/file/<name>` with the same caching and sandboxing headers as local storage, so
 the bucket stays private. Put a CDN in front of your site to avoid fetching from S3 on every
 request.
 
-**Public bucket.** With `publicUrl`, media URLs point to the bucket or CDN directly and your
+**Public bucket.** With `publicURL`, media URLs point to the bucket or CDN directly and your
 server is not involved. Serve it from a **different domain** than your site: the sandboxing
 Content Security Policy is not applied there, so an uploaded SVG could otherwise run scripts
 with your site's origin.

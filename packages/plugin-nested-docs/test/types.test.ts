@@ -20,7 +20,7 @@ const config = defineConfig({
   ],
   plugins: [
     nestedDocsPlugin({ collections: ['pages'] }),
-    nestedDocsPlugin({ collections: ['docs'], fields: { parent: 'chapter', path: 'url' } }),
+    nestedDocsPlugin({ collections: ['docs'], fieldNames: { parent: 'chapter', path: 'url' } }),
   ],
 })
 type Page = CollectionDocument<typeof config, 'pages'>

@@ -39,7 +39,7 @@ look in the admin and how they are stored, see [Fields](/guide/fields).
 | `initialValue` | `({ user, context }) => unknown` | The value a new document's form starts with, per user, e.g. from the request's context. The field's `defaultValue` still applies on the server. |
 | `position` | `'sidebar'` | Shown in the edit page's side column (top-level fields). |
 
-An `AdminComponent` is a tag name starting with `ecms-`, or `{ tag, props }`.
+An `AdminComponent` is a custom element name (lowercase, with a `-`), or `{ tag, props }`.
 
 ## Types
 

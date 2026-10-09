@@ -39,7 +39,7 @@
 | `initialValue` | `({ user, context }) => unknown` | ค่าเริ่มต้นของฟอร์มเอกสารใหม่ต่อผู้ใช้ เช่น จาก context ของ request ส่วน `defaultValue` ของ field ยังใช้ฝั่ง server ตามเดิม |
 | `position` | `'sidebar'` | แสดงในแถบข้างของหน้าแก้ไข (field ระดับบนสุด) |
 
-`AdminComponent` คือชื่อ tag ที่ขึ้นต้นด้วย `ecms-` หรือ `{ tag, props }`
+`AdminComponent` คือชื่อ custom element (ตัวพิมพ์เล็ก มี `-`) หรือ `{ tag, props }`
 
 ## ประเภท {#types}
 

@@ -37,7 +37,7 @@ npm run dev
 ```
 
 Open `http://localhost:3000/admin`. With no users yet, the admin
-asks you to create the first admin. You can also run `npx easy-cms create-admin`.
+asks you to create the first admin. You can also run `npx easy-cms admin:create`.
 
 In development the database schema follows your config automatically. Edit
 `easy-cms.config.ts`, save, and the admin shows the new fields.

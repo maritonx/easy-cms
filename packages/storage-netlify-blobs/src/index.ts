@@ -35,6 +35,7 @@ export function netlifyBlobsStorage(options: NetlifyBlobsStorageOptions = {}): S
     })
   return {
     name: 'netlify-blobs',
+    apiVersion: 1,
     async put(key, data, { contentType }) {
       const bytes = new Uint8Array(data)
       await open().set(key, bytes.buffer as ArrayBuffer, { metadata: { contentType } })

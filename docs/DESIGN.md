@@ -250,7 +250,7 @@ Endpoint ของ plugin อยู่ใต้ `routes.api` เดียวก�
 
 - **Storage adapter interface:** `put / get / delete / url? / init?` และ `uploadURL? / getStart?` สำหรับไฟล์ใหญ่ที่ browser ส่งตรงไปที่ storage → ดู [ADR-0044](adr/0044-direct-uploads.md)
 - **Local disk** (default) และ **S3-compatible** (`@easy-cms/storage-s3`, AWS S3, Cloudflare R2, MinIO ผ่าน aws4fetch) สำหรับ Vercel/serverless → ดู [ADR-0010](adr/0010-s3-storage.md)
-- ไฟล์เสิร์ฟผ่าน `<api>/media/file/<key>` พร้อม CSP `sandbox` และ `nosniff` เป็น default ส่วน S3 ตั้ง `publicUrl` ไปที่ CDN ได้
+- ไฟล์เสิร์ฟผ่าน `<api>/media/file/<key>` พร้อม CSP `sandbox` และ `nosniff` เป็น default ส่วน S3 ตั้ง `publicURL` ไปที่ CDN ได้
 - **รูปภาพ:** `sharp` เป็น optional dependency สำหรับสร้าง thumbnail และ resize
 - ตรวจ MIME type จากเนื้อหาไฟล์และขนาดไฟล์ตอนอัปโหลด → ดู [ADR-0008](adr/0008-media-drafts-hooks.md) รวมถึงเอกสาร Office/OpenDocument, zip, เสียงและวิดีโอ และกลุ่ม `documents`/`office`/`archives` → ดู [ADR-0042](adr/0042-media-types-and-previews.md)
 - **โฟลเดอร์** (`upload.folders`): collection `media-folders` ซ้อนได้ ไฟล์อยู่ได้โฟลเดอร์เดียว ไม่เปลี่ยน key ของไฟล์ และกับ `auth.rbac` admin กำหนดระดับ ดู/แก้ไข/จัดการ ของแต่ละบทบาทต่อโฟลเดอร์ (สืบทอดลงไป จำกัดสิทธิ์ Media ให้แคบลงเท่านั้น) → ดู [ADR-0041](adr/0041-media-folders.md) โฟลเดอร์ส่วนตัวเก็บไฟล์ใน `upload.privateStorage` ชื่อไฟล์มี `.private` และเสิร์ฟผ่าน `<api>/media/private/<key>` ให้ผู้มีสิทธิ์หรือลิงก์ที่เซ็น → ดู [ADR-0043](adr/0043-private-files.md)
@@ -283,13 +283,13 @@ Endpoint ของ plugin อยู่ใต้ `routes.api` เดียวก�
 ```bash
 npx create-easy-cms            # ตรวจ Nuxt/Next อัตโนมัติ หรือสร้าง standalone ในโฟลเดอร์ว่าง
                                # npm, pnpm, yarn, bun: --pm หรือตรวจจาก packageManager/lockfile (0.22)
-easy-cms create-admin          # สร้าง admin คนแรก
+easy-cms admin:create          # สร้าง admin คนแรก
 easy-cms generate:types
 easy-cms migrate:create <name>
 easy-cms migrate
 easy-cms migrate:status
 easy-cms serve [--watch]       # standalone
-easy-cms run-scheduled         # งานตั้งเวลาและ webhook ที่ต้องส่งซ้ำ (สำหรับ cron)
+easy-cms jobs:run         # งานตั้งเวลาและ webhook ที่ต้องส่งซ้ำ (สำหรับ cron)
 easy-cms backup <file>         # สำรอง SQLite ขณะที่ระบบทำงาน
 easy-cms copy --from <config>  # ย้ายข้อมูลข้ามฐานข้อมูล เช่น SQLite → Postgres
 easy-cms <plugin command>      # คำสั่งจาก `commands` ใน config เช่น nested:rebuild (0.21)

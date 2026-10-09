@@ -9,7 +9,7 @@ export interface RedirectsSource {
         locale: string | null
       }) => string | null | undefined | Promise<string | null | undefined>)
     | undefined
-  readonly cacheTTL: number
+  readonly cacheMs: number
 }
 
 /**

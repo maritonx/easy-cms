@@ -74,7 +74,7 @@ the last one), so nobody gets locked out.
 ## Creating users
 
 - **The first admin:** when there are no users, the admin shows a form to create one. From a
-  terminal or in CI, run `npx easy-cms create-admin` (see [CLI](./cli#create-admin)).
+  terminal or in CI, run `npx easy-cms admin:create` (see [CLI](./cli#admin-create)).
 - **Everyone else:** admins add users under **Settings → Users** in the admin, or in code:
 
 ```ts

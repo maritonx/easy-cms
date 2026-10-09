@@ -49,7 +49,7 @@ error ล่าสุด และ body ที่ส่ง พร้อมปุ
 แปลว่าไม่มีอะไรรันงานเหล่านี้
 
 **วิธีแก้:** server ที่ทำงานต่อเนื่อง (Nuxt, `easy-cms serve`, Next.js ที่โฮสต์เอง) รันทุกนาทีอยู่แล้ว บน serverless ให้ cron
-เรียก `<api>/jobs/run` ทุกนาทีพร้อม `Authorization: Bearer $CRON_SECRET` หรือให้ cron รัน `npx easy-cms run-scheduled`
+เรียก `<api>/jobs/run` ทุกนาทีพร้อม `Authorization: Bearer $CRON_SECRET` หรือให้ cron รัน `npx easy-cms jobs:run`
 งานที่ค้างจะทำในการเรียกครั้งถัดไป รวมถึงการส่ง webhook และอีเมลซ้ำด้วย
 
 ## Backups {#backups}

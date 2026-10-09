@@ -15,6 +15,7 @@ import {
   type TypedPlugin,
   ValidationError,
 } from '@easy-cms/core'
+import { checkRenamedOptions } from '@easy-cms/core/internal'
 import { getTree, rebuildNestedDocs } from './helpers.js'
 import { INFO } from './info.js'
 import {
@@ -35,7 +36,7 @@ export interface NestedDocsPluginOptions {
   /** The field shown in breadcrumbs. Default the collection's `useAsTitle`, else the slug. */
   readonly titleField?: string
   /** Names of the fields the plugin adds. Default `parent`, `breadcrumbs` and `path`. */
-  readonly fields?: {
+  readonly fieldNames?: {
     readonly parent?: string
     readonly breadcrumbs?: string
     readonly path?: string
@@ -92,9 +93,10 @@ export function nestedDocsPlugin<
 >(
   options: NestedDocsPluginOptions & {
     readonly collections: readonly S[]
-    readonly fields?: { readonly parent?: P; readonly breadcrumbs?: B; readonly path?: T }
+    readonly fieldNames?: { readonly parent?: P; readonly breadcrumbs?: B; readonly path?: T }
   },
 ): TypedPlugin<NestedDocsPluginTypes<S, P, B, T>> {
+  checkRenamedOptions('nestedDocsPlugin', options, { fields: 'fieldNames' })
   return definePlugin<NestedDocsPluginTypes<S, P, B, T>>((config: Config): Config => {
     const slugs = options.collections ?? []
     if (!Array.isArray(slugs) || slugs.length === 0)
@@ -129,9 +131,9 @@ export function nestedDocsPlugin<
       if (!collection.fields.some((f) => f.name === titleField))
         throw new Error(`${where} has no field "${titleField}" for breadcrumbs`)
       const names = {
-        parent: options.fields?.parent ?? 'parent',
-        breadcrumbs: options.fields?.breadcrumbs ?? 'breadcrumbs',
-        path: options.fields?.path ?? 'path',
+        parent: options.fieldNames?.parent ?? 'parent',
+        breadcrumbs: options.fieldNames?.breadcrumbs ?? 'breadcrumbs',
+        path: options.fieldNames?.path ?? 'path',
       }
       // A parent field the collection already has is kept, e.g. when adding the plugin later.
       const ownParent = collection.fields.find((f) => f.name === names.parent)
@@ -144,11 +146,11 @@ export function nestedDocsPlugin<
         )
       )
         throw new Error(
-          `${where} has a field "${names.parent}" that is not a relationship to "${collection.slug}"; set \`fields\``,
+          `${where} has a field "${names.parent}" that is not a relationship to "${collection.slug}"; set \`fieldNames\``,
         )
       for (const name of [names.breadcrumbs, names.path])
         if (collection.fields.some((f) => f.name === name))
-          throw new Error(`${where} already has a field "${name}"; set \`fields\``)
+          throw new Error(`${where} already has a field "${name}"; set \`fieldNames\``)
       const localized = !!localization && slug.localized === true
       const nested: NestedCollection = {
         slug: collection.slug,

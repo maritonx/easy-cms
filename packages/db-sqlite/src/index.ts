@@ -3,6 +3,7 @@ import { createRequire } from 'node:module'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { DatabaseAdapter } from '@easy-cms/core'
+import { checkRenamedOptions } from '@easy-cms/core/internal'
 import {
   type Connection,
   connectDatabase,
@@ -23,10 +24,10 @@ export interface SQLiteAdapterOptions extends DrizzleAdapterOptions {
   /** Auth token for Turso / remote libSQL. */
   readonly authToken?: string
   /**
-   * Local files: how long (ms) a write waits while another process (a second server, the CLI)
+   * Local files: how long (in ms) a write waits while another process (a second server, the CLI)
    * is writing to the same file. Default 10000.
    */
-  readonly busyTimeout?: number
+  readonly busyTimeoutMs?: number
 }
 
 const kit = () => import('drizzle-kit/api')
@@ -99,9 +100,11 @@ export const sqliteDialect: Dialect = {
 
 /** SQLite / libSQL database adapter. */
 export function sqlite(options: SQLiteAdapterOptions): DatabaseAdapter {
+  checkRenamedOptions('sqlite', options, { busyTimeout: 'busyTimeoutMs' })
   let traceInclude: string[] | undefined
   return {
     name: 'sqlite',
+    apiVersion: 1,
     init: async (args) => {
       const url = resolveUrl(options.url, args.cwd)
       const client = createClient({
@@ -109,7 +112,7 @@ export function sqlite(options: SQLiteAdapterOptions): DatabaseAdapter {
         ...(options.authToken ? { authToken: options.authToken } : {}),
         // SQLite has one writer. Writes in this process share a queue (`writeQueue`); this waits
         // for other processes. Its wait blocks the process, but only for another's short write.
-        timeout: options.busyTimeout ?? 10_000,
+        timeout: options.busyTimeoutMs ?? 10_000,
       })
       if (options.url.startsWith('file:')) await client.execute('PRAGMA journal_mode = WAL')
       const toStatement = (s: Statement) => ({ sql: s.sql, args: [...(s.params ?? [])] as InArgs })

@@ -360,6 +360,11 @@ export interface AdminPage {
 
 /** A panel on the admin's dashboard, after the built-in ones. */
 export interface DashboardWidget {
+  /**
+   * What roles are given in Settings → Roles (`widget:<id>`): keep it when the component's tag
+   * changes. Default: the component's tag.
+   */
+  readonly id?: string
   /** A Web Component from an admin module. */
   readonly component: AdminComponent
   /** `half` (default): the side column, beside drafts and recent edits; `full`: below both. */
@@ -470,7 +475,7 @@ export interface UploadConfig {
   /**
    * Where files in private folders are kept: never served publicly, only through the API to
    * users who may see them or with `cms.signedMediaURL()`. Default: `storage`, when it has no
-   * public URL (the local disk, Netlify Blobs); a storage with public URLs (S3 with `publicUrl`,
+   * public URL (the local disk, Netlify Blobs); a storage with public URLs (S3 with `publicURL`,
    * a public Vercel Blob store) needs one, e.g. `vercelBlobStorage({ access: 'private' })`.
    */
   readonly privateStorage?: StorageAdapter
@@ -650,6 +655,8 @@ export interface CliCommand {
     readonly cms: EasyCMS
     /** Positional arguments after the command name. */
     readonly args: readonly string[]
+    /** `--name value` and `--name` (true) after the command name, e.g. `{ dryRun: true }`. */
+    readonly flags: Readonly<Record<string, string | boolean>>
     readonly log: (line: string) => void
   }) => MaybePromise<number | undefined>
 }
@@ -680,10 +687,18 @@ export interface Endpoint {
 }
 
 /** A plugin's package and version, listed for admins on the dashboard (System). */
+/** The version of what plugins are written against (`definePlugin`, `Config`, hooks, endpoints). */
+export const PLUGIN_API_VERSION = 1
+
 export interface PluginInfo {
   /** Usually the package name, e.g. `@acme/easy-cms-plugin-stats`. */
   readonly name: string
   readonly version?: string
+  /**
+   * The plugin API the plugin is written for (`PLUGIN_API_VERSION`). Easy CMS refuses to start
+   * with a plugin of another one, saying what to upgrade. Leave it out to skip the check.
+   */
+  readonly apiVersion?: number
 }
 
 /** Receives the config and returns a modified copy. Runs before validation. */
@@ -794,8 +809,11 @@ export interface Config {
   readonly endpoints?: readonly Endpoint[]
   /** Extra `easy-cms <name>` CLI commands, e.g. from plugins. */
   readonly cliCommands?: readonly CliCommand[]
-  /** The request's context and user, worked out on each API request (usually by a plugin). */
-  readonly onRequest?: OnRequest
+  /**
+   * The request's context and user, worked out on each API request (usually by a plugin). Several
+   * run in order: each gets the user the one before set, and their contexts are merged.
+   */
+  readonly onRequest?: OnRequest | readonly OnRequest[]
   /**
    * Field types from packages, e.g. `color` from `@easy-cms/fields`: fields then use
    * `type: 'color'`. See `defineFieldType`.

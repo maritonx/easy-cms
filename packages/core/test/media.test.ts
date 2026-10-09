@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import sharp from 'sharp'
 import { describe, expect, it } from 'vitest'
-import { localStorage } from '../src/index.js'
+import { diskStorage } from '../src/index.js'
 import { imageDimensions, mimeAllowed, sniffMimeType } from '../src/internal.js'
 import { storageKey } from '../src/media.js'
 
@@ -144,10 +144,10 @@ describe('storageKey', () => {
   })
 })
 
-describe('localStorage', () => {
+describe('diskStorage', () => {
   it('writes, reads and deletes inside its directory only', async () => {
     const cwd = mkdtempSync(join(tmpdir(), 'easy-cms-storage-'))
-    const storage = localStorage({ dir: 'files' })
+    const storage = diskStorage({ dir: 'files' })
     storage.init?.({ cwd })
     await storage.put('a-1.txt', text('hello'), { contentType: 'text/plain' })
     expect(readdirSync(join(cwd, 'files'))).toEqual(['a-1.txt'])

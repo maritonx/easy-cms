@@ -9,7 +9,7 @@ import {
   type Plugin,
   type ResolvedConfig,
 } from '@easy-cms/core'
-import { API_KEYS, INTERNAL_COLLECTIONS } from '@easy-cms/core/internal'
+import { API_KEYS, checkRenamedOptions, INTERNAL_COLLECTIONS } from '@easy-cms/core/internal'
 import { type GraphQLSchema, printSchema } from 'graphql'
 import { DEFAULT_DOCUMENTS } from './context.js'
 import { handleGraphQL } from './http.js'
@@ -36,15 +36,17 @@ export interface GraphQLPluginOptions extends SchemaOptions {
 }
 
 /** Slugs the schema will have, from a config before the built-in collections are added. */
-function plannedSlugs(config: Config, exclude: readonly string[]) {
+function plannedSlugs(config: Config, options: GraphQLPluginOptions) {
   const collections = new Set(['users', 'media'])
   if (config.upload?.folders === true) collections.add('media-folders')
   for (const c of config.collections ?? []) collections.add(c.slug)
-  const keep = (slug: string) =>
-    !INTERNAL_COLLECTIONS.has(slug) && slug !== API_KEYS && !exclude.includes(slug)
+  const only = (list: readonly string[] | undefined) => (slug: string) =>
+    list === undefined || list.includes(slug)
   return {
-    collections: [...collections].filter(keep),
-    globals: (config.globals ?? []).map((g) => g.slug).filter((s) => !exclude.includes(s)),
+    collections: [...collections]
+      .filter((slug) => !INTERNAL_COLLECTIONS.has(slug) && slug !== API_KEYS)
+      .filter(only(options.collections)),
+    globals: (config.globals ?? []).map((g) => g.slug).filter(only(options.globals)),
   }
 }
 
@@ -54,9 +56,12 @@ function plannedSlugs(config: Config, exclude: readonly string[]) {
  * keys), batched relationship loading, and limits on depth and documents per request.
  */
 export function graphqlPlugin(options: GraphQLPluginOptions = {}): Plugin {
+  checkRenamedOptions('graphqlPlugin', options, {
+    exclude: 'collections (and `globals`): the ones in the schema, not the ones left out',
+  })
   return definePlugin((config: Config): Config => {
     // Clashing names stop the app from starting; plugins after this one are checked on first use.
-    const planned = plannedSlugs(config, options.exclude ?? [])
+    const planned = plannedSlugs(config, options)
     checkNames(planned.collections, planned.globals, options.names)
 
     const schemas = new WeakMap<ResolvedConfig, GraphQLSchema>()

@@ -134,7 +134,7 @@ cms.signedMediaURL(photo, { expiresIn: '30m', size: 'thumbnail' })
 ลิงก์ใช้ไม่ได้เมื่อหมดอายุ เมื่อเปลี่ยน `secret` หรือเมื่อไฟล์ไม่เป็นส่วนตัวแล้ว ไฟล์สาธารณะได้ URL ปกติของมัน
 
 **ไฟล์ส่วนตัวเก็บที่ไหน** บนดิสก์ในเครื่องและ Netlify Blobs ซึ่งไม่เสิร์ฟอะไรเป็นสาธารณะ เก็บรวมกับไฟล์อื่นได้ ส่วน storage ที่มี
-URL สาธารณะ (S3 ที่ตั้ง `publicUrl`, Vercel Blob แบบ public) ต้องตั้ง `upload.privateStorage` ก่อนจึงทำโฟลเดอร์ส่วนตัวได้:
+URL สาธารณะ (S3 ที่ตั้ง `publicURL`, Vercel Blob แบบ public) ต้องตั้ง `upload.privateStorage` ก่อนจึงทำโฟลเดอร์ส่วนตัวได้:
 
 ```ts
 upload: {
@@ -341,7 +341,7 @@ export default defineConfig({
 | `region` | `AWS_REGION` จากนั้น `us-east-1` | `auto` สำหรับ Cloudflare R2 |
 | `endpoint` | AWS S3 | สำหรับบริการที่เข้ากันได้กับ S3 เช่น `https://<account>.r2.cloudflarestorage.com` |
 | `prefix` | ไม่มี | โฟลเดอร์สำหรับ object เช่น `media/` |
-| `publicUrl` | ไม่มี | เสิร์ฟไฟล์จากที่นี่ (CDN หรือ public bucket) แทนการเสิร์ฟผ่าน API |
+| `publicURL` | ไม่มี | เสิร์ฟไฟล์จากที่นี่ (CDN หรือ public bucket) แทนการเสิร์ฟผ่าน API |
 | `forcePathStyle` | `true` เมื่อมี `endpoint` | การอ้างอิงแบบ `<endpoint>/<bucket>/<key>` |
 
 Cloudflare R2:
@@ -358,12 +358,12 @@ s3Storage({
 
 access key ต้องมีสิทธิ์ `s3:PutObject`, `s3:GetObject` และ `s3:DeleteObject` บน bucket
 
-**Private bucket (ค่าเริ่มต้น)** หากไม่มี `publicUrl` ไฟล์จะถูก stream ผ่าน
+**Private bucket (ค่าเริ่มต้น)** หากไม่มี `publicURL` ไฟล์จะถูก stream ผ่าน
 `/api/cms/media/file/<name>` พร้อม header สำหรับ caching และ sandbox แบบเดียวกับการจัดเก็บในเครื่อง
 bucket จึงยังคงเป็น private วาง CDN ไว้หน้าเว็บไซต์เพื่อไม่ต้องดึงไฟล์จาก S3 ทุกครั้งที่มี
 request
 
-**Public bucket** เมื่อมี `publicUrl` URL ของ media จะชี้ไปที่ bucket หรือ CDN โดยตรง และ server
+**Public bucket** เมื่อมี `publicURL` URL ของ media จะชี้ไปที่ bucket หรือ CDN โดยตรง และ server
 ของคุณไม่เกี่ยวข้อง ให้เสิร์ฟจาก **โดเมนที่ต่างจาก** เว็บไซต์ของคุณ เพราะ Content Security Policy
 แบบ sandbox ไม่ได้ถูกใช้ที่นั่น มิฉะนั้น SVG ที่อัปโหลดมาอาจรันสคริปต์ภายใต้ origin
 ของเว็บไซต์คุณได้

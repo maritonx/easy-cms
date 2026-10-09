@@ -254,7 +254,7 @@ describe('package managers', () => {
     const npm = await steps('npm')
     expect(npm.commands[0]).toMatch(/^npm install @easy-cms\/core@/)
     expect(npm.out).toMatch(/my-cms && npm run dev/)
-    expect(npm.out).toContain('npx easy-cms create-admin')
+    expect(npm.out).toContain('npx easy-cms admin:create')
     expect(npm.out).toContain('NODE_ENV=production npm run start')
 
     const pnpm = await steps('pnpm')
@@ -269,7 +269,7 @@ describe('package managers', () => {
     const bun = await steps('bun')
     expect(bun.commands[0]).toMatch(/^bun add @easy-cms\/core@/)
     expect(bun.out).toMatch(/my-cms && bun run dev/)
-    expect(bun.out).toContain('bunx easy-cms create-admin')
+    expect(bun.out).toContain('bunx easy-cms admin:create')
     expect(bun.out).not.toContain('npx')
 
     expect((await create(join(project({}), 'x'), '--pm', 'deno')).code).toBe(1)

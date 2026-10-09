@@ -10,6 +10,7 @@ import {
   type Field,
   type TypedPlugin,
 } from '@easy-cms/core'
+import { checkRenamedOptions } from '@easy-cms/core/internal'
 import { INFO } from './info.js'
 import { clearRedirects, normalizePath, resolveRedirect } from './resolve.js'
 import { REDIRECTS_SOURCE, type RedirectsSource, STATUSES, targetField } from './shared.js'
@@ -42,13 +43,13 @@ export interface RedirectsPluginOptions {
    */
   readonly autoRedirect?: boolean | readonly string[]
   /** Slug of the redirects collection. Default `redirects`. */
-  readonly slug?: string
+  readonly slugs?: { readonly redirects?: string }
   /**
-   * How long a server keeps the redirects in memory, in ms. Changes clear it at once on the
-   * server that made them; other servers (serverless instances) catch up within this time.
-   * Default 60000.
+   * How long a server keeps the redirects in memory, in seconds. Changes clear it at once on
+   * the server that made them; other servers (serverless instances) catch up within this time.
+   * Default 60.
    */
-  readonly cacheTTL?: number
+  readonly cacheMaxAge?: number
 }
 
 /**
@@ -92,11 +93,15 @@ export function redirectsPlugin<
 >(
   options: RedirectsPluginOptions & {
     readonly collections?: readonly S[]
-    readonly slug?: R
+    readonly slugs?: { readonly redirects?: R }
   } = {},
 ): TypedPlugin<RedirectsPluginTypes<R, S>> {
+  checkRenamedOptions('redirectsPlugin', options, {
+    slug: 'slugs.redirects',
+    cacheTTL: 'cacheMaxAge (in seconds)',
+  })
   return definePlugin<RedirectsPluginTypes<R, S>>((config: Config): Config => {
-    const slug = options.slug ?? 'redirects'
+    const slug = options.slugs?.redirects ?? 'redirects'
     const collections = options.collections ?? []
     const missing = collections.filter((s) => !config.collections?.some((c) => c.slug === s))
     if (missing.length > 0)
@@ -108,7 +113,9 @@ export function redirectsPlugin<
         'redirectsPlugin: set `url` to give the address of documents in `collections`',
       )
     if (config.collections?.some((c) => c.slug === slug))
-      throw new Error(`redirectsPlugin: there is already a collection "${slug}"; set \`slug\``)
+      throw new Error(
+        `redirectsPlugin: there is already a collection "${slug}"; set \`slugs.redirects\``,
+      )
 
     const locales = (config.localization || undefined)?.locales ?? []
     const auto =
@@ -133,7 +140,7 @@ export function redirectsPlugin<
       slug,
       collections,
       url: options.url,
-      cacheTTL: options.cacheTTL ?? 60_000,
+      cacheMs: (options.cacheMaxAge ?? 60) * 1000,
     }
 
     const targets: Field[] = collections.map((collection) => {

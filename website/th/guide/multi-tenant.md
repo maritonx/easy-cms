@@ -122,7 +122,9 @@ const posts = await cms.find('posts', { overrideAccess: false, user: null, conte
 const site = await cms.findGlobal('site-settings', { overrideAccess: false, user: null, context })
 ```
 
-`tenantContext(cms, { slug })` ใช้กับ slug จาก URL ได้ เช่น route `/[tenant]/[slug]` ส่วน `cms.forRequest(request)`
+`tenantContext(cms, { slug })` ใช้กับ slug จาก URL ได้ เช่น route `/[tenant]/[slug]` ส่วน
+`findTenantFor(cms, { slug | host })` คืนตัว tenant หรือ `null` ถ้าเปลี่ยน `slugs.tenants` ให้ส่งเป็น `collection`
+ด้วย: `tenantContext(cms, { host, collection: 'sites' })` ส่วน `cms.forRequest(request)`
 คืนผู้ใช้และ context ของ request แบบเดียวกับ REST
 
 เมื่อใช้ [plugin SEO](./seo) `/sitemap.xml` และ `/llms.txt` แสดงหน้าของ tenant ตามโดเมนที่ขอเข้ามา และ helper ของมันรับ `context`
@@ -136,7 +138,7 @@ request ที่ไม่ระบุ tenant จะไม่พบอะไร�
 |---|---|---|
 | `collections` | — | **ต้องระบุ** collection ที่เอกสารเป็นของ tenant เดียว |
 | `globals` | `[]` | global ที่มีค่าแยกต่อ tenant |
-| `tenantsSlug` | `tenants` | collection ของ tenant ประกาศเองเพื่อเพิ่ม field ได้ |
+| `slugs.tenants` | `tenants` | collection ของ tenant ประกาศเองเพื่อเพิ่ม field ได้ |
 | `userHasAccessToAllTenants` | role `admin` | `(user) => boolean`: ใครเห็นทุก tenant และส่วนของระบบ |
 | `publicReads` | `none` | `all`: request ที่ไม่ระบุ tenant อ่านของทุก tenant แต่การเขียนยังต้องระบุ tenant |
 | `editShared` | `[]` | collection และ global ที่ใช้ร่วมกันซึ่งคนของ tenant (รวม admin ของ tenant) แก้ได้ การแก้มีผลกับทุก tenant ถ้าไม่ระบุ แก้ได้เฉพาะผู้มีสิทธิ์ทุก tenant |
@@ -154,7 +156,8 @@ request ที่ไม่ระบุ tenant จะไม่พบอะไร�
 plugin ใช้ส่วนของ core ที่คุณใช้เองได้:
 
 - **`onRequest`** ใน config หา `context` ของแต่ละ request (ในที่นี้คือ tenant) และผู้ใช้ใน context นั้น (บทบาทใน tenant, `scoped`)
-  กฎสิทธิ์ hook และ `filterOptions` ได้รับ `context` และ Local API รับเป็นตัวเลือกได้
+  กฎสิทธิ์ hook และ `filterOptions` ได้รับ `context` และ Local API รับเป็นตัวเลือกได้ `onRequest` เป็นรายการได้:
+  plugin เพิ่มของตัวเองต่อจากของคุณ เห็นผู้ใช้ที่ของคุณคืนมา และรวม `context` เข้ากับของคุณ
 - **ผู้ใช้ที่ `scoped`** เป็น admin เฉพาะส่วนของตัวเอง ตั้งค่า สำรองข้อมูล บทบาท และ API key ของคนอื่นต้องเป็น admin ของทั้งระบบ
 - **global ที่มี `scope`** เก็บค่าแยกตาม scope
 - **`uniqueWithin`** ใช้ได้กับทุก field ที่ unique พร้อม unique index ต่อ scope ในฐานข้อมูล

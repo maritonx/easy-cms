@@ -60,7 +60,7 @@ redirect เปิดแก้ใน drawer เหนือรายการเ
 ## เสิร์ฟ redirect {#serve-them}
 
 `resolveRedirect(cms, url)` คืน `{ location, status }` ของ path นั้น หรือ `null` redirect ถูกอ่านครั้งเดียวแล้วเก็บในหน่วยความจำ
-เรียกทุก request ได้โดยไม่เปลือง การแก้ไขมีผลทันทีบน server ที่แก้ ส่วน server อื่น (instance ของ serverless) จะตามทันภายใน `cacheTTL`
+เรียกทุก request ได้โดยไม่เปลือง การแก้ไขมีผลทันทีบน server ที่แก้ ส่วน server อื่น (instance ของ serverless) จะตามทันภายใน `cacheMaxAge`
 (ค่าเริ่มต้น 60 วินาที) และ query string ของผู้เข้าชมจะถูกส่งต่อไปด้วย
 
 ::: code-group
@@ -115,8 +115,8 @@ if (response.ok) {
 | `collections` | `[]` | collection ที่ redirect ชี้ไปได้ และหน้าใน collection นั้นได้ redirect อัตโนมัติ |
 | `url` | — | `({ collection, doc, locale }) => ที่อยู่`: ที่อยู่ของเอกสาร ต้องตั้งเมื่อมี `collections` |
 | `autoRedirect` | `true` | สร้าง redirect เมื่อที่อยู่ของหน้าที่เผยแพร่อยู่เปลี่ยน `false` หรือระบุรายชื่อ collection |
-| `slug` | `'redirects'` | slug ของ collection redirect |
-| `cacheTTL` | `60000` | เวลาที่ server อื่นเก็บ redirect ไว้ในหน่วยความจำ (ms) |
+| `slugs.redirects` | `'redirects'` | slug ของ collection redirect |
+| `cacheMaxAge` | `60` | เวลาที่ server อื่นเก็บ redirect ไว้ในหน่วยความจำ (วินาที) |
 
 ## ในหลาย tenant {#in-several-tenants}
 

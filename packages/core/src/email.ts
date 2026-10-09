@@ -23,6 +23,11 @@ export interface EmailMessage {
 export interface EmailAdapter {
   /** What sends the email, e.g. `smtp`; shown to admins on the dashboard (System). */
   readonly name?: string
+  /**
+   * The adapter interface it is written for (`ADAPTER_API_VERSION`); Easy CMS refuses another.
+   * Leave it out to skip the check.
+   */
+  readonly apiVersion?: number
   /** The sender when a message has none, e.g. `Easy CMS <no-reply@example.com>`. */
   readonly from?: string | undefined
   send(message: EmailMessage & { readonly from: string }): Promise<void>
@@ -53,6 +58,7 @@ export function consoleEmail(options: { from?: string; log?: (text: string) => v
   const sent: (EmailMessage & { from: string })[] = []
   const adapter: EmailAdapter & { readonly sent: typeof sent } = {
     name: 'console',
+    apiVersion: 1,
     // `log`: the admin says it prints to the server log instead of sending.
     describe: () => [{ key: 'delivery', value: 'log' }],
     from: options.from ?? 'Easy CMS <no-reply@localhost>',

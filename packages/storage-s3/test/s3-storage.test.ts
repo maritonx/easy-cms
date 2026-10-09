@@ -120,9 +120,9 @@ describe('s3Storage', () => {
     expect(start).toEqual({ body: new Uint8Array([37, 80, 68, 70]), size: 123456 })
   })
 
-  it('serves through the API unless publicUrl is set', () => {
+  it('serves through the API unless publicURL is set', () => {
     expect(s3Storage({ bucket: 'b' }).url?.('a.png')).toBeUndefined()
-    const storage = s3Storage({ bucket: 'b', prefix: 'media', publicUrl: 'https://cdn.test/' })
+    const storage = s3Storage({ bucket: 'b', prefix: 'media', publicURL: 'https://cdn.test/' })
     expect(storage.url?.('ภาพ.png')).toBe(`https://cdn.test/media/${encodeURIComponent('ภาพ.png')}`)
   })
 

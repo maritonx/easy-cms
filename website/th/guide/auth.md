@@ -72,7 +72,7 @@ Easy CMS ไม่ยอมให้เปลี่ยนแปลงที่�
 ## สร้างผู้ใช้ {#creating-users}
 
 - **admin คนแรก:** ถ้ายังไม่มีผู้ใช้ หน้า admin จะแสดงฟอร์มให้สร้าง ถ้าทำจาก terminal หรือใน CI ให้รัน
-  `npx easy-cms create-admin` (ดู [CLI](./cli#create-admin))
+  `npx easy-cms admin:create` (ดู [CLI](./cli#admin-create))
 - **คนอื่นๆ:** admin เพิ่มผู้ใช้ได้ที่ **ตั้งค่า → ผู้ใช้** ในหน้า admin หรือในโค้ด:
 
 ```ts

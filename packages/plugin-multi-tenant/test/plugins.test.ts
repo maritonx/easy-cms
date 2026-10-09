@@ -36,7 +36,7 @@ const config = defineConfig({
   plugins: [
     nestedDocsPlugin({ collections: ['pages'] }),
     redirectsPlugin({ collections: ['pages'], url: ({ doc }) => `${doc.path}` }),
-    formBuilderPlugin({ minSubmitTime: 0, defaultTo: 'owner@x.test' }),
+    formBuilderPlugin({ minSubmitSeconds: 0, defaultTo: 'owner@x.test' }),
     multiTenantPlugin({ collections: ['pages', 'redirects', 'forms', 'form-submissions'] }),
   ],
 })

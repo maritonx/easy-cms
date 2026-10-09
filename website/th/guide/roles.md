@@ -118,11 +118,15 @@ collection และ global ที่เพิ่มใน config ทีหล�
 npx easy-cms migrate:create roles
 ```
 
-กล่องบนแดชบอร์ดของ plugin ให้สิทธิ์ตาม tag ของ component แต่ละกล่องจึงต้องมี tag ของตัวเอง และใส่
-`label` สำหรับหน้า Roles ได้:
+กล่องบนแดชบอร์ดของ plugin ให้สิทธิ์ตาม `id` หรือตาม tag ของ component ถ้าไม่มี `id` ใส่ `id` ให้แต่ละกล่อง
+(เปลี่ยน tag แล้วสิทธิ์ยังอยู่) และใส่ `label` สำหรับหน้า Roles ได้:
 
 ```ts
-admin: { dashboard: [{ component: 'ecms-sales-chart', label: { en: 'Sales', th: 'ยอดขาย' } }] }
+admin: {
+  dashboard: [
+    { id: 'sales', component: 'ecms-sales-chart', label: { en: 'Sales', th: 'ยอดขาย' } },
+  ],
+}
 ```
 
 ## ขั้นต่อไป {#next-steps}

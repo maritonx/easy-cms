@@ -1,4 +1,5 @@
 import type { StorageAdapter, StoredFile } from '@easy-cms/core'
+import { checkRenamedOptions } from '@easy-cms/core/internal'
 import { AwsClient } from 'aws4fetch'
 
 export interface S3StorageOptions {
@@ -26,7 +27,7 @@ export interface S3StorageOptions {
    * When set, media URLs point there. When not set, files are served through the REST API
    * (`<api>/media/file/<key>`), which works with private buckets.
    */
-  readonly publicUrl?: string
+  readonly publicURL?: string
   /**
    * Address the bucket as `<endpoint>/<bucket>/<key>` instead of `<bucket>.<endpoint>/<key>`.
    * Default: `true` when `endpoint` is set (MinIO needs it, R2 accepts it), otherwise `false`.
@@ -50,6 +51,7 @@ export interface S3StorageOptions {
  * without them.
  */
 export function s3Storage(options: S3StorageOptions): StorageAdapter {
+  checkRenamedOptions('s3Storage', options, { publicUrl: 'publicURL' })
   const prefix = normalizePrefix(options.prefix)
   let client: AwsClient | undefined
   let objectURL: (key: string) => string = () => {
@@ -64,6 +66,7 @@ export function s3Storage(options: S3StorageOptions): StorageAdapter {
 
   return {
     name: 's3',
+    apiVersion: 1,
 
     init() {
       const env = process.env
@@ -143,8 +146,8 @@ export function s3Storage(options: S3StorageOptions): StorageAdapter {
     },
 
     url(key) {
-      if (!options.publicUrl) return undefined
-      return `${options.publicUrl.replace(/\/+$/, '')}/${encodeKey(prefix + key)}`
+      if (!options.publicURL) return undefined
+      return `${options.publicURL.replace(/\/+$/, '')}/${encodeKey(prefix + key)}`
     },
   }
 }

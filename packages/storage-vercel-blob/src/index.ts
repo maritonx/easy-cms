@@ -57,6 +57,7 @@ export function vercelBlobStorage(
   }
   return {
     name: 'vercel-blob',
+    apiVersion: 1,
     async put(key, data, { contentType }) {
       await client.put(`${prefix}${key}`, Buffer.from(data), {
         access,

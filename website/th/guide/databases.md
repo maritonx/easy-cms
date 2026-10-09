@@ -22,11 +22,11 @@ db: sqlite({ url: 'libsql://my-db.turso.io', authToken: process.env.TURSO_TOKEN 
 ใช้ libSQL ไม่รองรับฐานข้อมูลแบบ in-memory (`:memory:`)
 
 SQLite เขียนได้ทีละรายการ การเขียนใน process เดียวกันจะเข้าคิวรอกัน ส่วนเมื่อ process อื่นเขียนไฟล์เดียวกันอยู่
-(server ตัวที่สอง หรือคำสั่ง `easy-cms`) การเขียนจะรอได้นานสูงสุด `busyTimeout` (ค่าเริ่มต้น 10000 ms)
+(server ตัวที่สอง หรือคำสั่ง `easy-cms`) การเขียนจะรอได้นานสูงสุด `busyTimeoutMs` (ค่าเริ่มต้น 10000 ms)
 ระหว่างรอ process นั้นจะหยุดทำงานชั่วคราว ถ้ามีหลาย process ที่เขียนไฟล์เดียวกันบ่อยๆ ควรใช้ Postgres
 
 ```ts
-db: sqlite({ url: 'file:./cms.db', busyTimeout: 5_000 })
+db: sqlite({ url: 'file:./cms.db', busyTimeoutMs: 5_000 })
 ```
 
 ## Postgres {#postgres}

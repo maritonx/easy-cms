@@ -11,11 +11,12 @@ import {
   silentLogger,
 } from '@easy-cms/core'
 import { sqlite } from '@easy-cms/db-sqlite'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { formBuilderPlugin, type PublicForm } from '../src/index.js'
 
 const dirs: string[] = []
 afterEach(() => {
+  vi.unstubAllGlobals()
   for (const dir of dirs.splice(0)) {
     try {
       rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
@@ -36,7 +37,7 @@ async function setup(
     secret: 'x'.repeat(32),
     db: sqlite({ url: 'file:./cms.db' }),
     email,
-    plugins: [formBuilderPlugin({ minSubmitTime: 0, defaultTo: 'owner@x.test', ...options })],
+    plugins: [formBuilderPlugin({ minSubmitSeconds: 0, defaultTo: 'owner@x.test', ...options })],
     ...extra,
   })
   const cwd = mkdtempSync(join(tmpdir(), 'easy-cms-forms-'))
@@ -252,7 +253,7 @@ describe('forms', () => {
   })
 
   it('treats a form sent too fast as a bot', async () => {
-    const { cms, load, submit, good } = await setup({ minSubmitTime: 60_000 })
+    const { cms, load, submit, good } = await setup({ minSubmitSeconds: 60 })
     try {
       const { token } = await load()
       expect((await submit({ data: good, token })).status).toBe(200)
@@ -269,9 +270,9 @@ describe('forms', () => {
       checked.push(`${body.get('response')}@${body.get('remoteip')}`)
       return Response.json({ success: body.get('response') === 'human' })
     }) as typeof fetch
+    vi.stubGlobal('fetch', fake)
     const { cms, load, submit, good } = await setup({
       turnstile: { siteKey: 'site-key', secretKey: 'secret-key' },
-      fetch: fake,
     })
     try {
       const { token, turnstile } = await load()

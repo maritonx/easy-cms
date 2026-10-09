@@ -7,7 +7,7 @@ const cms = await createEasyCMS(
   {
     secret: 'x'.repeat(32),
     // A slow CI machine (Windows) can hold the lock longer than the default 10 s wait.
-    db: sqlite({ url: 'file:./cms.db', tablePrefix: 'ecms_', busyTimeout: 60_000 }),
+    db: sqlite({ url: 'file:./cms.db', tablePrefix: 'ecms_', busyTimeoutMs: 60_000 }),
     collections: [
       {
         slug: 'notes',

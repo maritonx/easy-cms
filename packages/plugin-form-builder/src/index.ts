@@ -1,5 +1,5 @@
 export {
-  type FormBuilderOptions,
+  type FormBuilderPluginOptions,
   type FormBuilderPluginTypes,
   formBuilderPlugin,
 } from './plugin.js'

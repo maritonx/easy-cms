@@ -164,7 +164,8 @@ GraphQL ให้ client ขอได้มากใน request เดียว 
 |---|---|---|
 | `path` | `/graphql` | ตำแหน่งของ endpoint ใต้ `routes.api` |
 | `names` | จาก slug | ชื่ออื่นตาม slug: `{ news: { type: 'NewsItem', one: 'newsItem', many: 'news' } }` |
-| `exclude` | `[]` | collection และ global ที่ไม่ใส่ใน schema ตาม slug |
+| `collections` | ทั้งหมด | collection ที่อยู่ใน schema ตาม slug เช่น `['posts', 'categories']` |
+| `globals` | ทั้งหมด | global ที่อยู่ใน schema ตาม slug |
 | `limits` | `{ depth: 7, documents: 2000 }` | |
 | `introspection` | `true` | ให้ client อ่าน schema ได้ อย่างที่ codegen และ GraphiQL ใช้ |
 | `graphiql` | นอก production | แสดง GraphiQL ให้ browser |

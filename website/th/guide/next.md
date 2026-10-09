@@ -39,6 +39,15 @@ import config from '@/easy-cms.config'
 export const { GET, HEAD } = createAdminRouteHandlers(config)
 ```
 
+`createRouteHandlers(config, options)` รับตัวเลือกเหล่านี้ (`RouteHandlerOptions` ซึ่งเหมือน `ApiHandlerOptions`
+ทั้งสองถูก export):
+
+| ตัวเลือก | ค่าเริ่มต้น | |
+|---|---|---|
+| `basePath` | `routes.api` | ตำแหน่งที่ API อยู่ |
+| `getClientIp` | — | `(request) => string \| undefined`: IP ของ client สำหรับจำกัดอัตราการเข้าสู่ระบบและ audit log ใช้ก่อน `trustProxy` |
+| `trustProxy` | `false` | ใช้ที่อยู่ตัวสุดท้ายใน `X-Forwarded-For` (ดูด้านล่าง) บน Vercel และ Netlify ไม่ต้องตั้ง |
+
 ## การอ่านเนื้อหา {#reading-content}
 
 ```tsx

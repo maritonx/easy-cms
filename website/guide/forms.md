@@ -163,7 +163,7 @@ They are in the language the visitor used.
 Public forms attract bots. These are always on:
 
 - **A honeypot**: a hidden field people don't see and bots fill in.
-- **A minimum time**: a form sent less than 2 seconds after it loaded (`minSubmitTime`) is a bot.
+- **A minimum time**: a form sent less than 2 seconds after it loaded (`minSubmitSeconds`) is a bot.
 - **A rate limit**: 5 submissions per 10 minutes per visitor and form (`rateLimit`). Visitors
   are told by IP address, kept only as a hash that changes every window.
 
@@ -200,9 +200,9 @@ the REST API: they come only from the form's endpoint, after validation and the 
 |---|---|---|
 | `defaultTo` | — | Recipients of emails whose "To" is empty. |
 | `defaultFrom` | the adapter's `from` | Sender of emails that set none. |
-| `fields` | all | Field types editors can use, e.g. `['text', 'email', 'textarea']`. |
+| `fieldKinds` | all | Field types editors can use, e.g. `['text', 'email', 'textarea']`. |
 | `rateLimit` | `{ max: 5, window: 600 }` | Submissions per visitor and form per `window` seconds, or `false`. |
-| `minSubmitTime` | `2000` | Milliseconds before a submission counts as a person's. |
+| `minSubmitSeconds` | `2` | Seconds before a submission counts as a person's. |
 | `turnstile` | — | `{ siteKey, secretKey }` for Cloudflare Turnstile. |
 | `retentionDays` | — | Delete submissions older than this. |
 | `slugs` | `forms`, `form-submissions` | `{ forms, submissions }`: the collections' slugs. |

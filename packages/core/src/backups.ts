@@ -10,7 +10,7 @@ import { copyDatabase } from './copy.js'
 import type { RawDocument } from './database.js'
 import { EasyCMSError, NotFoundError } from './errors.js'
 import type { EasyCMS } from './local-api.js'
-import { localStorage, type StorageAdapter } from './storage.js'
+import { diskStorage, type StorageAdapter } from './storage.js'
 
 const gzipAsync = promisify(gzip)
 
@@ -66,7 +66,7 @@ export function backupStorage(cms: EasyCMS): Promise<StorageAdapter> {
   if (!storage) {
     storage = (async () => {
       const config = cms.config.backups
-      const adapter = config?.storage ?? localStorage({ dir: config?.dir ?? DEFAULT_DIR })
+      const adapter = config?.storage ?? diskStorage({ dir: config?.dir ?? DEFAULT_DIR })
       await adapter.init?.({ cwd: cms.cwd })
       return adapter
     })()

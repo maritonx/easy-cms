@@ -109,7 +109,7 @@ from a cron:
 ```
 
 Set `CRON_SECRET` (or `cronSecret` in the config). Logged-in admins can call it too, and
-`npx easy-cms run-scheduled` runs due jobs once from any cron. Failed jobs (e.g. a publish that
+`npx easy-cms jobs:run` runs due jobs once from any cron. Failed jobs (e.g. a publish that
 doesn't pass validation) are logged and not retried. The same run retries
 [webhook deliveries](./webhooks#delivery) that failed earlier.
 

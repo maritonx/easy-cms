@@ -95,8 +95,8 @@ export const rating = defineFieldType({
 | `base` | **จำเป็น** | วิธีเก็บข้อมูล: `text`, `textarea`, `email`, `number`, `boolean`, `date` หรือ `json` |
 | `validate` | | `(value, { field, data, operation, … }) => true \| string` เป็น async ได้ `field` มีตัวเลือกของ field นั้น `validate` ของ field เองทำงานต่อจากนี้ |
 | `checkOptions` | | `(field) => string \| undefined` ถ้าคืนข้อความ config จะไม่ผ่าน |
-| `admin.component` | | ช่องกรอก: Web Component (tag ขึ้นต้นด้วย `ecms-`) ถ้าไม่มีจะใช้ช่องกรอกของชนิดฐาน |
-| `admin.cell` | | แสดงค่าในหน้ารายการ ถ้าไม่มีจะแสดงเป็นข้อความ |
+| `admin.component` | | ช่องกรอก: Web Component เป็น tag หรือ `{ tag, props }` ([admin component](./plugins#admin-components)) ถ้าไม่มีจะใช้ช่องกรอกของชนิดฐาน |
+| `admin.cell` | | แสดงค่าในหน้ารายการ เป็น tag หรือ `{ tag, props }` ถ้าไม่มีจะแสดงเป็นข้อความ |
 | `admin.module` | | [admin module](./plugins#the-module) ที่ประกาศ component เหล่านี้ ระบบเพิ่มเข้า `admin.modules` ให้เอง |
 | `admin.props` | | ตัวเลือกของ field ที่ส่งให้ component เป็น `options` |
 | `typescript` | | ชนิดของค่าสำหรับ `generate:types` ค่าเริ่มต้นเป็นของชนิดฐาน |

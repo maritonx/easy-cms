@@ -472,7 +472,12 @@ describe('tenants', () => {
     expect(orphan.tenant ?? null).toBeNull()
     const command = cms.config.cliCommands.find((c) => c.name === 'tenants:assign')
     const lines: string[] = []
-    await command?.run({ cms: cms as unknown as EasyCMS, args: ['a'], log: (l) => lines.push(l) })
+    await command?.run({
+      cms: cms as unknown as EasyCMS,
+      args: ['a'],
+      flags: {},
+      log: (l) => lines.push(l),
+    })
     expect((await cms.findById('posts', orphan.id, { depth: 0 }))?.tenant).toBe(a)
     expect(lines).toContain('posts: 1 given to Brand A')
   })

@@ -133,6 +133,8 @@ const site = await cms.findGlobal('site-settings', { overrideAccess: false, user
 ```
 
 `tenantContext(cms, { slug })` works with a slug from the URL, e.g. `/[tenant]/[slug]` routes.
+`findTenantFor(cms, { slug | host })` gives the tenant itself, or `null`. When you changed
+`slugs.tenants`, pass it as `collection`: `tenantContext(cms, { host, collection: 'sites' })`.
 `cms.forRequest(request)` gives the user and context of a request as REST does.
 
 With the [SEO plugin](./seo), `/sitemap.xml` and `/llms.txt` list the pages of the tenant of
@@ -148,7 +150,7 @@ A request that names no tenant finds nothing in tenant collections. With
 |---|---|---|
 | `collections` | — | **Required**. Collections whose documents belong to one tenant. |
 | `globals` | `[]` | Globals with a value per tenant. |
-| `tenantsSlug` | `tenants` | The tenants collection; declare it yourself to add fields. |
+| `slugs.tenants` | `tenants` | The tenants collection; declare it yourself to add fields. |
 | `userHasAccessToAllTenants` | role `admin` | `(user) => boolean`: who sees every tenant and the system. |
 | `publicReads` | `none` | `all`: requests that name no tenant read every tenant's. Writing still needs a tenant. |
 | `editShared` | `[]` | Shared collections and globals the people of a tenant (its admins too) may change; a change applies to every tenant. Otherwise only users with access to all tenants change shared data. |
@@ -167,7 +169,8 @@ The plugin uses parts of the core you can use yourself:
 
 - **`onRequest`** in the config works out each request's `context` (here, the tenant) and the
   user within it (their role there, `scoped`). Access rules, hooks and `filterOptions` receive
-  the `context`; the Local API takes one as an option.
+  the `context`; the Local API takes one as an option. `onRequest` can be a list: the plugin
+  adds its own after yours, sees the user yours returned, and merges its `context` into yours.
 - **`scoped` users** are admins of their part only: Settings, backups, roles and other people's
   API keys need an admin of the whole system.
 - **Globals with `scope`** keep a value per scope.

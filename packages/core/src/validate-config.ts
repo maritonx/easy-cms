@@ -8,6 +8,7 @@ import {
   type NavGroup,
 } from './config.js'
 import { checkConfigKeys } from './config-keys.js'
+import { ADAPTER_API_VERSION } from './database.js'
 import type { ConfigIssue } from './errors.js'
 import { FIELD_TYPES, type Field, type SelectOption } from './fields.js'
 import { NAV_ID, navGroups, navIds } from './nav.js'
@@ -57,6 +58,7 @@ export function validateConfig(config: Config): ConfigIssue[] {
 
   validateSecret(config.secret, add)
   checkConfigKeys(config, (issue) => issues.push(issue))
+  validateAdapterVersions(config, add)
 
   if (!config.db || typeof config.db.name !== 'string' || typeof config.db.init !== 'function') {
     add('db', 'is required', "pass a database adapter, e.g. db: sqlite({ url: 'file:./cms.db' })")
@@ -1298,8 +1300,11 @@ function validateField(
   }
 }
 
-/** Custom element names from admin modules: `ecms-` plus lowercase letters, digits and `-`. */
-export const ADMIN_COMPONENT_TAG = /^ecms-[a-z0-9]+(-[a-z0-9]+)*$/
+/**
+ * Custom element names from admin modules: lowercase letters, digits and `-`, with at least one
+ * `-` (the official plugins use `ecms-<plugin>-…`; pick a prefix of your own).
+ */
+export const ADMIN_COMPONENT_TAG = /^[a-z][a-z0-9]*(-[a-z0-9]+)+$/
 
 function validateComponent(component: unknown, path: string, add: Add) {
   const tag =
@@ -1309,7 +1314,7 @@ function validateComponent(component: unknown, path: string, add: Add) {
   if (typeof tag !== 'string' || !ADMIN_COMPONENT_TAG.test(tag)) {
     add(
       path,
-      `must be a custom element name starting with "ecms-" (got ${JSON.stringify(tag)})`,
+      `must be a custom element name: lowercase, with a "-" (got ${JSON.stringify(tag)})`,
       "e.g. 'ecms-color-picker' or { tag: 'ecms-color-picker', props: { palette: 'brand' } }",
     )
     return
@@ -1545,5 +1550,30 @@ function validateUseAsTitle(collection: CollectionConfig, path: string, add: Add
       `${path}.useAsTitle`,
       `"${field.name}" is a ${field.type} field and cannot be shown as a title`,
     )
+  }
+}
+
+/** Adapters written for another adapter interface than this Easy CMS's. */
+function validateAdapterVersions(config: Config, add: Add) {
+  const adapters: [string, unknown][] = [
+    ['db', config.db],
+    ['upload.storage', config.upload?.storage],
+    ['upload.privateStorage', config.upload?.privateStorage],
+    ['backups.storage', config.backups?.storage],
+    ['email', config.email],
+    ...(config.auth?.providers ?? []).map(
+      (p, i) => [`auth.providers[${i}]`, p] as [string, unknown],
+    ),
+  ]
+  for (const [path, adapter] of adapters) {
+    const version = (adapter as { apiVersion?: unknown } | undefined)?.apiVersion
+    if (version !== undefined && version !== ADAPTER_API_VERSION)
+      add(
+        path,
+        `is written for adapter API ${String(version)}; this Easy CMS has ${ADAPTER_API_VERSION}`,
+        Number(version) > ADAPTER_API_VERSION
+          ? 'upgrade Easy CMS (every @easy-cms/* package)'
+          : 'upgrade the adapter to a version for this Easy CMS',
+      )
   }
 }

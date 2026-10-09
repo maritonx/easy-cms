@@ -195,7 +195,7 @@ It also repairs pages after an error, and moves pages whose parent was deleted t
 | `collections` | — | Collections whose documents can have a parent in the same collection. |
 | `slugField` | `slug` | The field each page adds to its parent's path (a `slug` or `text` field). |
 | `titleField` | `useAsTitle` | The field shown in breadcrumbs. |
-| `fields` | `parent`, `breadcrumbs`, `path` | `{ parent, breadcrumbs, path }`: the added fields' names. |
+| `fieldNames` | `parent`, `breadcrumbs`, `path` | `{ parent, breadcrumbs, path }`: the added fields' names. |
 | `maxDepth` | `10` | Levels of pages, the top level included. |
 | `onDeleteParent` | `restrict` | `restrict` or `orphan`: deleting a page with pages under it. |
 

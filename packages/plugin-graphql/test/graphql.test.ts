@@ -565,6 +565,7 @@ describe('easy-cms generate:graphql', () => {
       await command?.run({
         cms: cms as unknown as EasyCMS,
         args: [out],
+        flags: {},
         log: (l) => lines.push(l),
       }),
     ).toBe(0)

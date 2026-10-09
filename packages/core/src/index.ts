@@ -106,8 +106,10 @@ export {
   type Config,
   defineConfig,
   definePlugin,
+  PLUGIN_API_VERSION,
 } from './config.js'
 export type * from './database.js'
+export { ADAPTER_API_VERSION } from './database.js'
 export { slugify } from './document.js'
 export {
   consoleEmail,
@@ -217,8 +219,8 @@ export {
 } from './roles.js'
 export {
   type DirectUpload,
-  type LocalStorageOptions,
-  localStorage,
+  type DiskStorageOptions,
+  diskStorage,
   type StorageAdapter,
   type StoredFile,
 } from './storage.js'

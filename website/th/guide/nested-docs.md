@@ -192,7 +192,7 @@ npx easy-cms nested:rebuild
 | `collections` | — | collection ที่เอกสารมีหน้าแม่ใน collection เดียวกันได้ |
 | `slugField` | `slug` | field ที่แต่ละหน้าต่อท้าย path ของหน้าแม่ (field แบบ `slug` หรือ `text`) |
 | `titleField` | `useAsTitle` | field ที่แสดงใน breadcrumbs |
-| `fields` | `parent`, `breadcrumbs`, `path` | `{ parent, breadcrumbs, path }`: ชื่อ field ที่เพิ่ม |
+| `fieldNames` | `parent`, `breadcrumbs`, `path` | `{ parent, breadcrumbs, path }`: ชื่อ field ที่เพิ่ม |
 | `maxDepth` | `10` | จำนวนระดับของหน้า รวมระดับบนสุด |
 | `onDeleteParent` | `restrict` | `restrict` หรือ `orphan`: เมื่อลบหน้าที่มีหน้าย่อย |
 

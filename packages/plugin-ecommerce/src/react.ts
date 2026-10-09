@@ -89,7 +89,7 @@ export function useCustomer() {
     loading: state.loading,
     login: client.login,
     logout: client.logout,
-    signup: client.signup,
+    signUp: client.signUp,
     verifyEmail: client.verifyEmail,
     forgotPassword: client.forgotPassword,
     resetPassword: client.resetPassword,

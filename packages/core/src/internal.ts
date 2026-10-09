@@ -14,7 +14,7 @@ export { SSO_COOKIE } from './auth/sso.js'
 export { writeBackupFile } from './backups.js'
 export { INTERNAL_COLLECTIONS, MEDIA, MEDIA_FOLDERS } from './builtins.js'
 export { conditionIssues } from './conditions.js'
-export { codeOfStatus } from './errors.js'
+export { checkRenamedOptions } from './config-keys.js'
 export { configSignature } from './config-signature.js'
 export { type CopyProgress, type CopyResult, copyDatabase } from './copy.js'
 export {
@@ -25,6 +25,7 @@ export {
   parseId,
   validateFields,
 } from './document.js'
+export { codeOfStatus } from './errors.js'
 export { FIELD_TYPE_BASES } from './field-types.js'
 export { hasRows, isHasMany, mimeAllowedBy, rowFields, uniqueWithinOf } from './fields.js'
 export { forwardedClientIp, platformClientIp } from './framework.js'

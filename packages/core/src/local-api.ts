@@ -85,7 +85,7 @@ import { DEFAULT_DEPTH, type Loader, MAX_DEPTH, populate } from './populate.js'
 import { fetchRemoteFile, RemoteFileError } from './remote-file.js'
 import { resolveConfig } from './resolve-config.js'
 import { Roles } from './roles.js'
-import { type DirectUpload, localStorage, type StorageAdapter } from './storage.js'
+import { type DirectUpload, diskStorage, type StorageAdapter } from './storage.js'
 import {
   collectionParent,
   globalParent,
@@ -216,7 +216,7 @@ export async function createEasyCMS<const C extends Config>(
       `Config: ${warning.path} ${warning.message}${warning.hint ? ` (${warning.hint})` : ''}`,
     )
   const cwd = options.cwd ?? process.cwd()
-  const storage = resolved.upload.storage ?? localStorage({ dir: resolved.upload.dir })
+  const storage = resolved.upload.storage ?? diskStorage({ dir: resolved.upload.dir })
   await storage.init?.({ cwd })
   if (resolved.upload.privateStorage) await resolved.upload.privateStorage.init?.({ cwd })
   const db = await resolved.db.init({
@@ -293,7 +293,7 @@ export class EasyCMS<C extends Config = Config> {
     config: ResolvedConfig,
     db: Database,
     logger: Logger = consoleLogger,
-    storage: StorageAdapter = localStorage({ dir: config.upload.dir }),
+    storage: StorageAdapter = diskStorage({ dir: config.upload.dir }),
     cwd: string = process.cwd(),
     privateStorage?: StorageAdapter | null,
   ) {
@@ -350,17 +350,23 @@ export class EasyCMS<C extends Config = Config> {
     url: URL | undefined,
     user: AuthUser | null,
   ): Promise<{ user: AuthUser | null; context: RequestContext }> {
-    const result = await this.config.onRequest?.({
-      headers,
-      url,
-      user,
-      cms: this as unknown as EasyCMS,
-    })
-    const changed = result?.user !== undefined ? result.user : user
+    const hooks = this.config.onRequest
+    let changed = user
+    let context: RequestContext | undefined
+    for (const onRequest of typeof hooks === 'function' ? [hooks] : (hooks ?? [])) {
+      const result = await onRequest({
+        headers,
+        url,
+        user: changed,
+        cms: this as unknown as EasyCMS,
+      })
+      if (result?.user !== undefined) changed = result.user
+      if (result?.context) context = { ...context, ...result.context }
+    }
     return {
       // `onRequest` may change the role (e.g. per tenant): membership follows it.
       user: changed && asMember(changed, this.config.auth.members.roles),
-      context: result?.context ?? NO_CONTEXT,
+      context: context ?? NO_CONTEXT,
     }
   }
 

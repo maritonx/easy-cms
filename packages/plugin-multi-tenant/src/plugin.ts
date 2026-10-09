@@ -21,7 +21,7 @@ import {
   ValidationError,
   type Where,
 } from '@easy-cms/core'
-import { MEDIA, MEDIA_FOLDERS } from '@easy-cms/core/internal'
+import { checkRenamedOptions, MEDIA, MEDIA_FOLDERS } from '@easy-cms/core/internal'
 import { INFO } from './info.js'
 import { membersEndpoints } from './members.js'
 import {
@@ -40,7 +40,7 @@ import {
   tenantOfHost,
 } from './shared.js'
 
-export interface MultiTenantOptions<S extends string = string, T extends string = string> {
+export interface MultiTenantPluginOptions<S extends string = string, T extends string = string> {
   /**
    * Collections whose documents belong to one tenant, by slug, e.g. `['posts', 'pages',
    * 'media']`. With `media` and `upload.folders`, the media folders too. Others are shared.
@@ -55,7 +55,7 @@ export interface MultiTenantOptions<S extends string = string, T extends string 
    */
   readonly editShared?: readonly string[]
   /** Slug of the tenants collection. Default `tenants`. */
-  readonly tenantsSlug?: T
+  readonly slugs?: { readonly tenants?: T }
   /**
    * Users who see and manage every tenant and the whole system. Default: users whose own role
    * is `admin`.
@@ -140,10 +140,11 @@ function readCookie(header: string | null, name: string): string | undefined {
  * the admin's cookie or the domain.
  */
 export function multiTenantPlugin<const S extends string, const T extends string = 'tenants'>(
-  options: MultiTenantOptions<S, T>,
+  options: MultiTenantPluginOptions<S, T>,
 ): TypedPlugin<MultiTenantPluginTypes<S, T>> {
+  checkRenamedOptions('multiTenantPlugin', options, { tenantsSlug: 'slugs.tenants' })
   return definePlugin<MultiTenantPluginTypes<S, T>>((config: Config): Config => {
-    const tenantsSlug: string = options.tenantsSlug ?? 'tenants'
+    const tenantsSlug: string = options.slugs?.tenants ?? 'tenants'
     const header = (options.header ?? 'x-easy-cms-tenant').toLowerCase()
     const cookie = options.cookie ?? 'ecms-tenant'
     const publicReads = options.publicReads ?? 'none'
@@ -518,11 +519,10 @@ export function multiTenantPlugin<const S extends string, const T extends string
     })
 
     // The tenant of each request, and the user's role in it.
+    // After the config's own `onRequest`, whose user it sees and whose context it adds to.
     const previous = config.onRequest
     const onRequest: OnRequest = async (args) => {
-      const before = previous ? await previous(args) : undefined
-      const user = before?.user !== undefined ? before.user : args.user
-      const context = { ...before?.context }
+      const user = args.user
       const list = await tenantList(args.cms, tenantsSlug)
       const asked =
         args.headers.get(header) ??
@@ -545,7 +545,7 @@ export function multiTenantPlugin<const S extends string, const T extends string
         (!boundTenant || boundTenant.tenant === null)
       ) {
         const chosen = asked === ALL ? undefined : findTenant(list, asked)
-        return { user, context: { ...context, tenant: chosen?.id ?? null, allTenants: true } }
+        return { user, context: { tenant: chosen?.id ?? null, allTenants: true } }
       }
       // Site members (customers, `auth.members`) use the site of the request, like visitors.
       if (user && user.member !== true) {
@@ -561,14 +561,13 @@ export function multiTenantPlugin<const S extends string, const T extends string
               mine.find((m) => list.some((t) => sameId(t.id, m.tenant))))
         return {
           user: { ...user, role: membership?.role ?? user.role, scoped: true },
-          context: { ...context, tenant: membership?.tenant ?? null, allTenants: false },
+          context: { tenant: membership?.tenant ?? null, allTenants: false },
         }
       }
       const chosen = asked && asked !== ALL ? findTenant(list, asked) : byHost
       return {
         user,
         context: {
-          ...context,
           tenant: chosen?.id ?? null,
           allTenants: !chosen && publicReads === 'all',
         },
@@ -695,7 +694,7 @@ of its own. Run it once after adding the plugin to a site that has content.
       ...config,
       collections,
       globals,
-      onRequest,
+      onRequest: [...(typeof previous === 'function' ? [previous] : (previous ?? [])), onRequest],
       endpoints: [
         ...(config.endpoints ?? []),
         optionsEndpoint,

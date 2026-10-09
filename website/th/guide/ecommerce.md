@@ -123,7 +123,7 @@ export default defineNuxtPlugin((nuxtApp) => {
 | `useCart()` | `cart` (รายการ, `subtotal`, `adjustments`, `total`, `count`), `addItem`, `updateItem`, `incrementItem`, `decrementItem`, `removeItem`, `clearCart`, `busy` |
 | `useCurrency()` | `currency`, `currencies`, `setCurrency`, `formatPrice` |
 | `usePayments()` | `paymentMethods`, `checkout`, `confirm` |
-| `useCustomer()` | `user`, `login`, `logout`, `signup`, `verifyEmail`, `forgotPassword`, `resetPassword` |
+| `useCustomer()` | `user`, `login`, `logout`, `signUp`, `verifyEmail`, `forgotPassword`, `resetPassword` |
 | `useAddresses()` | `addresses` ของลูกค้า, `createAddress`, `updateAddress`, `deleteAddress` |
 | `useOrders()` | `orders` ของลูกค้า ล่าสุดก่อน |
 
@@ -271,7 +271,7 @@ export const omise = definePaymentAdapter({
 | `addresses.supportedCountries` | `['TH']` | ประเทศที่ร้านส่งของ |
 | `addresses.fields` | ที่อยู่แบบไทย | ชื่อ โทร ที่อยู่ แขวง/ตำบล เขต/อำเภอ จังหวัด รหัสไปรษณีย์ ประเทศ |
 | `customers.role` | `customer` | role ของบัญชีลูกค้า |
-| `customers.signup` | `true` | ผู้เยี่ยมชมสมัครบัญชีเอง (`false` คือไม่ให้สมัคร หรือใส่คีย์ Turnstile) |
+| `customers.signUp` | `true` | ผู้เยี่ยมชมสมัครบัญชีเอง (`false` คือไม่ให้สมัคร หรือใส่คีย์ Turnstile) |
 | `customers.pages` | — | หน้าของเว็บสำหรับลิงก์ในอีเมล ([สมาชิกของเว็บ](./members)) |
 | `totals` | — | ค่าส่ง ภาษี และส่วนลด |
 | `orders.number` | `1000 + n` | เลขที่คำสั่งซื้อ |

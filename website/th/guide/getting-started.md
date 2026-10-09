@@ -37,7 +37,7 @@ npm run dev
 ```
 
 เปิด `http://localhost:3000/admin` หากยังไม่มีผู้ใช้ หน้า admin
-จะให้คุณสร้าง admin คนแรก หรือจะรัน `npx easy-cms create-admin` ก็ได้
+จะให้คุณสร้าง admin คนแรก หรือจะรัน `npx easy-cms admin:create` ก็ได้
 
 ในช่วงพัฒนา (development) schema ของฐานข้อมูลจะเปลี่ยนตาม config ให้อัตโนมัติ แก้ไข
 `easy-cms.config.ts` แล้วบันทึก หน้า admin จะแสดง field ใหม่ทันที

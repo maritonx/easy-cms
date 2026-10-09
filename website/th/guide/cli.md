@@ -47,16 +47,18 @@ npx easy-cms <command> [--config <file>] [--cwd <dir>]
 | [`migrate`](#migrate) | รัน migration ที่ยังค้างอยู่ |
 | [`migrate:create <name>`](#migrate-create) | เขียน migration สำหรับการเปลี่ยน config |
 | [`migrate:status`](#migrate-status) | แสดงรายการ migration และสถานะว่ารันแล้วหรือยัง |
-| [`create-admin`](#create-admin) | สร้างผู้ใช้ |
+| [`admin:create`](#admin-create) | สร้างผู้ใช้ |
 | [`generate:types`](#generate-types) | เขียน type ของ TypeScript สำหรับแอปอื่น |
 | [`backup <file>`](#backup) | คัดลอกฐานข้อมูลเป็นไฟล์ SQLite ขณะที่ CMS ทำงานอยู่ |
 | [`copy --from <config>`](#copy) | คัดลอกเนื้อหาทั้งหมดไปอีกฐานข้อมูล เช่น จาก SQLite ไป Postgres |
-| [`run-scheduled`](#run-scheduled) | รันงานตั้งเวลาที่ถึงกำหนดและส่ง webhook ซ้ำหนึ่งรอบ |
+| [`jobs:run`](#jobs-run) | รันงานตั้งเวลาที่ถึงกำหนดและส่ง webhook ซ้ำหนึ่งรอบ |
 | [`serve`](#serve) | รัน CMS เป็น server ของตัวเอง |
 
 ตัวเลือกที่ใช้ได้กับทุกคำสั่ง: `--config <file>` (ค่าเริ่มต้น `easy-cms.config.ts`), `--cwd <dir>`
 (root ของโปรเจกต์ ใช้ `.env` ในนั้น) และ `--help` ถ้าล้มเหลวจะจบด้วย exit code ที่ไม่ใช่ 0
-จึงใช้ใน CI และสคริปต์ deploy ได้ ตั้ง `DEBUG=1` เพื่อดู stack trace
+จึงใช้ใน CI และสคริปต์ deploy ได้ ตั้ง `DEBUG=1` เพื่อดู stack trace คำสั่งในตัวจะหยุดเมื่อเจอตัวเลือกที่ไม่รู้จัก
+
+ก่อน 0.60 `admin:create` และ `jobs:run` ชื่อ `create-admin` และ `run-scheduled` ชื่อเดิมยังใช้ได้
 
 ### migrate {#migrate}
 
@@ -86,11 +88,11 @@ npx easy-cms migrate:status
 # • pending  20260928040614_seo
 ```
 
-### create-admin {#create-admin}
+### admin:create {#admin-create}
 
 ```bash [pm]
-npx easy-cms create-admin --email ann@example.com --name Ann
-npx easy-cms create-admin --email bob@example.com --role editor
+npx easy-cms admin:create --email ann@example.com --name Ann
+npx easy-cms admin:create --email bob@example.com --role editor
 ```
 
 สร้างผู้ใช้บทบาท `admin` (หรือตาม `--role`) จะถามรหัสผ่านใน terminal ถ้าไม่มี terminal (CI, container)
@@ -132,10 +134,10 @@ npx easy-cms copy --from easy-cms.old.config.ts
 
 ดู [ย้ายจาก SQLite ไป Postgres](./recipes/sqlite-to-postgres)
 
-### run-scheduled {#run-scheduled}
+### jobs:run {#jobs-run}
 
 ```bash [pm]
-npx easy-cms run-scheduled
+npx easy-cms jobs:run
 ```
 
 รัน[การเผยแพร่และยกเลิกที่ตั้งเวลาไว้](./drafts#scheduled-publishing)ที่ถึงกำหนด และส่ง
@@ -180,8 +182,16 @@ export default defineConfig({
 })
 ```
 
-`run` ได้รับ CMS (schema ตามที่เป็นอยู่ ให้รัน `migrate` ก่อน) คำที่ตามหลังชื่อคำสั่ง และ `log`
-คืนตัวเลขเพื่อใช้เป็น exit code
+`run` ได้รับ CMS (schema ตามที่เป็นอยู่ ให้รัน `migrate` ก่อน) คำที่ตามหลังชื่อคำสั่ง (`args`)
+ตัวเลือก (`flags`) และ `log` คืนตัวเลขเพื่อใช้เป็น exit code
+
+`flags` มีทุกตัวเลือกที่ CLI ไม่ได้ใช้เอง (`--config`, `--cwd` และ `--help` เป็นของ CLI) ชื่อเป็น
+camelCase ค่าเป็น string หรือ `true` สำหรับตัวเลือกที่ไม่มีค่า
+
+| พิมพ์ | `flags` |
+|---|---|
+| `--dry-run` | `{ dryRun: true }` |
+| `--limit=5` | `{ limit: '5' }` |
 
 ## ขั้นต่อไป {#next-steps}
 

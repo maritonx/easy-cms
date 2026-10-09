@@ -15,7 +15,7 @@ export {
   type PaymentTransaction,
 } from './payments.js'
 export {
-  type EcommerceOptions,
+  type EcommercePluginOptions,
   type EcommercePluginTypes,
   ecommercePlugin,
   ORDER_EVENTS,

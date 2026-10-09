@@ -127,7 +127,7 @@ const cms = (...args: string[]) => {
 }
 await cms('migrate:create', 'init')
 await cms('migrate')
-await cms('create-admin', '--email', 'admin@smoke.test')
+await cms('admin:create', '--email', 'admin@smoke.test')
 
 // 3. The production server (`start`), until /healthz answers. A port the system says is free:
 // a random one could be taken, e.g. by the registry on 4873.

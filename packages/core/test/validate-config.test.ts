@@ -212,7 +212,9 @@ describe('validateConfig', () => {
                 admin: { component: 'ecms-color', after: ['ecms-meter'] },
               },
               { name: 'b', type: 'text', admin: { component: { tag: 'ecms-x', props: { n: 1 } } } },
-              { name: 'c', type: 'text', admin: { component: 'color-picker' } },
+              // Any custom element name, not only `ecms-…`; but it needs a hyphen.
+              { name: 'c', type: 'text', admin: { component: 'colorpicker' } },
+              { name: 'e', type: 'text', admin: { component: 'acme-color-picker' } },
               // @ts-expect-error props is an object
               { name: 'd', type: 'text', admin: { after: [{ tag: 'ecms-y', props: [1] }] } },
             ],

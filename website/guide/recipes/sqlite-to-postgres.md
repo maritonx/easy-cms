@@ -32,7 +32,7 @@ npx easy-cms migrate:create init
 ```
 
 Commit the new folder, run `npx easy-cms migrate` where you deploy, and create the first admin
-again (`npx easy-cms create-admin`).
+again (`npx easy-cms admin:create`).
 
 ## With content to keep
 
