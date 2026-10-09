@@ -78,7 +78,7 @@ try {
       const base = `http://localhost:${port}`
       let init
       for (let i = 0; i < 60 && !init; i++) {
-        init = await fetch(`${base}/api/cms/users/init`)
+        init = await fetch(`${base}/api/cms/auth/init`)
           .then((r) => (r.ok ? r.json() : undefined))
           .catch(() => undefined)
         if (!init) await new Promise((r) => setTimeout(r, 1000))

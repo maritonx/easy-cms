@@ -103,6 +103,39 @@ jobs:
       - run: pnpm build
       - run: pnpm --filter easy-cms-integration-tests exec vitest run --project postgres
 
+  upgrade:
+    needs: scope
+    if: needs.scope.outputs.full == 'true'
+    # Databases made by older releases (and the latest), migrated and read by this commit.
+    name: upgrade (${{ matrix.db }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        db: [sqlite, postgres]
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: easycms
+          POSTGRES_PASSWORD: easycms
+          POSTGRES_DB: easycms
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U easycms" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      POSTGRES_URL: postgres://easycms:easycms@localhost:5432/easycms
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: node upgrade/run.ts ${{ matrix.db }}
+
   s3:
     needs: scope
     if: needs.scope.outputs.full == 'true'

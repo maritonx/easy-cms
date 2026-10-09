@@ -31,6 +31,10 @@ them together.
 | Your data: upgrades migrate it forward | Members marked `@internal`, left out of the published types |
 | Adapters and their options | [Experimental packages](#experimental) |
 
+Each change is tested against databases made by older releases (from 0.10) and the latest one,
+on SQLite and Postgres: they are migrated with `easy-cms migrate` and their documents, versions
+and files read back.
+
 A change that fixes a security problem may break something the promise covers when there is no
 other way; the changelog says so.
 

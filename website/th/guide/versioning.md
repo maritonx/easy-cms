@@ -30,6 +30,9 @@ Easy CMS ใช้ [semantic versioning](https://semver.org) แพ็กเก�
 | ข้อมูลของคุณ: การอัปเกรดจะ migrate ไปข้างหน้า | สมาชิกที่ติด `@internal` ซึ่งไม่อยู่ใน type ที่เผยแพร่ |
 | adapter และ option | [แพ็กเกจทดลอง](#experimental) |
 
+ทุกการเปลี่ยนแปลงถูกทดสอบกับฐานข้อมูลที่สร้างด้วย release เก่า (ตั้งแต่ 0.10) และ release ล่าสุด ทั้ง SQLite
+และ Postgres: migrate ด้วย `easy-cms migrate` แล้วอ่านเอกสาร version และไฟล์กลับมาได้ครบ
+
 การแก้ช่องโหว่อาจทำให้สิ่งที่อยู่ใต้สัญญาเปลี่ยนไปได้ เมื่อไม่มีทางอื่น changelog จะบอกไว้
 
 ## แพ็กเกจทดลอง {#experimental}
