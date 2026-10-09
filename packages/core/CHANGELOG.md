@@ -1,5 +1,13 @@
 # @easy-cms/core
 
+## 0.61.0
+
+### Minor Changes
+
+- 3a8422c: Deprecation warnings: `warnDeprecated(code, message)` (from `@easy-cms/core` and `@easy-cms/core/plugin`) logs a Node.js `DeprecationWarning` once per code and process. Old names that still work warn with codes `EASY_CMS_DEP001`–`005`: `<api>/users/<action>`, `POST` to a global, `?fallback-locale=`, `easy-cms create-admin` and `easy-cms run-scheduled`. A new docs page, "Versions and deprecations", says what the version number promises and lists them.
+  
+  The admin saves globals with `PATCH` and sends `?fallbackLocale=`, and a failed sign-in no longer counts as an expired session.
+
 ## 0.60.0
 
 The same code as 0.49.0, released as 0.60.0 to match the [roadmap](https://github.com/maritonx/easy-cms/blob/main/docs/ROADMAP.md):
