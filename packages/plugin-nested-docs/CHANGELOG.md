@@ -1,5 +1,12 @@
 # @easy-cms/plugin-nested-docs
 
+## 0.48.0
+
+### Patch Changes
+
+- Updated dependencies [db47c50]
+  - @easy-cms/core@0.48.0
+
 ## 0.47.4
 
 ### Patch Changes
