@@ -27,12 +27,12 @@ versions of every `@easy-cms/*` package, which share one version number.
 
 | Version | Security fixes |
 |---|---|
-| Latest minor (0.48.x) | ✅ |
+| Latest minor (0.60.x) | ✅ |
 | Older 0.x | ❌ upgrade to the latest minor |
 
 Easy CMS is pre-1.0: only the latest minor release gets fixes. From 1.0, the latest major and,
 for six months after a new major, the previous one get fixes. See
-[versions and support](https://easy-cms-website.vercel.app/docs/backups#versioning).
+[versions and deprecations](https://easy-cms-website.vercel.app/docs/versioning).
 
 ## Scope
 

@@ -8,6 +8,7 @@ import { safeEqual } from '../auth/tokens.js'
 import { deleteBackup, downloadBackup, listBackups, startBackup } from '../backups.js'
 import { INTERNAL_COLLECTIONS, MEDIA, USERS } from '../builtins.js'
 import type { Config } from '../config.js'
+import { warnDeprecated } from '../deprecation.js'
 import { parseId } from '../document.js'
 import {
   EasyCMSError,
@@ -392,6 +393,11 @@ async function route(
   // Signing in with outside accounts (`auth.providers`).
   if (first === 'auth' && !authAction) return ssoRoute(cms, ctx, method, segments)
 
+  if (authAction && first === USERS && second !== undefined && AUTH_ACTIONS.has(second))
+    warnDeprecated(
+      'EASY_CMS_DEP001',
+      `${method} <api>/users/${second} is now <api>/auth/${second}; the old path works through 1.x.`,
+    )
   // Auth endpoints
   if (authAction && second !== undefined) {
     switch (`${method} ${second}`) {
@@ -839,6 +845,8 @@ async function route(
     }
     // PATCH, as for documents; POST as well, as before 0.60.
     if (method === 'PATCH' || method === 'POST') {
+      if (method === 'POST')
+        warnDeprecated('EASY_CMS_DEP002', 'Globals are updated with PATCH; POST works through 1.x.')
       const body = await readJson(ctx.request)
       return { body: await cms.updateGlobal(second, body, { ...access, ...parseDepth(ctx.url) }) }
     }
@@ -1155,7 +1163,13 @@ function scheduleJob(body: Record<string, unknown>) {
 /** `?locale=` (a content locale or `all`) and `?fallbackLocale=false` (or `fallback-locale`). */
 function parseLocale(url: URL): { locale?: string; fallbackLocale?: boolean } {
   const locale = url.searchParams.get('locale')
-  const fallback = url.searchParams.get('fallbackLocale') ?? url.searchParams.get('fallback-locale')
+  const old = url.searchParams.get('fallback-locale')
+  if (old !== null)
+    warnDeprecated(
+      'EASY_CMS_DEP003',
+      '?fallback-locale= is now ?fallbackLocale=; the old name works through 1.x.',
+    )
+  const fallback = url.searchParams.get('fallbackLocale') ?? old
   return {
     ...(locale ? { locale } : {}),
     ...(fallback === 'false' || fallback === 'true' ? { fallbackLocale: fallback === 'true' } : {}),

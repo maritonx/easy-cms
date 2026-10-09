@@ -346,6 +346,13 @@
             "en": "Upgrading",
             "th": "การอัปเกรด"
           }
+        },
+        {
+          "path": "guide/versioning",
+          "title": {
+            "en": "Versions and deprecations",
+            "th": "เวอร์ชันและการเลิกใช้"
+          }
         }
       ]
     },

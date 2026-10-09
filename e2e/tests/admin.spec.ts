@@ -913,7 +913,7 @@ test.describe('logged in as admin', () => {
   }) => {
     // Pages through the REST API, as the logged-in admin.
     await page.goto('/admin/')
-    const me = (await (await page.request.get('/api/cms/users/me')).json()) as { csrfToken: string }
+    const me = (await (await page.request.get('/api/cms/auth/me')).json()) as { csrfToken: string }
     const headers = { 'x-csrf-token': me.csrfToken, origin: new URL(page.url()).origin }
     const create = async (data: Record<string, unknown>) => {
       const response = await page.request.post('/api/cms/pages', {
@@ -1007,7 +1007,7 @@ test.describe('logged in as admin', () => {
   }) => {
     // A published form through the REST API, as the logged-in admin.
     await page.goto('/admin/')
-    const me = (await (await page.request.get('/api/cms/users/me')).json()) as { csrfToken: string }
+    const me = (await (await page.request.get('/api/cms/auth/me')).json()) as { csrfToken: string }
     const created = await page.request.post('/api/cms/forms', {
       headers: { 'x-csrf-token': me.csrfToken, origin: new URL(page.url()).origin },
       data: {
@@ -1321,7 +1321,7 @@ test.describe('logged in as admin', () => {
 
   test('gives the documents of a deleted user to someone else (auth.rbac)', async ({ page }) => {
     await page.goto('/admin/')
-    const me = (await (await page.request.get('/api/cms/users/me')).json()) as {
+    const me = (await (await page.request.get('/api/cms/auth/me')).json()) as {
       csrfToken: string
       user: { id: number }
     }

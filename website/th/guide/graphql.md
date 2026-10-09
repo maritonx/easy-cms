@@ -8,7 +8,7 @@
 
 ::: warning ทดลอง (experimental)
 plugin นี้อยู่ในขั้นทดลอง ใช้เลขเวอร์ชันเดียวกับ Easy CMS ส่วนอื่น แต่ option, endpoint และข้อมูลยังอาจเปลี่ยนใน
-minor release ได้ แม้หลัง 1.0 เพราะไม่อยู่ใต้[สัญญาความเสถียร](./backups#versioning) changelog และ
+minor release ได้ แม้หลัง 1.0 เพราะไม่อยู่ใต้[สัญญาความเสถียร](./versioning#experimental) changelog และ
 [คู่มืออัปเกรด](./upgrading) จะบอกว่าเปลี่ยนอะไร
 :::
 

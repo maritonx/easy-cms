@@ -57,7 +57,7 @@ async function call(
 /** Headers of a logged-in browser (cookie and CSRF token). */
 async function browser(email: string) {
   const response = await handle(
-    new Request(`${BASE}/users/login`, {
+    new Request(`${BASE}/auth/login`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ email, password: PASSWORD }),
@@ -153,7 +153,7 @@ describe('API keys', () => {
     )
     expect((await call('/globals/site', { headers: bearer(key) })).status).toBe(200)
     expect(
-      (await call('/globals/site', { method: 'POST', headers: bearer(key), body: { name: 'x' } }))
+      (await call('/globals/site', { method: 'PATCH', headers: bearer(key), body: { name: 'x' } }))
         .status,
     ).toBe(403)
   })
@@ -218,16 +218,16 @@ describe('API keys', () => {
 
     const editor = (await cms.find('users', { where: { email: { equals: 'ed@x.co' } } })).docs[0]
     const editorKey = await cms.createApiKey({ name: 'Off', user: editor?.id as number })
-    expect((await call('/users/me', { headers: bearer(editorKey.key) })).json.user.email).toBe(
+    expect((await call('/auth/me', { headers: bearer(editorKey.key) })).json.user.email).toBe(
       'ed@x.co',
     )
     await cms.update('users', editor?.id as number, { active: false })
-    expect((await call('/users/me', { headers: bearer(editorKey.key) })).status).toBe(401)
+    expect((await call('/auth/me', { headers: bearer(editorKey.key) })).status).toBe(401)
 
     await cms.delete('api-keys', stored?.id as number)
-    expect((await call('/users/me', { headers: bearer(key) })).status).toBe(401)
+    expect((await call('/auth/me', { headers: bearer(key) })).status).toBe(401)
     // A wrong secret with a real prefix fails too.
     const forged = `${editorKey.key.slice(0, 14)}${'x'.repeat(43)}`
-    expect((await call('/users/me', { headers: bearer(forged) })).status).toBe(401)
+    expect((await call('/auth/me', { headers: bearer(forged) })).status).toBe(401)
   })
 })

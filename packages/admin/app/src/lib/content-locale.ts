@@ -40,7 +40,7 @@ export function setContentLocale(next: string) {
 export function localeQuery(options: { editing?: boolean } = {}): string {
   const current = contentLocale()
   if (!current) return ''
-  return `&locale=${encodeURIComponent(current)}${options.editing ? '&fallback-locale=false' : ''}`
+  return `&locale=${encodeURIComponent(current)}${options.editing ? '&fallbackLocale=false' : ''}`
 }
 
 /** "ไทย", "English"… in the admin's language. */

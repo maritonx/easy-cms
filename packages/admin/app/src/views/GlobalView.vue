@@ -157,7 +157,7 @@ async function save(status?: 'draft' | 'published') {
   try {
     reset(
       await api<Data>(
-        'POST',
+        'PATCH',
         `/globals/${slug}?depth=0${localeQuery({ editing: true })}`,
         status ? { ...form.value, status } : form.value,
       ),

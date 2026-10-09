@@ -12,6 +12,7 @@ import {
   type Logger,
   loadConfig,
   ValidationError,
+  warnDeprecated,
 } from '@easy-cms/core'
 import { copyDatabase, generateTypes, writeBackupFile } from '@easy-cms/core/internal'
 import { startServer } from './serve.js'
@@ -149,6 +150,11 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
   const [named, ...looseRest] = loose.positionals
   // Names from before 0.60.
   const command = named === undefined ? undefined : (RENAMED_COMMANDS[named] ?? named)
+  if (named !== undefined && RENAMED_COMMANDS[named])
+    warnDeprecated(
+      named === 'create-admin' ? 'EASY_CMS_DEP004' : 'EASY_CMS_DEP005',
+      `\`easy-cms ${named}\` is now \`easy-cms ${command}\`; the old name works through 1.x.`,
+    )
   if (command && !(command in COMMAND_HELP))
     return await pluginCommand(command, looseRest, loose.values, io)
 

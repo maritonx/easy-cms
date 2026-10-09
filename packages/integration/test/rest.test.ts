@@ -1,5 +1,5 @@
 import { createRestHandler, defineConfig, type RestHandler } from '@easy-cms/core'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { db, open, SECRET } from './helpers.js'
 
 const config = defineConfig({
@@ -96,21 +96,21 @@ async function browser(email: string) {
 
 describe('first admin', () => {
   it('reports whether users exist and registers the first admin once', async () => {
-    expect((await call('/users/init')).json).toEqual({
+    expect((await call('/auth/init')).json).toEqual({
       hasUsers: false,
       passwordReset: false,
       providers: [],
       password: true,
       setupCode: false,
     })
-    const first = await call('/users/first-register', {
+    const first = await call('/auth/first-register', {
       method: 'POST',
       body: { email: 'admin@x.co', password: PASSWORD },
     })
     expect(first.status).toBe(200)
     expect(first.json.user).toMatchObject({ email: 'admin@x.co', role: 'admin' })
     expect(first.headers.getSetCookie().some((c) => c.startsWith('ecms-session='))).toBe(true)
-    expect((await call('/users/init')).json).toEqual({
+    expect((await call('/auth/init')).json).toEqual({
       hasUsers: true,
       passwordReset: false,
       providers: [],
@@ -118,7 +118,7 @@ describe('first admin', () => {
       setupCode: false,
     })
 
-    const again = await call('/users/first-register', {
+    const again = await call('/auth/first-register', {
       method: 'POST',
       body: { email: 'b@x.co', password: PASSWORD },
     })
@@ -138,16 +138,16 @@ describe('auth endpoints (FR-REST-05, FR-AUTH-03)', () => {
 
   it('returns the current user from the cookie', async () => {
     const { cookie, login } = await browser('admin@x.co')
-    const me = await call('/users/me', { headers: { cookie } })
+    const me = await call('/auth/me', { headers: { cookie } })
     expect(me.json).toMatchObject({
       user: { email: 'admin@x.co' },
       csrfToken: login.json.csrfToken,
     })
-    expect((await call('/users/me')).json).toEqual({ user: null })
+    expect((await call('/auth/me')).json).toEqual({ user: null })
   })
 
   it('rejects bad credentials with 401 and rate-limits with 429', async () => {
-    const bad = await call('/users/login', {
+    const bad = await call('/auth/login', {
       method: 'POST',
       body: { email: 'editor@x.co', password: 'nope' },
       headers: { 'x-test-ip': '9.9.9.9' },
@@ -157,13 +157,13 @@ describe('auth endpoints (FR-REST-05, FR-AUTH-03)', () => {
       json: { errors: [{ message: 'Invalid email or password' }] },
     })
     for (let i = 0; i < 4; i++) {
-      await call('/users/login', {
+      await call('/auth/login', {
         method: 'POST',
         body: { email: 'editor@x.co', password: 'nope' },
         headers: { 'x-test-ip': '9.9.9.9' },
       })
     }
-    const locked = await call('/users/login', {
+    const locked = await call('/auth/login', {
       method: 'POST',
       body: { email: 'editor@x.co', password: PASSWORD },
       headers: { 'x-test-ip': '9.9.9.9' },
@@ -173,10 +173,10 @@ describe('auth endpoints (FR-REST-05, FR-AUTH-03)', () => {
 
   it('logs out and clears cookies', async () => {
     const { headers, cookie } = await browser('admin@x.co')
-    const out = await call('/users/logout', { method: 'POST', headers })
+    const out = await call('/auth/logout', { method: 'POST', headers })
     expect(out.status).toBe(200)
     expect(out.headers.getSetCookie().every((c) => c.includes('Max-Age=0'))).toBe(true)
-    expect((await call('/users/me', { headers: { cookie } })).json.user).toBeNull()
+    expect((await call('/auth/me', { headers: { cookie } })).json.user).toBeNull()
   })
 
   it('accepts a Bearer token without CSRF', async () => {
@@ -247,7 +247,7 @@ describe('CSRF protection (NFR-SEC-01)', () => {
       )
     expect((await proxied('https://site.example.net')).status).toBe(201)
     expect((await proxied('https://evil.test')).status).toBe(403)
-    const crossSite = await call('/users/login', {
+    const crossSite = await call('/auth/login', {
       method: 'POST',
       body: { email: 'admin@x.co', password: PASSWORD },
       headers: { 'sec-fetch-site': 'cross-site' },
@@ -390,7 +390,7 @@ describe('collections (FR-REST-01..04)', () => {
       },
     })
     const response = await handle(
-      new Request('http://cms.test/api/cms/users/forgot-password', {
+      new Request('http://cms.test/api/cms/auth/forgot-password', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body,
@@ -454,6 +454,30 @@ describe('routes of 0.60', () => {
   it('takes fallbackLocale as well as fallback-locale', async () => {
     expect((await call('/posts?fallbackLocale=nope')).status).not.toBe(500)
   })
+
+  it('warns once about each old name still in use', async () => {
+    ;(globalThis as { [k: symbol]: Set<string> | undefined })[
+      Symbol.for('easy-cms.deprecations')
+    ]?.clear()
+    const emit = vi.spyOn(process, 'emitWarning').mockImplementation(() => {})
+    try {
+      const { headers } = await browser('admin@x.co')
+      for (let i = 0; i < 2; i++) {
+        await call('/users/init')
+        await call('/globals/site', { method: 'POST', body: { name: 'Old' }, headers })
+        await call('/posts?fallback-locale=false')
+      }
+      await call('/auth/init')
+      await call('/globals/site', { method: 'PATCH', body: { name: 'New' }, headers })
+      expect(emit.mock.calls.map((c) => (c[1] as { code: string }).code)).toEqual([
+        'EASY_CMS_DEP001',
+        'EASY_CMS_DEP002',
+        'EASY_CMS_DEP003',
+      ])
+    } finally {
+      emit.mockRestore()
+    }
+  })
 })
 
 describe('changing your own password', () => {
@@ -479,9 +503,9 @@ describe('changing your own password', () => {
       ?.split(';')[0]
     expect(fresh).toBeDefined()
     expect(
-      (await call('/users/me', { headers: { cookie: fresh as string } })).json.user,
+      (await call('/auth/me', { headers: { cookie: fresh as string } })).json.user,
     ).toMatchObject({ email: 'self@x.co' })
-    expect((await call('/users/me', { headers: { cookie: b.cookie } })).json.user).toBeNull()
+    expect((await call('/auth/me', { headers: { cookie: b.cookie } })).json.user).toBeNull()
     // An admin changing someone else's password doesn't need theirs.
     const boss = await browser('admin@x.co')
     const byAdmin = await call(`/users/${a.login.json.user.id}`, {

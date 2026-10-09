@@ -34,7 +34,7 @@ describe('framework kit', () => {
     let spoofed = 0
     const login = (ip: string, password = 'wrong-password') =>
       api(
-        new Request('http://cms.test/api/cms/users/login', {
+        new Request('http://cms.test/api/cms/auth/login', {
           method: 'POST',
           // What the client sent first (anything), then the address the proxy added.
           headers: {

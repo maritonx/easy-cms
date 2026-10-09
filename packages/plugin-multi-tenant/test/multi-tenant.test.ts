@@ -272,14 +272,14 @@ describe('documents of a tenant', () => {
 describe('globals per tenant', () => {
   it('keep a value for each tenant, and none without one', async () => {
     expect(
-      (await call('POST', '/globals/site', { as: 'bob', body: { name: 'Site A' } })).status,
+      (await call('PATCH', '/globals/site', { as: 'bob', body: { name: 'Site A' } })).status,
     ).toBe(200)
-    await call('POST', '/globals/site', { as: 'bob', tenant: 'b', body: { name: 'Site B' } })
+    await call('PATCH', '/globals/site', { as: 'bob', tenant: 'b', body: { name: 'Site B' } })
     expect((await call('GET', '/globals/site', { tenant: 'a' })).body.name).toBe('Site A')
     expect((await call('GET', '/globals/site', { host: 'b.test' })).body.name).toBe('Site B')
     expect((await call('GET', '/globals/site')).body.name).toBeNull()
     // All tenants: nothing to change until one is chosen.
-    expect((await call('POST', '/globals/site', { as: 'root', body: { name: '?' } })).status).toBe(
+    expect((await call('PATCH', '/globals/site', { as: 'root', body: { name: '?' } })).status).toBe(
       400,
     )
     // Shared globals stay shared.

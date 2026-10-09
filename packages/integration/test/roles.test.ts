@@ -177,7 +177,7 @@ describe('roles from the admin', () => {
   })
 
   it('everyone keeps their own account, but not other users', async () => {
-    const me = await json<{ user: { id: number } }>(call('/users/me', 'GET', 'editor'))
+    const me = await json<{ user: { id: number } }>(call('/auth/me', 'GET', 'editor'))
     const list = await json<{ docs: { email: string }[] }>(call('/users', 'GET', 'editor'))
     expect(list.docs.map((u) => u.email)).toEqual(['editor@x.co'])
     expect((await call(`/users/${me.user.id}`, 'PATCH', 'editor', { name: 'Ed' })).status).toBe(200)

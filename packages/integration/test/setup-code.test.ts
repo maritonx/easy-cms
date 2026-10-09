@@ -22,7 +22,7 @@ afterAll(() => cms.destroy())
 
 const register = (body: Record<string, string>) =>
   handle(
-    new Request('http://cms.test/api/cms/users/first-register', {
+    new Request('http://cms.test/api/cms/auth/first-register', {
       method: 'POST',
       headers: { 'content-type': 'application/json', origin: 'http://cms.test' },
       body: JSON.stringify({ email: 'owner@x.co', password: 'password123', ...body }),
@@ -32,7 +32,7 @@ const register = (body: Record<string, string>) =>
 describe('the setup code', () => {
   it('is asked for, and the first admin needs it', async () => {
     const init = (await (
-      await handle(new Request('http://cms.test/api/cms/users/init'))
+      await handle(new Request('http://cms.test/api/cms/auth/init'))
     ).json()) as {
       setupCode: boolean
     }

@@ -75,7 +75,7 @@ export default defineConfig({
     ...apps.map((app) => ({
       name: app.name,
       command: app.command,
-      url: `http://localhost:${app.port}/api/cms/users/init`,
+      url: `http://localhost:${app.port}/api/cms/auth/init`,
       timeout: 180_000,
       reuseExistingServer: false,
       env: {
@@ -110,7 +110,7 @@ export default defineConfig({
     {
       name: 'tenants',
       command: `pnpm --dir ../examples/multi-tenant exec easy-cms serve --port ${new URL(TENANTS).port}`,
-      url: `${TENANTS}/api/cms/users/init`,
+      url: `${TENANTS}/api/cms/auth/init`,
       timeout: 180_000,
       reuseExistingServer: false,
       env: {
@@ -121,7 +121,7 @@ export default defineConfig({
     {
       name: 'shop',
       command: `pnpm --dir ../examples/shop exec next build && pnpm --dir ../examples/shop exec easy-cms migrate && pnpm --dir ../examples/shop exec next start --port ${new URL(SHOP).port}`,
-      url: `${SHOP}/api/cms/users/init`,
+      url: `${SHOP}/api/cms/auth/init`,
       timeout: 240_000,
       reuseExistingServer: false,
       env: {

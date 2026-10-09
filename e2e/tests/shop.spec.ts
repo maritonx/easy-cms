@@ -27,7 +27,7 @@ async function login(page: Page) {
 
 /** A write to the API with the page's session (its CSRF token). */
 async function write(page: Page, path: string, data: object) {
-  const me = await (await page.request.get('/api/cms/users/me')).json()
+  const me = await (await page.request.get('/api/cms/auth/me')).json()
   const response = await page.request.post(`/api/cms${path}`, {
     data,
     headers: { 'x-csrf-token': me.csrfToken, origin: new URL(page.url()).origin },
@@ -38,9 +38,9 @@ async function write(page: Page, path: string, data: object) {
 
 test('sets up the owner, a product and a customer', async ({ page, baseURL }) => {
   // Retries start again from here: set up once.
-  const init = await (await page.request.get('/api/cms/users/init')).json()
+  const init = await (await page.request.get('/api/cms/auth/init')).json()
   if (init.hasUsers) return
-  const created = await page.request.post('/api/cms/users/first-register', {
+  const created = await page.request.post('/api/cms/auth/first-register', {
     data: { ...ADMIN, name: 'Owner' },
     headers: { origin: baseURL as string },
   })

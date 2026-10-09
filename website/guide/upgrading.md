@@ -156,6 +156,8 @@ Adapters:
 - `cliCommands` get `flags`: `--dry-run` is `flags.dryRun`, `--limit=5` is `flags.limit`.
 - Admin element tags can be any custom element name with a hyphen, not only `ecms-…`.
 - Dashboard widgets take an `id`, which roles use instead of the tag.
+- `warnDeprecated(code, message)` logs a deprecation warning once per process, for options of
+  your own that you rename. See [Versions and deprecations](./versioning#deprecations).
 
 Next.js: `createRouteHandlers(config, options)` takes `basePath` and `getClientIp` as well as
 `trustProxy`.

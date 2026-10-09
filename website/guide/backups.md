@@ -140,18 +140,8 @@ backup taken before the deploy and deploy the previous version of your app.
 
 ## Versions and support {#versioning}
 
-Easy CMS follows [semantic versioning](https://semver.org), with the usual pre-1.0 rule:
-
-- **Before 1.0 (now):** a minor release (0.8 → 0.9) may change APIs, config or REST responses;
-  the changelog says what and how to update. Patch releases (0.9.0 → 0.9.1) only fix bugs.
-- **From 1.0:** breaking changes only in major releases, announced in the changelog with an
-  upgrade guide. Deprecated APIs keep working, with a warning, until the next major.
-- **Security fixes** go to the latest minor release (and, from 1.0, to the previous major for six
-  months). See the [security policy](https://github.com/maritonx/easy-cms/blob/main/SECURITY.md).
-- **Experimental packages:** [`@easy-cms/plugin-ecommerce`](./ecommerce),
-  [`@easy-cms/plugin-graphql`](./graphql) and [`@easy-cms/plugin-mcp`](./mcp) share the version
-  number but not this promise: they may change in a minor release, after 1.0 too. Their pages say
-  so at the top.
+What each version number promises, what it covers, how old names are retired and how long
+releases get security fixes: see [Versions and deprecations](./versioning).
 
 ## Next steps
 

@@ -3,7 +3,7 @@
 A shop for Easy CMS: products with variants and prices in several currencies, carts that guests keep too, checkout with Stripe (card, PromptPay) or bank transfer, orders made exactly once, stock, customer accounts, order emails and events, and a client for pages with React hooks and Vue composables. Part of [Easy CMS](https://github.com/maritonx/easy-cms), the embedded, code-first headless CMS for Nuxt and Next.js.
 
 > [!WARNING]
-> **Experimental.** This package has the same version number as the rest of Easy CMS, but its options, endpoints and data may still change in a minor release, after 1.0 too: it is not covered by the [stability promise](https://easy-cms-website.vercel.app/docs/backups#versioning).
+> **Experimental.** This package has the same version number as the rest of Easy CMS, but its options, endpoints and data may still change in a minor release, after 1.0 too: it is not covered by the [stability promise](https://easy-cms-website.vercel.app/docs/versioning).
 
 ## Install
 

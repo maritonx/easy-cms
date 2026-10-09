@@ -101,7 +101,7 @@ async function signIn(
 }
 const me = async (jar: Jar) =>
   (
-    (await (await call('/users/me', jar)).json()) as {
+    (await (await call('/auth/me', jar)).json()) as {
       user: { email: string; role: string } | null
     }
   ).user
@@ -202,7 +202,7 @@ describe('linked accounts', () => {
 
   it('links another account to the signed-in user, never one that is someone else’s', async () => {
     const admin = new Map<string, string>()
-    const login = await call('/users/login', admin, {
+    const login = await call('/auth/login', admin, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ email: 'admin@x.co', password: 'password123' }),
@@ -291,7 +291,7 @@ describe('without passwords (auth.password: false)', () => {
       await strict.create('users', { email: 'ed@x.co', password: 'password123', role: 'editor' })
       const login = (email: string) =>
         strictHandle(
-          new Request(`${API}/users/login`, {
+          new Request(`${API}/auth/login`, {
             method: 'POST',
             headers: { 'content-type': 'application/json', origin: ORIGIN },
             body: JSON.stringify({ email, password: 'password123' }),
@@ -302,7 +302,7 @@ describe('without passwords (auth.password: false)', () => {
       expect(refused.status).toBe(401)
       expect(JSON.stringify(await refused.json())).toContain('Sign in with Acme')
 
-      const init = (await (await strictHandle(new Request(`${API}/users/init`))).json()) as {
+      const init = (await (await strictHandle(new Request(`${API}/auth/init`))).json()) as {
         providers: { id: string }[]
         password: boolean
       }

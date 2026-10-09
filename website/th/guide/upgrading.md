@@ -146,5 +146,7 @@ Adapter:
 - `cliCommands` ได้ `flags`: `--dry-run` คือ `flags.dryRun`, `--limit=5` คือ `flags.limit`
 - tag ของ element ใน admin เป็นชื่อ custom element ใดก็ได้ที่มีขีด ไม่ต้องขึ้นต้นด้วย `ecms-`
 - widget ของ dashboard มี `id` ซึ่ง role ใช้แทน tag
+- `warnDeprecated(code, message)` ขึ้นคำเตือนการเลิกใช้ครั้งเดียวต่อ process สำหรับ option ของคุณที่เปลี่ยนชื่อ
+  ดู[เวอร์ชันและการเลิกใช้](./versioning#deprecations)
 
 Next.js: `createRouteHandlers(config, options)` รับ `basePath` และ `getClientIp` นอกจาก `trustProxy`

@@ -122,17 +122,8 @@ backup ที่ไม่เคยลองกู้คืนก็ยังไ�
 
 ## เวอร์ชันและการสนับสนุน {#versioning}
 
-Easy CMS ใช้ [semantic versioning](https://semver.org) ตามกติกาปกติของเวอร์ชันก่อน 1.0:
-
-- **ก่อน 1.0 (ตอนนี้):** minor release (0.8 → 0.9) อาจเปลี่ยน API, config หรือรูปแบบคำตอบของ REST
-  changelog จะบอกว่าเปลี่ยนอะไรและต้องแก้อย่างไร ส่วน patch release (0.9.0 → 0.9.1) แก้บั๊กอย่างเดียว
-- **ตั้งแต่ 1.0:** breaking change เฉพาะใน major release พร้อมคู่มืออัปเกรดใน changelog
-  API ที่เลิกใช้จะยังทำงานพร้อมคำเตือนจนถึง major ถัดไป
-- **การแก้ช่องโหว่** ออกให้ minor release ล่าสุด (และตั้งแต่ 1.0 ให้ major ก่อนหน้าด้วยเป็นเวลาหกเดือน)
-  ดู[นโยบายความปลอดภัย](https://github.com/maritonx/easy-cms/blob/main/SECURITY.md)
-- **แพ็กเกจทดลอง:** [`@easy-cms/plugin-ecommerce`](./ecommerce), [`@easy-cms/plugin-graphql`](./graphql)
-  และ [`@easy-cms/plugin-mcp`](./mcp) ใช้เลขเวอร์ชันเดียวกันแต่ไม่อยู่ใต้สัญญานี้ อาจเปลี่ยนใน minor release ได้
-  แม้หลัง 1.0 หน้าของแต่ละตัวมีป้ายบอกไว้ด้านบน
+เลขเวอร์ชันสัญญาอะไร ครอบคลุมส่วนไหน ชื่อเก่าถูกเลิกใช้อย่างไร และแต่ละ release ได้รับการแก้ช่องโหว่นานเท่าไร
+ดูที่[เวอร์ชันและการเลิกใช้](./versioning)
 
 ## ขั้นต่อไป {#next-steps}
 

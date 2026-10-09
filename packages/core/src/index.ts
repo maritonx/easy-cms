@@ -110,6 +110,7 @@ export {
 } from './config.js'
 export type * from './database.js'
 export { ADAPTER_API_VERSION } from './database.js'
+export { warnDeprecated } from './deprecation.js'
 export { slugify } from './document.js'
 export {
   consoleEmail,

@@ -10,7 +10,7 @@ the Model Context Protocol, with an API key that limits what they can do.
 ::: warning Experimental
 This plugin is experimental. It has the same version number as the rest of Easy CMS, but its
 options, endpoints and data may still change in a minor release, after 1.0 too: it is not covered
-by the [stability promise](./backups#versioning). The changelog and the
+by the [stability promise](./versioning#experimental). The changelog and the
 [upgrade guide](./upgrading) say what changed.
 :::
 

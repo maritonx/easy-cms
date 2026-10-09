@@ -7,7 +7,7 @@ const PAGES = [
   '/admin/login',
   '/posts/warm-up',
   '/api/cms/posts',
-  '/api/cms/users/me',
+  '/api/cms/auth/me',
 ]
 
 export default async function warmUp() {

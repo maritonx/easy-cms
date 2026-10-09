@@ -57,7 +57,7 @@ export async function api<T>(method: string, path: string, body?: unknown): Prom
   const text = await response.text()
   const data = text ? JSON.parse(text) : undefined
   if (!response.ok) {
-    if (response.status === 401 && !path.startsWith('/users/')) onUnauthorized()
+    if (response.status === 401 && !path.startsWith('/auth/')) onUnauthorized()
     throw new ApiError(response.status, (data?.errors as ApiErrorItem[]) ?? [])
   }
   return data as T

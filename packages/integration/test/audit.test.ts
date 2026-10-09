@@ -54,7 +54,7 @@ const json = async <T>(response: Response | Promise<Response>) =>
   (await (await response).json()) as T
 const log = (query = '') => json<AuditPage>(call(`/admin/audit${query}`, 'GET', 'admin'))
 const login = (email: string, password: string) =>
-  call('/users/login', 'POST', undefined, { email, password })
+  call('/auth/login', 'POST', undefined, { email, password })
 
 beforeAll(async () => {
   cms = await open(config(), tempProject())
@@ -108,7 +108,7 @@ describe('changes to content', () => {
   })
 
   it('records globals, scheduled publishing and code (system) too', async () => {
-    await call('/globals/site', 'POST', 'admin', { name: 'My site' })
+    await call('/globals/site', 'PATCH', 'admin', { name: 'My site' })
     const draft = await cms.create('posts', { title: 'Later' })
     expect((await log(`?target=posts&doc=${draft.id}`)).docs[0]?.actor.via).toBe('system')
 

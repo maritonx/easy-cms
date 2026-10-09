@@ -268,8 +268,8 @@ describe('versions over REST', () => {
     expect(anonymous.status).toBe(401)
 
     // Globals
-    await call('POST', '/globals/site', { name: 'Live', status: 'published' })
-    await call('POST', '/globals/site', { name: 'Draft', status: 'draft' })
+    await call('PATCH', '/globals/site', { name: 'Live', status: 'published' })
+    await call('PATCH', '/globals/site', { name: 'Draft', status: 'draft' })
     const globalVersions = await call('GET', '/globals/site/versions')
     expect(globalVersions.json.totalDocs).toBe(2)
     expect((await call('POST', '/globals/site/discard-draft')).json.name).toBe('Live')

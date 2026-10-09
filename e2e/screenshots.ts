@@ -515,11 +515,11 @@ async function seed() {
     })
     if (!featured) featured = created.id
   }
-  await call('POST', '/globals/site?locale=th', {
+  await call('PATCH', '/globals/site?locale=th', {
     siteName: 'บล็อก Easy CMS',
     tagline: 'เรื่องราวจากทีม',
   })
-  await call('POST', '/globals/site?locale=en', {
+  await call('PATCH', '/globals/site?locale=en', {
     siteName: 'Easy CMS Blog',
     tagline: 'Notes from the team',
   })

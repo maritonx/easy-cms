@@ -39,6 +39,7 @@ export {
   definePlugin,
   PLUGIN_API_VERSION,
 } from './config.js'
+export { warnDeprecated } from './deprecation.js'
 export {
   ConfigError,
   EasyCMSError,

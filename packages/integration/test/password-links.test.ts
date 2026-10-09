@@ -62,7 +62,7 @@ async function linkTo(to: string) {
 
 describe('forgot password', () => {
   it('is offered when email and serverURL are set', async () => {
-    expect((await call('/users/init')).json).toEqual({
+    expect((await call('/auth/init')).json).toEqual({
       hasUsers: true,
       passwordReset: true,
       providers: [],
@@ -74,7 +74,7 @@ describe('forgot password', () => {
   it('emails a one-time link that sets a new password and signs out everywhere', async () => {
     const old = await cms.auth.login({ email: 'ann@example.com', password: 'old-password' })
     const sent = mail.sent.length
-    const asked = await call('/users/forgot-password', {
+    const asked = await call('/auth/forgot-password', {
       method: 'POST',
       body: { email: ' ANN@example.com ', locale: 'en' },
     })
@@ -84,17 +84,17 @@ describe('forgot password', () => {
     expect(email?.subject).toBe('Reset your password')
     expect(url).toMatch(/^https:\/\/cms\.example\.com\/admin\/reset-password\?token=/)
 
-    expect((await call(`/users/reset-password?token=${encodeURIComponent(token)}`)).json).toEqual({
+    expect((await call(`/auth/reset-password?token=${encodeURIComponent(token)}`)).json).toEqual({
       email: 'ann@example.com',
       purpose: 'reset',
     })
-    const short = await call('/users/reset-password', {
+    const short = await call('/auth/reset-password', {
       method: 'POST',
       body: { token, password: 'short' },
     })
     expect(short.status).toBe(400)
 
-    const reset = await call('/users/reset-password', {
+    const reset = await call('/auth/reset-password', {
       method: 'POST',
       body: { token, password: 'new-password', locale: 'en' },
     })
@@ -111,7 +111,7 @@ describe('forgot password', () => {
     expect((await linkTo('ann@example.com')).email?.subject).toBe('Your password was changed')
 
     // The link works once.
-    const again = await call('/users/reset-password', {
+    const again = await call('/auth/reset-password', {
       method: 'POST',
       body: { token, password: 'another-password' },
     })
@@ -123,7 +123,7 @@ describe('forgot password', () => {
 
   it("doesn't tell whether an email has an account, and limits requests", async () => {
     const sent = mail.sent.length
-    const unknown = await call('/users/forgot-password', {
+    const unknown = await call('/auth/forgot-password', {
       method: 'POST',
       body: { email: 'nobody@example.com' },
     })
@@ -135,7 +135,7 @@ describe('forgot password', () => {
     for (let i = 0; i < 5; i++)
       expect(
         (
-          await call('/users/forgot-password', {
+          await call('/auth/forgot-password', {
             method: 'POST',
             body: { email: 'admin@example.com' },
             headers: { 'x-test-ip': '10.0.0.9' },
@@ -151,9 +151,7 @@ describe('forgot password', () => {
     const [payload, signature] = token.split('.') as [string, string]
     const forged = `${Buffer.from(JSON.stringify({ u: '1', p: 'reset', e: Date.now() + 1e9 })).toString('base64url')}.${signature}`
     for (const bad of [forged, `${payload}.x`, 'nonsense'])
-      expect((await call(`/users/reset-password?token=${encodeURIComponent(bad)}`)).status).toBe(
-        400,
-      )
+      expect((await call(`/auth/reset-password?token=${encodeURIComponent(bad)}`)).status).toBe(400)
   })
 })
 
@@ -172,9 +170,9 @@ describe('invitations', () => {
     // In the admin's default language (Thai here).
     expect(email?.subject).toBe('คุณได้รับเชิญให้ใช้งานระบบจัดการเนื้อหา')
     expect(
-      (await call(`/users/reset-password?token=${encodeURIComponent(token)}`)).json.purpose,
+      (await call(`/auth/reset-password?token=${encodeURIComponent(token)}`)).json.purpose,
     ).toBe('invite')
-    const set = await call('/users/reset-password', {
+    const set = await call('/auth/reset-password', {
       method: 'POST',
       body: { token, password: 'bobs-password' },
     })

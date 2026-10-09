@@ -84,7 +84,7 @@ const bearer = (token: string) => ({ authorization: `Bearer ${token}` })
 
 describe('signing up', () => {
   it('gives the form a token', async () => {
-    const form = await call('/users/signup')
+    const form = await call('/auth/signup')
     expect(form.status).toBe(200)
     expect(form.json).toMatchObject({ turnstile: null, verifyEmail: true })
     expect(typeof form.json.token).toBe('string')
@@ -92,11 +92,11 @@ describe('signing up', () => {
 
   it('refuses forms sent at once, without a token, or with the hidden field filled', async () => {
     const body = { email: 'bot@example.com', password: 'bot-password-1' }
-    const fresh = (await call('/users/signup')).json.token
+    const fresh = (await call('/auth/signup')).json.token
     for (const extra of [{ token: fresh }, {}, { token: oldToken(), website: 'http://x' }])
       expect(
         (
-          await call('/users/signup', {
+          await call('/auth/signup', {
             method: 'POST',
             body: { ...body, ...extra },
             headers: { 'x-test-ip': '10.0.0.9' },
@@ -107,7 +107,7 @@ describe('signing up', () => {
   })
 
   it('emails a link to the site that confirms the email and signs in', async () => {
-    const signed = await call('/users/signup', {
+    const signed = await call('/auth/signup', {
       method: 'POST',
       body: {
         email: 'Cat@Example.com',
@@ -126,7 +126,7 @@ describe('signing up', () => {
 
     const { url, token } = await linkTo('cat@example.com')
     expect(url?.startsWith('https://shop.example.com/account/verify?token=')).toBe(true)
-    const verified = await call('/users/verify-email', { method: 'POST', body: { token } })
+    const verified = await call('/auth/verify-email', { method: 'POST', body: { token } })
     expect(verified.status).toBe(200)
     expect(verified.json.user).toMatchObject({
       email: 'cat@example.com',
@@ -139,7 +139,7 @@ describe('signing up', () => {
 
   it('answers the same for an email that has an account', async () => {
     const sent = mail.sent.length
-    const again = await call('/users/signup', {
+    const again = await call('/auth/signup', {
       method: 'POST',
       body: { email: 'admin@example.com', password: 'whatever-123', token: oldToken() },
     })
@@ -153,23 +153,19 @@ describe('signing up', () => {
   })
 
   it('signs in once with a link, not again', async () => {
-    await call('/users/signup', {
+    await call('/auth/signup', {
       method: 'POST',
       body: { email: 'dot@example.com', password: 'dot-password-1', token: oldToken() },
       headers: { 'x-test-ip': '10.0.0.21' },
     })
     const { token } = await linkTo('dot@example.com')
-    expect((await call('/users/verify-email', { method: 'POST', body: { token } })).status).toBe(
-      200,
-    )
-    expect((await call('/users/verify-email', { method: 'POST', body: { token } })).status).toBe(
-      400,
-    )
+    expect((await call('/auth/verify-email', { method: 'POST', body: { token } })).status).toBe(200)
+    expect((await call('/auth/verify-email', { method: 'POST', body: { token } })).status).toBe(400)
   })
 
   it('leaves the password to whoever confirms the email', async () => {
     const signUp = (password: string, ip: string) =>
-      call('/users/signup', {
+      call('/auth/signup', {
         method: 'POST',
         body: { email: 'eve@example.com', password, token: oldToken() },
         headers: { 'x-test-ip': ip },
@@ -182,10 +178,10 @@ describe('signing up', () => {
     const second = await linkTo('eve@example.com')
     expect(second.token).not.toBe(first.token)
     expect(
-      (await call('/users/verify-email', { method: 'POST', body: { token: first.token } })).status,
+      (await call('/auth/verify-email', { method: 'POST', body: { token: first.token } })).status,
     ).toBe(400)
     expect(
-      (await call('/users/verify-email', { method: 'POST', body: { token: second.token } })).status,
+      (await call('/auth/verify-email', { method: 'POST', body: { token: second.token } })).status,
     ).toBe(200)
     await expect(
       cms.auth.login({ email: 'eve@example.com', password: 'mallory-pass-1' }),
@@ -196,7 +192,7 @@ describe('signing up', () => {
   })
 
   it("sends members' password links to the site", async () => {
-    await call('/users/forgot-password', { method: 'POST', body: { email: 'cat@example.com' } })
+    await call('/auth/forgot-password', { method: 'POST', body: { email: 'cat@example.com' } })
     const { url } = await linkTo('cat@example.com')
     expect(url?.startsWith('https://shop.example.com/account/reset?token=')).toBe(true)
   })

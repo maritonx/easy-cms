@@ -151,7 +151,7 @@ async function call(path: string, init: RequestInit = {}) {
 }
 
 async function login(email = 'admin@x.co') {
-  const response = await call('/users/login', {
+  const response = await call('/auth/login', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ email, password: PASSWORD }),

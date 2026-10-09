@@ -27,7 +27,7 @@ async function login(page: Page, user: { email: string; password: string }) {
 
 /** A write to the API with the page's session (its CSRF token). */
 async function write(page: Page, method: 'POST' | 'PATCH', path: string, data: object) {
-  const me = await (await page.request.get('/api/cms/users/me')).json()
+  const me = await (await page.request.get('/api/cms/auth/me')).json()
   const response = await page.request.fetch(`/api/cms${path}`, {
     method,
     data,
@@ -49,9 +49,9 @@ async function choose(page: Page, label: string, value: string) {
 
 test('sets up the first admin and two tenants', async ({ page }) => {
   // Retries start again from here: set up once.
-  const init = await (await page.request.get('/api/cms/users/init')).json()
+  const init = await (await page.request.get('/api/cms/auth/init')).json()
   if (init.hasUsers) return
-  const created = await page.request.post('/api/cms/users/first-register', {
+  const created = await page.request.post('/api/cms/auth/first-register', {
     data: { ...ROOT, name: 'Root' },
     headers: { origin: 'http://localhost:3104' },
   })
