@@ -1347,7 +1347,9 @@ async function readBody(request: Request, max: number): Promise<Uint8Array<Array
     if (done) break
     size += value.byteLength
     if (size > max) {
-      await reader.cancel().catch(() => {})
+      // Stop reading, without cancelling: undici, still filling a body made from FormData,
+      // throws an unhandled error into a cancelled stream. Unread, the sender is held back.
+      reader.releaseLock()
       throw tooLarge()
     }
     chunks.push(value)
