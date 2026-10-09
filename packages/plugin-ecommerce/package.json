@@ -1,6 +1,6 @@
 {
   "name": "@easy-cms/plugin-ecommerce",
-  "version": "0.47.1",
+  "version": "0.47.2",
   "description": "A shop for Easy CMS: products and variants, prices in several currencies, carts (guests too), checkout with Stripe or bank transfer, orders, stock, customer accounts, and React and Vue hooks",
   "license": "MIT",
   "type": "module",

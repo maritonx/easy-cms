@@ -1,6 +1,6 @@
 {
   "name": "easy-cms",
-  "version": "0.47.1",
+  "version": "0.47.2",
   "description": "Command line tool for Easy CMS",
   "license": "MIT",
   "type": "module",
