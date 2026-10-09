@@ -39,7 +39,18 @@ async function write(page: Page, method: 'POST' | 'PATCH', path: string, data: o
 
 const tenant = (page: Page) => page.getByRole('combobox', { name: 'Tenant' })
 
+/** Chooses a tenant in the switcher, which reloads the page, and waits for that. */
+async function choose(page: Page, label: string, value: string) {
+  const reloaded = page.waitForEvent('load')
+  await tenant(page).selectOption({ label })
+  await reloaded
+  await expect(tenant(page)).toHaveValue(value)
+}
+
 test('sets up the first admin and two tenants', async ({ page }) => {
+  // Retries start again from here: set up once.
+  const init = await (await page.request.get('/api/cms/users/init')).json()
+  if (init.hasUsers) return
   const created = await page.request.post('/api/cms/users/first-register', {
     data: { ...ROOT, name: 'Root' },
     headers: { origin: 'http://localhost:3104' },
@@ -57,8 +68,7 @@ test('switches between tenants; each has its own posts', async ({ page }) => {
   await login(page, ROOT)
   // Users with access to all tenants start with all of them.
   await expect(tenant(page)).toHaveValue('*')
-  await tenant(page).selectOption({ label: 'Brand A' })
-  await expect(tenant(page)).toHaveValue('brand-a')
+  await choose(page, 'Brand A', 'brand-a')
 
   await page.goto('/admin/collections/posts/new')
   await page.getByRole('textbox', { name: 'Title', exact: true }).fill('Hello from Brand A')
@@ -67,10 +77,10 @@ test('switches between tenants; each has its own posts', async ({ page }) => {
   // The tenant was set from the switcher.
   await expect(page.getByText('Brand A', { exact: true }).last()).toBeVisible()
 
-  await tenant(page).selectOption({ label: 'Brand B' })
+  await choose(page, 'Brand B', 'brand-b')
   await page.goto('/admin/collections/posts')
   await expect(page.getByRole('link', { name: 'Create the first one' })).toBeVisible()
-  await tenant(page).selectOption({ label: 'Brand A' })
+  await choose(page, 'Brand A', 'brand-a')
   await page.goto('/admin/collections/posts')
   await expect(page.getByRole('link', { name: 'Hello from Brand A' })).toBeVisible()
 })
@@ -78,8 +88,7 @@ test('switches between tenants; each has its own posts', async ({ page }) => {
 test('lets the admins of a tenant add its members', async ({ page }) => {
   await login(page, ROOT)
   // Members are per tenant: choose one first.
-  await tenant(page).selectOption({ label: 'Brand A' })
-  await expect(tenant(page)).toHaveValue('brand-a')
+  await choose(page, 'Brand A', 'brand-a')
   await page.goto('/admin/p/tenant-members')
   await expect(page.getByRole('heading', { level: 1, name: 'Members' })).toBeVisible()
   await page.getByLabel('Email').fill(ED.email)
