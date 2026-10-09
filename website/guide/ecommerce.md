@@ -292,7 +292,7 @@ Never trust the page: `confirm` must ask the provider.
 | `orders.number` | `1000 + n` | Order numbers. |
 | `emails` | — | `orderConfirmation`, `paymentReceived`, `newOrder`: functions or `false`; `notify`. |
 | `overrides` | — | `{ products: (c) => ({ ...c, … }) }` to change a collection. |
-| `group` | Shop / ร้านค้า | The admin menu's heading. |
+| `group` | Shop / ร้านค้า | The label of the shop's menu group (`shop`, with Catalog, Sales and Customers). |
 
 Not yet: Omise and other providers out of the box, Stripe Checkout (Stripe's page), reserving
 stock while paying, ready-made shipping rates, VAT and coupons, subscriptions, and a Stripe

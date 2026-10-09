@@ -8,6 +8,7 @@ import {
   type ID,
   isLoggedIn,
   type Label,
+  type LayoutNode,
   ValidationError,
 } from '@easy-cms/core'
 import { type Currency, ORDER_STATUSES, priceField, TRANSACTION_STATUSES } from './shared.js'
@@ -92,7 +93,6 @@ export interface CollectionOptions {
   readonly countries: readonly string[]
   readonly addressFields: readonly Field[] | undefined
   readonly productFields: readonly Field[]
-  readonly group: Label
 }
 
 const priceFields = (currencies: readonly Currency[], extra: Partial<Field> = {}): Field[] =>
@@ -144,8 +144,27 @@ export function addressFields(countries: readonly string[]): Field[] {
   ]
 }
 
+/** A product's edit page: what it is, its prices and stock, its options. */
+function productLayout(o: CollectionOptions): LayoutNode[] {
+  return [
+    {
+      tab: { en: 'Product', th: 'ข้อมูล' },
+      fields: ['title', 'slug', 'description', 'images'],
+    },
+    {
+      tab: { en: 'Price & stock', th: 'ราคาและสต็อก' },
+      fields: [
+        { row: o.currencies.map((c) => priceField(c.code)) },
+        { row: ['sku', ...(o.inventory ? ['inventory'] : [])] },
+      ],
+    },
+    ...(o.variants
+      ? [{ tab: { en: 'Options', th: 'ตัวเลือก' }, fields: ['variantTypes'] } as LayoutNode]
+      : []),
+  ]
+}
+
 export function shopCollections(o: CollectionOptions): CollectionConfig[] {
-  const group = { group: o.group }
   const address = o.addressFields ?? addressFields(o.countries)
   const currencyOptions = o.currencies.map((c) => c.code)
 
@@ -158,7 +177,16 @@ export function shopCollections(o: CollectionOptions): CollectionConfig[] {
     icon: 'shopping-bag',
     useAsTitle: 'title',
     drafts: true,
-    admin: { ...group },
+    admin: {
+      group: 'shop.catalog',
+      layout: productLayout(o),
+      empty: {
+        description: {
+          en: 'Add the first product of the shop: a name, a price, then publish it.',
+          th: 'เพิ่มสินค้าแรกของร้าน: ตั้งชื่อ ใส่ราคา แล้วเผยแพร่',
+        },
+      },
+    },
     access: { read: anyone, create: staff, update: staff, delete: staff },
     fields: [
       { name: 'title', type: 'text', required: true, label: { en: 'Name', th: 'ชื่อสินค้า' } },
@@ -176,14 +204,8 @@ export function shopCollections(o: CollectionOptions): CollectionConfig[] {
         label: { en: 'Images', th: 'รูปภาพ' },
       },
       ...priceFields(o.currencies),
-      {
-        name: 'sku',
-        type: 'text',
-        index: true,
-        position: 'sidebar',
-        label: 'SKU',
-      },
-      ...(o.inventory ? [{ ...stockField, position: 'sidebar' } as Field] : []),
+      { name: 'sku', type: 'text', index: true, label: 'SKU' },
+      ...(o.inventory ? [stockField] : []),
       ...(o.variants
         ? [
             {
@@ -211,7 +233,7 @@ export function shopCollections(o: CollectionOptions): CollectionConfig[] {
     icon: 'sliders-horizontal',
     useAsTitle: 'name',
     editIn: 'drawer',
-    admin: { ...group },
+    admin: { group: 'shop.catalog' },
     access: { read: anyone, create: staff, update: staff, delete: staff },
     fields: [
       {
@@ -232,7 +254,7 @@ export function shopCollections(o: CollectionOptions): CollectionConfig[] {
     icon: 'tags',
     useAsTitle: 'label',
     editIn: 'drawer',
-    admin: { ...group },
+    admin: { group: 'shop.catalog' },
     access: { read: anyone, create: staff, update: staff, delete: staff },
     fields: [
       {
@@ -261,7 +283,7 @@ export function shopCollections(o: CollectionOptions): CollectionConfig[] {
     },
     icon: 'layers',
     useAsTitle: 'title',
-    admin: { ...group },
+    admin: { group: 'shop.catalog' },
     access: { read: anyone, create: staff, update: staff, delete: staff },
     fields: [
       {
@@ -310,7 +332,7 @@ export function shopCollections(o: CollectionOptions): CollectionConfig[] {
       plural: { en: 'Carts', th: 'ตะกร้า' },
     },
     icon: 'shopping-cart',
-    admin: { ...group, list: { sort: '-updatedAt' } },
+    admin: { group: 'shop.sales', list: { sort: '-updatedAt' } },
     // Changed through the shop's endpoints only.
     access: { read: staffOrOwner, create: nobody, update: nobody, delete: staff },
     fields: [
@@ -381,7 +403,7 @@ export function shopCollections(o: CollectionOptions): CollectionConfig[] {
     },
     icon: 'map-pin',
     useAsTitle: 'name',
-    admin: { ...group },
+    admin: { group: 'shop.customers' },
     access: {
       read: staffOrOwner,
       create: ({ user }) => user !== null,
@@ -425,9 +447,21 @@ export function shopCollections(o: CollectionOptions): CollectionConfig[] {
     icon: 'package',
     useAsTitle: 'orderNumber',
     admin: {
-      ...group,
+      group: 'shop.sales',
       list: { sort: '-createdAt' },
-      sidebar: [{ tag: 'ecms-order-actions' }],
+      // What to do next, at the top of the side column.
+      sidebar: [{ tag: 'ecms-order-actions', position: 'top' }],
+      // Paid orders wait to be sent.
+      badge: {
+        where: { status: { equals: 'paid' } },
+        label: { en: 'to send', th: 'รอจัดส่ง' },
+      },
+      empty: {
+        description: {
+          en: 'Orders appear here once customers check out.',
+          th: 'คำสั่งซื้อจะแสดงที่นี่เมื่อลูกค้าชำระเงิน',
+        },
+      },
     },
     // Made at checkout; their status changes with the order's actions (`/shop/orders/:id/…`).
     access: { read: staffOrOwner, create: nobody, update: staff, delete: staff },
@@ -593,7 +627,7 @@ export function shopCollections(o: CollectionOptions): CollectionConfig[] {
       plural: { en: 'Payments', th: 'การชำระเงิน' },
     },
     icon: 'ticket',
-    admin: { ...group, list: { sort: '-createdAt' } },
+    admin: { group: 'shop.sales', list: { sort: '-createdAt' } },
     access: { read: staff, create: nobody, update: nobody, delete: nobody },
     fields: [
       {

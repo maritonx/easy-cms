@@ -68,7 +68,7 @@ function onNumber(value: string) {
 </script>
 
 <template>
-  <div class="field-slot">
+  <div class="field-slot" :class="field.width ? `width-${field.width.replace('/', '-')}` : undefined">
   <!-- A component from an admin module instead of the input; the label and errors stay ours. -->
   <div v-if="field.admin?.component" class="field">
     <span :id="`${id}-label`" class="field-label">
@@ -310,6 +310,8 @@ function onNumber(value: string) {
     :label="text"
     :read-only="readOnly"
   />
+  <!-- Help from the config (`admin.description`). -->
+  <p v-if="field.description" class="field-hint field-description">{{ label(field.description, '') }}</p>
   </div>
 </template>
 

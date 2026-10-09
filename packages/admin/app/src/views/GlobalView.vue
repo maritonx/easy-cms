@@ -4,18 +4,22 @@ import { computed, onBeforeUnmount, onMounted, provide, ref } from 'vue'
 import { onBeforeRouteLeave, useRoute } from 'vue-router'
 import ActivityPanel from '../components/ActivityPanel.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import ErrorSummary from '../components/ErrorSummary.vue'
 import LivePreview from '../components/LivePreview.vue'
 import LocaleSwitcher from '../components/LocaleSwitcher.vue'
 import PluginElement from '../components/PluginElement.vue'
 import ScheduleControl from '../components/ScheduleControl.vue'
 import VersionHistory from '../components/VersionHistory.vue'
+import FieldLayout from '../fields/FieldLayout.vue'
 import FieldList from '../fields/FieldList.vue'
 import { ApiError, api } from '../lib/api'
 import { contentLocale, localeQuery, setContentLocale } from '../lib/content-locale'
 import { snapshot, toFormValues } from '../lib/fields'
 import { formatDate, label, t } from '../lib/i18n'
+import { useLocalDraft } from '../lib/local-draft'
 import { FORM, setPath } from '../lib/plugins'
 import { findGlobal, session } from '../lib/session'
+import { PUBLISH_EVENT, SAVE_EVENT } from '../lib/shortcuts'
 import { showMessages } from '../lib/toast'
 import { missingLocales } from '../lib/translation'
 
@@ -39,6 +43,20 @@ const readOnly = computed(() => !global?.permissions.update)
 const canPublish = computed(() => !!global && global.permissions.publish !== false)
 const draftOnly = computed(() => !!global?.drafts && !canPublish.value)
 const dirty = computed(() => snapshot(form.value) !== baseline.value)
+/** Unsaved changes kept in this browser. */
+const localDraft = useLocalDraft(() => `global:${slug}`, form, dirty)
+const layoutRef = ref<InstanceType<typeof FieldLayout>>()
+const summary = ref<InstanceType<typeof ErrorSummary>>()
+const topPanels = computed(() => (global?.sidebar ?? []).filter((p) => p.position === 'top'))
+const otherPanels = computed(() => (global?.sidebar ?? []).filter((p) => p.position !== 'top'))
+async function goToError(path: string) {
+  await layoutRef.value?.reveal(path)
+  const target = document.getElementById(`field-${path.replace(/[^\w-]/g, '-')}`)
+  if (target) {
+    target.scrollIntoView({ block: 'center' })
+    target.focus({ preventScroll: true })
+  }
+}
 // See EditView: with versions and drafts the published version stays live until published again.
 const separateDrafts = !!global?.drafts && !!global?.versions
 const live = ref(false)
@@ -57,6 +75,7 @@ const sideFields = computed(() => global?.fields.filter((f) => f.position === 's
 const mainFields = computed(() => global?.fields.filter((f) => f.position !== 'sidebar') ?? [])
 function undoChanges() {
   form.value = JSON.parse(baseline.value) as Data
+  localDraft.clear()
 }
 // Components from admin modules read the form and may set any field.
 provide(FORM, {
@@ -122,6 +141,7 @@ async function load() {
     ])
     live.value = current.status === 'published'
     reset(draft)
+    localDraft.check()
     void refreshTranslations()
   } catch (e) {
     message.value = { kind: 'error', text: t('common.error', { message: (e as Error).message }) }
@@ -142,6 +162,7 @@ async function save(status?: 'draft' | 'published') {
         status ? { ...form.value, status } : form.value,
       ),
     )
+    localDraft.clear()
     historyKey.value += 1
     void refreshTranslations()
     if (status === 'published') live.value = true
@@ -151,6 +172,11 @@ async function save(status?: 'draft' | 'published') {
   } catch (e) {
     if (e instanceof ApiError) {
       errors.value = e.fieldErrors
+      const first = Object.keys(errors.value)[0]
+      if (first) {
+        await layoutRef.value?.reveal(first)
+        void summary.value?.focus()
+      }
       message.value = {
         kind: 'error',
         text: Object.keys(errors.value).length ? t('edit.fixErrors') : e.message,
@@ -196,6 +222,25 @@ function beforeUnload(event: BeforeUnloadEvent) {
 onMounted(() => window.addEventListener('beforeunload', beforeUnload))
 onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
 onBeforeRouteLeave(() => (dirty.value ? window.confirm(t('edit.unsaved')) : true))
+
+/** ⌘S saves as the main button would, without publishing a draft; ⌘⇧P publishes. */
+function quickSave() {
+  if (!global || readOnly.value || saving.value) return
+  if (!global.drafts) return void save()
+  if (draftOnly.value) return void save('draft')
+  return void save(live.value && !separateDrafts ? 'published' : 'draft')
+}
+function quickPublish() {
+  if (global?.drafts && !readOnly.value && canPublish.value && !saving.value) void save('published')
+}
+onMounted(() => {
+  window.addEventListener(SAVE_EVENT, quickSave)
+  window.addEventListener(PUBLISH_EVENT, quickPublish)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener(SAVE_EVENT, quickSave)
+  window.removeEventListener(PUBLISH_EVENT, quickPublish)
+})
 </script>
 
 <template>
@@ -226,7 +271,23 @@ onBeforeRouteLeave(() => (dirty.value ? window.confirm(t('edit.unsaved')) : true
     <p v-if="readOnly" class="notice notice-warning">{{ t('edit.readOnly') }}</p>
     <div :class="['editor-body', side === 'preview' ? 'with-preview' : 'with-sidebar']">
       <div class="form-body">
-        <FieldList v-model="form" :fields="mainFields" :errors="errors" :read-only="readOnly" />
+        <div v-if="localDraft.found.value" class="notice notice-warning local-draft" role="status">
+          <span>{{ t('form.draftFound', { time: formatDate(localDraft.found.value.at) }) }}</span>
+          <button type="button" class="btn btn-sm" @click="localDraft.restore()">{{ t('form.draftRestore') }}</button>
+          <button type="button" class="btn btn-sm btn-ghost" @click="localDraft.clear()">{{ t('form.draftDiscard') }}</button>
+        </div>
+        <ErrorSummary ref="summary" :errors="errors" :fields="global.fields" @go="goToError" />
+        <FieldLayout
+          v-if="global.layout"
+          ref="layoutRef"
+          v-model="form"
+          :layout="global.layout"
+          :fields="mainFields"
+          :errors="errors"
+          :read-only="readOnly"
+          :storage-key="`global-${slug}`"
+        />
+        <FieldList v-else v-model="form" :fields="mainFields" :errors="errors" :read-only="readOnly" />
       </div>
       <LivePreview
         v-if="side === 'preview'"
@@ -269,11 +330,14 @@ onBeforeRouteLeave(() => (dirty.value ? window.confirm(t('edit.unsaved')) : true
             </template>
           </div>
         </section>
+        <section v-for="(panel, i) in topPanels" :key="`top-${i}-${panel.tag}`" class="card side-card">
+          <PluginElement :component="panel" :read-only="readOnly" />
+        </section>
         <section v-if="sideFields.length" class="card side-card" :aria-label="t('edit.details')">
           <h2>{{ t('edit.details') }}</h2>
           <FieldList v-model="form" :fields="sideFields" :errors="errors" :read-only="readOnly" />
         </section>
-        <section v-for="(panel, i) in global.sidebar ?? []" :key="`${i}-${panel.tag}`" class="card side-card">
+        <section v-for="(panel, i) in otherPanels" :key="`${i}-${panel.tag}`" class="card side-card">
           <PluginElement :component="panel" :read-only="readOnly" />
         </section>
         <VersionHistory
@@ -393,6 +457,15 @@ form {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 0.5rem;
+}
+.local-draft {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.local-draft span {
+  flex: 1 1 14rem;
 }
 .editor-body.with-sidebar {
   display: grid;

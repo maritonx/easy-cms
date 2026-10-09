@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import type { AdminField } from '@easy-cms/core'
+import { matchesCondition } from '@easy-cms/core/conditions'
+import { computed } from 'vue'
 import FieldRenderer from './FieldRenderer.vue'
 
 const props = defineProps<{
@@ -12,6 +14,11 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ 'update:modelValue': [Record<string, unknown>] }>()
 
+/** Fields whose `admin.condition` holds for their siblings: the others are hidden. */
+const shown = computed(() =>
+  props.fields.filter((f) => !f.condition || matchesCondition(f.condition, props.modelValue)),
+)
+
 function update(name: string, value: unknown) {
   emit('update:modelValue', { ...props.modelValue, [name]: value })
 }
@@ -20,7 +27,7 @@ function update(name: string, value: unknown) {
 <template>
   <div class="field-list">
     <FieldRenderer
-      v-for="field in fields"
+      v-for="field in shown"
       :key="field.name"
       :field="field"
       :model-value="modelValue[field.name]"

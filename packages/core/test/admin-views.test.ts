@@ -37,8 +37,8 @@ describe('admin pages and widgets', () => {
       /admin\.pages\[0\]\.label/,
     )
     await expect(
-      bad({ pages: [{ path: 's', label: 'S', component: 'ecms-s', group: 'reports' }] }),
-    ).rejects.toThrow(/group: must be "content", "settings" or false/)
+      bad({ pages: [{ path: 's', label: 'S', component: 'ecms-s', group: 'reports.weekly' }] }),
+    ).rejects.toThrow(/no menu group "reports.weekly"/)
     await expect(
       bad({ pages: [{ path: 's', label: 'S', component: 'ecms-s', icon: 'rocket-ship' }] }),
     ).rejects.toThrow(/unknown icon/)

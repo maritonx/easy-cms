@@ -9,6 +9,7 @@ import { titleOf } from '../lib/fields'
 import { formatDate, label, locale, singularize, t } from '../lib/i18n'
 import { collectionIcon } from '../lib/icons'
 import { listed, menuOrder } from '../lib/menu'
+import { inSettings } from '../lib/nav'
 import { session } from '../lib/session'
 import { settings } from '../lib/settings'
 
@@ -17,7 +18,7 @@ const collections = menuOrder(
   session.schema?.menu,
 )
 /** Number tiles: content only, in menu order (users and other settings are in the menu). */
-const tiles = collections.filter((c) => c.group !== 'settings')
+const tiles = collections.filter((c) => !inSettings(`/collections/${c.slug}`))
 /** Panels from `admin.dashboard`, e.g. a plugin's numbers: half width in the side column. */
 const widgets = session.schema?.dashboard ?? []
 const sideWidgets = widgets.filter((w) => w.width !== 'full')
@@ -28,7 +29,9 @@ const greeting = t(
 )
 const name = session.user?.name || session.user?.email || ''
 /** Content people write: not the settings (users, API keys…) or the media library. */
-const content = collections.filter((c) => c.group !== 'settings' && c.slug !== 'media')
+const content = collections.filter(
+  (c) => !inSettings(`/collections/${c.slug}`) && c.slug !== 'media',
+)
 // The shortcut creates in the main content collection: one with drafts, else the first.
 const creatable =
   content.find((c) => c.permissions.create && c.drafts) ?? content.find((c) => c.permissions.create)

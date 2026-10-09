@@ -1,4 +1,5 @@
 import type { AuthUser, FieldAccess, ID, RequestContext, Where } from './access.js'
+import type { FieldCondition } from './conditions.js'
 import type { EasyCMS } from './local-api.js'
 import { expandMimeTypes } from './media.js'
 
@@ -27,6 +28,15 @@ export type AdminComponent =
 
 /** How the admin shows a field, with components from admin modules. */
 export interface FieldAdmin {
+  /** Help below the field's label. */
+  readonly description?: Label
+  /** Its share of a row (`admin.layout`'s `row`). Default: an equal share. */
+  readonly width?: '1/4' | '1/3' | '1/2' | '2/3' | '3/4' | 'full'
+  /**
+   * Shown only when its sibling fields match, e.g. `{ field: 'linkType', equals: 'external' }`.
+   * A hidden field isn't required. See `FieldCondition`.
+   */
+  readonly condition?: FieldCondition
   /** Shown instead of the field's input; the admin keeps the label and error messages. */
   readonly component?: AdminComponent
   /** Shown below the field, e.g. a length meter or a preview. */

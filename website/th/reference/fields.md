@@ -32,6 +32,9 @@
 | `component` | `AdminComponent` | Web Component แทนช่องกรอก [Admin components](/th/guide/plugins#admin-components) |
 | `after` | `AdminComponent[]` | component ที่แสดงใต้ field |
 | `cell` | `AdminComponent` | แสดงค่าในคอลัมน์ของหน้ารายการ เช่น จุดสี |
+| `description` | `Label` | คำอธิบายใต้ field |
+| `width` | `'1/4' \| '1/3' \| '1/2' \| '2/3' \| '3/4' \| 'full'` | สัดส่วนในแถว (`admin.layout`) ค่าเริ่มต้น: แบ่งเท่ากัน |
+| `condition` | `FieldCondition` | แสดงเฉพาะเมื่อ field ข้างเคียงตรงเงื่อนไข เช่น `{ field: 'linkType', equals: 'external' }` มี `notEquals`, `in`, `exists`, `and`, `or`, `not` ด้วย field ที่ถูกซ่อนไม่ถูกบังคับกรอก [ระบบจัดการ](/th/guide/admin#conditions) |
 | `column` | `boolean \| ({ user, context }) => boolean` | แสดงเป็นคอลัมน์ของหน้ารายการตั้งแต่แรก (ผู้ใช้เปลี่ยนเองได้) |
 | `allowCreate` | `boolean` | relationship: ให้สร้างเอกสารที่เชื่อมได้ทันที ค่าเริ่มต้น `true` |
 | `defaultValue` | `({ user, context }) => unknown` | ค่าเริ่มต้นของฟอร์มเอกสารใหม่ต่อผู้ใช้ เช่น จาก context ของ request |

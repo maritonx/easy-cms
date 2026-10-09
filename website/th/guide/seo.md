@@ -56,6 +56,7 @@ group นี้เพิ่มคอลัมน์ในตารางขอ�
 | `collections` | `[]` | collection ที่จะมี field SEO |
 | `globals` | `[]` | global ที่จะมี field SEO |
 | `position` | `'main'` | `'sidebar'` ย้าย group ไปแถบข้างของหน้าแก้ไข |
+| `tab` | `true` | เมื่อ `position: 'main'`: แยก field ไว้ในแท็บ **SEO** ของหน้าแก้ไข ([layout](./admin#edit-pages)) ใส่ label ของแท็บเองได้ หรือ `false` เพื่อให้อยู่ใต้ field อื่นเหมือนเดิม |
 | `generateTitle` | — | เสนอชื่อสำหรับค้นหา |
 | `generateDescription` | — | เสนอคำอธิบายสำหรับค้นหา |
 | `generateImage` | — | เสนอรูปสำหรับแชร์: id ของเอกสาร media |

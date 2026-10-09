@@ -17,6 +17,8 @@ import {
   List as ListIcon,
   Lock,
   Pencil,
+  Pin,
+  PinOff,
   Plus,
   Search,
   SearchX,
@@ -58,6 +60,8 @@ import {
   within,
 } from '../lib/folders'
 import { formatBytes, formatDate, humanize, label, t } from '../lib/i18n'
+import { leaveList, scrollFor } from '../lib/list-memory'
+import { crumbsFor, isPinned, togglePin } from '../lib/nav'
 import { findCollection, session } from '../lib/session'
 import { notify } from '../lib/toast'
 import { inLocale, missingLocales } from '../lib/translation'
@@ -612,6 +616,9 @@ async function load() {
     result.value = found
     selected.value = new Set()
     void loadRelatedTitles(found.docs)
+    // Back from a document: where the list was scrolled to.
+    const scroll = scrollFor(slug, route.fullPath)
+    if (scroll !== null) requestAnimationFrame(() => window.scrollTo(0, scroll))
   } catch (e) {
     error.value =
       e instanceof ApiError && e.status === 403
@@ -703,6 +710,7 @@ onMounted(async () => {
 })
 // A pending search must not apply its query to the next page.
 onBeforeUnmount(() => {
+  leaveList(slug, route.fullPath)
   clearTimeout(debounce)
   document.removeEventListener('click', onDocumentClick)
 })
@@ -806,20 +814,26 @@ async function deleteSelected(query = '') {
   <p v-if="!collection" class="notice">{{ t('common.notFound') }}</p>
   <template v-else>
     <nav class="crumbs" :aria-label="t('list.breadcrumb')">
-      <!-- The menu section: user accounts and other settings are under Settings. -->
-      <span>{{
-        collection.group === 'settings'
-          ? t('nav.globals')
-          : collection.section !== undefined
-            ? label(collection.section, collection.slug)
-            : t('nav.collections')
-      }}</span>
-      <ChevronRight :size="14" aria-hidden="true" />
+      <!-- The menu groups it is in, e.g. Shop › Sales. -->
+      <template v-for="crumb in crumbsFor(route.path)" :key="crumb">
+        <span>{{ crumb }}</span>
+        <ChevronRight :size="14" aria-hidden="true" />
+      </template>
       <span class="current">{{ label(collection.labels?.plural, collection.slug) }}</span>
     </nav>
     <header class="toolbar">
       <div class="heading">
         <h1>{{ label(collection.labels?.plural, collection.slug) }}</h1>
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm btn-icon pin"
+          :aria-pressed="isPinned(`collection:${slug}`)"
+          :aria-label="isPinned(`collection:${slug}`) ? t('nav.unpin') : t('nav.pin')"
+          :title="isPinned(`collection:${slug}`) ? t('nav.unpin') : t('nav.pin')"
+          @click="togglePin(`collection:${slug}`)"
+        >
+          <component :is="isPinned(`collection:${slug}`) ? PinOff : Pin" :size="16" aria-hidden="true" />
+        </button>
         <span v-if="result" class="count">{{ t((treeTotal ?? result.totalDocs) === 1 ? 'list.countOne' : 'list.count', { count: treeTotal ?? result.totalDocs }) }}</span>
       </div>
       <div class="toolbar-actions">
@@ -1179,7 +1193,14 @@ async function deleteSelected(query = '') {
       </table>
       <div v-if="result && !result.docs.length" class="empty">
         <component :is="search || activeFilters ? SearchX : Inbox" :size="28" aria-hidden="true" class="empty-icon" />
-        <p>{{ search || activeFilters ? t('list.noResults') : t('list.empty') }}</p>
+        <p>{{ search || activeFilters ? t('list.noResults') : collection.empty?.description ? label(collection.empty.description, '') : t('list.empty') }}</p>
+        <a
+          v-if="!search && !activeFilters && collection.empty?.link"
+          :href="collection.empty.link.href"
+          target="_blank"
+          rel="noopener"
+          class="empty-link"
+        >{{ label(collection.empty.link.label, '') }}</a>
         <RouterLink
           v-if="!search && !activeFilters && collection.permissions.create && !isMedia"
           :to="newLink"

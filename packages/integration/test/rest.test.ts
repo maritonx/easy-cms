@@ -487,9 +487,14 @@ describe('admin endpoints', () => {
     // Small collections open in a drawer; the rest (and ones with drafts or history) in a page.
     expect(json.collections[3].editIn).toBe('drawer')
     expect(posts.editIn).toBeUndefined()
-    // Users (built in) and admin.group 'settings' are listed under Settings.
-    expect(users.group).toBe('settings')
-    expect(json.collections[3].group).toBe('settings')
+    // Users (built in) are under Settings › Users & access; admin.group 'settings' under › Site.
+    const settings = json.nav.find((n: { id?: string }) => n.id === 'settings')
+    const child = (id: string) =>
+      settings.items
+        .find((n: { id?: string }) => n.id === id)
+        ?.items.map((i: { slug?: string }) => i.slug)
+    expect(child('settings.people')).toContain('users')
+    expect(child('settings.site')).toContain('pages')
     expect(posts.group).toBeUndefined()
   })
 

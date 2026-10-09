@@ -263,6 +263,13 @@
           }
         },
         {
+          "path": "guide/admin",
+          "title": {
+            "en": "The admin: menu, search, layouts",
+            "th": "ระบบจัดการ: เมนู ค้นหา และหน้าแก้ไข"
+          }
+        },
+        {
           "path": "guide/ecommerce",
           "title": {
             "en": "Shop (ecommerce)",

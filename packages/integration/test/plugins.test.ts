@@ -244,16 +244,29 @@ describe('admin components', () => {
         path: 'stats',
         label: { en: 'Stats', th: 'สถิติ' },
         icon: 'bell',
-        group: 'content',
         component: { tag: 'ecms-stats' },
       },
       {
         path: 'stats-admin',
         label: 'Admin stats',
-        group: 'settings',
         component: { tag: 'ecms-stats', props: { all: true } },
       },
     ])
+    // In the menu: under Content, and under Settings › Site.
+    const groupOf = (path: string) => {
+      const walk = (nodes: AdminSchema['nav'], parent: string | null): string | null => {
+        for (const n of nodes) {
+          if (n.kind === 'group') {
+            const found = walk(n.items, n.id)
+            if (found) return found
+          } else if (n.kind === 'page' && n.path === path) return parent
+        }
+        return null
+      }
+      return walk(admin.nav, null)
+    }
+    expect(groupOf('stats')).toBe('content')
+    expect(groupOf('stats-admin')).toBe('settings.site')
     expect(admin.dashboard).toEqual([
       { component: { tag: 'ecms-stats-widget', props: { days: 7 } }, width: 'half' },
       { component: { tag: 'ecms-stats-big' }, width: 'full' },

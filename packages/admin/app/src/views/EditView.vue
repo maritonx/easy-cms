@@ -6,6 +6,7 @@ import ActivityPanel from '../components/ActivityPanel.vue'
 import ApiKeyCreated from '../components/ApiKeyCreated.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import DeleteDialog from '../components/DeleteDialog.vue'
+import ErrorSummary from '../components/ErrorSummary.vue'
 import IdentitiesPanel from '../components/IdentitiesPanel.vue'
 import LivePreview from '../components/LivePreview.vue'
 import LocaleSwitcher from '../components/LocaleSwitcher.vue'
@@ -14,12 +15,16 @@ import PluginElement from '../components/PluginElement.vue'
 import ScheduleControl from '../components/ScheduleControl.vue'
 import TransferDialog from '../components/TransferDialog.vue'
 import VersionHistory from '../components/VersionHistory.vue'
+import FieldLayout from '../fields/FieldLayout.vue'
 import FieldList from '../fields/FieldList.vue'
 import { ApiError, api, type Doc } from '../lib/api'
 import { contentLocale, localeQuery, setContentLocale } from '../lib/content-locale'
 import { initialValues, snapshot, titleOf, toFormValues } from '../lib/fields'
 import { formatBytes, formatDate, label, singularize, t } from '../lib/i18n'
+import { listPath } from '../lib/list-memory'
+import { useLocalDraft } from '../lib/local-draft'
 import { FORM, setPath } from '../lib/plugins'
+import { remember } from '../lib/recent'
 import {
   findCollection,
   isSystemAdmin,
@@ -28,6 +33,7 @@ import {
   setFlash,
   takeFlash,
 } from '../lib/session'
+import { PUBLISH_EVENT, SAVE_EVENT } from '../lib/shortcuts'
 import { notify, showMessages } from '../lib/toast'
 import { missingLocales } from '../lib/translation'
 
@@ -171,8 +177,27 @@ function undoChanges() {
   const [values, pw] = JSON.parse(baseline.value) as [Record<string, unknown>, string]
   form.value = values
   password.value = pw
+  localDraft.clear()
 }
 const dirty = computed(() => snapshot([form.value, password.value]) !== baseline.value)
+/** Unsaved changes kept in this browser (passwords never are). */
+const localDraft = useLocalDraft(() => `${slug}:${id ?? 'new'}`, form, dirty)
+const layoutRef = ref<InstanceType<typeof FieldLayout>>()
+const summary = ref<InstanceType<typeof ErrorSummary>>()
+/** Side panels from admin modules: those at the top, and the rest. */
+const topPanels = computed(() => (collection?.sidebar ?? []).filter((p) => p.position === 'top'))
+const otherPanels = computed(() => (collection?.sidebar ?? []).filter((p) => p.position !== 'top'))
+
+/** Opens the tab or section of a field with an error, and focuses it. */
+async function goToError(path: string) {
+  await layoutRef.value?.reveal(path)
+  const id = path === titleField.value?.name ? 'doc-title' : `field-${path.replace(/[^\w-]/g, '-')}`
+  const target = document.getElementById(id)
+  if (target) {
+    target.scrollIntoView({ block: 'center' })
+    target.focus({ preventScroll: true })
+  }
+}
 const singular = computed(() =>
   collection ? label(collection.labels?.singular, singularize(collection.slug)) : '',
 )
@@ -254,6 +279,7 @@ async function load() {
   if (!collection) return
   if (!id) {
     reset(initialValues(collection.fields))
+    localDraft.check()
     return
   }
   try {
@@ -271,6 +297,12 @@ async function load() {
     docPermissions.value = permissions
     live.value = separateDrafts ? await isLive() : loaded.status === 'published'
     reset(toFormValues(collection.fields, loaded))
+    localDraft.check()
+    remember({
+      to: `/collections/${slug}/${id}`,
+      title: titleOf(collection, loaded),
+      kind: label(collection.labels?.singular, slug),
+    })
     void refreshTranslations()
   } catch (e) {
     if (e instanceof ApiError && e.status === 404) notFound.value = true
@@ -349,6 +381,7 @@ async function save(status?: 'draft' | 'published') {
       : await api<Doc>('POST', `/${slug}?depth=0${localeQuery({ editing: true })}`, body)
     doc.value = saved
     reset(toFormValues(collection.fields, saved))
+    localDraft.clear()
     historyKey.value += 1
     void refreshTranslations()
     if (status === 'published') live.value = true
@@ -378,6 +411,12 @@ async function save(status?: 'draft' | 'published') {
   } catch (e) {
     if (e instanceof ApiError) {
       errors.value = e.fieldErrors
+      const first = Object.keys(errors.value)[0]
+      if (first) {
+        // The summary takes focus; the first field's tab or section opens.
+        await layoutRef.value?.reveal(first)
+        void summary.value?.focus()
+      }
       message.value = {
         kind: 'error',
         text: Object.keys(errors.value).length
@@ -415,6 +454,27 @@ function beforeUnload(event: BeforeUnloadEvent) {
 }
 onMounted(() => window.addEventListener('beforeunload', beforeUnload))
 onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
+
+/** ⌘S: saves as the main button would, without publishing a draft or unpublishing. */
+function quickSave() {
+  if (!collection || !canSave.value || saving.value) return
+  if (!collection.drafts) return void save()
+  if (draftOnly.value) return void save('draft')
+  return void save(published.value && !(separateDrafts && live.value) ? 'published' : 'draft')
+}
+/** ⌘⇧P: publishes. */
+function quickPublish() {
+  if (collection?.drafts && canSave.value && canPublish.value && !draftOnly.value && !saving.value)
+    void save('published')
+}
+onMounted(() => {
+  window.addEventListener(SAVE_EVENT, quickSave)
+  window.addEventListener(PUBLISH_EVENT, quickPublish)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener(SAVE_EVENT, quickSave)
+  window.removeEventListener(PUBLISH_EVENT, quickPublish)
+})
 onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.unsaved')) : true))
 </script>
 
@@ -427,7 +487,7 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
   <form v-else class="editor" novalidate @submit.prevent="save(collection.drafts ? (draftOnly ? 'draft' : 'published') : undefined)">
     <header class="editor-header">
       <div class="title-block">
-        <RouterLink :to="`/collections/${slug}`" class="btn btn-ghost btn-sm btn-icon back" :aria-label="label(collection.labels?.plural, collection.slug)">
+        <RouterLink :to="listPath(slug)" class="btn btn-ghost btn-sm btn-icon back" :aria-label="label(collection.labels?.plural, collection.slug)">
           <ChevronLeft :size="18" aria-hidden="true" />
         </RouterLink>
         <div class="title-text">
@@ -493,6 +553,12 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
 
     <div :class="['editor-body', side === 'preview' ? 'with-preview' : hasSidebar && 'with-sidebar']">
       <div class="form-body">
+        <div v-if="localDraft.found.value" class="notice notice-warning local-draft" role="status">
+          <span>{{ t('form.draftFound', { time: formatDate(localDraft.found.value.at) }) }}</span>
+          <button type="button" class="btn btn-sm" @click="localDraft.restore()">{{ t('form.draftRestore') }}</button>
+          <button type="button" class="btn btn-sm btn-ghost" @click="localDraft.clear()">{{ t('form.draftDiscard') }}</button>
+        </div>
+        <ErrorSummary ref="summary" :errors="errors" :fields="collection.fields" @go="goToError" />
         <div v-if="titleField" class="title-field">
           <label class="visually-hidden" for="doc-title">{{ label(titleField.label, titleField.name) }}</label>
           <input
@@ -534,7 +600,17 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
             <template v-else>· {{ formatBytes(doc.filesize) }}</template>
           </p>
         </template>
-        <FieldList v-model="form" :fields="mainFields" :errors="errors" :read-only="readOnly" />
+        <FieldLayout
+          v-if="collection.layout"
+          ref="layoutRef"
+          v-model="form"
+          :layout="collection.layout"
+          :fields="mainFields"
+          :errors="errors"
+          :read-only="readOnly"
+          :storage-key="slug"
+        />
+        <FieldList v-else v-model="form" :fields="mainFields" :errors="errors" :read-only="readOnly" />
         <label v-if="isUsers && canSave" class="field">
           <span class="field-label">
             {{ id ? t('edit.newPassword') : t('edit.password') }}<span v-if="!id && !canSendLink" class="field-required" aria-hidden="true">*</span>
@@ -619,11 +695,14 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
             </button>
           </div>
         </section>
+        <section v-for="(panel, i) in topPanels" :key="`top-${i}-${panel.tag}`" class="card side-card">
+          <PluginElement :component="panel" :read-only="readOnly" />
+        </section>
         <section v-if="sideFields.length" class="card side-card" :aria-label="t('edit.details')">
           <h2>{{ t('edit.details') }}</h2>
           <FieldList v-model="form" :fields="sideFields" :errors="errors" :read-only="readOnly" />
         </section>
-        <section v-for="(panel, i) in collection.sidebar ?? []" :key="`${i}-${panel.tag}`" class="card side-card">
+        <section v-for="(panel, i) in otherPanels" :key="`${i}-${panel.tag}`" class="card side-card">
           <PluginElement :component="panel" :read-only="readOnly" />
         </section>
         <VersionHistory
@@ -802,6 +881,15 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   align-items: start;
   gap: 1.5rem;
+}
+.local-draft {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.local-draft span {
+  flex: 1 1 14rem;
 }
 .form-body {
   display: flex;

@@ -58,6 +58,7 @@ checkbox is a new column too, so create a migration after updating.
 | `collections` | `[]` | Collections that get SEO fields. |
 | `globals` | `[]` | Globals that get SEO fields. |
 | `position` | `'main'` | `'sidebar'` puts the group in the edit page's side column. |
+| `tab` | `true` | With `position: 'main'`: the fields in an **SEO** tab of the edit page ([layouts](./admin#edit-pages)), its label, or `false` to keep them below the other fields. |
 | `generateTitle` | — | Suggests a meta title. |
 | `generateDescription` | — | Suggests a meta description. |
 | `generateImage` | — | Suggests a share image: the id of a media document. |

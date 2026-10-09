@@ -226,6 +226,7 @@ export function formBuilderPlugin<
       drafts: true,
       fields: formFields,
       admin: {
+        group: 'forms',
         sidebar: [
           {
             tag: 'ecms-form-submissions',
@@ -247,6 +248,7 @@ export function formBuilderPlugin<
       },
       icon: 'message-square',
       useAsTitle: 'summary',
+      admin: { group: 'forms', count: false },
       // Only the form's public endpoint creates submissions, after validation and spam checks.
       access: {
         read: loggedIn,
@@ -640,13 +642,19 @@ export function formBuilderPlugin<
       admin: {
         ...config.admin,
         modules: [...new Set([...(config.admin?.modules ?? []), ADMIN_MODULE])],
-        // Submissions at a glance: a page under Content and a dashboard panel.
+        // The menu's Forms group: forms, submissions and their overview.
+        nav: [
+          ...(config.admin?.nav ?? []),
+          { id: 'forms', label: { en: 'Forms', th: 'ฟอร์ม' }, icon: 'mail', order: 200 },
+        ],
+        // Submissions at a glance: a page and a dashboard panel.
         pages: [
           ...(config.admin?.pages ?? []),
           {
             path: 'forms-overview',
             label: { en: 'Form overview', th: 'ภาพรวมฟอร์ม' },
             icon: 'chart-column',
+            group: 'forms',
             component: { tag: 'ecms-forms-overview', props: { forms, submissions, adminPath } },
           },
         ],

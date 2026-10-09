@@ -29,6 +29,7 @@ import {
 import { adminEmail, sendTestEmail, verifyEmail } from './admin-email.js'
 import { readAdminModule } from './admin-modules.js'
 import { adminSchema } from './admin-schema.js'
+import { adminCounts, adminSearch } from './admin-search.js'
 import { adminStatus } from './admin-status.js'
 import { pickerFilter } from './filter-options.js'
 import { parseDepth, parseListQuery } from './query.js'
@@ -688,6 +689,19 @@ async function route(
     if (!ctx.user) throw new UnauthorizedError()
     if (second === 'schema' && third === undefined)
       return { body: await adminSchema(cms, ctx.user, ctx.url.origin, ctx.context) }
+    // /admin/counts → the menu's numbers; /admin/search?q= → the command palette's documents
+    if (second === 'counts' && third === undefined)
+      return { body: await adminCounts(cms, { user: ctx.user, context: ctx.context }) }
+    if (second === 'search' && third === undefined)
+      return {
+        body: {
+          docs: await adminSearch(
+            cms,
+            { user: ctx.user, context: ctx.context },
+            ctx.url.searchParams.get('q') ?? '',
+          ),
+        },
+      }
     // /admin/modules/:n.js → an admin module's code (`admin.modules`)
     if (second === 'modules' && third !== undefined && segments.length === 3) {
       const index = /^(\d+)\.js$/.exec(third)?.[1]

@@ -11,7 +11,7 @@ const { isDark } = useData()
 
 const COPY = {
   en: {
-    badge: 'New in 0.46: a shop (ecommerce) with Stripe, bank transfer and customer accounts',
+    badge: 'New in 0.47: menu groups, ⌘K search and tabs in the admin',
     badgeLink: 'multi-tenant',
     title: 'Your CMS,',
     titleAccent: 'inside your app',
@@ -230,7 +230,7 @@ const COPY = {
     ctaGuide: 'Read the guide',
   },
   th: {
-    badge: 'ใหม่ใน 0.46: ร้านค้า (ecommerce) รับ Stripe โอนเงิน และบัญชีลูกค้า',
+    badge: 'ใหม่ใน 0.47: เมนูเป็นกลุ่ม ค้นหาด้วย ⌘K และแท็บในหน้าแก้ไข',
     badgeLink: 'multi-tenant',
     title: 'CMS ที่อยู่',
     titleAccent: 'ในแอปของคุณ',

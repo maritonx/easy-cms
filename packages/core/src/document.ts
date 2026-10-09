@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { ID } from './access.js'
+import { matchesCondition } from './conditions.js'
 import type { FieldError } from './errors.js'
 import {
   type BlocksField,
@@ -212,6 +213,14 @@ export async function validateFields(
     const path = prefix + field.name
     const raw = input[field.name]
     const fail = (message: string) => errors.push({ field: path, message })
+    // A field the admin hides (`admin.condition`) isn't required.
+    const condition = field.admin?.condition
+    const skipRequired =
+      options.skipRequired === true ||
+      (condition !== undefined && !matchesCondition(condition, input))
+    // Inside a hidden group, array or block, nothing is required either.
+    const fieldOptions =
+      skipRequired === (options.skipRequired === true) ? options : { ...options, skipRequired }
 
     if (field.type === 'group') {
       if (!isEmpty(raw) && !isPlainObject(raw)) {
@@ -221,7 +230,7 @@ export async function validateFields(
       const sub = await validateFields(
         field.fields,
         isPlainObject(raw) ? raw : {},
-        options,
+        fieldOptions,
         `${path}.`,
       )
       data[field.name] = sub.data
@@ -245,7 +254,7 @@ export async function validateFields(
         const failLocale = (message: string) => errors.push({ field: localePath, message })
         const value = map[locale]
         if (isEmpty(value) || (Array.isArray(value) && value.length === 0)) {
-          if (own && field.required && !options.skipRequired) failLocale('is required')
+          if (own && field.required && !skipRequired) failLocale('is required')
           out[locale] = hasRows(field) || isHasMany(field) ? [] : null
           if (own && !field.required) await runCustom(field, null, options, failLocale)
           continue
@@ -254,7 +263,7 @@ export async function validateFields(
           field,
           value,
           localePath,
-          options,
+          fieldOptions,
           failLocale,
           errors,
           references,
@@ -268,16 +277,16 @@ export async function validateFields(
     }
 
     if (isEmpty(raw) || (Array.isArray(raw) && raw.length === 0)) {
-      if (field.required && !options.skipRequired) fail('is required')
+      if (field.required && !skipRequired) fail('is required')
       // An empty list is short of `minRows` too (drafts may be incomplete).
-      else if (!options.skipRequired && 'minRows' in field && field.minRows)
+      else if (!skipRequired && 'minRows' in field && field.minRows)
         fail(`must have at least ${itemsOf(field, field.minRows)}`)
       data[field.name] = hasRows(field) || isHasMany(field) ? [] : null
       if (!field.required) await runCustom(field, null, options, fail)
       continue
     }
 
-    const value = await normalizeValue(field, raw, path, options, fail, errors, references)
+    const value = await normalizeValue(field, raw, path, fieldOptions, fail, errors, references)
     if (value === undefined) continue
     data[field.name] = value
     await runCustom(field, value, options, fail)

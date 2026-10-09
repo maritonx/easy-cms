@@ -149,8 +149,8 @@ describe('validateConfig', () => {
         ],
         globals: [
           { slug: 'site', admin: { sidebar: ['ecms-ok'] }, fields: [{ name: 'n', type: 'text' }] },
-          // @ts-expect-error group is 'settings'
-          { slug: 'odd', admin: { group: 'menu' }, fields: [{ name: 'n', type: 'text' }] },
+          // A path names a group of `admin.nav`.
+          { slug: 'odd', admin: { group: 'shop.nope' }, fields: [{ name: 'n', type: 'text' }] },
         ],
         endpoints: [
           { path: '/seo/generate', method: 'post', handler },

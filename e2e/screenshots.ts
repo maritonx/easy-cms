@@ -101,8 +101,19 @@ async function main() {
         await page.locator('.rte-content').waitFor()
         await shot('edit')
 
+        // The SEO fields have a tab of their own.
+        await page.getByRole('tab', { name: 'SEO' }).click()
         await page.getByRole('region', { name: t.preview }).scrollIntoViewIfNeeded()
         await shot('seo')
+        await page.getByRole('tab', { name: t.contentTab }).click()
+
+        // ⌘K: search and commands.
+        await page.waitForLoadState('networkidle')
+        await page.getByRole('button', { name: new RegExp(t.paletteButton) }).click()
+        await page.getByRole('combobox', { name: t.palette }).fill(t.paletteQuery)
+        await page.getByRole('option').nth(1).waitFor()
+        await shot('command-palette')
+        await page.keyboard.press('Escape')
 
         // The post's gallery: an upload field with hasMany.
         const gallery = page.getByRole('group', { name: t.gallery })
@@ -188,6 +199,7 @@ async function main() {
         await shot('reset-password')
 
         await page.goto(`${ORIGIN}/admin/collections/api-keys/new`)
+        await page.waitForLoadState('networkidle')
         await page.getByRole('textbox').first().fill(t.keyName)
         // Posts: read, create and update; media: read and create.
         const boxes = page.getByRole('checkbox')
@@ -228,6 +240,10 @@ async function main() {
 
 const EN = {
   preview: 'Search result preview',
+  contentTab: 'Content',
+  palette: 'Search and commands',
+  paletteQuery: 'post',
+  paletteButton: 'Search or go to',
   same: 'English',
   other: 'Thai',
   showPreview: 'Preview',
@@ -245,6 +261,10 @@ const EN = {
 }
 const TH = {
   preview: 'ตัวอย่างผลการค้นหา',
+  contentTab: 'เนื้อหา',
+  palette: 'ค้นหาและคำสั่ง',
+  paletteQuery: 'บทความ',
+  paletteButton: 'ค้นหาหรือไปที่',
   same: 'ไทย',
   other: 'อังกฤษ',
   showPreview: 'ดูตัวอย่าง',

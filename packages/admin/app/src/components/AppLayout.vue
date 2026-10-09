@@ -1,88 +1,48 @@
 <script setup lang="ts">
 import {
-  DatabaseBackup,
-  KeyRound,
   Languages,
   LayoutDashboard,
   LogOut,
-  Mail,
   Menu,
   Monitor,
   Moon,
-  ScrollText,
-  Send,
-  ShieldCheck,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Search,
   Sun,
   X,
 } from '@lucide/vue'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { counts, refreshCounts } from '../lib/counts'
-import { label, locale, setLocale, t } from '../lib/i18n'
-import { collectionIcon, globalIcon } from '../lib/icons'
-import { listed, menuOrder } from '../lib/menu'
+import { refreshCounts } from '../lib/counts'
+import { locale, setLocale, t } from '../lib/i18n'
+import { navState, pinnedEntries } from '../lib/nav'
 import { logout, session } from '../lib/session'
 import { settings } from '../lib/settings'
+import { installShortcuts, modKey, openPalette } from '../lib/shortcuts'
 import { brandName, initials, setTheme, type ThemeMode, themeMode } from '../lib/theme'
+import CommandPalette from './CommandPalette.vue'
+import NavTree from './NavTree.vue'
+import RailMenu from './RailMenu.vue'
+import ShortcutsHelp from './ShortcutsHelp.vue'
 import SwitcherSelect from './SwitcherSelect.vue'
 
 const router = useRouter()
 const route = useRoute()
-const readable = computed(() =>
-  menuOrder(
-    session.schema?.collections.filter((c) => c.permissions.read && listed(c)) ?? [],
-    session.schema?.menu,
-  ),
-)
-/** Listed under Settings rather than Content: users, API keys, `admin.group: 'settings'`. */
-const FIRST = ['users', 'api-keys']
-const collections = computed(() =>
-  readable.value.filter((c) => c.group !== 'settings' && c.section === undefined),
-)
-/** Collections under headings of their own (`admin.group` with a label), in menu order. */
-const sections = computed(() => {
-  const found = new Map<string, { title: string; list: typeof readable.value }>()
-  for (const c of readable.value) {
-    if (c.group === 'settings' || c.section === undefined) continue
-    const title = label(c.section, c.slug)
-    const entry = found.get(title) ?? { title, list: [] }
-    entry.list.push(c)
-    found.set(title, entry)
-  }
-  return [...found.values()]
+installShortcuts(router)
+
+const nav = computed(() => session.schema?.nav ?? [])
+
+/** Icons only, on wide screens (`[` or the button in the footer). */
+const wide = ref(window.matchMedia('(min-width: 1024px)').matches)
+window.matchMedia('(min-width: 1024px)').addEventListener('change', (e) => {
+  wide.value = e.matches
 })
-const settingsCollections = computed(() => {
-  const list = readable.value.filter((c) => c.group === 'settings')
-  const rank = (slug: string) => (FIRST.includes(slug) ? FIRST.indexOf(slug) : FIRST.length)
-  return [...list].sort((a, b) => rank(a.slug) - rank(b.slug))
-})
-const globals = computed(() => session.schema?.globals.filter((g) => g.permissions.read) ?? [])
-/** Pages from `admin.pages`, after the collections of their group; `group: false` ones are not listed. */
-const contentPages = computed(
-  () => session.schema?.pages.filter((p) => p.group === 'content') ?? [],
-)
-/** Settings pages this user may open (admins; roles given them in Settings → Roles). */
-const views = computed(() => session.schema?.views)
-/** Saved webhook deliveries and emails, when webhooks or email are set up. */
-const deliveries = computed(() => {
-  const d = session.schema?.deliveries
-  return !!views.value?.deliveries && !!d && (d.webhook || d.email)
-})
-const settingsViews = computed(
-  () =>
-    !!views.value &&
-    (views.value.backups ||
-      views.value.email ||
-      views.value.roles ||
-      views.value.sso ||
-      views.value.audit),
-)
-const settingsPages = computed(
-  () => session.schema?.pages.filter((p) => p.group === 'settings') ?? [],
-)
+const rail = computed(() => navState.rail && wide.value)
 
 /** Small screens: the menu opens over the page. */
 const menuOpen = ref(false)
+const main = ref<HTMLElement>()
 watch(
   () => route.fullPath,
   () => {
@@ -91,7 +51,47 @@ watch(
     void refreshCounts()
   },
 )
+// A new page: focus moves to its heading, so screen readers start there.
+watch(
+  () => route.path,
+  async () => {
+    await nextTick()
+    setTimeout(() => {
+      const heading = main.value?.querySelector<HTMLElement>('h1')
+      if (!heading || main.value?.contains(document.activeElement)) return
+      heading.tabIndex = -1
+      heading.focus({ preventScroll: true })
+    }, 0)
+  },
+)
 onMounted(() => void refreshCounts(true))
+
+/** Arrow keys move through the menu; left and right fold and unfold groups. */
+function onMenuKey(event: KeyboardEvent) {
+  const target = event.target as HTMLElement
+  if (!target.matches('[data-nav]')) return
+  const items = [
+    ...(event.currentTarget as HTMLElement).querySelectorAll<HTMLElement>('[data-nav]'),
+  ].filter((el) => el.offsetParent !== null)
+  const at = items.indexOf(target)
+  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    event.preventDefault()
+    items[(at + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length]?.focus()
+  } else if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+    const expanded = target.getAttribute('aria-expanded')
+    if (expanded === null) return
+    if ((event.key === 'ArrowRight') === (expanded === 'false')) {
+      event.preventDefault()
+      target.click()
+    }
+  } else if (event.key === 'Home') {
+    event.preventDefault()
+    items[0]?.focus()
+  } else if (event.key === 'End') {
+    event.preventDefault()
+    items.at(-1)?.focus()
+  }
+}
 
 const themes: {
   mode: ThemeMode
@@ -110,7 +110,8 @@ async function onLogout() {
 </script>
 
 <template>
-  <div class="layout" :class="{ 'menu-open': menuOpen }">
+  <a class="skip-link" href="#main">{{ t('nav.skip') }}</a>
+  <div class="layout" :class="{ 'menu-open': menuOpen, rail }">
     <header class="topbar">
       <button
         type="button"
@@ -126,15 +127,18 @@ async function onLogout() {
         <span v-else class="logo" aria-hidden="true">{{ brandName().slice(0, 1) }}</span>
         {{ brandName() }}
       </RouterLink>
+      <button type="button" class="btn btn-ghost btn-icon topbar-search" :aria-label="t('palette.title')" @click="openPalette">
+        <Search :size="20" aria-hidden="true" />
+      </button>
     </header>
     <div v-if="menuOpen" class="backdrop" aria-hidden="true" @click="menuOpen = false" />
 
-    <nav class="sidebar" aria-label="Main">
+    <nav class="sidebar" :aria-label="t('nav.main')">
       <div class="sidebar-top">
         <RouterLink to="/" class="brand">
           <img v-if="settings.brand.logo" :src="settings.brand.logo" alt="" class="logo-img" />
           <span v-else class="logo" aria-hidden="true">{{ brandName().slice(0, 1) }}</span>
-          <span class="brand-text">
+          <span v-if="!rail" class="brand-text">
             <span class="brand-name">{{ brandName() }}</span>
             <span class="brand-sub">{{ t('app.subtitle') }}</span>
           </span>
@@ -148,114 +152,53 @@ async function onLogout() {
           <X :size="18" aria-hidden="true" />
         </button>
       </div>
-      <SwitcherSelect />
+      <SwitcherSelect v-if="!rail" />
 
-      <RouterLink to="/" class="nav-link" exact-active-class="active">
-        <LayoutDashboard :size="18" aria-hidden="true" />
-        <span>{{ t('nav.dashboard') }}</span>
-      </RouterLink>
+      <button
+        v-if="!rail"
+        type="button"
+        class="search-btn"
+        :aria-label="`${t('palette.placeholder')} (${modKey()} K)`"
+        @click="openPalette"
+      >
+        <Search :size="17" aria-hidden="true" />
+        <span>{{ t('palette.placeholder') }}</span>
+        <kbd aria-hidden="true">{{ modKey() }} K</kbd>
+      </button>
 
-      <template v-if="collections.length || contentPages.length">
-        <h2 class="nav-heading">{{ t('nav.collections') }}</h2>
-        <RouterLink
-          v-for="c in collections"
-          :key="c.slug"
-          :to="`/collections/${c.slug}`"
-          class="nav-link"
-          active-class="active"
-        >
-          <component :is="collectionIcon(c.icon)" :size="18" aria-hidden="true" />
-          <span>{{ label(c.labels?.plural, c.slug) }}</span>
-          <span v-if="counts[c.slug] !== undefined" class="nav-count" aria-hidden="true">{{ counts[c.slug] }}</span>
-        </RouterLink>
-        <RouterLink
-          v-for="p in contentPages"
-          :key="`p-${p.path}`"
-          :to="`/p/${p.path}`"
-          class="nav-link"
-          active-class="active"
-        >
-          <component :is="collectionIcon(p.icon)" :size="18" aria-hidden="true" />
-          <span>{{ label(p.label, p.path) }}</span>
-        </RouterLink>
-      </template>
-
-      <template v-for="s in sections" :key="s.title">
-        <h2 class="nav-heading">{{ s.title }}</h2>
-        <RouterLink
-          v-for="c in s.list"
-          :key="c.slug"
-          :to="`/collections/${c.slug}`"
-          class="nav-link"
-          active-class="active"
-        >
-          <component :is="collectionIcon(c.icon)" :size="18" aria-hidden="true" />
-          <span>{{ label(c.labels?.plural, c.slug) }}</span>
-          <span v-if="counts[c.slug] !== undefined" class="nav-count" aria-hidden="true">{{ counts[c.slug] }}</span>
-        </RouterLink>
-      </template>
-
-      <template v-if="globals.length || settingsCollections.length || settingsPages.length || settingsViews || deliveries">
-        <h2 class="nav-heading">{{ t('nav.globals') }}</h2>
-        <RouterLink
-          v-for="g in globals"
-          :key="g.slug"
-          :to="`/globals/${g.slug}`"
-          class="nav-link"
-          active-class="active"
-        >
-          <component :is="globalIcon(g.icon)" :size="18" aria-hidden="true" />
-          <span>{{ label(g.label, g.slug) }}</span>
-        </RouterLink>
-        <RouterLink
-          v-for="c in settingsCollections"
-          :key="c.slug"
-          :to="`/collections/${c.slug}`"
-          class="nav-link"
-          active-class="active"
-        >
-          <component :is="collectionIcon(c.icon)" :size="18" aria-hidden="true" />
-          <span>{{ label(c.labels?.plural, c.slug) }}</span>
-          <span v-if="counts[c.slug] !== undefined" class="nav-count" aria-hidden="true">{{ counts[c.slug] }}</span>
-        </RouterLink>
-        <RouterLink
-          v-for="p in settingsPages"
-          :key="`p-${p.path}`"
-          :to="`/p/${p.path}`"
-          class="nav-link"
-          active-class="active"
-        >
-          <component :is="collectionIcon(p.icon)" :size="18" aria-hidden="true" />
-          <span>{{ label(p.label, p.path) }}</span>
-        </RouterLink>
-        <RouterLink v-if="views?.roles" to="/roles" class="nav-link" active-class="active">
-          <ShieldCheck :size="18" aria-hidden="true" />
-          <span>{{ t('roles.title') }}</span>
-        </RouterLink>
-        <RouterLink v-if="views?.audit" to="/audit" class="nav-link" active-class="active">
-          <ScrollText :size="18" aria-hidden="true" />
-          <span>{{ t('audit.title') }}</span>
-        </RouterLink>
-        <RouterLink v-if="views?.sso" to="/sso" class="nav-link" active-class="active">
-          <KeyRound :size="18" aria-hidden="true" />
-          <span>{{ t('sso.title') }}</span>
-        </RouterLink>
-        <RouterLink v-if="views?.backups" to="/backups" class="nav-link" active-class="active">
-          <DatabaseBackup :size="18" aria-hidden="true" />
-          <span>{{ t('backups.title') }}</span>
-        </RouterLink>
-        <RouterLink v-if="views?.email" to="/email" class="nav-link" active-class="active">
-          <Mail :size="18" aria-hidden="true" />
-          <span>{{ t('email.title') }}</span>
-        </RouterLink>
-        <RouterLink v-if="deliveries" to="/deliveries" class="nav-link" active-class="active">
-          <Send :size="18" aria-hidden="true" />
-          <span>{{ t('deliveries.title') }}</span>
-        </RouterLink>
-      </template>
+      <div class="menu" @keydown="onMenuKey">
+        <template v-if="rail">
+          <button type="button" class="rail-search" :aria-label="t('palette.title')" :title="`${t('palette.title')} (${modKey()} K)`" data-nav @click="openPalette">
+            <Search :size="20" aria-hidden="true" />
+          </button>
+          <RouterLink to="/" class="rail-link" exact-active-class="active" :aria-label="t('nav.dashboard')" :title="t('nav.dashboard')" data-nav>
+            <LayoutDashboard :size="20" aria-hidden="true" />
+          </RouterLink>
+          <RailMenu :nodes="nav" />
+        </template>
+        <template v-else>
+          <template v-if="pinnedEntries.length">
+            <h2 class="nav-heading">{{ t('nav.pinned') }}</h2>
+            <ul class="pinned" role="list">
+              <li v-for="e in pinnedEntries" :key="e.key">
+                <RouterLink :to="e.to" class="nav-link" active-class="active" data-nav>
+                  <component :is="e.icon" :size="18" aria-hidden="true" />
+                  <span class="nav-text">{{ e.label }}</span>
+                </RouterLink>
+              </li>
+            </ul>
+            <div class="nav-divider" role="separator" />
+          </template>
+          <RouterLink to="/" class="nav-link" exact-active-class="active" data-nav>
+            <LayoutDashboard :size="18" aria-hidden="true" />
+            <span>{{ t('nav.dashboard') }}</span>
+          </RouterLink>
+          <NavTree :nodes="nav" />
+        </template>
+      </div>
 
       <div class="sidebar-footer">
-        <div class="footer-tools">
+        <div v-if="!rail" class="footer-tools">
           <div class="segmented" role="group" :aria-label="t('theme.label')">
             <button
               v-for="option in themes"
@@ -281,10 +224,21 @@ async function onLogout() {
             {{ t('nav.language') }}
           </button>
         </div>
+        <button
+          v-if="wide"
+          type="button"
+          class="btn btn-ghost btn-sm rail-toggle"
+          :aria-label="rail ? t('nav.expand') : t('nav.collapse')"
+          :title="`${rail ? t('nav.expand') : t('nav.collapse')} ( [ )`"
+          @click="navState.rail = !navState.rail"
+        >
+          <component :is="rail ? PanelLeftOpen : PanelLeftClose" :size="17" aria-hidden="true" />
+          <span v-if="!rail">{{ t('nav.collapse') }}</span>
+        </button>
         <div class="account">
           <RouterLink to="/account" class="account-link" active-class="active">
             <span class="avatar" aria-hidden="true">{{ initials(session.user?.email) }}</span>
-            <span class="account-text">
+            <span v-if="!rail" class="account-text">
               <span class="account-title">{{ t('nav.account') }}</span>
               <span class="account-email">{{ session.user?.email }}</span>
             </span>
@@ -301,11 +255,13 @@ async function onLogout() {
         </div>
       </div>
     </nav>
-    <main class="content">
+    <main id="main" ref="main" class="content" tabindex="-1">
       <!-- Keyed by path: query changes (filters, an open drawer) keep the page. -->
       <RouterView :key="$route.path" />
     </main>
   </div>
+  <CommandPalette />
+  <ShortcutsHelp />
 </template>
 
 <style scoped>
@@ -313,6 +269,126 @@ async function onLogout() {
   display: grid;
   grid-template-columns: 17.75rem minmax(0, 1fr);
   min-height: 100vh;
+}
+.layout.rail {
+  grid-template-columns: 4.75rem minmax(0, 1fr);
+}
+.rail .sidebar {
+  align-items: center;
+  overflow: visible;
+  padding-inline: 0.5rem;
+}
+.rail .sidebar-top {
+  justify-content: center;
+}
+.rail .sidebar-footer {
+  align-items: center;
+}
+.rail .account {
+  flex-direction: column;
+  border-top: 0;
+}
+.skip-link {
+  position: absolute;
+  left: 0.75rem;
+  top: -4rem;
+  z-index: 200;
+  padding: 0.6rem 1rem;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+  text-decoration: none;
+}
+.skip-link:focus {
+  top: 0.75rem;
+}
+.content:focus {
+  outline: none;
+}
+.search-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.4rem;
+  margin: 0.25rem 0 0.6rem;
+  padding: 0 0.65rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.search-btn:hover {
+  border-color: var(--text-muted);
+}
+.search-btn kbd {
+  margin-left: auto;
+  font: inherit;
+  font-size: 0.72rem;
+  padding: 0.05rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-2);
+}
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+.rail .menu {
+  align-items: center;
+  gap: 0.35rem;
+}
+.pinned {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+.nav-divider {
+  height: 1px;
+  margin: 0.5rem 0.25rem;
+  background: var(--border);
+}
+.nav-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rail-search,
+.rail-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.rail-search:hover,
+.rail-link:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.rail-link.active {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+.rail-toggle {
+  justify-content: flex-start;
+  gap: 0.5rem;
+  color: var(--text-muted);
+}
+.topbar-search {
+  margin-left: auto;
 }
 .topbar,
 .close,
@@ -390,7 +466,7 @@ async function onLogout() {
   object-fit: contain;
 }
 .nav-heading {
-  margin: 1.15rem 0 0.35rem;
+  margin: 0.4rem 0 0.35rem;
   padding: 0 0.7rem;
   font-size: 0.8rem;
   font-weight: 600;

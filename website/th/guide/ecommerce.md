@@ -277,7 +277,7 @@ export const omise = definePaymentAdapter({
 | `orders.number` | `1000 + n` | เลขที่คำสั่งซื้อ |
 | `emails` | — | `orderConfirmation`, `paymentReceived`, `newOrder`: ฟังก์ชันหรือ `false` และ `notify` |
 | `overrides` | — | `{ products: (c) => ({ ...c, … }) }` เพื่อปรับ collection |
-| `group` | Shop / ร้านค้า | หัวข้อกลุ่มในเมนูของระบบจัดการ |
+| `group` | Shop / ร้านค้า | ชื่อกลุ่มร้านค้าในเมนู (`shop` มีแคตตาล็อก การขาย และลูกค้า) |
 
 ยังไม่มี: Omise และผู้ให้บริการอื่นแบบสำเร็จรูป, Stripe Checkout (หน้าจ่ายเงินของ Stripe), การจองสต็อกระหว่างจ่าย, ค่าส่ง
 VAT และคูปองแบบสำเร็จรูป, สมาชิกรายเดือน และบัญชี Stripe แยกต่อ tenant

@@ -39,11 +39,11 @@ export default defineConfig({
 
 The plugin adds:
 
-- **Settings → Tenants**: name, slug and the domains of each tenant.
+- **Settings › Users & access › Tenants**: name, slug and the domains of each tenant.
 - **A `tenant` field** on each collection you name, set from the tenant you work in. With
   `media` and `upload.folders`, media folders belong to a tenant too.
 - **A tenant switcher** at the top of the admin's menu, for people in more than one tenant.
-- **Settings → Members**: the people of the chosen tenant and their role there.
+- **Settings › Users & access › Members**: the people of the chosen tenant and their role there.
 - **`tenants` on users**: the tenants each person is in, and their role in each.
 
 Then create the database's changes as usual: `npx easy-cms migrate:create tenants`. For a site
@@ -156,7 +156,7 @@ A request that names no tenant finds nothing in tenant collections. With
 
 ## Deleting a tenant
 
-Deleting a tenant under Settings → Tenants deletes its documents and files in the tenant
+Deleting a tenant under Settings › Users & access › Tenants deletes its documents and files in the tenant
 collections, and takes it off its members' lists. The admin says how much goes, and asks for the
 tenant's name typed before deleting. It can't be undone: make a [backup](./backups) first.
 

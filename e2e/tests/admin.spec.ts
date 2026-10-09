@@ -146,9 +146,14 @@ test.describe('logged in as admin', () => {
     await expect(page.getByRole('status')).toHaveText('Please fix the highlighted fields.')
     const title = page.getByRole('textbox', { name: 'Title', exact: true })
     await expect(title).toHaveAttribute('aria-invalid', 'true')
-    await expect(page.getByText('is required')).toBeVisible()
+    await expect(page.getByText('is required', { exact: true })).toBeVisible()
+    // The summary at the top lists it, and takes focus.
+    const summary = page.getByRole('alert').filter({ hasText: 'Fix 1 field(s) before saving' })
+    await expect(summary).toBeFocused()
+    await expect(summary.getByRole('link', { name: 'Title' })).toBeVisible()
     await page.getByRole('textbox', { name: 'Title', exact: true }).fill('x')
-    await expect(page.getByText('is required')).toHaveCount(0)
+    await expect(page.getByText('is required', { exact: true })).toHaveCount(0)
+    await expect(summary).toHaveCount(0)
 
     await title.fill('Hello from Playwright')
     await page.getByLabel('Excerpt').fill('Written by an end-to-end test.')
@@ -164,7 +169,7 @@ test.describe('logged in as admin', () => {
     await expect(editor.locator('strong')).toHaveText('bold')
 
     // Relationship picker: search and choose.
-    await page.getByLabel('Category').fill('Gui')
+    await page.getByLabel('Category', { exact: true }).fill('Gui')
     await page.getByRole('option', { name: 'Guides' }).click()
     await expect(page.getByRole('link', { name: 'Guides' })).toBeVisible()
 
@@ -606,10 +611,73 @@ test.describe('logged in as admin', () => {
     await expect(page.getByText('Tested end to end')).toBeVisible()
   })
 
+  test('folds menu groups, remembers them, and opens the group of the page', async ({ page }) => {
+    await page.goto('/admin/')
+    const menu = page.getByRole('navigation', { name: 'Main menu' })
+    const settings = menu.getByRole('button', { name: 'Settings' })
+    await expect(settings).toHaveAttribute('aria-expanded', 'true')
+    await settings.click()
+    await expect(settings).toHaveAttribute('aria-expanded', 'false')
+    await expect(menu.getByRole('link', { name: 'Users', exact: true })).toBeHidden()
+    await page.reload()
+    await expect(menu.getByRole('button', { name: 'Settings' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    )
+    // A page in a folded group opens it.
+    await page.goto('/admin/collections/users')
+    await expect(menu.getByRole('link', { name: 'Users', exact: true })).toBeVisible()
+    // Pinned: at the top of the menu.
+    await page.getByRole('button', { name: 'Pin to the menu' }).click()
+    await expect(menu.getByRole('heading', { name: 'Pinned' })).toBeVisible()
+    await page.getByRole('button', { name: 'Unpin from the menu' }).click()
+    await expect(menu.getByRole('heading', { name: 'Pinned' })).toHaveCount(0)
+    await page.goto('/admin/')
+    await menu.getByRole('button', { name: 'Settings' }).click()
+  })
+
+  test('finds documents and runs commands with ⌘K, and lists the shortcuts', async ({ page }) => {
+    await page.goto('/admin/')
+    await expect(page.getByRole('heading', { level: 1, name: GREETING })).toBeVisible()
+    await page.keyboard.press('ControlOrMeta+k')
+    const search = page.getByRole('combobox', { name: 'Search and commands' })
+    await expect(search).toBeFocused()
+    await search.fill('Hello from')
+    const option = page.getByRole('option', { name: /Hello from Playwright/ })
+    await expect(option).toBeVisible()
+    await page.keyboard.press('ArrowDown')
+    await option.click()
+    await expect(page).toHaveURL(/\/admin\/collections\/posts\/\w+/)
+    await expect(page.getByRole('textbox', { name: 'Title', exact: true })).toHaveValue(
+      /Hello from Playwright/,
+    )
+    // Opened lately: offered before typing.
+    await page.keyboard.press('ControlOrMeta+k')
+    await expect(page.getByRole('option', { name: /Hello from Playwright/ })).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(search).toHaveCount(0)
+    // Go to a place by name.
+    await page.keyboard.press('ControlOrMeta+k')
+    await search.fill('categ')
+    await page.keyboard.press('Enter')
+    await expect(page).toHaveURL(/\/admin\/collections\/categories$/)
+    // ? lists the shortcuts.
+    await page.locator('body').click({ position: { x: 5, y: 5 } })
+    await page.keyboard.press('?')
+    await expect(page.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeVisible()
+    await page.keyboard.press('Escape')
+  })
+
   test('fills SEO fields with the SEO plugin (admin modules, endpoints)', async ({ page }) => {
     await page.goto('/admin/collections/posts/new')
     await page.getByRole('textbox', { name: 'Title', exact: true }).fill('Plugins work')
     await page.getByLabel('Excerpt').fill('Web Components from the SEO plugin, end to end.')
+    // The SEO fields have a tab of their own (admin.layout); the others are in the first.
+    await expect(page.getByRole('tab', { name: 'Content' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    await page.getByRole('tab', { name: 'SEO' }).click()
 
     // The plugin's components: length meters with Generate buttons, and a search preview.
     const metaTitle = page.getByRole('textbox', { name: 'Meta title' })
@@ -651,6 +719,7 @@ test.describe('logged in as admin', () => {
     // A post hidden from search engines.
     await page.goto('/admin/collections/posts/new')
     await page.getByRole('textbox', { name: 'Title', exact: true }).fill('Hidden page')
+    await page.getByRole('tab', { name: 'SEO' }).click()
     await page.getByRole('checkbox', { name: 'Hide from search engines' }).check()
     await expect(page.getByRole('region', { name: 'Search result preview' })).toContainText(
       'Hidden from search engines',

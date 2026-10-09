@@ -104,7 +104,10 @@ export interface EcommerceOptions<Cur extends string = string> {
   readonly overrides?: {
     readonly [S in ShopCollection]?: (collection: CollectionConfig) => CollectionConfig
   }
-  /** The admin menu's heading for the shop. Default `Shop` / `ร้านค้า`. */
+  /**
+   * The label of the shop's group in the admin menu (`shop`, with `catalog`, `sales` and
+   * `customers`). Default `Shop` / `ร้านค้า`. Declare `{ id: 'shop', … }` in `admin.nav` for more.
+   */
   readonly group?: Label
 }
 
@@ -361,7 +364,6 @@ export function ecommercePlugin<const Cur extends string = 'THB'>(
     countries,
     addressFields: options.addresses?.fields,
     productFields: options.products?.fields ?? [],
-    group,
   }
   const collections = shopCollections(collectionOptions).map((c) => {
     const override = options.overrides?.[c.slug as ShopCollection]
@@ -670,6 +672,34 @@ export function ecommercePlugin<const Cur extends string = 'THB'>(
       admin: {
         ...config.admin,
         modules: [...(config.admin?.modules ?? []), '@easy-cms/plugin-ecommerce/admin'],
+        nav: [
+          ...(config.admin?.nav ?? []),
+          {
+            id: 'shop',
+            label: group,
+            icon: 'store',
+            order: 100,
+            children: [
+              { id: 'catalog', label: { en: 'Catalog', th: 'แคตตาล็อก' } },
+              { id: 'sales', label: { en: 'Sales', th: 'การขาย' } },
+              { id: 'customers', label: { en: 'Customers', th: 'ลูกค้า' } },
+            ],
+          },
+        ],
+        commands: [
+          ...(config.admin?.commands ?? []),
+          {
+            label: { en: 'Orders to send', th: 'คำสั่งซื้อที่รอจัดส่ง' },
+            to: '/collections/orders?f_status=paid',
+            icon: 'package',
+            keywords: ['ship', 'ส่งของ'],
+          },
+          {
+            label: { en: 'Orders awaiting payment', th: 'คำสั่งซื้อที่รอชำระเงิน' },
+            to: '/collections/orders?f_status=pending',
+            icon: 'package',
+          },
+        ],
         dashboard: [
           ...(config.admin?.dashboard ?? []),
           {

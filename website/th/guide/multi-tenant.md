@@ -37,11 +37,11 @@ export default defineConfig({
 
 plugin เพิ่มให้:
 
-- **ตั้งค่า → Tenants**: ชื่อ slug และโดเมนของแต่ละ tenant
+- **ตั้งค่า › ผู้ใช้และสิทธิ์ › Tenants**: ชื่อ slug และโดเมนของแต่ละ tenant
 - **field `tenant`** ในทุก collection ที่ระบุ ใส่ให้เองจาก tenant ที่กำลังทำงานอยู่ ถ้ามี `media` และ `upload.folders`
   โฟลเดอร์สื่อก็เป็นของ tenant ด้วย
 - **ตัวสลับ tenant** ด้านบนของเมนู admin สำหรับคนที่อยู่มากกว่าหนึ่ง tenant
-- **ตั้งค่า → สมาชิก**: คนใน tenant ที่เลือกและบทบาทของแต่ละคน
+- **ตั้งค่า › ผู้ใช้และสิทธิ์ › สมาชิก**: คนใน tenant ที่เลือกและบทบาทของแต่ละคน
 - **`tenants` ในผู้ใช้**: tenant ที่แต่ละคนอยู่และบทบาทในแต่ละ tenant
 
 จากนั้นสร้าง migration ตามปกติ `npx easy-cms migrate:create tenants` ถ้าเว็บมีเนื้อหาอยู่แล้ว ให้ย้ายไปไว้ใน tenant หนึ่งครั้งเดียว:
@@ -144,7 +144,7 @@ request ที่ไม่ระบุ tenant จะไม่พบอะไร�
 
 ## ลบ tenant {#deleting-a-tenant}
 
-การลบ tenant ที่ ตั้งค่า → Tenants จะลบเอกสารและไฟล์ใน collection ของ tenant นั้น และเอา tenant ออกจากรายการของสมาชิก หน้า admin
+การลบ tenant ที่ ตั้งค่า › ผู้ใช้และสิทธิ์ › Tenants จะลบเอกสารและไฟล์ใน collection ของ tenant นั้น และเอา tenant ออกจากรายการของสมาชิก หน้า admin
 บอกว่าจะหายไปเท่าไร และให้พิมพ์ชื่อ tenant ก่อนลบ ย้อนกลับไม่ได้
 [สำรองข้อมูล](./backups)ก่อน
 

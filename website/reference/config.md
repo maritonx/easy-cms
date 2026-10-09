@@ -56,7 +56,9 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `locale` | `'en' \| 'th'` | `en` | Default admin language before a user picks one. |
 | `brand` | `AdminBrand` | `{}` | See [brand](#brand). |
 | `siteUrl` | `string` | `/` (Nuxt, Next.js) | The public site for "View site": a path or an `http(s)` URL. |
-| `menu` | `string[]` | config order | Collection slugs in menu order; unlisted ones follow, media last. |
+| `menu` | `string[]` | config order | Collection slugs in menu order within their groups; unlisted ones follow. |
+| `nav` | `NavGroup[]` | — | The menu's groups: `{ id, label, icon?, order?, children? }`, children one level deep. Built in: `content`, `settings` (`site`, `people`, `system`). [The admin](/guide/admin#the-menu) |
+| `commands` | `{ label, to, icon?, keywords? }[]` | — | More entries of the command palette (⌘K) that open a page of the admin. |
 | `modules` | `string[]` | `[]` | Admin modules with Web Components: package exports or paths. [Admin components](/guide/plugins#admin-components) |
 | `pages` | `AdminPage[]` | `[]` | Pages of their own at `<admin>/p/<path>`, e.g. from plugins. See [pages](#pages). |
 | `dashboard` | `DashboardWidget[]` | `[]` | Panels on the dashboard after the built-in ones. See [dashboard](#dashboard). |
@@ -80,7 +82,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `component` | `AdminComponent` | **Required**. The page's body; the admin draws the header. |
 | `label` | `string \| { en, th }` | **Required**. Title in the header, the menu and the browser tab. |
 | `icon` | `AdminIcon` | Menu icon. Default `file-text`. |
-| `group` | `'content' \| 'settings' \| false` | Where it is in the menu; `false`: not listed. Default `content`. |
+| `group` | `'content' \| 'settings' \| false \| string` | Its menu group: `content`, `settings`, a group's id (`admin.nav`) or a label; `false`: not listed. Default `content`. |
 | `access` | `({ user }) => boolean` | Who may open it, checked on the server. Default: every logged-in user. |
 
 <!-- api: DashboardWidget -->
@@ -271,8 +273,12 @@ Every hook also gets `user`, `cms` and `slug`.
 
 | Option | Type | |
 |---|---|---|
-| `sidebar` | `AdminComponent[]` | Panels in the edit page's side column. [Admin components](/guide/plugins#admin-components) |
-| `group` | `'settings' \| Label` | `'settings'`: list the collection under Settings in the menu, with Users and API keys. A label, e.g. `{ en: 'Shop', th: 'ร้านค้า' }`: under a heading of that name. |
+| `sidebar` | `SidebarPanel[]` | Panels in the edit page's side column; `{ tag, props, position: 'top' }` puts one above the rest. [Admin components](/guide/plugins#admin-components) |
+| `group` | `string \| Label` | Its menu group: a group's id (`admin.nav`, e.g. `shop.catalog`), `settings` (Settings › Site), or a label that makes a group of that name. Default: Content. [The admin](/guide/admin#the-menu) |
+| `layout` | `LayoutNode[]` | Tabs, sections that fold and rows of the edit page, by field name. [The admin](/guide/admin#edit-pages) |
+| `badge` | `{ where, tone?, label? }` | A number beside its menu item: the documents matching `where` that the user may read, e.g. orders to send. |
+| `count` | `boolean` | The number of documents beside its menu item. Default `true`. |
+| `empty` | `{ description?, link? }` | What the list says before it has documents, and a link (`{ label, href }`). |
 | `list` | `{ tree?, sort? }` | The list page: `tree` names a relationship to the same collection to show a tree (top-level documents first, children open below); `sort` is the default order, e.g. `'title'`. |
 | `ownerField` | `string` | With `auth.rbac`: a relationship field to `users` naming the owner, e.g. `'author'`, for roles given "own documents only". Default: who created it (`createdBy`). [Roles](/guide/roles#own-documents-only) |
 | `confirmDelete` | `{ typeTitle?, impact? }` | Deleting asks more: `typeTitle` has the user type the title; `impact` is a path under the API, called with `?id=`, returning `{ message }` about what goes too. No deleting from a selection. |

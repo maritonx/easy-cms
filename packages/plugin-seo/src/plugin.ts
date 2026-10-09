@@ -11,6 +11,7 @@ import type {
   Field,
   GlobalConfig,
   Label,
+  LayoutNode,
   Plugin,
   TypedPlugin,
 } from '@easy-cms/core'
@@ -58,6 +59,12 @@ export interface SeoPluginOptions {
   readonly globals?: readonly string[]
   /** `main`: below the other fields (room for the search preview). `sidebar`: the side column. Default `main`. */
   readonly position?: 'main' | 'sidebar'
+  /**
+   * With `position: 'main'`: the SEO fields in a tab of their own on the edit page, after the
+   * others (`admin.layout`); its label, or `false` to leave them below the other fields. Default
+   * `true` (labelled like the group).
+   */
+  readonly tab?: boolean | Label
   /** Suggests a meta title, e.g. `({ doc }) => \`${doc.title} | My Blog\``. Adds a Generate button. */
   readonly generateTitle?: Generate<string>
   /** Suggests a meta description, e.g. from an excerpt. Adds a Generate button. */
@@ -304,6 +311,20 @@ export function seoPlugin<const C extends string = never, const G extends string
         indexNow.submit(await urlsOf(doc, { collection: slug }, cms), cms.logger)
     }
 
+    const tabLabel: Label =
+      typeof options.tab === 'string' || (typeof options.tab === 'object' && options.tab !== null)
+        ? options.tab
+        : (options.label ?? 'SEO')
+    /** The edit page's layout with an SEO tab last: the rest goes in the first tab. */
+    const withSeoTab = (layout: readonly LayoutNode[] | undefined): LayoutNode[] => {
+      const seo: LayoutNode = { tab: tabLabel, fields: [META_FIELD] }
+      const tabbed =
+        (layout ?? []).length > 0 &&
+        (layout ?? []).every((n) => typeof n === 'object' && 'tab' in n)
+      if (tabbed) return [...(layout as LayoutNode[]), seo]
+      return [{ tab: { en: 'Content', th: 'เนื้อหา' }, fields: [...(layout ?? [])] }, seo]
+    }
+
     const withSeo = <T extends CollectionConfig | GlobalConfig>(
       container: T,
       titleField: string | null,
@@ -322,6 +343,9 @@ export function seoPlugin<const C extends string = never, const G extends string
         ...container,
         fields: [...container.fields, group(titleField)],
         ...(hook || indexNow ? { hooks } : {}),
+        ...(options.position !== 'sidebar' && options.tab !== false
+          ? { admin: { ...container.admin, layout: withSeoTab(container.admin?.layout) } }
+          : {}),
       }
     }
 

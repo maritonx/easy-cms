@@ -55,7 +55,9 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `locale` | `'en' \| 'th'` | `en` | ภาษาเริ่มต้นของหน้า admin ก่อนผู้ใช้เลือกเอง |
 | `brand` | `AdminBrand` | `{}` | ดู [brand](#brand) |
 | `siteUrl` | `string` | `/` (Nuxt, Next.js) | เว็บสาธารณะสำหรับปุ่ม "ดูเว็บไซต์": path หรือ URL แบบ `http(s)` |
-| `menu` | `string[]` | ตามลำดับใน config | slug ของ collection ตามลำดับในเมนู ที่ไม่ระบุจะตามมา และ media อยู่ท้ายสุด |
+| `menu` | `string[]` | ตามลำดับใน config | slug ของ collection ตามลำดับในกลุ่มของเมนู ที่ไม่ระบุจะตามมา |
+| `nav` | `NavGroup[]` | — | กลุ่มของเมนู: `{ id, label, icon?, order?, children? }` children ลึกได้หนึ่งชั้น มีในตัว: `content`, `settings` (`site`, `people`, `system`) [ระบบจัดการ](/th/guide/admin#the-menu) |
+| `commands` | `{ label, to, icon?, keywords? }[]` | — | รายการเพิ่มเติมใน command palette (⌘K) ที่เปิดหน้าของระบบจัดการ |
 | `modules` | `string[]` | `[]` | admin module ที่มี Web Components: export ของแพ็กเกจหรือ path [Admin components](/th/guide/plugins#admin-components) |
 | `pages` | `AdminPage[]` | `[]` | หน้าของตัวเองที่ `<admin>/p/<path>` เช่น จาก plugin ดู [pages](#pages) |
 | `dashboard` | `DashboardWidget[]` | `[]` | กล่องบนแดชบอร์ดต่อจากกล่องที่มีอยู่เดิม ดู [dashboard](#dashboard) |
@@ -79,7 +81,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `component` | `AdminComponent` | **จำเป็น** เนื้อหาของหน้า ส่วนหัวหน้า admin วาดให้ |
 | `label` | `string \| { en, th }` | **จำเป็น** หัวข้อในส่วนหัว เมนู และแท็บของ browser |
 | `icon` | `AdminIcon` | ไอคอนในเมนู ค่าเริ่มต้น `file-text` |
-| `group` | `'content' \| 'settings' \| false` | อยู่ตรงไหนในเมนู `false` คือไม่แสดง ค่าเริ่มต้น `content` |
+| `group` | `'content' \| 'settings' \| false \| string` | กลุ่มในเมนู: `content`, `settings`, id ของกลุ่ม (`admin.nav`) หรือ label `false` คือไม่แสดง ค่าเริ่มต้น `content` |
 | `access` | `({ user }) => boolean` | ใครเปิดได้ ตรวจฝั่ง server ค่าเริ่มต้น: ทุกคนที่ login |
 
 <!-- api: DashboardWidget -->
@@ -268,8 +270,12 @@ export default defineConfig({ secret, db, collections, /* … */ })
 
 | ตัวเลือก | Type | |
 |---|---|---|
-| `sidebar` | `AdminComponent[]` | กล่องในแถบข้างของหน้าแก้ไข [Admin components](/th/guide/plugins#admin-components) |
-| `group` | `'settings' \| Label` | `'settings'`: แสดง collection ใต้ตั้งค่าในเมนู คู่กับ Users และ API keys ถ้าเป็น label เช่น `{ en: 'Shop', th: 'ร้านค้า' }` จะอยู่ใต้หัวข้อชื่อนั้น |
+| `sidebar` | `SidebarPanel[]` | กล่องในแถบข้างของหน้าแก้ไข `{ tag, props, position: 'top' }` วางไว้บนสุด [Admin components](/th/guide/plugins#admin-components) |
+| `group` | `string \| Label` | กลุ่มในเมนู: id ของกลุ่ม (`admin.nav` เช่น `shop.catalog`), `settings` (ตั้งค่า › เว็บไซต์) หรือ label ซึ่งสร้างกลุ่มชื่อนั้น ค่าเริ่มต้น: เนื้อหา [ระบบจัดการ](/th/guide/admin#the-menu) |
+| `layout` | `LayoutNode[]` | แท็บ ส่วนที่พับได้ และแถวของหน้าแก้ไข ตามชื่อ field [ระบบจัดการ](/th/guide/admin#edit-pages) |
+| `badge` | `{ where, tone?, label? }` | ตัวเลขข้างรายการในเมนู: เอกสารที่ตรง `where` ที่ผู้ใช้อ่านได้ เช่น คำสั่งซื้อรอจัดส่ง |
+| `count` | `boolean` | จำนวนเอกสารข้างรายการในเมนู ค่าเริ่มต้น `true` |
+| `empty` | `{ description?, link? }` | ข้อความในหน้ารายการเมื่อยังไม่มีเอกสาร และลิงก์ (`{ label, href }`) |
 | `list` | `{ tree?, sort? }` | หน้ารายการ: `tree` คือชื่อ relationship ไปหา collection เดียวกัน เพื่อแสดงเป็นต้นไม้ (เอกสารระดับบนก่อน เอกสารลูกเปิดอยู่ข้างใต้) ส่วน `sort` คือลำดับเริ่มต้น เช่น `'title'` |
 | `ownerField` | `string` | เมื่อเปิด `auth.rbac`: relationship ไปที่ `users` ที่บอกเจ้าของ เช่น `'author'` สำหรับบทบาทที่ได้ "เฉพาะเอกสารของตัวเอง" ค่าเริ่มต้น: ผู้สร้าง (`createdBy`) [บทบาทและสิทธิ์](/th/guide/roles#own-documents-only) |
 | `confirmDelete` | `{ typeTitle?, impact? }` | ถามมากขึ้นก่อนลบ: `typeTitle` ให้พิมพ์ชื่อ `impact` คือ path ใต้ API ที่เรียกพร้อม `?id=` แล้วคืน `{ message }` บอกสิ่งที่จะหายไปด้วย ลบจากการเลือกหลายรายการไม่ได้ |

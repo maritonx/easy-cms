@@ -132,7 +132,7 @@ client are `GET <api>/form/:slug` and `POST <api>/form/:slug/submit`.
 
 <Screenshot name="forms-overview" alt="Form overview: submissions per day, and per form with a link to each form's submissions" />
 
-**Form overview**, under Content in the menu, shows the submissions of the last 7 or 30 days:
+**Form overview**, in the menu's Forms group with the forms and their submissions, shows the submissions of the last 7 or 30 days:
 per day in a chart, and per form with a link to that form's submissions. The dashboard has a
 panel with the last 7 days' total and the forms with the most submissions. Days follow the
 editor's time zone.

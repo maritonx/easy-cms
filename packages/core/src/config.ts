@@ -1,4 +1,11 @@
-import type { AuthUser, CollectionAccess, GlobalAccess, ID, RequestContext } from './access.js'
+import type {
+  AuthUser,
+  CollectionAccess,
+  GlobalAccess,
+  ID,
+  RequestContext,
+  Where,
+} from './access.js'
 import type { AuditConfig } from './audit.js'
 import type { PasswordEmailFn } from './auth/emails.js'
 import type { AuthProvider } from './auth/providers.js'
@@ -83,19 +90,72 @@ export interface VersionsConfig {
   readonly max?: number
 }
 
+/** A panel of an edit page's side column: a component, at the top or (default) below the rest. */
+export type SidebarPanel =
+  | AdminComponent
+  | {
+      readonly tag: string
+      readonly props?: Readonly<Record<string, unknown>>
+      /** `top`: right below publishing, above the side fields. Default: below them. */
+      readonly position?: 'top'
+    }
+
+/**
+ * Where the edit page puts its fields: tabs, collapsible sections and rows, by field name. Only
+ * how they look: the data stays as the fields say. Fields not placed follow at the end (in the
+ * first tab). Top-level fields; sidebar fields stay in the side column.
+ *
+ * ```ts
+ * layout: [
+ *   { tab: 'Content', fields: ['title', { row: ['author', 'category'] }, 'body'] },
+ *   { tab: 'SEO', fields: ['meta'] },
+ * ]
+ * ```
+ */
+export type LayoutNode =
+  | string
+  | { readonly row: readonly string[] }
+  | {
+      readonly collapsible: Label
+      /** Starts folded. */
+      readonly collapsed?: boolean
+      readonly description?: Label
+      readonly fields: readonly LayoutNode[]
+    }
+  | { readonly tab: Label; readonly description?: Label; readonly fields: readonly LayoutNode[] }
+
 /** Custom admin components for a collection's or global's edit page. */
 export interface ContainerAdmin {
-  /** Panels in the edit page's side column, below publishing (components from admin modules). */
-  readonly sidebar?: readonly AdminComponent[]
+  /** Panels in the edit page's side column (components from admin modules). */
+  readonly sidebar?: readonly SidebarPanel[]
+  /** Tabs, collapsible sections and rows of the edit page. See `LayoutNode`. */
+  readonly layout?: readonly LayoutNode[]
+  /**
+   * Its menu group: a group's id (`admin.nav`), e.g. `shop` or `shop.catalog`; `settings` for
+   * Settings; or a label, which makes a group of that name. Default: Content for collections,
+   * Settings › Site for globals.
+   */
+  readonly group?: 'settings' | Label
 }
 
 export interface CollectionAdmin extends ContainerAdmin {
   /**
-   * `settings` lists the collection under Settings in the admin menu (with Users and API keys)
-   * instead of with the content, e.g. for redirects or forms settings. A label (e.g.
-   * `{ en: 'Shop', th: 'ร้านค้า' }`) lists it under a heading of that name, after the content.
+   * A number that needs attention, next to its menu item: the documents matching `where` (that
+   * the user may read), e.g. orders to send. `tone`: `accent` (default), `warning` or `danger`.
    */
-  readonly group?: 'settings' | Label
+  readonly badge?: {
+    readonly where: Where
+    readonly tone?: 'accent' | 'warning' | 'danger'
+    /** What the number counts, for screen readers, e.g. `{ en: 'to send', th: 'รอจัดส่ง' }`. */
+    readonly label?: Label
+  }
+  /** The number of documents beside its menu item. Default `true`. */
+  readonly count?: boolean
+  /** The list with no documents yet: what to say, and a link, e.g. to a guide. */
+  readonly empty?: {
+    readonly description?: Label
+    readonly link?: { readonly label: Label; readonly href: string }
+  }
   readonly list?: CollectionListAdmin
   /**
    * With `auth.rbac`: the relationship field to `users` that names a document's owner, e.g.
@@ -250,6 +310,28 @@ export interface AdminBrand {
   readonly color?: string
 }
 
+/** A group of the admin menu (`admin.nav`). */
+export interface NavGroup {
+  /** Lowercase letters, digits and `-`; children are named `<parent>.<child>`, e.g. `shop.catalog`. */
+  readonly id: string
+  readonly label: Label
+  readonly icon?: AdminIcon
+  /** Its place among the groups: lower first. Content is 0, the media library 10, Settings 1000. */
+  readonly order?: number
+  /** Groups inside it, one level. */
+  readonly children?: readonly Omit<NavGroup, 'children'>[]
+}
+
+/** An entry of the command palette (⌘K) that opens a page of the admin. */
+export interface AdminCommand {
+  readonly label: Label
+  /** A path in the admin, e.g. `/collections/orders?f_status=paid`. */
+  readonly to: string
+  readonly icon?: AdminIcon
+  /** Words that find it besides its label. */
+  readonly keywords?: readonly string[]
+}
+
 /** Who may see an admin page or dashboard widget. Default: every logged-in user. */
 export type AdminViewAccess = (args: { readonly user: AuthUser }) => boolean | Promise<boolean>
 
@@ -263,8 +345,11 @@ export interface AdminPage {
   readonly label: Label
   /** Icon in the admin menu. Default `file-text`. */
   readonly icon?: AdminIcon
-  /** Listed under Content (default) or Settings in the menu, or not listed (`false`): reached by links. */
-  readonly group?: 'content' | 'settings' | false
+  /**
+   * Its menu group: `content` (default), `settings`, a group's id (`admin.nav`) or a label; `false`:
+   * not listed, reached by links.
+   */
+  readonly group?: 'content' | 'settings' | false | Label
   /** Who may open it. Pages a user may not open are left out of their admin. */
   readonly access?: AdminViewAccess
 }
@@ -298,6 +383,15 @@ export interface AdminConfig {
    * Collections not listed follow in config order, with the media library last.
    */
   readonly menu?: readonly string[]
+  /**
+   * The admin menu's groups, which collections, globals and pages name in `admin.group`, e.g.
+   * `{ id: 'shop', label: 'Shop', icon: 'store', children: [{ id: 'catalog', label: 'Catalog' }] }`.
+   * Built in: `content` and `settings` (with `site`, `people` and `system`); declaring one of
+   * their ids changes its label, icon or order. Plugins declare their own.
+   */
+  readonly nav?: readonly NavGroup[]
+  /** More entries of the command palette (⌘K), e.g. a plugin's page with a filter. */
+  readonly commands?: readonly AdminCommand[]
   /**
    * JavaScript modules the admin loads after login, which define Web Components used by
    * fields (`admin.component`, `admin.after`) and edit pages (`admin.sidebar`). Each entry is a

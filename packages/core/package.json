@@ -14,6 +14,10 @@
       "types": "./dist/live-preview.d.ts",
       "default": "./dist/live-preview.js"
     },
+    "./conditions": {
+      "types": "./dist/conditions.d.ts",
+      "default": "./dist/conditions.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

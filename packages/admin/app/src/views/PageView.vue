@@ -4,6 +4,7 @@ import { computed, onBeforeUnmount, watchEffect } from 'vue'
 import { useRoute } from 'vue-router'
 import PluginElement from '../components/PluginElement.vue'
 import { label, t } from '../lib/i18n'
+import { crumbsFor } from '../lib/nav'
 import { session } from '../lib/session'
 import { brandName } from '../lib/theme'
 
@@ -34,9 +35,11 @@ onBeforeUnmount(() => {
 <template>
   <p v-if="!page" class="notice">{{ t('common.notFound') }} <RouterLink to="/">{{ t('common.back') }}</RouterLink></p>
   <template v-else>
-    <nav v-if="page.group" class="crumbs" :aria-label="t('list.breadcrumb')">
-      <span>{{ page.group === 'settings' ? t('nav.globals') : t('nav.collections') }}</span>
-      <ChevronRight :size="14" aria-hidden="true" />
+    <nav v-if="crumbsFor(route.path).length" class="crumbs" :aria-label="t('list.breadcrumb')">
+      <template v-for="crumb in crumbsFor(route.path)" :key="crumb">
+        <span>{{ crumb }}</span>
+        <ChevronRight :size="14" aria-hidden="true" />
+      </template>
       <span class="current">{{ title }}</span>
     </nav>
     <header class="page-header">

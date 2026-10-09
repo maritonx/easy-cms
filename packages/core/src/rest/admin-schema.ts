@@ -8,28 +8,79 @@ import {
 import { evaluateAccess, FieldAccessChecker } from '../access-control.js'
 import { API_KEYS } from '../api-keys.js'
 import type { SsoProviderRef } from '../auth/sso.js'
-import { EMAIL_DELIVERIES, INTERNAL_COLLECTIONS, USERS, WEBHOOK_DELIVERIES } from '../builtins.js'
+import {
+  EMAIL_DELIVERIES,
+  INTERNAL_COLLECTIONS,
+  MEDIA,
+  MEDIA_FOLDERS,
+  USERS,
+  WEBHOOK_DELIVERIES,
+} from '../builtins.js'
+import type { FieldCondition } from '../conditions.js'
 import type {
   AdminLocale,
   AdminSwitcher,
   AdminViewAccess,
   CollectionConfig,
   GlobalConfig,
+  LayoutNode,
+  SidebarPanel,
 } from '../config.js'
 import type { AdminComponent, Field, Label } from '../fields.js'
 import type { EasyCMS } from '../local-api.js'
 import { expandMimeTypes } from '../media.js'
+import {
+  groupOf,
+  LABEL_ORDER,
+  MEDIA_ORDER,
+  navGroups,
+  navIds,
+  type ResolvedNavGroup,
+} from '../nav.js'
 import type { RoleOperation } from '../roles.js'
 import { adminModuleUrls } from './admin-modules.js'
 
-/** Built-in collections listed under Settings in the menu. */
-const SETTINGS = new Set([USERS, API_KEYS])
+/** Built-in collections listed under Settings › Users & access in the menu. */
+const PEOPLE = new Set([USERS, API_KEYS])
 
 /** A Web Component from an admin module, with its `props` (plain JSON). */
 export interface AdminComponentRef {
   tag: string
   props?: Record<string, unknown>
+  /** A side panel at the top of the side column (`position: 'top'`). */
+  position?: 'top'
 }
+
+/** Where the edit page puts its fields (`admin.layout`), with unplaced fields filled in. */
+export type AdminLayoutNode =
+  | { type: 'field'; name: string }
+  | { type: 'row'; fields: string[] }
+  | {
+      type: 'collapsible'
+      label: Label
+      collapsed?: boolean
+      description?: Label
+      nodes: AdminLayoutNode[]
+    }
+  | { type: 'tab'; label: Label; description?: Label; nodes: AdminLayoutNode[] }
+
+/** An entry of the admin menu. */
+export type AdminNavItem =
+  | { kind: 'collection'; slug: string }
+  | { kind: 'global'; slug: string }
+  | { kind: 'page'; path: string }
+  | { kind: 'view'; view: 'roles' | 'sso' | 'backups' | 'email' | 'deliveries' | 'audit' }
+
+/** A group of the admin menu (`admin.nav`), with what this user may open in it. */
+export interface AdminNavGroup {
+  kind: 'group'
+  id: string
+  label: Label
+  icon?: string
+  items: AdminNavNode[]
+}
+
+export type AdminNavNode = AdminNavItem | AdminNavGroup
 
 /** A field as the admin UI sees it: plain JSON, no functions. */
 export interface AdminField {
@@ -72,6 +123,12 @@ export interface AdminField {
   noCreate?: boolean
   /** A field of an added type (`fieldTypes`), e.g. `color`; `type` is the base it's stored as. */
   customType?: string
+  /** Help below its label (`admin.description`). */
+  description?: Label
+  /** Its share of a row (`admin.width`). */
+  width?: string
+  /** Shown only when its siblings match (`admin.condition`). */
+  condition?: FieldCondition
 }
 
 export interface AdminCollection {
@@ -90,10 +147,14 @@ export interface AdminCollection {
   fields: AdminField[]
   /** Panels from admin modules in the edit page's side column. */
   sidebar?: AdminComponentRef[]
-  /** Listed under Settings in the menu (users, API keys, `admin.group: 'settings'`). */
-  group?: 'settings'
-  /** Listed under a heading of its own in the menu (`admin.group` with a label). */
-  section?: Label
+  /** Tabs, sections and rows of the edit page (`admin.layout`). */
+  layout?: AdminLayoutNode[]
+  /** A number in the menu (`admin.badge`); the menu's counts come from `GET <api>/admin/counts`. */
+  badge?: { tone: 'accent' | 'warning' | 'danger'; label?: Label }
+  /** No document count beside it in the menu (`admin.count: false`). */
+  noCount?: boolean
+  /** What the list says while it has no documents (`admin.empty`). */
+  empty?: { description?: Label; link?: { label: Label; href: string } }
   /** The list is a tree along this relationship field (`admin.list.tree`). */
   tree?: string
   /** The list's default order (`admin.list.sort`). */
@@ -124,6 +185,8 @@ export interface AdminGlobal {
   fields: AdminField[]
   /** Panels from admin modules in the edit page's side column. */
   sidebar?: AdminComponentRef[]
+  /** Tabs, sections and rows of the edit page (`admin.layout`). */
+  layout?: AdminLayoutNode[]
   permissions: { read: boolean; update: boolean; publish: boolean }
 }
 
@@ -132,8 +195,6 @@ export interface AdminPageRef {
   path: string
   label: Label
   icon?: string
-  /** Where it is listed in the menu; `false`: not listed. */
-  group: 'content' | 'settings' | false
   component: AdminComponentRef
 }
 
@@ -151,6 +212,10 @@ export interface AdminSchema {
   passwordLinks: boolean
   /** Menu order of collections (`admin.menu`); unlisted ones follow. */
   menu: string[]
+  /** The menu: groups and what this user may open in them, in order. */
+  nav: AdminNavNode[]
+  /** More entries of the command palette (`admin.commands`). */
+  commands: { label: Label; to: string; icon?: string; keywords?: string[] }[]
   /** Content locales, when the config has `localization`. */
   localization: { locales: string[]; defaultLocale: string } | null
   collections: AdminCollection[]
@@ -242,6 +307,9 @@ async function serializeFields(
       }
     }
     if (field.customType) f.customType = field.customType
+    if (field.admin?.description !== undefined) f.description = field.admin.description
+    if (field.admin?.width) f.width = field.admin.width
+    if (field.admin?.condition) f.condition = JSON.parse(JSON.stringify(field.admin.condition))
     switch (field.type) {
       case 'text':
       case 'textarea':
@@ -374,10 +442,13 @@ async function collection(
   if (config.labels) result.labels = config.labels
   if (config.useAsTitle) result.useAsTitle = config.useAsTitle
   if (config.icon) result.icon = config.icon
-  if (config.admin?.sidebar?.length) result.sidebar = config.admin.sidebar.map(componentRef)
-  const group = config.admin?.group
-  if (group === 'settings' || SETTINGS.has(config.slug)) result.group = 'settings'
-  else if (group !== undefined) result.section = group
+  if (config.admin?.sidebar?.length) result.sidebar = config.admin.sidebar.map(panelRef)
+  if (config.admin?.layout?.length) result.layout = layoutOf(config.admin.layout, fields)
+  const badge = config.admin?.badge
+  if (badge)
+    result.badge = { tone: badge.tone ?? 'accent', ...(badge.label ? { label: badge.label } : {}) }
+  if (config.admin?.count === false) result.noCount = true
+  if (config.admin?.empty) result.empty = JSON.parse(JSON.stringify(config.admin.empty))
   if (config.admin?.list?.tree) result.tree = config.admin.list.tree
   if (config.admin?.list?.sort) result.defaultSort = config.admin.list.sort
   if (config.admin?.confirmDelete) result.confirmDelete = { ...config.admin.confirmDelete }
@@ -418,7 +489,8 @@ async function global(
   }
   if (config.label !== undefined) result.label = config.label
   if (config.icon) result.icon = config.icon
-  if (config.admin?.sidebar?.length) result.sidebar = config.admin.sidebar.map(componentRef)
+  if (config.admin?.sidebar?.length) result.sidebar = config.admin.sidebar.map(panelRef)
+  if (config.admin?.layout?.length) result.layout = layoutOf(config.admin.layout, result.fields)
   return result
 }
 
@@ -447,20 +519,25 @@ export async function adminSchema(
     audit: cms.audit.enabled && (await cms.roles.canView(user, 'audit')),
   }
   const roles = await cms.roles.options()
+  const adminCollections = await Promise.all(
+    collections.map((c) => collection(cms, c, user, localized, roles, context)),
+  )
+  const adminGlobals = await Promise.all(
+    cms.config.globals.map((g) => global(cms, g, user, localized, context)),
+  )
+  const adminPages = await pages(cms, user)
   return {
     locale: cms.config.admin.locale,
     switcher: cms.config.admin.switcher,
     passwordLinks: cms.auth.canSendPasswordLinks(origin),
     menu: [...cms.config.admin.menu],
+    nav: buildNav(cms, adminCollections, adminGlobals, adminPages, views),
+    commands: cms.config.admin.commands.map((c) => JSON.parse(JSON.stringify(c))),
     localization: localization
       ? { locales: [...localization.locales], defaultLocale: localization.defaultLocale }
       : null,
-    collections: await Promise.all(
-      collections.map((c) => collection(cms, c, user, localized, roles, context)),
-    ),
-    globals: await Promise.all(
-      cms.config.globals.map((g) => global(cms, g, user, localized, context)),
-    ),
+    collections: adminCollections,
+    globals: adminGlobals,
     modules: adminModuleUrls(cms),
     uploadFromURL: cms.config.upload.fromURL !== undefined,
     upload: {
@@ -487,7 +564,7 @@ export async function adminSchema(
           },
         }
       : {}),
-    pages: await pages(cms, user),
+    pages: adminPages,
     dashboard: await widgets(cms, user),
   }
 }
@@ -511,7 +588,6 @@ async function pages(cms: EasyCMS, user: AuthUser): Promise<AdminPageRef[]> {
       path: page.path,
       label: page.label,
       ...(page.icon ? { icon: page.icon } : {}),
-      group: page.group ?? 'content',
       component: componentRef(page.component),
     })
   }
@@ -536,4 +612,161 @@ function folderIds(
   context: RequestContext,
 ): ((key: string) => Promise<ID | null>) | undefined {
   return cms.folders.enabled ? (key) => cms.keyedFolder(key, { user, context }) : undefined
+}
+
+/** A side panel; `position: 'top'` puts it above the side fields. */
+function panelRef(panel: SidebarPanel): AdminComponentRef {
+  const ref = componentRef(panel as AdminComponent)
+  if (typeof panel === 'object' && 'position' in panel && panel.position === 'top')
+    ref.position = 'top'
+  return ref
+}
+
+/**
+ * The edit page's layout for the fields this user sees: names they can't read are dropped, and
+ * fields not placed follow at the end (in the first tab).
+ */
+function layoutOf(layout: readonly LayoutNode[], fields: readonly AdminField[]): AdminLayoutNode[] {
+  const shown = new Set(fields.filter((f) => f.position !== 'sidebar').map((f) => f.name))
+  const placed = new Set<string>()
+  const convert = (nodes: readonly LayoutNode[]): AdminLayoutNode[] =>
+    nodes.flatMap((node): AdminLayoutNode[] => {
+      if (typeof node === 'string') {
+        if (!shown.has(node)) return []
+        placed.add(node)
+        return [{ type: 'field', name: node }]
+      }
+      if ('row' in node) {
+        const names = node.row.filter((n) => shown.has(n))
+        for (const n of names) placed.add(n)
+        return names.length ? [{ type: 'row', fields: names }] : []
+      }
+      if ('collapsible' in node) {
+        const inner = convert(node.fields)
+        return inner.length
+          ? [
+              {
+                type: 'collapsible',
+                label: node.collapsible,
+                ...(node.collapsed ? { collapsed: true } : {}),
+                ...(node.description !== undefined ? { description: node.description } : {}),
+                nodes: inner,
+              },
+            ]
+          : []
+      }
+      const inner = convert(node.fields)
+      return [
+        {
+          type: 'tab',
+          label: node.tab,
+          ...(node.description !== undefined ? { description: node.description } : {}),
+          nodes: inner,
+        },
+      ]
+    })
+  const out = convert(layout)
+  const rest: AdminLayoutNode[] = [...shown]
+    .filter((n) => !placed.has(n))
+    .map((name) => ({ type: 'field', name }))
+  const first = out[0]
+  if (first?.type === 'tab') first.nodes.push(...rest)
+  else out.push(...rest)
+  // Tabs with nothing this user may see are left out.
+  return out.filter((n) => n.type !== 'tab' || n.nodes.length > 0)
+}
+
+type ViewKey = Extract<AdminNavItem, { kind: 'view' }>['view']
+
+/** Where Settings pages of the admin go in the menu. */
+const VIEW_GROUPS: readonly [ViewKey, string][] = [
+  ['roles', 'settings.people'],
+  ['sso', 'settings.people'],
+  ['backups', 'settings.system'],
+  ['email', 'settings.system'],
+  ['deliveries', 'settings.system'],
+  ['audit', 'settings.system'],
+]
+
+/** The menu for this user: groups (the config's merged over the built-in ones) and their items. */
+function buildNav(
+  cms: EasyCMS,
+  collections: readonly AdminCollection[],
+  globals: readonly AdminGlobal[],
+  pageRefs: readonly AdminPageRef[],
+  views: Record<ViewKey | 'status', boolean>,
+): AdminNavNode[] {
+  const groups = navGroups(cms.config.admin.nav)
+  const ids = navIds(groups)
+  const items = new Map<string, AdminNavItem[]>()
+  const labelGroups = new Map<string, Label>()
+  const put = (group: { id: string; label?: Label }, item: AdminNavItem) => {
+    if (group.label !== undefined && !labelGroups.has(group.id))
+      labelGroups.set(group.id, group.label)
+    const list = items.get(group.id) ?? []
+    list.push(item)
+    items.set(group.id, list)
+  }
+  const configOf = (slug: string) => cms.config.collections.find((c) => c.slug === slug)
+  // Collections in menu order: `admin.menu` first, then the config's.
+  const menu = cms.config.admin.menu
+  const rank = (slug: string, index: number) => {
+    const at = menu.indexOf(slug)
+    return at === -1 ? menu.length + index : at
+  }
+  const ordered = collections
+    .map((c, index) => ({ c, key: rank(c.slug, index) }))
+    .sort((a, b) => a.key - b.key)
+    .map(({ c }) => c)
+  let media = false
+  for (const c of ordered) {
+    if (!c.permissions.read || c.slug === MEDIA_FOLDERS) continue
+    if (c.slug === MEDIA) {
+      media = true
+      continue
+    }
+    const group = PEOPLE.has(c.slug)
+      ? { id: 'settings.people' }
+      : groupOf(configOf(c.slug)?.admin?.group, ids, 'content')
+    put(group, { kind: 'collection', slug: c.slug })
+  }
+  for (const g of globals) {
+    if (!g.permissions.read) continue
+    const config = cms.config.globals.find((x) => x.slug === g.slug)
+    put(groupOf(config?.admin?.group, ids, 'settings.site'), { kind: 'global', slug: g.slug })
+  }
+  for (const p of pageRefs) {
+    const config = cms.config.admin.pages.find((x) => x.path === p.path)
+    const group = config?.group ?? 'content'
+    if (group === false) continue
+    put(groupOf(group, ids, 'content'), { kind: 'page', path: p.path })
+  }
+  for (const [view, group] of VIEW_GROUPS)
+    if (views[view]) put({ id: group }, { kind: 'view', view })
+
+  const toGroup = (g: ResolvedNavGroup): AdminNavGroup | null => {
+    const children = g.children.map(toGroup).filter((c): c is AdminNavGroup => c !== null)
+    const own = items.get(g.id) ?? []
+    if (own.length === 0 && children.length === 0) return null
+    return {
+      kind: 'group',
+      id: g.id,
+      label: g.label,
+      ...(g.icon ? { icon: g.icon } : {}),
+      items: [...own, ...children],
+    }
+  }
+  const root: { order: number; node: AdminNavNode }[] = []
+  for (const g of groups) {
+    const node = toGroup(g)
+    if (node) root.push({ order: g.order, node })
+  }
+  let i = 0
+  for (const [id, label] of labelGroups) {
+    const own = items.get(id) ?? []
+    if (own.length)
+      root.push({ order: LABEL_ORDER + i++, node: { kind: 'group', id, label, items: own } })
+  }
+  if (media) root.push({ order: MEDIA_ORDER, node: { kind: 'collection', slug: MEDIA } })
+  return root.sort((a, b) => a.order - b.order).map((r) => r.node)
 }

@@ -1,7 +1,15 @@
 import { CREATED_BY_FIELD } from './builtins.js'
-import { ADMIN_ICONS, type CollectionConfig, type Config, type GlobalConfig } from './config.js'
+import { conditionIssues } from './conditions.js'
+import {
+  ADMIN_ICONS,
+  type CollectionConfig,
+  type Config,
+  type GlobalConfig,
+  type NavGroup,
+} from './config.js'
 import type { ConfigIssue } from './errors.js'
 import { FIELD_TYPES, type Field, type SelectOption } from './fields.js'
+import { NAV_ID, navGroups, navIds } from './nav.js'
 import { WEBHOOK_EVENTS } from './webhooks.js'
 
 export const MIN_SECRET_LENGTH = 32
@@ -96,11 +104,13 @@ export function validateConfig(config: Config): ConfigIssue[] {
   const apiKeys: unknown = config.apiKeys
   if (apiKeys !== undefined && typeof apiKeys !== 'boolean') add('apiKeys', 'must be true or false')
 
+  const nav = validateNav(config, add)
   collections.forEach((collection, i) => {
     const path = `collections.${collection.slug ?? `[${i}]`}`
     validateContainer(collection, path, collectionSlugs, add, {
       collection: true,
       rbac: config.auth?.rbac === true,
+      nav,
     })
     validateUseAsTitle(collection, path, add)
     validateIcon(collection, path, add)
@@ -114,6 +124,7 @@ export function validateConfig(config: Config): ConfigIssue[] {
     validateContainer(global, path, collectionSlugs, add, {
       collection: false,
       rbac: config.auth?.rbac === true,
+      nav,
     })
     validateIcon(global, path, add)
   })
@@ -268,13 +279,8 @@ function validateAdminViews(config: Config, add: Add) {
             "e.g. label: { en: 'Stats', th: 'สถิติ' }",
           )
         validateIcon(p, path, add)
-        if (
-          p.group !== undefined &&
-          p.group !== 'content' &&
-          p.group !== 'settings' &&
-          p.group !== false
-        )
-          add(`${path}.group`, 'must be "content", "settings" or false')
+        if (p.group !== 'content' && p.group !== false)
+          validateGroup(p.group, navIds(navGroups(config.admin?.nav ?? [])), `${path}.group`, add)
         access(p.access, path)
       })
     }
@@ -801,12 +807,166 @@ function checkSlug(
   return slug
 }
 
+const isLabel = (value: unknown) =>
+  (typeof value === 'string' && value.trim() !== '') ||
+  (typeof value === 'object' &&
+    value !== null &&
+    !Array.isArray(value) &&
+    Object.values(value).length > 0 &&
+    Object.values(value).every((v) => typeof v === 'string'))
+
+/** `admin.nav` and `admin.commands`; returns every group id. */
+function validateNav(config: Config, add: Add): ReadonlySet<string> {
+  const nav: unknown = config.admin?.nav
+  if (nav !== undefined) {
+    if (!Array.isArray(nav))
+      add('admin.nav', 'must be a list of groups', "e.g. nav: [{ id: 'shop', label: 'Shop' }]")
+    else
+      nav.forEach((group: unknown, i) => {
+        const check = (g: unknown, path: string, child: boolean) => {
+          const { id, label, children, order } = (g ?? {}) as Record<string, unknown>
+          if (typeof id !== 'string' || !NAV_ID.test(id))
+            add(`${path}.id`, 'must be lowercase letters, digits and -', "e.g. 'shop'")
+          if (!isLabel(label)) add(`${path}.label`, 'must be a string or { en, th }')
+          if (order !== undefined && typeof order !== 'number')
+            add(`${path}.order`, 'must be a number')
+          validateIcon(g as { icon?: unknown }, path, add)
+          if (children !== undefined) {
+            if (child) add(`${path}.children`, 'groups go one level deep')
+            else if (!Array.isArray(children)) add(`${path}.children`, 'must be a list of groups')
+            else
+              children.forEach((c: unknown, j) => {
+                check(c, `${path}.children[${j}]`, true)
+              })
+          }
+        }
+        check(group, `admin.nav[${i}]`, false)
+      })
+  }
+  const commands: unknown = config.admin?.commands
+  if (commands !== undefined) {
+    if (!Array.isArray(commands)) add('admin.commands', 'must be a list')
+    else
+      commands.forEach((c: unknown, i) => {
+        const { label, to } = (c ?? {}) as Record<string, unknown>
+        if (!isLabel(label)) add(`admin.commands[${i}].label`, 'must be a string or { en, th }')
+        if (typeof to !== 'string' || !to.startsWith('/') || to.startsWith('//'))
+          add(
+            `admin.commands[${i}].to`,
+            'must be a path in the admin',
+            "e.g. '/collections/orders'",
+          )
+      })
+  }
+  return navIds(navGroups(Array.isArray(nav) ? (nav as NavGroup[]) : []))
+}
+
+/** A menu group: `settings`, a group's id, or a label; a path with `.` must be a group's. */
+function validateGroup(group: unknown, ids: ReadonlySet<string>, path: string, add: Add) {
+  if (group === undefined || group === 'settings') return
+  if (typeof group === 'string' && group.includes('.') && !ids.has(group)) {
+    add(
+      path,
+      `no menu group "${group}" in admin.nav`,
+      "declare it: nav: [{ id: 'shop', label: 'Shop', children: [{ id: 'catalog', label: 'Catalog' }] }]",
+    )
+    return
+  }
+  if (!isLabel(group))
+    add(
+      path,
+      `must be a group's id, 'settings' or a label (got ${JSON.stringify(group)})`,
+      "e.g. group: 'shop' or { en: 'Shop', th: 'ร้านค้า' }",
+    )
+}
+
+/** `admin.layout`: tabs, collapsible sections and rows naming top-level fields once each. */
+function validateLayout(
+  layout: unknown,
+  container: CollectionConfig | GlobalConfig,
+  path: string,
+  add: Add,
+) {
+  if (!Array.isArray(layout)) {
+    add(path, 'must be a list', "e.g. layout: [{ tab: 'Content', fields: ['title'] }]")
+    return
+  }
+  const fields = new Map((container.fields ?? []).map((f) => [f.name, f]))
+  const seen = new Set<string>()
+  const name = (value: unknown, at: string) => {
+    if (typeof value !== 'string' || !fields.has(value)) {
+      add(at, `no top-level field ${JSON.stringify(value)}`)
+      return
+    }
+    if (fields.get(value)?.position === 'sidebar')
+      add(at, `"${value}" is in the sidebar (position: 'sidebar')`)
+    if (seen.has(value)) add(at, `"${value}" is placed twice`)
+    seen.add(value)
+  }
+  const nodes = (list: unknown, at: string, top: boolean) => {
+    if (!Array.isArray(list)) {
+      add(at, 'must be a list')
+      return
+    }
+    const tabs = list.filter((n) => typeof n === 'object' && n !== null && 'tab' in n).length
+    if (top && tabs > 0 && tabs !== list.length)
+      add(at, 'with tabs, every entry at the top is a tab')
+    list.forEach((node: unknown, i) => {
+      const p = `${at}[${i}]`
+      if (typeof node === 'string') {
+        name(node, p)
+        return
+      }
+      const n = (node ?? {}) as Record<string, unknown>
+      if ('tab' in n) {
+        if (!top) add(p, 'tabs go at the top of the layout only')
+        if (!isLabel(n.tab)) add(`${p}.tab`, 'must be a string or { en, th }')
+        nodes(n.fields, `${p}.fields`, false)
+      } else if ('collapsible' in n) {
+        if (!isLabel(n.collapsible)) add(`${p}.collapsible`, 'must be a string or { en, th }')
+        nodes(n.fields, `${p}.fields`, false)
+      } else if ('row' in n) {
+        if (!Array.isArray(n.row) || n.row.length === 0)
+          add(`${p}.row`, 'must be a list of field names')
+        else
+          n.row.forEach((f: unknown, j) => {
+            name(f, `${p}.row[${j}]`)
+          })
+      } else add(p, 'must be a field name, { tab }, { collapsible } or { row }')
+    })
+  }
+  nodes(layout, path, true)
+}
+
+function validateCollectionAdmin(admin: Record<string, unknown>, path: string, add: Add) {
+  const { badge, count, empty } = admin
+  if (badge !== undefined) {
+    const b = (badge ?? {}) as Record<string, unknown>
+    if (typeof b.where !== 'object' || b.where === null || Array.isArray(b.where))
+      add(`${path}.badge.where`, 'must be a where query', "e.g. { status: { equals: 'paid' } }")
+    if (b.tone !== undefined && !['accent', 'warning', 'danger'].includes(b.tone as string))
+      add(`${path}.badge.tone`, "must be 'accent', 'warning' or 'danger'")
+  }
+  if (count !== undefined && typeof count !== 'boolean')
+    add(`${path}.count`, 'must be true or false')
+  if (empty !== undefined) {
+    const e = (empty ?? {}) as Record<string, unknown>
+    if (e.description !== undefined && !isLabel(e.description))
+      add(`${path}.empty.description`, 'must be a string or { en, th }')
+    if (e.link !== undefined) {
+      const l = (e.link ?? {}) as Record<string, unknown>
+      if (!isLabel(l.label) || typeof l.href !== 'string')
+        add(`${path}.empty.link`, 'needs label and href')
+    }
+  }
+}
+
 function validateContainer(
   container: CollectionConfig | GlobalConfig,
   path: string,
   collectionSlugs: ReadonlySet<string>,
   add: Add,
-  { collection, rbac }: { collection: boolean; rbac: boolean },
+  { collection, rbac, nav }: { collection: boolean; rbac: boolean; nav: ReadonlySet<string> },
 ) {
   if (!Array.isArray(container.fields)) {
     add(`${path}.fields`, 'must be an array')
@@ -839,24 +999,11 @@ function validateContainer(
     } else {
       const sidebar: unknown = (admin as { sidebar?: unknown }).sidebar
       if (sidebar !== undefined) validateComponents(sidebar, `${path}.admin.sidebar`, add)
-      const group: unknown = (admin as { group?: unknown }).group
-      // A heading of its own (a label) is for collections; globals are under Settings anyway.
-      if (
-        group !== undefined &&
-        group !== 'settings' &&
-        !(collection && typeof group === 'string' && group !== '') &&
-        !(
-          collection &&
-          typeof group === 'object' &&
-          group !== null &&
-          Object.values(group).every((v) => typeof v === 'string')
-        )
-      )
-        add(
-          `${path}.admin.group`,
-          `must be 'settings' or a label (got ${JSON.stringify(group)})`,
-          "e.g. group: { en: 'Shop', th: 'ร้านค้า' }",
-        )
+      validateGroup((admin as { group?: unknown }).group, nav, `${path}.admin.group`, add)
+      const layout: unknown = (admin as { layout?: unknown }).layout
+      if (layout !== undefined) validateLayout(layout, container, `${path}.admin.layout`, add)
+      if (collection)
+        validateCollectionAdmin(admin as Record<string, unknown>, `${path}.admin`, add)
       const list: unknown = (admin as { list?: unknown }).list
       if (list !== undefined) validateList(list, container, `${path}.admin.list`, add)
       const owner: unknown = (admin as { ownerField?: unknown }).ownerField
@@ -988,11 +1135,24 @@ function validateField(
     if (typeof admin !== 'object' || admin === null) {
       add(`${path}.admin`, 'must be an object', "e.g. admin: { component: 'ecms-color-picker' }")
     } else {
-      const { component, after, cell } = admin as {
+      const { component, after, cell, width, condition, description } = admin as {
         component?: unknown
         after?: unknown
         cell?: unknown
+        width?: unknown
+        condition?: unknown
+        description?: unknown
       }
+      if (
+        width !== undefined &&
+        !['1/4', '1/3', '1/2', '2/3', '3/4', 'full'].includes(width as string)
+      )
+        add(`${path}.admin.width`, "must be '1/4', '1/3', '1/2', '2/3', '3/4' or 'full'")
+      if (description !== undefined && !isLabel(description))
+        add(`${path}.admin.description`, 'must be a string or { en, th }')
+      if (condition !== undefined)
+        for (const issue of conditionIssues(condition, [...siblings.keys()]))
+          add(`${path}.admin.condition`, issue)
       if (component !== undefined) validateComponent(component, `${path}.admin.component`, add)
       if (after !== undefined) validateComponents(after, `${path}.admin.after`, add)
       if (cell !== undefined) validateComponent(cell, `${path}.admin.cell`, add)

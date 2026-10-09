@@ -328,13 +328,18 @@ type InputValue<F extends Field> = F extends { readonly type: 'relationship' }
               ? readonly BlockInput<B[number]>[]
               : FieldValue<F>
 
-/** Required fields must be given, unless Easy CMS can fill them (default value, slug from another field). */
+/**
+ * Required fields must be given, unless Easy CMS can fill them (default value, slug from another
+ * field) or a condition may hide them (`admin.condition`).
+ */
 type NeedsInput<F extends Field> = F extends { readonly required: true }
   ? F extends { readonly defaultValue: unknown }
     ? never
     : F extends { readonly type: 'slug'; readonly from: string }
       ? never
-      : F
+      : F extends { readonly admin: { readonly condition: object } }
+        ? never
+        : F
   : never
 
 export type FieldsInput<Fs extends readonly Field[]> = Simplify<

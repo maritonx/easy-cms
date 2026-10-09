@@ -15,6 +15,8 @@ describe('resolveConfig', () => {
       pages: [],
       dashboard: [],
       switcher: null,
+      nav: [],
+      commands: [],
     })
     expect(config.upload).toEqual({
       dir: 'uploads',
@@ -66,6 +68,8 @@ describe('resolveConfig', () => {
       pages: [],
       dashboard: [],
       switcher: null,
+      nav: [],
+      commands: [],
     })
   })
 

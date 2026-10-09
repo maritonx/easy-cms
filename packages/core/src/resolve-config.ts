@@ -91,6 +91,8 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
       pages: config.admin?.pages ?? [],
       dashboard: config.admin?.dashboard ?? [],
       switcher: config.admin?.switcher ?? null,
+      nav: config.admin?.nav ?? [],
+      commands: config.admin?.commands ?? [],
     },
     upload: {
       dir: config.upload?.dir ?? 'uploads',

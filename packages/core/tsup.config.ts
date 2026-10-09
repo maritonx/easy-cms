@@ -4,7 +4,7 @@ import { defineConfig } from 'tsup'
 const { version } = JSON.parse(readFileSync('package.json', 'utf8')) as { version: string }
 
 export default defineConfig({
-  entry: ['src/index.ts', 'src/live-preview.ts'],
+  entry: ['src/index.ts', 'src/live-preview.ts', 'src/conditions.ts'],
   format: ['esm'],
   // tsup's dts build sets `baseUrl`, which TypeScript 6 deprecates.
   dts: { compilerOptions: { ignoreDeprecations: '6.0' } },

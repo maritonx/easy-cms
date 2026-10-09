@@ -52,7 +52,9 @@ export {
   writeBackupFile,
 } from './backups.js'
 export { INTERNAL_COLLECTIONS, MEDIA, MEDIA_FOLDERS } from './builtins.js'
+export * from './conditions.js'
 export type {
+  AdminCommand,
   AdminConfig,
   AdminLocale,
   AdminPage,
@@ -79,9 +81,11 @@ export type {
   GlobalHooks,
   ImageSize,
   JobConfig,
+  LayoutNode,
   LocalizationConfig,
   MembersConfig,
   MembersSignup,
+  NavGroup,
   OnRequest,
   OnRequestArgs,
   Operation,
@@ -91,6 +95,7 @@ export type {
   PreviewURL,
   ResolvedConfig,
   RoutesConfig,
+  SidebarPanel,
   TypedPlugin,
   UploadConfig,
   UploadFromURLConfig,
@@ -187,6 +192,7 @@ export {
   type FolderPermissions,
   MediaFolders,
 } from './media-folders.js'
+export { BUILTIN_NAV } from './nav.js'
 export { DEFAULT_DEPTH, MAX_DEPTH, populate } from './populate.js'
 export {
   applyPlugins,
@@ -211,10 +217,15 @@ export type {
   AdminComponentRef,
   AdminField,
   AdminGlobal,
+  AdminLayoutNode,
+  AdminNavGroup,
+  AdminNavItem,
+  AdminNavNode,
   AdminPageRef,
   AdminSchema,
   AdminWidgetRef,
 } from './rest/admin-schema.js'
+export type { SearchHit } from './rest/admin-search.js'
 export type { AdminAttention, AdminStatus } from './rest/admin-status.js'
 export {
   CSRF_COOKIE,

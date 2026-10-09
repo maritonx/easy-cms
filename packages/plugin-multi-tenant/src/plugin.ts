@@ -385,7 +385,7 @@ export function multiTenantPlugin<const S extends string, const T extends string
       icon: 'building',
       useAsTitle: 'name',
       admin: {
-        group: 'settings',
+        group: 'settings.people',
         // Deleting a tenant deletes its content: its name is typed, and what goes is shown.
         confirmDelete: { typeTitle: true, impact: '/tenant-impact' },
       },
@@ -695,7 +695,7 @@ of its own. Run it once after adding the plugin to a site that has content.
             path: 'tenant-members',
             label: { en: 'Members', th: 'สมาชิก' },
             icon: 'users',
-            group: 'settings',
+            group: 'settings.people',
             // Admins of a tenant (and users with access to all, once they choose one).
             access: ({ user }) => user.role === 'admin',
             component: { tag: 'ecms-tenant-members' },
