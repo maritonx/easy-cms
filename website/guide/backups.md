@@ -148,6 +148,10 @@ Easy CMS follows [semantic versioning](https://semver.org), with the usual pre-1
   upgrade guide. Deprecated APIs keep working, with a warning, until the next major.
 - **Security fixes** go to the latest minor release (and, from 1.0, to the previous major for six
   months). See the [security policy](https://github.com/maritonx/easy-cms/blob/main/SECURITY.md).
+- **Experimental packages:** [`@easy-cms/plugin-ecommerce`](./ecommerce),
+  [`@easy-cms/plugin-graphql`](./graphql) and [`@easy-cms/plugin-mcp`](./mcp) share the version
+  number but not this promise: they may change in a minor release, after 1.0 too. Their pages say
+  so at the top.
 
 ## Next steps
 

@@ -8,6 +8,13 @@ customer accounts, emails and events.
 **Before this page:** [Plugins](./plugins), [Site members](./members) and [Access control](./access-control).
 :::
 
+::: warning Experimental
+This plugin is experimental. It has the same version number as the rest of Easy CMS, but its
+options, endpoints and data may still change in a minor release, after 1.0 too: it is not covered
+by the [stability promise](./backups#versioning). The changelog and the
+[upgrade guide](./upgrading) say what changed.
+:::
+
 `@easy-cms/plugin-ecommerce` turns the CMS into a shop's back office, and gives your pages a cart
 and checkout. Products and orders are managed in the admin; pages use the REST API through a
 small client, with hooks for React and composables for Vue.

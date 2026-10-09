@@ -6,6 +6,12 @@
 **ควรอ่านก่อน:** [REST API](./rest-api) และ [Plugins](./plugins)
 :::
 
+::: warning ทดลอง (experimental)
+plugin นี้อยู่ในขั้นทดลอง ใช้เลขเวอร์ชันเดียวกับ Easy CMS ส่วนอื่น แต่ option, endpoint และข้อมูลยังอาจเปลี่ยนใน
+minor release ได้ แม้หลัง 1.0 เพราะไม่อยู่ใต้[สัญญาความเสถียร](./backups#versioning) changelog และ
+[คู่มืออัปเกรด](./upgrading) จะบอกว่าเปลี่ยนอะไร
+:::
+
 `@easy-cms/plugin-graphql` ให้บริการ GraphQL API ที่สร้างจาก collection และ global ของคุณ อ่านและเขียนผ่าน
 [Local API](/th/reference/local-api) กฎสิทธิ์ สิทธิ์ระดับ field, hook, การตรวจข้อมูล, draft และหลายภาษาจึงทำงานเหมือน REST
 ทุกอย่าง เหมาะกับ frontend ที่ใช้ Apollo, urql หรือ Relay อยู่แล้ว หรืออยากขอเฉพาะ field ที่ต้องใช้ใน request เดียว

@@ -7,6 +7,13 @@ mutations, limits, and how to add your own fields.
 **Before this page:** [REST API](./rest-api) and [Plugins](./plugins).
 :::
 
+::: warning Experimental
+This plugin is experimental. It has the same version number as the rest of Easy CMS, but its
+options, endpoints and data may still change in a minor release, after 1.0 too: it is not covered
+by the [stability promise](./backups#versioning). The changelog and the
+[upgrade guide](./upgrading) say what changed.
+:::
+
 `@easy-cms/plugin-graphql` serves a GraphQL API made from your collections and globals. It reads
 and writes through the [Local API](/reference/local-api), so access rules, field access, hooks,
 validation, drafts and localization work as they do over REST. It suits frontends that already

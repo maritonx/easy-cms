@@ -7,6 +7,13 @@ the Model Context Protocol, with an API key that limits what they can do.
 **Before this page:** [API keys](./api-keys) and [Plugins](./plugins).
 :::
 
+::: warning Experimental
+This plugin is experimental. It has the same version number as the rest of Easy CMS, but its
+options, endpoints and data may still change in a minor release, after 1.0 too: it is not covered
+by the [stability promise](./backups#versioning). The changelog and the
+[upgrade guide](./upgrading) say what changed.
+:::
+
 `@easy-cms/plugin-mcp` turns your CMS into an MCP server. An assistant connected to it can
 search posts, draft new ones, fix typos across pages or upload images, and only in the
 collections and actions its API key allows. Everything it writes goes through the same

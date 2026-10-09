@@ -130,6 +130,9 @@ Easy CMS ใช้ [semantic versioning](https://semver.org) ตามกติ�
   API ที่เลิกใช้จะยังทำงานพร้อมคำเตือนจนถึง major ถัดไป
 - **การแก้ช่องโหว่** ออกให้ minor release ล่าสุด (และตั้งแต่ 1.0 ให้ major ก่อนหน้าด้วยเป็นเวลาหกเดือน)
   ดู[นโยบายความปลอดภัย](https://github.com/maritonx/easy-cms/blob/main/SECURITY.md)
+- **แพ็กเกจทดลอง:** [`@easy-cms/plugin-ecommerce`](./ecommerce), [`@easy-cms/plugin-graphql`](./graphql)
+  และ [`@easy-cms/plugin-mcp`](./mcp) ใช้เลขเวอร์ชันเดียวกันแต่ไม่อยู่ใต้สัญญานี้ อาจเปลี่ยนใน minor release ได้
+  แม้หลัง 1.0 หน้าของแต่ละตัวมีป้ายบอกไว้ด้านบน
 
 ## ขั้นต่อไป {#next-steps}
 
