@@ -1,24 +1,28 @@
 import assert from 'node:assert/strict'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
-import { join, relative } from 'node:path'
+import { join, relative, sep } from 'node:path'
 import { test } from 'node:test'
 import navigation from '../sidebar.json' with { type: 'json' }
 
 const root = join(import.meta.dirname, '..')
 const paths = navigation.groups.flatMap((group) => group.items.map((item) => item.path))
 
-/** Every .md file under a folder, as `guide/deploy/vercel`. */
+/** Every .md file under a folder, as `guide/deploy/vercel` (forward slashes on Windows too). */
 function pages(folder: string, base = folder): string[] {
   return readdirSync(folder, { withFileTypes: true }).flatMap((entry) => {
     const path = join(folder, entry.name)
     if (entry.isDirectory()) return pages(path, base)
-    return entry.name.endsWith('.md') ? [relative(base, path).replace(/\.md$/, '')] : []
+    if (!entry.name.endsWith('.md')) return []
+    return [relative(base, path).split(sep).join('/').replace(/\.md$/, '')]
   })
 }
 
-/** Pages kept only so old links still work: front matter `moved: <new page>`. */
+/**
+ * Pages kept only so old links still work: front matter `moved: <new page>`. Line endings are
+ * normalised, since Git on Windows may check files out with CRLF.
+ */
 const moved = (file: string) =>
-  /^---\n(?:.*\n)*?moved: .+\n(?:.*\n)*?---/.test(readFileSync(file, 'utf8'))
+  /^---\n(?:.*\n)*?moved: .+\n(?:.*\n)*?---/.test(readFileSync(file, 'utf8').replace(/\r\n/g, '\n'))
 
 test('every sidebar page exists in English and Thai', () => {
   const missing = paths.flatMap((path) =>
