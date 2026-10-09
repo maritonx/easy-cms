@@ -1,5 +1,13 @@
 # @easy-cms/db-postgres
 
+## 0.47.4
+
+### Patch Changes
+
+- Updated dependencies [76e22e3]
+  - @easy-cms/core@0.47.4
+  - @easy-cms/drizzle@0.47.4
+
 ## 0.47.3
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
   "name": "@easy-cms/auth-oauth",
-  "version": "0.47.3",
+  "version": "0.47.4",
   "description": "Sign in to the Easy CMS admin with Google, Microsoft, GitHub or any OpenID Connect provider",
   "license": "MIT",
   "type": "module",

@@ -1,5 +1,12 @@
 # @easy-cms/storage-netlify-blobs
 
+## 0.47.4
+
+### Patch Changes
+
+- Updated dependencies [76e22e3]
+  - @easy-cms/core@0.47.4
+
 ## 0.47.3
 
 ### Patch Changes
