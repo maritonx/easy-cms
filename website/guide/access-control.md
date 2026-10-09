@@ -10,13 +10,13 @@ Access rules are functions in the config. They decide what the REST API (and so 
 lets each user do. The Local API trusts its caller and skips them unless you ask for them.
 
 ```ts
-import { anyone, isAdmin, isLoggedIn } from '@easy-cms/core'
+import { anyone, isAdmin, isStaff } from '@easy-cms/core'
 
 {
   slug: 'posts',
   access: {
     read: anyone,
-    create: isLoggedIn,
+    create: isStaff,
     update: ({ user }) => user?.role === 'admin' || { author: { equals: user?.id } },
     delete: isAdmin,
   },
@@ -36,8 +36,10 @@ Each receives `{ user, id?, data? }` (`user` is `null` when not logged in) and r
 **If you define no rule, only logged-in users are allowed.** Make public content public on
 purpose, e.g. `read: () => true`.
 
-Helpers: `anyone`, `isLoggedIn`, `isAdmin`, and `isSignedIn`. `isLoggedIn` means a user of the admin:
-[site members](./members) such as customers don't count, `isSignedIn` counts them too.
+Helpers: `anyone`, `isStaff`, `isAdmin`, and `isSignedIn`. `isStaff` means a user of the admin:
+[site members](./members) such as customers don't count, `isSignedIn` counts them too. `isAdmin`
+means an admin of the whole site: with the [multi-tenant plugin](./multi-tenant), a tenant's admins
+don't count.
 
 ### Common patterns
 

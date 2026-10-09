@@ -14,7 +14,7 @@ import {
   type Field,
   type GlobalConfig,
   type ID,
-  isLoggedIn,
+  isStaff,
   type OnRequest,
   type RequestContext,
   type TypedPlugin,
@@ -120,8 +120,8 @@ export type MultiTenantPluginTypes<S extends string, T extends string = 'tenants
 
 /** Access of the built-in collections, which the plugin narrows (they are added after plugins). */
 const BUILTIN_ACCESS: Record<string, Partial<Record<Op, Access>>> = {
-  [MEDIA]: { read: () => true, create: isLoggedIn, update: isLoggedIn, delete: isLoggedIn },
-  [MEDIA_FOLDERS]: { read: isLoggedIn, create: isLoggedIn, update: isLoggedIn, delete: isLoggedIn },
+  [MEDIA]: { read: () => true, create: isStaff, update: isStaff, delete: isStaff },
+  [MEDIA_FOLDERS]: { read: isStaff, create: isStaff, update: isStaff, delete: isStaff },
 }
 
 function readCookie(header: string | null, name: string): string | undefined {
@@ -185,7 +185,7 @@ export function multiTenantPlugin<const S extends string, const T extends string
     const sharedWrite =
       (slug: string, original: Access | undefined): Access =>
       async (args) =>
-        args.user?.scoped === true && !editShared.has(slug) ? false : (original ?? isLoggedIn)(args)
+        args.user?.scoped === true && !editShared.has(slug) ? false : (original ?? isStaff)(args)
 
     /** What the tenant adds to an access rule. */
     const tenantFilter = (args: AccessArgs, op: Op): boolean | Where => {
@@ -199,7 +199,7 @@ export function multiTenantPlugin<const S extends string, const T extends string
     const narrow =
       (original: Access | undefined, op: Op): Access =>
       async (args) => {
-        const base = await (original ?? isLoggedIn)(args)
+        const base = await (original ?? isStaff)(args)
         if (base === false) return false
         const filter = tenantFilter(args, op)
         if (filter === false) return false

@@ -149,7 +149,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 
 | Option | Type | |
 |---|---|---|
-| `roles` | `string[]` | Their roles, also in `roles`. Members never get into the admin, and `isLoggedIn` (every collection's default) doesn't count them. [Site members](/guide/members) |
+| `roles` | `string[]` | Their roles, also in `roles`. Members never get into the admin, and `isStaff` (every collection's default) doesn't count them. [Site members](/guide/members) |
 | `signUp` | `MembersSignup` | Visitors create their own account: `POST <api>/users/signup`. |
 | `pages` | `{ verifyEmail?, resetPassword? }` | The site's pages that open members' email links with `?token=`: paths on `admin.siteURL` (else `serverURL`) or URLs. Default: the admin's pages. |
 | `emails` | `{ verifyEmail? }` | Your own text for the email that confirms an address. |

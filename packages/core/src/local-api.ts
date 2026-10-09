@@ -237,7 +237,7 @@ export async function createEasyCMS<const C extends Config>(
 }
 
 /** A scheduled publish or unpublish. */
-export interface ScheduledJob {
+export interface ScheduledPublish {
   readonly id: ID
   readonly action: 'publish' | 'unpublish'
   /** ISO time the job runs at (or after). */
@@ -247,11 +247,11 @@ export interface ScheduledJob {
   readonly author: ID | null
 }
 
-const toJob = (row: RawDocument): ScheduledJob => ({
+const toJob = (row: RawDocument): ScheduledPublish => ({
   id: row.id,
-  action: row.action as ScheduledJob['action'],
+  action: row.action as ScheduledPublish['action'],
   runAt: String(row.runAt),
-  state: row.state as ScheduledJob['state'],
+  state: row.state as ScheduledPublish['state'],
   error: (row.error as string | null) ?? null,
   author: (row.author as ID | null) ?? null,
 })
@@ -1001,7 +1001,8 @@ export class EasyCMS<C extends Config = Config> {
   /**
    * Adds `by` (negative to take away) to a top-level number field in one database statement, so
    * concurrent calls never lose a change, e.g. stock or a counter. Skips hooks, validation, access
-   * and versions. Returns the new value, or `null` when `min` / `max` would be passed.
+   * and versions. Returns the new value, or `null` when `min` / `max` would be passed; throws
+   * `NotFoundError` when there is no such document.
    */
   async increment<S extends Slug<C>>(
     collection: S,
@@ -1013,7 +1014,11 @@ export class EasyCMS<C extends Config = Config> {
     this.collection(collection)
     const parsed = parseId(id)
     if (parsed === undefined) throw new NotFoundError(collection, id)
-    return this.db.increment({ collection, id: parsed, field, by, ...options })
+    const value = await this.db.increment({ collection, id: parsed, field, by, ...options })
+    // `null`: out of bounds, or no document; only the bounds are an answer.
+    if (value === null && !(await this.db.findById({ collection, id: parsed })))
+      throw new NotFoundError(collection, id)
+    return value
   }
 
   /**
@@ -1875,8 +1880,8 @@ export class EasyCMS<C extends Config = Config> {
    * scheduler and the cron endpoint (`GET <api>/jobs/run`) call.
    */
   async runJobs(now: Date = new Date()): Promise<{
-    ran: number
-    failed: number
+    /** Scheduled publishes and unpublishes. */
+    scheduled: { ran: number; failed: number }
     webhooks: { sent: number; failed: number }
     emails: { sent: number; failed: number }
     jobs: { ran: number; failed: number }
@@ -1892,7 +1897,7 @@ export class EasyCMS<C extends Config = Config> {
         .upkeep(now)
         .catch((error) => this.logger.error(`Audit log: ${(error as Error).message}`))
       return {
-        ...scheduled,
+        scheduled,
         webhooks: await this.retryWebhooks(now),
         emails: await this.mailer.retry(now),
         jobs: await this.runConfigJobs(now),
@@ -2003,7 +2008,7 @@ export class EasyCMS<C extends Config = Config> {
     let failed = 0
     for (const row of due.docs) {
       const parent = String(row.parent)
-      const action = row.action as ScheduledJob['action']
+      const action = row.action as ScheduledPublish['action']
       try {
         if (parent.startsWith('global:')) {
           const { slug, scope } = splitGlobalKey(parent.slice('global:'.length))
@@ -2046,17 +2051,17 @@ export class EasyCMS<C extends Config = Config> {
     id: ID,
     job: { action: 'publish' | 'unpublish'; at: Date | string },
     options: AccessOptions = {},
-  ): Promise<ScheduledJob> {
+  ): Promise<ScheduledPublish> {
     const { parsed } = await this.scheduleTarget(collection, id, options)
     return this.addJob(collection, parsed, job, options)
   }
 
   /** Pending jobs of a document, soonest first. */
-  async scheduled<S extends Slug<C>>(
+  async findSchedule<S extends Slug<C>>(
     collection: S,
     id: ID,
     options: AccessOptions = {},
-  ): Promise<ScheduledJob[]> {
+  ): Promise<ScheduledPublish[]> {
     const { parsed } = await this.scheduleTarget(collection, id, options)
     return this.pendingJobs(collection, parsed)
   }
@@ -2075,12 +2080,12 @@ export class EasyCMS<C extends Config = Config> {
     slug: S,
     job: { action: 'publish' | 'unpublish'; at: Date | string },
     options: AccessOptions = {},
-  ): Promise<ScheduledJob> {
+  ): Promise<ScheduledPublish> {
     const key = await this.globalScheduleTarget(slug, options)
     return this.addJob(`global:${key}`, 0, job, options)
   }
 
-  async scheduledGlobal<S extends GSlug<C>>(slug: S, options: AccessOptions = {}) {
+  async findGlobalSchedule<S extends GSlug<C>>(slug: S, options: AccessOptions = {}) {
     const key = await this.globalScheduleTarget(slug, options)
     return this.pendingJobs(`global:${key}`, 0)
   }
@@ -2120,7 +2125,7 @@ export class EasyCMS<C extends Config = Config> {
     doc: ID,
     job: { action: 'publish' | 'unpublish'; at: Date | string },
     options: AccessOptions,
-  ): Promise<ScheduledJob> {
+  ): Promise<ScheduledPublish> {
     const runAt = new Date(job.at)
     const errors: FieldError[] = []
     if (job.action !== 'publish' && job.action !== 'unpublish')
@@ -2160,9 +2165,9 @@ export class EasyCMS<C extends Config = Config> {
    * The next pending jobs across all collections and globals, soonest first; with access
    * enforced, only those the user may update.
    */
-  async upcomingJobs(
+  async upcomingSchedules(
     options: AccessOptions & { limit?: number } = {},
-  ): Promise<(ScheduledJob & { collection?: string; global?: string; doc: ID })[]> {
+  ): Promise<(ScheduledPublish & { collection?: string; global?: string; doc: ID })[]> {
     if (!this.config.collections.some((c) => c.slug === SCHEDULED_JOBS)) return []
     const guard = guardOf(options)
     const limit = options.limit ?? 10
@@ -2202,7 +2207,7 @@ export class EasyCMS<C extends Config = Config> {
       allowed.set(parent, result)
       return result
     }
-    const jobs: (ScheduledJob & { collection?: string; global?: string; doc: ID })[] = []
+    const jobs: (ScheduledPublish & { collection?: string; global?: string; doc: ID })[] = []
     for (const row of rows.docs) {
       const parent = String(row.parent)
       if (!(await may(parent))) continue
@@ -2215,7 +2220,7 @@ export class EasyCMS<C extends Config = Config> {
     return jobs
   }
 
-  private async pendingJobs(parent: string, doc: ID): Promise<ScheduledJob[]> {
+  private async pendingJobs(parent: string, doc: ID): Promise<ScheduledPublish[]> {
     const rows = await this.db.find({
       collection: SCHEDULED_JOBS,
       where: {

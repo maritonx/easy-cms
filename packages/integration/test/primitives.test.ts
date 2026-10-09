@@ -91,6 +91,10 @@ describe('increment', () => {
       const empty = await cms.create('orders', {})
       expect(await cms.increment('orders', empty.id, 'stock', 1)).toBe(1)
       await expect(cms.increment('orders', order.id, 'title', 1)).rejects.toThrow(/number/)
+      // `null` means out of bounds only: a document that isn't there is an error.
+      await expect(cms.increment('orders', 999_999, 'stock', 1)).rejects.toMatchObject({
+        code: 'NOT_FOUND',
+      })
     } finally {
       await cms.destroy()
     }

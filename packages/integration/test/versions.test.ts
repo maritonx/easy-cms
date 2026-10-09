@@ -1,4 +1,4 @@
-import { createRestHandler, defineConfig, isLoggedIn } from '@easy-cms/core'
+import { createRestHandler, defineConfig, isStaff } from '@easy-cms/core'
 import { describe, expect, it } from 'vitest'
 import { db, open, rawQuery, SECRET, table } from './helpers.js'
 
@@ -12,7 +12,7 @@ const config = defineConfig({
       versions: { keep: 5 },
       access: {
         read: ({ user }) => (user ? true : { status: { equals: 'published' } }),
-        update: isLoggedIn,
+        update: isStaff,
       },
       fields: [
         { name: 'title', type: 'text', required: true },

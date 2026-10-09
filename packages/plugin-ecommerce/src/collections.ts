@@ -6,7 +6,7 @@ import {
   type Field,
   type FieldTypeDefinition,
   type ID,
-  isLoggedIn,
+  isStaff,
   type Label,
   type LayoutNode,
   ValidationError,
@@ -74,7 +74,7 @@ export const price: FieldTypeDefinition = {
 }
 
 /** Staff of the admin: signed in, and not a site member (customer). */
-export const staff: Access = isLoggedIn
+export const staff: Access = isStaff
 /** Staff see everything; customers only their own documents. */
 export const staffOrOwner: Access = ({ user }: AccessArgs) => {
   if (!user) return false

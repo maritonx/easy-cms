@@ -4,6 +4,7 @@ import {
   defineConfig,
   ForbiddenError,
   isAdmin,
+  isStaff,
   QueryError,
   UnauthorizedError,
 } from '@easy-cms/core'
@@ -149,6 +150,18 @@ describe('collection access (FR-ACL-01..03)', () => {
 
   it('requires create access to return a boolean', async () => {
     await expect(cms.create('bad', { x: 'y' }, as(admin))).rejects.toThrow(QueryError)
+  })
+})
+
+describe('access helpers', () => {
+  it('isAdmin leaves out admins of a part (e.g. a tenant); isStaff leaves out site members', async () => {
+    const args = (user: object | null) => ({ user, context: {} }) as never
+    expect(await isAdmin(args({ id: 1, email: 'a@x.co', role: 'admin' }))).toBe(true)
+    expect(await isAdmin(args({ id: 2, email: 't@x.co', role: 'admin', scoped: true }))).toBe(false)
+    expect(await isStaff(args({ id: 3, email: 'c@x.co', role: 'customer', member: true }))).toBe(
+      false,
+    )
+    expect(await isStaff(args({ id: 4, email: 'e@x.co', role: 'editor' }))).toBe(true)
   })
 })
 

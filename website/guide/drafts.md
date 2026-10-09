@@ -92,12 +92,12 @@ button). With versions, a scheduled publish puts the pending draft live.
 
 ```ts
 await cms.schedule('posts', id, { action: 'publish', at: '2026-10-01T09:00:00+07:00' })
-await cms.scheduled('posts', id) // pending jobs, soonest first
+await cms.findSchedule('posts', id) // pending jobs, soonest first
 await cms.cancelSchedule('posts', id, jobId)
 ```
 
 Scheduling the same action again replaces the pending job. Globals have `scheduleGlobal`,
-`scheduledGlobal` and `cancelGlobalSchedule`.
+`findGlobalSchedule` and `cancelGlobalSchedule`.
 
 **Who runs the jobs.** Long-running servers (Nuxt, `easy-cms serve`, a self-hosted Next.js)
 check every minute. On serverless platforms nothing keeps running, so call the jobs endpoint

@@ -159,7 +159,7 @@ export {
   type IncrementOptions,
   type LivePreview,
   type ReadOptions,
-  type ScheduledJob,
+  type ScheduledPublish,
   type SlugOf,
   type UpdateOptions,
 } from './local-api.js'

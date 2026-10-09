@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ScheduledJob } from '@easy-cms/core'
+import type { ScheduledPublish } from '@easy-cms/core'
 import { ref, watch } from 'vue'
 import { api } from '../lib/api'
 import { fromLocalInput, toLocalInput } from '../lib/fields'
@@ -12,7 +12,7 @@ const props = defineProps<{
   reloadKey: number
 }>()
 
-const jobs = ref<ScheduledJob[]>([])
+const jobs = ref<ScheduledPublish[]>([])
 const action = ref<'publish' | 'unpublish'>('publish')
 const at = ref('')
 const error = ref('')
@@ -21,7 +21,7 @@ const dialog = ref<HTMLDialogElement>()
 
 async function load() {
   try {
-    jobs.value = await api<ScheduledJob[]>('GET', `${props.path}/schedule`)
+    jobs.value = await api<ScheduledPublish[]>('GET', `${props.path}/schedule`)
   } catch (e) {
     error.value = (e as Error).message
   }
@@ -54,7 +54,7 @@ async function submit() {
   }
 }
 
-async function cancel(job: ScheduledJob) {
+async function cancel(job: ScheduledPublish) {
   await api('DELETE', `${props.path}/schedule/${job.id}`)
   await load()
 }

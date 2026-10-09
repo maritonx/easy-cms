@@ -487,7 +487,7 @@ export interface RoutesConfig {
 export interface MembersConfig {
   /**
    * Their roles, also listed in `roles`. Members never get into the admin, and access that
-   * defaults to logged-in users (`isLoggedIn`) doesn't count them: give them access in the
+   * defaults to logged-in users (`isStaff`) doesn't count them: give them access in the
    * collections they use, e.g. with `isSignedIn`.
    */
   readonly roles: readonly string[]

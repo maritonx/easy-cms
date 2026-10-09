@@ -1,4 +1,4 @@
-import { type Access, type AuthUser, anyone, type ID, isLoggedIn, isSystemAdmin } from './access.js'
+import { type Access, type AuthUser, anyone, type ID, isStaff, isSystemAdmin } from './access.js'
 import type { CollectionConfig, Config } from './config.js'
 import type { Field } from './fields.js'
 
@@ -239,7 +239,7 @@ export const mediaFoldersCollection: CollectionConfig = {
   },
   useAsTitle: 'name',
   admin: { icon: 'folder', list: { tree: 'parent', sort: 'name' } },
-  access: { read: isLoggedIn, create: isLoggedIn, update: isLoggedIn, delete: isLoggedIn },
+  access: { read: isStaff, create: isStaff, update: isStaff, delete: isStaff },
   hooks: {
     // What the reader may do here (`view`, `edit`, `manage`), for the admin's buttons.
     afterRead: [
@@ -322,9 +322,9 @@ export function withMedia(config: Config): Config {
     ],
     access: {
       read: anyone,
-      create: isLoggedIn,
-      update: isLoggedIn,
-      delete: isLoggedIn,
+      create: isStaff,
+      update: isStaff,
+      delete: isStaff,
       ...custom?.access,
     },
     hooks: {

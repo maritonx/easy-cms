@@ -10,13 +10,13 @@
 อนุญาตให้ผู้ใช้แต่ละคนทำอะไรได้บ้าง Local API เชื่อถือผู้เรียกและข้ามกฎเหล่านี้ เว้นแต่คุณจะร้องขอ
 
 ```ts
-import { anyone, isAdmin, isLoggedIn } from '@easy-cms/core'
+import { anyone, isAdmin, isStaff } from '@easy-cms/core'
 
 {
   slug: 'posts',
   access: {
     read: anyone,
-    create: isLoggedIn,
+    create: isStaff,
     update: ({ user }) => user?.role === 'admin' || { author: { equals: user?.id } },
     delete: isAdmin,
   },
@@ -36,8 +36,9 @@ collection มี `read`, `create`, `update`, `delete` ส่วน global ม�
 **หากไม่ได้กำหนดกฎ จะอนุญาตเฉพาะผู้ใช้ที่เข้าสู่ระบบแล้วเท่านั้น** เนื้อหาสาธารณะต้องตั้งให้เป็นสาธารณะ
 อย่างตั้งใจ เช่น `read: () => true`
 
-ตัวช่วย: `anyone`, `isLoggedIn`, `isAdmin` และ `isSignedIn` โดย `isLoggedIn` หมายถึงผู้ใช้ระบบจัดการ
-[สมาชิกของเว็บ](./members) เช่น ลูกค้า ไม่นับ ส่วน `isSignedIn` นับด้วย
+ตัวช่วย: `anyone`, `isStaff`, `isAdmin` และ `isSignedIn` โดย `isStaff` หมายถึงผู้ใช้ระบบจัดการ
+[สมาชิกของเว็บ](./members) เช่น ลูกค้า ไม่นับ ส่วน `isSignedIn` นับด้วย `isAdmin` หมายถึง admin ของทั้งเว็บ
+เมื่อใช้ [plugin multi-tenant](./multi-tenant) admin ของ tenant ไม่นับ
 
 ### รูปแบบที่ใช้บ่อย {#common-patterns}
 

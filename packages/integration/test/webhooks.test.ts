@@ -187,8 +187,7 @@ describe('webhooks (FR-HOOK)', () => {
     const second = await open(flaky, cwd)
     const inAMinute = new Date(Date.now() + 61_000)
     expect(await second.runJobs(inAMinute)).toEqual({
-      ran: 0,
-      failed: 0,
+      scheduled: { ran: 0, failed: 0 },
       webhooks: { sent: 1, failed: 0 },
       emails: { sent: 0, failed: 0 },
       jobs: { ran: 0, failed: 0 },

@@ -12,7 +12,7 @@ Users of the admin and members of the site share the `users` collection and its 
 not what they may do. A **member** has one of the roles in `auth.members.roles`:
 
 - They never get into the admin: it refuses them, and so do its endpoints.
-- Access that defaults to logged-in users (`isLoggedIn`, the default of every collection)
+- Access that defaults to logged-in users (`isStaff`, the default of every collection)
   doesn't count them. Give them access where they need it, e.g. with `isSignedIn`.
 - They see only their own account in `users`, and can't change their role.
 

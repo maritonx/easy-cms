@@ -1,4 +1,4 @@
-import { createRestHandler, defineConfig, isLoggedIn } from '@easy-cms/core'
+import { createRestHandler, defineConfig, isStaff } from '@easy-cms/core'
 import { describe, expect, it } from 'vitest'
 import { db, open, SECRET } from './helpers.js'
 
@@ -16,7 +16,7 @@ const config = defineConfig({
       drafts: true,
       versions: true,
       preview: ({ doc }) => `/posts/${doc.slug}`,
-      access: { read: () => true, create: isLoggedIn, update: isLoggedIn },
+      access: { read: () => true, create: isStaff, update: isStaff },
       hooks: { afterRead: [({ doc }) => ({ ...doc, readHook: true })] },
       fields: [
         { name: 'title', type: 'text', required: true },
@@ -31,7 +31,7 @@ const config = defineConfig({
     {
       slug: 'site',
       preview: () => '/',
-      access: { read: () => true, update: isLoggedIn },
+      access: { read: () => true, update: isStaff },
       fields: [{ name: 'name', type: 'text' }],
     },
   ],

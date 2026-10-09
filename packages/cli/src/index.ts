@@ -220,7 +220,8 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
           return 0
         }
         case 'run-scheduled': {
-          const { ran, failed, webhooks, emails } = await cms.runJobs()
+          const { scheduled, webhooks, emails } = await cms.runJobs()
+          const { ran, failed } = scheduled
           io.out(`Ran ${ran} scheduled job(s)${failed ? `, ${failed} failed` : ''}.`)
           if (webhooks.sent || webhooks.failed)
             io.out(

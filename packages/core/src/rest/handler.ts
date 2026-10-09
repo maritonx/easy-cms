@@ -725,7 +725,7 @@ async function route(
     // /admin/scheduled → the next scheduled publishes the user may manage (dashboard)
     if (second === 'scheduled' && third === undefined)
       return {
-        body: await cms.upcomingJobs({
+        body: await cms.upcomingSchedules({
           user: ctx.user,
           context: ctx.context,
           overrideAccess: false,
@@ -976,7 +976,7 @@ async function documentAction(
       await cms.cancelSchedule(collection, id, versionId as string, access)
       return { body: { deleted: 1 } }
     }
-    if (method === 'GET') return { body: await cms.scheduled(collection, id, access) }
+    if (method === 'GET') return { body: await cms.findSchedule(collection, id, access) }
     if (method !== 'POST') throw methodNotAllowed(ctx, 'GET, POST')
     const body = await readJson(ctx.request)
     return {
@@ -1045,7 +1045,7 @@ async function globalAction(
       await cms.cancelGlobalSchedule(slug, versionId as string, access)
       return { body: { deleted: 1 } }
     }
-    if (method === 'GET') return { body: await cms.scheduledGlobal(slug, access) }
+    if (method === 'GET') return { body: await cms.findGlobalSchedule(slug, access) }
     if (method !== 'POST') throw methodNotAllowed(ctx, 'GET, POST')
     const body = await readJson(ctx.request)
     return { status: 201, body: await cms.scheduleGlobal(slug, scheduleJob(body), access) }

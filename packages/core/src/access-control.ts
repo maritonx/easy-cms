@@ -1,4 +1,4 @@
-import { type Access, type AccessArgs, type AuthUser, isLoggedIn, type Where } from './access.js'
+import { type Access, type AccessArgs, type AuthUser, isStaff, type Where } from './access.js'
 import { QueryError } from './errors.js'
 import { type Field, hasRows, rowFields } from './fields.js'
 
@@ -9,7 +9,7 @@ export async function evaluateAccess(
   access: Access | undefined,
   args: AccessArgs,
 ): Promise<boolean | Where> {
-  const result = await (access ?? isLoggedIn)(args)
+  const result = await (access ?? isStaff)(args)
   if (typeof result === 'boolean') return result
   if (typeof result === 'object' && result !== null) return result
   throw new QueryError('Access functions must return a boolean or a where query')

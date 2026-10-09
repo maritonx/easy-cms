@@ -91,12 +91,12 @@ global มีเมธอดชุดเดียวกัน ได้แก่
 
 ```ts
 await cms.schedule('posts', id, { action: 'publish', at: '2026-10-01T09:00:00+07:00' })
-await cms.scheduled('posts', id) // pending jobs, soonest first
+await cms.findSchedule('posts', id) // pending jobs, soonest first
 await cms.cancelSchedule('posts', id, jobId)
 ```
 
 การตั้งเวลาคำสั่งเดิมซ้ำจะแทนที่งานที่รออยู่ ส่วน global มี `scheduleGlobal`,
-`scheduledGlobal` และ `cancelGlobalSchedule`
+`findGlobalSchedule` และ `cancelGlobalSchedule`
 
 **ใครเป็นผู้รันงาน** server ที่รันต่อเนื่อง (Nuxt, `easy-cms serve`, Next.js ที่ host เอง)
 จะตรวจสอบทุกนาที บนแพลตฟอร์ม serverless ไม่มีอะไรรันค้างไว้ จึงต้องเรียก endpoint ของงาน

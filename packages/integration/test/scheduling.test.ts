@@ -1,4 +1,4 @@
-import { createRestHandler, defineConfig, isLoggedIn } from '@easy-cms/core'
+import { createRestHandler, defineConfig, isStaff } from '@easy-cms/core'
 import { describe, expect, it } from 'vitest'
 import { db, open, SECRET } from './helpers.js'
 
@@ -12,7 +12,7 @@ const config = defineConfig({
       drafts: true,
       versions: true,
       schedule: true,
-      access: { read: () => true, update: isLoggedIn },
+      access: { read: () => true, update: isStaff },
       fields: [
         { name: 'title', type: 'text' },
         { name: 'summary', type: 'text', required: true },
@@ -39,7 +39,7 @@ describe('scheduled publishing (FR-SCH)', () => {
     expect(await cms.runScheduled()).toEqual({ ran: 1, failed: 0 })
     expect((await cms.findById('posts', post.id))?.title).toBe('Soon')
     // The unpublish is still ahead; running again does nothing new.
-    expect((await cms.scheduled('posts', post.id)).map((j) => j.action)).toEqual(['unpublish'])
+    expect((await cms.findSchedule('posts', post.id)).map((j) => j.action)).toEqual(['unpublish'])
     expect(await cms.runScheduled()).toEqual({ ran: 0, failed: 0 })
 
     expect(await cms.runScheduled(new Date(Date.now() + 7_200_000))).toEqual({ ran: 1, failed: 0 })
@@ -64,14 +64,14 @@ describe('scheduled publishing (FR-SCH)', () => {
     const post = await cms.create('posts', { title: 'x' } as never)
     await cms.schedule('posts', post.id, { action: 'publish', at: future() })
     const replaced = await cms.schedule('posts', post.id, { action: 'publish', at: past() })
-    expect((await cms.scheduled('posts', post.id)).map((j) => j.id)).toEqual([replaced.id])
+    expect((await cms.findSchedule('posts', post.id)).map((j) => j.id)).toEqual([replaced.id])
 
     expect(await cms.runScheduled()).toEqual({ ran: 0, failed: 1 })
-    expect(await cms.scheduled('posts', post.id)).toEqual([])
+    expect(await cms.findSchedule('posts', post.id)).toEqual([])
 
     const later = await cms.schedule('posts', post.id, { action: 'unpublish', at: future() })
     await cms.cancelSchedule('posts', post.id, later.id)
-    expect(await cms.scheduled('posts', post.id)).toEqual([])
+    expect(await cms.findSchedule('posts', post.id)).toEqual([])
 
     await expect(
       cms.schedule('posts', post.id, { action: 'nope' as never, at: 'not a date' }),
@@ -82,9 +82,9 @@ describe('scheduled publishing (FR-SCH)', () => {
       ],
     })
     const note = await cms.create('notes', { text: 'x' })
-    await expect(cms.scheduled('notes', note.id)).rejects.toThrow(/has no schedule/)
+    await expect(cms.findSchedule('notes', note.id)).rejects.toThrow(/has no schedule/)
     await expect(
-      cms.scheduled('posts', post.id, { overrideAccess: false, user: null }),
+      cms.findSchedule('posts', post.id, { overrideAccess: false, user: null }),
     ).rejects.toMatchObject({ status: 401 })
 
     // Deleting a document removes its jobs.
@@ -101,11 +101,11 @@ describe('scheduled publishing (FR-SCH)', () => {
     await cms.updateGlobal('banner', { text: 'Soon' })
     await cms.scheduleGlobal('banner', { action: 'publish', at: new Date(Date.now() + 60_000) })
 
-    const all = await cms.upcomingJobs()
+    const all = await cms.upcomingSchedules()
     expect(all.map((j) => j.global ?? j.collection)).toEqual(['banner', 'posts'])
     expect(all[1]).toMatchObject({ collection: 'posts', doc: post.id, action: 'publish' })
-    // Visitors may not update posts (isLoggedIn) or the banner (default: logged in).
-    expect(await cms.upcomingJobs({ overrideAccess: false, user: null })).toEqual([])
+    // Visitors may not update posts (isStaff) or the banner (default: logged in).
+    expect(await cms.upcomingSchedules({ overrideAccess: false, user: null })).toEqual([])
 
     const handle = createRestHandler(cms)
     const admin = await cms.create('users', {
@@ -128,7 +128,7 @@ describe('scheduled publishing (FR-SCH)', () => {
     const cms = await open(config)
     await cms.updateGlobal('banner', { text: 'Sale' })
     await cms.scheduleGlobal('banner', { action: 'publish', at: past() })
-    expect((await cms.scheduledGlobal('banner')).length).toBe(1)
+    expect((await cms.findGlobalSchedule('banner')).length).toBe(1)
     await cms.runScheduled()
     expect((await cms.findGlobal('banner')).status).toBe('published')
     await cms.destroy()
@@ -165,13 +165,12 @@ describe('scheduled publishing (FR-SCH)', () => {
     expect((await call('GET', '/jobs/run', undefined, '')).status).toBe(401)
     expect((await call('GET', '/jobs/run', undefined, 'Bearer wrong')).status).toBe(401)
     expect((await call('GET', '/jobs/run', undefined, 'Bearer cron-secret-value')).json).toEqual({
-      ran: 1,
-      failed: 0,
+      scheduled: { ran: 1, failed: 0 },
       webhooks: { sent: 0, failed: 0 },
       emails: { sent: 0, failed: 0 },
       jobs: { ran: 0, failed: 0 },
     })
-    expect((await call('POST', '/jobs/run')).json).toMatchObject({ ran: 0, failed: 0 })
+    expect((await call('POST', '/jobs/run')).json).toMatchObject({ scheduled: { ran: 0, failed: 0 } })
 
     const job = (
       await call('POST', `/posts/${post.id}/schedule`, {
