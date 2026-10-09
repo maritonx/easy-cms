@@ -37,7 +37,7 @@ describe('check-publish', () => {
       '',
     ]) {
       const result = pack(plugin, agent)
-      expect(result.status).toBe(1)
+      expect(result.status, result.stderr).toBe(1)
       expect(result.stderr).toContain('peerDependencies: @easy-cms/core@workspace:^')
       expect(result.stderr).toContain('pnpm --filter @easy-cms/plugin-x publish')
     }
