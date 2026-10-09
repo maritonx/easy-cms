@@ -1,5 +1,10 @@
 # @easy-cms/drizzle
 
+## 0.60.0
+
+The same code as 0.49.0, released as 0.60.0 to match the [roadmap](https://github.com/maritonx/easy-cms/blob/main/docs/ROADMAP.md):
+the names and shapes for 1.0. See the [upgrade guide](https://easy-cms-website.vercel.app/docs/upgrading).
+
 ## 0.49.0
 
 ### Patch Changes
