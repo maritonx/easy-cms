@@ -99,7 +99,7 @@ describe('nestedDocsPlugin config', () => {
     })
     expect(collection?.admin?.list?.tree).toBe('parent')
     expect(config.endpoints.map((e) => e.path)).toEqual(['/tree/:collection'])
-    expect(config.commands.map((c) => c.name)).toEqual(['nested:rebuild'])
+    expect(config.cliCommands.map((c) => c.name)).toEqual(['nested:rebuild'])
     expect(config.admin.modules).toEqual(['@easy-cms/plugin-nested-docs/admin'])
   })
 

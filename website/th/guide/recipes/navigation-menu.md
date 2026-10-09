@@ -13,7 +13,7 @@ globals: [
   {
     slug: 'navigation',
     label: { en: 'Navigation', th: 'เมนู' },
-    icon: 'link',
+    admin: { icon: 'link' },
     access: { read: () => true },
     fields: [
       {

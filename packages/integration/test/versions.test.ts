@@ -9,7 +9,7 @@ const config = defineConfig({
     {
       slug: 'posts',
       drafts: true,
-      versions: { max: 5 },
+      versions: { keep: 5 },
       access: {
         read: ({ user }) => (user ? true : { status: { equals: 'published' } }),
         update: isLoggedIn,

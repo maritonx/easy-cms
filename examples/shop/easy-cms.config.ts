@@ -19,7 +19,7 @@ const stripe = process.env.STRIPE_SECRET_KEY
 export default defineConfig({
   secret: process.env.EASY_CMS_SECRET ?? '',
   db: sqlite({ url: process.env.DATABASE_URL ?? 'file:./shop.db' }),
-  admin: { locale: 'th', siteUrl: '/' },
+  admin: { locale: 'th', siteURL: '/' },
   // Order and sign-up emails are printed in the terminal; use smtp() from @easy-cms/email-smtp.
   email: consoleEmail(),
   plugins: [

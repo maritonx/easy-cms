@@ -8,14 +8,14 @@ the Thai and English versions, and structured data, then the site submitted to G
 
 ## Add the plugin with real addresses
 
-Set `admin.siteUrl` to the public address, and make `generateURL` return each page's real path,
+Set `admin.siteURL` to the public address, and make `generateURL` return each page's real path,
 per locale. Everything below uses it.
 
 ```ts [easy-cms.config.ts]
 import { seoPlugin } from '@easy-cms/plugin-seo'
 
 export default defineConfig({
-  admin: { siteUrl: 'https://example.com' },
+  admin: { siteURL: 'https://example.com' },
   localization: { locales: ['th', 'en'], defaultLocale: 'th' },
   plugins: [
     seoPlugin({

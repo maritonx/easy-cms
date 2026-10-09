@@ -29,7 +29,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!post) return {}
   const request = await headers()
   const origin = `${request.get('x-forwarded-proto') ?? 'https'}://${request.get('host')}`
-  const seo = await seoMeta(post, { siteUrl: origin, config, url: (p) => `/posts/${p.slug}` })
+  const seo = await seoMeta(post, { siteURL: origin, config, url: (p) => `/posts/${p.slug}` })
   return seo.next
 }
 

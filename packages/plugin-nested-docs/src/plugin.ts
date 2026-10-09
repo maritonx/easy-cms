@@ -114,8 +114,8 @@ export function nestedDocsPlugin<
     const localization = config.localization
     const source: NestedSource & { collections: Map<string, NestedCollection> } = {
       collections: new Map(),
-      locales: localization?.locales ?? [],
-      defaultLocale: localization?.defaultLocale ?? null,
+      locales: (localization || undefined)?.locales ?? [],
+      defaultLocale: (localization || undefined)?.defaultLocale ?? null,
     }
 
     const withNesting = (collection: CollectionConfig): CollectionConfig => {
@@ -171,7 +171,7 @@ export function nestedDocsPlugin<
       const readOnly = { update: () => false }
       const parentField: Field = {
         label: { en: 'Parent page', th: 'หน้าแม่' },
-        position: 'sidebar',
+        admin: { position: 'sidebar' },
         ...ownParent,
         name: names.parent,
         type: 'relationship',
@@ -186,7 +186,7 @@ export function nestedDocsPlugin<
           label: { en: 'Path', th: 'เส้นทาง (path)' },
           index: true,
           localized,
-          position: 'sidebar',
+          admin: { position: 'sidebar' },
           access: readOnly,
         },
         {
@@ -194,9 +194,9 @@ export function nestedDocsPlugin<
           type: 'array',
           label: { en: 'Breadcrumbs', th: 'เส้นทางนำทาง' },
           localized,
-          position: 'sidebar',
           access: readOnly,
           admin: {
+            position: 'sidebar',
             component: {
               tag: 'ecms-nested-breadcrumbs',
               props: {
@@ -221,14 +221,14 @@ export function nestedDocsPlugin<
           ? Object.fromEntries(source.locales.map((l) => [l, []]))
           : [],
       })
-      const computeTrail: BeforeChangeHook = async ({ data, originalDoc, cms }) => {
-        const selfId = idOf(originalDoc?.id)
+      const computeTrail: BeforeChangeHook = async ({ data, previousDoc, cms }) => {
+        const selfId = idOf(previousDoc?.id)
         const parentId = idOf(data[names.parent])
         // Saving checks `filterOptions` too; this also catches a loop made by two saves at once.
         if (
           parentId !== null &&
           selfId !== null &&
-          parentId !== idOf(originalDoc?.[names.parent]) &&
+          parentId !== idOf(previousDoc?.[names.parent]) &&
           (String(parentId) === String(selfId) ||
             (await descendants(cms, nested, selfId)).some((d) => String(d) === String(parentId)))
         ) {
@@ -382,7 +382,7 @@ pages after an error. Default: every collection of nestedDocsPlugin (${slugs.joi
       ...config,
       collections,
       endpoints: [...(config.endpoints ?? []), tree],
-      commands: [...(config.commands ?? []), rebuild],
+      cliCommands: [...(config.cliCommands ?? []), rebuild],
       admin: {
         ...config.admin,
         modules: [...new Set([...(config.admin?.modules ?? []), ADMIN_MODULE])],

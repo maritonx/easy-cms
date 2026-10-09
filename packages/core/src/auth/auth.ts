@@ -226,11 +226,11 @@ export class Auth {
     return this.startSession(raw)
   }
 
-  // --- Members signing up (`auth.members.signup`) ---------------------------------------------
+  // --- Members signing up (`auth.members.signUp`) ---------------------------------------------
 
   /** What a sign-up form needs: a token proving when it was loaded, and Turnstile's site key. */
   signupForm(): { token: string; turnstile: string | null; verifyEmail: boolean } {
-    const signup = this.config.auth.members.signup
+    const signup = this.config.auth.members.signUp
     if (!signup) throw new NotFoundError(USERS, 'signup')
     return {
       token: formToken(this.config.secret, SIGNUP_FORM),
@@ -240,12 +240,12 @@ export class Auth {
   }
 
   /**
-   * Creates a member's account (`auth.members.signup`). With `verifyEmail` (the default), emails
+   * Creates a member's account (`auth.members.signUp`). With `verifyEmail` (the default), emails
    * a link to confirm the address and answers the same whether or not the email has an account;
    * otherwise starts a session. Throws `ValidationError` for spam checks and bad input.
    */
   async signup(args: SignupArgs): Promise<SignupResult> {
-    const signup = this.config.auth.members.signup
+    const signup = this.config.auth.members.signUp
     if (!signup) throw new NotFoundError(USERS, 'signup')
     const key = `signup|${args.ip ?? ''}`
     await this.checkRateLimit(key)
@@ -387,7 +387,7 @@ export class Auth {
     const query = `token=${encodeURIComponent(token)}`
     if (target && /^https?:\/\//.test(target))
       return `${target}${target.includes('?') ? '&' : '?'}${query}`
-    const site = (this.config.admin.siteUrl || '').replace(/\/+$/, '')
+    const site = (this.config.admin.siteURL || '').replace(/\/+$/, '')
     const base = site || (this.passwordLinkBase(origin) as string)
     const path =
       target ??

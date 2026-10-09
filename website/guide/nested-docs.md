@@ -209,7 +209,7 @@ The plugin uses parts of Easy CMS that your own collections can use too:
 - `uniqueWithin` on a slug: unique only among documents with the same value of another field.
 - `update(…, { live: true })` in the [Local API](./local-api): upkeep of the live version that
   leaves a pending draft pending and adds no version.
-- `commands` in the config: `easy-cms <name>` commands from plugins. See [CLI](./cli).
+- `cliCommands` in the config: `easy-cms <name>` commands from plugins. See [CLI](./cli).
 
 ## In several tenants
 

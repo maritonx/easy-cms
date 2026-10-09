@@ -64,7 +64,7 @@ export function createAdminRouteHandlers(config: Config, options: { appDir?: str
     handler ??= resolveConfig(config).then((resolved) =>
       adminHandlerFor(resolved, {
         // The site is this Next.js app.
-        siteUrl: resolved.admin.siteUrl || '/',
+        siteURL: resolved.admin.siteURL || '/',
         appDir: options.appDir ?? adminAppDir(),
         // Next.js strips trailing slashes; redirecting back would loop.
         trailingSlashRedirect: false,

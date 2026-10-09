@@ -128,9 +128,9 @@ const options = computed<Option[]>(() => {
     ...(schema?.commands ?? []).map((c, i) => ({
       id: `cmd:${i}`,
       section: 'commands' as const,
-      label: label(c.label, c.to),
+      label: label(c.label, c.href),
       icon: collectionIcon(c.icon),
-      to: c.to,
+      to: c.href,
       keywords: c.keywords,
     })),
     {

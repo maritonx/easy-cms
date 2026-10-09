@@ -16,11 +16,10 @@ Every field has a `name` and a `type`. Common options:
 | `unique` | No two documents may share the value (top-level fields). |
 | `index` | Create a database index. |
 | `validate` | `(value, { data, operation }) => true \| 'error message'`, may be async. |
-| `access` | `{ read, update }` field-level [access](./access-control#field-access). |
+| `access` | `{ read, create, update }` field-level [access](./access-control#field-access). |
 | `hidden` | Stored, but never returned by the API nor accepted as input. |
 | `localized` | One value per locale; see [Localization](./localization). |
-| `position` | `'sidebar'`: shown in the edit page's side panel (for top-level fields such as a category, tags or a date). |
-| `admin` | `{ component, after }`: [admin components](./plugins#admin-components) instead of the input, and below the field. |
+| `admin` | How the admin shows it: `{ position: 'sidebar' }` puts it in the edit page's side panel (for top-level fields such as a category, tags or a date); `{ component, after }` are [admin components](./plugins#admin-components) instead of the input, and below the field. |
 
 ## Types
 

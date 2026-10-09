@@ -160,7 +160,7 @@ plugin ใช้ส่วนของ core ที่คุณใช้เอง�
 - **`uniqueWithin`** ใช้ได้กับทุก field ที่ unique พร้อม unique index ต่อ scope ในฐานข้อมูล
 - **`admin.switcher`** เพิ่มตัวเลือกด้านบนของเมนู
 - **`audit.scope`** เก็บส่วนของเว็บของแต่ละ entry ใน audit log
-- **`admin.confirmDelete`**, **`admin.defaultValue`**, **`admin.column`** และ **`admin.allowCreate`** ปรับการลบ เอกสารใหม่
+- **`admin.confirmDelete`**, **`admin.initialValue`**, **`admin.column`** และ **`admin.allowCreate`** ปรับการลบ เอกสารใหม่
   และหน้ารายการใน admin
 - **`filterOptions` ของ field upload** จำกัดไฟล์ที่เลือกได้
 - **`cms.uniqueScope()`** บอก plugin ว่า field ที่ unique ห้ามซ้ำภายในอะไรสำหรับ request นั้น

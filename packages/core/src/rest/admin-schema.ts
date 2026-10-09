@@ -210,12 +210,10 @@ export interface AdminSchema {
   switcher: AdminSwitcher | null
   /** Admins can email users links to set their password (needs `email` and `serverURL`). */
   passwordLinks: boolean
-  /** Menu order of collections (`admin.menu`); unlisted ones follow. */
-  menu: string[]
   /** The menu: groups and what this user may open in them, in order. */
   nav: AdminNavNode[]
   /** More entries of the command palette (`admin.commands`). */
-  commands: { label: Label; to: string; icon?: string; keywords?: string[] }[]
+  commands: { label: Label; href: string; icon?: string; keywords?: string[] }[]
   /** Content locales, when the config has `localization`. */
   localization: { locales: string[]; defaultLocale: string } | null
   collections: AdminCollection[]
@@ -289,8 +287,8 @@ async function serializeFields(
     if (field.required) f.required = true
     if (field.unique) f.unique = true
     if (field.defaultValue !== undefined) f.defaultValue = field.defaultValue
-    if (field.admin?.defaultValue) {
-      const value = await field.admin.defaultValue(who)
+    if (field.admin?.initialValue) {
+      const value = await field.admin.initialValue(who)
       if (value !== undefined) f.defaultValue = value
     }
     const column = field.admin?.column
@@ -298,7 +296,7 @@ async function serializeFields(
     if (field.admin?.allowCreate === false) f.noCreate = true
     if (!(await update.allows(field))) f.readOnly = true
     if (field.localized && localized) f.localized = true
-    if (field.position === 'sidebar') f.position = 'sidebar'
+    if (field.admin?.position === 'sidebar') f.position = 'sidebar'
     if (field.admin?.component || field.admin?.after?.length || field.admin?.cell) {
       f.admin = {
         ...(field.admin.component ? { component: componentRef(field.admin.component) } : {}),
@@ -441,7 +439,7 @@ async function collection(
   }
   if (config.labels) result.labels = config.labels
   if (config.useAsTitle) result.useAsTitle = config.useAsTitle
-  if (config.icon) result.icon = config.icon
+  if (config.admin?.icon) result.icon = config.admin.icon
   if (config.admin?.sidebar?.length) result.sidebar = config.admin.sidebar.map(panelRef)
   if (config.admin?.layout?.length) result.layout = layoutOf(config.admin.layout, fields)
   const badge = config.admin?.badge
@@ -455,7 +453,7 @@ async function collection(
   const owner = cms.roles.ownerOf(config.slug)
   if (owner && fields.some((f) => f.name === owner)) result.owner = owner
   // Drafts, history and preview need the whole page.
-  if (config.editIn === 'drawer' && !result.drafts && !result.versions && !result.preview)
+  if (config.admin?.editIn === 'drawer' && !result.drafts && !result.versions && !result.preview)
     result.editIn = 'drawer'
   return result
 }
@@ -488,7 +486,7 @@ async function global(
     },
   }
   if (config.label !== undefined) result.label = config.label
-  if (config.icon) result.icon = config.icon
+  if (config.admin?.icon) result.icon = config.admin.icon
   if (config.admin?.sidebar?.length) result.sidebar = config.admin.sidebar.map(panelRef)
   if (config.admin?.layout?.length) result.layout = layoutOf(config.admin.layout, result.fields)
   return result
@@ -528,9 +526,8 @@ export async function adminSchema(
   const adminPages = await pages(cms, user)
   return {
     locale: cms.config.admin.locale,
-    switcher: cms.config.admin.switcher,
+    switcher: cms.config.admin.switcher || null,
     passwordLinks: cms.auth.canSendPasswordLinks(origin),
-    menu: [...cms.config.admin.menu],
     nav: buildNav(cms, adminCollections, adminGlobals, adminPages, views),
     commands: cms.config.admin.commands.map((c) => JSON.parse(JSON.stringify(c))),
     localization: localization
@@ -698,51 +695,52 @@ function buildNav(
 ): AdminNavNode[] {
   const groups = navGroups(cms.config.admin.nav)
   const ids = navIds(groups)
-  const items = new Map<string, AdminNavItem[]>()
+  // Items of each group: those with `admin.order` first (lower first), then in config order.
+  const placed = new Map<string, { item: AdminNavItem; order: number; index: number }[]>()
   const labelGroups = new Map<string, Label>()
-  const put = (group: { id: string; label?: Label }, item: AdminNavItem) => {
+  let index = 0
+  const put = (group: { id: string; label?: Label }, item: AdminNavItem, order?: number) => {
     if (group.label !== undefined && !labelGroups.has(group.id))
       labelGroups.set(group.id, group.label)
-    const list = items.get(group.id) ?? []
-    list.push(item)
-    items.set(group.id, list)
+    const list = placed.get(group.id) ?? []
+    list.push({ item, order: order ?? Number.POSITIVE_INFINITY, index: index++ })
+    placed.set(group.id, list)
   }
   const configOf = (slug: string) => cms.config.collections.find((c) => c.slug === slug)
-  // Collections in menu order: `admin.menu` first, then the config's.
-  const menu = cms.config.admin.menu
-  const rank = (slug: string, index: number) => {
-    const at = menu.indexOf(slug)
-    return at === -1 ? menu.length + index : at
-  }
-  const ordered = collections
-    .map((c, index) => ({ c, key: rank(c.slug, index) }))
-    .sort((a, b) => a.key - b.key)
-    .map(({ c }) => c)
   let media = false
-  for (const c of ordered) {
+  for (const c of collections) {
     if (!c.permissions.read || c.slug === MEDIA_FOLDERS) continue
     if (c.slug === MEDIA) {
       media = true
       continue
     }
+    const admin = configOf(c.slug)?.admin
+    if (admin?.group === false) continue
     const group = PEOPLE.has(c.slug)
       ? { id: 'settings.people' }
-      : groupOf(configOf(c.slug)?.admin?.group, ids, 'content')
-    put(group, { kind: 'collection', slug: c.slug })
+      : groupOf(admin?.group, ids, 'content')
+    put(group, { kind: 'collection', slug: c.slug }, admin?.order)
   }
   for (const g of globals) {
     if (!g.permissions.read) continue
-    const config = cms.config.globals.find((x) => x.slug === g.slug)
-    put(groupOf(config?.admin?.group, ids, 'settings.site'), { kind: 'global', slug: g.slug })
+    const admin = cms.config.globals.find((x) => x.slug === g.slug)?.admin
+    if (admin?.group === false) continue
+    put(groupOf(admin?.group, ids, 'settings.site'), { kind: 'global', slug: g.slug }, admin?.order)
   }
   for (const p of pageRefs) {
     const config = cms.config.admin.pages.find((x) => x.path === p.path)
     const group = config?.group ?? 'content'
     if (group === false) continue
-    put(groupOf(group, ids, 'content'), { kind: 'page', path: p.path })
+    put(groupOf(group, ids, 'content'), { kind: 'page', path: p.path }, config?.order)
   }
   for (const [view, group] of VIEW_GROUPS)
     if (views[view]) put({ id: group }, { kind: 'view', view })
+  const items = new Map<string, AdminNavItem[]>()
+  for (const [id, list] of placed)
+    items.set(
+      id,
+      list.sort((a, b) => a.order - b.order || a.index - b.index).map((p) => p.item),
+    )
 
   const toGroup = (g: ResolvedNavGroup): AdminNavGroup | null => {
     const children = g.children.map(toGroup).filter((c): c is AdminNavGroup => c !== null)

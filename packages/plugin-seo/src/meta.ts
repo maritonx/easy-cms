@@ -7,10 +7,10 @@ type Value = string | null | undefined
 export interface SeoMetaOptions {
   /**
    * The site's public address, to make the canonical and image URLs absolute, e.g.
-   * `https://example.com`. Default: `config.admin.siteUrl`, then `config.serverURL`.
+   * `https://example.com`. Default: `config.admin.siteURL`, then `config.serverURL`.
    */
-  readonly siteUrl?: string
-  /** Your Easy CMS config, to read `admin.siteUrl`, `serverURL` and `localization` from. */
+  readonly siteURL?: string
+  /** Your Easy CMS config, to read `admin.siteURL`, `serverURL` and `localization` from. */
   readonly config?: object
   /**
    * The page's canonical address: absolute, or a path on the site. As a function it gets the
@@ -52,7 +52,7 @@ export interface SeoBreadcrumb {
 
 /** What `seoMeta` reads from an Easy CMS config (raw or resolved). */
 interface MetaConfig {
-  readonly admin?: { readonly siteUrl?: string }
+  readonly admin?: { readonly siteURL?: string }
   readonly serverURL?: string
   readonly localization?: {
     readonly locales: readonly string[]
@@ -175,7 +175,7 @@ const defined = <T extends Record<string, unknown>>(record: T) =>
 export function seoMeta(doc: Doc, options: SeoMetaOptions = {}): SeoMeta {
   const config = options.config as MetaConfig | undefined
   const meta = (doc[META_FIELD] ?? {}) as Doc
-  const site = options.siteUrl ?? (config?.admin?.siteUrl || config?.serverURL)
+  const site = options.siteURL ?? (config?.admin?.siteURL || config?.serverURL)
   const title = text(meta.title) ?? text((options.title ?? ((d) => d.title as string))(doc))
   const description =
     text(meta.description) ??

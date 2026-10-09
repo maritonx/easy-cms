@@ -86,6 +86,8 @@ export type FieldAccessFn = (args: AccessArgs) => boolean | Promise<boolean>
 
 export interface FieldAccess {
   readonly read?: FieldAccessFn
+  /** Who may set it when creating a document. Default: `update`. */
+  readonly create?: FieldAccessFn
   readonly update?: FieldAccessFn
 }
 

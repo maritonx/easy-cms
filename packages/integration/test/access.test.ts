@@ -37,6 +37,12 @@ const config = defineConfig({
           access: { update: ({ user }) => user?.role === 'admin' },
         },
         {
+          // Set by anyone who creates the post, then only by admins.
+          name: 'pinned',
+          type: 'boolean',
+          access: { create: () => true, update: ({ user }) => user?.role === 'admin' },
+        },
+        {
           name: 'seo',
           type: 'group',
           fields: [{ name: 'internal', type: 'text', access: { read: () => false } }],
@@ -171,6 +177,17 @@ describe('field access (FR-ACL-05)', () => {
 })
 
 describe('populated documents respect access', () => {
+  it('checks create access of fields, which defaults to update access', async () => {
+    const made = await cms.create(
+      'posts',
+      { title: 'New', featured: true, pinned: true, author: editor.id },
+      as(editor),
+    )
+    expect(made).toMatchObject({ featured: null, pinned: true })
+    const changed = await cms.update('posts', made.id, { pinned: false }, as(editor))
+    expect(changed.pinned).toBe(true)
+  })
+
   it('does not populate documents the user may not read', async () => {
     const post = await cms.findById('posts', editorPost, as(editor))
     expect(post?.secretRef).toBeNull()

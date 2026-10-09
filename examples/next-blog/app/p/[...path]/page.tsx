@@ -40,7 +40,7 @@ async function seoFor(page: PageDoc, locale: 'th' | 'en') {
   // Like pageURL in easy-cms.config.ts.
   const href = (path: string) => `/p${path}${locale === 'en' ? '?locale=en' : ''}`
   return seoMeta(page, {
-    siteUrl: origin,
+    siteURL: origin,
     config,
     locale,
     url: (p) => (typeof p.path === 'string' ? href(p.path) : null),

@@ -24,7 +24,7 @@ export default defineConfig({
     roles: ['admin', 'editor', 'customer'],
     members: {
       roles: ['customer'],
-      signup: { role: 'customer' },
+      signUp: { role: 'customer' },
       pages: { verifyEmail: '/account/verify', resetPassword: '/account/reset' },
     },
   },
@@ -45,7 +45,7 @@ The [shop](./ecommerce) sets this up for customers.
 
 ## Signing up
 
-With `signup`, visitors create their own account with its `role`:
+With `signUp`, visitors create their own account with its `role`:
 
 ```ts
 // The form's token, when the form is shown: proves it wasn't filled in by a bot at once.
@@ -59,7 +59,7 @@ await fetch('/api/cms/users/signup', {
 // 202 { verify: true }: a link to confirm the email is on its way.
 ```
 
-1. The new account can't sign in until the email is confirmed (`signup.verifyEmail`, default
+1. The new account can't sign in until the email is confirmed (`signUp.verifyEmail`, default
    `true`). The answer is the same whether or not the email has an account, so nobody learns who
    is signed up.
 2. The email's link opens `pages.verifyEmail` on the site with `?token=`. The page sends it to
@@ -68,17 +68,17 @@ await fetch('/api/cms/users/signup', {
 
 Spam protection is the same as the [form builder's](./forms): the token (sent too quickly or
 a day later is refused), a hidden field bots fill in (`website`), sign-ups per IP, and Cloudflare
-Turnstile with `signup.turnstile: { siteKey, secretKey }`. The token's request also says
+Turnstile with `signUp.turnstile: { siteKey, secretKey }`. The token's request also says
 `turnstile` (the site key, or `null`).
 
-Signing up needs [email](./email), and a site URL in production for the links: `admin.siteUrl`
+Signing up needs [email](./email), and a site URL in production for the links: `admin.siteURL`
 as a full URL, or `serverURL`.
 
 ## Email links
 
 Members' "forgot password" links open `pages.resetPassword` on the site, which sends the token
 and the new password to `POST /api/cms/users/reset-password`. Pages can be paths (on
-`admin.siteUrl`, else `serverURL`) or full URLs. Without them, links open the admin's pages.
+`admin.siteURL`, else `serverURL`) or full URLs. Without them, links open the admin's pages.
 
 `emails.verifyEmail` changes the confirmation email's text, like `auth.emails`.
 

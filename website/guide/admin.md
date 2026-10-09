@@ -56,8 +56,10 @@ export default defineConfig({
 - Without `group`, a collection is under **Content** and a global under **Settings › Site**.
   `group: 'settings'` also means Settings › Site.
 - A label instead of an id (`group: 'Library'`) makes a group of that name, as before.
+- `group: false` leaves a collection, global or page out of the menu; links still reach it.
 - `order` places a group: Content is 0, the media library 10, plugins' groups about 100–200,
-  Settings 1000. `admin.menu` still orders collections within their group.
+  Settings 1000. Within a group, `admin.order` on a collection, global or page places it (lower
+  first); those without one come after, in config order.
 - Declaring a group a plugin or Easy CMS has (`{ id: 'shop', label: 'Store' }`, or `content`)
   changes its label, icon or order.
 - People only see what they may open, and groups with nothing in them are left out.
@@ -102,7 +104,7 @@ Arrow keys move through the menu; left and right fold and unfold groups.
 
 ```ts
 admin: {
-  commands: [{ label: 'Drafts to review', to: '/collections/posts?status=draft', icon: 'file-text' }],
+  commands: [{ label: 'Drafts to review', href: '/collections/posts?status=draft', icon: 'file-text' }],
 }
 ```
 
@@ -146,7 +148,7 @@ changes how the page looks; the data stays as the fields say.
 ```
 
 - Top-level fields, each placed once. Fields not placed follow at the end, in the first tab;
-  fields with `position: 'sidebar'` stay in the side column.
+  fields with `admin: { position: 'sidebar' }` stay in the side column.
 - With tabs, every entry at the top is a tab. A tab shows how many of its fields have errors.
 - `row` puts fields side by side, an equal share each or their `admin.width` (`'1/4'`…`'full'`);
   on narrow screens they stack.
@@ -172,7 +174,8 @@ fields: [
 ]
 ```
 
-`equals`, `notEquals`, `in: [...]` and `exists: true | false`, combined with `and`, `or` and `not`.
+`equals`, `not_equals`, `in: [...]`, `not_in: [...]` and `exists: true | false` (named as in
+`where`), combined with `and`, `or` and `not`.
 `field` names a sibling (in a group or an array row, the fields beside it), or a path inside one
 (`link.type`). The server reads the same condition: a hidden field isn't required, and keeps its
 value.

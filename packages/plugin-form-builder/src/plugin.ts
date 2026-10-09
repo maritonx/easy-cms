@@ -127,8 +127,8 @@ export function formBuilderPlugin<
     const localized = !!config.localization
     const l = localized ? { localized: true } : {}
     const secret = config.secret
-    const locales = config.localization?.locales ?? []
-    const defaultLocale = config.localization?.defaultLocale ?? locales[0] ?? null
+    const locales = (config.localization || undefined)?.locales ?? []
+    const defaultLocale = (config.localization || undefined)?.defaultLocale ?? locales[0] ?? null
     const rate = options.rateLimit === false ? null : { max: 5, window: 600, ...options.rateLimit }
     const minTime = options.minSubmitTime ?? 2000
     const defaultTo =
@@ -167,7 +167,7 @@ export function formBuilderPlugin<
         options: ['message', 'redirect'],
         defaultValue: 'message',
         label: { en: 'After sending', th: 'หลังส่ง' },
-        position: 'sidebar',
+        admin: { position: 'sidebar' },
       },
       {
         name: 'confirmationMessage',
@@ -221,11 +221,11 @@ export function formBuilderPlugin<
     const formsCollection: CollectionConfig = {
       slug: forms,
       labels: { singular: { en: 'Form', th: 'ฟอร์ม' }, plural: { en: 'Forms', th: 'ฟอร์ม' } },
-      icon: 'mail',
       useAsTitle: 'title',
       drafts: true,
       fields: formFields,
       admin: {
+        icon: 'mail',
         group: 'forms',
         sidebar: [
           {
@@ -246,9 +246,8 @@ export function formBuilderPlugin<
         singular: { en: 'Form submission', th: 'ข้อมูลที่ส่งจากฟอร์ม' },
         plural: { en: 'Form submissions', th: 'ข้อมูลที่ส่งจากฟอร์ม' },
       },
-      icon: 'message-square',
       useAsTitle: 'summary',
-      admin: { group: 'forms', count: false },
+      admin: { icon: 'message-square', group: 'forms', count: false },
       // Only the form's public endpoint creates submissions, after validation and spam checks.
       access: {
         read: loggedIn,
@@ -266,8 +265,18 @@ export function formBuilderPlugin<
         },
         { name: 'summary', type: 'text', label: { en: 'Summary', th: 'สรุป' } },
         { name: 'data', type: 'json', label: { en: 'Data', th: 'ข้อมูล' } },
-        { name: 'locale', type: 'text', label: { en: 'Locale', th: 'ภาษา' }, position: 'sidebar' },
-        { name: 'page', type: 'text', label: { en: 'Page', th: 'หน้า' }, position: 'sidebar' },
+        {
+          name: 'locale',
+          type: 'text',
+          label: { en: 'Locale', th: 'ภาษา' },
+          admin: { position: 'sidebar' },
+        },
+        {
+          name: 'page',
+          type: 'text',
+          label: { en: 'Page', th: 'หน้า' },
+          admin: { position: 'sidebar' },
+        },
         // A hash of the IP address and the time window, for rate limits; never shown.
         {
           name: 'rateKey',

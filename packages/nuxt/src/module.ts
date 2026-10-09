@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { renderShell, SECURITY_HEADERS, SHELL_FILE } from '@easy-cms/admin'
-import { type Config } from '@easy-cms/core'
+import type { Config } from '@easy-cms/core'
 import {
   applyPlugins,
   CONFIG_FILE_NAMES,
@@ -156,7 +156,7 @@ declare module '${SERVER}' {
       locale: rawConfig?.admin?.locale ?? 'en',
       brand: rawConfig?.admin?.brand ?? {},
       // The site is this Nuxt app.
-      siteUrl: rawConfig?.admin?.siteUrl ?? '/',
+      siteURL: rawConfig?.admin?.siteURL ?? '/',
     }
     const shell = renderShell(readFileSync(shellFile, 'utf8'), shellOptions)
     // In development the shell is read on each request, so a rebuilt admin is picked up.

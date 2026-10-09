@@ -27,7 +27,7 @@ export interface Version<T = Record<string, unknown>> extends VersionSummary {
 export function versionLimit(config: CollectionConfig | GlobalConfig): number | undefined {
   const versions = config.versions
   if (!versions) return undefined
-  return versions === true ? DEFAULT_MAX_VERSIONS : (versions.max ?? DEFAULT_MAX_VERSIONS)
+  return versions === true ? DEFAULT_MAX_VERSIONS : (versions.keep ?? DEFAULT_MAX_VERSIONS)
 }
 
 /** Key that groups a document's versions: the collection slug, or `global:<slug>`. */

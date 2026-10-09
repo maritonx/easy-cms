@@ -67,8 +67,8 @@ const downloadUrl = (backup: AdminBackup) =>
   `${settings.apiPath}/admin/backups/${backup.id}/download`
 const schedule = computed(() => {
   const s = data.value?.settings
-  if (!s?.every) return t('backups.manualOnly')
-  return t(s.every === 'day' ? 'backups.everyDay' : 'backups.everyWeek', { at: s.at })
+  if (!s?.frequency) return t('backups.manualOnly')
+  return t(s.frequency === 'daily' ? 'backups.everyDay' : 'backups.everyWeek', { at: s.at })
 })
 const local = computed(() => data.value?.settings.storage === 'local')
 const docs = computed(

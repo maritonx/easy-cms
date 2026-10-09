@@ -149,7 +149,7 @@ same port and set those headers yourself.
 Let Easy CMS back up the database every day (see [Backups](../backups)):
 
 ```ts
-backups: { every: 'day', at: '03:00', keep: 7 },
+backups: { frequency: 'daily', at: '03:00', keep: 7 },
 ```
 
 Backups go to `backups/` on the same disk, so copy them and `uploads/` somewhere else too:

@@ -27,7 +27,7 @@ async function seoFor(post: Record<string, unknown>, locale: 'th' | 'en') {
   const request = await headers()
   const origin = `${request.get('x-forwarded-proto') ?? 'http'}://${request.get('host')}`
   return seoMeta(post, {
-    siteUrl: origin,
+    siteURL: origin,
     config,
     locale,
     // The same address as generateURL in easy-cms.config.ts.

@@ -108,7 +108,7 @@ const route = useRoute()
 const locale = route.params.locale as string
 const { data: post } = await useFetch(`/api/posts/${route.params.slug}`, { query: { locale } })
 const seo = seoMeta(post.value ?? {}, {
-  siteUrl: useRequestURL().origin,
+  siteURL: useRequestURL().origin,
   locale,
   locales: ['th', 'en'],
   url: (p, l) => `/${l}/posts/${p.slug}`,
@@ -127,7 +127,7 @@ async function load(slug: string, locale: string) {
   const { docs } = await cms.find('posts', { where: { slug: { equals: slug } }, locale, limit: 1 })
   if (!docs[0]) return null
   const seo = seoMeta(docs[0], {
-    config, // admin.siteUrl and the locales
+    config, // admin.siteURL and the locales
     locale,
     url: (p, l) => `/${l}/posts/${p.slug}`,
     type: 'article',
@@ -160,7 +160,7 @@ export default async function Page({ params }) {
 
 | Option | |
 |---|---|
-| `siteUrl` | The site's address, to make the canonical and image URLs absolute. Default: `config.admin.siteUrl`, then `config.serverURL`. |
+| `siteURL` | The site's address, to make the canonical and image URLs absolute. Default: `config.admin.siteURL`, then `config.serverURL`. |
 | `config` | Your Easy CMS config, to read those and `localization` from. |
 | `url` | The page's address, or `(doc, locale) => url`. As a function it also makes the hreflang links, one per locale plus `x-default`. |
 | `locale` | The page's content locale: `og:locale` and the canonical address. |
@@ -225,7 +225,7 @@ export async function GET(request: Request) {
 
 :::
 
-The addresses must be absolute: set `admin.siteUrl` in the config (or pass `{ siteUrl }`), or
+The addresses must be absolute: set `admin.siteURL` in the config (or pass `{ siteURL }`), or
 return full URLs from `generateURL`. The plugin also serves the sitemap at
 `<routes.api>/seo/sitemap.xml`, and the [standalone server](./standalone) at `/sitemap.xml`.
 
@@ -267,8 +267,8 @@ export function GET() {
 
 | Option | |
 |---|---|
-| `config` | Your Easy CMS config: the admin and API paths, and `admin.siteUrl`. |
-| `siteUrl` | The site's address for the `Sitemap:` line, if not `admin.siteUrl`. |
+| `config` | Your Easy CMS config: the admin and API paths, and `admin.siteURL`. |
+| `siteURL` | The site's address for the `Sitemap:` line, if not `admin.siteURL`. |
 | `sitemap` | The sitemap's address, or `false` for no `Sitemap:` line. |
 | `disallow` | More paths to keep out, e.g. `['/search']`. |
 | `disallowAll` | Keep crawlers out of the whole site, e.g. on staging. |

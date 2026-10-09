@@ -24,8 +24,8 @@ Hook รันโค้ดของคุณในจังหวะต่าง
 
 | Hook | ทำงานเมื่อ | อาร์กิวเมนต์ | ค่าที่คืน |
 |---|---|---|---|
-| `beforeValidate` | ก่อนตรวจ field | `data`, `operation`, `originalDoc?` | data ใหม่ หรือไม่คืน |
-| `beforeChange` | หลังตรวจ ก่อนบันทึก | `data`, `operation`, `originalDoc?` | data ใหม่ หรือไม่คืน |
+| `beforeValidate` | ก่อนตรวจ field | `data`, `operation`, `previousDoc?` | data ใหม่ หรือไม่คืน |
+| `beforeChange` | หลังตรวจ ก่อนบันทึก | `data`, `operation`, `previousDoc?` | data ใหม่ หรือไม่คืน |
 | `afterChange` | หลังบันทึก | `doc`, `operation`, `previousDoc?` | — |
 | `beforeDelete` | ก่อนลบ | `id` | — |
 | `afterDelete` | หลังลบ | `id`, `doc` | — |
@@ -37,10 +37,10 @@ Hook รันโค้ดของคุณในจังหวะต่าง
 - `cms`: [Local API](./local-api) สำหรับอ่านหรือเขียน collection อื่น
 - `slug`: slug ของ collection (หรือ global) ใช้สะดวกเมื่อฟังก์ชันเดียวใช้กับหลายที่
 
-`operation` เป็น `'create'` หรือ `'update'` ตอน update `originalDoc` คือเอกสารก่อนแก้ และ `data`
+`operation` เป็น `'create'` หรือ `'update'` ตอน update `previousDoc` คือเอกสารก่อนแก้ และ `data`
 มีเฉพาะส่วนที่กำลังเปลี่ยน
 
-global รองรับ `beforeChange`, `afterChange` และ `afterRead`
+global รองรับ `beforeValidate`, `beforeChange`, `afterChange` และ `afterRead`
 
 ## ลำดับและ error {#order-and-errors}
 
@@ -122,7 +122,7 @@ afterRead: [({ doc }) => ({ ...doc, url: `/posts/${doc.slug}` })],
   ให้แก้ `data` ใน `beforeChange` แทน
 - **สิทธิ์:** การเรียก `cms` ใน hook ข้ามกฎสิทธิ์ (เป็นโค้ดฝั่ง server ที่เชื่อถือได้) ส่ง
   `{ user, overrideAccess: false }` เพื่อทำในนามผู้ใช้
-- **update บางส่วน:** ตอน update `data` มีเฉพาะ field ที่กำลังเปลี่ยน ค่าอื่นให้อ่านจาก `originalDoc`
+- **update บางส่วน:** ตอน update `data` มีเฉพาะ field ที่กำลังเปลี่ยน ค่าอื่นให้อ่านจาก `previousDoc`
 
 ## ขั้นต่อไป {#next-steps}
 

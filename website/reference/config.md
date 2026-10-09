@@ -4,6 +4,11 @@ Every option of `easy-cms.config.ts`, grouped by where it goes. For explanations
 follow the links to the guide. A test checks this page against the types in `@easy-cms/core`,
 so every option is listed here.
 
+Easy CMS checks the config when it starts. An option that was renamed is an error that names the
+new one (e.g. ``admin.siteUrl is now `siteURL` ``), so an upgrade can't quietly drop a setting. An
+option Easy CMS doesn't know is logged as a warning with the closest name (``did you mean
+`maxLength`?``).
+
 ```ts
 import { defineConfig } from '@easy-cms/core'
 
@@ -23,7 +28,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `webhooks` | `WebhookConfig[]` | `[]` | See [webhooks](#webhooks). |
 | `events` | `string[]` | `[]` | Events of the app or its plugins besides content changes (`<area>.<what>`, e.g. `order.paid`), sent with `cms.emit()` to webhooks that list them. [Webhooks](/guide/webhooks#your-own-events) |
 | `jobs` | `JobConfig[]` | `[]` | Work run with the scheduled jobs, e.g. a plugin's clean-up. See [jobs](#jobs). |
-| `localization` | `LocalizationConfig` | — | See [localization](#localization). |
+| `localization` | `LocalizationConfig \| false` | — | See [localization](#localization). |
 | `routes` | `RoutesConfig` | | See [routes](#routes). |
 | `admin` | `AdminConfig` | | See [admin](#admin). |
 | `upload` | `UploadConfig` | | See [upload](#upload). |
@@ -31,7 +36,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `collections` | `CollectionConfig[]` | `[]` | See [collections](#collections). |
 | `globals` | `GlobalConfig[]` | `[]` | See [globals](#globals). |
 | `endpoints` | `Endpoint[]` | `[]` | See [endpoints](#endpoints). |
-| `commands` | `CliCommand[]` | `[]` | `easy-cms <name>` commands, e.g. from plugins: `{ name, description, help?, run({ cms, args, log }) }`. [CLI](/guide/cli#commands-from-plugins) |
+| `cliCommands` | `CliCommand[]` | `[]` | `easy-cms <name>` commands, e.g. from plugins: `{ name, description, help?, run({ cms, args, log }) }`. [CLI](/guide/cli#commands-from-plugins) |
 | `onRequest` | `({ headers, url, user, cms }) => { context?, user? }` | — | Runs on each API request once its user is known: returns the request's `context` (e.g. its tenant) and may change the user (their role there, `scoped`). Usually set by a plugin. [Multi-tenant](/guide/multi-tenant#how-it-works) |
 | `apiKeys` | `boolean` | `false` | API keys under Settings, for scripts and other apps. [API keys](/guide/api-keys) |
 | `email` | `EmailAdapter` | — | Sends email for plugins, e.g. `smtp()` or `consoleEmail()`. [Email](/guide/email) |
@@ -55,14 +60,13 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `path` | `string` | `/admin` | Where the admin is served. |
 | `locale` | `'en' \| 'th'` | `en` | Default admin language before a user picks one. |
 | `brand` | `AdminBrand` | `{}` | See [brand](#brand). |
-| `siteUrl` | `string` | `/` (Nuxt, Next.js) | The public site for "View site": a path or an `http(s)` URL. |
-| `menu` | `string[]` | config order | Collection slugs in menu order within their groups; unlisted ones follow. |
+| `siteURL` | `string` | `/` (Nuxt, Next.js) | The public site for "View site": a path or an `http(s)` URL. |
 | `nav` | `NavGroup[]` | — | The menu's groups: `{ id, label, icon?, order?, children? }`, children one level deep. Built in: `content`, `settings` (`site`, `people`, `system`). [The admin](/guide/admin#the-menu) |
-| `commands` | `{ label, to, icon?, keywords? }[]` | — | More entries of the command palette (⌘K) that open a page of the admin. |
+| `commands` | `{ label, href, icon?, keywords? }[]` | — | More entries of the command palette (⌘K) that open a page of the admin. |
 | `modules` | `string[]` | `[]` | Admin modules with Web Components: package exports or paths. [Admin components](/guide/plugins#admin-components) |
 | `pages` | `AdminPage[]` | `[]` | Pages of their own at `<admin>/p/<path>`, e.g. from plugins. See [pages](#pages). |
 | `dashboard` | `DashboardWidget[]` | `[]` | Panels on the dashboard after the built-in ones. See [dashboard](#dashboard). |
-| `switcher` | `{ cookie, label, options }` | — | A choice at the top of the menu for the whole admin, e.g. the tenant, kept in a cookie. `options`: a path under the API returning `{ options: [{ value, label }], all? }`. Usually set by a plugin. |
+| `switcher` | `{ cookie, label, options } \| false` | — | A choice at the top of the menu for the whole admin, e.g. the tenant, kept in a cookie. `options`: a path under the API returning `{ options: [{ value, label }], all? }`. Usually set by a plugin. |
 
 <!-- api: AdminBrand -->
 ### brand
@@ -83,6 +87,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `label` | `string \| { en, th }` | **Required**. Title in the header, the menu and the browser tab. |
 | `icon` | `AdminIcon` | Menu icon. Default `file-text`. |
 | `group` | `'content' \| 'settings' \| false \| string` | Its menu group: `content`, `settings`, a group's id (`admin.nav`) or a label; `false`: not listed. Default `content`. |
+| `order` | `number` | Its place in its menu group: lower first. Those without one come after, in config order. |
 | `access` | `({ user }) => boolean` | Who may open it, checked on the server. Default: every logged-in user. |
 
 <!-- api: DashboardWidget -->
@@ -102,7 +107,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 
 | Option | Type | Default | |
 |---|---|---|---|
-| `every` | `'day' \| 'week'` | — | Back up automatically. Without it, admins back up by hand. |
+| `frequency` | `'daily' \| 'weekly'` | — | Back up automatically. Without it, admins back up by hand. |
 | `at` | `string` | `03:00` | When, as `HH:MM` in the server's time zone. |
 | `keep` | `number` | `7` | Finished backups to keep; older ones are deleted. |
 | `dir` | `string` | `backups` | Folder for the default local storage. Never served publicly. |
@@ -114,10 +119,10 @@ export default defineConfig({ secret, db, collections, /* … */ })
 
 | Option | Type | Default | |
 |---|---|---|---|
-| `keep` | `number` | `365` | Days to keep entries; older ones are deleted. `0`: keep them all. |
+| `keepDays` | `number` | `365` | Days to keep entries; older ones are deleted. `0`: keep them all. |
 | `values` | `boolean` | `true` | Keep values before and after a change; `false`: only which fields changed. |
 | `failedLogins` | `number` | `20` | Failed sign-ins within an hour that the dashboard warns about. [Audit log](/guide/audit-log) |
-| `scope` | `(context) => string \| null` | — | The part of the site an entry belongs to, e.g. its tenant (usually set by a plugin). Admins of a part (`scoped`) see its entries; others the chosen part's, or all. |
+| `scope` | `({ context, user }) => string \| null` | — | The part of the site an entry belongs to, e.g. its tenant (usually set by a plugin). Admins of a part (`scoped`) see its entries; others the chosen part's, or all. |
 
 <!-- api: AuthConfig -->
 ## auth
@@ -127,7 +132,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `roles` | `string[]` | `['admin', 'editor']` | Must include `admin`. With `rbac`, the roles that always exist. [Users & auth](/guide/auth) |
 | `rbac` | `boolean` | `false` | Roles and their permissions from the admin (Settings → Roles), on top of access rules. [Roles](/guide/roles) |
 | `providers` | `AuthProvider[]` | `[]` | Signing in to the admin with outside accounts, e.g. `[google()]` from `@easy-cms/auth-oauth`. [Single sign-on](/guide/sso) |
-| `allowSignUp` | `{ domains, role? }` | — | With `providers`: people from these email domains get an account on their first sign-in, with `role` (not `admin`). |
+| `providerSignUp` | `{ domains, role? }` | — | With `providers`: people from these email domains get an account on their first sign-in, with `role` (not `admin`). |
 | `password` | `boolean` | `true` | `false`: only admins sign in with a password; everyone else uses `providers`. |
 | `setupCode` | `string` | `EASY_CMS_SETUP_CODE` | The code the first admin must enter on `/admin`, so nobody else claims a fresh site. Without one, no code is asked. [One-click deploy](/guide/one-click-deploy) |
 | `tokenExpiration` | `number` | `604800` (7 days) | Session lifetime in seconds. |
@@ -145,12 +150,12 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | Option | Type | |
 |---|---|---|
 | `roles` | `string[]` | Their roles, also in `roles`. Members never get into the admin, and `isLoggedIn` (every collection's default) doesn't count them. [Site members](/guide/members) |
-| `signup` | `MembersSignup` | Visitors create their own account: `POST <api>/users/signup`. |
-| `pages` | `{ verifyEmail?, resetPassword? }` | The site's pages that open members' email links with `?token=`: paths on `admin.siteUrl` (else `serverURL`) or URLs. Default: the admin's pages. |
+| `signUp` | `MembersSignup` | Visitors create their own account: `POST <api>/users/signup`. |
+| `pages` | `{ verifyEmail?, resetPassword? }` | The site's pages that open members' email links with `?token=`: paths on `admin.siteURL` (else `serverURL`) or URLs. Default: the admin's pages. |
 | `emails` | `{ verifyEmail? }` | Your own text for the email that confirms an address. |
 
 <!-- api: MembersSignup -->
-#### signup
+#### signUp
 
 | Option | Type | Default | |
 |---|---|---|---|
@@ -206,7 +211,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 |---|---|---|---|
 | `url` | `string` | — | Where to POST events. [Webhooks](/guide/webhooks) |
 | `events` | `string[]` | all | `create`, `update`, `delete`, `publish`, `unpublish`, `draft`. |
-| `collections` | `string[]` | all | Collections to send events for; `[]` for none. |
+| `collections` | `string[]` | all but `users` | Collections to send events for; `[]` for none. List `users` to get user accounts. |
 | `globals` | `string[]` | all | Globals to send events for; `[]` for none. |
 | `secret` | `string` | — | Signs bodies: `x-easy-cms-signature: sha256=<hex>`. |
 | `headers` | `Record<string, string>` | — | Extra request headers. |
@@ -234,9 +239,7 @@ They run with the scheduled jobs: every minute in a server, or each time a cron 
 | `slug` | `string` | — | **Required**. URL and table name: lowercase letters, digits, `-`, `_`. |
 | `fields` | `Field[]` | — | **Required**. See the [field reference](./fields). |
 | `labels` | `{ singular?, plural? }` | from the slug | Each a string or `{ en, th }`. |
-| `icon` | `AdminIcon` | `file-text` | Menu icon. [Branding](/guide/configuration#branding-the-admin) |
 | `useAsTitle` | `string` | — | Top-level field shown as the document title. |
-| `editIn` | `'page' \| 'drawer'` | `page` | `drawer` edits in a panel over the list (without drafts, versions or preview). |
 | `drafts` | `boolean` | `false` | Adds `status` (`draft` \| `published`). [Drafts](/guide/drafts) |
 | `versions` | `boolean \| VersionsConfig` | `false` | Keep a version of every save. See [versions](#versions). |
 | `schedule` | `boolean` | `false` | Publish and unpublish at a set time (needs `drafts`). |
@@ -250,7 +253,7 @@ They run with the scheduled jobs: every minute in a server, or each time a cron 
 
 | Option | Type | Default | |
 |---|---|---|---|
-| `max` | `number` | `50` | Versions kept per document; older ones are deleted. |
+| `keep` | `number` | `50` | Versions kept per document; older ones are deleted. |
 
 <!-- api: CollectionHooks -->
 ### hooks
@@ -259,8 +262,8 @@ Each is a list of functions. [Hooks](/guide/hooks)
 
 | Hook | Arguments | Return |
 |---|---|---|
-| `beforeValidate` | `data`, `operation`, `originalDoc?` | new data, or nothing |
-| `beforeChange` | `data`, `operation`, `originalDoc?` | new data, or nothing |
+| `beforeValidate` | `data`, `operation`, `previousDoc?` | new data, or nothing |
+| `beforeChange` | `data`, `operation`, `previousDoc?` | new data, or nothing |
 | `afterChange` | `doc`, `operation`, `previousDoc?` | — |
 | `beforeDelete` | `id` | — |
 | `afterDelete` | `id`, `doc` | — |
@@ -273,8 +276,11 @@ Every hook also gets `user`, `cms` and `slug`.
 
 | Option | Type | |
 |---|---|---|
+| `icon` | `AdminIcon` | Menu icon. Default `file-text`. [Branding](/guide/configuration#branding-the-admin) |
+| `order` | `number` | Its place in its menu group: lower first. Those without one come after, in config order. |
+| `editIn` | `'page' \| 'drawer'` | `drawer` edits in a panel over the list (without drafts, versions or preview). Default `page`. |
 | `sidebar` | `SidebarPanel[]` | Panels in the edit page's side column; `{ tag, props, position: 'top' }` puts one above the rest. [Admin components](/guide/plugins#admin-components) |
-| `group` | `string \| Label` | Its menu group: a group's id (`admin.nav`, e.g. `shop.catalog`), `settings` (Settings › Site), or a label that makes a group of that name. Default: Content. [The admin](/guide/admin#the-menu) |
+| `group` | `string \| Label \| false` | Its menu group: a group's id (`admin.nav`, e.g. `shop.catalog`), `settings` (Settings › Site), or a label that makes a group of that name; `false`: not in the menu, reached by links. Default: Content. [The admin](/guide/admin#the-menu) |
 | `layout` | `LayoutNode[]` | Tabs, sections that fold and rows of the edit page, by field name. [The admin](/guide/admin#edit-pages) |
 | `badge` | `{ where, tone?, label? }` | A number beside its menu item: the documents matching `where` that the user may read, e.g. orders to send. |
 | `count` | `boolean` | The number of documents beside its menu item. Default `true`. |
@@ -291,7 +297,6 @@ Every hook also gets `user`, `cms` and `slug`.
 | `slug` | `string` | — | **Required**. |
 | `fields` | `Field[]` | — | **Required**. |
 | `label` | `string \| { en, th }` | from the slug | |
-| `icon` | `AdminIcon` | `settings` | Menu icon. |
 | `drafts` | `boolean` | `false` | |
 | `versions` | `boolean \| VersionsConfig` | `false` | |
 | `schedule` | `boolean` | `false` | Needs `drafts`. |
@@ -299,14 +304,15 @@ Every hook also gets `user`, `cms` and `slug`.
 | `access` | `{ read?, update? }` | logged in | |
 | `scope` | `({ context, user }) => string \| null \| undefined` | — | One value per scope, e.g. per tenant: a string keeps a value of its own, `undefined` the shared one, `null` none (reads give it empty, changes are refused). |
 | `hooks` | `GlobalHooks` | — | See below. |
-| `admin` | `ContainerAdmin` | — | `{ sidebar }`, as for collections. |
+| `admin` | `ContainerAdmin` | — | `{ icon, order, group, sidebar, layout }`, as for collections. Default icon `settings`, group Settings › Site. |
 
 <!-- api: GlobalHooks -->
 ### Global hooks
 
 | Hook | Arguments | Return |
 |---|---|---|
-| `beforeChange` | `data`, `operation`, `originalDoc?` | new data, or nothing |
+| `beforeValidate` | `data`, `operation`, `previousDoc?` | new data, or nothing |
+| `beforeChange` | `data`, `operation`, `previousDoc?` | new data, or nothing |
 | `afterChange` | `doc`, `operation`, `previousDoc?` | — |
 | `afterRead` | `doc` | new doc, or nothing |
 

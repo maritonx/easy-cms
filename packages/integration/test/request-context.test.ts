@@ -169,7 +169,7 @@ describe('request context', () => {
     const cms = await open(
       defineConfig({
         ...config(),
-        audit: { scope: (context) => (context.site as string | undefined) ?? null },
+        audit: { scope: ({ context }) => (context.site as string | undefined) ?? null },
       }),
     )
     await cms.create('products', { sku: 'S-1' } as never, { context: { site: 'a' } })

@@ -47,7 +47,7 @@ export const api = createApiHandler(config, {
 
 /** `/admin/*` เฉพาะ GET และ HEAD */
 export const admin = async (request: Request) =>
-  adminHandlerFor(await resolveConfig(config), { siteUrl: '/' })(request)
+  adminHandlerFor(await resolveConfig(config), { siteURL: '/' })(request)
 ```
 
 ส่งทุก request ใต้ `routes.api` (ค่าเริ่มต้น `/api/cms`) ไปที่ `api` และใต้ `admin.path` (ค่าเริ่มต้น `/admin`) ไปที่ `admin`

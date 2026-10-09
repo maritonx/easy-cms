@@ -15,7 +15,7 @@ const post = {
 describe('seoMeta', () => {
   it('uses meta values, falls back to the document and makes URLs absolute', () => {
     const meta = seoMeta(post, {
-      config: { admin: { siteUrl: 'https://blog.test/' } },
+      config: { admin: { siteURL: 'https://blog.test/' } },
       url: (doc) => `/posts/${doc.slug}`,
       siteName: 'Blog',
     })
@@ -67,7 +67,7 @@ describe('seoMeta', () => {
   })
 
   it('works without meta, a site URL or an image', () => {
-    const meta = seoMeta({ title: 'Plain', meta: { image: 5 } }, { siteUrl: '/', url: '/plain' })
+    const meta = seoMeta({ title: 'Plain', meta: { image: 5 } }, { siteURL: '/', url: '/plain' })
     expect(meta).toMatchObject({
       title: 'Plain',
       description: undefined,
@@ -99,7 +99,7 @@ describe('seoMeta', () => {
     }
     const meta = seoMeta(doc, {
       config: {
-        admin: { siteUrl: 'https://blog.test' },
+        admin: { siteURL: 'https://blog.test' },
         localization: { locales: ['th', 'en'], defaultLocale: 'th' },
       },
       locale: 'en',
@@ -170,7 +170,7 @@ describe('seoMeta', () => {
     const meta = seoMeta(
       { title: 'Team' },
       {
-        siteUrl: 'https://site.test',
+        siteURL: 'https://site.test',
         url: '/p/about/team',
         breadcrumbs: [
           { name: 'About', url: '/p/about' },

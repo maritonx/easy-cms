@@ -205,11 +205,16 @@ export interface CreateEasyCMSOptions {
 
 /** Connects to the database and returns the Local API. */
 export async function createEasyCMS<const C extends Config>(
-  config: C,
+  // A config as written, or as `loadConfig` resolved it.
+  config: C | ResolvedConfig,
   options: CreateEasyCMSOptions = {},
 ): Promise<EasyCMS<C>> {
   const resolved = await resolveConfig(config)
   const logger = options.logger ?? consoleLogger
+  for (const warning of resolved.warnings)
+    logger.warn(
+      `Config: ${warning.path} ${warning.message}${warning.hint ? ` (${warning.hint})` : ''}`,
+    )
   const cwd = options.cwd ?? process.cwd()
   const storage = resolved.upload.storage ?? localStorage({ dir: resolved.upload.dir })
   await storage.init?.({ cwd })
@@ -1326,7 +1331,7 @@ export class EasyCMS<C extends Config = Config> {
     merged = await this.transform(
       config.hooks?.beforeValidate,
       'data',
-      { ...base, operation: 'update', originalDoc: current },
+      { ...base, operation: 'update', previousDoc: current },
       merged,
     )
     let prepared = await this.prepare(
@@ -1340,7 +1345,7 @@ export class EasyCMS<C extends Config = Config> {
     prepared = await this.transform(
       config.hooks?.beforeChange,
       'data',
-      { ...base, operation: 'update', originalDoc: current },
+      { ...base, operation: 'update', previousDoc: current },
       prepared,
     )
     const now = new Date().toISOString()
@@ -1675,11 +1680,17 @@ export class EasyCMS<C extends Config = Config> {
     )
     if (config.drafts) merged.status = input.status ?? current.status ?? 'draft'
     const base = this.hookArgs(config, guard)
-    let prepared = await this.prepare(config, merged, 'update', undefined, options, guard)
+    const validated = await this.transform(
+      config.hooks?.beforeValidate,
+      'data',
+      { ...base, operation: 'update', previousDoc: current },
+      merged,
+    )
+    let prepared = await this.prepare(config, validated, 'update', undefined, options, guard)
     prepared = await this.transform(
       config.hooks?.beforeChange,
       'data',
-      { ...base, operation: 'update', originalDoc: current },
+      { ...base, operation: 'update', previousDoc: current },
       prepared,
     )
     const now = new Date().toISOString()
@@ -2386,7 +2397,7 @@ export class EasyCMS<C extends Config = Config> {
   }
 
   private async fieldChecker(
-    kind: 'read' | 'update',
+    kind: 'read' | 'create' | 'update',
     guard: Guard,
     id: ID | undefined,
     data: Data | undefined,
@@ -2525,7 +2536,7 @@ export class EasyCMS<C extends Config = Config> {
     const filtered = await filterInput(
       config.fields,
       input,
-      await this.fieldChecker('update', guard, undefined, input),
+      await this.fieldChecker('create', guard, undefined, input),
     )
     this.roles.fillOwner(collection, filtered, guard.user ?? hookGuard?.user ?? null)
     const base = this.hookArgs(config, hookGuard ?? guard)

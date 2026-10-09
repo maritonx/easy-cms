@@ -5,7 +5,7 @@ import { sitemapXml } from '@easy-cms/plugin-seo'
 export default defineEventHandler(async (event) => {
   setHeader(event, 'content-type', 'application/xml; charset=utf-8')
   return sitemapXml(await useEasyCMS(), {
-    siteUrl: getRequestURL(event).origin,
+    siteURL: getRequestURL(event).origin,
     page: getQuery(event).page as string | undefined,
   })
 })

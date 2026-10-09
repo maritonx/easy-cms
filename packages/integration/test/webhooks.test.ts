@@ -123,6 +123,24 @@ describe('webhooks (FR-HOOK)', () => {
     await cms.destroy()
   })
 
+  it('sends accounts only to webhooks that list users', async () => {
+    const cms = await open(
+      defineConfig({
+        ...config(),
+        webhooks: [
+          { url: `${url}/everything` },
+          { url: `${url}/accounts`, collections: ['users'] },
+        ],
+      }),
+    )
+    await cms.create('users', { email: 'ann@x.co', password: 'password123', role: 'editor' })
+    await cms.create('notes', { text: 'Hi' })
+    await cms.flushWebhooks()
+    expect(to('/everything').map((r) => r.payload.collection)).toEqual(['notes'])
+    expect(to('/accounts').map((r) => r.payload.collection)).toEqual(['users'])
+    await cms.destroy()
+  })
+
   it('retries server errors and never blocks or breaks the save (FR-HOOK-02)', async () => {
     const cms = await open(
       defineConfig({

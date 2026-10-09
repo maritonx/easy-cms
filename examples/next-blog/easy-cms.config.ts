@@ -28,7 +28,7 @@ export default defineConfig({
     ? postgres({ url: process.env.DATABASE_URL })
     : postgres({ pglite: process.env.PGLITE_DIR ?? '.pglite' }),
   // The admin menu: posts first; users are listed under Settings.
-  admin: { locale: 'th', menu: ['posts', 'pages', 'categories', 'media'] },
+  admin: { locale: 'th' },
   // API keys for scripts and AI assistants, managed under Settings → API keys.
   apiKeys: true,
   // Posts and the site name in Thai and English; the slug and other fields are shared.
@@ -36,7 +36,7 @@ export default defineConfig({
   // "From a link" in the media library: the server downloads files from any public site.
   upload: { fromURL: { allowedHosts: ['*'] } },
   // Settings → Backups: every night, as a compressed SQLite file (Postgres is copied with sqlite).
-  backups: { every: 'day', at: '03:00', keep: 7, sqlite },
+  backups: { frequency: 'daily', at: '03:00', keep: 7, sqlite },
   // Settings → Audit log: who changed what and when, sign-ins and admin actions (a year).
   audit: true,
   // Settings → Roles: admins tick what each role may do; add roles there without code.
@@ -62,12 +62,11 @@ export default defineConfig({
     {
       slug: 'categories',
       // Small: create and edit in a panel over the list.
-      editIn: 'drawer',
       labels: {
         singular: { en: 'Category', th: 'หมวดหมู่' },
         plural: { en: 'Categories', th: 'หมวดหมู่' },
       },
-      icon: 'tag',
+      admin: { order: 3, editIn: 'drawer', icon: 'tag' },
       useAsTitle: 'name',
       access: { read: () => true },
       fields: [
@@ -85,7 +84,6 @@ export default defineConfig({
     {
       slug: 'posts',
       labels: { singular: { en: 'Post', th: 'บทความ' }, plural: { en: 'Posts', th: 'บทความ' } },
-      icon: 'newspaper',
       drafts: true,
       // History and restore; drafts of a published post stay unpublished until published.
       versions: true,
@@ -94,7 +92,7 @@ export default defineConfig({
       // Live preview in the admin: the page that shows a post.
       preview: ({ doc }) => (doc.slug ? `/posts/${doc.slug}` : null),
       // Roles limited to their own posts (Settings → Roles) go by the author.
-      admin: { ownerField: 'author' },
+      admin: { order: 1, icon: 'newspaper', ownerField: 'author' },
       useAsTitle: 'title',
       access: {
         // Visitors see published posts; logged-in editors see drafts too.
@@ -166,7 +164,7 @@ export default defineConfig({
           type: 'relationship',
           to: 'categories',
           label: { en: 'Category', th: 'หมวดหมู่' },
-          position: 'sidebar',
+          admin: { position: 'sidebar' },
         },
         {
           name: 'tags',
@@ -174,27 +172,27 @@ export default defineConfig({
           options: ['nuxt', 'vue', 'cms', 'thai'],
           hasMany: true,
           label: { en: 'Tags', th: 'แท็ก' },
-          position: 'sidebar',
+          admin: { position: 'sidebar' },
         },
         {
           name: 'author',
           type: 'relationship',
           to: 'users',
           label: { en: 'Author', th: 'ผู้เขียน' },
-          position: 'sidebar',
+          admin: { position: 'sidebar' },
         },
         {
           name: 'publishedAt',
           type: 'date',
           label: { en: 'Published at', th: 'วันที่เผยแพร่' },
-          position: 'sidebar',
+          admin: { position: 'sidebar' },
         },
       ],
     },
     {
       slug: 'pages',
       labels: { singular: { en: 'Page', th: 'หน้า' }, plural: { en: 'Pages', th: 'หน้า' } },
-      icon: 'file-text',
+      admin: { order: 2, icon: 'file-text' },
       drafts: true,
       versions: true,
       useAsTitle: 'title',
@@ -226,7 +224,7 @@ export default defineConfig({
     {
       slug: 'site',
       label: { en: 'Site', th: 'ข้อมูลเว็บไซต์' },
-      icon: 'house',
+      admin: { icon: 'house' },
       access: { read: () => true },
       fields: [
         {

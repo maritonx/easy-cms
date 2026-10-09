@@ -15,7 +15,7 @@ import { settings } from '../lib/settings'
 
 const collections = menuOrder(
   (session.schema?.collections ?? []).filter((c) => c.permissions.read && listed(c)),
-  session.schema?.menu,
+  session.schema?.nav,
 )
 /** Number tiles: content only, in menu order (users and other settings are in the menu). */
 const tiles = collections.filter((c) => !inSettings(`/collections/${c.slug}`))
@@ -268,7 +268,7 @@ const statusOf = (doc: Doc) => (doc.status === 'published' ? 'published' : 'draf
       <p class="muted">{{ t('dashboard.subtitle') }}</p>
     </div>
     <div class="header-actions">
-      <a v-if="settings.siteUrl" :href="settings.siteUrl" class="btn" target="_blank" rel="noopener">
+      <a v-if="settings.siteURL" :href="settings.siteURL" class="btn" target="_blank" rel="noopener">
         <ArrowUpRight :size="16" aria-hidden="true" />
         {{ t('dashboard.viewSite') }}
       </a>

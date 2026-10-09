@@ -25,8 +25,8 @@ function config(calls: string[], extra: { failAfterChange?: boolean } = {}) {
             },
           ],
           beforeChange: [
-            ({ data, operation, originalDoc }) => {
-              calls.push(`beforeChange:${operation}:${originalDoc ? 'with-original' : 'new'}`)
+            ({ data, operation, previousDoc }) => {
+              calls.push(`beforeChange:${operation}:${previousDoc ? 'with-original' : 'new'}`)
               if (data.title === 'forbidden') throw new Error('Title not allowed')
               return { ...data, wordCount: String(data.title).split(/\s+/).length }
             },
@@ -162,5 +162,46 @@ describe('hook typing', () => {
         },
       ],
     })
+  })
+})
+
+describe('global hooks', () => {
+  it('run beforeValidate with the value before, then beforeChange', async () => {
+    const calls: string[] = []
+    const cms = await open(
+      defineConfig({
+        secret: SECRET,
+        db: db(),
+        collections: [],
+        globals: [
+          {
+            slug: 'site',
+            fields: [{ name: 'name', type: 'text', required: true }],
+            hooks: {
+              beforeValidate: [
+                ({ data, previousDoc }) => {
+                  calls.push(`beforeValidate:${previousDoc ? 'with-previous' : 'none'}`)
+                  return typeof data.name === 'string'
+                    ? { ...data, name: data.name.trim() }
+                    : undefined
+                },
+              ],
+              beforeChange: [
+                () => {
+                  calls.push('beforeChange')
+                  return undefined
+                },
+              ],
+            },
+          },
+        ],
+      }),
+    )
+    try {
+      expect(await cms.updateGlobal('site', { name: '  Acme  ' })).toMatchObject({ name: 'Acme' })
+      expect(calls).toEqual(['beforeValidate:with-previous', 'beforeChange'])
+    } finally {
+      await cms.destroy()
+    }
   })
 })

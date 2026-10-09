@@ -39,7 +39,7 @@ it. Turn on versions to edit drafts while the published version stays live.
 
 ```ts
 { slug: 'posts', drafts: true, versions: true, fields: [/* … */] }
-// or versions: { max: 100 } — versions kept per document (default 50)
+// or versions: { keep: 100 } — versions kept per document (default 50)
 ```
 
 With `versions`, every save of a document (or global) is kept as a version:

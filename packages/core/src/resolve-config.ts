@@ -66,8 +66,10 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
   // Fields of added types become fields of their base types.
   const applied = applyFieldTypes(config)
   config = applied.config
-  const issues = [...applied.issues, ...validateConfig(config)]
+  const all = [...applied.issues, ...validateConfig(config)]
+  const issues = all.filter((issue) => issue.severity !== 'warning')
   if (issues.length > 0) throw new ConfigError(issues)
+  const warnings = all.filter((issue) => issue.severity === 'warning')
 
   const { plugins, ...rest } = config
   const result: ResolvedConfig = {
@@ -85,12 +87,11 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
       path: config.admin?.path ?? DEFAULT_ADMIN_PATH,
       locale: config.admin?.locale ?? 'en',
       brand: config.admin?.brand ?? {},
-      siteUrl: config.admin?.siteUrl ?? '',
-      menu: config.admin?.menu ?? [],
+      siteURL: config.admin?.siteURL ?? '',
       modules: config.admin?.modules ?? [],
       pages: config.admin?.pages ?? [],
       dashboard: config.admin?.dashboard ?? [],
-      switcher: config.admin?.switcher ?? null,
+      switcher: config.admin?.switcher ?? false,
       nav: config.admin?.nav ?? [],
       commands: config.admin?.commands ?? [],
     },
@@ -108,7 +109,7 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
       roles: config.auth?.roles ?? DEFAULT_ROLES,
       rbac: config.auth?.rbac === true,
       providers: config.auth?.providers ?? [],
-      allowSignUp: config.auth?.allowSignUp ?? { domains: [] },
+      providerSignUp: config.auth?.providerSignUp ?? { domains: [] },
       password: config.auth?.password !== false,
       setupCode: config.auth?.setupCode ?? process.env.EASY_CMS_SETUP_CODE ?? '',
       tokenExpiration: config.auth?.tokenExpiration ?? DEFAULT_TOKEN_EXPIRATION,
@@ -137,9 +138,10 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
     ],
     globals: config.globals ?? [],
     endpoints: config.endpoints ?? [],
-    commands: config.commands ?? [],
+    cliCommands: config.cliCommands ?? [],
     events: config.events ?? [],
     jobs: config.jobs ?? [],
+    warnings,
     installedPlugins: (plugins ?? []).map((plugin) =>
       typeof plugin === 'function' && plugin.info ? { ...plugin.info } : {},
     ),
@@ -159,9 +161,9 @@ function usesSchedule(config: Config): boolean {
 
 function resolveAudit(audit: AuditConfig): Required<AuditConfig> {
   return {
-    keep: audit.keep ?? DEFAULT_AUDIT_KEEP,
+    keepDays: audit.keepDays ?? DEFAULT_AUDIT_KEEP,
     values: audit.values !== false,
     failedLogins: audit.failedLogins ?? DEFAULT_FAILED_LOGINS,
-    scope: audit.scope ?? null,
+    scope: audit.scope ?? false,
   }
 }

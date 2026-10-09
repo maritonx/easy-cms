@@ -10,7 +10,6 @@ import { multiTenantPlugin } from '@easy-cms/plugin-multi-tenant'
 export default defineConfig({
   secret: process.env.EASY_CMS_SECRET ?? '',
   db: sqlite({ url: process.env.DATABASE_URL ?? 'file:./cms.db' }),
-  admin: { menu: ['posts', 'pages', 'categories', 'media'] },
   // Roles from the admin (Settings → Roles): members get one in each tenant.
   auth: { rbac: true },
   apiKeys: true,
@@ -18,6 +17,7 @@ export default defineConfig({
   collections: [
     {
       slug: 'posts',
+      admin: { order: 1 },
       useAsTitle: 'title',
       access: { read: () => true },
       fields: [
@@ -31,6 +31,7 @@ export default defineConfig({
     },
     {
       slug: 'pages',
+      admin: { order: 2 },
       useAsTitle: 'title',
       access: { read: () => true },
       fields: [
@@ -42,6 +43,7 @@ export default defineConfig({
     // Shared by every brand.
     {
       slug: 'categories',
+      admin: { order: 3 },
       useAsTitle: 'name',
       access: { read: () => true },
       fields: [{ name: 'name', type: 'text', required: true }],

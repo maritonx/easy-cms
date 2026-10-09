@@ -19,7 +19,7 @@ export const DEFAULT_BACKUP_KEEP = 7
 const DEFAULT_DIR = 'backups'
 /** A backup still pending or running after this long was interrupted (a stopped process). */
 const STALE = 30 * 60_000
-const PERIOD = { day: 86_400_000, week: 7 * 86_400_000 } as const
+const PERIOD = { daily: 86_400_000, weekly: 7 * 86_400_000 } as const
 
 export type BackupState = 'pending' | 'running' | 'done' | 'failed'
 
@@ -44,7 +44,7 @@ export interface AdminBackup {
 /** Settings → Backups (`GET <api>/admin/backups`). */
 export interface AdminBackups {
   settings: {
-    every: 'day' | 'week' | null
+    frequency: 'daily' | 'weekly' | null
     at: string
     keep: number
     /** The storage adapter's name, e.g. `local` or `s3`. */
@@ -168,7 +168,7 @@ export async function listBackups(cms: EasyCMS): Promise<AdminBackups> {
   })
   return {
     settings: {
-      every: config?.every ?? null,
+      frequency: config?.frequency ?? null,
       at: config?.at ?? DEFAULT_BACKUP_TIME,
       keep: config?.keep ?? DEFAULT_BACKUP_KEEP,
       storage: storage.name,
@@ -330,7 +330,7 @@ export async function runDueBackups(cms: EasyCMS, now: Date = new Date()): Promi
       })
   }
 
-  const every = cms.config.backups?.every
+  const every = cms.config.backups?.frequency
   if (!every) return
   const slot = lastSlot(now, cms.config.backups?.at ?? DEFAULT_BACKUP_TIME)
   const latest = await cms.db.find({
@@ -343,7 +343,7 @@ export async function runDueBackups(cms: EasyCMS, now: Date = new Date()): Promi
   const last = latest.docs[0] ? Date.parse(String(latest.docs[0].createdAt)) : 0
   // Daily: once per slot. Weekly: at the slot, a week after the last one.
   const due =
-    every === 'day' ? last < slot.getTime() : last < slot.getTime() - PERIOD.week + PERIOD.day
+    every === 'daily' ? last < slot.getTime() : last < slot.getTime() - PERIOD.weekly + PERIOD.daily
   if (!due) return
   if (await inProgress(cms, now.getTime())) return
   await startBackup(cms, 'scheduled').catch((error) =>
@@ -356,7 +356,7 @@ export async function backupAttention(
   cms: EasyCMS,
   now: number = Date.now(),
 ): Promise<{ id: 'backups'; failed: boolean; lastDone: string | null } | null> {
-  const every = cms.config.backups?.every
+  const every = cms.config.backups?.frequency
   if (!every) return null
   const [scheduled, done] = await Promise.all([
     cms.db.find({

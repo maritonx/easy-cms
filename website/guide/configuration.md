@@ -45,13 +45,12 @@ and how to fix it.
 | `serverURL` | — | Public origin such as `https://example.com`. Makes media URLs absolute, and is where password links point (needed for them in production). |
 | `webhooks` | `[]` | Endpoints notified when content changes. See [Webhooks](./webhooks). |
 | `cronSecret` | `CRON_SECRET` | Lets a cron run [scheduled jobs](./drafts#scheduled-publishing) at `<api>/jobs/run`. |
-| `localization` | — | `{ locales, defaultLocale?, fallback? }`: content in several languages. See [Localization](./localization). |
+| `localization` | — | `{ locales, defaultLocale?, fallback? }`: content in several languages (leave it out, or `false`, for one). See [Localization](./localization). |
 | `cors` | `[]` | Origins whose browser code may call the REST API, or `'*'` for any (anonymous requests). Origins in `auth.trustedOrigins` are always allowed, with cookies. |
 | `routes.api` | `/api/cms` | Where the REST API is served. |
 | `admin.path` | `/admin` | Where the admin UI is served. |
 | `admin.locale` | `en` | Default admin language: `en` or `th`. |
-| `admin.siteUrl` | `/` (Nuxt, Next.js) | The public site, for the admin's "View site" button: a path or an `https://` URL. |
-| `admin.menu` | config order | Order of collections in the admin menu by slug, e.g. `['posts', 'categories', 'media']`; others follow, the media library last. User accounts are under Settings. |
+| `admin.siteURL` | `/` (Nuxt, Next.js) | The public site, for the admin's "View site" button: a path or an `https://` URL. |
 | `admin.brand` | — | `{ name, logo, color }`: your or your client's brand in the admin. See [Branding the admin](#branding-the-admin). |
 | `admin.modules` | `[]` | JavaScript modules with Web Components for the admin, by package export or path; usually added by [plugins](./plugins#admin-components). |
 | `auth` | | See [Users & auth](./auth). |
@@ -71,11 +70,13 @@ A collection is a type of content with many documents: posts, products, pages.
 | `fields` | The [fields](./fields). |
 | `labels` | `{ singular, plural }`, each a string or `{ en, th }`. |
 | `useAsTitle` | Top-level field shown as the document title in the admin. |
-| `editIn` | `'drawer'`: create and edit in a panel over the list, for small collections such as categories; relationship fields to it get a "Create" button that opens the same panel. Collections with drafts, versions or preview always use the full page. |
-| `admin` | `{ group: 'settings' }` lists the collection under Settings in the menu (with Users and API keys) instead of with the content; `{ sidebar }` adds [admin components](./plugins#admin-components); `{ list: { tree: 'parent', sort: 'title' } }` shows the list as a tree along a relationship to the same collection, and sets its default order. |
-| `icon` | Icon in the admin menu (default `file-text`); one of the names under [Branding the admin](#branding-the-admin). |
+| `admin.icon` | Icon in the admin menu (default `file-text`); one of the names under [Branding the admin](#branding-the-admin). |
+| `admin.order` | Its place in its menu group, e.g. `1`: lower first; collections without one come after, in config order. The media library comes last, user accounts are under Settings. |
+| `admin.group` | `'settings'` lists the collection under Settings in the menu (with Users and API keys) instead of with the content; `false` leaves it out of the menu (links still reach it). See [The menu](./admin#the-menu). |
+| `admin.editIn` | `'drawer'`: create and edit in a panel over the list, for small collections such as categories; relationship fields to it get a "Create" button that opens the same panel. Collections with drafts, versions or preview always use the full page. |
+| `admin.list` | `{ tree: 'parent', sort: 'title' }` shows the list as a tree along a relationship to the same collection, and sets its default order. |
 | `drafts` | Adds `status` (`draft` \| `published`). See [Drafts](./drafts). |
-| `versions` | `true` or `{ max }`: keep a version of every save, with history and restore; with `drafts`, drafts of published documents are kept separately. See [Versions](./drafts#versions). |
+| `versions` | `true` or `{ keep }`: keep a version of every save, with history and restore; with `drafts`, drafts of published documents are kept separately. See [Versions](./drafts#versions). |
 | `preview` | `({ doc }) => url`: the page that shows a document, for [live preview](./live-preview). |
 | `admin.sidebar` | Panels from [admin components](./plugins#admin-components) in the edit page's side column. |
 | `schedule` | Publish and unpublish at a set time (needs `drafts`). See [Scheduled publishing](./drafts#scheduled-publishing). |
@@ -108,8 +109,9 @@ globals: [
 ],
 ```
 
-Globals accept `fields`, `label`, `icon`, `drafts`, `versions`, `preview`, `admin`, `access` (`read`, `update`) and `hooks`
-(`beforeChange`, `afterChange`, `afterRead`).
+Globals accept `fields`, `label`, `drafts`, `versions`, `preview`, `admin` (`icon`, `order`,
+`group`, `sidebar`, `layout`), `access` (`read`, `update`) and `hooks` (`beforeValidate`,
+`beforeChange`, `afterChange`, `afterRead`).
 
 ## Branding the admin
 
@@ -124,10 +126,10 @@ admin: {
   },
 },
 collections: [
-  { slug: 'posts', icon: 'newspaper', fields: [/* … */] },
-  { slug: 'menu', icon: 'utensils', fields: [/* … */] },
+  { slug: 'posts', admin: { icon: 'newspaper' }, fields: [/* … */] },
+  { slug: 'menu', admin: { icon: 'utensils' }, fields: [/* … */] },
 ],
-globals: [{ slug: 'site', icon: 'house', fields: [/* … */] }],
+globals: [{ slug: 'site', admin: { icon: 'house' }, fields: [/* … */] }],
 ```
 
 Text on the brand color turns dark when white would be hard to read. Each user picks light,

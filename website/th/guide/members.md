@@ -23,7 +23,7 @@ export default defineConfig({
     roles: ['admin', 'editor', 'customer'],
     members: {
       roles: ['customer'],
-      signup: { role: 'customer' },
+      signUp: { role: 'customer' },
       pages: { verifyEmail: '/account/verify', resetPassword: '/account/reset' },
     },
   },
@@ -44,7 +44,7 @@ export default defineConfig({
 
 ## การสมัคร {#signing-up}
 
-เมื่อตั้ง `signup` ผู้เยี่ยมชมสร้างบัญชีเองได้ด้วย `role` ที่กำหนด:
+เมื่อตั้ง `signUp` ผู้เยี่ยมชมสร้างบัญชีเองได้ด้วย `role` ที่กำหนด:
 
 ```ts
 // token ของฟอร์ม ตอนแสดงฟอร์ม: ยืนยันว่าไม่ใช่บอตที่กรอกทันที
@@ -58,22 +58,22 @@ await fetch('/api/cms/users/signup', {
 // 202 { verify: true }: ส่งลิงก์ยืนยันอีเมลแล้ว
 ```
 
-1. บัญชีใหม่ล็อกอินไม่ได้จนกว่าจะยืนยันอีเมล (`signup.verifyEmail` ค่าเริ่มต้น `true`) คำตอบเหมือนกันไม่ว่าอีเมลนั้นมีบัญชี
+1. บัญชีใหม่ล็อกอินไม่ได้จนกว่าจะยืนยันอีเมล (`signUp.verifyEmail` ค่าเริ่มต้น `true`) คำตอบเหมือนกันไม่ว่าอีเมลนั้นมีบัญชี
    หรือไม่ จึงไม่มีใครรู้ว่าใครสมัครไว้
 2. ลิงก์ในอีเมลเปิด `pages.verifyEmail` บนเว็บพร้อม `?token=` หน้านั้นส่ง token ไปที่ `POST /api/cms/users/verify-email`
    (`{ token }`) เพื่อยืนยันอีเมลและเข้าสู่ระบบ
 3. ถ้าไม่เปิด `verifyEmail` การสมัครจะเข้าสู่ระบบทันที (`201` พร้อม session)
 
 การกันสแปมเหมือนของ[ฟอร์ม](./forms): token (ส่งเร็วเกินไปหรือเกินหนึ่งวันจะถูกปฏิเสธ) ช่องซ่อนที่บอตชอบกรอก (`website`)
-จำกัดการสมัครต่อ IP และ Cloudflare Turnstile เมื่อตั้ง `signup.turnstile: { siteKey, secretKey }` คำตอบของการขอ token
+จำกัดการสมัครต่อ IP และ Cloudflare Turnstile เมื่อตั้ง `signUp.turnstile: { siteKey, secretKey }` คำตอบของการขอ token
 บอก `turnstile` ด้วย (site key หรือ `null`)
 
-การสมัครต้องตั้งค่า[อีเมล](./email) และใน production ต้องมี URL ของเว็บสำหรับลิงก์: `admin.siteUrl` แบบ URL เต็ม หรือ `serverURL`
+การสมัครต้องตั้งค่า[อีเมล](./email) และใน production ต้องมี URL ของเว็บสำหรับลิงก์: `admin.siteURL` แบบ URL เต็ม หรือ `serverURL`
 
 ## ลิงก์ในอีเมล {#email-links}
 
 ลิงก์ "ลืมรหัสผ่าน" ของสมาชิกเปิด `pages.resetPassword` บนเว็บ ซึ่งส่ง token และรหัสผ่านใหม่ไปที่
-`POST /api/cms/users/reset-password` หน้าเหล่านี้เป็น path (บน `admin.siteUrl` หรือ `serverURL`) หรือ URL เต็มก็ได้ ถ้าไม่ตั้ง
+`POST /api/cms/users/reset-password` หน้าเหล่านี้เป็น path (บน `admin.siteURL` หรือ `serverURL`) หรือ URL เต็มก็ได้ ถ้าไม่ตั้ง
 ลิงก์จะเปิดหน้าของระบบจัดการ
 
 `emails.verifyEmail` เปลี่ยนข้อความอีเมลยืนยันได้ เหมือน `auth.emails`

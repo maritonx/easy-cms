@@ -1,5 +1,6 @@
 import { createHmac, randomUUID } from 'node:crypto'
 import type { ID } from './access.js'
+import { USERS } from './builtins.js'
 import type { Logger } from './logger.js'
 
 export const WEBHOOK_EVENTS = [
@@ -25,7 +26,7 @@ export interface WebhookConfig {
    * in the config, e.g. `order.paid`) are sent only when listed here.
    */
   readonly events?: readonly (WebhookEvent | (string & {}))[]
-  /** Collections to send events for. Default: all; `[]` for none. */
+  /** Collections to send events for. Default: all but `users` (list it to get accounts); `[]` for none. */
   readonly collections?: readonly string[]
   /** Globals to send events for. Default: all; `[]` for none. */
   readonly globals?: readonly string[]
@@ -279,6 +280,9 @@ function matches(hook: WebhookConfig, payload: WebhookPayload): boolean {
   if (!isContentEvent(payload.event)) return hook.events?.includes(payload.event) === true
   if (hook.events && !hook.events.includes(payload.event)) return false
   if (payload.collection !== undefined)
-    return !hook.collections || hook.collections.includes(payload.collection)
+    // Accounts (`users`) go out only to webhooks that list them: they hold people's details.
+    return hook.collections
+      ? hook.collections.includes(payload.collection)
+      : payload.collection !== USERS
   return !hook.globals || hook.globals.includes(payload.global as string)
 }

@@ -470,7 +470,7 @@ describe('tenants', () => {
   it('give documents without one to a tenant (tenants:assign)', async () => {
     const orphan = await cms.create('posts', { title: 'Imported' } as never)
     expect(orphan.tenant ?? null).toBeNull()
-    const command = cms.config.commands.find((c) => c.name === 'tenants:assign')
+    const command = cms.config.cliCommands.find((c) => c.name === 'tenants:assign')
     const lines: string[] = []
     await command?.run({ cms: cms as unknown as EasyCMS, args: ['a'], log: (l) => lines.push(l) })
     expect((await cms.findById('posts', orphan.id, { depth: 0 }))?.tenant).toBe(a)

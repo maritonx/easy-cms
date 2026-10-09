@@ -9,11 +9,11 @@ import {
   type EndpointRequest,
   type Field,
   ForbiddenError,
-  NotFoundError,
   type ID,
   type Label,
   type MembersConfig,
   type MembersSignup,
+  NotFoundError,
   type TypedPlugin,
   UnauthorizedError,
 } from '@easy-cms/core'
@@ -116,7 +116,7 @@ type Price<C extends string> = { readonly name: `priceIn${C}`; readonly type: 'n
 
 /** What `ecommercePlugin(options)` adds, for the types the Local API infers from the config. */
 export type EcommercePluginTypes<Cur extends string> = {
-  /** Accounts made by signing up confirm their email (`auth.members.signup`). */
+  /** Accounts made by signing up confirm their email (`auth.members.signUp`). */
   readonly fields: {
     readonly users: readonly [{ readonly name: 'emailVerified'; readonly type: 'boolean' }]
   }
@@ -624,7 +624,7 @@ export function ecommercePlugin<const Cur extends string = 'THB'>(
     const signup = options.customers?.signup ?? true
     const pages = members?.pages ?? options.customers?.pages
     const memberSignup =
-      members?.signup ??
+      members?.signUp ??
       (signup === false ? undefined : { role, ...(signup === true ? {} : signup) })
     return {
       ...config,
@@ -667,7 +667,7 @@ export function ecommercePlugin<const Cur extends string = 'THB'>(
         members: {
           ...members,
           roles: [...new Set([...(members?.roles ?? []), role])],
-          ...(memberSignup ? { signup: memberSignup } : {}),
+          ...(memberSignup ? { signUp: memberSignup } : {}),
           ...(pages ? { pages } : {}),
         },
       },
@@ -692,13 +692,13 @@ export function ecommercePlugin<const Cur extends string = 'THB'>(
           ...(config.admin?.commands ?? []),
           {
             label: { en: 'Orders to send', th: 'คำสั่งซื้อที่รอจัดส่ง' },
-            to: '/collections/orders?f_status=paid',
+            href: '/collections/orders?f_status=paid',
             icon: 'package',
             keywords: ['ship', 'ส่งของ'],
           },
           {
             label: { en: 'Orders awaiting payment', th: 'คำสั่งซื้อที่รอชำระเงิน' },
-            to: '/collections/orders?f_status=pending',
+            href: '/collections/orders?f_status=pending',
             icon: 'package',
           },
         ],

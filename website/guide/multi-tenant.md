@@ -174,7 +174,7 @@ The plugin uses parts of the core you can use yourself:
 - **`uniqueWithin`** works on any unique field, with a unique index per scope in the database.
 - **`admin.switcher`** adds the choice at the top of the menu.
 - **`audit.scope`** keeps each audit entry's part of the site.
-- **`admin.confirmDelete`**, **`admin.defaultValue`**, **`admin.column`** and
+- **`admin.confirmDelete`**, **`admin.initialValue`**, **`admin.column`** and
   **`admin.allowCreate`** shape deleting, new documents and lists in the admin.
 - **`filterOptions` on upload fields** narrow which files fit.
 - **`cms.uniqueScope()`** tells plugins what a unique field is unique within for a request.

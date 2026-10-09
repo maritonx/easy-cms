@@ -6,7 +6,7 @@ export default defineEventHandler(async (event) => {
   setHeader(event, 'content-type', 'text/plain; charset=utf-8')
   return robotsTxt({
     config: cms.config,
-    siteUrl: getRequestURL(event).origin,
+    siteURL: getRequestURL(event).origin,
     // AI training crawlers stay out; AI search and assistants may still read and cite posts.
     ai: { training: false },
   })

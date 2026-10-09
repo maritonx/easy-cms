@@ -46,7 +46,7 @@ export default defineConfig({
   ```ts
   auth: {
     providers: [google()],
-    allowSignUp: { domains: ['example.com'], role: 'editor' }, // ห้ามเป็น 'admin'
+    providerSignUp: { domains: ['example.com'], role: 'editor' }, // ห้ามเป็น 'admin'
   },
   ```
 

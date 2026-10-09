@@ -392,7 +392,7 @@ async function route(
           body: { user: session.user, exp: session.expiresAt, csrfToken: session.csrfToken },
         }
       }
-      // Members signing up (`auth.members.signup`): the form's token, then the account.
+      // Members signing up (`auth.members.signUp`): the form's token, then the account.
       case 'GET signup':
         return { body: cms.auth.signupForm() }
       case 'POST signup': {
@@ -547,7 +547,7 @@ async function route(
       from: q.get('from'),
       to: q.get('to'),
       // Users of a part of the site (e.g. one tenant) see its entries; others the chosen part's.
-      scope: cms.audit.scopeOf(ctx.context),
+      scope: cms.audit.scopeOf(ctx.context, ctx.user),
     }
     if (ctx.user.scoped && !filter.scope) throw new ForbiddenError()
     if (second === 'audit.csv' && third === undefined) {

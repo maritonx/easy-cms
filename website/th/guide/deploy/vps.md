@@ -145,7 +145,7 @@ Next.js หรือ module ของ Nuxt (`--trust-proxy` สำหรับ s
 ให้ Easy CMS สำรองฐานข้อมูลทุกวัน (ดู [สำรองข้อมูล](../backups)):
 
 ```ts
-backups: { every: 'day', at: '03:00', keep: 7 },
+backups: { frequency: 'daily', at: '03:00', keep: 7 },
 ```
 
 ไฟล์สำรองอยู่ใน `backups/` บน disk เดียวกัน จึงควรคัดลอกไฟล์สำรองและ `uploads/` ไปไว้ที่อื่นด้วย

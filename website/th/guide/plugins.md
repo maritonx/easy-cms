@@ -39,7 +39,7 @@ import type { Field, Plugin } from '@easy-cms/core'
 const minutes = (text: unknown) => Math.ceil(String(text ?? '').split(/\s+/).length / 200)
 
 export function readingTime(options: { collections: string[] }): Plugin {
-  const field: Field = { name: 'readingTime', type: 'number', position: 'sidebar' }
+  const field: Field = { name: 'readingTime', type: 'number', admin: { position: 'sidebar' } }
   return (config) => ({
     ...config,
     collections: config.collections?.map((c) =>

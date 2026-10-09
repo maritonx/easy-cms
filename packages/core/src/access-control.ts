@@ -30,15 +30,18 @@ export class FieldAccessChecker {
 
   /** `rules`: the user's role's rules for top-level fields (`auth.rbac`), on top of `access`. */
   constructor(
-    private readonly kind: 'read' | 'update',
+    private readonly kind: 'read' | 'create' | 'update',
     private readonly args: AccessArgs,
     private readonly rules?: ReadonlyMap<Field, 'read' | 'hidden'>,
   ) {}
 
   async allows(field: Field): Promise<boolean> {
     const rule = this.rules?.get(field)
-    if (rule === 'hidden' || (rule === 'read' && this.kind === 'update')) return false
-    const fn = field.access?.[this.kind]
+    if (rule === 'hidden' || (rule === 'read' && this.kind !== 'read')) return false
+    const fn =
+      this.kind === 'create'
+        ? (field.access?.create ?? field.access?.update)
+        : field.access?.[this.kind]
     if (!fn) return true
     let allowed = this.cache.get(field)
     if (allowed === undefined) {

@@ -39,7 +39,7 @@ await cms.update('posts', id, { status: 'draft' }) // unpublish
 
 ```ts
 { slug: 'posts', drafts: true, versions: true, fields: [/* … */] }
-// or versions: { max: 100 } — versions kept per document (default 50)
+// or versions: { keep: 100 } — versions kept per document (default 50)
 ```
 
 เมื่อเปิด `versions` การบันทึกเอกสาร (หรือ global) ทุกครั้งจะถูกเก็บเป็นเวอร์ชัน:

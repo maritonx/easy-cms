@@ -24,7 +24,7 @@ export default defineConfig({
 |---|---|---|
 | `url` | จำเป็น | ปลายทางที่ event จะถูก POST ไป |
 | `events` | ทั้งหมด | `create`, `update`, `delete`, `publish`, `unpublish`, `draft` |
-| `collections` | ทั้งหมด | slug ของ collection ใช้ `[]` เพื่อไม่เลือกเลย |
+| `collections` | ทั้งหมดยกเว้น `users` | slug ของ collection ใช้ `[]` เพื่อไม่เลือกเลย บัญชีผู้ใช้จะถูกส่งเฉพาะเมื่อระบุ `users` ไว้ |
 | `globals` | ทั้งหมด | slug ของ global ใช้ `[]` เพื่อไม่เลือกเลย |
 | `secret` | — | ลงลายเซ็นทุก request (ดูด้านล่าง) |
 | `headers` | — | header เพิ่มเติม เช่น token ที่ฝั่งรับใช้ตรวจสอบ |

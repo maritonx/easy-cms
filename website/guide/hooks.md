@@ -26,8 +26,8 @@ to yours.
 
 | Hook | When | Arguments | Return |
 |---|---|---|---|
-| `beforeValidate` | before fields are checked | `data`, `operation`, `originalDoc?` | new data, or nothing |
-| `beforeChange` | after validation, before saving | `data`, `operation`, `originalDoc?` | new data, or nothing |
+| `beforeValidate` | before fields are checked | `data`, `operation`, `previousDoc?` | new data, or nothing |
+| `beforeChange` | after validation, before saving | `data`, `operation`, `previousDoc?` | new data, or nothing |
 | `afterChange` | after saving | `doc`, `operation`, `previousDoc?` | — |
 | `beforeDelete` | before deleting | `id` | — |
 | `afterDelete` | after deleting | `id`, `doc` | — |
@@ -39,10 +39,10 @@ Every hook also gets:
 - `cms`: the [Local API](./local-api), to read or write other collections.
 - `slug`: the collection's (or global's) slug, handy when one function serves several.
 
-`operation` is `'create'` or `'update'`. On an update, `originalDoc` is the document before the
+`operation` is `'create'` or `'update'`. On an update, `previousDoc` is the document before the
 change, and `data` holds only what is being changed.
 
-Globals support `beforeChange`, `afterChange` and `afterRead`.
+Globals support `beforeValidate`, `beforeChange`, `afterChange` and `afterRead`.
 
 ## Order and errors
 
@@ -128,7 +128,7 @@ afterRead: [({ doc }) => ({ ...doc, url: `/posts/${doc.slug}` })],
 - **Access:** `cms` calls inside hooks skip access rules (trusted server code). Pass
   `{ user, overrideAccess: false }` to act as the user.
 - **Partial updates:** on an update, `data` has only the fields being changed; read the rest
-  from `originalDoc`.
+  from `previousDoc`.
 
 ## Next steps
 

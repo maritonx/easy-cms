@@ -13,7 +13,6 @@ const config = defineConfig({
   secret: SECRET,
   db: db(),
   admin: {
-    menu: ['pages', 'posts'],
     nav: [
       {
         id: 'shop',
@@ -28,11 +27,17 @@ const config = defineConfig({
       { path: 'report', label: 'Report', component: 'ecms-report', group: 'shop' },
       { path: 'hidden', label: 'Hidden', component: 'ecms-hidden', group: false },
     ],
-    commands: [{ label: 'Paid orders', to: '/collections/orders?f_status=paid' }],
+    commands: [{ label: 'Paid orders', href: '/collections/orders?f_status=paid' }],
   },
   collections: [
     { slug: 'posts', useAsTitle: 'title', fields: [{ name: 'title', type: 'text' }] },
-    { slug: 'pages', useAsTitle: 'title', fields: [{ name: 'title', type: 'text' }] },
+    {
+      slug: 'pages',
+      useAsTitle: 'title',
+      // Before posts in their group.
+      admin: { order: 1 },
+      fields: [{ name: 'title', type: 'text' }],
+    },
     {
       slug: 'products',
       useAsTitle: 'name',
@@ -157,7 +162,7 @@ describe('the menu', () => {
     const content = schema.nav[0]
     expect(content?.kind === 'group' && content.label).toBe('Writing')
     expect(schema.commands).toEqual([
-      { label: 'Paid orders', to: '/collections/orders?f_status=paid' },
+      { label: 'Paid orders', href: '/collections/orders?f_status=paid' },
     ])
   })
 

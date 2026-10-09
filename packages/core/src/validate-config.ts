@@ -7,6 +7,7 @@ import {
   type GlobalConfig,
   type NavGroup,
 } from './config.js'
+import { checkConfigKeys } from './config-keys.js'
 import type { ConfigIssue } from './errors.js'
 import { FIELD_TYPES, type Field, type SelectOption } from './fields.js'
 import { NAV_ID, navGroups, navIds } from './nav.js'
@@ -55,6 +56,7 @@ export function validateConfig(config: Config): ConfigIssue[] {
   }
 
   validateSecret(config.secret, add)
+  checkConfigKeys(config, (issue) => issues.push(issue))
 
   if (!config.db || typeof config.db.name !== 'string' || typeof config.db.init !== 'function') {
     add('db', 'is required', "pass a database adapter, e.g. db: sqlite({ url: 'file:./cms.db' })")
@@ -80,18 +82,6 @@ export function validateConfig(config: Config): ConfigIssue[] {
     if (slug) collectionSlugs.add(slug)
   })
 
-  const menu: unknown = config.admin?.menu
-  if (menu !== undefined) {
-    if (!Array.isArray(menu)) {
-      add('admin.menu', 'must be an array of collection slugs', "e.g. menu: ['posts', 'media']")
-    } else {
-      for (const [i, slug] of menu.entries()) {
-        if (typeof slug !== 'string' || !collectionSlugs.has(slug))
-          add(`admin.menu[${i}]`, `unknown collection ${JSON.stringify(slug)}`)
-      }
-    }
-  }
-
   const seenGlobals = new Set<string>()
   globals.forEach((global, i) => {
     checkSlug(global, `globals[${i}]`, seenGlobals, add)
@@ -113,10 +103,10 @@ export function validateConfig(config: Config): ConfigIssue[] {
       nav,
     })
     validateUseAsTitle(collection, path, add)
-    validateIcon(collection, path, add)
-    const editIn: unknown = collection.editIn
+    validateMenuItem(collection.admin, `${path}.admin`, add)
+    const editIn: unknown = collection.admin?.editIn
     if (editIn !== undefined && editIn !== 'page' && editIn !== 'drawer')
-      add(`${path}.editIn`, `must be "page" or "drawer" (got ${JSON.stringify(editIn)})`)
+      add(`${path}.admin.editIn`, `must be "page" or "drawer" (got ${JSON.stringify(editIn)})`)
   })
 
   globals.forEach((global, i) => {
@@ -126,7 +116,7 @@ export function validateConfig(config: Config): ConfigIssue[] {
       rbac: config.auth?.rbac === true,
       nav,
     })
-    validateIcon(global, path, add)
+    validateMenuItem(global.admin, `${path}.admin`, add)
   })
 
   const plugins: unknown = config.plugins
@@ -172,15 +162,15 @@ function validateAdmin(config: Config, add: Add) {
   if (admin.locale !== undefined && admin.locale !== 'en' && admin.locale !== 'th') {
     add('admin.locale', `must be "en" or "th" (got ${JSON.stringify(admin.locale)})`)
   }
-  const siteUrl: unknown = admin.siteUrl
+  const siteURL: unknown = admin.siteURL
   if (
-    siteUrl !== undefined &&
-    (typeof siteUrl !== 'string' || !/^(\/|https?:\/\/)/.test(siteUrl))
+    siteURL !== undefined &&
+    (typeof siteURL !== 'string' || !/^(\/|https?:\/\/)/.test(siteURL))
   ) {
     add(
-      'admin.siteUrl',
+      'admin.siteURL',
       'must be a path starting with "/" or an http(s) URL',
-      "e.g. siteUrl: 'https://example.com'",
+      "e.g. siteURL: 'https://example.com'",
     )
   }
   const switcher: unknown = admin.switcher
@@ -285,7 +275,7 @@ function validateAdminViews(config: Config, add: Add) {
             'must be a string or { en, th }',
             "e.g. label: { en: 'Stats', th: 'สถิติ' }",
           )
-        validateIcon(p, path, add)
+        validateMenuItem(p as { icon?: unknown; order?: unknown }, path, add)
         if (p.group !== 'content' && p.group !== false)
           validateGroup(p.group, navIds(navGroups(config.admin?.nav ?? [])), `${path}.group`, add)
         access(p.access, path)
@@ -336,10 +326,18 @@ function validateAdminViews(config: Config, add: Add) {
   }
 }
 
-function validateIcon(container: { icon?: unknown }, path: string, add: Add) {
-  const icon = container.icon
-  if (icon === undefined || (ADMIN_ICONS as readonly unknown[]).includes(icon)) return
-  add(`${path}.icon`, `unknown icon ${JSON.stringify(icon)}`, `one of: ${ADMIN_ICONS.join(', ')}`)
+/** A menu item's `admin.icon` and `admin.order`. */
+function validateMenuItem(
+  admin: { icon?: unknown; order?: unknown } | undefined,
+  path: string,
+  add: Add,
+) {
+  const icon = admin?.icon
+  if (icon !== undefined && !(ADMIN_ICONS as readonly unknown[]).includes(icon))
+    add(`${path}.icon`, `unknown icon ${JSON.stringify(icon)}`, `one of: ${ADMIN_ICONS.join(', ')}`)
+  const order = admin?.order
+  if (order !== undefined && (typeof order !== 'number' || !Number.isFinite(order)))
+    add(`${path}.order`, 'must be a number')
 }
 
 function validateAuth(config: Config, add: Add) {
@@ -387,7 +385,7 @@ function validateAuth(config: Config, add: Add) {
       })
     }
   }
-  const signUp = auth.allowSignUp as { domains?: unknown; role?: unknown } | undefined
+  const signUp = auth.providerSignUp as { domains?: unknown; role?: unknown } | undefined
   if (signUp !== undefined) {
     if (
       typeof signUp !== 'object' ||
@@ -395,17 +393,21 @@ function validateAuth(config: Config, add: Add) {
       !Array.isArray(signUp.domains) ||
       signUp.domains.some((d) => typeof d !== 'string' || !/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(d))
     )
-      add('auth.allowSignUp.domains', 'must be email domains', "e.g. domains: ['example.com']")
+      add('auth.providerSignUp.domains', 'must be email domains', "e.g. domains: ['example.com']")
     if (signUp?.role === 'admin')
-      add('auth.allowSignUp.role', 'can\'t be "admin"', 'make admins by hand, in Settings → Users')
+      add(
+        'auth.providerSignUp.role',
+        'can\'t be "admin"',
+        'make admins by hand, in Settings → Users',
+      )
     else if (
       signUp?.role !== undefined &&
       (typeof signUp.role !== 'string' ||
         (!auth.rbac && !(auth.roles ?? ['admin', 'editor']).includes(signUp.role)))
     )
-      add('auth.allowSignUp.role', 'must be one of auth.roles')
+      add('auth.providerSignUp.role', 'must be one of auth.roles')
     if (!Array.isArray(providers) || providers.length === 0)
-      add('auth.allowSignUp', 'needs auth.providers')
+      add('auth.providerSignUp', 'needs auth.providers')
   }
   if (auth.password === false && (!Array.isArray(providers) || providers.length === 0))
     add('auth.password', 'false needs auth.providers', 'otherwise only admins could sign in')
@@ -493,15 +495,15 @@ function validateMembers(members: unknown, roles: readonly string[], add: Add) {
   if (signup !== undefined) {
     const { role, verifyEmail, turnstile } = (signup ?? {}) as Record<string, unknown>
     if (typeof role !== 'string' || !(memberRoles as string[]).includes(role))
-      add('auth.members.signup.role', 'must be one of auth.members.roles')
+      add('auth.members.signUp.role', 'must be one of auth.members.roles')
     if (verifyEmail !== undefined && typeof verifyEmail !== 'boolean')
-      add('auth.members.signup.verifyEmail', 'must be true or false')
+      add('auth.members.signUp.verifyEmail', 'must be true or false')
     if (
       turnstile !== undefined &&
       (typeof (turnstile as Record<string, unknown>)?.siteKey !== 'string' ||
         typeof (turnstile as Record<string, unknown>)?.secretKey !== 'string')
     )
-      add('auth.members.signup.turnstile', 'needs siteKey and secretKey')
+      add('auth.members.signUp.turnstile', 'needs siteKey and secretKey')
   }
   for (const [key, value] of Object.entries((pages ?? {}) as Record<string, unknown>))
     if (value !== undefined && typeof value !== 'string')
@@ -510,7 +512,7 @@ function validateMembers(members: unknown, roles: readonly string[], add: Add) {
 
 function validateLocalization(config: Config, add: Add) {
   const localization = config.localization
-  if (localization !== undefined && localization !== null) {
+  if (localization !== undefined && localization !== false) {
     const locales = localization?.locales
     if (!Array.isArray(locales) || locales.length === 0) {
       add('localization.locales', 'must be a non-empty list of locales', "locales: ['th', 'en']")
@@ -728,10 +730,13 @@ function validateAudit(config: Config, add: Add) {
   if (audit !== undefined && typeof audit !== 'boolean') {
     const a = audit as Record<string, unknown> | null
     if (typeof a !== 'object' || a === null)
-      add('audit', 'must be true or { keep, values, failedLogins }')
+      add('audit', 'must be true or { keepDays, values, failedLogins }')
     else {
-      if (a.keep !== undefined && !(Number.isInteger(a.keep) && (a.keep as number) >= 0))
-        add('audit.keep', 'must be a number of days (0: keep all)')
+      if (
+        a.keepDays !== undefined &&
+        !(Number.isInteger(a.keepDays) && (a.keepDays as number) >= 0)
+      )
+        add('audit.keepDays', 'must be a number of days (0: keep all)')
       if (a.values !== undefined && typeof a.values !== 'boolean')
         add('audit.values', 'must be true or false')
       if (
@@ -747,12 +752,12 @@ function validateBackups(config: Config, add: Add) {
   const backups: unknown = config.backups
   if (backups === undefined) return
   if (typeof backups !== 'object' || backups === null) {
-    add('backups', 'must be an object', "e.g. backups: { every: 'day', keep: 7 }")
+    add('backups', 'must be an object', "e.g. backups: { frequency: 'daily', keep: 7 }")
     return
   }
-  const { every, at, keep, dir, storage, sqlite } = backups as Record<string, unknown>
-  if (every !== undefined && every !== 'day' && every !== 'week')
-    add('backups.every', 'must be "day" or "week"')
+  const { frequency, at, keep, dir, storage, sqlite } = backups as Record<string, unknown>
+  if (frequency !== undefined && frequency !== 'daily' && frequency !== 'weekly')
+    add('backups.frequency', 'must be "daily" or "weekly"')
   if (at !== undefined && (typeof at !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(at)))
     add('backups.at', 'must be a time like "03:00"')
   if (keep !== undefined && !(Number.isInteger(keep) && (keep as number) >= 1))
@@ -837,7 +842,7 @@ function validateNav(config: Config, add: Add): ReadonlySet<string> {
           if (!isLabel(label)) add(`${path}.label`, 'must be a string or { en, th }')
           if (order !== undefined && typeof order !== 'number')
             add(`${path}.order`, 'must be a number')
-          validateIcon(g as { icon?: unknown }, path, add)
+          validateMenuItem(g as { icon?: unknown }, path, add)
           if (children !== undefined) {
             if (child) add(`${path}.children`, 'groups go one level deep')
             else if (!Array.isArray(children)) add(`${path}.children`, 'must be a list of groups')
@@ -855,11 +860,11 @@ function validateNav(config: Config, add: Add): ReadonlySet<string> {
     if (!Array.isArray(commands)) add('admin.commands', 'must be a list')
     else
       commands.forEach((c: unknown, i) => {
-        const { label, to } = (c ?? {}) as Record<string, unknown>
+        const { label, href } = (c ?? {}) as Record<string, unknown>
         if (!isLabel(label)) add(`admin.commands[${i}].label`, 'must be a string or { en, th }')
-        if (typeof to !== 'string' || !to.startsWith('/') || to.startsWith('//'))
+        if (typeof href !== 'string' || !href.startsWith('/') || href.startsWith('//'))
           add(
-            `admin.commands[${i}].to`,
+            `admin.commands[${i}].href`,
             'must be a path in the admin',
             "e.g. '/collections/orders'",
           )
@@ -905,8 +910,8 @@ function validateLayout(
       add(at, `no top-level field ${JSON.stringify(value)}`)
       return
     }
-    if (fields.get(value)?.position === 'sidebar')
-      add(at, `"${value}" is in the sidebar (position: 'sidebar')`)
+    if (fields.get(value)?.admin?.position === 'sidebar')
+      add(at, `"${value}" is in the sidebar (admin.position: 'sidebar')`)
     if (seen.has(value)) add(at, `"${value}" is placed twice`)
     seen.add(value)
   }
@@ -981,11 +986,11 @@ function validateContainer(
   }
   const versions = container.versions
   if (versions !== undefined && typeof versions !== 'boolean') {
-    const max = typeof versions === 'object' && versions !== null ? versions.max : undefined
+    const keep = typeof versions === 'object' && versions !== null ? versions.keep : undefined
     if (typeof versions !== 'object' || versions === null) {
-      add(`${path}.versions`, 'must be true, false or { max }')
-    } else if (max !== undefined && (!Number.isInteger(max) || max < 1)) {
-      add(`${path}.versions.max`, 'must be a positive integer')
+      add(`${path}.versions`, 'must be true, false or { keep }')
+    } else if (keep !== undefined && (!Number.isInteger(keep) || keep < 1)) {
+      add(`${path}.versions.keep`, 'must be a positive integer')
     }
   }
   if (container.schedule && !container.drafts) {
@@ -1133,9 +1138,9 @@ function validateField(
   collectionSlugs: ReadonlySet<string>,
   add: Add,
 ) {
-  const position: unknown = field.position
+  const position: unknown = field.admin?.position
   if (position !== undefined && position !== 'sidebar') {
-    add(`${path}.position`, `must be "sidebar" (got ${JSON.stringify(position)})`)
+    add(`${path}.admin.position`, `must be "sidebar" (got ${JSON.stringify(position)})`)
   }
   const admin: unknown = field.admin
   if (admin !== undefined) {
@@ -1341,10 +1346,14 @@ const RESERVED_ENDPOINT_ROOTS = new Set([
 ])
 
 function validateCommands(config: Config, add: Add) {
-  const commands: unknown = config.commands
+  const commands: unknown = config.cliCommands
   if (commands === undefined) return
   if (!Array.isArray(commands)) {
-    add('commands', 'must be an array', "e.g. commands: [{ name: 'my:task', description, run }]")
+    add(
+      'cliCommands',
+      'must be an array',
+      "e.g. cliCommands: [{ name: 'my:task', description, run }]",
+    )
     return
   }
   const seen = new Set<string>()

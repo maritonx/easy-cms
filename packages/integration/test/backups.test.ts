@@ -26,7 +26,7 @@ const config = () =>
     secret: SECRET,
     db: db(),
     admin: { brand: { name: 'My Site' } },
-    backups: { every: 'day', at: '03:00', keep: 2, sqlite },
+    backups: { frequency: 'daily', at: '03:00', keep: 2, sqlite },
     collections: [{ slug: 'posts', fields: [{ name: 'title', type: 'text' }] }],
   })
 
@@ -108,7 +108,7 @@ describe('backups in the admin', () => {
     for (let i = 0; i < 400 && (await list()).backups.some((b) => b.state !== 'done'); i++)
       await new Promise((resolve) => setTimeout(resolve, 50))
     const { backups, settings } = await list()
-    expect(settings).toMatchObject({ every: 'day', at: '03:00', keep: 2, storage: 'local' })
+    expect(settings).toMatchObject({ frequency: 'daily', at: '03:00', keep: 2, storage: 'local' })
     expect(backups.filter((b) => b.state === 'done')).toHaveLength(2)
     expect(readdirSync(join(cwd, 'backups'))).toHaveLength(2)
   })

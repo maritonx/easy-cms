@@ -35,7 +35,7 @@ config:
 import { sqlite } from '@easy-cms/db-sqlite'
 
 backups: {
-  every: 'day',          // or 'week'; leave out for backups by hand only
+  frequency: 'daily',   // or 'weekly'; leave out for backups by hand only
   at: '03:00',           // the server's time
   keep: 7,               // older ones are deleted
   // dir: 'backups',     // default; never served publicly

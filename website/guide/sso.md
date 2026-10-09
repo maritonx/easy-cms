@@ -51,7 +51,7 @@ Turning providers on adds the `user-identities` table: create a migration
   ```ts
   auth: {
     providers: [google()],
-    allowSignUp: { domains: ['example.com'], role: 'editor' }, // never 'admin'
+    providerSignUp: { domains: ['example.com'], role: 'editor' }, // never 'admin'
   },
   ```
 

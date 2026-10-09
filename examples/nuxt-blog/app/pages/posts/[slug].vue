@@ -14,7 +14,7 @@ useLivePreview(post)
 // Search and share metadata from the post's SEO fields, rendered on the server: title,
 // description, Open Graph, "noindex", the canonical and hreflang links, and JSON-LD.
 const seo = seoMeta(post.value ?? {}, {
-  siteUrl: useRequestURL().origin,
+  siteURL: useRequestURL().origin,
   locale: locale.value,
   locales: ['th', 'en'],
   defaultLocale: 'th',

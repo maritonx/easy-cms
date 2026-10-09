@@ -54,7 +54,9 @@ export interface FieldAdmin {
    * The value a new document's form starts with, worked out for each user, e.g. from the
    * request's context. The server's own default (`defaultValue`, hooks) still applies.
    */
-  readonly defaultValue?: (args: AdminFieldArgs) => unknown
+  readonly initialValue?: (args: AdminFieldArgs) => unknown
+  /** `sidebar`: shown in the edit page's side panel instead of the main form (top-level fields). */
+  readonly position?: 'sidebar'
 }
 
 /** What per-request admin options of a field receive. */
@@ -110,9 +112,7 @@ interface BaseField<TType extends string, TValue> {
    * hasMany fields: localize the fields inside a group or array instead.
    */
   readonly localized?: boolean
-  /** `sidebar`: shown in the edit page's side panel instead of the main form (top-level fields). */
-  readonly position?: 'sidebar'
-  /** Custom admin components for this field. */
+  /** How the field looks in the admin: components, position, width, conditions. */
   readonly admin?: FieldAdmin
   /** Set by Easy CMS on fields of an added type (`fieldTypes`): the type's name, e.g. `color`. */
   readonly customType?: string

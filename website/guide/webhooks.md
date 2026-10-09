@@ -24,7 +24,7 @@ export default defineConfig({
 |---|---|---|
 | `url` | required | Where events are POSTed |
 | `events` | all | `create`, `update`, `delete`, `publish`, `unpublish`, `draft` |
-| `collections` | all | Collection slugs; `[]` for none |
+| `collections` | all but `users` | Collection slugs; `[]` for none. User accounts are sent only when `users` is listed. |
 | `globals` | all | Global slugs; `[]` for none |
 | `secret` | — | Signs each request (below) |
 | `headers` | — | Extra headers, e.g. a token the receiver checks |

@@ -8,14 +8,14 @@
 
 ## ติดตั้ง plugin พร้อมที่อยู่จริง {#add-the-plugin-with-real-addresses}
 
-ตั้ง `admin.siteUrl` เป็นที่อยู่ของเว็บจริง และให้ `generateURL` คืน path จริงของแต่ละหน้าแยกตามภาษา
+ตั้ง `admin.siteURL` เป็นที่อยู่ของเว็บจริง และให้ `generateURL` คืน path จริงของแต่ละหน้าแยกตามภาษา
 ทุกขั้นต่อจากนี้ใช้ค่านี้
 
 ```ts [easy-cms.config.ts]
 import { seoPlugin } from '@easy-cms/plugin-seo'
 
 export default defineConfig({
-  admin: { siteUrl: 'https://example.com' },
+  admin: { siteURL: 'https://example.com' },
   localization: { locales: ['th', 'en'], defaultLocale: 'th' },
   plugins: [
     seoPlugin({

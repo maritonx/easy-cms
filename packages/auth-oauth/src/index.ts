@@ -141,7 +141,7 @@ export interface ClientOptions {
 
 /**
  * Google accounts, including Google Workspace. `hd` limits the account chooser to a Workspace
- * domain (a hint: which accounts get in is decided by `allowSignUp` and existing users).
+ * domain (a hint: which accounts get in is decided by `providerSignUp` and existing users).
  */
 export function google(options: ClientOptions & { readonly hd?: string } = {}): AuthProvider {
   return oidc({

@@ -13,7 +13,7 @@ const configWith = (publicReads: 'none' | 'all') =>
     db: sqlite({ url: 'file:./cms.db' }),
     auth: {
       roles: ['admin', 'editor', 'customer'],
-      members: { roles: ['customer'], signup: { role: 'customer', verifyEmail: false } },
+      members: { roles: ['customer'], signUp: { role: 'customer', verifyEmail: false } },
     },
     collections: [
       {

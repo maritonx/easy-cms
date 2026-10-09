@@ -12,7 +12,7 @@
   name: 'readingTime',
   type: 'number',
   label: { en: 'Reading time (min)', th: 'เวลาอ่าน (นาที)' },
-  position: 'sidebar',
+  admin: { position: 'sidebar' },
   // อ่านอย่างเดียวทั้งในหน้า admin และ API ส่วน hook ด้านล่างเป็นคนตั้งค่า
   access: { update: () => false },
 }

@@ -16,12 +16,12 @@ const config = defineConfig({
   db: db(),
   serverURL: 'https://cms.example.com',
   email: mail,
-  admin: { siteUrl: 'https://shop.example.com' },
+  admin: { siteURL: 'https://shop.example.com' },
   auth: {
     roles: ['admin', 'editor', 'customer'],
     members: {
       roles: ['customer'],
-      signup: { role: 'customer' },
+      signUp: { role: 'customer' },
       pages: { verifyEmail: '/account/verify', resetPassword: '/account/reset' },
     },
   },
@@ -248,7 +248,7 @@ describe('signing up without confirming the email', () => {
         db: db(),
         auth: {
           ...config.auth,
-          members: { roles: ['customer'], signup: { role: 'customer', verifyEmail: false } },
+          members: { roles: ['customer'], signUp: { role: 'customer', verifyEmail: false } },
         },
       }),
     )

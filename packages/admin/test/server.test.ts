@@ -23,7 +23,7 @@ describe('createAdminHandler', () => {
       const html = await res.text()
       expect(html).toContain('<base href="/cms/">')
       expect(html).toContain(
-        'content="{&quot;adminPath&quot;:&quot;/cms&quot;,&quot;apiPath&quot;:&quot;/api/content&quot;,&quot;locale&quot;:&quot;th&quot;,&quot;brand&quot;:{},&quot;siteUrl&quot;:&quot;&quot;}"',
+        'content="{&quot;adminPath&quot;:&quot;/cms&quot;,&quot;apiPath&quot;:&quot;/api/content&quot;,&quot;locale&quot;:&quot;th&quot;,&quot;brand&quot;:{},&quot;siteURL&quot;:&quot;&quot;}"',
       )
     }
   })
@@ -111,10 +111,10 @@ describe('adminHandlerFor', () => {
   it('takes its paths, language and brand from a resolved config', async () => {
     const admin = adminHandlerFor(
       {
-        admin: { path: '/backoffice', locale: 'th', brand: { name: 'Acme' }, siteUrl: '' },
+        admin: { path: '/backoffice', locale: 'th', brand: { name: 'Acme' }, siteURL: '' },
         routes: { api: '/api/cms' },
       },
-      { siteUrl: '/', appDir },
+      { siteURL: '/', appDir },
     )
     const redirect = await admin(new Request('http://cms.test/backoffice'))
     expect(redirect.status).toBe(308)
@@ -122,6 +122,6 @@ describe('adminHandlerFor', () => {
     const html = await (await admin(new Request('http://cms.test/backoffice/'))).text()
     expect(html).toContain('Acme')
     expect(html).toContain('&quot;locale&quot;:&quot;th&quot;')
-    expect(html).toContain('&quot;siteUrl&quot;:&quot;/&quot;')
+    expect(html).toContain('&quot;siteURL&quot;:&quot;/&quot;')
   })
 })

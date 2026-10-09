@@ -17,7 +17,7 @@ const breadcrumbs = computed(() => page.value?.breadcrumbs ?? [])
 
 // Metadata, with BreadcrumbList JSON-LD so search results can show where the page sits.
 const seo = seoMeta(page.value ?? {}, {
-  siteUrl: useRequestURL().origin,
+  siteURL: useRequestURL().origin,
   locale: locale.value,
   url: (p) => (typeof p.path === 'string' ? href(p.path) : null),
   breadcrumbs: breadcrumbs.value.map((b) => ({ name: b.label ?? '', url: href(b.url ?? '') })),

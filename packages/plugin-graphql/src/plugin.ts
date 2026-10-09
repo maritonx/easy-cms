@@ -102,7 +102,7 @@ other tools. Default file: schema.graphql. Opens the database like the other com
         { path, method: 'get', handler },
         { path, method: 'post', handler },
       ],
-      commands: [...(config.commands ?? []), generate],
+      cliCommands: [...(config.cliCommands ?? []), generate],
     }
   }, INFO)
 }

@@ -48,7 +48,7 @@ export const api = createApiHandler(config, {
 
 /** `/admin/*`, GET and HEAD. */
 export const admin = async (request: Request) =>
-  adminHandlerFor(await resolveConfig(config), { siteUrl: '/' })(request)
+  adminHandlerFor(await resolveConfig(config), { siteURL: '/' })(request)
 ```
 
 Route every request under `routes.api` (default `/api/cms`) to `api`, and under `admin.path`

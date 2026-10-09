@@ -110,7 +110,7 @@ export function redirectsPlugin<
     if (config.collections?.some((c) => c.slug === slug))
       throw new Error(`redirectsPlugin: there is already a collection "${slug}"; set \`slug\``)
 
-    const locales = config.localization?.locales ?? []
+    const locales = (config.localization || undefined)?.locales ?? []
     const auto =
       options.autoRedirect === false
         ? []
@@ -193,7 +193,7 @@ export function redirectsPlugin<
         defaultValue: '301',
         required: true,
         label: { en: 'Type', th: 'ชนิด' },
-        position: 'sidebar',
+        admin: { position: 'sidebar' },
       },
     ]
 
@@ -204,10 +204,8 @@ export function redirectsPlugin<
         singular: { en: 'Redirect', th: 'การเปลี่ยนเส้นทาง' },
         plural: { en: 'Redirects', th: 'การเปลี่ยนเส้นทาง' },
       },
-      icon: 'link',
       useAsTitle: 'from',
-      editIn: 'drawer',
-      admin: { group: 'settings' },
+      admin: { editIn: 'drawer', icon: 'link', group: 'settings' },
       fields: redirectFields,
       hooks: {
         beforeChange: [
@@ -223,11 +221,11 @@ export function redirectsPlugin<
 
     /** Addresses of documents being updated, read before the change: `<slug>:<id>` → by locale. */
     const before = new Map<string, (string | null)[]>()
-    const remember: BeforeChangeHook = async ({ data, operation, originalDoc, cms, slug: s }) => {
-      if (operation === 'update' && originalDoc?.id !== undefined)
+    const remember: BeforeChangeHook = async ({ data, operation, previousDoc, cms, slug: s }) => {
+      if (operation === 'update' && previousDoc?.id !== undefined)
         before.set(
-          `${s}:${originalDoc.id}`,
-          await Promise.all(localeList.map((l) => urlOf(cms, s, originalDoc.id, l))),
+          `${s}:${previousDoc.id}`,
+          await Promise.all(localeList.map((l) => urlOf(cms, s, previousDoc.id, l))),
         )
       return data
     }

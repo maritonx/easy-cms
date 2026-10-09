@@ -17,10 +17,9 @@
 | `index` | `boolean` | สร้าง index ในฐานข้อมูล |
 | `defaultValue` | ค่าของ field | ใช้เมื่อสร้างเอกสารโดยไม่มีค่านี้ |
 | `validate` | `(value, { data, operation }) => true \| string` | ตรวจเอง เป็น async ได้ |
-| `access` | `{ read?, update? }` | [สิทธิ์](/th/guide/access-control#field-access)ระดับ field |
+| `access` | `{ read?, create?, update? }` | [สิทธิ์](/th/guide/access-control#field-access)ระดับ field `create` คือใครตั้งค่าได้ตอนสร้างเอกสาร ค่าเริ่มต้นตาม `update` |
 | `hidden` | `boolean` | ถูกจัดเก็บ แต่ไม่ถูกส่งคืนและไม่รับเป็น input |
 | `localized` | `boolean` | เก็บค่าแยกตามภาษา (ต้องมี `localization`) |
-| `position` | `'sidebar'` | แสดงในแถบข้างของหน้าแก้ไข (field ระดับบนสุด) |
 | `admin` | `FieldAdmin` | admin components ดู[ด้านล่าง](#admin) |
 | `customType` | `string` | Easy CMS ตั้งให้เองกับ field ของ[ชนิดที่เพิ่มเข้ามา](/th/guide/field-types) (เช่น `color`) ไม่ต้องตั้งเอง |
 
@@ -34,10 +33,11 @@
 | `cell` | `AdminComponent` | แสดงค่าในคอลัมน์ของหน้ารายการ เช่น จุดสี |
 | `description` | `Label` | คำอธิบายใต้ field |
 | `width` | `'1/4' \| '1/3' \| '1/2' \| '2/3' \| '3/4' \| 'full'` | สัดส่วนในแถว (`admin.layout`) ค่าเริ่มต้น: แบ่งเท่ากัน |
-| `condition` | `FieldCondition` | แสดงเฉพาะเมื่อ field ข้างเคียงตรงเงื่อนไข เช่น `{ field: 'linkType', equals: 'external' }` มี `notEquals`, `in`, `exists`, `and`, `or`, `not` ด้วย field ที่ถูกซ่อนไม่ถูกบังคับกรอก [ระบบจัดการ](/th/guide/admin#conditions) |
+| `condition` | `FieldCondition` | แสดงเฉพาะเมื่อ field ข้างเคียงตรงเงื่อนไข เช่น `{ field: 'linkType', equals: 'external' }` มี `not_equals`, `in`, `not_in`, `exists`, `and`, `or`, `not` ด้วย field ที่ถูกซ่อนไม่ถูกบังคับกรอก [ระบบจัดการ](/th/guide/admin#conditions) |
 | `column` | `boolean \| ({ user, context }) => boolean` | แสดงเป็นคอลัมน์ของหน้ารายการตั้งแต่แรก (ผู้ใช้เปลี่ยนเองได้) |
 | `allowCreate` | `boolean` | relationship: ให้สร้างเอกสารที่เชื่อมได้ทันที ค่าเริ่มต้น `true` |
-| `defaultValue` | `({ user, context }) => unknown` | ค่าเริ่มต้นของฟอร์มเอกสารใหม่ต่อผู้ใช้ เช่น จาก context ของ request |
+| `initialValue` | `({ user, context }) => unknown` | ค่าเริ่มต้นของฟอร์มเอกสารใหม่ต่อผู้ใช้ เช่น จาก context ของ request ส่วน `defaultValue` ของ field ยังใช้ฝั่ง server ตามเดิม |
+| `position` | `'sidebar'` | แสดงในแถบข้างของหน้าแก้ไข (field ระดับบนสุด) |
 
 `AdminComponent` คือชื่อ tag ที่ขึ้นต้นด้วย `ecms-` หรือ `{ tag, props }`
 

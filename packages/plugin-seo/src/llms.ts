@@ -16,8 +16,8 @@ import {
 } from './source.js'
 
 export interface LlmsTxtOptions {
-  /** The site's public address, to make links absolute. Default `admin.siteUrl`, then `serverURL`. */
-  readonly siteUrl?: string
+  /** The site's public address, to make links absolute. Default `admin.siteURL`, then `serverURL`. */
+  readonly siteURL?: string
   /**
    * The context to read in, e.g. the tenant of the requesting domain (`cms.forRequest(request)`,
    * or `context` of an endpoint). Default: none.
@@ -50,7 +50,7 @@ const DEFAULT_MAX_BYTES = 5_000_000
 export async function llmsTxt(cms: SeoCMS, options: LlmsTxtOptions = {}): Promise<string> {
   const source = findSource(cms, 'llmsTxt')
   const locale = localeOf(cms, source)
-  const site = siteOf(cms, options.siteUrl)
+  const site = siteOf(cms, options.siteURL)
   const sections = new Map<string, string[]>()
   await visiblePages(cms, source, {
     ...(options.context ? { context: options.context } : {}),
@@ -82,7 +82,7 @@ export async function llmsTxt(cms: SeoCMS, options: LlmsTxtOptions = {}): Promis
 export async function llmsFullTxt(cms: SeoCMS, options: LlmsFullTxtOptions = {}): Promise<string> {
   const source = findSource(cms, 'llmsFullTxt')
   const locale = localeOf(cms, source)
-  const site = siteOf(cms, options.siteUrl)
+  const site = siteOf(cms, options.siteURL)
   const max = options.maxBytes ?? DEFAULT_MAX_BYTES
   const header = [`# ${inline(await siteTitle(cms, source, locale, options.context))}`]
   if (source.llms.description) header.push('', `> ${inline(source.llms.description)}`)

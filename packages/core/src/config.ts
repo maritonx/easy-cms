@@ -11,6 +11,7 @@ import type { PasswordEmailFn } from './auth/emails.js'
 import type { AuthProvider } from './auth/providers.js'
 import type { DatabaseAdapter } from './database.js'
 import type { EmailAdapter } from './email.js'
+import type { ConfigIssue } from './errors.js'
 import type { FieldTypeDefinition } from './field-types.js'
 import type { AdminComponent, Field, Label } from './fields.js'
 import type { EasyCMS } from './local-api.js'
@@ -34,11 +35,11 @@ interface HookBase {
 }
 
 export type BeforeValidateHook = (
-  args: HookBase & { data: Data; operation: Operation; originalDoc?: Data },
+  args: HookBase & { data: Data; operation: Operation; previousDoc?: Data },
 ) => MaybePromise<Data | undefined>
 
 export type BeforeChangeHook = (
-  args: HookBase & { data: Data; operation: Operation; originalDoc?: Data },
+  args: HookBase & { data: Data; operation: Operation; previousDoc?: Data },
 ) => MaybePromise<Data | undefined>
 
 export type AfterChangeHook = (
@@ -61,6 +62,7 @@ export interface CollectionHooks {
 }
 
 export interface GlobalHooks {
+  readonly beforeValidate?: readonly BeforeValidateHook[]
   readonly beforeChange?: readonly BeforeChangeHook[]
   readonly afterChange?: readonly AfterChangeHook[]
   readonly afterRead?: readonly AfterReadHook[]
@@ -87,7 +89,7 @@ export type PreviewURL = (args: {
 
 export interface VersionsConfig {
   /** Versions kept per document; older ones are deleted. Default 50. */
-  readonly max?: number
+  readonly keep?: number
 }
 
 /** A panel of an edit page's side column: a component, at the top or (default) below the rest. */
@@ -126,6 +128,10 @@ export type LayoutNode =
 
 /** Custom admin components for a collection's or global's edit page. */
 export interface ContainerAdmin {
+  /** Icon in the admin menu. Default `file-text` for collections, `settings` for globals. */
+  readonly icon?: AdminIcon
+  /** Its place in its menu group: lower first. Default: after those with one, in config order. */
+  readonly order?: number
   /** Panels in the edit page's side column (components from admin modules). */
   readonly sidebar?: readonly SidebarPanel[]
   /** Tabs, collapsible sections and rows of the edit page. See `LayoutNode`. */
@@ -133,12 +139,18 @@ export interface ContainerAdmin {
   /**
    * Its menu group: a group's id (`admin.nav`), e.g. `shop` or `shop.catalog`; `settings` for
    * Settings; or a label, which makes a group of that name. Default: Content for collections,
-   * Settings › Site for globals.
+   * Settings › Site for globals. `false`: not in the menu, reached by links.
    */
-  readonly group?: 'settings' | Label
+  readonly group?: 'settings' | false | Label
 }
 
 export interface CollectionAdmin extends ContainerAdmin {
+  /**
+   * How the admin opens documents from the list: `drawer` slides a panel over the list, handy
+   * for small collections (categories, tags). Default `page`. Collections with drafts, versions
+   * or live preview always use the page.
+   */
+  readonly editIn?: 'page' | 'drawer'
   /**
    * A number that needs attention, next to its menu item: the documents matching `where` (that
    * the user may read), e.g. orders to send. `tone`: `accent` (default), `warning` or `danger`.
@@ -185,14 +197,6 @@ export interface CollectionConfig {
   /** URL and table name. Lowercase letters, digits, `-` and `_`. */
   readonly slug: string
   readonly labels?: { readonly singular?: Label; readonly plural?: Label }
-  /** Icon in the admin menu. Default `file-text`. */
-  readonly icon?: AdminIcon
-  /**
-   * How the admin opens documents from the list: `drawer` slides a panel over the list, handy
-   * for small collections (categories, tags). Default `page`. Collections with drafts, versions
-   * or live preview always use the page.
-   */
-  readonly editIn?: 'page' | 'drawer'
   readonly fields: readonly Field[]
   /** Top-level field shown as the document title in the admin UI. */
   readonly useAsTitle?: string
@@ -210,15 +214,13 @@ export interface CollectionConfig {
   readonly preview?: PreviewURL
   readonly access?: CollectionAccess
   readonly hooks?: CollectionHooks
-  /** Custom admin components, and where the collection is in the menu. */
+  /** How the collection looks in the admin: its menu item, list, edit page and components. */
   readonly admin?: CollectionAdmin
 }
 
 export interface GlobalConfig {
   readonly slug: string
   readonly label?: Label
-  /** Icon in the admin menu. Default `settings`. */
-  readonly icon?: AdminIcon
   readonly fields: readonly Field[]
   readonly drafts?: boolean
   /** Keep a snapshot of every save. See `CollectionConfig.versions`. */
@@ -238,7 +240,7 @@ export interface GlobalConfig {
     readonly context: RequestContext
     readonly user: AuthUser | null
   }) => string | null | undefined
-  /** Custom admin components. */
+  /** How the global looks in the admin: its menu item, edit page and components. */
   readonly admin?: ContainerAdmin
 }
 
@@ -326,7 +328,7 @@ export interface NavGroup {
 export interface AdminCommand {
   readonly label: Label
   /** A path in the admin, e.g. `/collections/orders?f_status=paid`. */
-  readonly to: string
+  readonly href: string
   readonly icon?: AdminIcon
   /** Words that find it besides its label. */
   readonly keywords?: readonly string[]
@@ -350,6 +352,8 @@ export interface AdminPage {
    * not listed, reached by links.
    */
   readonly group?: 'content' | 'settings' | false | Label
+  /** Its place in its menu group: lower first. Default: after those with one, in config order. */
+  readonly order?: number
   /** Who may open it. Pages a user may not open are left out of their admin. */
   readonly access?: AdminViewAccess
 }
@@ -377,12 +381,7 @@ export interface AdminConfig {
    * The public site, for the admin's "View site" link: a path (`/`) or an `https://` URL.
    * Default `/` with Nuxt and Next.js; none with the standalone server.
    */
-  readonly siteUrl?: string
-  /**
-   * Order of collections in the admin menu, by slug, e.g. `['posts', 'categories', 'media']`.
-   * Collections not listed follow in config order, with the media library last.
-   */
-  readonly menu?: readonly string[]
+  readonly siteURL?: string
   /**
    * The admin menu's groups, which collections, globals and pages name in `admin.group`, e.g.
    * `{ id: 'shop', label: 'Shop', icon: 'store', children: [{ id: 'catalog', label: 'Catalog' }] }`.
@@ -409,7 +408,7 @@ export interface AdminConfig {
    * (usually set by a plugin). The choice is kept in a cookie, which every request of the admin
    * sends; `onRequest` reads it.
    */
-  readonly switcher?: AdminSwitcher | null
+  readonly switcher?: AdminSwitcher | false
 }
 
 /** See `AdminConfig.switcher`. */
@@ -493,10 +492,10 @@ export interface MembersConfig {
    */
   readonly roles: readonly string[]
   /** Visitors create their own account: `POST <api>/users/signup`. */
-  readonly signup?: MembersSignup
+  readonly signUp?: MembersSignup
   /**
    * The site's pages that open the links of members' emails, given `?token=`: paths on
-   * `admin.siteUrl` (else `serverURL`), or full URLs. Without them, links go to the admin's pages.
+   * `admin.siteURL` (else `serverURL`), or full URLs. Without them, links go to the admin's pages.
    */
   readonly pages?: {
     /** Confirms the email of a new account: `POST <api>/users/verify-email` with the token. */
@@ -555,7 +554,7 @@ export interface AuthConfig {
    * With `providers`: people from these email domains who sign in for the first time get an
    * account with `role` (default: as new users). Without it, only existing users can sign in.
    */
-  readonly allowSignUp?: { readonly domains: readonly string[]; readonly role?: string }
+  readonly providerSignUp?: { readonly domains: readonly string[]; readonly role?: string }
   /**
    * `false`: only admins may sign in with a password (a way in when the provider is down);
    * everyone else signs in with `providers`. Default `true`.
@@ -733,7 +732,7 @@ export function definePlugin<const T extends PluginTypes = Record<never, never>>
 /** Database backups (Settings → Backups): one compressed SQLite file each. */
 export interface BackupsConfig {
   /** Back up automatically every day or week. Default: only by hand. */
-  readonly every?: 'day' | 'week'
+  readonly frequency?: 'daily' | 'weekly'
   /** When, as `HH:MM` in the server's time zone. Default `03:00`. */
   readonly at?: string
   /** How many finished backups to keep; older ones are deleted. Default 7. */
@@ -780,7 +779,7 @@ export interface Config {
   /** Work run with the scheduled jobs, e.g. a plugin's clean-up. */
   readonly jobs?: readonly JobConfig[]
   /** Content in several languages: fields with `localized: true` hold one value per locale. */
-  readonly localization?: LocalizationConfig | null
+  readonly localization?: LocalizationConfig | false
   readonly routes?: RoutesConfig
   readonly admin?: AdminConfig
   readonly upload?: UploadConfig
@@ -794,7 +793,7 @@ export interface Config {
   /** Custom REST endpoints, e.g. from plugins. */
   readonly endpoints?: readonly Endpoint[]
   /** Extra `easy-cms <name>` CLI commands, e.g. from plugins. */
-  readonly commands?: readonly CliCommand[]
+  readonly cliCommands?: readonly CliCommand[]
   /** The request's context and user, worked out on each API request (usually by a plugin). */
   readonly onRequest?: OnRequest
   /**
@@ -855,12 +854,14 @@ export interface ResolvedConfig
   readonly collections: readonly CollectionConfig[]
   readonly globals: readonly GlobalConfig[]
   readonly endpoints: readonly Endpoint[]
-  readonly commands: readonly CliCommand[]
+  readonly cliCommands: readonly CliCommand[]
   readonly events: readonly string[]
   readonly jobs: readonly JobConfig[]
   readonly fieldTypes: readonly FieldTypeDefinition[]
   /** The config's plugins in order, with their `info` where they give one. */
   readonly installedPlugins: readonly Partial<PluginInfo>[]
+  /** What the config's checks warn about (e.g. options Easy CMS doesn't know); logged at start. */
+  readonly warnings: readonly ConfigIssue[]
 }
 
 /**

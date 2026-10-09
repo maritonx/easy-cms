@@ -41,11 +41,10 @@ import { sqlite } from '@easy-cms/db-sqlite'
 export default defineConfig({
   secret: process.env.EASY_CMS_SECRET ?? '',
   db: sqlite({ url: process.env.DATABASE_URL ?? 'file:./cms.db' }),
-  admin: { menu: ['posts', 'categories', 'media'] },
   collections: [
     {
       slug: 'categories',
-      editIn: 'drawer', // small: edit in a panel over the list
+      admin: { order: 2, editIn: 'drawer' }, // small: edit in a panel over the list
       useAsTitle: 'name',
       access: { read: () => true },
       fields: [
@@ -55,6 +54,7 @@ export default defineConfig({
     },
     {
       slug: 'posts',
+      admin: { order: 1 }, // first in the menu
       drafts: true, // draft / published
       versions: true, // history and restore
       useAsTitle: 'title',
@@ -68,8 +68,8 @@ export default defineConfig({
         { name: 'excerpt', type: 'textarea', maxLength: 300 },
         { name: 'cover', type: 'upload' },
         { name: 'body', type: 'richText' },
-        { name: 'category', type: 'relationship', to: 'categories', position: 'sidebar' },
-        { name: 'publishedAt', type: 'date', position: 'sidebar' },
+        { name: 'category', type: 'relationship', to: 'categories', admin: { position: 'sidebar' } },
+        { name: 'publishedAt', type: 'date', admin: { position: 'sidebar' } },
       ],
     },
   ],

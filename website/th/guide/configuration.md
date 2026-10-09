@@ -45,13 +45,12 @@ export default defineConfig({
 | `serverURL` | — | origin สาธารณะ เช่น `https://example.com` ทำให้ URL ของ media เป็นแบบ absolute และเป็นที่ที่ลิงก์ตั้งรหัสผ่านชี้ไป (production ต้องตั้งถ้าจะใช้ลิงก์นี้) |
 | `webhooks` | `[]` | endpoint ที่จะได้รับแจ้งเมื่อเนื้อหาเปลี่ยนแปลง ดู [Webhooks](./webhooks) |
 | `cronSecret` | `CRON_SECRET` | ให้ cron รัน[งานที่ตั้งเวลาไว้](./drafts#scheduled-publishing)ที่ `<api>/jobs/run` ได้ |
-| `localization` | — | `{ locales, defaultLocale?, fallback? }`: เนื้อหาหลายภาษา ดู [หลายภาษา](./localization) |
+| `localization` | — | `{ locales, defaultLocale?, fallback? }`: เนื้อหาหลายภาษา (ถ้ามีภาษาเดียว ไม่ต้องใส่ หรือตั้งเป็น `false`) ดู [หลายภาษา](./localization) |
 | `cors` | `[]` | origin ที่โค้ดฝั่งเบราว์เซอร์เรียก REST API ได้ หรือ `'*'` สำหรับทุก origin (คำขอแบบไม่ระบุตัวตน) origin ใน `auth.trustedOrigins` ได้รับอนุญาตเสมอ พร้อม cookie |
 | `routes.api` | `/api/cms` | ตำแหน่งที่ให้บริการ REST API |
 | `admin.path` | `/admin` | ตำแหน่งที่ให้บริการหน้า admin |
 | `admin.locale` | `en` | ภาษาเริ่มต้นของหน้า admin: `en` หรือ `th` |
-| `admin.siteUrl` | `/` (Nuxt, Next.js) | เว็บไซต์สาธารณะ สำหรับปุ่ม "ดูเว็บไซต์" ในหน้า admin: path หรือ URL แบบ `https://` |
-| `admin.menu` | ตามลำดับใน config | ลำดับ collection ในเมนูของหน้า admin ตาม slug เช่น `['posts', 'categories', 'media']` ที่ไม่ได้ระบุจะตามมา และคลังสื่ออยู่ท้ายสุด ส่วนผู้ใช้อยู่ในหมวดตั้งค่า |
+| `admin.siteURL` | `/` (Nuxt, Next.js) | เว็บไซต์สาธารณะ สำหรับปุ่ม "ดูเว็บไซต์" ในหน้า admin: path หรือ URL แบบ `https://` |
 | `admin.brand` | — | `{ name, logo, color }`: แบรนด์ของคุณหรือลูกค้าในหน้า admin ดู[ใส่แบรนด์ให้หน้า admin](#branding-the-admin) |
 | `admin.modules` | `[]` | ไฟล์ JavaScript ที่มี Web Components สำหรับหน้า admin ระบุเป็น export ของแพ็กเกจหรือ path ส่วนใหญ่ [plugin](./plugins#admin-components) เป็นคนเพิ่มให้ |
 | `auth` | | ดู [ผู้ใช้และการยืนยันตัวตน](./auth) |
@@ -71,11 +70,13 @@ collection คือประเภทของเนื้อหาที่ม
 | `fields` | [field](./fields) ทั้งหมด |
 | `labels` | `{ singular, plural }` แต่ละค่าเป็น string หรือ `{ en, th }` |
 | `useAsTitle` | field ระดับบนสุดที่แสดงเป็นชื่อเอกสารในหน้า admin |
-| `editIn` | `'drawer'`: สร้างและแก้ไขในแผงเลื่อนทับหน้ารายการ เหมาะกับ collection เล็กอย่างหมวดหมู่ และช่อง relationship ที่ชี้มาจะมีปุ่ม "สร้าง" ที่เปิดแผงเดียวกัน ส่วน collection ที่มี drafts, versions หรือ preview จะใช้หน้าเต็มเสมอ |
-| `admin` | `{ group: 'settings' }` แสดง collection ใต้ตั้งค่าในเมนู (คู่กับ Users และ API keys) แทนที่จะอยู่กับเนื้อหา ส่วน `{ sidebar }` เพิ่ม[admin components](./plugins#admin-components) และ `{ list: { tree: 'parent', sort: 'title' } }` แสดงรายการเป็นต้นไม้ตาม relationship ไปหา collection เดียวกัน พร้อมกำหนดลำดับเริ่มต้น |
-| `icon` | ไอคอนในเมนูของหน้า admin (ค่าเริ่มต้น `file-text`) เลือกจากรายชื่อใน[ใส่แบรนด์ให้หน้า admin](#branding-the-admin) |
+| `admin.icon` | ไอคอนในเมนูของหน้า admin (ค่าเริ่มต้น `file-text`) เลือกจากรายชื่อใน[ใส่แบรนด์ให้หน้า admin](#branding-the-admin) |
+| `admin.order` | ตำแหน่งในกลุ่มของเมนู เช่น `1` ค่าน้อยมาก่อน collection ที่ไม่ได้ตั้งจะตามมาตามลำดับใน config คลังสื่ออยู่ท้ายสุด ส่วนผู้ใช้อยู่ในหมวดตั้งค่า |
+| `admin.group` | `'settings'` แสดง collection ใต้ตั้งค่าในเมนู (คู่กับ Users และ API keys) แทนที่จะอยู่กับเนื้อหา ส่วน `false` เอาออกจากเมนู (ยังเข้าถึงได้ผ่านลิงก์) ดู[เมนู](./admin#the-menu) |
+| `admin.editIn` | `'drawer'`: สร้างและแก้ไขในแผงเลื่อนทับหน้ารายการ เหมาะกับ collection เล็กอย่างหมวดหมู่ และช่อง relationship ที่ชี้มาจะมีปุ่ม "สร้าง" ที่เปิดแผงเดียวกัน ส่วน collection ที่มี drafts, versions หรือ preview จะใช้หน้าเต็มเสมอ |
+| `admin.list` | `{ tree: 'parent', sort: 'title' }` แสดงรายการเป็นต้นไม้ตาม relationship ไปหา collection เดียวกัน พร้อมกำหนดลำดับเริ่มต้น |
 | `drafts` | เพิ่ม `status` (`draft` \| `published`) ดู [ฉบับร่าง (draft)](./drafts) |
-| `versions` | `true` หรือ `{ max }`: เก็บเวอร์ชันของการบันทึกทุกครั้ง พร้อมประวัติและการกู้คืน ถ้ามี `drafts` ด้วย ฉบับร่างของเอกสารที่เผยแพร่แล้วจะถูกเก็บแยก ดู [เวอร์ชัน](./drafts#versions) |
+| `versions` | `true` หรือ `{ keep }`: เก็บเวอร์ชันของการบันทึกทุกครั้ง พร้อมประวัติและการกู้คืน ถ้ามี `drafts` ด้วย ฉบับร่างของเอกสารที่เผยแพร่แล้วจะถูกเก็บแยก ดู [เวอร์ชัน](./drafts#versions) |
 | `preview` | `({ doc }) => url`: หน้าที่แสดงเอกสาร สำหรับ [ตัวอย่างสด](./live-preview) |
 | `admin.sidebar` | กล่องจาก [admin components](./plugins#admin-components) ในแถบข้างของหน้าแก้ไข |
 | `schedule` | เผยแพร่และยกเลิกการเผยแพร่ตามเวลาที่ตั้งไว้ (ต้องมี `drafts`) ดู [การตั้งเวลาเผยแพร่](./drafts#scheduled-publishing) |
@@ -108,8 +109,8 @@ globals: [
 ],
 ```
 
-global รองรับ `fields`, `label`, `icon`, `drafts`, `versions`, `preview`, `admin`, `access` (`read`, `update`) และ `hooks`
-(`beforeChange`, `afterChange`, `afterRead`)
+global รองรับ `fields`, `label`, `drafts`, `versions`, `preview`, `admin` (`icon`, `order`, `group`, `sidebar`, `layout`),
+`access` (`read`, `update`) และ `hooks` (`beforeValidate`, `beforeChange`, `afterChange`, `afterRead`)
 
 ## ใส่แบรนด์ให้หน้า admin {#branding-the-admin}
 
@@ -124,10 +125,10 @@ admin: {
   },
 },
 collections: [
-  { slug: 'posts', icon: 'newspaper', fields: [/* … */] },
-  { slug: 'menu', icon: 'utensils', fields: [/* … */] },
+  { slug: 'posts', admin: { icon: 'newspaper' }, fields: [/* … */] },
+  { slug: 'menu', admin: { icon: 'utensils' }, fields: [/* … */] },
 ],
-globals: [{ slug: 'site', icon: 'house', fields: [/* … */] }],
+globals: [{ slug: 'site', admin: { icon: 'house' }, fields: [/* … */] }],
 ```
 
 ตัวอักษรบนสีแบรนด์จะเปลี่ยนเป็นสีเข้มเมื่อสีขาวอ่านยาก ผู้ใช้แต่ละคนเลือกธีมสว่าง มืด หรือตามระบบได้จากเมนู

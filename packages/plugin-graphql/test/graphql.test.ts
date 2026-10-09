@@ -558,7 +558,7 @@ describe('limits', () => {
 
 describe('easy-cms generate:graphql', () => {
   it('writes the schema for codegen', async () => {
-    const command = cms.config.commands.find((c) => c.name === 'generate:graphql')
+    const command = cms.config.cliCommands.find((c) => c.name === 'generate:graphql')
     const lines: string[] = []
     const out = join(dir, 'schema.graphql')
     expect(

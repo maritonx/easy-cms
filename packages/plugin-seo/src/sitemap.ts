@@ -13,9 +13,9 @@ export interface SitemapEntry {
 export interface SitemapOptions {
   /**
    * The site's public address, to make relative URLs from `generateURL` absolute. Default:
-   * `admin.siteUrl`, then `serverURL`.
+   * `admin.siteURL`, then `serverURL`.
    */
-  readonly siteUrl?: string
+  readonly siteURL?: string
   /**
    * The context to read in, e.g. the tenant of the requesting domain (`cms.forRequest(request)`,
    * or `context` of an endpoint). Default: none.
@@ -26,7 +26,7 @@ export interface SitemapOptions {
 export interface SitemapXmlOptions extends SitemapOptions {
   /** Which part of a large sitemap (over 50,000 URLs) to render, from 1. */
   readonly page?: number | string | null
-  /** Address of this sitemap, for the index of a large one. Default `<siteUrl>/sitemap.xml`. */
+  /** Address of this sitemap, for the index of a large one. Default `<siteURL>/sitemap.xml`. */
   readonly base?: string
 }
 
@@ -40,7 +40,7 @@ export const SITEMAP_LIMIT = 50_000
  */
 export async function sitemap(cms: SeoCMS, options: SitemapOptions = {}): Promise<SitemapEntry[]> {
   const source = findSource(cms, 'sitemap')
-  const site = siteOf(cms, options.siteUrl)
+  const site = siteOf(cms, options.siteURL)
   const localization = cms.config.localization
   const locales: (string | null)[] = localization ? [...localization.locales] : [null]
 
@@ -73,7 +73,7 @@ export async function sitemap(cms: SeoCMS, options: SitemapOptions = {}): Promis
     for (const url of distinct) {
       if (!/^https?:\/\//.test(url))
         throw new Error(
-          `sitemap: "${url}" is not an absolute URL. Set admin.siteUrl in the config, or pass siteUrl.`,
+          `sitemap: "${url}" is not an absolute URL. Set admin.siteURL in the config, or pass siteURL.`,
         )
       entries.push({
         url,
@@ -93,7 +93,7 @@ export async function sitemapXml(cms: SeoCMS, options: SitemapXmlOptions = {}): 
   const entries = await sitemap(cms, options)
   const page = Number(options.page ?? 0)
   if (entries.length > SITEMAP_LIMIT && !(page >= 1)) {
-    const site = siteOf(cms, options.siteUrl) ?? ''
+    const site = siteOf(cms, options.siteURL) ?? ''
     const base = options.base ?? `${site.replace(/\/+$/, '')}/sitemap.xml`
     const pages = Math.ceil(entries.length / SITEMAP_LIMIT)
     const items = Array.from(

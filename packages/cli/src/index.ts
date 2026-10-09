@@ -335,9 +335,9 @@ async function pluginCommand(
     return unknown(`(Commands from the config were not loaded: ${(error as Error).message})`)
   }
   try {
-    const found = config.commands.find((c) => c.name === command)
+    const found = config.cliCommands.find((c) => c.name === command)
     if (!found) {
-      const extra = config.commands.map((c) => `  ${c.name.padEnd(24)}${c.description}`)
+      const extra = config.cliCommands.map((c) => `  ${c.name.padEnd(24)}${c.description}`)
       return unknown(extra.length ? `Commands from your config:\n${extra.join('\n')}\n` : undefined)
     }
     if (values.help) {

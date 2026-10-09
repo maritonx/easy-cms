@@ -39,11 +39,11 @@ import { sqlite } from '@easy-cms/db-sqlite'
 export default defineConfig({
   secret: process.env.EASY_CMS_SECRET ?? '',
   db: sqlite({ url: process.env.DATABASE_URL ?? 'file:./cms.db' }),
-  admin: { locale: 'th', menu: ['posts', 'categories', 'media'] },
+  admin: { locale: 'th' },
   collections: [
     {
       slug: 'categories',
-      editIn: 'drawer', // collection เล็ก: แก้ในแผงที่เลื่อนมาทับรายการ
+      admin: { order: 2, editIn: 'drawer' }, // collection เล็ก: แก้ในแผงที่เลื่อนมาทับรายการ
       useAsTitle: 'name',
       access: { read: () => true },
       fields: [
@@ -53,6 +53,7 @@ export default defineConfig({
     },
     {
       slug: 'posts',
+      admin: { order: 1 }, // อยู่บนสุดของเมนู
       drafts: true, // ฉบับร่าง / เผยแพร่แล้ว
       versions: true, // ประวัติและการย้อนกลับ
       useAsTitle: 'title',
@@ -66,8 +67,8 @@ export default defineConfig({
         { name: 'excerpt', type: 'textarea', maxLength: 300, label: { en: 'Excerpt', th: 'คำโปรย' } },
         { name: 'cover', type: 'upload', label: { en: 'Cover', th: 'รูปปก' } },
         { name: 'body', type: 'richText', label: { en: 'Body', th: 'เนื้อหา' } },
-        { name: 'category', type: 'relationship', to: 'categories', position: 'sidebar' },
-        { name: 'publishedAt', type: 'date', position: 'sidebar' },
+        { name: 'category', type: 'relationship', to: 'categories', admin: { position: 'sidebar' } },
+        { name: 'publishedAt', type: 'date', admin: { position: 'sidebar' } },
       ],
     },
   ],

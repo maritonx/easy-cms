@@ -174,10 +174,10 @@ export function shopCollections(o: CollectionOptions): CollectionConfig[] {
       singular: { en: 'Product', th: 'สินค้า' },
       plural: { en: 'Products', th: 'สินค้า' },
     },
-    icon: 'shopping-bag',
     useAsTitle: 'title',
     drafts: true,
     admin: {
+      icon: 'shopping-bag',
       group: 'shop.catalog',
       layout: productLayout(o),
       empty: {
@@ -230,10 +230,8 @@ export function shopCollections(o: CollectionOptions): CollectionConfig[] {
       singular: { en: 'Option type', th: 'ประเภทตัวเลือก' },
       plural: { en: 'Option types', th: 'ประเภทตัวเลือก' },
     },
-    icon: 'sliders-horizontal',
     useAsTitle: 'name',
-    editIn: 'drawer',
-    admin: { group: 'shop.catalog' },
+    admin: { editIn: 'drawer', icon: 'sliders-horizontal', group: 'shop.catalog' },
     access: { read: anyone, create: staff, update: staff, delete: staff },
     fields: [
       {
@@ -251,10 +249,8 @@ export function shopCollections(o: CollectionOptions): CollectionConfig[] {
       singular: { en: 'Option', th: 'ตัวเลือก' },
       plural: { en: 'Options', th: 'ตัวเลือก' },
     },
-    icon: 'tags',
     useAsTitle: 'label',
-    editIn: 'drawer',
-    admin: { group: 'shop.catalog' },
+    admin: { editIn: 'drawer', icon: 'tags', group: 'shop.catalog' },
     access: { read: anyone, create: staff, update: staff, delete: staff },
     fields: [
       {
@@ -281,9 +277,8 @@ export function shopCollections(o: CollectionOptions): CollectionConfig[] {
       singular: { en: 'Variant', th: 'สินค้าย่อย' },
       plural: { en: 'Variants', th: 'สินค้าย่อย' },
     },
-    icon: 'layers',
     useAsTitle: 'title',
-    admin: { group: 'shop.catalog' },
+    admin: { icon: 'layers', group: 'shop.catalog' },
     access: { read: anyone, create: staff, update: staff, delete: staff },
     fields: [
       {
@@ -331,8 +326,7 @@ export function shopCollections(o: CollectionOptions): CollectionConfig[] {
       singular: { en: 'Cart', th: 'ตะกร้า' },
       plural: { en: 'Carts', th: 'ตะกร้า' },
     },
-    icon: 'shopping-cart',
-    admin: { group: 'shop.sales', list: { sort: '-updatedAt' } },
+    admin: { icon: 'shopping-cart', group: 'shop.sales', list: { sort: '-updatedAt' } },
     // Changed through the shop's endpoints only.
     access: { read: staffOrOwner, create: nobody, update: nobody, delete: staff },
     fields: [
@@ -401,9 +395,8 @@ export function shopCollections(o: CollectionOptions): CollectionConfig[] {
       singular: { en: 'Address', th: 'ที่อยู่' },
       plural: { en: 'Addresses', th: 'ที่อยู่' },
     },
-    icon: 'map-pin',
     useAsTitle: 'name',
-    admin: { group: 'shop.customers' },
+    admin: { icon: 'map-pin', group: 'shop.customers' },
     access: {
       read: staffOrOwner,
       create: ({ user }) => user !== null,
@@ -444,9 +437,9 @@ export function shopCollections(o: CollectionOptions): CollectionConfig[] {
       singular: { en: 'Order', th: 'คำสั่งซื้อ' },
       plural: { en: 'Orders', th: 'คำสั่งซื้อ' },
     },
-    icon: 'package',
     useAsTitle: 'orderNumber',
     admin: {
+      icon: 'package',
       group: 'shop.sales',
       list: { sort: '-createdAt' },
       // What to do next, at the top of the side column.
@@ -481,8 +474,7 @@ export function shopCollections(o: CollectionOptions): CollectionConfig[] {
         defaultValue: 'pending',
         index: true,
         access: bySystem,
-        position: 'sidebar',
-        admin: { column: true },
+        admin: { position: 'sidebar', column: true },
         label: { en: 'Status', th: 'สถานะ' },
       },
       {
@@ -626,8 +618,7 @@ export function shopCollections(o: CollectionOptions): CollectionConfig[] {
       singular: { en: 'Payment', th: 'การชำระเงิน' },
       plural: { en: 'Payments', th: 'การชำระเงิน' },
     },
-    icon: 'ticket',
-    admin: { group: 'shop.sales', list: { sort: '-createdAt' } },
+    admin: { icon: 'ticket', group: 'shop.sales', list: { sort: '-createdAt' } },
     access: { read: staff, create: nobody, update: nobody, delete: nobody },
     fields: [
       {
@@ -714,7 +705,7 @@ const checkVariant: NonNullable<CollectionConfig['hooks']>['beforeChange'] exten
   | readonly (infer H)[]
   | undefined
   ? H
-  : never = async ({ data, cms, originalDoc }) => {
+  : never = async ({ data, cms, previousDoc }) => {
   const fail = (field: string, message: string) =>
     new ValidationError(VARIANTS, [{ field, message }])
   const productId = idOf(data.product)
@@ -748,7 +739,7 @@ const checkVariant: NonNullable<CollectionConfig['hooks']>['beforeChange'] exten
     depth: 0,
   })
   for (const other of siblings.docs as Record<string, unknown>[]) {
-    if (originalDoc && String(other.id) === String(originalDoc.id)) continue
+    if (previousDoc && String(other.id) === String(previousDoc.id)) continue
     const theirs = (Array.isArray(other.options) ? other.options : []).map((v) => String(idOf(v)))
     if (theirs.sort().join(',') === key)
       throw fail('options', 'the product has a variant with these options')

@@ -11,8 +11,8 @@ export interface AdminHandlerOptions {
   readonly locale?: 'en' | 'th'
   /** Name, logo and main color shown in the admin (`admin.brand` in the config). */
   readonly brand?: { readonly name?: string; readonly logo?: string; readonly color?: string }
-  /** The public site, for the "View site" link (`admin.siteUrl`). Empty: no link. */
-  readonly siteUrl?: string
+  /** The public site, for the "View site" link (`admin.siteURL`). Empty: no link. */
+  readonly siteURL?: string
   /** Directory with the built app. Defaults to the one shipped in this package. */
   readonly appDir?: string
   /**
@@ -84,7 +84,7 @@ export function renderShell(
     apiPath: trimSlashes(options.apiPath ?? '/api/cms'),
     locale: options.locale ?? 'en',
     brand: options.brand ?? {},
-    siteUrl: options.siteUrl ?? '',
+    siteURL: options.siteURL ?? '',
   })
   return source.replace(
     '<head>',
@@ -99,14 +99,14 @@ export interface AdminConfigLike {
     readonly path: string
     readonly locale: 'en' | 'th'
     readonly brand: NonNullable<AdminHandlerOptions['brand']>
-    readonly siteUrl: string
+    readonly siteURL: string
   }
   readonly routes: { readonly api: string }
 }
 
 /**
  * The admin handler for a resolved config: its path, API, language, brand and site link, which
- * `overrides` can change (e.g. `siteUrl: '/'` when the site is the same app).
+ * `overrides` can change (e.g. `siteURL: '/'` when the site is the same app).
  */
 export function adminHandlerFor(
   config: AdminConfigLike,
@@ -117,7 +117,7 @@ export function adminHandlerFor(
     apiPath: config.routes.api,
     locale: config.admin.locale,
     brand: config.admin.brand,
-    siteUrl: config.admin.siteUrl,
+    siteURL: config.admin.siteURL,
     ...overrides,
   })
 }

@@ -169,14 +169,21 @@ describe('menu order', () => {
     expect(slugs(menuOrder(list))).toEqual(['users', 'categories', 'posts', 'pages', 'media'])
   })
 
-  it('puts the collections in admin.menu first, in that order', () => {
-    expect(slugs(menuOrder(list, ['posts', 'categories', 'media']))).toEqual([
-      'posts',
-      'categories',
-      'media',
-      'users',
-      'pages',
-    ])
+  it("follows the menu's order, groups included", () => {
+    const nav = [
+      { kind: 'collection', slug: 'posts' },
+      {
+        kind: 'group',
+        id: 'content',
+        label: 'Content',
+        items: [
+          { kind: 'collection', slug: 'categories' },
+          { kind: 'page', path: 'stats' },
+        ],
+      },
+      { kind: 'collection', slug: 'media' },
+    ] as never
+    expect(slugs(menuOrder(list, nav))).toEqual(['posts', 'categories', 'media', 'users', 'pages'])
   })
 })
 

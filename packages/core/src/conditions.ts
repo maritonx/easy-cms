@@ -5,7 +5,8 @@
  * When a field is shown, from its sibling fields' values (the fields beside it, in its group,
  * array row or block):
  *
- * - `{ field: 'linkType', equals: 'external' }`, also `notEquals`, `in: [...]`, `exists: true`
+ * - `{ field: 'linkType', equals: 'external' }`, also `not_equals`, `in: [...]`, `not_in: [...]`,
+ *   `exists: true` (named as in `where`)
  * - `{ and: [...] }`, `{ or: [...] }`, `{ not: … }`
  *
  * A hidden field isn't required, and keeps its value.
@@ -15,8 +16,9 @@ export type FieldCondition =
       /** A sibling field's name; a path with `.` reads inside a group, e.g. `link.type`. */
       readonly field: string
       readonly equals?: unknown
-      readonly notEquals?: unknown
+      readonly not_equals?: unknown
       readonly in?: readonly unknown[]
+      readonly not_in?: readonly unknown[]
       /** `true`: has a value (not empty); `false`: empty. */
       readonly exists?: boolean
     }
@@ -63,8 +65,9 @@ export function matchesCondition(condition: FieldCondition, data: Data): boolean
   const value = read(data, condition.field)
   if (condition.exists !== undefined && empty(value) === condition.exists) return false
   if ('equals' in condition && !same(value, condition.equals)) return false
-  if ('notEquals' in condition && same(value, condition.notEquals)) return false
+  if ('not_equals' in condition && same(value, condition.not_equals)) return false
   if (condition.in && !condition.in.some((v) => same(value, v))) return false
+  if (condition.not_in?.some((v) => same(value, v))) return false
   return true
 }
 
@@ -79,7 +82,9 @@ export function conditionIssues(condition: unknown, siblings: readonly string[])
   if (typeof c.field !== 'string' || c.field === '') return ['needs `field`, a sibling field']
   const first = c.field.split('.')[0] as string
   if (!siblings.includes(first)) return [`"${c.field}" is not a field beside it`]
+  if ('notEquals' in c) return ['`notEquals` is now `not_equals`, as in `where`']
   if (c.in !== undefined && !Array.isArray(c.in)) return ['`in` must be a list']
+  if (c.not_in !== undefined && !Array.isArray(c.not_in)) return ['`not_in` must be a list']
   if (c.exists !== undefined && typeof c.exists !== 'boolean')
     return ['`exists` must be true or false']
   return []

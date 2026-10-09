@@ -16,11 +16,10 @@ field ทุกประเภท ตัวเลือก หน้าตาใ
 | `unique` | เอกสารสองรายการใช้ค่าซ้ำกันไม่ได้ (field ระดับบนสุด) |
 | `index` | สร้าง index ในฐานข้อมูล |
 | `validate` | `(value, { data, operation }) => true \| 'error message'` เป็น async ได้ |
-| `access` | `{ read, update }` [สิทธิ์](./access-control#field-access)ระดับ field |
+| `access` | `{ read, create, update }` [สิทธิ์](./access-control#field-access)ระดับ field |
 | `hidden` | ถูกจัดเก็บ แต่ API จะไม่ส่งคืนและไม่รับเป็น input |
 | `localized` | เก็บค่าแยกตามภาษา ดู [หลายภาษา](./localization) |
-| `position` | `'sidebar'`: แสดงในแถบข้างของหน้าแก้ไข (สำหรับ field ระดับบนสุด เช่น หมวดหมู่ แท็ก หรือวันที่) |
-| `admin` | `{ component, after }`: [admin components](./plugins#admin-components) แทนช่องกรอก และต่อท้าย field |
+| `admin` | การแสดงในหน้า admin: `{ position: 'sidebar' }` แสดงในแถบข้างของหน้าแก้ไข (สำหรับ field ระดับบนสุด เช่น หมวดหมู่ แท็ก หรือวันที่) ส่วน `{ component, after }` คือ [admin components](./plugins#admin-components) แทนช่องกรอก และต่อท้าย field |
 
 ## ประเภท {#types}
 

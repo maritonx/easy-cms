@@ -60,6 +60,17 @@ Fields that can't be read are left out of responses (and of the admin), and can'
 filter or sort (`403`); fields that can't be updated are ignored in input (and shown read-only in
 the admin).
 
+`create` decides who may set the field when creating a document; without it, `update` decides
+both. To let anyone fill a field in once but only admins change it later:
+
+```ts
+{
+  name: 'referrer',
+  type: 'text',
+  access: { create: () => true, update: ({ user }) => user?.role === 'admin' },
+}
+```
+
 ## Populated documents
 
 When a response includes related documents, the related collection's `read` rule applies too:

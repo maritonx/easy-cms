@@ -91,7 +91,7 @@ export default defineConfig({
     ...(uploads ? { storage: uploads } : {}),
     ...(privateUploads ? { privateStorage: privateUploads } : {}),
   },
-  admin: { brand: { name: 'Easy CMS Starter' }, menu: ['posts', 'categories', 'media'] },
+  admin: { brand: { name: 'Easy CMS Starter' } },
   // Settings → Roles and Settings → Audit log.
   auth: { rbac: true },
   audit: true,
@@ -104,9 +104,8 @@ export default defineConfig({
   collections: [
     {
       slug: 'categories',
-      editIn: 'drawer',
       labels: { singular: 'Category', plural: 'Categories' },
-      icon: 'tag',
+      admin: { order: 2, editIn: 'drawer', icon: 'tag' },
       useAsTitle: 'name',
       access: { read: () => true },
       fields: [
@@ -117,12 +116,11 @@ export default defineConfig({
     {
       slug: 'posts',
       labels: { singular: 'Post', plural: 'Posts' },
-      icon: 'newspaper',
       drafts: true,
       versions: true,
       preview: ({ doc }) => (doc.slug ? `/posts/${doc.slug}` : null),
       useAsTitle: 'title',
-      admin: { ownerField: 'author' },
+      admin: { order: 1, icon: 'newspaper', ownerField: 'author' },
       access: {
         // Visitors see published posts; signed-in editors see drafts too.
         read: ({ user }) => (user ? true : { status: { equals: 'published' } }),
@@ -143,7 +141,7 @@ export default defineConfig({
     {
       slug: 'site',
       label: 'Site',
-      icon: 'globe',
+      admin: { icon: 'globe' },
       access: { read: () => true },
       fields: [
         { name: 'siteName', type: 'text', defaultValue: 'Easy CMS Starter' },

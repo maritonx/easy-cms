@@ -180,7 +180,7 @@ config can add them too:
 ```ts
 export default defineConfig({
   // …
-  commands: [
+  cliCommands: [
     {
       name: 'posts:count',
       description: 'Print how many posts there are',

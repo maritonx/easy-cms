@@ -275,7 +275,7 @@ export default defineConfig({
   secret: '${'s'.repeat(32)}',
   db: sqlite({ url: 'file:./cms.db' }),
   collections: [{ slug: 'posts', fields: [{ name: 'title', type: 'text' }] }],
-  commands: [
+  cliCommands: [
     {
       name: 'posts:hello',
       description: 'Says hello',

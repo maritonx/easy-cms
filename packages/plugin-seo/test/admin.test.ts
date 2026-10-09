@@ -90,7 +90,7 @@ describe('ecms-seo-preview', () => {
     const preview = await make('ecms-seo-preview', {
       path: 'meta',
       doc: { title: 'Doc title', meta: { title: '', description: 'A description' } },
-      options: { titleField: 'title', url: false, siteUrl: 'https://blog.test' },
+      options: { titleField: 'title', url: false, siteURL: 'https://blog.test' },
     })
     expect(text(preview)).toContain('blog.test')
     expect(text(preview)).toContain('Doc title')
@@ -107,7 +107,7 @@ describe('ecms-seo-preview', () => {
       path: 'meta',
       collection: 'posts',
       doc: { slug: 'hello' },
-      options: { titleField: 'title', url: true, siteUrl: '' },
+      options: { titleField: 'title', url: true, siteURL: '' },
       api,
     })
     await new Promise((resolve) => setTimeout(resolve, 500))

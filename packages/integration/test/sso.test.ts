@@ -50,10 +50,10 @@ const config = (password = true) =>
           clientSecret: mock.clientSecret,
         }),
       ],
-      allowSignUp: { domains: ['acme.test'], role: 'editor' },
+      providerSignUp: { domains: ['acme.test'], role: 'editor' },
       // Site members too: their sign-ups wait for the email to be confirmed.
       roles: ['admin', 'editor', 'customer'],
-      members: { roles: ['customer'], signup: { role: 'customer' } },
+      members: { roles: ['customer'], signUp: { role: 'customer' } },
     },
     collections: [{ slug: 'posts', fields: [{ name: 'title', type: 'text' }] }],
   })

@@ -17,10 +17,9 @@ look in the admin and how they are stored, see [Fields](/guide/fields).
 | `index` | `boolean` | Adds a database index. |
 | `defaultValue` | the field's value | Used when a document is created without it. |
 | `validate` | `(value, { data, operation }) => true \| string` | Custom check; may be async. |
-| `access` | `{ read?, update? }` | Field-level [access](/guide/access-control#field-access). |
+| `access` | `{ read?, create?, update? }` | Field-level [access](/guide/access-control#field-access). `create`: who may set it when creating a document; default: its `update`. |
 | `hidden` | `boolean` | Stored, but never returned nor accepted as input. |
 | `localized` | `boolean` | One value per locale (needs `localization`). |
-| `position` | `'sidebar'` | Shown in the edit page's side column (top-level fields). |
 | `admin` | `FieldAdmin` | Admin components; see [below](#admin). |
 | `customType` | `string` | Set by Easy CMS for fields of an [added type](/guide/field-types) (e.g. `color`); don't set it yourself. |
 
@@ -34,10 +33,11 @@ look in the admin and how they are stored, see [Fields](/guide/fields).
 | `cell` | `AdminComponent` | Shows the value in the list's column, e.g. a color swatch. |
 | `description` | `Label` | Help below the field. |
 | `width` | `'1/4' \| '1/3' \| '1/2' \| '2/3' \| '3/4' \| 'full'` | Its share of a row (`admin.layout`). Default: an equal share. |
-| `condition` | `FieldCondition` | Shown only when sibling fields match, e.g. `{ field: 'linkType', equals: 'external' }`; also `notEquals`, `in`, `exists`, `and`, `or`, `not`. A hidden field isn't required. [The admin](/guide/admin#conditions) |
+| `condition` | `FieldCondition` | Shown only when sibling fields match, e.g. `{ field: 'linkType', equals: 'external' }`; also `not_equals`, `in`, `not_in`, `exists`, `and`, `or`, `not`. A hidden field isn't required. [The admin](/guide/admin#conditions) |
 | `column` | `boolean \| ({ user, context }) => boolean` | A column of the list at first (each user can change it). |
 | `allowCreate` | `boolean` | Relationships: offer to create the related document in place. Default `true`. |
-| `defaultValue` | `({ user, context }) => unknown` | The value a new document's form starts with, per user, e.g. from the request's context. |
+| `initialValue` | `({ user, context }) => unknown` | The value a new document's form starts with, per user, e.g. from the request's context. The field's `defaultValue` still applies on the server. |
+| `position` | `'sidebar'` | Shown in the edit page's side column (top-level fields). |
 
 An `AdminComponent` is a tag name starting with `ecms-`, or `{ tag, props }`.
 

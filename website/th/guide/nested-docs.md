@@ -205,7 +205,7 @@ Plugin นี้สร้างจากความสามารถของ 
 - `filterOptions` ของ relationship: เอกสารใดบ้างที่เลือกได้ ดู [Field](./fields)
 - `uniqueWithin` ของ slug: ห้ามซ้ำเฉพาะเอกสารที่มีค่าของอีก field เหมือนกัน
 - `update(…, { live: true })` ใน [Local API](./local-api): ดูแลค่าของเวอร์ชันที่เผยแพร่อยู่ โดยไม่แตะ draft ที่ค้างไว้และไม่เพิ่ม version
-- `commands` ใน config: คำสั่ง `easy-cms <name>` จาก plugin ดู [CLI](./cli)
+- `cliCommands` ใน config: คำสั่ง `easy-cms <name>` จาก plugin ดู [CLI](./cli)
 
 ## ในหลาย tenant {#in-several-tenants}
 

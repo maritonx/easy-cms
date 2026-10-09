@@ -1,9 +1,9 @@
 export interface RobotsTxtOptions {
-  /** Your Easy CMS config, for the admin and API paths and `admin.siteUrl`. */
+  /** Your Easy CMS config, for the admin and API paths and `admin.siteURL`. */
   readonly config?: object
-  /** The site's public address, for the `Sitemap:` line. Default `admin.siteUrl`, then `serverURL`. */
-  readonly siteUrl?: string
-  /** The sitemap's address, or `false` for none. Default `<siteUrl>/sitemap.xml`. */
+  /** The site's public address, for the `Sitemap:` line. Default `admin.siteURL`, then `serverURL`. */
+  readonly siteURL?: string
+  /** The sitemap's address, or `false` for none. Default `<siteURL>/sitemap.xml`. */
   readonly sitemap?: string | false
   /**
    * Ask search engines to stay out of the whole site, e.g. on a staging copy. Not turned on by
@@ -59,7 +59,7 @@ export function robotsTxt(options: RobotsTxtOptions = {}): string {
   const trim = (path: string) => `/${path.replace(/^\/+|\/+$/g, '')}`
   const admin = trim(config?.admin?.path ?? '/admin')
   const api = trim(config?.routes?.api ?? '/api/cms')
-  const site = options.siteUrl ?? (config?.admin?.siteUrl || config?.serverURL)
+  const site = options.siteURL ?? (config?.admin?.siteURL || config?.serverURL)
   // A crawler follows only the most specific group that names it, so every group gets the
   // admin and API rules.
   const base = options.disallowAll
@@ -98,7 +98,7 @@ export function robotsTxt(options: RobotsTxtOptions = {}): string {
 
 /** What `robotsTxt` reads from an Easy CMS config (raw or resolved). */
 interface RobotsConfig {
-  readonly admin?: { readonly path?: string; readonly siteUrl?: string }
+  readonly admin?: { readonly path?: string; readonly siteURL?: string }
   readonly routes?: { readonly api?: string }
   readonly serverURL?: string
 }

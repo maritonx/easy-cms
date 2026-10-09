@@ -12,7 +12,7 @@ check that the record wasn't tampered with.
 Turn it on in the config:
 
 ```ts
-audit: true, // or { keep: 365, values: true, failedLogins: 20 }
+audit: true, // or { keepDays: 365, values: true, failedLogins: 20 }
 ```
 
 It adds the `audit-logs` table: create a migration (`npx easy-cms migrate:create audit`). Admins
@@ -54,7 +54,7 @@ too, as **code (system)**, or as the `user` you pass.
 
 ## Tamper evidence
 
-Entries can't be changed or deleted through Easy CMS: only those older than `keep` days (default
+Entries can't be changed or deleted through Easy CMS: only those older than `keepDays` days (default
 365; `0` keeps them all) are deleted, oldest first. Each entry is **signed** with your
 `EASY_CMS_SECRET`. **Check integrity** (and a daily check from [scheduled jobs](./drafts#scheduled-publishing))
 finds entries edited in the database, and missing ones between others.

@@ -3,6 +3,10 @@
 ตัวเลือกทั้งหมดของ `easy-cms.config.ts` แบ่งตามตำแหน่งที่ใส่ คำอธิบายและตัวอย่างดูได้จากลิงก์ไปยังคู่มือ
 มีเทสต์ตรวจหน้านี้กับ type ใน `@easy-cms/core` ทุกตัวเลือกจึงอยู่ในหน้านี้ครบ
 
+Easy CMS ตรวจ config ตอนเริ่มทำงาน ตัวเลือกที่เปลี่ยนชื่อแล้วจะเป็น error ที่บอกชื่อใหม่ (เช่น
+``admin.siteURL is now `siteURL` ``) การอัปเกรดจึงไม่ทำให้ค่าที่ตั้งไว้หายไปเงียบ ๆ ส่วนตัวเลือกที่ Easy CMS
+ไม่รู้จักจะขึ้นเป็นคำเตือนใน log พร้อมชื่อที่ใกล้เคียงที่สุด (``did you mean `maxLength`?``)
+
 ```ts
 import { defineConfig } from '@easy-cms/core'
 
@@ -22,7 +26,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `webhooks` | `WebhookConfig[]` | `[]` | ดู [webhooks](#webhooks) |
 | `events` | `string[]` | `[]` | event ของแอปหรือ plugin นอกจากการแก้เนื้อหา (`<area>.<what>` เช่น `order.paid`) ส่งด้วย `cms.emit()` ไปยัง webhook ที่ระบุไว้ [Webhooks](/th/guide/webhooks#your-own-events) |
 | `jobs` | `JobConfig[]` | `[]` | งานที่รันพร้อมงานตั้งเวลา เช่นงานเก็บกวาดของ plugin ดู [jobs](#jobs) |
-| `localization` | `LocalizationConfig` | — | ดู [localization](#localization) |
+| `localization` | `LocalizationConfig \| false` | — | ดู [localization](#localization) |
 | `routes` | `RoutesConfig` | | ดู [routes](#routes) |
 | `admin` | `AdminConfig` | | ดู [admin](#admin) |
 | `upload` | `UploadConfig` | | ดู [upload](#upload) |
@@ -30,7 +34,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `collections` | `CollectionConfig[]` | `[]` | ดู [collections](#collections) |
 | `globals` | `GlobalConfig[]` | `[]` | ดู [globals](#globals) |
 | `endpoints` | `Endpoint[]` | `[]` | ดู [endpoints](#endpoints) |
-| `commands` | `CliCommand[]` | `[]` | คำสั่ง `easy-cms <name>` เช่นจาก plugin: `{ name, description, help?, run({ cms, args, log }) }` [CLI](/th/guide/cli#commands-from-plugins) |
+| `cliCommands` | `CliCommand[]` | `[]` | คำสั่ง `easy-cms <name>` เช่นจาก plugin: `{ name, description, help?, run({ cms, args, log }) }` [CLI](/th/guide/cli#commands-from-plugins) |
 | `onRequest` | `({ headers, url, user, cms }) => { context?, user? }` | — | ทำงานทุก request ของ API เมื่อรู้ผู้ใช้แล้ว: คืน `context` ของ request (เช่น tenant) และเปลี่ยนผู้ใช้ได้ (บทบาทใน tenant นั้น, `scoped`) ปกติ plugin เป็นผู้ตั้ง [Multi-tenant](/th/guide/multi-tenant#how-it-works) |
 | `apiKeys` | `boolean` | `false` | API key ใต้ตั้งค่า สำหรับสคริปต์และแอปอื่น [API keys](/th/guide/api-keys) |
 | `email` | `EmailAdapter` | — | ส่งอีเมลให้ plugin เช่น `smtp()` หรือ `consoleEmail()` [อีเมล](/th/guide/email) |
@@ -54,14 +58,13 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `path` | `string` | `/admin` | ตำแหน่งของหน้า admin |
 | `locale` | `'en' \| 'th'` | `en` | ภาษาเริ่มต้นของหน้า admin ก่อนผู้ใช้เลือกเอง |
 | `brand` | `AdminBrand` | `{}` | ดู [brand](#brand) |
-| `siteUrl` | `string` | `/` (Nuxt, Next.js) | เว็บสาธารณะสำหรับปุ่ม "ดูเว็บไซต์": path หรือ URL แบบ `http(s)` |
-| `menu` | `string[]` | ตามลำดับใน config | slug ของ collection ตามลำดับในกลุ่มของเมนู ที่ไม่ระบุจะตามมา |
+| `siteURL` | `string` | `/` (Nuxt, Next.js) | เว็บสาธารณะสำหรับปุ่ม "ดูเว็บไซต์": path หรือ URL แบบ `http(s)` |
 | `nav` | `NavGroup[]` | — | กลุ่มของเมนู: `{ id, label, icon?, order?, children? }` children ลึกได้หนึ่งชั้น มีในตัว: `content`, `settings` (`site`, `people`, `system`) [ระบบจัดการ](/th/guide/admin#the-menu) |
-| `commands` | `{ label, to, icon?, keywords? }[]` | — | รายการเพิ่มเติมใน command palette (⌘K) ที่เปิดหน้าของระบบจัดการ |
+| `commands` | `{ label, href, icon?, keywords? }[]` | — | รายการเพิ่มเติมใน command palette (⌘K) ที่เปิดหน้าของระบบจัดการ |
 | `modules` | `string[]` | `[]` | admin module ที่มี Web Components: export ของแพ็กเกจหรือ path [Admin components](/th/guide/plugins#admin-components) |
 | `pages` | `AdminPage[]` | `[]` | หน้าของตัวเองที่ `<admin>/p/<path>` เช่น จาก plugin ดู [pages](#pages) |
 | `dashboard` | `DashboardWidget[]` | `[]` | กล่องบนแดชบอร์ดต่อจากกล่องที่มีอยู่เดิม ดู [dashboard](#dashboard) |
-| `switcher` | `{ cookie, label, options }` | — | ตัวเลือกด้านบนของเมนูที่ใช้กับทั้ง admin เช่น tenant เก็บใน cookie `options` คือ path ใต้ API ที่คืน `{ options: [{ value, label }], all? }` ปกติ plugin เป็นผู้ตั้ง |
+| `switcher` | `{ cookie, label, options } \| false` | — | ตัวเลือกด้านบนของเมนูที่ใช้กับทั้ง admin เช่น tenant เก็บใน cookie `options` คือ path ใต้ API ที่คืน `{ options: [{ value, label }], all? }` ปกติ plugin เป็นผู้ตั้ง |
 
 <!-- api: AdminBrand -->
 ### brand {#brand}
@@ -82,6 +85,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `label` | `string \| { en, th }` | **จำเป็น** หัวข้อในส่วนหัว เมนู และแท็บของ browser |
 | `icon` | `AdminIcon` | ไอคอนในเมนู ค่าเริ่มต้น `file-text` |
 | `group` | `'content' \| 'settings' \| false \| string` | กลุ่มในเมนู: `content`, `settings`, id ของกลุ่ม (`admin.nav`) หรือ label `false` คือไม่แสดง ค่าเริ่มต้น `content` |
+| `order` | `number` | ตำแหน่งในกลุ่มของเมนู ค่าน้อยมาก่อน ที่ไม่ได้ตั้งจะตามมาตามลำดับใน config |
 | `access` | `({ user }) => boolean` | ใครเปิดได้ ตรวจฝั่ง server ค่าเริ่มต้น: ทุกคนที่ login |
 
 <!-- api: DashboardWidget -->
@@ -101,7 +105,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 
 | ตัวเลือก | Type | ค่าเริ่มต้น | |
 |---|---|---|---|
-| `every` | `'day' \| 'week'` | — | backup อัตโนมัติ ถ้าไม่ตั้ง admin กดทำเองได้ |
+| `frequency` | `'daily' \| 'weekly'` | — | backup อัตโนมัติ ถ้าไม่ตั้ง admin กดทำเองได้ |
 | `at` | `string` | `03:00` | เวลา `HH:MM` ตามเขตเวลาของ server |
 | `keep` | `number` | `7` | จำนวน backup ที่สำเร็จที่จะเก็บ ชุดที่เก่ากว่าจะถูกลบ |
 | `dir` | `string` | `backups` | โฟลเดอร์ของที่เก็บในเครื่อง ไม่เปิดเป็น URL สาธารณะ |
@@ -113,10 +117,10 @@ export default defineConfig({ secret, db, collections, /* … */ })
 
 | ตัวเลือก | Type | ค่าเริ่มต้น | |
 |---|---|---|---|
-| `keep` | `number` | `365` | เก็บกี่วัน ที่เก่ากว่าจะถูกลบ `0`: เก็บไว้ทั้งหมด |
+| `keepDays` | `number` | `365` | เก็บกี่วัน ที่เก่ากว่าจะถูกลบ `0`: เก็บไว้ทั้งหมด |
 | `values` | `boolean` | `true` | เก็บค่าก่อนและหลังการแก้ `false`: เก็บแค่ชื่อ field ที่เปลี่ยน |
 | `failedLogins` | `number` | `20` | จำนวน login ไม่สำเร็จในหนึ่งชั่วโมงที่แดชบอร์ดจะเตือน [Audit log](/th/guide/audit-log) |
-| `scope` | `(context) => string \| null` | — | ส่วนของเว็บที่ entry เป็นของ เช่น tenant (ปกติ plugin เป็นผู้ตั้ง) admin ของส่วนนั้น (`scoped`) เห็นเฉพาะของส่วนตัวเอง คนอื่นเห็นของส่วนที่เลือกหรือทั้งหมด |
+| `scope` | `({ context, user }) => string \| null` | — | ส่วนของเว็บที่ entry เป็นของ เช่น tenant (ปกติ plugin เป็นผู้ตั้ง) admin ของส่วนนั้น (`scoped`) เห็นเฉพาะของส่วนตัวเอง คนอื่นเห็นของส่วนที่เลือกหรือทั้งหมด |
 
 <!-- api: AuthConfig -->
 ## auth {#auth}
@@ -126,7 +130,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `roles` | `string[]` | `['admin', 'editor']` | ต้องมี `admin` เมื่อเปิด `rbac` คือ role ที่มีอยู่เสมอ [ผู้ใช้และการยืนยันตัวตน](/th/guide/auth) |
 | `rbac` | `boolean` | `false` | กำหนด role และสิทธิ์จากหน้า admin (Settings → Roles) ซ้อนบนกฎ access [บทบาทและสิทธิ์](/th/guide/roles) |
 | `providers` | `AuthProvider[]` | `[]` | เข้าสู่ระบบหน้า admin ด้วยบัญชีภายนอก เช่น `[google()]` จาก `@easy-cms/auth-oauth` [Single sign-on](/th/guide/sso) |
-| `allowSignUp` | `{ domains, role? }` | — | เมื่อมี `providers`: คนจากโดเมนอีเมลเหล่านี้ได้บัญชีตอนเข้าสู่ระบบครั้งแรก เป็น `role` (ห้ามเป็น `admin`) |
+| `providerSignUp` | `{ domains, role? }` | — | เมื่อมี `providers`: คนจากโดเมนอีเมลเหล่านี้ได้บัญชีตอนเข้าสู่ระบบครั้งแรก เป็น `role` (ห้ามเป็น `admin`) |
 | `password` | `boolean` | `true` | `false`: เฉพาะ admin ที่ใช้รหัสผ่านได้ คนอื่นใช้ `providers` |
 | `setupCode` | `string` | `EASY_CMS_SETUP_CODE` | รหัสที่ admin คนแรกต้องกรอกที่ `/admin` กันคนอื่นแย่งเว็บที่เพิ่ง deploy ถ้าไม่ตั้งจะไม่ถาม [Deploy ด้วยคลิกเดียว](/th/guide/one-click-deploy) |
 | `tokenExpiration` | `number` | `604800` (7 วัน) | อายุของ session เป็นวินาที |
@@ -144,12 +148,12 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | ตัวเลือก | Type | |
 |---|---|---|
 | `roles` | `string[]` | role ของสมาชิก (ต้องอยู่ใน `roles` ด้วย) สมาชิกเข้าระบบจัดการไม่ได้ และ `isLoggedIn` (ค่าเริ่มต้นของทุก collection) ไม่นับพวกเขา [สมาชิกของเว็บ](/th/guide/members) |
-| `signup` | `MembersSignup` | ให้ผู้เยี่ยมชมสมัครบัญชีเองได้: `POST <api>/users/signup` |
-| `pages` | `{ verifyEmail?, resetPassword? }` | หน้าของเว็บที่เปิดลิงก์ในอีเมลของสมาชิกพร้อม `?token=` เป็น path บน `admin.siteUrl` (หรือ `serverURL`) หรือ URL เต็ม ค่าเริ่มต้นคือหน้าของระบบจัดการ |
+| `signUp` | `MembersSignup` | ให้ผู้เยี่ยมชมสมัครบัญชีเองได้: `POST <api>/users/signup` |
+| `pages` | `{ verifyEmail?, resetPassword? }` | หน้าของเว็บที่เปิดลิงก์ในอีเมลของสมาชิกพร้อม `?token=` เป็น path บน `admin.siteURL` (หรือ `serverURL`) หรือ URL เต็ม ค่าเริ่มต้นคือหน้าของระบบจัดการ |
 | `emails` | `{ verifyEmail? }` | ข้อความอีเมลยืนยันที่อยู่อีเมลของคุณเอง |
 
 <!-- api: MembersSignup -->
-#### signup {#signup}
+#### signUp {#signup}
 
 | ตัวเลือก | Type | ค่าเริ่มต้น | |
 |---|---|---|---|
@@ -205,7 +209,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 |---|---|---|---|
 | `url` | `string` | — | ปลายทางที่จะ POST event [Webhooks](/th/guide/webhooks) |
 | `events` | `string[]` | ทั้งหมด | `create`, `update`, `delete`, `publish`, `unpublish`, `draft` |
-| `collections` | `string[]` | ทั้งหมด | collection ที่ส่ง event ใช้ `[]` เพื่อไม่ส่งเลย |
+| `collections` | `string[]` | ทั้งหมดยกเว้น `users` | collection ที่ส่ง event ใช้ `[]` เพื่อไม่ส่งเลย ระบุ `users` ถ้าต้องการ event ของบัญชีผู้ใช้ |
 | `globals` | `string[]` | ทั้งหมด | global ที่ส่ง event ใช้ `[]` เพื่อไม่ส่งเลย |
 | `secret` | `string` | — | เซ็น body: `x-easy-cms-signature: sha256=<hex>` |
 | `headers` | `Record<string, string>` | — | header เพิ่มเติม |
@@ -231,9 +235,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `slug` | `string` | — | **จำเป็น** URL และชื่อตาราง: ตัวพิมพ์เล็ก ตัวเลข `-` และ `_` |
 | `fields` | `Field[]` | — | **จำเป็น** ดู [อ้างอิง field](./fields) |
 | `labels` | `{ singular?, plural? }` | สร้างจาก slug | แต่ละตัวเป็น string หรือ `{ en, th }` |
-| `icon` | `AdminIcon` | `file-text` | ไอคอนในเมนู [แบรนด์](/th/guide/configuration#branding-the-admin) |
 | `useAsTitle` | `string` | — | field ระดับบนสุดที่ใช้เป็นชื่อเอกสาร |
-| `editIn` | `'page' \| 'drawer'` | `page` | `drawer` แก้ในแผงที่เลื่อนมาทับรายการ (ใช้ได้เมื่อไม่มี drafts, versions หรือ preview) |
 | `drafts` | `boolean` | `false` | เพิ่ม `status` (`draft` \| `published`) [ฉบับร่าง](/th/guide/drafts) |
 | `versions` | `boolean \| VersionsConfig` | `false` | เก็บเวอร์ชันทุกครั้งที่บันทึก ดู [versions](#versions) |
 | `schedule` | `boolean` | `false` | เผยแพร่และยกเลิกตามเวลา (ต้องมี `drafts`) |
@@ -247,7 +249,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 
 | ตัวเลือก | Type | ค่าเริ่มต้น | |
 |---|---|---|---|
-| `max` | `number` | `50` | จำนวนเวอร์ชันที่เก็บต่อเอกสาร เวอร์ชันเก่ากว่านั้นจะถูกลบ |
+| `keep` | `number` | `50` | จำนวนเวอร์ชันที่เก็บต่อเอกสาร เวอร์ชันเก่ากว่านั้นจะถูกลบ |
 
 <!-- api: CollectionHooks -->
 ### hooks {#hooks}
@@ -256,8 +258,8 @@ export default defineConfig({ secret, db, collections, /* … */ })
 
 | Hook | อาร์กิวเมนต์ | ค่าที่คืน |
 |---|---|---|
-| `beforeValidate` | `data`, `operation`, `originalDoc?` | data ใหม่ หรือไม่คืน |
-| `beforeChange` | `data`, `operation`, `originalDoc?` | data ใหม่ หรือไม่คืน |
+| `beforeValidate` | `data`, `operation`, `previousDoc?` | data ใหม่ หรือไม่คืน |
+| `beforeChange` | `data`, `operation`, `previousDoc?` | data ใหม่ หรือไม่คืน |
 | `afterChange` | `doc`, `operation`, `previousDoc?` | — |
 | `beforeDelete` | `id` | — |
 | `afterDelete` | `id`, `doc` | — |
@@ -270,8 +272,11 @@ export default defineConfig({ secret, db, collections, /* … */ })
 
 | ตัวเลือก | Type | |
 |---|---|---|
+| `icon` | `AdminIcon` | ไอคอนในเมนู ค่าเริ่มต้น `file-text` [แบรนด์](/th/guide/configuration#branding-the-admin) |
+| `order` | `number` | ตำแหน่งในกลุ่มของเมนู ค่าน้อยมาก่อน ที่ไม่ได้ตั้งจะตามมาตามลำดับใน config |
+| `editIn` | `'page' \| 'drawer'` | `drawer` แก้ในแผงที่เลื่อนมาทับรายการ (ใช้ได้เมื่อไม่มี drafts, versions หรือ preview) ค่าเริ่มต้น `page` |
 | `sidebar` | `SidebarPanel[]` | กล่องในแถบข้างของหน้าแก้ไข `{ tag, props, position: 'top' }` วางไว้บนสุด [Admin components](/th/guide/plugins#admin-components) |
-| `group` | `string \| Label` | กลุ่มในเมนู: id ของกลุ่ม (`admin.nav` เช่น `shop.catalog`), `settings` (ตั้งค่า › เว็บไซต์) หรือ label ซึ่งสร้างกลุ่มชื่อนั้น ค่าเริ่มต้น: เนื้อหา [ระบบจัดการ](/th/guide/admin#the-menu) |
+| `group` | `string \| Label \| false` | กลุ่มในเมนู: id ของกลุ่ม (`admin.nav` เช่น `shop.catalog`), `settings` (ตั้งค่า › เว็บไซต์) หรือ label ซึ่งสร้างกลุ่มชื่อนั้น `false` คือไม่อยู่ในเมนู เข้าถึงผ่านลิงก์ ค่าเริ่มต้น: เนื้อหา [ระบบจัดการ](/th/guide/admin#the-menu) |
 | `layout` | `LayoutNode[]` | แท็บ ส่วนที่พับได้ และแถวของหน้าแก้ไข ตามชื่อ field [ระบบจัดการ](/th/guide/admin#edit-pages) |
 | `badge` | `{ where, tone?, label? }` | ตัวเลขข้างรายการในเมนู: เอกสารที่ตรง `where` ที่ผู้ใช้อ่านได้ เช่น คำสั่งซื้อรอจัดส่ง |
 | `count` | `boolean` | จำนวนเอกสารข้างรายการในเมนู ค่าเริ่มต้น `true` |
@@ -288,7 +293,6 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `slug` | `string` | — | **จำเป็น** |
 | `fields` | `Field[]` | — | **จำเป็น** |
 | `label` | `string \| { en, th }` | สร้างจาก slug | |
-| `icon` | `AdminIcon` | `settings` | ไอคอนในเมนู |
 | `drafts` | `boolean` | `false` | |
 | `versions` | `boolean \| VersionsConfig` | `false` | |
 | `schedule` | `boolean` | `false` | ต้องมี `drafts` |
@@ -296,14 +300,15 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `access` | `{ read?, update? }` | ต้อง login | |
 | `scope` | `({ context, user }) => string \| null \| undefined` | — | เก็บค่าแยกตาม scope เช่นต่อ tenant: string ได้ค่าของตัวเอง `undefined` ใช้ค่ากลาง `null` ไม่มี (อ่านได้ค่าว่าง แก้ไม่ได้) |
 | `hooks` | `GlobalHooks` | — | ดูด้านล่าง |
-| `admin` | `ContainerAdmin` | — | `{ sidebar }` เหมือน collection |
+| `admin` | `ContainerAdmin` | — | `{ icon, order, group, sidebar, layout }` เหมือน collection ไอคอนเริ่มต้นคือ `settings` และกลุ่มเริ่มต้นคือ ตั้งค่า › เว็บไซต์ |
 
 <!-- api: GlobalHooks -->
 ### Hook ของ global {#global-hooks}
 
 | Hook | อาร์กิวเมนต์ | ค่าที่คืน |
 |---|---|---|
-| `beforeChange` | `data`, `operation`, `originalDoc?` | data ใหม่ หรือไม่คืน |
+| `beforeValidate` | `data`, `operation`, `previousDoc?` | data ใหม่ หรือไม่คืน |
+| `beforeChange` | `data`, `operation`, `previousDoc?` | data ใหม่ หรือไม่คืน |
 | `afterChange` | `doc`, `operation`, `previousDoc?` | — |
 | `afterRead` | `doc` | doc ใหม่ หรือไม่คืน |
 

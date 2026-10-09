@@ -14,7 +14,13 @@ const config = defineConfig({
       fields: [
         { name: 'title', type: 'text', required: true },
         { name: 'views', type: 'number' },
-        { name: 'tags', type: 'select', options: ['a', 'b'], hasMany: true, position: 'sidebar' },
+        {
+          name: 'tags',
+          type: 'select',
+          options: ['a', 'b'],
+          hasMany: true,
+          admin: { position: 'sidebar' },
+        },
         {
           name: 'boom',
           type: 'text',
@@ -27,8 +33,7 @@ const config = defineConfig({
     },
     {
       slug: 'pages',
-      editIn: 'drawer',
-      admin: { group: 'settings' },
+      admin: { editIn: 'drawer', group: 'settings' },
       fields: [{ name: 'title', type: 'text' }],
     },
   ],

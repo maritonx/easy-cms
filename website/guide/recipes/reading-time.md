@@ -12,7 +12,7 @@ change. **Uses:** [hooks](../hooks), [field access](../access-control#field-acce
   name: 'readingTime',
   type: 'number',
   label: { en: 'Reading time (min)', th: 'เวลาอ่าน (นาที)' },
-  position: 'sidebar',
+  admin: { position: 'sidebar' },
   // Read-only in the admin and the API; the hook below sets it.
   access: { update: () => false },
 }

@@ -104,7 +104,7 @@ const route = useRoute()
 const locale = route.params.locale as string
 const { data: post } = await useFetch(`/api/posts/${route.params.slug}`, { query: { locale } })
 const seo = seoMeta(post.value ?? {}, {
-  siteUrl: useRequestURL().origin,
+  siteURL: useRequestURL().origin,
   locale,
   locales: ['th', 'en'],
   url: (p, l) => `/${l}/posts/${p.slug}`,
@@ -123,7 +123,7 @@ async function load(slug: string, locale: string) {
   const { docs } = await cms.find('posts', { where: { slug: { equals: slug } }, locale, limit: 1 })
   if (!docs[0]) return null
   const seo = seoMeta(docs[0], {
-    config, // admin.siteUrl และภาษาทั้งหมด
+    config, // admin.siteURL และภาษาทั้งหมด
     locale,
     url: (p, l) => `/${l}/posts/${p.slug}`,
     type: 'article',
@@ -156,7 +156,7 @@ export default async function Page({ params }) {
 
 | ตัวเลือก | |
 |---|---|
-| `siteUrl` | ที่อยู่ของเว็บ ใช้ทำให้ URL ของ canonical และรูปเป็น URL เต็ม ค่าเริ่มต้นคือ `config.admin.siteUrl` แล้วตามด้วย `config.serverURL` |
+| `siteURL` | ที่อยู่ของเว็บ ใช้ทำให้ URL ของ canonical และรูปเป็น URL เต็ม ค่าเริ่มต้นคือ `config.admin.siteURL` แล้วตามด้วย `config.serverURL` |
 | `config` | config ของ Easy CMS สำหรับอ่านค่าข้างบนและ `localization` |
 | `url` | ที่อยู่ของหน้า หรือ `(doc, locale) => url` ถ้าเป็นฟังก์ชันจะสร้างลิงก์ hreflang ของทุกภาษาและ `x-default` ให้ด้วย |
 | `locale` | ภาษาของเนื้อหาในหน้านี้ ใช้กับ `og:locale` และที่อยู่ canonical |
@@ -219,7 +219,7 @@ export async function GET(request: Request) {
 
 :::
 
-ที่อยู่ต้องเป็น URL เต็ม ให้ตั้ง `admin.siteUrl` ใน config (หรือส่ง `{ siteUrl }`) หรือให้ `generateURL` คืน URL เต็ม
+ที่อยู่ต้องเป็น URL เต็ม ให้ตั้ง `admin.siteURL` ใน config (หรือส่ง `{ siteURL }`) หรือให้ `generateURL` คืน URL เต็ม
 plugin ยังเสิร์ฟ sitemap ที่ `<routes.api>/seo/sitemap.xml` และ[standalone server](./standalone)เสิร์ฟที่ `/sitemap.xml`
 
 ## robots.txt {#robots-txt}
@@ -260,8 +260,8 @@ export function GET() {
 
 | ตัวเลือก | |
 |---|---|
-| `config` | config ของ Easy CMS: path ของ admin และ API และ `admin.siteUrl` |
-| `siteUrl` | ที่อยู่ของเว็บสำหรับบรรทัด `Sitemap:` ถ้าไม่ใช่ `admin.siteUrl` |
+| `config` | config ของ Easy CMS: path ของ admin และ API และ `admin.siteURL` |
+| `siteURL` | ที่อยู่ของเว็บสำหรับบรรทัด `Sitemap:` ถ้าไม่ใช่ `admin.siteURL` |
 | `sitemap` | ที่อยู่ของ sitemap หรือ `false` ถ้าไม่ต้องการบรรทัด `Sitemap:` |
 | `disallow` | path อื่นที่ไม่ให้ crawler เข้า เช่น `['/search']` |
 | `disallowAll` | ไม่ให้ crawler เข้าทั้งเว็บ เช่น บน staging |

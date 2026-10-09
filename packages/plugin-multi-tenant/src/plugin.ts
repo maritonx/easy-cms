@@ -243,13 +243,13 @@ export function multiTenantPlugin<const S extends string, const T extends string
       type: 'relationship',
       to: tenantsSlug,
       index: true,
-      position: 'sidebar',
       label: { en: 'Tenant', th: 'Tenant' },
       // Set from the tenant the request works in; only users with access to all tenants choose.
       access: { update: ({ user, context }) => superUser(user, context) },
       admin: {
+        position: 'sidebar',
         // New documents start in the chosen tenant.
-        defaultValue: ({ context }) => tenantOf(context).tenant ?? undefined,
+        initialValue: ({ context }) => tenantOf(context).tenant ?? undefined,
         // A column while every tenant is shown.
         column: ({ user, context }) =>
           superUser(user, context) && tenantOf(context).tenant === null,
@@ -284,7 +284,7 @@ export function multiTenantPlugin<const S extends string, const T extends string
       }
     const checkTenant =
       (slug: string): BeforeChangeHook =>
-      ({ data, operation, originalDoc, context, user }) => {
+      ({ data, operation, previousDoc, context, user }) => {
         const value = (data[TENANT_FIELD] ?? null) as ID | null
         const { tenant } = tenantOf(context)
         // Trusted calls without a user or a tenant (imports, `tenants:assign`) choose freely.
@@ -295,7 +295,7 @@ export function multiTenantPlugin<const S extends string, const T extends string
         if (value === null) fail('is required: choose a tenant')
         if (superUser(user, context)) return data
         if (!sameId(value, tenant)) fail('must be the tenant you work in')
-        const before = (originalDoc?.[TENANT_FIELD] ?? null) as ID | null
+        const before = (previousDoc?.[TENANT_FIELD] ?? null) as ID | null
         if (operation === 'update' && before !== null && !sameId(before, value))
           fail("can't move to another tenant")
         return data
@@ -400,9 +400,9 @@ export function multiTenantPlugin<const S extends string, const T extends string
     const tenantsCollection: CollectionConfig = {
       slug: tenantsSlug,
       labels: { singular: { en: 'Tenant', th: 'Tenant' }, plural: { en: 'Tenants', th: 'Tenant' } },
-      icon: 'building',
       useAsTitle: 'name',
       admin: {
+        icon: 'building',
         group: 'settings.people',
         // Deleting a tenant deletes its content: its name is typed, and what goes is shown.
         confirmDelete: { typeTitle: true, impact: '/tenant-impact' },
@@ -702,13 +702,13 @@ of its own. Run it once after adding the plugin to a site that has content.
         impactEndpoint,
         ...membersEndpoints({ tenantsSlug, superUser, isSuper }),
       ],
-      commands: [...(config.commands ?? []), assign],
+      cliCommands: [...(config.cliCommands ?? []), assign],
       // Audit log entries belong to their tenant: its admins see them.
       ...(config.audit
         ? {
             audit: {
               ...(config.audit === true ? {} : config.audit),
-              scope: (context: RequestContext) => {
+              scope: ({ context }: { context: RequestContext }) => {
                 const { tenant } = tenantOf(context)
                 return tenant === null ? null : String(tenant)
               },

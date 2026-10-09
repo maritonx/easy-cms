@@ -98,8 +98,8 @@ export const apiKeysCollection: CollectionConfig = {
     singular: { en: 'API key', th: 'API key' },
     plural: { en: 'API keys', th: 'API keys' },
   },
-  icon: 'key',
   useAsTitle: 'name',
+  admin: { icon: 'key' },
   access: {
     read: ownKeys,
     // Through `createApiKey` (POST <api>/api-keys), which generates the secret.
@@ -119,14 +119,14 @@ export const apiKeysCollection: CollectionConfig = {
       name: 'expiresAt',
       type: 'date',
       label: { en: 'Expires', th: 'หมดอายุ' },
-      position: 'sidebar',
+      admin: { position: 'sidebar' },
     },
     {
       name: 'prefix',
       type: 'text',
       index: true,
       label: { en: 'Key starts with', th: 'ขึ้นต้นด้วย' },
-      position: 'sidebar',
+      admin: { position: 'sidebar' },
       access: system,
     },
     {
@@ -134,14 +134,14 @@ export const apiKeysCollection: CollectionConfig = {
       type: 'relationship',
       to: 'users',
       label: { en: 'Owner', th: 'เจ้าของ' },
-      position: 'sidebar',
+      admin: { position: 'sidebar' },
       access: system,
     },
     {
       name: 'lastUsedAt',
       type: 'date',
       label: { en: 'Last used', th: 'ใช้ล่าสุด' },
-      position: 'sidebar',
+      admin: { position: 'sidebar' },
       access: system,
     },
     { name: 'keyHash', type: 'text', hidden: true },
@@ -150,12 +150,12 @@ export const apiKeysCollection: CollectionConfig = {
     // Only real collections, globals and operations are kept. A key keeps the context it was
     // created in (`createApiKey`), whatever its permissions are changed to.
     beforeChange: [
-      ({ data, cms, operation, originalDoc }) => {
+      ({ data, cms, operation, previousDoc }) => {
         if (data.permissions === undefined) return data
         const context =
           operation === 'create'
             ? (data.permissions as ApiKeyPermissions).context
-            : (originalDoc?.permissions as ApiKeyPermissions | undefined)?.context
+            : (previousDoc?.permissions as ApiKeyPermissions | undefined)?.context
         const permissions = cleanPermissions(data.permissions, {
           collections: cms.config.collections.map((c) => c.slug),
           globals: cms.config.globals.map((g) => g.slug),

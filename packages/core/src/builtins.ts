@@ -40,7 +40,7 @@ export const CREATED_BY_FIELD: Field = {
   name: 'createdBy',
   type: 'relationship',
   to: USERS,
-  position: 'sidebar',
+  admin: { position: 'sidebar' },
   access: { update: () => false },
   label: { en: 'Created by', th: 'สร้างโดย' },
 }
@@ -113,14 +113,14 @@ function userFields(roles: readonly string[], rbac: boolean, members: boolean): 
       access: adminOnly,
       label: { en: 'Active', th: 'ใช้งาน' },
     },
-    // Accounts made by signing up (`auth.members.signup`) are `false` until the email is confirmed.
+    // Accounts made by signing up (`auth.members.signUp`) are `false` until the email is confirmed.
     ...(members
       ? [
           {
             name: 'emailVerified',
             type: 'boolean',
             access: adminOnly,
-            position: 'sidebar',
+            admin: { position: 'sidebar' },
             label: { en: 'Email confirmed', th: 'ยืนยันอีเมลแล้ว' },
           } satisfies Field,
         ]
@@ -140,10 +140,10 @@ export function withUsers(config: Config): Config {
     slug: USERS,
     labels: { singular: { en: 'User', th: 'ผู้ใช้' }, plural: { en: 'Users', th: 'ผู้ใช้' } },
     useAsTitle: 'email',
-    icon: 'users',
     ...custom,
+    admin: { icon: 'users', ...custom?.admin },
     fields: [
-      ...userFields(roles, config.auth?.rbac === true, config.auth?.members?.signup !== undefined),
+      ...userFields(roles, config.auth?.rbac === true, config.auth?.members?.signUp !== undefined),
       ...(custom?.fields ?? []),
     ],
     access: {
@@ -209,7 +209,7 @@ const privateField: Field = {
   type: 'boolean',
   index: true,
   access: systemField,
-  position: 'sidebar',
+  admin: { position: 'sidebar' },
   label: { en: 'Private', th: 'ส่วนตัว' },
 }
 
@@ -237,9 +237,8 @@ export const mediaFoldersCollection: CollectionConfig = {
     singular: { en: 'Folder', th: 'โฟลเดอร์' },
     plural: { en: 'Folders', th: 'โฟลเดอร์' },
   },
-  icon: 'folder',
   useAsTitle: 'name',
-  admin: { list: { tree: 'parent', sort: 'name' } },
+  admin: { icon: 'folder', list: { tree: 'parent', sort: 'name' } },
   access: { read: isLoggedIn, create: isLoggedIn, update: isLoggedIn, delete: isLoggedIn },
   hooks: {
     // What the reader may do here (`view`, `edit`, `manage`), for the admin's buttons.
@@ -297,7 +296,7 @@ const folderField: Field = {
   type: 'relationship',
   to: MEDIA_FOLDERS,
   index: true,
-  position: 'sidebar',
+  admin: { position: 'sidebar' },
   label: { en: 'Folder', th: 'โฟลเดอร์' },
 }
 
@@ -313,9 +312,9 @@ export function withMedia(config: Config): Config {
   const media: CollectionConfig = {
     slug: MEDIA,
     labels: { singular: { en: 'Media', th: 'สื่อ' }, plural: { en: 'Media', th: 'คลังสื่อ' } },
-    icon: 'image',
     useAsTitle: 'filename',
     ...custom,
+    admin: { icon: 'image', ...custom?.admin },
     fields: [
       ...mediaFields(),
       ...(folders ? [folderField, privateField] : []),

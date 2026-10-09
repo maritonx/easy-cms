@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { type CollectionConfig, type Field } from '../src/index.js'
+import type { CollectionConfig, Field } from '../src/index.js'
 import { validateConfig } from '../src/internal.js'
 import { baseConfig } from './helpers.js'
 
@@ -98,8 +98,8 @@ describe('validateConfig', () => {
       validateConfig(
         baseConfig({
           admin: { brand: { name: 'Acme', logo: '/logo.svg', color: '#0F766E' } },
-          collections: [{ slug: 'posts', icon: 'newspaper', fields: [] }],
-          globals: [{ slug: 'site', icon: 'house', fields: [] }],
+          collections: [{ slug: 'posts', admin: { icon: 'newspaper', order: 1 }, fields: [] }],
+          globals: [{ slug: 'site', admin: { icon: 'house' }, fields: [] }],
         }),
       ),
     ).toEqual([])
@@ -107,44 +107,93 @@ describe('validateConfig', () => {
       baseConfig({
         admin: { brand: { name: ' ', logo: 'javascript:alert(1)', color: 'teal' } },
         // @ts-expect-error unknown icon
-        collections: [{ slug: 'posts', icon: 'rocket', fields: [] }],
+        collections: [{ slug: 'posts', admin: { icon: 'rocket' }, fields: [] }],
         // @ts-expect-error unknown icon
-        globals: [{ slug: 'site', icon: 'nope', fields: [] }],
+        globals: [{ slug: 'site', admin: { icon: 'nope' }, fields: [] }],
       }),
     )
     expect(issues.map((i) => i.path)).toEqual([
       'admin.brand.name',
       'admin.brand.logo',
       'admin.brand.color',
-      'collections.posts.icon',
-      'globals.site.icon',
+      'collections.posts.admin.icon',
+      'globals.site.admin.icon',
     ])
   })
 
   it('checks the site URL and side-panel fields', () => {
     const issues = validateConfig(
       baseConfig({
-        admin: { siteUrl: 'example.com', menu: ['posts', 'media', 'nope'] },
+        admin: { siteURL: 'example.com' },
         collections: [
           {
             slug: 'posts',
             // @ts-expect-error only "page" or "drawer"
-            editIn: 'modal',
+            admin: { editIn: 'modal' },
             fields: [
-              { name: 'tags', type: 'text', position: 'sidebar' },
+              { name: 'tags', type: 'text', admin: { position: 'sidebar' } },
               // @ts-expect-error only "sidebar"
-              { name: 'x', type: 'text', position: 'left' },
+              { name: 'x', type: 'text', admin: { position: 'left' } },
             ],
           },
         ],
       }),
     )
     expect(issues.map((i) => i.path)).toEqual([
-      'admin.siteUrl',
-      'admin.menu[2]',
-      'collections.posts.fields.x.position',
-      'collections.posts.editIn',
+      'admin.siteURL',
+      'collections.posts.fields.x.admin.position',
+      'collections.posts.admin.editIn',
     ])
+  })
+
+  it('names the options that changed in 0.60, and warns about unknown ones', () => {
+    const issues = validateConfig(
+      baseConfig({
+        admin: { siteUrl: '/', menu: ['posts'] },
+        auth: { allowSignUp: { domains: ['x.co'] } },
+        audit: { keep: 30 },
+        backups: { every: 'day' },
+        commands: [],
+        collections: [
+          {
+            slug: 'posts',
+            icon: 'newspaper',
+            versions: { max: 5 },
+            fields: [
+              {
+                name: 'title',
+                type: 'text',
+                position: 'sidebar',
+                admin: { defaultValue: () => 'x' },
+              },
+              { name: 'author', type: 'relationship', relationTo: 'users' },
+              { name: 'body', type: 'text', maxLenght: 10 },
+            ],
+          },
+        ],
+      } as never),
+    )
+    const byPath = Object.fromEntries(issues.map((i) => [i.path, i]))
+    expect(byPath['admin.siteUrl']?.message).toBe('is now `siteURL`')
+    expect(byPath['admin.menu']?.message).toContain('admin.order')
+    expect(byPath['auth.allowSignUp']?.message).toBe('is now `providerSignUp`')
+    expect(byPath['audit.keep']?.message).toBe('is now `keepDays`')
+    expect(byPath['backups.every']?.message).toContain('frequency')
+    expect(byPath.commands?.message).toBe('is now `cliCommands`')
+    expect(byPath['collections.posts.icon']?.message).toBe('is now `admin.icon`')
+    expect(byPath['collections.posts.versions.max']?.message).toBe('is now `keep`')
+    expect(byPath['collections.posts.fields.title.position']?.message).toBe(
+      'is now `admin.position`',
+    )
+    expect(byPath['collections.posts.fields.title.admin.defaultValue']?.message).toBe(
+      'is now `initialValue`',
+    )
+    // Unknown options: a warning, with the name it probably is.
+    expect(byPath['collections.posts.fields.author.relationTo']).toMatchObject({
+      severity: 'warning',
+    })
+    expect(byPath['collections.posts.fields.body.maxLenght']?.message).toContain('`maxLength`')
+    expect(byPath['collections.posts.fields.title.position']?.severity).toBeUndefined()
   })
 
   it('checks admin modules, components and endpoints', () => {
@@ -284,7 +333,7 @@ describe('validateConfig', () => {
     expect(
       auth({
         providers: [provider('acme')],
-        allowSignUp: { domains: ['acme.test'], role: 'editor' },
+        providerSignUp: { domains: ['acme.test'], role: 'editor' },
         password: false,
       }),
     ).toEqual([])
@@ -292,11 +341,14 @@ describe('validateConfig', () => {
       auth({ providers: [provider('acme'), provider('acme'), provider('Bad Id'), {}] }),
     ).toEqual(['auth.providers[1].id', 'auth.providers[2].id', 'auth.providers[3]'])
     expect(
-      auth({ providers: [provider('a')], allowSignUp: { domains: ['acme.test'], role: 'admin' } }),
-    ).toEqual(['auth.allowSignUp.role'])
-    expect(auth({ allowSignUp: { domains: ['not a domain'] }, password: false })).toEqual([
-      'auth.allowSignUp.domains',
-      'auth.allowSignUp',
+      auth({
+        providers: [provider('a')],
+        providerSignUp: { domains: ['acme.test'], role: 'admin' },
+      }),
+    ).toEqual(['auth.providerSignUp.role'])
+    expect(auth({ providerSignUp: { domains: ['not a domain'] }, password: false })).toEqual([
+      'auth.providerSignUp.domains',
+      'auth.providerSignUp',
       'auth.password',
     ])
   })
@@ -305,9 +357,9 @@ describe('validateConfig', () => {
     const audit = (value: unknown) =>
       validateConfig(baseConfig({ audit: value as never })).map((i) => i.path)
     expect(audit(true)).toEqual([])
-    expect(audit({ keep: 0, values: false, failedLogins: 5 })).toEqual([])
-    expect(audit({ keep: -1, values: 'no', failedLogins: 0 })).toEqual([
-      'audit.keep',
+    expect(audit({ keepDays: 0, values: false, failedLogins: 5 })).toEqual([])
+    expect(audit({ keepDays: -1, values: 'no', failedLogins: 0 })).toEqual([
+      'audit.keepDays',
       'audit.values',
       'audit.failedLogins',
     ])

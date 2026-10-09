@@ -30,5 +30,5 @@ export interface PreviewProps {
   /** A `generateURL` is configured; the preview asks the server for the page's URL. */
   url: boolean
   /** Shown in the preview when there is no URL generator. */
-  siteUrl: string
+  siteURL: string
 }

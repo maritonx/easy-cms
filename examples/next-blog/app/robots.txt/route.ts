@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 export function GET(request: Request) {
   const text = robotsTxt({
     config,
-    siteUrl: new URL(request.url).origin,
+    siteURL: new URL(request.url).origin,
     // AI training crawlers stay out; AI search and assistants may still read and cite posts.
     ai: { training: false },
   })

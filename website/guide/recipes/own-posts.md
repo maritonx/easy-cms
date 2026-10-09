@@ -24,7 +24,7 @@ Give people the role under **Settings → Users**.
       name: 'author',
       type: 'relationship',
       to: 'users',
-      position: 'sidebar',
+      admin: { position: 'sidebar' },
       // Only editors and admins may reassign a post.
       access: { update: ({ user }) => user?.role !== 'author' },
     },

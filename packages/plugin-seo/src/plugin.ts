@@ -71,7 +71,7 @@ export interface SeoPluginOptions {
   readonly generateDescription?: Generate<string>
   /** Suggests a share image: the id of a media document, e.g. the post's cover. */
   readonly generateImage?: Generate<string | number>
-  /** The page's address (absolute, or a path on `admin.siteUrl`), shown in the search preview. */
+  /** The page's address (absolute, or a path on `admin.siteURL`), shown in the search preview. */
   readonly generateURL?: Generate<string>
   /** Fill empty meta fields with the generators when a document is saved. Default false. */
   readonly autoGenerate?: boolean
@@ -210,16 +210,16 @@ export function seoPlugin<const C extends string = never, const G extends string
         name: META_FIELD,
         type: 'group',
         label: options.label ?? 'SEO',
-        ...(options.position === 'sidebar' ? { position: 'sidebar' as const } : {}),
         fields: options.fields ? options.fields(defaults) : defaults,
         admin: {
+          ...(options.position === 'sidebar' ? { position: 'sidebar' as const } : {}),
           after: [
             {
               tag: 'ecms-seo-preview',
               props: {
                 titleField,
                 url: !!generators.url,
-                siteUrl: config.admin?.siteUrl ?? '',
+                siteURL: config.admin?.siteURL ?? '',
               } satisfies PreviewProps,
             },
           ],
@@ -228,17 +228,17 @@ export function seoPlugin<const C extends string = never, const G extends string
     }
 
     const hook: BeforeChangeHook | undefined = options.autoGenerate
-      ? async ({ data, operation, originalDoc, cms, user, slug }) => {
+      ? async ({ data, operation, previousDoc, cms, user, slug }) => {
           // A partial update without meta keeps the saved values.
           if (operation === 'update' && data[META_FIELD] === undefined) return data
-          const saved = (originalDoc?.[META_FIELD] ?? {}) as Record<string, unknown>
+          const saved = (previousDoc?.[META_FIELD] ?? {}) as Record<string, unknown>
           const meta = { ...saved, ...((data[META_FIELD] ?? {}) as Record<string, unknown>) }
-          const doc = { ...originalDoc, ...data }
+          const doc = { ...previousDoc, ...data }
           const target = globals.includes(slug) ? { global: slug } : { collection: slug }
           for (const kind of [...TEXT_KINDS, 'image'] as const) {
             const generate = generators[kind]
             if (!generate || !isEmpty(meta[kind])) continue
-            const id = (originalDoc?.id as string | number | undefined) ?? null
+            const id = (previousDoc?.id as string | number | undefined) ?? null
             const value = await generate({ doc, id, locale: null, cms, user, ...target })
             if (value !== null && value !== undefined && value !== '') meta[kind] = value
           }
@@ -258,8 +258,8 @@ export function seoPlugin<const C extends string = never, const G extends string
       cms: EasyCMS,
     ) => {
       if (!generators.url) return []
-      const site = config.admin?.siteUrl || config.serverURL
-      const locales = config.localization?.locales ?? [null]
+      const site = config.admin?.siteURL || config.serverURL
+      const locales = (config.localization || undefined)?.locales ?? [null]
       const urls = new Set<string>()
       for (const locale of locales) {
         const id = (doc.id as string | number | undefined) ?? null
@@ -281,12 +281,12 @@ export function seoPlugin<const C extends string = never, const G extends string
     const indexNowBefore: BeforeChangeHook = async ({
       data,
       operation,
-      originalDoc,
+      previousDoc,
       cms,
       slug,
     }) => {
-      if (operation === 'update' && originalDoc?.id !== undefined && !globals.includes(slug))
-        wasLive.set(`${slug}:${originalDoc.id}`, await liveNow(cms, slug, originalDoc.id))
+      if (operation === 'update' && previousDoc?.id !== undefined && !globals.includes(slug))
+        wasLive.set(`${slug}:${previousDoc.id}`, await liveNow(cms, slug, previousDoc.id))
       return data
     }
     const indexNowChange: AfterChangeHook = async ({ doc, previousDoc, cms, slug }) => {
@@ -403,10 +403,10 @@ export function seoPlugin<const C extends string = never, const G extends string
     const sitemapHandler = (base: (origin: string) => string): Endpoint['handler'] =>
       Object.assign(
         async ({ url, cms, context }: Parameters<Endpoint['handler']>[0]) => {
-          const site = config.admin?.siteUrl || config.serverURL || url.origin
+          const site = config.admin?.siteURL || config.serverURL || url.origin
           return xmlResponse(
             await sitemapXml(cms as never, {
-              siteUrl: site,
+              siteURL: site,
               context,
               page: url.searchParams.get('page'),
               base: base(url.origin),
@@ -450,7 +450,7 @@ export function seoPlugin<const C extends string = never, const G extends string
         },
       })
     if (options.llms !== false) {
-      const site = (origin: string) => config.admin?.siteUrl || config.serverURL || origin
+      const site = (origin: string) => config.admin?.siteURL || config.serverURL || origin
       siteEndpoints.push(
         {
           path: '/llms.txt',
@@ -458,7 +458,7 @@ export function seoPlugin<const C extends string = never, const G extends string
           root: true,
           handler: async ({ url, cms, context }) =>
             textResponse(
-              await llmsTxt(cms as never, { siteUrl: site(url.origin), context }),
+              await llmsTxt(cms as never, { siteURL: site(url.origin), context }),
               'text/markdown',
             ),
         },
@@ -468,7 +468,7 @@ export function seoPlugin<const C extends string = never, const G extends string
           root: true,
           handler: async ({ url, cms, context }) =>
             textResponse(
-              await llmsFullTxt(cms as never, { siteUrl: site(url.origin), context }),
+              await llmsFullTxt(cms as never, { siteURL: site(url.origin), context }),
               'text/markdown',
             ),
         },

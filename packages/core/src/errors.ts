@@ -4,6 +4,8 @@ export interface ConfigIssue {
   readonly message: string
   /** How to fix it. */
   readonly hint?: string
+  /** `warning`: reported, but the config is used (e.g. an option Easy CMS doesn't know). */
+  readonly severity?: 'warning'
 }
 
 /**

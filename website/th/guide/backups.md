@@ -32,7 +32,7 @@ admin เปิด **ตั้งค่า → Backups** ในหน้า admi
 import { sqlite } from '@easy-cms/db-sqlite'
 
 backups: {
-  every: 'day',          // หรือ 'week' ไม่ใส่ = กดทำเองเท่านั้น
+  frequency: 'daily',   // หรือ 'weekly' ไม่ใส่ = กดทำเองเท่านั้น
   at: '03:00',           // เวลาของ server
   keep: 7,               // ชุดที่เก่ากว่านี้จะถูกลบ
   // dir: 'backups',     // ค่าเริ่มต้น ไม่เปิดเป็น URL สาธารณะ

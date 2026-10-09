@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: Request) {
   const url = new URL(request.url)
   const xml = await sitemapXml(await getEasyCMS(config), {
-    siteUrl: url.origin,
+    siteURL: url.origin,
     page: url.searchParams.get('page'),
   })
   return new Response(xml, { headers: { 'content-type': 'application/xml; charset=utf-8' } })

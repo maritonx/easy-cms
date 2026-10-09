@@ -62,7 +62,7 @@ GET /api/cms/posts?where={"or":[{"featured":{"equals":true}},{"views":{"gt":100}
 | GET | `/users/me` | `{ user, csrfToken }` ของ session ปัจจุบัน |
 | GET | `/users/init` | `{ hasUsers }` |
 | POST | `/users/first-register` | สร้าง admin คนแรกในขณะที่ยังไม่มีผู้ใช้ |
-| GET | `/users/signup` | เมื่อตั้ง `auth.members.signup`: `{ token, turnstile, verifyEmail }` สำหรับฟอร์มสมัครสมาชิก ([สมาชิกของเว็บ](./members)) |
+| GET | `/users/signup` | เมื่อตั้ง `auth.members.signUp`: `{ token, turnstile, verifyEmail }` สำหรับฟอร์มสมัครสมาชิก ([สมาชิกของเว็บ](./members)) |
 | POST | `/users/signup` | `{ email, password, name?, token }` → `202 { verify: true }` หรือ session ทันทีถ้าไม่ต้องยืนยันอีเมล |
 | POST | `/users/verify-email` | `{ token }` จากอีเมลยืนยัน → ยืนยันอีเมลแล้วเข้าสู่ระบบ |
 

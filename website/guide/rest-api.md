@@ -62,7 +62,7 @@ every read and write.
 | GET | `/users/me` | `{ user, csrfToken }` for the current session |
 | GET | `/users/init` | `{ hasUsers }` |
 | POST | `/users/first-register` | Creates the first admin while there are no users |
-| GET | `/users/signup` | With `auth.members.signup`: `{ token, turnstile, verifyEmail }` for a sign-up form ([Site members](./members)) |
+| GET | `/users/signup` | With `auth.members.signUp`: `{ token, turnstile, verifyEmail }` for a sign-up form ([Site members](./members)) |
 | POST | `/users/signup` | `{ email, password, name?, token }` → `202 { verify: true }`, or a session without email confirmation |
 | POST | `/users/verify-email` | `{ token }` from the confirmation email → confirms it and signs in |
 

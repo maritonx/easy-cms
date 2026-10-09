@@ -63,7 +63,7 @@ export interface FieldLike {
 /** The part of the Local API the helpers use; a structural type, so core isn't imported. */
 export interface SeoCMS {
   readonly config: {
-    readonly admin: { readonly siteUrl?: string }
+    readonly admin: { readonly siteURL?: string }
     readonly serverURL?: string
     readonly localization: {
       readonly locales: readonly string[]
@@ -114,8 +114,8 @@ export function absolute(url: string, site: string | undefined): string {
   return `${site.replace(/\/+$/, '')}/${url.replace(/^\/+/, '')}`
 }
 
-export const siteOf = (cms: SeoCMS, siteUrl?: string) =>
-  siteUrl ?? (cms.config.admin.siteUrl || cms.config.serverURL)
+export const siteOf = (cms: SeoCMS, siteURL?: string) =>
+  siteURL ?? (cms.config.admin.siteURL || cms.config.serverURL)
 
 /** A page visitors can see: a document or global with SEO fields and an address. */
 export interface VisiblePage {

@@ -166,7 +166,7 @@ describe('setup', () => {
   it('adds customers as site members who sign up', () => {
     expect(cms.config.auth.roles).toContain('customer')
     expect(cms.config.auth.members.roles).toEqual(['customer'])
-    expect(cms.config.auth.members.signup?.role).toBe('customer')
+    expect(cms.config.auth.members.signUp?.role).toBe('customer')
   })
 
   it('tells pages the currencies and payment methods', async () => {

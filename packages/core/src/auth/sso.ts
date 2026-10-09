@@ -326,7 +326,7 @@ export class SingleSignOn {
   }
 
   settings(origin?: string): AdminSso {
-    const { allowSignUp } = this.config.auth
+    const { providerSignUp } = this.config.auth
     return {
       providers: this.config.auth.providers.map((p) => ({
         id: p.id,
@@ -337,8 +337,11 @@ export class SingleSignOn {
       })),
       password: this.config.auth.password ? 'everyone' : 'admins',
       signUp:
-        allowSignUp.domains.length > 0
-          ? { domains: [...allowSignUp.domains], role: allowSignUp.role ?? this.defaultRole() }
+        providerSignUp.domains.length > 0
+          ? {
+              domains: [...providerSignUp.domains],
+              role: providerSignUp.role ?? this.defaultRole(),
+            }
           : null,
       serverURL: !!this.config.serverURL,
     }
@@ -395,9 +398,9 @@ export class SingleSignOn {
     return docs[0] ?? null
   }
 
-  /** A new account for people from `allowSignUp.domains`. */
+  /** A new account for people from `providerSignUp.domains`. */
   private async signUp(email: string, name: string | undefined): Promise<RawDocument | null> {
-    const { domains, role } = this.config.auth.allowSignUp
+    const { domains, role } = this.config.auth.providerSignUp
     const domain = email.slice(email.lastIndexOf('@') + 1)
     if (!domains.some((d) => d.toLowerCase() === domain)) return null
     const created = await this.cms.create(USERS, {

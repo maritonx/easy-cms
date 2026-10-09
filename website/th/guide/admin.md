@@ -53,8 +53,9 @@ export default defineConfig({
 - ถ้าไม่ระบุ `group` collection อยู่ใต้ **เนื้อหา** และ global อยู่ใต้ **ตั้งค่า › เว็บไซต์** ส่วน `group: 'settings'` ก็คือ
   ตั้งค่า › เว็บไซต์
 - ใส่ label แทน id (`group: 'Library'`) จะสร้างกลุ่มชื่อนั้นให้ เหมือนเดิม
-- `order` กำหนดตำแหน่งของกลุ่ม: เนื้อหาคือ 0, คลังสื่อ 10, กลุ่มของ plugin ราว 100–200, ตั้งค่า 1000 ส่วน `admin.menu`
-  ยังใช้เรียง collection ภายในกลุ่ม
+- `group: false` เอา collection, global หรือหน้าออกจากเมนู แต่ยังเข้าถึงได้ผ่านลิงก์
+- `order` กำหนดตำแหน่งของกลุ่ม: เนื้อหาคือ 0, คลังสื่อ 10, กลุ่มของ plugin ราว 100–200, ตั้งค่า 1000 ส่วนภายในกลุ่ม
+  `admin.order` ของ collection, global หรือหน้ากำหนดลำดับ (ค่าน้อยมาก่อน) ที่ไม่ได้ตั้งจะตามมาตามลำดับใน config
 - ประกาศ id ของกลุ่มที่ plugin หรือ Easy CMS มีอยู่แล้ว (`{ id: 'shop', label: 'Store' }` หรือ `content`) เพื่อเปลี่ยนชื่อ ไอคอน หรือลำดับ
 - แต่ละคนเห็นเฉพาะสิ่งที่ตัวเองเปิดได้ และกลุ่มที่ว่างจะไม่แสดง
 
@@ -96,7 +97,7 @@ collection แสดงจำนวนเอกสาร ปิดได้ด�
 
 ```ts
 admin: {
-  commands: [{ label: 'ร่างที่รอตรวจ', to: '/collections/posts?status=draft', icon: 'file-text' }],
+  commands: [{ label: 'ร่างที่รอตรวจ', href: '/collections/posts?status=draft', icon: 'file-text' }],
 }
 ```
 
@@ -138,7 +139,7 @@ admin: {
 }
 ```
 
-- ใช้กับ field ชั้นบนสุด แต่ละ field วางได้ครั้งเดียว field ที่ไม่ได้วางจะต่อท้าย (ในแท็บแรก) ส่วน field ที่ `position: 'sidebar'`
+- ใช้กับ field ชั้นบนสุด แต่ละ field วางได้ครั้งเดียว field ที่ไม่ได้วางจะต่อท้าย (ในแท็บแรก) ส่วน field ที่ `admin: { position: 'sidebar' }`
   ยังอยู่ในแถบข้าง
 - ถ้ามีแท็บ ทุกรายการชั้นบนสุดต้องเป็นแท็บ แท็บแสดงจำนวน field ที่ผิดในแท็บนั้น
 - `row` วาง field ข้างกัน แบ่งเท่ากันหรือตาม `admin.width` (`'1/4'`…`'full'`) บนจอแคบจะเรียงลงมา
@@ -163,7 +164,7 @@ fields: [
 ]
 ```
 
-มี `equals`, `notEquals`, `in: [...]` และ `exists: true | false` รวมกันได้ด้วย `and`, `or` และ `not` ส่วน `field` คือ field
+มี `equals`, `not_equals`, `in: [...]`, `not_in: [...]` และ `exists: true | false` (ชื่อเดียวกับใน `where`) รวมกันได้ด้วย `and`, `or` และ `not` ส่วน `field` คือ field
 ข้างเคียง (ใน group หรือแถวของ array คือ field ที่อยู่ด้วยกัน) หรือ path เข้าไปข้างใน (`link.type`) server ใช้เงื่อนไขเดียวกัน: field ที่ถูกซ่อน
 ไม่ถูกบังคับกรอก และค่าเดิมยังอยู่
 

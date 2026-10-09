@@ -11,7 +11,7 @@ import type { EasyCMS } from './local-api.js'
 /** Audit log settings (`audit`). */
 export interface AuditConfig {
   /** Days to keep entries; older ones are deleted. `0`: keep them all. Default 365. */
-  readonly keep?: number
+  readonly keepDays?: number
   /** Keep the values before and after a change, not only which fields changed. Default `true`. */
   readonly values?: boolean
   /** Failed logins within an hour that the dashboard warns about. Default 20. */
@@ -21,7 +21,12 @@ export interface AuditConfig {
    * (usually set by a plugin). Users whose role holds in a part only (`scoped`) see that part's
    * entries; others see the chosen part's, or all.
    */
-  readonly scope?: ((context: RequestContext) => string | null | undefined) | null
+  readonly scope?:
+    | ((args: {
+        readonly context: RequestContext
+        readonly user: AuthUser | null
+      }) => string | null | undefined)
+    | false
 }
 
 export const DEFAULT_AUDIT_KEEP = 365
@@ -162,10 +167,10 @@ export class AuditLog {
   private get settings() {
     return (
       this.cms.config.audit || {
-        keep: DEFAULT_AUDIT_KEEP,
+        keepDays: DEFAULT_AUDIT_KEEP,
         values: true,
         failedLogins: DEFAULT_FAILED_LOGINS,
-        scope: null,
+        scope: false,
       }
     )
   }
@@ -190,8 +195,8 @@ export class AuditLog {
     if (!this.enabled) return
     try {
       const context = auditContext.getStore()
-      const scope = this.scopeOf(entry.context ?? context?.context)
       const user = entry.user !== undefined ? entry.user : (context?.user ?? null)
+      const scope = this.scopeOf(entry.context ?? context?.context, user)
       const apiKey = user?.apiKey as { name?: string } | undefined
       const row: Record<string, unknown> = {
         action: entry.action,
@@ -391,7 +396,7 @@ export class AuditLog {
     if (!this.enabled) return
     const last = await this.lastVerification()
     if (last && now.getTime() - Date.parse(last.at) < DAY) return
-    const keep = this.settings.keep
+    const keep = this.settings.keepDays
     if (keep > 0) {
       const before = new Date(now.getTime() - keep * DAY).toISOString()
       for (;;) {
@@ -439,9 +444,9 @@ export class AuditLog {
   // -------------------------------------------------------------------------
 
   /** The part of the site a context is in (`scope`), or `null`. @internal */
-  scopeOf(context: RequestContext | undefined): string | null {
+  scopeOf(context: RequestContext | undefined, user: AuthUser | null = null): string | null {
     const scope = this.settings.scope
-    return (scope && context ? scope(context) : null) ?? null
+    return (scope && context ? scope({ context, user }) : null) ?? null
   }
 
   private sign(row: Record<string, unknown>): string {

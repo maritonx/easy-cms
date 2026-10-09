@@ -170,7 +170,7 @@ Plugin เพิ่มคำสั่งเองได้ เช่น `easy-cm
 ```ts
 export default defineConfig({
   // …
-  commands: [
+  cliCommands: [
     {
       name: 'posts:count',
       description: 'Print how many posts there are',

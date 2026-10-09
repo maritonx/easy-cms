@@ -33,7 +33,7 @@ const base = (plugins: NonNullable<Config['plugins']>, extra: Partial<Config> = 
   defineConfig({
     secret: SECRET,
     db: sqlite({ url: 'file:./cms.db' }),
-    admin: { siteUrl: 'https://blog.test' },
+    admin: { siteURL: 'https://blog.test' },
     collections: [
       {
         slug: 'posts',
@@ -89,7 +89,7 @@ describe('seoPlugin config', () => {
     expect(meta?.admin?.after).toEqual([
       {
         tag: 'ecms-seo-preview',
-        props: { titleField: 'title', url: true, siteUrl: 'https://blog.test' },
+        props: { titleField: 'title', url: true, siteURL: 'https://blog.test' },
       },
     ])
     expect(config.globals[0]?.fields.at(-1)?.name).toBe('meta')
@@ -119,7 +119,10 @@ describe('seoPlugin config', () => {
       ]),
     )
     const meta = config.collections.find((c) => c.slug === 'posts')?.fields.at(-1)
-    expect(meta).toMatchObject({ position: 'sidebar', label: { en: 'Search', th: 'ค้นหา' } })
+    expect(meta).toMatchObject({
+      admin: { position: 'sidebar' },
+      label: { en: 'Search', th: 'ค้นหา' },
+    })
     if (meta?.type !== 'group') throw new Error('expected a group')
     expect(meta.fields.map((f) => f.name)).toEqual([
       'title',
@@ -314,7 +317,7 @@ describe('sitemap', () => {
     try {
       await cms.create('posts', { title: 'Hello', status: 'published' })
       await expect(sitemap(cms)).rejects.toThrow('not an absolute URL')
-      expect((await sitemap(cms, { siteUrl: 'https://x.test' })).map((e) => e.url)).toEqual([
+      expect((await sitemap(cms, { siteURL: 'https://x.test' })).map((e) => e.url)).toEqual([
         'https://x.test/th/posts/hello',
         'https://x.test/th',
       ])
@@ -334,7 +337,7 @@ describe('sitemap', () => {
     const entries = Array.from({ length: 50_001 }, (_, i) => ({ id: i, updatedAt: '2026-01-01' }))
     const cms = {
       config: {
-        admin: { siteUrl: 'https://big.test' },
+        admin: { siteURL: 'https://big.test' },
         localization: null,
         endpoints: (
           await resolveConfig(
@@ -361,7 +364,7 @@ describe('sitemap', () => {
 describe('robotsTxt', () => {
   it('keeps crawlers out of the admin and API, but not uploads', async () => {
     const { robotsTxt } = await import('../src/index.js')
-    expect(robotsTxt({ config: { admin: { siteUrl: 'https://blog.test/' } } })).toBe(
+    expect(robotsTxt({ config: { admin: { siteURL: 'https://blog.test/' } } })).toBe(
       `User-agent: *
 Allow: /api/cms/media/file/
 Disallow: /admin/
@@ -546,7 +549,7 @@ describe('IndexNow', () => {
         }),
       ],
       {
-        admin: { siteUrl: 'https://blog.example.org' },
+        admin: { siteURL: 'https://blog.example.org' },
         collections: [
           {
             slug: 'posts',
@@ -608,7 +611,7 @@ describe('IndexNow', () => {
 
     // Local sites send nothing.
     sent.length = 0
-    const local = await open({ ...config, admin: { siteUrl: 'http://localhost:3000' } })
+    const local = await open({ ...config, admin: { siteURL: 'http://localhost:3000' } })
     try {
       await local.create('posts', { title: 'Local', status: 'published' })
       await wait()

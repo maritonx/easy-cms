@@ -59,6 +59,17 @@ update: ({ user }) => (user?.role === 'admin' ? true : user ? { author: { equals
 field ที่อ่านไม่ได้จะถูกตัดออกจาก response (และจากหน้า admin) และใช้กรองหรือเรียงไม่ได้ (`403`) ส่วน field
 ที่อัปเดตไม่ได้จะถูกละเว้นใน input (และแสดงเป็นแบบอ่านอย่างเดียวในหน้า admin)
 
+`create` กำหนดว่าใครตั้งค่า field ได้ตอนสร้างเอกสาร ถ้าไม่ใส่ `update` จะใช้กับทั้งสองกรณี ตัวอย่างนี้ให้ทุกคนกรอกได้ครั้งแรก
+แต่หลังจากนั้นเฉพาะ admin ที่แก้ได้:
+
+```ts
+{
+  name: 'referrer',
+  type: 'text',
+  access: { create: () => true, update: ({ user }) => user?.role === 'admin' },
+}
+```
+
 ## เอกสารที่ถูก populate {#populated-documents}
 
 เมื่อ response มีเอกสารที่เกี่ยวข้อง กฎ `read` ของ collection ที่เกี่ยวข้องจะมีผลด้วย:

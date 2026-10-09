@@ -24,7 +24,7 @@ auth: { roles: ['admin', 'editor', 'author'] },
       name: 'author',
       type: 'relationship',
       to: 'users',
-      position: 'sidebar',
+      admin: { position: 'sidebar' },
       // เฉพาะ editor และ admin ที่เปลี่ยนผู้เขียนได้
       access: { update: ({ user }) => user?.role !== 'author' },
     },

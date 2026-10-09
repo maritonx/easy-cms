@@ -319,7 +319,7 @@ class SeoPreview extends SeoElement {
   }
 
   protected render() {
-    const { titleField, url, siteUrl } = this.ctx.options as unknown as PreviewProps
+    const { titleField, url, siteURL } = this.ctx.options as unknown as PreviewProps
     const meta = (readPath(this.ctx.doc, this.ctx.path) ?? {}) as Record<string, unknown>
     const fallback = titleField ? this.ctx.doc[titleField] : undefined
     const title = [meta.title, fallback].find((v) => typeof v === 'string' && v.trim()) as
@@ -327,7 +327,7 @@ class SeoPreview extends SeoElement {
       | undefined
     const description = typeof meta.description === 'string' ? meta.description.trim() : ''
     if (url) this.refreshUrl()
-    const address = breadcrumb(url ? this.url : siteUrl)
+    const address = breadcrumb(url ? this.url : siteURL)
     return `
       <section class="card" aria-label="${esc(this.t('preview'))}">
         <p class="label">${esc(this.t('preview'))}</p>
