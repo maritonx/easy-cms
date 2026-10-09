@@ -165,20 +165,24 @@ export function multiTenantPlugin<const S extends string, const T extends string
         `multiTenantPlugin: no global ${unknownGlobals.map((g) => `"${g}"`).join(', ')} in the config`,
       )
 
-    /** May see every tenant: users with access to all, or anonymous reads with `publicReads: 'all'`. */
+    /**
+     * Has access to all tenants and to the system: staff only. Site members and visitors never
+     * are, even when they read every tenant (`publicReads: 'all'`).
+     */
+    const superUser = (user: AuthUser | null, _context?: RequestContext) =>
+      !!user && user.member !== true && user.scoped !== true && isSuper(user)
+    /** May read every tenant: users with access to all, or reads with `publicReads: 'all'`. */
     const everywhere = (user: AuthUser | null, context: RequestContext | undefined) =>
-      tenantOf(context).allTenants || (!!user && user.scoped !== true && isSuper(user))
-    /** Has access to all tenants and to the system (not an anonymous read). */
-    const superUser = (user: AuthUser | null, context: RequestContext | undefined) =>
-      !!user && everywhere(user, context)
+      tenantOf(context).allTenants || superUser(user, context)
 
     /** What the tenant adds to an access rule. */
     const tenantFilter = (args: AccessArgs, op: Op): boolean | Where => {
       const { tenant } = tenantOf(args.context)
-      if (op === 'create') return tenant !== null || everywhere(args.user, args.context)
+      // Writing without a tenant takes access to all tenants; reading every tenant doesn't.
+      if (op === 'create') return tenant !== null || superUser(args.user, args.context)
       if (tenant !== null) return { [TENANT_FIELD]: { equals: tenant } }
-      if (everywhere(args.user, args.context)) return true
-      return op === 'read' ? NOTHING : false
+      if (op === 'read') return everywhere(args.user, args.context) ? true : NOTHING
+      return superUser(args.user, args.context)
     }
     const narrow =
       (original: Access | undefined, op: Op): Access =>
@@ -277,7 +281,7 @@ export function multiTenantPlugin<const S extends string, const T extends string
           throw new ValidationError(slug, [{ field: TENANT_FIELD, message }])
         }
         if (value === null) fail('is required: choose a tenant')
-        if (everywhere(user, context)) return data
+        if (superUser(user, context)) return data
         if (!sameId(value, tenant)) fail('must be the tenant you work in')
         const before = (originalDoc?.[TENANT_FIELD] ?? null) as ID | null
         if (operation === 'update' && before !== null && !sameId(before, value))
@@ -353,6 +357,8 @@ export function multiTenantPlugin<const S extends string, const T extends string
       return {
         read: and(custom?.read, ({ user, context }) => {
           if (!user) return false
+          // Site members (customers) see themselves only, whatever tenant they name.
+          if (user.member === true) return self(user)
           if (superUser(user, context)) return true
           const { tenant } = tenantOf(context)
           return tenant === null
