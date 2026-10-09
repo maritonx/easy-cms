@@ -779,7 +779,10 @@ export class Auth {
       where: { key: { equals: key }, createdAt: { gt: this.windowStart() } },
     })
     if (recent >= this.config.auth.maxLoginAttempts) {
-      throw new TooManyRequestsError('Too many failed login attempts. Try again later.')
+      throw new TooManyRequestsError(
+        'Too many failed login attempts. Try again later.',
+        this.config.auth.lockWindow,
+      )
     }
   }
 

@@ -9,6 +9,7 @@ import {
   type EndpointRequest,
   type Field,
   ForbiddenError,
+  NotFoundError,
   type ID,
   type Label,
   type MembersConfig,
@@ -553,7 +554,8 @@ export function ecommercePlugin<const Cur extends string = 'THB'>(
       handler: async (req) => {
         staffOnly(req)
         const action = req.params.action as string
-        if (!ORDER_ACTIONS.has(action)) throw new ForbiddenError()
+        if (!ORDER_ACTIONS.has(action))
+          throw new NotFoundError('orders', `${req.params.id}/${action}`)
         const order = await runtime(req.cms).orders.act(req.params.id, action, who(req))
         return { order }
       },

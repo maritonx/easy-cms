@@ -55,7 +55,7 @@ test('sets up the first admin and two tenants', async ({ page }) => {
     data: { ...ROOT, name: 'Root' },
     headers: { origin: 'http://localhost:3104' },
   })
-  expect(created.status()).toBe(201)
+  expect(created.status()).toBe(200)
   await page.goto('/admin/')
   for (const [name, slug] of [
     ['Brand A', 'brand-a'],

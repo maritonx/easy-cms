@@ -140,8 +140,10 @@ error อยู่ใน `errors` พร้อมรหัสใน `extensions.
 | `FORBIDDEN` | ไม่มีสิทธิ์ |
 | `NOT_FOUND` | ไม่มีเอกสารนั้น (ตอนแก้หรือลบ) |
 | `VALIDATION_ERROR` | ข้อมูลไม่ถูกต้อง `extensions.fields` บอกปัญหาของแต่ละ field |
-| `BAD_USER_INPUT` | argument ผิด เช่น `limit: 500` |
+| `BAD_USER_INPUT` | argument ผิดหรือ request ผิดรูป เช่น `limit: 500` |
+| `PAYLOAD_TOO_LARGE`, `UNSUPPORTED_MEDIA_TYPE`, `TOO_MANY_REQUESTS` | เหมือน REST |
 | `QUERY_TOO_DEEP`, `QUERY_TOO_LARGE` | เกิน[ขีดจำกัด](#limits) |
+| `INTERNAL_SERVER_ERROR` | server มีปัญหา |
 
 เอกสารที่คุณไม่มีสิทธิ์เห็นเป็น `null` เหมือน REST ส่วน collection ที่อ่านไม่ได้เลยได้ `UNAUTHORIZED` หรือ `FORBIDDEN`
 query ที่ผิดรูปตอบ status 400 นอกนั้นตอบ 200 พร้อม `errors`

@@ -14,6 +14,7 @@ export { SSO_COOKIE } from './auth/sso.js'
 export { writeBackupFile } from './backups.js'
 export { INTERNAL_COLLECTIONS, MEDIA, MEDIA_FOLDERS } from './builtins.js'
 export { conditionIssues } from './conditions.js'
+export { codeOfStatus } from './errors.js'
 export { configSignature } from './config-signature.js'
 export { type CopyProgress, type CopyResult, copyDatabase } from './copy.js'
 export {

@@ -140,7 +140,8 @@ Requests are authenticated like REST: the admin's session cookie, `Authorization
 session token, or an [API key](./api-keys), which may do only what it lists. Browser `POST`s pass
 the same CSRF check as REST.
 
-Errors come in `errors` with a code in `extensions.code`, as REST tells them apart:
+Errors come in `errors` with a code in `extensions.code`, the same codes as
+[REST](./rest-api#errors):
 
 | Code | When |
 |---|---|
@@ -148,8 +149,10 @@ Errors come in `errors` with a code in `extensions.code`, as REST tells them apa
 | `FORBIDDEN` | Not allowed. |
 | `NOT_FOUND` | No such document (updating or deleting). |
 | `VALIDATION_ERROR` | Invalid data; `extensions.fields` lists each field's problem. |
-| `BAD_USER_INPUT` | A wrong argument, e.g. `limit: 500`. |
+| `BAD_USER_INPUT` | A wrong argument or a malformed request, e.g. `limit: 500`. |
+| `PAYLOAD_TOO_LARGE`, `UNSUPPORTED_MEDIA_TYPE`, `TOO_MANY_REQUESTS` | As over REST. |
 | `QUERY_TOO_DEEP`, `QUERY_TOO_LARGE` | Over a [limit](#limits). |
+| `INTERNAL_SERVER_ERROR` | Something went wrong on the server. |
 
 A document you may not see is `null`, as over REST; a collection you may not read at all gives
 `UNAUTHORIZED` or `FORBIDDEN`. A malformed query is answered with status 400; everything else

@@ -81,11 +81,26 @@ origin เหล่านั้น ส่วน origin อื่นจะไม�
 ## Error {#errors}
 
 ```json
-{ "errors": [{ "message": "is required", "field": "title" }] }
+{ "errors": [{ "message": "is required", "field": "title", "code": "VALIDATION_ERROR" }] }
 ```
 
-สถานะ: 400 (validation, query ไม่ถูกต้อง), 401, 403, 404, 405, 413, 415, 429 และ 500 ใน production
-response แบบ 500 จะไม่มีรายละเอียดของ error
+| Code | Status | เมื่อไร |
+|---|---|---|
+| `VALIDATION_ERROR` | 400 | ข้อมูลไม่ถูกต้อง แต่ละ error บอก `field` |
+| `BAD_USER_INPUT` | 400 | query หรือ argument ผิด เช่น field ที่ไม่มีใน `where` หรือ `limit=500` |
+| `UNAUTHORIZED` | 401 | ยังไม่เข้าสู่ระบบในที่ที่ต้องเข้า (พร้อม `WWW-Authenticate: Bearer`) |
+| `FORBIDDEN` | 403 | ไม่มีสิทธิ์ |
+| `NOT_FOUND` | 404 | ไม่มีเอกสาร collection หรือ route นั้น |
+| `METHOD_NOT_ALLOWED` | 405 | route นี้รับ method อื่น (ดูใน `Allow`) |
+| `PAYLOAD_TOO_LARGE` | 413 | body หรือไฟล์เกินขนาด |
+| `UNSUPPORTED_MEDIA_TYPE` | 415 | ไม่ใช่ JSON (หรือ multipart สำหรับอัปโหลด) |
+| `TOO_MANY_REQUESTS` | 429 | ลองบ่อยเกินไป `Retry-After` บอกว่าต้องรอกี่วินาที |
+| `CONFIG_ERROR`, `INTERNAL_SERVER_ERROR` | 500 | server มีปัญหา บน production ไม่มีรายละเอียด |
+
+อาจมีรหัสใหม่เพิ่มขึ้น แต่รหัสเหล่านี้คงความหมายเดิม ฝั่ง server error ทุกตัวของ Easy CMS มี `code` เดียวกัน (`error.code` คู่กับ `error.status`)
+
+คำขอที่สำเร็จตอบ 200 หรือ 201 เมื่อสร้างเอกสาร (202 เมื่อการสมัครรอยืนยันอีเมล) คำขอที่เริ่ม session (login, สมัคร, admin คนแรก, ยืนยันอีเมล,
+ตั้งรหัสผ่าน) ตอบ 200 พร้อม session `DELETE` เอกสารตอบเป็นเอกสารนั้น การลบอื่นตอบ `{ "deleted": n }`
 
 ## ขั้นต่อไป {#next-steps}
 

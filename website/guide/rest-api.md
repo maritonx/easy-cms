@@ -82,11 +82,29 @@ those origins; other origins get no CORS headers, so the browser blocks the resp
 ## Errors
 
 ```json
-{ "errors": [{ "message": "is required", "field": "title" }] }
+{ "errors": [{ "message": "is required", "field": "title", "code": "VALIDATION_ERROR" }] }
 ```
 
-Statuses: 400 (validation, bad query), 401, 403, 404, 405, 413, 415, 429 and 500. In production,
-500 responses don't include error details.
+| Code | Status | When |
+|---|---|---|
+| `VALIDATION_ERROR` | 400 | Invalid data: each error names its `field`. |
+| `BAD_USER_INPUT` | 400 | A wrong query or argument, e.g. an unknown field in `where` or `limit=500`. |
+| `UNAUTHORIZED` | 401 | Not signed in where that is needed (with `WWW-Authenticate: Bearer`). |
+| `FORBIDDEN` | 403 | Not allowed. |
+| `NOT_FOUND` | 404 | No such document, collection or route. |
+| `METHOD_NOT_ALLOWED` | 405 | The route takes other methods (listed in `Allow`). |
+| `PAYLOAD_TOO_LARGE` | 413 | The body or the file is over the limit. |
+| `UNSUPPORTED_MEDIA_TYPE` | 415 | Not JSON (or multipart for uploads). |
+| `TOO_MANY_REQUESTS` | 429 | Too many attempts; `Retry-After` says how many seconds to wait. |
+| `CONFIG_ERROR`, `INTERNAL_SERVER_ERROR` | 500 | Something went wrong on the server; in production without details. |
+
+New codes may be added; these keep their meaning. On the server, every Easy CMS error has the same
+`code` (`error.code`, with `error.status`).
+
+Successful calls answer 200, or 201 when they create a document (202 when signing up waits for the
+email to be confirmed). Calls that start a session (login, sign-up, first admin, confirming an
+email, setting a password) answer 200 with it. `DELETE` on a document answers with the document;
+other deletions answer `{ "deleted": n }`.
 
 ## Next steps
 

@@ -14,6 +14,8 @@ import {
   ForbiddenError,
   NotFoundError,
   PayloadTooLargeError,
+  QueryError,
+  TooManyRequestsError,
   UnauthorizedError,
   ValidationError,
 } from '../errors.js'
@@ -413,10 +415,8 @@ async function route(
             body: { verify: true, message: 'Check your email for a link to confirm it.' },
           }
         setSessionCookies(cms, ctx, result)
-        return {
-          status: 201,
-          body: { user: result.user, exp: result.expiresAt, csrfToken: result.csrfToken },
-        }
+        // Every call that starts a session answers 200 with it.
+        return { body: { user: result.user, exp: result.expiresAt, csrfToken: result.csrfToken } }
       }
       case 'POST verify-email': {
         const body = await readJson(ctx.request)
@@ -440,7 +440,6 @@ async function route(
         })
         setSessionCookies(cms, ctx, session)
         return {
-          status: 201,
           body: { user: session.user, exp: session.expiresAt, csrfToken: session.csrfToken },
         }
       }
@@ -570,8 +569,8 @@ async function route(
     }
     if (second !== 'audit' || third !== undefined) throw new HttpError('Not found', 404)
     if (method !== 'GET') throw methodNotAllowed(ctx, 'GET')
-    const page = Math.max(1, Number.parseInt(q.get('page') ?? '1', 10) || 1)
-    return { body: await cms.audit.list(filter, page) }
+    const { page, limit } = pageQuery(q)
+    return { body: await cms.audit.list({ ...filter, page, limit }) }
   }
 
   // What a user owns, by collection (`auth.rbac`), for admins about to delete them.
@@ -634,8 +633,8 @@ async function route(
       const k = ctx.url.searchParams.get('kind') ?? 'webhook'
       const state = ctx.url.searchParams.get('state') === 'pending' ? 'pending' : 'failed'
       if (!isDeliveryKind(k)) throw new HttpError('kind must be webhook or email', 400)
-      const page = Math.max(1, Number.parseInt(ctx.url.searchParams.get('page') ?? '1', 10) || 1)
-      return { body: await listDeliveries(cms, k, state, page) }
+      const { page, limit } = pageQuery(ctx.url.searchParams)
+      return { body: await listDeliveries(cms, k, state, page, limit) }
     }
     if (!isDeliveryKind(kind) || extra !== undefined) throw new HttpError('Not found', 404)
     // /admin/deliveries/:kind/retry and DELETE /admin/deliveries/:kind → every failed one
@@ -975,7 +974,7 @@ async function documentAction(
     if (path.length === 2) {
       if (method !== 'DELETE') throw methodNotAllowed(ctx, 'DELETE')
       await cms.cancelSchedule(collection, id, versionId as string, access)
-      return { body: { message: 'Cancelled' } }
+      return { body: { deleted: 1 } }
     }
     if (method === 'GET') return { body: await cms.scheduled(collection, id, access) }
     if (method !== 'POST') throw methodNotAllowed(ctx, 'GET, POST')
@@ -1044,7 +1043,7 @@ async function globalAction(
     if (path.length === 2) {
       if (method !== 'DELETE') throw methodNotAllowed(ctx, 'DELETE')
       await cms.cancelGlobalSchedule(slug, versionId as string, access)
-      return { body: { message: 'Cancelled' } }
+      return { body: { deleted: 1 } }
     }
     if (method === 'GET') return { body: await cms.scheduledGlobal(slug, access) }
     if (method !== 'POST') throw methodNotAllowed(ctx, 'GET, POST')
@@ -1331,6 +1330,21 @@ async function readUpload(
   }
 }
 
+/** `page` and `limit` of an admin list, checked like a collection's (`limit` default 50). */
+function pageQuery(q: URLSearchParams, defaultLimit = 50): { page: number; limit: number } {
+  const number = (name: string, fallback: number, max = Number.POSITIVE_INFINITY) => {
+    const raw = q.get(name)
+    if (raw === null || raw === '') return fallback
+    const value = Number(raw)
+    if (!Number.isInteger(value) || value < 1 || value > max)
+      throw new QueryError(
+        `${name} must be an integer from 1${Number.isFinite(max) ? ` to ${max}` : ''}`,
+      )
+    return value
+  }
+  return { page: number('page', 1), limit: number('limit', defaultLimit, 100) }
+}
+
 /**
  * A request's body, refused (413) past `max` bytes: by its declared length at once, otherwise as
  * it arrives, so a body sent in chunks without a length can't fill the memory first.
@@ -1500,17 +1514,32 @@ function errorResponse(
   production: boolean,
 ): Response {
   if (error instanceof EasyCMSError) {
+    const { code } = error
     const errors =
       error instanceof ValidationError
-        ? error.errors.map((e) => ({ message: e.message, field: e.field }))
-        : [{ message: error.message }]
+        ? error.errors.map((e) => ({ message: e.message, field: e.field, code }))
+        : [{ message: error.message, code }]
     if (error instanceof UnauthorizedError) headers.set('www-authenticate', 'Bearer')
+    if (error instanceof TooManyRequestsError && error.retryAfter !== undefined)
+      headers.set('retry-after', String(error.retryAfter))
+    if (error.status >= 500) {
+      cms.logger.error(`REST request failed: ${error.stack ?? error.message}`)
+      if (production)
+        return new Response(
+          JSON.stringify({ errors: [{ message: 'Internal Server Error', code }] }),
+          { status: error.status, headers },
+        )
+    }
     return new Response(JSON.stringify({ errors }), { status: error.status, headers })
   }
   const message = error instanceof Error ? error.message : String(error)
   cms.logger.error(
     `REST request failed: ${error instanceof Error ? (error.stack ?? message) : message}`,
   )
-  const body = { errors: [{ message: production ? 'Internal Server Error' : message }] }
+  const body = {
+    errors: [
+      { message: production ? 'Internal Server Error' : message, code: 'INTERNAL_SERVER_ERROR' },
+    ],
+  }
   return new Response(JSON.stringify(body), { status: 500, headers })
 }

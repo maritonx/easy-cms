@@ -3,7 +3,8 @@ import { createHmac } from 'node:crypto'
 import type { AuthUser, ID, RequestContext, Where } from './access.js'
 import { AUDIT_LOGS, INTERNAL_COLLECTIONS } from './builtins.js'
 import type { CollectionConfig, GlobalConfig } from './config.js'
-import type { RawDocument } from './database.js'
+import type { PaginatedDocs, RawDocument } from './database.js'
+import { QueryError } from './errors.js'
 import type { Field } from './fields.js'
 import type { EasyCMS } from './local-api.js'
 
@@ -77,12 +78,8 @@ export interface AuditEntry {
 }
 
 /** `GET <api>/admin/audit`: a page of entries, newest first. */
-export interface AuditPage {
-  docs: AuditEntry[]
-  page: number
-  totalPages: number
-  totalDocs: number
-}
+/** A page of the audit log: the list shape of the rest of the API. */
+export type AuditPage = PaginatedDocs<AuditEntry>
 
 export interface AuditFilter {
   action?: string | null
@@ -291,20 +288,20 @@ export class AuditLog {
     return out
   }
 
-  async list(filter: AuditFilter, page = 1): Promise<AuditPage> {
+  /** Entries, newest first: `page` (from 1) of `limit` (default 50, at most 100). */
+  async list(options: AuditFilter & { page?: number; limit?: number } = {}): Promise<AuditPage> {
+    const { page = 1, limit = PAGE, ...filter } = options
+    if (!Number.isInteger(page) || page < 1) throw new QueryError('page must be a positive integer')
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100)
+      throw new QueryError('limit must be an integer from 1 to 100')
     const result = await this.cms.db.find({
       collection: AUDIT_LOGS,
       where: this.where(filter),
       sort: ['-id'],
-      limit: PAGE,
+      limit,
       page,
     })
-    return {
-      docs: result.docs.map(toEntry),
-      page: result.page,
-      totalPages: result.totalPages,
-      totalDocs: result.totalDocs,
-    }
+    return { ...result, docs: result.docs.map(toEntry) }
   }
 
   /** The filtered entries as CSV (the newest 10,000). */

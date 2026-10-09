@@ -42,7 +42,7 @@ describe('the setup code', () => {
     expect(JSON.stringify(await wrong.json())).toContain('setupCode')
     expect((await register({})).status).toBe(400)
     expect(await cms.auth.hasUsers()).toBe(false)
-    expect((await register({ setupCode: 'open-sesame-42' })).status).toBe(201)
+    expect((await register({ setupCode: 'open-sesame-42' })).status).toBe(200)
     expect((await register({ setupCode: 'open-sesame-42' })).status).toBe(403)
   })
 })

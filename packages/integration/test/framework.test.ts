@@ -48,7 +48,13 @@ describe('framework kit', () => {
     // the client wrote before it.
     await login('1.1.1.1')
     await login('1.1.1.1')
-    expect((await login('1.1.1.1', 'password123')).status).toBe(429)
+    const locked = await login('1.1.1.1', 'password123')
+    expect(locked.status).toBe(429)
+    // How long to wait, and a code programs can tell apart.
+    expect(locked.headers.get('retry-after')).toBe(String(15 * 60))
+    expect(((await locked.json()) as { errors: { code: string }[] }).errors[0]?.code).toBe(
+      'TOO_MANY_REQUESTS',
+    )
     const ok = await login('2.2.2.2', 'password123')
     expect(ok.status).toBe(200)
     const { token } = await cms.auth.login({ email: 'a@x.co', password: 'password123' })

@@ -22,7 +22,9 @@ describe('@easy-cms/nuxt in dev (FR-ADP-01)', () => {
     expect(list.docs.map((d) => d.title)).toEqual(['Hello Nuxt'])
     const missing = await fetch('/api/cms/nope')
     expect(missing.status).toBe(404)
-    expect(await missing.json()).toEqual({ errors: [{ message: 'Unknown collection "nope"' }] })
+    expect(await missing.json()).toEqual({
+      errors: [{ message: 'Unknown collection "nope"', code: 'NOT_FOUND' }],
+    })
   })
 
   it('logs in over REST, and host routes can read the user', async () => {

@@ -312,7 +312,11 @@ describe('a guest', () => {
     })
     expect(checkout.status).toBe(400)
     expect(checkout.body.errors).toEqual([
-      { field: 'shippingAddress.country', message: 'is not a country the shop sends to' },
+      {
+        field: 'shippingAddress.country',
+        message: 'is not a country the shop sends to',
+        code: 'VALIDATION_ERROR',
+      },
     ])
   })
 })

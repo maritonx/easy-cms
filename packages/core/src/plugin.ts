@@ -36,6 +36,7 @@ export { ADMIN_ICONS, type AdminIcon, type Config, definePlugin } from './config
 export {
   ConfigError,
   EasyCMSError,
+  type ErrorCode,
   type FieldError,
   ForbiddenError,
   NotFoundError,

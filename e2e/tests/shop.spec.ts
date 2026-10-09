@@ -44,7 +44,7 @@ test('sets up the owner, a product and a customer', async ({ page, baseURL }) =>
     data: { ...ADMIN, name: 'Owner' },
     headers: { origin: baseURL as string },
   })
-  expect(created.status()).toBe(201)
+  expect(created.status()).toBe(200)
   await page.goto('/admin/')
   await write(page, '/products', {
     title: 'Jasmine tea',

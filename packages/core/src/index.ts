@@ -119,6 +119,7 @@ export {
   ConfigError,
   type ConfigIssue,
   EasyCMSError,
+  type ErrorCode,
   type FieldError,
   ForbiddenError,
   NotFoundError,

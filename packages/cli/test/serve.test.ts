@@ -69,7 +69,7 @@ describe('easy-cms serve (FR-STD-01)', () => {
       headers: { 'content-type': 'application/json', origin: server.url },
       body: JSON.stringify({ email: 'admin@example.test', password: 'password123' }),
     })
-    expect(register.status).toBe(201)
+    expect(register.status).toBe(200)
     const { csrfToken } = (await register.json()) as { csrfToken: string }
     const cookies = register.headers.getSetCookie()
     expect(cookies.some((c) => c.startsWith('ecms-session='))).toBe(true)

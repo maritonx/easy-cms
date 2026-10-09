@@ -95,7 +95,7 @@ describe('upload from a link', () => {
     expect(((await text.json()) as { errors: { field: string }[] }).errors[0]?.field).toBe('file')
     // Only hosts in allowedHosts.
     const other = await post({ url: 'http://localhost/photos/beach.png' })
-    expect(((await other.json()) as { errors: unknown[] }).errors[0]).toEqual({
+    expect(((await other.json()) as { errors: unknown[] }).errors[0]).toMatchObject({
       field: 'url',
       message: 'localhost is not an allowed host',
     })

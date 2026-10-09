@@ -102,7 +102,7 @@ describe('first admin', () => {
       method: 'POST',
       body: { email: 'admin@x.co', password: PASSWORD },
     })
-    expect(first.status).toBe(201)
+    expect(first.status).toBe(200)
     expect(first.json.user).toMatchObject({ email: 'admin@x.co', role: 'admin' })
     expect(first.headers.getSetCookie().some((c) => c.startsWith('ecms-session='))).toBe(true)
     expect((await call('/users/init')).json).toEqual({
@@ -328,8 +328,8 @@ describe('collections (FR-REST-01..04)', () => {
     expect(res.status).toBe(400)
     expect(res.json.errors).toEqual(
       expect.arrayContaining([
-        { message: 'is required', field: 'title' },
-        { message: 'must be a number', field: 'views' },
+        { message: 'is required', field: 'title', code: 'VALIDATION_ERROR' },
+        { message: 'must be a number', field: 'views', code: 'VALIDATION_ERROR' },
       ]),
     )
   })
@@ -476,7 +476,9 @@ describe('unexpected errors (FR-REST-06)', () => {
         }),
       )
       expect(response.status).toBe(500)
-      expect(await response.json()).toEqual({ errors: [{ message: 'Internal Server Error' }] })
+      expect(await response.json()).toEqual({
+        errors: [{ message: 'Internal Server Error', code: 'INTERNAL_SERVER_ERROR' }],
+      })
       expect(logged[0]).toContain('hunter2')
     } finally {
       ;(cms.logger as { error: (m: string) => void }).error = original

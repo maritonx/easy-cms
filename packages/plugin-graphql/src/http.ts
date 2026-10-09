@@ -8,6 +8,7 @@ import {
   UnauthorizedError,
   ValidationError,
 } from '@easy-cms/core'
+import { codeOfStatus } from '@easy-cms/core/internal'
 import {
   type DocumentNode,
   type ExecutionResult,
@@ -44,30 +45,6 @@ export interface GraphQLRequest {
 
 type Json = Record<string, unknown>
 
-/** The code in `extensions.code` for an Easy CMS error, as REST tells them apart. */
-function codeOf(error: EasyCMSError): string {
-  if (error instanceof ValidationError) return 'VALIDATION_ERROR'
-  if (error instanceof UnauthorizedError) return 'UNAUTHORIZED'
-  if (error instanceof ForbiddenError) return 'FORBIDDEN'
-  if (error instanceof NotFoundError) return 'NOT_FOUND'
-  switch (error.status) {
-    case 400:
-      return 'BAD_REQUEST'
-    case 401:
-      return 'UNAUTHORIZED'
-    case 403:
-      return 'FORBIDDEN'
-    case 404:
-      return 'NOT_FOUND'
-    case 413:
-      return 'PAYLOAD_TOO_LARGE'
-    case 429:
-      return 'TOO_MANY_REQUESTS'
-    default:
-      return 'INTERNAL_SERVER_ERROR'
-  }
-}
-
 /**
  * An error as the response shows it. Easy CMS errors keep their message and get a code (and
  * `fields` for invalid data); unexpected errors are logged, and hidden in production.
@@ -84,7 +61,7 @@ function formatError(error: GraphQLError, cms: EasyCMS): Json {
       ...base,
       extensions: {
         ...error.extensions,
-        code: codeOf(original),
+        code: original.code,
         ...(original instanceof ValidationError ? { fields: original.errors } : {}),
       },
     }
@@ -119,7 +96,7 @@ function respond(body: unknown, status: number, request: Request, headers: Heade
 }
 
 const requestError = (message: string, request: Request, status = 400) =>
-  respond({ errors: [{ message, extensions: { code: 'BAD_REQUEST' } }] }, status, request)
+  respond({ errors: [{ message, extensions: { code: codeOfStatus(status) } }] }, status, request)
 
 /** Reads a GraphQL request from a GET's query string. */
 function fromSearchParams(url: URL): GraphQLRequest | string {
@@ -192,7 +169,7 @@ export async function runGraphQL(
           errors: [
             {
               message: `Send ${operation.operation}s with POST`,
-              extensions: { code: 'BAD_REQUEST' },
+              extensions: { code: 'BAD_USER_INPUT' },
             },
           ],
         },

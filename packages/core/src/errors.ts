@@ -6,11 +6,66 @@ export interface ConfigIssue {
   readonly hint?: string
 }
 
-export class ConfigError extends Error {
+/**
+ * What went wrong, for programs: in REST errors (`errors[].code`), GraphQL errors
+ * (`extensions.code`) and on every `EasyCMSError` (`code`). New codes may be added; these keep
+ * their meaning.
+ */
+export type ErrorCode =
+  | 'VALIDATION_ERROR'
+  | 'BAD_USER_INPUT'
+  | 'UNAUTHORIZED'
+  | 'FORBIDDEN'
+  | 'NOT_FOUND'
+  | 'METHOD_NOT_ALLOWED'
+  | 'PAYLOAD_TOO_LARGE'
+  | 'UNSUPPORTED_MEDIA_TYPE'
+  | 'TOO_MANY_REQUESTS'
+  | 'CONFIG_ERROR'
+  | 'INTERNAL_SERVER_ERROR'
+
+/** The code of an HTTP status, for errors that only have a status. */
+export function codeOfStatus(status: number): ErrorCode {
+  switch (status) {
+    case 400:
+      return 'BAD_USER_INPUT'
+    case 401:
+      return 'UNAUTHORIZED'
+    case 403:
+      return 'FORBIDDEN'
+    case 404:
+      return 'NOT_FOUND'
+    case 405:
+      return 'METHOD_NOT_ALLOWED'
+    case 413:
+      return 'PAYLOAD_TOO_LARGE'
+    case 415:
+      return 'UNSUPPORTED_MEDIA_TYPE'
+    case 429:
+      return 'TOO_MANY_REQUESTS'
+    default:
+      return status >= 400 && status < 500 ? 'BAD_USER_INPUT' : 'INTERNAL_SERVER_ERROR'
+  }
+}
+
+/** Base class for Easy CMS's errors: an HTTP status for the REST API, and a code for programs. */
+export class EasyCMSError extends Error {
+  readonly status: number
+  readonly code: ErrorCode
+
+  constructor(message: string, status: number, code: ErrorCode = codeOfStatus(status)) {
+    super(message)
+    this.name = 'EasyCMSError'
+    this.status = status
+    this.code = code
+  }
+}
+
+export class ConfigError extends EasyCMSError {
   readonly issues: readonly ConfigIssue[]
 
   constructor(issues: readonly ConfigIssue[]) {
-    super(ConfigError.format(issues))
+    super(ConfigError.format(issues), 500, 'CONFIG_ERROR')
     this.name = 'ConfigError'
     this.issues = issues
   }
@@ -25,17 +80,6 @@ export class ConfigError extends Error {
   }
 }
 
-/** Base class for errors that map to an HTTP status in the REST API. */
-export class EasyCMSError extends Error {
-  readonly status: number
-
-  constructor(message: string, status: number) {
-    super(message)
-    this.name = 'EasyCMSError'
-    this.status = status
-  }
-}
-
 export interface FieldError {
   /** Dotted path, e.g. `links.0.url`. */
   readonly field: string
@@ -47,7 +91,7 @@ export class ValidationError extends EasyCMSError {
 
   constructor(collection: string, errors: readonly FieldError[]) {
     const list = errors.map((e) => `${e.field}: ${e.message}`).join('; ')
-    super(`Invalid data for "${collection}": ${list}`, 400)
+    super(`Invalid data for "${collection}": ${list}`, 400, 'VALIDATION_ERROR')
     this.name = 'ValidationError'
     this.errors = errors
   }
@@ -93,9 +137,13 @@ export class ForbiddenError extends EasyCMSError {
 }
 
 export class TooManyRequestsError extends EasyCMSError {
-  constructor(message: string) {
+  /** When to try again, in seconds (the REST API sends it as `Retry-After`). */
+  readonly retryAfter: number | undefined
+
+  constructor(message: string, retryAfter?: number) {
     super(message, 429)
     this.name = 'TooManyRequestsError'
+    this.retryAfter = retryAfter
   }
 }
 

@@ -1,6 +1,6 @@
 import type { ID } from '../access.js'
 import { EMAIL_DELIVERIES, WEBHOOK_DELIVERIES } from '../builtins.js'
-import type { RawDocument } from '../database.js'
+import type { PaginatedDocs, RawDocument } from '../database.js'
 import { NotFoundError } from '../errors.js'
 import type { EasyCMS } from '../local-api.js'
 
@@ -41,11 +41,8 @@ export interface AdminEmailDelivery extends DeliveryBase {
 
 export type AdminDelivery = AdminWebhookDelivery | AdminEmailDelivery
 
-export interface AdminDeliveries {
-  docs: AdminDelivery[]
-  totalDocs: number
-  page: number
-  totalPages: number
+/** A page of deliveries: the list shape of the rest of the API, and counts for the filter. */
+export interface AdminDeliveries extends PaginatedDocs<AdminDelivery> {
   /** How many there are of each state, for the filter. */
   counts: Record<DeliveryState, number>
 }
@@ -109,26 +106,34 @@ export async function listDeliveries(
   kind: DeliveryKind,
   state: DeliveryState,
   page: number,
+  limit = PER_PAGE,
 ): Promise<AdminDeliveries> {
   if (!exists(cms, kind))
-    return { docs: [], totalDocs: 0, page: 1, totalPages: 0, counts: { failed: 0, pending: 0 } }
+    return {
+      docs: [],
+      totalDocs: 0,
+      limit,
+      page: 1,
+      totalPages: 0,
+      hasNextPage: false,
+      hasPrevPage: false,
+      counts: { failed: 0, pending: 0 },
+    }
   const collection = collectionOf(kind)
   const [found, failed, pending] = await Promise.all([
     cms.db.find({
       collection,
       where: { state: { equals: state } },
       sort: ['-updatedAt'],
-      limit: PER_PAGE,
+      limit,
       page,
     }),
     cms.db.count({ collection, where: { state: { equals: 'failed' } } }),
     cms.db.count({ collection, where: { state: { equals: 'pending' } } }),
   ])
   return {
+    ...found,
     docs: found.docs.map((row) => toAdmin(kind, row)),
-    totalDocs: found.totalDocs,
-    page: found.page,
-    totalPages: found.totalPages,
     counts: { failed, pending },
   }
 }
