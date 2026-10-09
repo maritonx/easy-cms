@@ -1,6 +1,6 @@
 {
   "name": "@easy-cms/plugin-mcp",
-  "version": "0.47.4",
+  "version": "0.48.0",
   "description": "MCP server for Easy CMS: let AI assistants read and write content with API keys",
   "license": "MIT",
   "type": "module",
