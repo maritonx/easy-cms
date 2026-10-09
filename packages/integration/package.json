@@ -16,6 +16,6 @@
     "@electric-sql/pglite": "^0.5.8",
     "@libsql/client": "^0.18.0",
     "postgres": "^3.4.9",
-    "sharp": "^0.35.4"
+    "sharp": "^0.35.5"
   }
 }
