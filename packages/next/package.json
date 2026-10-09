@@ -1,6 +1,6 @@
 {
   "name": "@easy-cms/next",
-  "version": "0.45.0",
+  "version": "0.46.0",
   "description": "Next.js adapter for Easy CMS",
   "license": "MIT",
   "type": "module",
