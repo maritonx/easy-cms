@@ -1,6 +1,6 @@
 {
   "name": "@easy-cms/plugin-form-builder",
-  "version": "0.65.0",
+  "version": "0.66.0",
   "description": "Forms for Easy CMS: build forms in the admin, collect submissions, email notifications, spam protection and an <easy-form> element",
   "license": "MIT",
   "type": "module",
