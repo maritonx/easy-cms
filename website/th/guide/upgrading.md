@@ -22,12 +22,8 @@ Invalid Easy CMS config (1 problem):
   • admin.siteUrl: is now `siteURL`
 ```
 
-## 0.63
+## 0.64
 
-- **การแก้ไขหรือลบเอกสารที่ผู้ใช้อ่านไม่ได้ตอบ `404`** แทน `403`
-- **ลิงก์ตัวอย่างจากหน้า admin อ่านด้วยสิทธิ์ของคนที่สร้าง** ส่วน `createPreviewToken` รับ `{ user }` เพื่อให้ทำงานแบบเดียวกัน
-- **ร้านค้า: `POST <api>/shop/confirm` ต้องมาจากลูกค้าของการชำระเงินนั้น หรือผู้เยี่ยมชมที่ส่งตะกร้ามาด้วย** (`cart:
-  { id, secret }`) client ส่งให้อยู่แล้ว ส่วนหน้าที่เรียก endpoint เองต้องส่งด้วย
 - **cookie ชื่อ `__Host-ecms-session`, `__Host-ecms-csrf` และ `__Host-ecms-sso` เมื่อใช้ HTTPS**
   cookie ชื่อเดิมยังอ่านได้ จึงไม่มีใครถูก logout
 - **ถ้าอยู่หลัง reverse proxy ของคุณเองที่เปลี่ยน `Host` ให้เปิด trust proxy** (`trustProxy` หรือ `--trust-proxy`
@@ -37,6 +33,13 @@ Invalid Easy CMS config (1 problem):
   ที่ proxy หรือโฮสต์
 - **sitemap และ `robots.txt` ของ SEO plugin ใช้ `serverURL`** สร้างที่อยู่ของตัวเองแทน host ของ request
   ควรตั้ง `serverURL` บน production
+
+## 0.63
+
+- **การแก้ไขหรือลบเอกสารที่ผู้ใช้อ่านไม่ได้ตอบ `404`** แทน `403`
+- **ลิงก์ตัวอย่างจากหน้า admin อ่านด้วยสิทธิ์ของคนที่สร้าง** ส่วน `createPreviewToken` รับ `{ user }` เพื่อให้ทำงานแบบเดียวกัน
+- **ร้านค้า: `POST <api>/shop/confirm` ต้องมาจากลูกค้าของการชำระเงินนั้น หรือผู้เยี่ยมชมที่ส่งตะกร้ามาด้วย** (`cart:
+  { id, secret }`) client ส่งให้อยู่แล้ว ส่วนหน้าที่เรียก endpoint เองต้องส่งด้วย
 
 ## 0.62
 

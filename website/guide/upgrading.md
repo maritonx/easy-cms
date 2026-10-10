@@ -24,13 +24,8 @@ Invalid Easy CMS config (1 problem):
   • admin.siteUrl: is now `siteURL`
 ```
 
-## 0.63
+## 0.64
 
-- **Updating or deleting a document the user may not read answers `404`** instead of `403`.
-- **Preview links from the admin read with the access of whoever made them**; `createPreviewToken`
-  takes `{ user }` for the same.
-- **Shop: `POST <api>/shop/confirm` needs the payment's customer or the guest's cart** (`cart:
-  { id, secret }`). The client sends it; custom pages that call the endpoint themselves must too.
 - **Cookies are named `__Host-ecms-session`, `__Host-ecms-csrf` and `__Host-ecms-sso` over
   HTTPS.** Cookies under the old names are still read, so nobody is signed out.
 - **Behind your own reverse proxy that changes the `Host`, enable trust-proxy** (`trustProxy`,
@@ -41,6 +36,14 @@ Invalid Easy CMS config (1 problem):
   Redirect HTTP to HTTPS at your proxy or host.
 - **The SEO plugin's sitemap and `robots.txt` use `serverURL`** for their own addresses instead of
   the request's host. Set `serverURL` in production.
+
+## 0.63
+
+- **Updating or deleting a document the user may not read answers `404`** instead of `403`.
+- **Preview links from the admin read with the access of whoever made them**; `createPreviewToken`
+  takes `{ user }` for the same.
+- **Shop: `POST <api>/shop/confirm` needs the payment's customer or the guest's cart** (`cart:
+  { id, secret }`). The client sends it; custom pages that call the endpoint themselves must too.
 
 ## 0.62
 
