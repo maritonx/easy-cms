@@ -46,7 +46,7 @@ export const { GET, HEAD } = createAdminRouteHandlers(config)
 |---|---|---|
 | `basePath` | `routes.api` | Where the API is mounted. |
 | `getClientIp` | — | `(request) => string \| undefined`: the client's IP, for login rate limiting and the audit log. Wins over `trustProxy`. |
-| `trustProxy` | `false` | Use the last address in `X-Forwarded-For` (see below). Vercel and Netlify need nothing. |
+| `trustProxy` | `false` | Use the last address in `X-Forwarded-For` (see below), and trust `X-Forwarded-Host` in the CSRF origin check. Vercel and Netlify need nothing. |
 
 ## Reading content
 

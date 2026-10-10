@@ -105,6 +105,23 @@ export async function logout(): Promise<void> {
   await api('POST', '/auth/logout').catch(() => {})
   session.user = null
   session.schema = null
+  forgetUserData()
+}
+
+/**
+ * What the admin kept in this browser about the content (unsaved drafts, recent documents, the
+ * last folder and list positions): gone after logging out, for whoever uses the browser next.
+ * Preferences such as the theme stay.
+ */
+function forgetUserData() {
+  const userKeys = /^easy-cms-(draft:|list:|recent$|media-folder$)/
+  for (const storage of [localStorage, sessionStorage]) {
+    try {
+      for (const key of Object.keys(storage)) if (userKeys.test(key)) storage.removeItem(key)
+    } catch {
+      // Storage may be blocked; there is nothing kept then.
+    }
+  }
 }
 
 export function findCollection(slug: string): AdminCollection | undefined {

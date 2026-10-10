@@ -35,7 +35,7 @@ Easy CMS รันได้ทุกที่ที่รัน server ด้ว
 | Migration | สร้างด้วย `easy-cms migrate:create` แล้ว commit และรัน `easy-cms migrate` ก่อนเวอร์ชันใหม่จะ start ดู [Migration และการ deploy](../deployment) |
 | `EASY_CMS_SETUP_CODE` | ตั้งไว้จนกว่าจะมี admin คนแรก เพื่อไม่ให้คนอื่นยึดเว็บที่เพิ่ง deploy |
 | `serverURL` | ที่อยู่สาธารณะของเว็บ ใช้สร้าง URL ของไฟล์และลิงก์ในอีเมล ดู [Health checks](../health-checks#no-serverurl) |
-| เชื่อ proxy | ถ้าอยู่หลัง proxy หรือแพลตฟอร์มที่เชื่อถือได้ ให้เปิด `trustProxy` (Next.js, Nuxt) หรือ `--trust-proxy` (standalone) เพื่อให้การจำกัดการ login เห็น IP ของผู้เข้าชมแต่ละคน |
+| เชื่อ proxy | ถ้าอยู่หลัง proxy หรือแพลตฟอร์มที่เชื่อถือได้ ให้เปิด `trustProxy` (Next.js, Nuxt) หรือ `--trust-proxy` (standalone) เพื่อให้การจำกัดการ login เห็น IP ของผู้เข้าชมแต่ละคน และการตรวจ origin ของ CSRF รับ `X-Forwarded-Host` ส่วน Vercel และ Netlify ระบบรู้จักเอง |
 | งานตามเวลา | บน serverless ให้ cron เรียก `<api>/jobs/run` พร้อม `CRON_SECRET` งานเหล่านี้คือเผยแพร่บทความที่ตั้งเวลาไว้ ส่ง webhook ซ้ำ ส่งอีเมลที่รอคิว และสำรองข้อมูล |
 
 ## ก่อนเปิดใช้งานจริง {#before-going-live}

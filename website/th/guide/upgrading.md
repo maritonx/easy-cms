@@ -28,6 +28,15 @@ Invalid Easy CMS config (1 problem):
 - **ลิงก์ตัวอย่างจากหน้า admin อ่านด้วยสิทธิ์ของคนที่สร้าง** ส่วน `createPreviewToken` รับ `{ user }` เพื่อให้ทำงานแบบเดียวกัน
 - **ร้านค้า: `POST <api>/shop/confirm` ต้องมาจากลูกค้าของการชำระเงินนั้น หรือผู้เยี่ยมชมที่ส่งตะกร้ามาด้วย** (`cart:
   { id, secret }`) client ส่งให้อยู่แล้ว ส่วนหน้าที่เรียก endpoint เองต้องส่งด้วย
+- **cookie ชื่อ `__Host-ecms-session`, `__Host-ecms-csrf` และ `__Host-ecms-sso` เมื่อใช้ HTTPS**
+  cookie ชื่อเดิมยังอ่านได้ จึงไม่มีใครถูก logout
+- **ถ้าอยู่หลัง reverse proxy ของคุณเองที่เปลี่ยน `Host` ให้เปิด trust proxy** (`trustProxy` หรือ `--trust-proxy`
+  สำหรับ standalone) การตรวจ origin ของ CSRF ใช้ `X-Forwarded-Host` เฉพาะตอนนั้น ถ้าไม่เปิด การเขียนข้อมูลจากหน้า admin
+  อาจล้มเหลวด้วย `403` ส่วน Vercel และ Netlify ไม่ต้องตั้งอะไร ดู [ความปลอดภัย](./security#checklist-before-going-live)
+- **บน production API และหน้า admin ส่ง `Strict-Transport-Security`** (HSTS 1 ปี) ให้ redirect HTTP ไป HTTPS
+  ที่ proxy หรือโฮสต์
+- **sitemap และ `robots.txt` ของ SEO plugin ใช้ `serverURL`** สร้างที่อยู่ของตัวเองแทน host ของ request
+  ควรตั้ง `serverURL` บน production
 
 ## 0.62
 

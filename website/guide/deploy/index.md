@@ -38,7 +38,7 @@ Two kinds of host behave differently:
 | Migrations | Created with `easy-cms migrate:create`, committed, and applied with `easy-cms migrate` before the new version starts. See [Migrations & deployment](../deployment). |
 | `EASY_CMS_SETUP_CODE` | Until the first admin exists, so nobody else can claim a fresh site. |
 | `serverURL` | The public address, for absolute media URLs and email links. See [Health checks](../health-checks#no-serverurl). |
-| Trust the proxy | Behind a proxy or platform you trust: `trustProxy` (Next.js, Nuxt) or `--trust-proxy` (standalone), so login limits see each visitor's IP. |
+| Trust the proxy | Behind a proxy or platform you trust: `trustProxy` (Next.js, Nuxt) or `--trust-proxy` (standalone), so login limits see each visitor's IP and the CSRF origin check accepts `X-Forwarded-Host`. Vercel and Netlify are recognized automatically. |
 | Scheduled jobs | On serverless, a cron calling `<api>/jobs/run` with `CRON_SECRET`. They publish scheduled posts, retry webhooks, send queued emails and run backups. |
 
 ## Before going live

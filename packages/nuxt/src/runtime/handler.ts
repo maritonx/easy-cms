@@ -20,6 +20,7 @@ export function createHandler(config: Config, options: HandlerOptions) {
   const clientIps = new WeakMap<Request, string | undefined>()
   const api = createApiHandler(config, {
     basePath: options.basePath,
+    trustProxy: options.trustProxy,
     getClientIp: (request) => clientIps.get(request),
   })
   return defineEventHandler(async (event) => {

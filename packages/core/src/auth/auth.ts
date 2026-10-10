@@ -20,7 +20,7 @@ import {
 } from '../errors.js'
 import type { EasyCMS } from '../local-api.js'
 import { checkFormToken, formToken, verifyTurnstile } from '../spam.js'
-import { SESSION_COOKIE } from './cookie.js'
+import { cookieValue, SESSION_COOKIE } from './cookie.js'
 import { DEFAULT_PASSWORD_EMAILS } from './emails.js'
 import { fakeVerify, verifyPassword } from './password.js'
 import { SingleSignOn } from './sso.js'
@@ -445,12 +445,8 @@ export class Auth {
   }): Promise<AuthUser | null> {
     const authorization = headers.get('authorization')
     if (authorization?.startsWith('Bearer ')) return this.verify(authorization.slice(7).trim())
-    for (const part of headers.get('cookie')?.split(';') ?? []) {
-      const eq = part.indexOf('=')
-      if (eq > 0 && part.slice(0, eq).trim() === SESSION_COOKIE)
-        return this.verify(decodeURIComponent(part.slice(eq + 1).trim()))
-    }
-    return null
+    const cookie = cookieValue(headers.get('cookie'), SESSION_COOKIE)
+    return cookie ? this.verify(cookie) : null
   }
 
   /**

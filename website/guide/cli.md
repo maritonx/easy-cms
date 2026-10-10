@@ -170,7 +170,7 @@ Runs Easy CMS without Nuxt or Next.js: the admin at `/admin`, the REST API at `/
 | `--port <n>` | Port. Default: `PORT`, then 4000. |
 | `--host <host>` | Interface to listen on. Default: `HOST`, then all interfaces. |
 | `--watch` | Reload when the config or files it imports change. |
-| `--trust-proxy` | Trust `X-Forwarded-For` and `X-Forwarded-Proto` from your reverse proxy. |
+| `--trust-proxy` | Trust `X-Forwarded-For`, `X-Forwarded-Proto` and `X-Forwarded-Host` (for the CSRF origin check) from your reverse proxy. |
 
 In production (`NODE_ENV=production`) pending migrations stop the server from starting. See
 [Standalone server](./standalone).

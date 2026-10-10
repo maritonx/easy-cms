@@ -97,7 +97,7 @@ describe('easy-cms serve (FR-STD-01)', () => {
   })
 
   it('marks cookies Secure behind an HTTPS proxy when trusted', async () => {
-    const login = await fetch(`${server.url}/api/cms/users/login`, {
+    const login = await fetch(`${server.url}/api/cms/auth/login`, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
@@ -108,8 +108,9 @@ describe('easy-cms serve (FR-STD-01)', () => {
       body: JSON.stringify({ email: 'admin@example.test', password: 'password123' }),
     })
     expect(login.status).toBe(200)
-    expect(login.headers.getSetCookie().find((c) => c.startsWith('ecms-session='))).toContain(
-      'Secure',
-    )
+    // Over HTTPS the cookie is `__Host-` (Secure, Path=/, no Domain).
+    expect(
+      login.headers.getSetCookie().find((c) => c.startsWith('__Host-ecms-session=')),
+    ).toContain('Secure')
   })
 })

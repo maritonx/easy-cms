@@ -311,6 +311,20 @@ describe('sitemap', () => {
     }
   })
 
+  it('names its own addresses from serverURL, not from the request', async () => {
+    const { createRootEndpointHandler } = await import('@easy-cms/core/internal')
+    const cms = await open({ ...site(), serverURL: 'https://cms.example.com/' })
+    try {
+      // A client can send any Host; cached answers mustn't carry it.
+      const root = createRootEndpointHandler(cms)
+      const robots = await (await root(new Request('http://evil.test/robots.txt')))?.text()
+      expect(robots).toContain('Sitemap: https://cms.example.com/sitemap.xml')
+      expect(robots).not.toContain('evil.test')
+    } finally {
+      await cms.destroy()
+    }
+  })
+
   it('needs absolute URLs, and the plugin', async () => {
     const { sitemap } = await import('../src/index.js')
     const cms = await open(site({ admin: {} }))

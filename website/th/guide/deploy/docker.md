@@ -181,7 +181,7 @@ docker compose up -d --build
 วาง reverse proxy ไว้ข้างหน้าสำหรับ HTTPS เช่น Caddy, Traefik, nginx หรือของแพลตฟอร์ม proxy จะตั้ง
 `X-Forwarded-For` ให้ จึงต้องเชื่อมัน: `--trust-proxy` (standalone ซึ่งอยู่ใน image ข้างบนแล้ว) หรือ
 `trustProxy: true` (route handler ของ Next.js, module ของ Nuxt) จากนั้นตั้ง `serverURL` เป็นที่อยู่สาธารณะ
-ตัวอย่างการตั้งค่า Caddy อยู่ใน [VPS](./vps#https-with-caddy)
+proxy ควร redirect HTTP ไป HTTPS ด้วย ตัวอย่างการตั้งค่า Caddy อยู่ใน [VPS](./vps#https-with-caddy)
 
 ## สำรองข้อมูล {#backups}
 

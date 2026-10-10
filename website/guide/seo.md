@@ -228,6 +228,9 @@ export async function GET(request: Request) {
 The addresses must be absolute: set `admin.siteURL` in the config (or pass `{ siteURL }`), or
 return full URLs from `generateURL`. The plugin also serves the sitemap at
 `<routes.api>/seo/sitemap.xml`, and the [standalone server](./standalone) at `/sitemap.xml`.
+These build their own addresses (such as the pages of a sitemap index) from `serverURL` when it
+is set, not from the request's host: a client can send any `Host`, and the answers are cached.
+Set `serverURL` in production.
 
 ## robots.txt
 
@@ -281,7 +284,8 @@ too. Set it from your own variable, e.g. `disallowAll: process.env.SITE_ENV !== 
 :::
 
 The standalone server serves `/robots.txt` itself; change it with the plugin's `robots` option,
-or turn it off with `robots: false`.
+or turn it off with `robots: false`. Its `Sitemap:` line uses `serverURL` when it is set, like
+the sitemap.
 
 ## Structured data (JSON-LD)
 

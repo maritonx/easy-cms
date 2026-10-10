@@ -14,9 +14,16 @@ Easy CMS ป้องกันอะไรให้บ้าง อะไรย�
   และต้องไม่อยู่ในรายการรหัสผ่านที่ใช้บ่อยที่สุดราว 2,000 อัน (เช่น `password1` หรือ `iloveyou`)
 - **session token** สุ่มขึ้นมา เซ็นด้วย `EASY_CMS_SECRET` และเก็บเฉพาะค่า hash สำเนาของฐานข้อมูลจึงใช้ login ไม่ได้
 - **cookie** เป็น `HttpOnly`, `SameSite=Lax` และ `Secure` บน production (หรือเมื่อใช้ HTTPS)
+  เมื่อใช้ HTTPS (หรือบน production) cookie ของ session, CSRF และ SSO จะมีชื่อขึ้นต้นด้วย `__Host-`
+  (`__Host-ecms-session`, `__Host-ecms-csrf`, `__Host-ecms-sso`) จึงตั้งได้จาก host นี้เท่านั้น subdomain ตั้งไม่ได้
+  ส่วนตอนพัฒนาผ่าน HTTP ธรรมดาจะใช้ชื่อเดิม cookie ชื่อเดิมยังอ่านได้อยู่ และการ logout จะล้างทั้งสองแบบ
 - **จำกัดการ login**: ล้มเหลว 5 ครั้งต่อ email (และ IP ถ้ารู้) ภายใน 15 นาที การ login จะตอบ `429`
   (`auth.maxLoginAttempts`, `auth.lockWindow`)
 - การ logout การเปลี่ยนรหัสผ่าน หรือการปิดใช้งานผู้ใช้ จะปิดทุก session ของคนนั้น
+- **การ logout** ตอบพร้อม `Clear-Site-Data: "cache"` เพื่อให้ browser ทิ้งหน้าที่ cache ไว้
+  ไม่ใช้ `"storage"` เพราะเว็บของคุณอาจใช้ origin เดียวกันและเก็บข้อมูลของตัวเอง (เช่น ตะกร้าของผู้เยี่ยมชม)
+  หน้า admin ยังลบสิ่งที่เก็บไว้ใน browser เกี่ยวกับเนื้อหาด้วย ได้แก่ ฉบับร่างที่ยังไม่บันทึก เอกสารล่าสุด
+  โฟลเดอร์ media ล่าสุด และตำแหน่งในรายการ ส่วนค่าที่ตั้งไว้ เช่น ธีม ยังอยู่
 
 ### Request {#requests}
 
@@ -28,6 +35,9 @@ Easy CMS ป้องกันอะไรให้บ้าง อะไรย�
   `auth.trustedOrigins` ที่ส่ง cookie ได้ origin ใน `cors` เขียนข้อมูลได้ด้วยถ้า**ไม่มี** session cookie
   (เช่น [ฟอร์ม](./forms)สาธารณะ) เพราะไม่มี session ให้ปลอม และกฎสิทธิ์ของ collection ยังเป็นตัวตัดสิน
 - **ขนาด body** จำกัดที่ 1 MB (JSON) และ `upload.maxFileSize` (ไฟล์ ค่าเริ่มต้น 10 MB)
+- **HSTS**: บน production (`NODE_ENV=production`) REST API และหน้า admin ส่ง
+  `Strict-Transport-Security: max-age=31536000` (ไม่มี `includeSubDomains`) browser จึงใช้แต่ HTTPS เป็นเวลา 1 ปี
+  ถ้าเปิดผ่าน HTTP ธรรมดา browser จะไม่สนใจ header นี้
 - **error** แสดงรายละเอียดเฉพาะตอนพัฒนา บน production error ที่ไม่คาดคิดจะตอบ `Internal Server Error`
   และบันทึก log ไว้ที่ server
 
@@ -63,11 +73,14 @@ Easy CMS ป้องกันอะไรให้บ้าง อะไรย�
 
 - [ ] ตั้ง `EASY_CMS_SECRET` ใน environment ของ server แล้ว ไม่ใช่มีแค่ใน `.env` บนเครื่องคุณ
 - [ ] `NODE_ENV=production` และเว็บให้บริการผ่าน HTTPS
+- [ ] เว็บให้บริการผ่าน HTTPS เท่านั้น โดย proxy หรือ host redirect HTTP ไป HTTPS
 - [ ] กฎ `read` ของทุก collection เป็นไปตามที่ตั้งใจ ลองทดสอบตอนไม่ได้ login
 - [ ] `cors` และ `auth.trustedOrigins` มีเฉพาะ origin ของคุณเอง
 - [ ] ถ้าอยู่หลัง proxy ที่คุณควบคุม ให้เปิด trust proxy (`trustProxy` สำหรับ Nuxt และ Next.js,
   `--trust-proxy` สำหรับ standalone) เพื่อให้การจำกัด login เห็น IP จริงของผู้ใช้ ระบบใช้ที่อยู่ตัวสุดท้ายของ
-  `X-Forwarded-For` ส่วน Vercel และ Netlify ไม่ต้องตั้งอะไร ถ้าไม่รู้ IP การ login ผิดจะนับต่ออีเมล และ log ของ server จะบอกไว้
+  `X-Forwarded-For` และการตรวจ origin ของ CSRF จะใช้ `X-Forwarded-Host` ด้วย ถ้าไม่เปิด trust proxy
+  แต่ proxy เปลี่ยน `Host` การเขียนข้อมูลจากหน้า admin จะล้มเหลวด้วย `403` ส่วน Vercel และ Netlify
+  ระบบรู้จักเองและไม่ต้องตั้งอะไร ถ้าไม่รู้ IP การ login ผิดจะนับต่ออีเมล และ log ของ server จะบอกไว้
 - [ ] `EASY_CMS_SECRET` เป็นค่าสุ่ม (`openssl rand -hex 32`) บน production ค่าที่ดูเหมือนตัวอย่างหรือเป็นรูปแบบซ้ำๆ จะใช้ไม่ได้
 - [ ] ตั้ง `EASY_CMS_SETUP_CODE` ไว้จนกว่าจะมี admin คนแรก (บน production server จะเตือนตราบใดที่ยังไม่มี admin
       และไม่มีรหัส) และการสร้าง admin คนแรกจะถูกบันทึกใน audit log

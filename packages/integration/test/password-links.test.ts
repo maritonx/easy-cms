@@ -100,7 +100,7 @@ describe('forgot password', () => {
     })
     expect(reset.status).toBe(200)
     expect(reset.json.user.email).toBe('ann@example.com')
-    expect(reset.headers.getSetCookie().some((c) => c.startsWith('ecms-session='))).toBe(true)
+    expect(reset.headers.getSetCookie().some((c) => /^(__Host-)?ecms-session=/.test(c))).toBe(true)
     // The old session is gone; the new password works, the old one doesn't.
     expect(await cms.auth.verify(old.token)).toBeNull()
     await expect(

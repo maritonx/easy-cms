@@ -335,8 +335,9 @@ writable by logged-in users; declare a `media` collection to change that or add 
 
 Files are served at `/api/cms/media/file/<name>` with long-lived caching and a sandboxing Content
 Security Policy, so an uploaded SVG can't run scripts. PDFs are served without it: browsers won't
-show a PDF in a sandbox, and their PDF viewers run apart from your site. Set `serverURL` for
-absolute URLs.
+show a PDF in a sandbox, and their PDF viewers run apart from your site. Text files (`text/*`,
+JSON, XML, JavaScript) are stored and served with `charset=utf-8`. Set `serverURL` for absolute
+URLs.
 
 The default storage is the local disk (`upload.dir`, default `uploads/`), which needs a persistent
 filesystem. On serverless hosts (Vercel, Netlify) and in containers without a volume, use S3.

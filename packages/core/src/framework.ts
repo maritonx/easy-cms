@@ -98,6 +98,7 @@ export function createApiHandler(
     if (!handler) {
       handler = createRestHandler(cms, {
         getClientIp,
+        trustProxy: options.trustProxy === true,
         ...(options.basePath ? { basePath: options.basePath } : {}),
       })
       handlers.set(cms, handler)

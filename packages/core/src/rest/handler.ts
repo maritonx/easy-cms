@@ -2,7 +2,7 @@ import { type AuthUser, isSystemAdmin, type RequestContext } from '../access.js'
 import { API_KEYS, type ApiKeyPermissions } from '../api-keys.js'
 import { auditContext } from '../audit.js'
 import { type Session, SIGNUP_HONEYPOT } from '../auth/auth.js'
-import { SESSION_COOKIE } from '../auth/cookie.js'
+import { cookieValue, hostCookie, SESSION_COOKIE } from '../auth/cookie.js'
 import { SSO_COOKIE } from '../auth/sso.js'
 import { safeEqual } from '../auth/tokens.js'
 import { deleteBackup, downloadBackup, listBackups, startBackup } from '../backups.js'
@@ -21,7 +21,7 @@ import {
   ValidationError,
 } from '../errors.js'
 import type { EasyCMS } from '../local-api.js'
-import { EXTENSIONS, PRIVATE_KEY } from '../media.js'
+import { EXTENSIONS, PRIVATE_KEY, withCharset } from '../media.js'
 import {
   deleteDelivery,
   deleteFailedDeliveries,
@@ -47,6 +47,11 @@ export interface RestHandlerOptions {
   readonly basePath?: string
   /** Client IP, used with the email to rate-limit logins. Adapters provide it. */
   readonly getClientIp?: (request: Request) => string | undefined
+  /**
+   * Behind a reverse proxy you control: its `X-Forwarded-Host` names the public host (for the
+   * CSRF check of a request's Origin). Vercel and Netlify are recognized without it.
+   */
+  readonly trustProxy?: boolean
 }
 
 export type RestHandler = (request: Request) => Promise<Response>
@@ -63,6 +68,8 @@ interface Context {
   readonly via: 'cookie' | 'bearer' | null
   readonly token: string | undefined
   readonly headers: Headers
+  /** `RestHandlerOptions.trustProxy`. */
+  readonly trustProxy: boolean
 }
 
 /** Creates the REST API as a Web-standard `(Request) => Response` handler. */
@@ -152,6 +159,7 @@ async function respond(
     'content-type': 'application/json; charset=utf-8',
     'cache-control': 'no-store',
     'x-content-type-options': 'nosniff',
+    ...(production ? { 'strict-transport-security': 'max-age=31536000' } : {}),
   })
   try {
     if (path === null) throw new HttpError('Not found', 404)
@@ -171,6 +179,7 @@ async function respond(
       via: signedIn ? via : null,
       token,
       headers,
+      trustProxy: options.trustProxy === true,
     }
 
     const method = request.method.toUpperCase()
@@ -416,6 +425,9 @@ async function route(
       case 'POST logout': {
         if (ctx.token) await cms.auth.logout(ctx.token)
         clearSessionCookies(ctx)
+        // Pages and API answers the browser may have kept for this user. Not "storage": the site
+        // may share the origin and keep its own (a guest's cart).
+        ctx.headers.set('clear-site-data', '"cache"')
         return { body: { message: 'Logged out' } }
       }
       case 'GET me': {
@@ -1245,15 +1257,9 @@ function readToken(request: Request): {
   return { token, via: token ? 'cookie' : null }
 }
 
+/** A cookie of the request; the `__Host-` one (set over HTTPS) first. */
 export function readCookie(request: Request, name: string): string | undefined {
-  const header = request.headers.get('cookie')
-  if (!header) return undefined
-  for (const part of header.split(';')) {
-    const eq = part.indexOf('=')
-    if (eq > 0 && part.slice(0, eq).trim() === name)
-      return decodeURIComponent(part.slice(eq + 1).trim())
-  }
-  return undefined
+  return cookieValue(request.headers.get('cookie'), name)
 }
 
 /**
@@ -1261,14 +1267,18 @@ export function readCookie(request: Request, name: string): string | undefined {
  * Vercel…) the request URL can name an internal host, while `x-forwarded-host` or `host` keep the
  * public one; a browser can't set either on a cross-site form or a simple request.
  */
-function sameHost(origin: string, request: Request): boolean {
+function sameHost(origin: string, request: Request, trustProxy: boolean): boolean {
   let host: string
   try {
     host = new URL(origin).host
   } catch {
     return false
   }
-  const forwarded = request.headers.get('x-forwarded-host')?.split(',')[0]?.trim()
+  // Only a proxy we trust (or the platform's own) sets it; otherwise anyone could.
+  const trusted = trustProxy || !!process.env.VERCEL || !!process.env.NETLIFY
+  const forwarded = trusted
+    ? request.headers.get('x-forwarded-host')?.split(',')[0]?.trim()
+    : undefined
   return host === (forwarded || request.headers.get('host'))
 }
 
@@ -1286,7 +1296,7 @@ function checkCsrf(cms: EasyCMS, ctx: Context) {
   const trusted =
     origin !== null &&
     (origin === ctx.url.origin ||
-      sameHost(origin, ctx.request) ||
+      sameHost(origin, ctx.request, ctx.trustProxy) ||
       cms.config.auth.trustedOrigins.includes(origin) ||
       (!cookie && (cors === '*' || cors.includes(origin))))
   if (origin !== null && !trusted) throw new ForbiddenError('CSRF check failed: untrusted origin')
@@ -1314,7 +1324,7 @@ async function serveFile(cms: EasyCMS, key: string, head: boolean): Promise<Resp
   const file = await cms.storage.get(key)
   if (!file) throw new HttpError('Not found', 404)
   const extension = key.slice(key.lastIndexOf('.') + 1)
-  const type = TYPE_BY_EXTENSION[extension] ?? 'application/octet-stream'
+  const type = withCharset(TYPE_BY_EXTENSION[extension] ?? 'application/octet-stream')
   return new Response(
     head ? null : (file.body as unknown as ConstructorParameters<typeof Response>[0]),
     {
@@ -1373,7 +1383,9 @@ async function servePrivateFile(
   }
   const file = await cms.privateStorage.get(key)
   if (!file) throw new HttpError('Not found', 404)
-  const type = TYPE_BY_EXTENSION[key.slice(key.lastIndexOf('.') + 1)] ?? 'application/octet-stream'
+  const type = withCharset(
+    TYPE_BY_EXTENSION[key.slice(key.lastIndexOf('.') + 1)] ?? 'application/octet-stream',
+  )
   return new Response(
     head ? null : (file.body as unknown as ConstructorParameters<typeof Response>[0]),
     {
@@ -1512,9 +1524,14 @@ function cookie(
   value: string,
   opts: { httpOnly: boolean; maxAge?: number },
 ) {
-  const parts = [`${name}=${encodeURIComponent(value)}`, 'Path=/', 'SameSite=Lax']
+  const secure = isSecure(ctx)
+  const parts = [
+    `${secure ? hostCookie(name) : name}=${encodeURIComponent(value)}`,
+    'Path=/',
+    'SameSite=Lax',
+  ]
   if (opts.httpOnly) parts.push('HttpOnly')
-  if (isSecure(ctx)) parts.push('Secure')
+  if (secure) parts.push('Secure')
   if (opts.maxAge !== undefined) parts.push(`Max-Age=${opts.maxAge}`)
   return parts.join('; ')
 }
@@ -1612,6 +1629,10 @@ function setSessionCookies(cms: EasyCMS, ctx: Context, session: Session) {
 function clearSessionCookies(ctx: Context) {
   ctx.headers.append('set-cookie', cookie(ctx, SESSION_COOKIE, '', { httpOnly: true, maxAge: 0 }))
   ctx.headers.append('set-cookie', cookie(ctx, CSRF_COOKIE, '', { httpOnly: false, maxAge: 0 }))
+  // Cookies from before the `__Host-` names (0.63).
+  if (isSecure(ctx))
+    for (const name of [SESSION_COOKIE, CSRF_COOKIE])
+      ctx.headers.append('set-cookie', `${name}=; Path=/; Max-Age=0; Secure; SameSite=Lax`)
 }
 
 function errorResponse(

@@ -56,7 +56,7 @@ function choose(event: Event) {
   const value = (event.target as HTMLSelectElement).value
   if (!switcher.value || value === current.value) return
   // biome-ignore lint/suspicious/noDocumentCookie: a plain cookie the server reads; no Cookie Store API in all browsers
-  document.cookie = `${switcher.value.cookie}=${encodeURIComponent(value)}; path=/; max-age=31536000; SameSite=Lax`
+  document.cookie = `${switcher.value.cookie}=${encodeURIComponent(value)}; path=/; max-age=31536000; SameSite=Lax${location.protocol === 'https:' ? '; Secure' : ''}`
   // Everything shown so far belongs to the old choice.
   window.location.reload()
 }

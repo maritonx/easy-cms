@@ -255,7 +255,7 @@ describe('REST uploads and files', () => {
     expect(served.headers.get('content-security-policy')).toBeNull()
     expect(served.headers.get('x-content-type-options')).toBe('nosniff')
     const text = await handler(new Request(`http://cms.test${csv.url}`))
-    expect(text.headers.get('content-type')).toBe('text/csv')
+    expect(text.headers.get('content-type')).toBe('text/csv; charset=utf-8')
     expect(text.headers.get('content-security-policy')).toContain('sandbox')
     await cms.destroy()
   })

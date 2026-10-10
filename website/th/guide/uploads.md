@@ -309,7 +309,8 @@ upload: {
 
 ไฟล์ถูกเสิร์ฟที่ `/api/cms/media/file/<name>` พร้อม caching ระยะยาวและ Content Security Policy
 แบบ sandbox ทำให้ SVG ที่อัปโหลดมาไม่สามารถรันสคริปต์ได้ ส่วน PDF เสิร์ฟโดยไม่มี sandbox เพราะเบราว์เซอร์ไม่แสดง PDF
-ใน sandbox และตัวอ่าน PDF ของเบราว์เซอร์ทำงานแยกจากเว็บของคุณ ตั้งค่า `serverURL` เพื่อให้ได้ URL แบบเต็ม
+ใน sandbox และตัวอ่าน PDF ของเบราว์เซอร์ทำงานแยกจากเว็บของคุณ ไฟล์ข้อความ (`text/*`, JSON, XML, JavaScript)
+ถูกเก็บและเสิร์ฟพร้อม `charset=utf-8` ตั้งค่า `serverURL` เพื่อให้ได้ URL แบบเต็ม
 
 การจัดเก็บเริ่มต้นคือดิสก์ในเครื่อง (`upload.dir` ค่าเริ่มต้น `uploads/`) ซึ่งต้องใช้ filesystem
 ที่คงอยู่ถาวร บนโฮสต์แบบ serverless (Vercel, Netlify) และใน container ที่ไม่มี volume ให้ใช้ S3

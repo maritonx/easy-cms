@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { renderShell } from '@easy-cms/admin'
+import { renderShell, STRICT_TRANSPORT_SECURITY } from '@easy-cms/admin'
 import { defineEventHandler, getRequestURL, setResponseHeaders, setResponseStatus } from 'h3'
 import { basePath, headers, html, reload } from '#easy-cms-admin-shell'
 
@@ -11,6 +11,8 @@ import { basePath, headers, html, reload } from '#easy-cms-admin-shell'
 export default defineEventHandler((event) => {
   const url = getRequestURL(event)
   setResponseHeaders(event, headers)
+  if (process.env.NODE_ENV === 'production')
+    setResponseHeaders(event, { 'strict-transport-security': STRICT_TRANSPORT_SECURITY })
   if (event.method !== 'GET' && event.method !== 'HEAD') {
     setResponseStatus(event, 405)
     setResponseHeaders(event, { allow: 'GET, HEAD' })

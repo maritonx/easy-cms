@@ -31,6 +31,16 @@ Invalid Easy CMS config (1 problem):
   takes `{ user }` for the same.
 - **Shop: `POST <api>/shop/confirm` needs the payment's customer or the guest's cart** (`cart:
   { id, secret }`). The client sends it; custom pages that call the endpoint themselves must too.
+- **Cookies are named `__Host-ecms-session`, `__Host-ecms-csrf` and `__Host-ecms-sso` over
+  HTTPS.** Cookies under the old names are still read, so nobody is signed out.
+- **Behind your own reverse proxy that changes the `Host`, enable trust-proxy** (`trustProxy`,
+  or `--trust-proxy` for standalone). The CSRF origin check uses `X-Forwarded-Host` only then, so
+  without it admin writes may fail with `403`. Vercel and Netlify need nothing. See
+  [Security](./security#checklist-before-going-live).
+- **In production the API and the admin send `Strict-Transport-Security`** (HSTS, one year).
+  Redirect HTTP to HTTPS at your proxy or host.
+- **The SEO plugin's sitemap and `robots.txt` use `serverURL`** for their own addresses instead of
+  the request's host. Set `serverURL` in production.
 
 ## 0.62
 

@@ -187,7 +187,8 @@ docker compose up -d --build
 Put a reverse proxy in front for HTTPS: Caddy, Traefik, nginx, or your platform's. It sets
 `X-Forwarded-For`, so trust it: `--trust-proxy` (standalone, already in the image above) or
 `trustProxy: true` (Next.js route handlers, Nuxt module). Then set `serverURL` to the public
-address. A Caddy setup is in [VPS](./vps#https-with-caddy).
+address. The proxy should also redirect HTTP to HTTPS. A Caddy setup is in
+[VPS](./vps#https-with-caddy).
 
 ## Backups
 

@@ -159,7 +159,7 @@ npx easy-cms serve --watch          # ตอนพัฒนา: โหลดใ�
 | `--port <n>` | port ค่าเริ่มต้นคือ `PORT` แล้วตามด้วย 4000 |
 | `--host <host>` | interface ที่รับ request ค่าเริ่มต้นคือ `HOST` แล้วตามด้วยทุก interface |
 | `--watch` | โหลดใหม่เมื่อ config หรือไฟล์ที่มัน import เปลี่ยน |
-| `--trust-proxy` | เชื่อ `X-Forwarded-For` และ `X-Forwarded-Proto` จาก reverse proxy ของคุณ |
+| `--trust-proxy` | เชื่อ `X-Forwarded-For`, `X-Forwarded-Proto` และ `X-Forwarded-Host` (สำหรับการตรวจ origin ของ CSRF) จาก reverse proxy ของคุณ |
 
 บน production (`NODE_ENV=production`) ถ้ามี migration ค้าง server จะไม่เริ่มทำงาน
 ดู [Standalone server](./standalone)

@@ -221,6 +221,8 @@ export async function GET(request: Request) {
 
 ที่อยู่ต้องเป็น URL เต็ม ให้ตั้ง `admin.siteURL` ใน config (หรือส่ง `{ siteURL }`) หรือให้ `generateURL` คืน URL เต็ม
 plugin ยังเสิร์ฟ sitemap ที่ `<routes.api>/seo/sitemap.xml` และ[standalone server](./standalone)เสิร์ฟที่ `/sitemap.xml`
+ที่อยู่ที่สร้างเอง (เช่น หน้าต่างๆ ของ sitemap index) จะมาจาก `serverURL` ถ้าตั้งไว้ ไม่ใช่จาก host ของ request
+เพราะ client ส่ง `Host` อะไรมาก็ได้ และคำตอบเหล่านี้ถูก cache ไว้ จึงควรตั้ง `serverURL` บน production
 
 ## robots.txt {#robots-txt}
 
@@ -274,6 +276,7 @@ export function GET() {
 :::
 
 standalone server เสิร์ฟ `/robots.txt` เอง ปรับได้ด้วยตัวเลือก `robots` ของ plugin หรือปิดด้วย `robots: false`
+บรรทัด `Sitemap:` ใช้ `serverURL` ถ้าตั้งไว้ เหมือนกับ sitemap
 
 ## ข้อมูลแบบมีโครงสร้าง (JSON-LD) {#structured-data-json-ld}
 

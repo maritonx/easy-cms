@@ -136,9 +136,18 @@ reverse_proxy localhost:3000
 sudo systemctl reload caddy
 ```
 
-Caddy ส่ง `X-Forwarded-For` และ `X-Forwarded-Proto` จึงต้องเชื่อมัน: `trustProxy: true` ใน route handler ของ
-Next.js หรือ module ของ Nuxt (`--trust-proxy` สำหรับ standalone server ซึ่งอยู่ใน unit ข้างบนแล้ว) และตั้ง
-`serverURL: 'https://cms.example.com'` ใน config ถ้าใช้ nginx ให้ proxy ไปที่ port เดียวกันและตั้ง header เหล่านั้นเอง
+Caddy redirect HTTP ไป HTTPS ให้เอง และส่ง `X-Forwarded-For`, `X-Forwarded-Proto` และ `X-Forwarded-Host`
+จึงต้องเชื่อมัน: `trustProxy: true` ใน route handler ของ Next.js หรือ module ของ Nuxt (`--trust-proxy` สำหรับ
+standalone server ซึ่งอยู่ใน unit ข้างบนแล้ว) และตั้ง `serverURL: 'https://cms.example.com'` ใน config
+ถ้าใช้ nginx ให้ proxy ไปที่ port เดียวกันและตั้ง header เหล่านั้นเอง แล้ว redirect HTTP ไป HTTPS ด้วย server block บน port 80:
+
+```nginx
+server {
+  listen 80;
+  server_name cms.example.com;
+  return 301 https://$host$request_uri;
+}
+```
 
 ## สำรองข้อมูล {#backups}
 

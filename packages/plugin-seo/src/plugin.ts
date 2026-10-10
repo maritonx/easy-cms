@@ -400,6 +400,9 @@ export function seoPlugin<const C extends string = never, const G extends string
         },
       })
     const api = config.routes?.api ?? '/api/cms'
+    // Addresses in the sitemap and robots.txt come from the config: the request's host could be
+    // anything a client sends, and these answers are cached. The request's origin only without.
+    const serverOrigin = (url: URL) => config.serverURL?.replace(/\/+$/, '') || url.origin
     const sitemapHandler = (base: (origin: string) => string): Endpoint['handler'] =>
       Object.assign(
         async ({ url, cms, context }: Parameters<Endpoint['handler']>[0]) => {
@@ -409,7 +412,7 @@ export function seoPlugin<const C extends string = never, const G extends string
               siteURL: site,
               context,
               page: url.searchParams.get('page'),
-              base: base(url.origin),
+              base: base(serverOrigin(url)),
             }),
           )
         },
@@ -436,9 +439,12 @@ export function seoPlugin<const C extends string = never, const G extends string
         method: 'get',
         root: true,
         handler: ({ url }) =>
-          new Response(robotsTxt({ sitemap: `${url.origin}/sitemap.xml`, ...robots, config }), {
-            headers: { 'content-type': 'text/plain; charset=utf-8' },
-          }),
+          new Response(
+            robotsTxt({ sitemap: `${serverOrigin(url)}/sitemap.xml`, ...robots, config }),
+            {
+              headers: { 'content-type': 'text/plain; charset=utf-8' },
+            },
+          ),
       })
     }
 

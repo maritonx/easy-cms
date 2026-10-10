@@ -26,12 +26,15 @@ type Handler = (request: Request, clientIp?: string) => Promise<Response>
  * admin at `admin.path`, `/healthz` for load balancers, and endpoints marked `root` (such as a
  * plugin's `/robots.txt`). `/` redirects to the admin.
  */
-export function createStandaloneHandler<C extends Config>(cms: EasyCMS<C>): Handler {
+export function createStandaloneHandler<C extends Config>(
+  cms: EasyCMS<C>,
+  options: { trustProxy?: boolean } = {},
+): Handler {
   const config = cms.config
   const adminPath = `/${config.admin.path.replace(/^\/+|\/+$/g, '')}`
   const clientIps = new WeakMap<Request, string | undefined>()
   const getClientIp = (request: Request) => clientIps.get(request)
-  const api = createRestHandler(cms, { getClientIp })
+  const api = createRestHandler(cms, { getClientIp, trustProxy: options.trustProxy === true })
   const rootEndpoints = createRootEndpointHandler(cms, { getClientIp })
   const admin = adminHandlerFor(config, {})
   const under = (path: string, base: string) => path === base || path.startsWith(`${base}/`)
@@ -132,7 +135,7 @@ export async function startServer(options: StartOptions): Promise<RunningServer>
   const { logger, cwd } = options
   const trustProxy = options.trustProxy ?? false
   let cms = await createEasyCMS(await options.loadConfig(), { cwd, logger })
-  let handler = createStandaloneHandler(cms)
+  let handler = createStandaloneHandler(cms, { trustProxy })
 
   const server = createServer(async (req, res) => {
     try {
@@ -160,7 +163,7 @@ export async function startServer(options: StartOptions): Promise<RunningServer>
           const next = await createEasyCMS(await options.loadConfig(), { cwd, logger })
           const previous = cms
           cms = next
-          handler = createStandaloneHandler(next)
+          handler = createStandaloneHandler(next, { trustProxy })
           await previous.destroy()
           logger.info('Config reloaded.')
         } catch (error) {

@@ -230,3 +230,17 @@ export function sizeKey(filename: string, size: string): string {
 
 /** What a private file name may look like in a URL. */
 export const PRIVATE_KEY = /^[\p{L}\p{M}\p{N}-]+\.private(-[\p{L}\p{N}_-]+)?\.[a-z0-9]+$/u
+
+/**
+ * A content type with `charset=utf-8` for text (`text/*`, JSON, XML, JavaScript), so browsers
+ * don't guess the encoding of an uploaded file. Others as they are.
+ */
+export function withCharset(type: string): string {
+  if (/;\s*charset=/i.test(type)) return type
+  const base = type.split(';')[0]?.trim().toLowerCase() ?? ''
+  const text =
+    base.startsWith('text/') ||
+    /^application\/(json|xml|javascript|ecmascript)$/.test(base) ||
+    /\+(json|xml)$/.test(base)
+  return text ? `${type}; charset=utf-8` : type
+}

@@ -139,10 +139,19 @@ reverse_proxy localhost:3000
 sudo systemctl reload caddy
 ```
 
-Caddy sends `X-Forwarded-For` and `X-Forwarded-Proto`, so trust it: `trustProxy: true` in the
-Next.js route handlers or the Nuxt module (`--trust-proxy` for the standalone server, already in
-the unit above). Set `serverURL: 'https://cms.example.com'` in the config. With nginx, proxy to the
-same port and set those headers yourself.
+Caddy redirects HTTP to HTTPS by itself. It sends `X-Forwarded-For`, `X-Forwarded-Proto` and
+`X-Forwarded-Host`, so trust it: `trustProxy: true` in the Next.js route handlers or the Nuxt
+module (`--trust-proxy` for the standalone server, already in the unit above). Set
+`serverURL: 'https://cms.example.com'` in the config. With nginx, proxy to the same port and set
+those headers yourself, and redirect HTTP to HTTPS with a server block on port 80:
+
+```nginx
+server {
+  listen 80;
+  server_name cms.example.com;
+  return 301 https://$host$request_uri;
+}
+```
 
 ## Backups
 

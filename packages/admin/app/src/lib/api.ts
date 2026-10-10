@@ -26,12 +26,14 @@ export class ApiError extends Error {
   }
 }
 
+/** A cookie the server set; over HTTPS its name has the `__Host-` prefix. */
 function cookie(name: string): string | undefined {
+  const found = new Map<string, string>()
   for (const part of document.cookie.split(';')) {
     const [key, ...rest] = part.trim().split('=')
-    if (key === name) return decodeURIComponent(rest.join('='))
+    if (key) found.set(key, decodeURIComponent(rest.join('=')))
   }
-  return undefined
+  return found.get(`__Host-${name}`) ?? found.get(name)
 }
 
 /** Called when the API says the session is gone, so the app can go to the login page. */

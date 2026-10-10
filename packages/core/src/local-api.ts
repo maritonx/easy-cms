@@ -79,6 +79,7 @@ import {
   sniffMimeType,
   storageKey,
   typeFromName,
+  withCharset,
   withPrivacy,
 } from './media.js'
 import { MediaFolders, PUBLIC_FILES } from './media-folders.js'
@@ -514,7 +515,7 @@ export class EasyCMS<C extends Config = Config> {
     const filename = withPrivacy(storageKey(file.name, mimeType, random), isPrivate)
     const stored: string[] = []
     try {
-      await storage.put(filename, file.data, { contentType: mimeType })
+      await storage.put(filename, file.data, { contentType: withCharset(mimeType) })
       stored.push(filename)
       const dimensions = imageDimensions(file.data, mimeType)
       const sizes = await this.resizeImage(
@@ -913,7 +914,7 @@ export class EasyCMS<C extends Config = Config> {
     const copy = async (source: string, target: string) => {
       const file = await from.get(source)
       // A copy that is gone already has nothing to move.
-      if (file) await to.put(target, file.body, { contentType })
+      if (file) await to.put(target, file.body, { contentType: withCharset(contentType) })
     }
     await copy(String(doc.filename), filename)
     const sizes: Record<string, Record<string, unknown>> = {}

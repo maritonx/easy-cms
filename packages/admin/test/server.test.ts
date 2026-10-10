@@ -28,6 +28,17 @@ describe('createAdminHandler', () => {
     }
   })
 
+  it('sends HSTS in production only', async () => {
+    expect((await get('/cms/')).headers.get('strict-transport-security')).toBeNull()
+    const before = process.env.NODE_ENV
+    process.env.NODE_ENV = 'production'
+    try {
+      expect((await get('/cms/')).headers.get('strict-transport-security')).toBe('max-age=31536000')
+    } finally {
+      process.env.NODE_ENV = before
+    }
+  })
+
   it('redirects the bare base path to a trailing slash', async () => {
     const res = await get('/cms?x=1')
     expect(res.status).toBe(308)

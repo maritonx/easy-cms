@@ -69,6 +69,12 @@ export const SECURITY_HEADERS: Readonly<Record<string, string>> = {
 /** The SPA's HTML entry inside the app directory. */
 export const SHELL_FILE = 'shell.html'
 
+/**
+ * HSTS, sent in production: browsers then reach the site over HTTPS only, for a year. Browsers
+ * ignore it on plain HTTP, and it leaves subdomains alone.
+ */
+export const STRICT_TRANSPORT_SECURITY = 'max-age=31536000'
+
 const escapeAttr = (value: string) =>
   value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
 const trimSlashes = (path: string) => `/${path.replace(/^\/+|\/+$/g, '')}`
@@ -139,6 +145,8 @@ export function createAdminHandler(options: AdminHandlerOptions = {}): AdminHand
   return async (request) => {
     const url = new URL(request.url)
     const headers = new Headers(SECURITY_HEADERS)
+    if (process.env.NODE_ENV === 'production')
+      headers.set('strict-transport-security', STRICT_TRANSPORT_SECURITY)
     if (request.method !== 'GET' && request.method !== 'HEAD') {
       headers.set('allow', 'GET, HEAD')
       return new Response('Method not allowed', { status: 405, headers })

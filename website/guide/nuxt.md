@@ -46,7 +46,7 @@ export default defineEventHandler(async (event) => {
 | Option | Default | |
 |---|---|---|
 | `configPath` | `easy-cms.config.ts` | Path to the Easy CMS config |
-| `trustProxy` | `false` | The client IP for login rate limiting from `X-Forwarded-For`, its last address (the one your proxy added). Only behind a proxy you control; on Vercel and Netlify the IP is found without it. |
+| `trustProxy` | `false` | The client IP for login rate limiting from `X-Forwarded-For`, its last address (the one your proxy added). The CSRF origin check then also trusts `X-Forwarded-Host`. Only behind a proxy you control; Vercel and Netlify are recognized without it. |
 
 ## Notes
 
