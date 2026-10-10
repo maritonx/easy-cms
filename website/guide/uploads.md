@@ -282,6 +282,8 @@ From code: `cms.createUpload({ name, size }, fields, options)` and `cms.complete
 - **S3, R2, MinIO:** the bucket needs CORS for the admin's origin, allowing `PUT` with a
   `content-type` header.
 - **Vercel Blob:** nothing to set up.
+- The admin's Content-Security-Policy lets the browser send files to the storage's upload
+  address (S3's bucket, `vercel.com` for Blob) and nowhere else.
 - **Netlify Blobs and the local disk** take files through the server: on Netlify, up to about
   6 MB.
 
@@ -426,8 +428,10 @@ Outside Netlify's runtime (a script, another host), pass `siteID` and a personal
 
 Implement `StorageAdapter` (`put`, `get`, `delete`, optional `url` and `init`) and pass it as
 `upload.storage`. For [large files](#large-files) straight from the browser, add `uploadURL(key,
-{ contentType, size, expiresIn })` (where and how to send the file) and `getStart(key, bytes)` (the
-start of a file and its size, without reading it all).
+{ contentType, size, expiresIn })` (where and how to send the file), `getStart(key, bytes)` (the
+start of a file and its size, without reading it all) and `uploadOrigins` (the origins `uploadURL`
+sends browsers to, which the admin allows in its Content-Security-Policy). Send only headers the
+storage's CORS allows.
 
 ## Next steps
 

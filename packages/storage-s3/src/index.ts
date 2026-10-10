@@ -67,6 +67,12 @@ export function s3Storage(options: S3StorageOptions): StorageAdapter {
   return {
     name: 's3',
     apiVersion: 1,
+    // Where browsers send large files (`uploadURL`); the region may come from the environment.
+    get uploadOrigins() {
+      const env = process.env
+      const region = options.region ?? env.AWS_REGION ?? env.AWS_DEFAULT_REGION ?? 'us-east-1'
+      return [new URL(bucketURL(options, region)('x')).origin]
+    },
 
     init() {
       const env = process.env

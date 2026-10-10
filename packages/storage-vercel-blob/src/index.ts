@@ -58,6 +58,8 @@ export function vercelBlobStorage(
   return {
     name: 'vercel-blob',
     apiVersion: 1,
+    // Large files go from the browser to the Blob API (`uploadURL`).
+    uploadOrigins: [new URL(API).origin],
     async put(key, data, { contentType }) {
       await client.put(`${prefix}${key}`, Buffer.from(data), {
         access,
@@ -94,7 +96,8 @@ export function vercelBlobStorage(
           'x-api-version': API_VERSION,
           'x-vercel-blob-access': access,
           'x-content-type': contentType,
-          'x-add-random-suffix': '0',
+          // No `x-add-random-suffix`: browsers may not send it (the API's CORS doesn't allow it),
+          // and the client token already says `addRandomSuffix: false`.
         },
       }
     },

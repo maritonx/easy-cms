@@ -165,7 +165,9 @@ declare module '${SERVER}' {
     }
     const shell = renderShell(readFileSync(shellFile, 'utf8'), shellOptions)
     // In development the shell is read on each request, so a rebuilt admin is picked up.
-    nitro.virtual[ADMIN_SHELL] = `export const basePath = ${JSON.stringify(adminPath)}
+    nitro.virtual[ADMIN_SHELL] = `import config from ${config}
+export { config }
+export const basePath = ${JSON.stringify(adminPath)}
 export const html = ${JSON.stringify(shell)}
 export const headers = ${JSON.stringify(SECURITY_HEADERS)}
 export const hsts = ${JSON.stringify(STRICT_TRANSPORT_SECURITY)}

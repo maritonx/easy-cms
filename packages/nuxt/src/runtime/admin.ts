@@ -2,16 +2,33 @@ import { readFileSync } from 'node:fs'
 // `@easy-cms/admin` only for development (`reload`): in production the bundle leaves it out.
 import { renderShell } from '@easy-cms/admin'
 import { defineEventHandler, getRequestURL, setResponseHeaders, setResponseStatus } from 'h3'
-import { basePath, headers, hsts, html, reload } from '#easy-cms-admin-shell'
+import { basePath, config, headers, hsts, html, reload } from '#easy-cms-admin-shell'
 
 /**
  * Serves the admin SPA's HTML for every route under the admin path.
  * Assets are served by Nitro as public assets; a request that reaches this
  * handler for /assets/* means the file does not exist.
  */
+// The storages' upload origins (direct uploads of large files) join `connect-src`, as
+// `securityHeaders()` of @easy-cms/admin does; read when the server starts (env-dependent).
+const origins = [config.upload?.storage, config.upload?.privateStorage]
+  .flatMap((storage) => storage?.uploadOrigins ?? [])
+  .filter((origin) => /^https?:\/\/[^\s;,'"]+$/.test(origin))
+const csp = headers['content-security-policy']
+const allHeaders =
+  origins.length && csp
+    ? {
+        ...headers,
+        'content-security-policy': csp.replace(
+          "connect-src 'self'",
+          `connect-src 'self' ${[...new Set(origins)].join(' ')}`,
+        ),
+      }
+    : headers
+
 export default defineEventHandler((event) => {
   const url = getRequestURL(event)
-  setResponseHeaders(event, headers)
+  setResponseHeaders(event, allHeaders)
   if (process.env.NODE_ENV === 'production')
     setResponseHeaders(event, { 'strict-transport-security': hsts })
   if (event.method !== 'GET' && event.method !== 'HEAD') {

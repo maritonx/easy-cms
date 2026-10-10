@@ -22,6 +22,11 @@ export interface StorageAdapter {
   get(key: string): Promise<StoredFile | null>
   delete(key: string): Promise<void>
   /**
+   * Origins browsers send files to with `uploadURL` (direct uploads of large files), e.g.
+   * `https://vercel.com`: the admin allows them in its Content-Security-Policy (`connect-src`).
+   */
+  readonly uploadOrigins?: readonly string[]
+  /**
    * Public URL of a file, or `undefined` to serve it through the REST API
    * (`<api>/media/file/<key>`), as the local adapter does.
    */

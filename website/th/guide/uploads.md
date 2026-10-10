@@ -259,6 +259,8 @@ admin จะส่งไฟล์ที่ใหญ่กว่า 4 MB จา�
 
 - **S3, R2, MinIO:** bucket ต้องตั้ง CORS ให้ origin ของ admin ใช้ `PUT` พร้อม header `content-type` ได้
 - **Vercel Blob:** ไม่ต้องตั้งอะไร
+- Content-Security-Policy ของหน้า admin อนุญาตให้ browser ส่งไฟล์ไปที่อยู่สำหรับอัปโหลดของ storage (bucket ของ S3,
+  `vercel.com` สำหรับ Blob) และไม่อนุญาตที่อื่น
 - **Netlify Blobs และดิสก์ในเครื่อง** รับไฟล์ผ่าน server บน Netlify ได้ราว 6 MB
 
 ไฟล์ที่ส่งแล้วแต่ไม่ได้ complete (ปิดหน้าไประหว่างนั้น) จะค้างอยู่ใน storage โดยไม่มีที่ไหนลิงก์ถึง บน S3 ตั้ง lifecycle rule ลบได้
@@ -398,7 +400,8 @@ upload: { storage: netlifyBlobsStorage() }, // เสิร์ฟผ่าน <a
 
 implement `StorageAdapter` (`put`, `get`, `delete` และ `url` กับ `init` ที่ไม่บังคับ) แล้วส่งเป็น
 `upload.storage` สำหรับ[ไฟล์ใหญ่](#large-files)ที่ส่งตรงจาก browser ให้เพิ่ม `uploadURL(key, { contentType, size, expiresIn })` (ส่งไฟล์ไปที่ไหน
-อย่างไร) และ `getStart(key, bytes)` (ส่วนต้นของไฟล์และขนาด โดยไม่ต้องอ่านทั้งไฟล์)
+อย่างไร), `getStart(key, bytes)` (ส่วนต้นของไฟล์และขนาด โดยไม่ต้องอ่านทั้งไฟล์) และ `uploadOrigins` (origin ที่ `uploadURL`
+ส่ง browser ไป ซึ่งหน้า admin จะอนุญาตใน Content-Security-Policy) ส่งเฉพาะ header ที่ CORS ของ storage อนุญาต
 
 ## ขั้นต่อไป {#next-steps}
 

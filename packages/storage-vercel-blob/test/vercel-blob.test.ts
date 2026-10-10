@@ -66,12 +66,16 @@ describe('vercelBlobStorage', () => {
       expiresIn: 900,
     })
     expect(upload?.url).toBe('https://vercel.com/api/blob/?pathname=media%2Fbig-1a2b.mp4')
+    // The admin's CSP lets the browser send it there.
+    expect(storage.uploadOrigins).toEqual(['https://vercel.com'])
     expect(upload?.headers).toMatchObject({
       authorization: 'Bearer vercel_blob_client_x',
       'x-vercel-blob-access': 'public',
       'x-content-type': 'video/mp4',
-      'x-add-random-suffix': '0',
     })
+    // Only headers the Blob API's CORS lets browsers send (checked against its preflight).
+    const allowed = ['authorization', 'x-api-version', 'x-vercel-blob-access', 'x-content-type']
+    expect(Object.keys(upload?.headers ?? {}).filter((h) => !allowed.includes(h))).toEqual([])
     expect(asked[0]).toMatchObject({
       token: TOKEN,
       pathname: 'media/big-1a2b.mp4',

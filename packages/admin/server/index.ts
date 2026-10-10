@@ -20,6 +20,11 @@ export interface AdminHandlerOptions {
    * slashes (Next.js); the app works at either URL because of its `<base href>`.
    */
   readonly trailingSlashRedirect?: boolean
+  /**
+   * More origins the admin may send requests to, besides its own: where the storage takes
+   * large files directly (`uploadOrigins` of the storage adapters). `adminHandlerFor` fills it in.
+   */
+  readonly connectSrc?: readonly string[]
 }
 
 export type AdminHandler = (request: Request) => Promise<Response>
@@ -66,6 +71,22 @@ export const SECURITY_HEADERS: Readonly<Record<string, string>> = {
   'x-content-type-options': 'nosniff',
 }
 
+/** `SECURITY_HEADERS`, allowing requests to more origins too, e.g. a storage's upload API. */
+export function securityHeaders(connectSrc: readonly string[] = []): Record<string, string> {
+  // Origins only: nothing that could end the directive or add another.
+  const extra = [...new Set(connectSrc)].filter((origin) => /^https?:\/\/[^\s;,'"]+$/.test(origin))
+  const csp = SECURITY_HEADERS['content-security-policy'] as string
+  return extra.length
+    ? {
+        ...SECURITY_HEADERS,
+        'content-security-policy': csp.replace(
+          "connect-src 'self'",
+          `connect-src 'self' ${extra.join(' ')}`,
+        ),
+      }
+    : { ...SECURITY_HEADERS }
+}
+
 /** The SPA's HTML entry inside the app directory. */
 export const SHELL_FILE = 'shell.html'
 
@@ -108,6 +129,11 @@ export interface AdminConfigLike {
     readonly siteURL: string
   }
   readonly routes: { readonly api: string }
+  /** Storages whose `uploadOrigins` the admin may send large files to. */
+  readonly upload?: {
+    readonly storage?: { readonly uploadOrigins?: readonly string[] } | undefined
+    readonly privateStorage?: { readonly uploadOrigins?: readonly string[] } | undefined
+  }
 }
 
 /**
@@ -124,6 +150,10 @@ export function adminHandlerFor(
     locale: config.admin.locale,
     brand: config.admin.brand,
     siteURL: config.admin.siteURL,
+    connectSrc: [
+      ...(config.upload?.storage?.uploadOrigins ?? []),
+      ...(config.upload?.privateStorage?.uploadOrigins ?? []),
+    ],
     ...overrides,
   })
 }
@@ -144,7 +174,7 @@ export function createAdminHandler(options: AdminHandlerOptions = {}): AdminHand
 
   return async (request) => {
     const url = new URL(request.url)
-    const headers = new Headers(SECURITY_HEADERS)
+    const headers = new Headers(securityHeaders(options.connectSrc))
     if (process.env.NODE_ENV === 'production')
       headers.set('strict-transport-security', STRICT_TRANSPORT_SECURITY)
     if (request.method !== 'GET' && request.method !== 'HEAD') {

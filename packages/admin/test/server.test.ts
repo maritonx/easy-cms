@@ -1,7 +1,12 @@
 // @vitest-environment node
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { adminHandlerFor, createAdminHandler, renderShell } from '../server/index.js'
+import {
+  adminHandlerFor,
+  createAdminHandler,
+  renderShell,
+  securityHeaders,
+} from '../server/index.js'
 
 const appDir = fileURLToPath(new URL('./fixtures/app', import.meta.url))
 const handler = createAdminHandler({
@@ -61,6 +66,30 @@ describe('createAdminHandler', () => {
     expect(res.headers.get('x-frame-options')).toBe('DENY')
     expect(res.headers.get('referrer-policy')).toBe('same-origin')
     expect(res.headers.get('x-content-type-options')).toBe('nosniff')
+  })
+
+  it("lets the admin send large files to the storage's upload origins", async () => {
+    const csp = (h: Record<string, string>) => h['content-security-policy'] ?? ''
+    expect(csp(securityHeaders())).toContain("connect-src 'self';")
+    expect(csp(securityHeaders(['https://vercel.com', 'https://vercel.com']))).toContain(
+      "connect-src 'self' https://vercel.com;",
+    )
+    // Nothing that could end the directive.
+    expect(csp(securityHeaders(["https://x.test; script-src 'unsafe-inline'"]))).toContain(
+      "connect-src 'self';",
+    )
+    const handler = adminHandlerFor(
+      {
+        admin: { path: '/cms', locale: 'en', brand: {}, siteURL: '' },
+        routes: { api: '/api/cms' },
+        upload: { storage: { uploadOrigins: ['https://bucket.s3.eu-central-1.amazonaws.com'] } },
+      },
+      { appDir },
+    )
+    const res = await handler(new Request('http://x.test/cms/'))
+    expect(res.headers.get('content-security-policy')).toContain(
+      "connect-src 'self' https://bucket.s3.eu-central-1.amazonaws.com;",
+    )
   })
 
   it('never serves files outside the app directory', async () => {

@@ -120,6 +120,15 @@ describe('s3Storage', () => {
     expect(start).toEqual({ body: new Uint8Array([37, 80, 68, 70]), size: 123456 })
   })
 
+  it('names the origin browsers send large files to', () => {
+    expect(s3Storage({ bucket: 'b', region: 'eu-central-1' }).uploadOrigins).toEqual([
+      'https://b.s3.eu-central-1.amazonaws.com',
+    ])
+    expect(s3Storage({ bucket: 'b', endpoint: 'http://localhost:9000' }).uploadOrigins).toEqual([
+      'http://localhost:9000',
+    ])
+  })
+
   it('serves through the API unless publicURL is set', () => {
     expect(s3Storage({ bucket: 'b' }).url?.('a.png')).toBeUndefined()
     const storage = s3Storage({ bucket: 'b', prefix: 'media', publicURL: 'https://cdn.test/' })
