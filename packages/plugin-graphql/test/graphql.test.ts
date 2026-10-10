@@ -528,6 +528,17 @@ describe('limits', () => {
     expect(introspection.errors).toBeUndefined()
   })
 
+  it('hides the schema in production unless introspection is on', async () => {
+    const before = process.env.NODE_ENV
+    process.env.NODE_ENV = 'production'
+    try {
+      const result = await gql('{ __schema { queryType { name } } }')
+      expect(result.errors?.[0]?.message).toMatch(/introspection/i)
+    } finally {
+      process.env.NODE_ENV = before
+    }
+  })
+
   it('stops at the most documents one request may load', async () => {
     const options = {
       schema: buildGraphQLSchema(cms.config),

@@ -26,7 +26,10 @@ export interface GraphQLPluginOptions extends SchemaOptions {
     /** Most documents one request loads, relationships included. Default 2000. */
     readonly documents?: number
   }
-  /** Let clients read the schema (`__schema`), as codegen and GraphiQL do. Default true. */
+  /**
+   * Let clients read the schema (`__schema`), as GraphiQL and codegen against the endpoint do.
+   * Default: outside production. `easy-cms generate:graphql` writes the schema for codegen anyway.
+   */
   readonly introspection?: boolean
   /**
    * GraphiQL for browsers that open the endpoint. Default: outside production
@@ -78,7 +81,7 @@ export function graphqlPlugin(options: GraphQLPluginOptions = {}): Plugin {
         schema: schemaOf(args.cms),
         depth: options.limits?.depth ?? DEFAULT_DEPTH,
         documents: options.limits?.documents ?? DEFAULT_DOCUMENTS,
-        introspection: options.introspection ?? true,
+        introspection: options.introspection ?? process.env.NODE_ENV !== 'production',
         graphiql: options.graphiql ?? process.env.NODE_ENV !== 'production',
       })
     const path = options.path ?? '/graphql'

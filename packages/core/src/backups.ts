@@ -1,3 +1,4 @@
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -13,6 +14,38 @@ import type { EasyCMS } from './local-api.js'
 import { diskStorage, type StorageAdapter } from './storage.js'
 
 const gzipAsync = promisify(gzip)
+
+/** Start of an encrypted backup file (`backups.encryptionKey`): magic, IV, ciphertext, tag. */
+const MAGIC = Buffer.from('ECMSBAK1')
+const IV_BYTES = 12
+const TAG_BYTES = 16
+
+const keyOf = (encryptionKey: string) => createHash('sha256').update(encryptionKey).digest()
+
+/** Encrypts a backup file with AES-256-GCM. */
+export function encryptBackup(data: Uint8Array, encryptionKey: string): Uint8Array {
+  const iv = randomBytes(IV_BYTES)
+  const cipher = createCipheriv('aes-256-gcm', keyOf(encryptionKey), iv)
+  const body = Buffer.concat([cipher.update(data), cipher.final()])
+  return new Uint8Array(Buffer.concat([MAGIC, iv, body, cipher.getAuthTag()]))
+}
+
+/** Decrypts a file from `encryptBackup`; throws for another key or a changed file. */
+export function decryptBackup(data: Uint8Array, encryptionKey: string): Uint8Array {
+  const buffer = Buffer.from(data)
+  if (buffer.length < MAGIC.length + IV_BYTES + TAG_BYTES || !buffer.subarray(0, 8).equals(MAGIC))
+    throw new EasyCMSError('Not an encrypted Easy CMS backup', 400)
+  const iv = buffer.subarray(MAGIC.length, MAGIC.length + IV_BYTES)
+  const tag = buffer.subarray(buffer.length - TAG_BYTES)
+  const body = buffer.subarray(MAGIC.length + IV_BYTES, buffer.length - TAG_BYTES)
+  const decipher = createDecipheriv('aes-256-gcm', keyOf(encryptionKey), iv)
+  decipher.setAuthTag(tag)
+  try {
+    return new Uint8Array(Buffer.concat([decipher.update(body), decipher.final()]))
+  } catch {
+    throw new EasyCMSError('The backup could not be decrypted: wrong key, or a changed file', 400)
+  }
+}
 
 export const DEFAULT_BACKUP_TIME = '03:00'
 export const DEFAULT_BACKUP_KEEP = 7
@@ -238,14 +271,18 @@ async function runBackup(cms: EasyCMS, record: RawDocument): Promise<void> {
   try {
     const file = join(dir, 'backup.db')
     await writeBackupFile(cms, file)
-    const data = new Uint8Array(await gzipAsync(await readFile(file)))
+    const encryptionKey = cms.config.backups?.encryptionKey
+    const gzipped = new Uint8Array(await gzipAsync(await readFile(file)))
+    const data = encryptionKey ? encryptBackup(gzipped, encryptionKey) : gzipped
     const storage = await backupStorage(cms)
-    const filename = filenameFor(cms, started)
+    const filename = `${filenameFor(cms, started)}${encryptionKey ? '.enc' : ''}`
     // Two backups in the same minute: keep both.
     const key = (await storage.get(filename))
-      ? filename.replace(/\.db\.gz$/, `-${row.id}.db.gz`)
+      ? filename.replace(/\.db\.gz(\.enc)?$/, `-${row.id}.db.gz$1`)
       : filename
-    await storage.put(key, data, { contentType: 'application/gzip' })
+    await storage.put(key, data, {
+      contentType: encryptionKey ? 'application/octet-stream' : 'application/gzip',
+    })
     // Older ones go first, so the list never shows more than `keep` finished backups.
     await pruneBackups(cms, 1)
     row = await update(cms, row, {
@@ -398,8 +435,20 @@ export async function downloadBackup(
   const file = await (await backupStorage(cms)).get(row.filename)
   if (!file)
     throw new EasyCMSError(`The file ${row.filename} is no longer in the backup storage`, 404)
+  let { filename } = row
+  let body = file.body
+  if (filename.endsWith('.enc')) {
+    const encryptionKey = cms.config.backups?.encryptionKey
+    if (!encryptionKey)
+      throw new EasyCMSError(
+        'This backup is encrypted: set backups.encryptionKey to download it',
+        400,
+      )
+    body = decryptBackup(body, encryptionKey)
+    filename = filename.slice(0, -'.enc'.length)
+  }
   await update(cms, row, { downloadedBy: by, downloadedAt: new Date().toISOString() })
-  return { filename: row.filename, body: file.body }
+  return { filename, body }
 }
 
 /** Deletes a backup and its file. */

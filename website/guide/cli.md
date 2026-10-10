@@ -52,6 +52,7 @@ npx easy-cms <command> [--config <file>] [--cwd <dir>]
 | [`admin:create`](#admin-create) | Create a user. |
 | [`generate:types`](#generate-types) | Write TypeScript types for other apps. |
 | [`backup <file>`](#backup) | Copy the database to a SQLite file while the CMS runs. |
+| [`backup:decrypt <file>`](#backup-decrypt) | Decrypt a backup made with `backups.encryptionKey`. |
 | [`copy --from <config>`](#copy) | Copy all content into another database, e.g. SQLite to Postgres. |
 | [`jobs:run`](#jobs-run) | Run due scheduled jobs and webhook retries once. |
 | [`serve`](#serve) | Run the CMS as its own server. |
@@ -125,6 +126,16 @@ snapshot; a name ending in `.gz` is compressed, like the backups made from the a
 must not exist yet. Postgres needs `backups: { sqlite }` in the config (or use `pg_dump`).
 Uploads are not included: back up the uploads folder or bucket separately. See
 [Backups](./backups).
+
+### backup:decrypt
+
+```bash [pm]
+npx easy-cms backup:decrypt my-site-2026-10-04-0300.db.gz.enc [--out <file>]
+```
+
+Decrypts a backup made with `backups.encryptionKey` (a `.db.gz.enc` file, e.g. copied from the
+backup bucket) into a `.db.gz` file, with the key from the config. The database isn't opened.
+Without `--out`, the file is written next to it without `.enc`; it must not exist yet.
 
 ### copy
 

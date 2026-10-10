@@ -173,7 +173,7 @@ GraphQL ให้ client ขอได้มากใน request เดียว 
 | `collections` | ทั้งหมด | collection ที่อยู่ใน schema ตาม slug เช่น `['posts', 'categories']` |
 | `globals` | ทั้งหมด | global ที่อยู่ใน schema ตาม slug |
 | `limits` | `{ depth: 7, documents: 2000 }` | |
-| `introspection` | `true` | ให้ client อ่าน schema ได้ อย่างที่ codegen และ GraphiQL ใช้ |
+| `introspection` | นอก production | ให้ client อ่าน schema ได้ อย่างที่ GraphiQL และ codegen ที่อ่านจาก endpoint ใช้ |
 | `graphiql` | นอก production | แสดง GraphiQL ให้ browser |
 | `extend` | — | query, mutation และ field ของคุณเอง |
 
@@ -220,7 +220,8 @@ npx easy-cms generate:graphql            # schema.graphql
 npx easy-cms generate:graphql web/schema.graphql
 ```
 
-คำสั่งนี้เปิดฐานข้อมูลเหมือนคำสั่งอื่น codegen อ่าน schema จาก endpoint ที่รันอยู่ก็ได้
+คำสั่งนี้เปิดฐานข้อมูลเหมือนคำสั่งอื่น และใช้ได้ไม่ว่าจะเปิด `introspection` หรือไม่ codegen อ่าน schema จาก endpoint ที่รันอยู่ก็ได้
+เมื่ออยู่นอก production หรือตั้ง `introspection: true`
 
 ถ้าจะให้บริการ schema จาก GraphQL server ของคุณเอง (Apollo Server, Yoga, gateway) ให้สร้าง schema แล้วให้ context ต่อ request:
 

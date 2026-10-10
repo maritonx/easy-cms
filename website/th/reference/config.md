@@ -110,7 +110,8 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `at` | `string` | `03:00` | เวลา `HH:MM` ตามเขตเวลาของ server |
 | `keep` | `number` | `7` | จำนวน backup ที่สำเร็จที่จะเก็บ ชุดที่เก่ากว่าจะถูกลบ |
 | `dir` | `string` | `backups` | โฟลเดอร์ของที่เก็บในเครื่อง ไม่เปิดเป็น URL สาธารณะ |
-| `storage` | `StorageAdapter` | ดิสก์ในเครื่อง | เช่น `s3Storage()` กับ bucket ส่วนตัว |
+| `storage` | `StorageAdapter` | ดิสก์ในเครื่อง | เช่น `s3Storage()` กับ bucket ส่วนตัว ถ้าให้ URL สาธารณะจะมีคำเตือน |
+| `encryptionKey` | `string` | — | เข้ารหัสไฟล์ backup (AES-256-GCM) อย่างน้อย 32 ตัวอักษร เช่น `process.env.EASY_CMS_BACKUP_KEY` [Backup](/th/guide/backups#from-the-admin) |
 | `sqlite` | `(options) => DatabaseAdapter` | — | เฉพาะ Postgres: `sqlite` จาก `@easy-cms/db-sqlite` ใช้เขียนไฟล์ backup [Backup](/th/guide/backups#from-the-admin) |
 
 <!-- api: AuditConfig -->

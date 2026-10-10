@@ -31,6 +31,8 @@ const BASE = 'http://cms.test/api/cms'
 async function setup(
   options: Parameters<typeof formBuilderPlugin>[0] = {},
   extra: Partial<Config> = {},
+  /** The client IP the adapter gives; `null` when it can't tell. */
+  ip: string | null = '203.0.113.9',
 ) {
   const email = consoleEmail({ from: 'Site <site@x.test>', log: () => {} })
   const config = defineConfig({
@@ -48,7 +50,7 @@ async function setup(
     logger: silentLogger,
     scheduler: false,
   })
-  const handle = createRestHandler(cms, { getClientIp: () => '203.0.113.9' })
+  const handle = createRestHandler(cms, { getClientIp: () => ip ?? undefined })
   const form = await cms.create('forms', {
     title: 'Contact',
     status: 'published',
@@ -224,6 +226,21 @@ describe('forms', () => {
     expect(
       ((await response.json()) as { errors: { field: string }[] }).errors.map((e) => e.field),
     ).toEqual(['name', 'email', 'topic', 'agree'])
+  })
+
+  it('limits all visitors together when the client IP is unknown', async () => {
+    const { cms, load, submit, good } = await setup(
+      { rateLimit: { max: 1, window: 600 } },
+      {},
+      null,
+    )
+    try {
+      const { token } = await load()
+      for (let i = 0; i < 10; i++) expect((await submit({ data: good, token })).status).toBe(200)
+      expect((await submit({ data: good, token })).status).toBe(429)
+    } finally {
+      await cms.destroy()
+    }
   })
 
   it('catches bots without telling them, and limits submissions per visitor', async () => {

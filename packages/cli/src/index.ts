@@ -14,7 +14,12 @@ import {
   ValidationError,
   warnDeprecated,
 } from '@easy-cms/core'
-import { copyDatabase, generateTypes, writeBackupFile } from '@easy-cms/core/internal'
+import {
+  copyDatabase,
+  decryptBackup,
+  generateTypes,
+  writeBackupFile,
+} from '@easy-cms/core/internal'
 import { startServer } from './serve.js'
 
 export interface IO {
@@ -64,6 +69,7 @@ Commands:
   serve                   Run the CMS as its own server (admin + REST API)
   jobs:run                Run due scheduled publishes, jobs, webhook and email retries (also: run-scheduled)
   backup <file>           Copy the database to a SQLite file while the CMS runs
+  backup:decrypt <file>   Decrypt a backup made with backups.encryptionKey
   copy --from <config>    Copy all content from another config's database into this one
   <plugin command>        Commands from your config's plugins, e.g. nested:rebuild
 
@@ -107,6 +113,11 @@ yet. Postgres needs backups: { sqlite } in the config. Uploads are not included:
 uploads folder or bucket separately.
 
 Postgres: use pg_dump, e.g. pg_dump --format=custom --file=cms.dump "$DATABASE_URL".
+`,
+  'backup:decrypt': `Usage: easy-cms backup:decrypt <file> [--out <file>] [options]
+
+Decrypts a backup the admin made with backups.encryptionKey (a .db.gz.enc file, e.g. copied from
+the backup bucket) into a .db.gz file, with the key from the config. The database isn't opened.
 `,
   copy: `Usage: easy-cms copy --from <config> [options]
 
@@ -194,6 +205,25 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
       return 0
     }
     if (command === 'copy') return await copy(values.from, config, cwd, logger, io)
+    if (command === 'backup:decrypt') {
+      const source = rest.join(' ').trim()
+      const key = config.backups?.encryptionKey
+      if (!source || !key) {
+        io.err(source ? 'Set backups.encryptionKey in the config.\n' : 'Missing backup file.\n')
+        io.err(COMMAND_HELP['backup:decrypt'] as string)
+        return 1
+      }
+      const input = isAbsolute(source) ? source : resolve(cwd, source)
+      const target = values.out ?? input.replace(/\.enc$/, '')
+      const out = isAbsolute(target) ? target : resolve(cwd, target)
+      if (out === input || existsSync(out)) {
+        io.err(`${out} already exists; choose another name with --out.`)
+        return 1
+      }
+      await writeFile(out, decryptBackup(await readFile(input), key))
+      io.out(`Decrypted ${input} to ${out}`)
+      return 0
+    }
     // admin:create writes a user, so the schema must exist: push in development like the app does.
     const schema =
       command === 'admin:create' && process.env.NODE_ENV !== 'production' ? 'push' : 'skip'

@@ -41,6 +41,7 @@ SMTP_PASSWORD=re_…
 | `host` | `SMTP_HOST` | The SMTP server. |
 | `port` | `SMTP_PORT`, else `587` | |
 | `secure` | `true` for port 465 | TLS from the start; other ports upgrade with STARTTLS. |
+| `requireTLS` | `true` for port 587 | Refuse to send unless the connection upgrades with STARTTLS. `false` e.g. for a local mail catcher without TLS. |
 | `user`, `password` | `SMTP_USER`, `SMTP_PASSWORD` | |
 | `from` | `SMTP_FROM` | The sender when a message sets none. |
 | `transport` | — | Other [nodemailer](https://nodemailer.com/smtp/) options (pooling, DKIM…). |
@@ -58,7 +59,7 @@ provider. Mail from `@gmail.com` addresses sent through another server usually l
 <Screenshot name="email-settings" alt="Settings → Email: the SMTP settings in use and a test email" />
 
 Admins find **Settings → Email** in the admin. It shows the adapter and the settings in use, and
-where each comes from (`SMTP_HOST`, `smtp({ from })`…). Passwords only show as set or not. To
+where each comes from (`SMTP_HOST`, `smtp({ from })`…), `requireTLS` included. Passwords only show as set or not. To
 change a setting, change the environment variable or the config and restart.
 
 - **Check the connection** connects and logs in to the SMTP server without sending anything.

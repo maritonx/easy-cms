@@ -185,7 +185,7 @@ for the posts and one for the categories.
 | `collections` | all | Collections in the schema, by slug, e.g. `['posts', 'categories']`. |
 | `globals` | all | Globals in the schema, by slug. |
 | `limits` | `{ depth: 7, documents: 2000 }` | |
-| `introspection` | `true` | Let clients read the schema, as codegen and GraphiQL do. |
+| `introspection` | outside production | Let clients read the schema, as GraphiQL and codegen against the endpoint do. |
 | `graphiql` | outside production | Show GraphiQL to browsers. |
 | `extend` | — | Your own queries, mutations and fields. |
 
@@ -235,8 +235,8 @@ npx easy-cms generate:graphql            # schema.graphql
 npx easy-cms generate:graphql web/schema.graphql
 ```
 
-It opens the database like other commands. Codegen can also read the schema from the running
-endpoint.
+It opens the database like other commands, and works whether or not `introspection` is on. Codegen
+can also read the schema from the running endpoint, outside production or with `introspection: true`.
 
 To serve the schema from your own GraphQL server (Apollo Server, Yoga, a gateway), build it and
 give each request a context:

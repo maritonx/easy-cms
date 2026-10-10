@@ -68,7 +68,7 @@ export function validateConfig(config: Config): ConfigIssue[] {
   validateAdmin(config, add)
   validateAdminViews(config, add)
   validateUpload(config, add)
-  validateBackups(config, add)
+  validateBackups(config, add, (issue) => issues.push(issue))
   validateAudit(config, add)
   validateAuth(config, add)
   validateCors(config.cors, add)
@@ -175,6 +175,16 @@ function validateCronSecret(value: unknown, push: (issue: ConfigIssue) => void) 
       hint,
       severity: 'warning',
     })
+}
+
+/** A storage adapter that hands out public URLs (S3 with `publicURL`, a public Blob store). */
+function publicURLs(storage: unknown): boolean {
+  const url = (storage as { url?: (key: string) => string | undefined }).url
+  try {
+    return typeof url === 'function' && url.call(storage, 'backup.db.gz') !== undefined
+  } catch {
+    return false
+  }
 }
 
 /** A placeholder (`change-me`), or so few different characters it can't be random. */
@@ -779,14 +789,28 @@ function validateAudit(config: Config, add: Add) {
   }
 }
 
-function validateBackups(config: Config, add: Add) {
+function validateBackups(config: Config, add: Add, push: (issue: ConfigIssue) => void) {
+  const pushWarning = (path: string, message: string, hint: string) =>
+    push({ path, message, hint, severity: 'warning' })
   const backups: unknown = config.backups
   if (backups === undefined) return
   if (typeof backups !== 'object' || backups === null) {
     add('backups', 'must be an object', "e.g. backups: { frequency: 'daily', keep: 7 }")
     return
   }
-  const { frequency, at, keep, dir, storage, sqlite } = backups as Record<string, unknown>
+  const { frequency, at, keep, dir, storage, sqlite, encryptionKey } = backups as Record<
+    string,
+    unknown
+  >
+  if (
+    encryptionKey !== undefined &&
+    (typeof encryptionKey !== 'string' || encryptionKey.length < MIN_SECRET_LENGTH)
+  )
+    add(
+      'backups.encryptionKey',
+      `must be at least ${MIN_SECRET_LENGTH} characters`,
+      'e.g. `openssl rand -hex 32`, kept somewhere other than the backups',
+    )
   if (frequency !== undefined && frequency !== 'daily' && frequency !== 'weekly')
     add('backups.frequency', 'must be "daily" or "weekly"')
   if (at !== undefined && (typeof at !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(at)))
@@ -808,6 +832,17 @@ function validateBackups(config: Config, add: Add) {
       typeof (storage as { put?: unknown }).put !== 'function')
   )
     add('backups.storage', 'must be a storage adapter, e.g. s3Storage()')
+  else if (storage !== undefined && publicURLs(storage)) {
+    // A backup holds the whole database, password hashes included.
+    const message = encryptionKey
+      ? 'gives files public URLs; the backups are encrypted, but keep them in a private bucket'
+      : 'gives files public URLs: anyone with the address of a backup could download the whole database'
+    pushWarning(
+      'backups.storage',
+      message,
+      'use a private bucket (no publicURL), or set backups.encryptionKey',
+    )
+  }
   if (sqlite !== undefined && typeof sqlite !== 'function')
     add(
       'backups.sqlite',

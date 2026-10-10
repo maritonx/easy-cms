@@ -27,6 +27,14 @@ Invalid Easy CMS config (1 problem):
 - **ร้านค้า: คำสั่งซื้อแบบโอนเงินที่ไม่จ่ายจะถูกยกเลิกหลัง 3 วัน** และคืนสต็อก (`manualAdapter({ expiresIn })` เป็นวินาที
   หรือ `false` เพื่อเก็บไว้ เช่น เก็บเงินปลายทาง) คำสั่งซื้อที่สร้างก่อนอัปเกรดไม่ถูกยกเลิก คำสั่งซื้อมี field `expiresAt` เพิ่ม
   บน production ให้รัน `easy-cms migrate:create` แล้ว deploy migration
+- **GraphQL introspection ปิดใน production เป็นค่าเริ่มต้น** ตั้ง `introspection: true` ใน `graphqlPlugin()` ถ้ายังต้องการ
+  ส่วน `easy-cms generate:graphql` ยังเขียน schema ให้ codegen ได้เหมือนเดิม ดู [GraphQL](./graphql#options)
+- **SMTP บน port 587 ต้องใช้ STARTTLS** ถ้า server ไม่มี TLS เช่น mail catcher ในเครื่อง ให้ตั้ง `smtp({ requireTLS: false })`
+  ดู [อีเมล](./email)
+- **เข้ารหัส backup ได้** ด้วย `backups.encryptionKey` (ไม่บังคับ) ถอดรหัสไฟล์เองด้วย `easy-cms backup:decrypt`
+  ดู [Backup](./backups#from-the-admin)
+- **ถ้าไม่เปิด audit log การ login ไม่สำเร็จจะถูกเขียนลง log ของ server** เป็นคำเตือน
+- **ฟอร์มที่ไม่รู้ IP ของ client ใช้ rate limit ร่วมกันหนึ่งชุดที่ใหญ่ขึ้น** (สิบเท่าของ `max`) แทนที่จะไม่มีเลย
 
 ## 0.64
 

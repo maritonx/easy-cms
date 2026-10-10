@@ -757,6 +757,13 @@ export interface BackupsConfig {
   /** Where backups are stored instead, e.g. `s3Storage()` with a private bucket. */
   readonly storage?: StorageAdapter
   /**
+   * Encrypts the backup files (AES-256-GCM), so a leaked bucket or disk holds nothing readable.
+   * At least 32 characters, e.g. from `process.env.EASY_CMS_BACKUP_KEY`; keep a copy somewhere
+   * other than the backups: without it they can't be restored. Downloads from the admin are
+   * decrypted; `easy-cms backup:decrypt <file>` decrypts one by hand.
+   */
+  readonly encryptionKey?: string
+  /**
    * For Postgres: the SQLite adapter that writes the backup file, `sqlite` from
    * `@easy-cms/db-sqlite`. SQLite databases back themselves up and don't need it.
    */

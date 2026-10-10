@@ -18,6 +18,7 @@ schedule; uploads are yours to back up.
 | Database | SQLite file or Postgres database | Daily, and before every deploy that runs migrations |
 | Uploads | `uploads/` (or `upload.dir`), or the S3 bucket | Daily; turn on bucket versioning for S3 |
 | `EASY_CMS_SECRET` | Your host's secret settings | Once, kept in a password manager |
+| `backups.encryptionKey` | Your host's secret settings | Once, kept somewhere other than the backups |
 | `easy-cms/migrations` | Git | Already there when you commit them |
 
 Losing `EASY_CMS_SECRET` loses no content: it signs sessions and preview links, not passwords.
@@ -40,6 +41,7 @@ backups: {
   keep: 7,               // older ones are deleted
   // dir: 'backups',     // default; never served publicly
   // storage: s3Storage({ bucket: 'my-private-backups' }), // instead of the server's disk
+  // encryptionKey: process.env.EASY_CMS_BACKUP_KEY,       // encrypt the files: see below
   // sqlite,             // Postgres only: see below
 },
 ```
@@ -53,7 +55,13 @@ backups: {
 - **Where they're kept:** `backups/` on the server's disk by default, which is lost with the server
   (and on serverless hosts, with every deploy). Set `backups.storage` to a **private** bucket, or
   download them. Never use the uploads folder or a public bucket: a backup holds password hashes
-  and API key hashes.
+  and API key hashes. A `backups.storage` that gives public URLs (e.g. S3 with `publicURL`) logs a
+  warning at startup. `create-easy-cms` adds `backups/` to `.gitignore`.
+- **Encryption:** with `backups.encryptionKey` (at least 32 characters, e.g.
+  `process.env.EASY_CMS_BACKUP_KEY`), each file is encrypted with AES-256-GCM and named
+  `….db.gz.enc`, so a leaked bucket or disk holds nothing readable. Downloads from the admin are
+  decrypted. Keep a copy of the key somewhere other than the backups: without it they can't be
+  restored.
 - **Scheduled backups** run with [scheduled jobs](./drafts#scheduled-publishing): every minute on a
   long-running server, or from your cron calling `<api>/jobs/run`. One runs at a time; one a
   process stopped in the middle is finished by the next run. The dashboard tells admins when the
@@ -69,6 +77,13 @@ Restoring is done on the server, not in the admin. Unpack the file first:
 
 ```bash
 gunzip my-site-2026-10-04-0300.db.gz
+```
+
+An encrypted file taken straight from the storage (`.db.gz.enc`) is decrypted first with
+[`easy-cms backup:decrypt`](./cli#backup-decrypt), which uses the key from the config:
+
+```bash [pm]
+npx easy-cms backup:decrypt my-site-2026-10-04-0300.db.gz.enc
 ```
 
 - **SQLite:** stop the server, replace `cms.db` with the unpacked file (delete `cms.db-wal` and

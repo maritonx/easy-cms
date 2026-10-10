@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, writeFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { gunzipSync } from 'node:zlib'
 import {
@@ -10,6 +10,7 @@ import {
   type RestHandler,
   silentLogger,
 } from '@easy-cms/core'
+import { decryptBackup } from '@easy-cms/core/internal'
 import { sqlite } from '@easy-cms/db-sqlite'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { db, open, SECRET, tempProject } from './helpers.js'
@@ -159,5 +160,45 @@ describe('backups in the admin', () => {
     expect((await call('', 'GET', editor)).status).toBe(403)
     expect((await call('', 'POST', editor)).status).toBe(403)
     expect((await call(`/${done?.id}/download`, 'GET', {})).status).toBe(401)
+  })
+})
+
+describe('encrypted backups (backups.encryptionKey)', () => {
+  it('stores them encrypted, downloads them decrypted', async () => {
+    const dir = tempProject()
+    const key = 'k'.repeat(16) + 'e'.repeat(16)
+    const own = await open(
+      defineConfig({ ...config(), backups: { sqlite, encryptionKey: key } }),
+      dir,
+    )
+    try {
+      await own.create('users', { email: 'admin@x.co', password: 'password123', role: 'admin' })
+      const { token } = await own.auth.login({ email: 'admin@x.co', password: 'password123' })
+      const headers = { authorization: `Bearer ${token}` }
+      const ownHandle = createRestHandler(own)
+      const req = (path: string, method = 'GET') =>
+        ownHandle(new Request(`http://cms.test/api/cms/admin/backups${path}`, { method, headers }))
+      const { id } = (await (await req('', 'POST')).json()) as { id: number }
+      let filename = ''
+      for (let i = 0; i < 400 && !filename; i++) {
+        const row = ((await (await req('')).json()) as AdminBackups).backups.find(
+          (b) => b.id === id,
+        )
+        if (row?.state === 'done') filename = String(row.filename)
+        else await new Promise((resolve) => setTimeout(resolve, 50))
+      }
+      expect(filename).toMatch(/\.db\.gz\.enc$/)
+      const stored = readFileSync(join(dir, 'backups', filename))
+      // Not gzip, not readable.
+      expect(stored.subarray(0, 8).toString()).toBe('ECMSBAK1')
+      expect(() => decryptBackup(stored, 'x'.repeat(32))).toThrow(/could not be decrypted/)
+      const download = await req(`/${id}/download`)
+      expect(download.headers.get('content-disposition')).toContain(filename.replace(/\.enc$/, ''))
+      const db = gunzipSync(new Uint8Array(await download.arrayBuffer()))
+      expect(db.subarray(0, 15).toString()).toBe('SQLite format 3')
+      expect(gunzipSync(decryptBackup(stored, key))).toEqual(db)
+    } finally {
+      await own.destroy()
+    }
   })
 })

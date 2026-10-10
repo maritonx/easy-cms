@@ -16,6 +16,7 @@ Easy CMS เก็บข้อมูลไว้สองที่: **ฐาน�
 | ฐานข้อมูล | ไฟล์ SQLite หรือฐานข้อมูล Postgres | ทุกวัน และก่อนทุกครั้งที่ deploy แล้วมี migration |
 | ไฟล์อัปโหลด | `uploads/` (หรือ `upload.dir`) หรือ bucket S3 | ทุกวัน ถ้าใช้ S3 ให้เปิด bucket versioning |
 | `EASY_CMS_SECRET` | ที่ตั้งค่า secret ของ host | ครั้งเดียว เก็บไว้ใน password manager |
+| `backups.encryptionKey` | ที่ตั้งค่า secret ของ host | ครั้งเดียว เก็บไว้ที่อื่นที่ไม่ใช่ที่เดียวกับ backup |
 | `easy-cms/migrations` | Git | มีอยู่แล้วเมื่อ commit |
 
 ถ้า `EASY_CMS_SECRET` หาย ข้อมูลไม่หาย เพราะใช้เซ็น session และลิงก์ preview ไม่ได้ใช้กับรหัสผ่าน
@@ -37,6 +38,7 @@ backups: {
   keep: 7,               // ชุดที่เก่ากว่านี้จะถูกลบ
   // dir: 'backups',     // ค่าเริ่มต้น ไม่เปิดเป็น URL สาธารณะ
   // storage: s3Storage({ bucket: 'my-private-backups' }), // แทนดิสก์ของ server
+  // encryptionKey: process.env.EASY_CMS_BACKUP_KEY,       // เข้ารหัสไฟล์ ดูด้านล่าง
   // sqlite,             // เฉพาะ Postgres ดูด้านล่าง
 },
 ```
@@ -48,7 +50,12 @@ backups: {
 - **ไม่รวมไฟล์ที่อัปโหลด**: backup โฟลเดอร์ uploads แยก หรือเปิด versioning ของ S3 bucket
 - **เก็บที่ไหน:** ค่าเริ่มต้นคือ `backups/` บนดิสก์ของ server ซึ่งหายไปพร้อม server (และบน serverless หายทุกครั้งที่ deploy)
   ตั้ง `backups.storage` เป็น bucket **ส่วนตัว** หรือดาวน์โหลดเก็บไว้ ห้ามใช้โฟลเดอร์ uploads หรือ bucket สาธารณะ
-  เพราะ backup มี hash ของรหัสผ่านและ API key
+  เพราะ backup มี hash ของรหัสผ่านและ API key ถ้า `backups.storage` ให้ URL สาธารณะ (เช่น S3 ที่ตั้ง `publicURL`)
+  จะมีคำเตือนใน log ตอนเริ่ม server ส่วน `create-easy-cms` เพิ่ม `backups/` ลงใน `.gitignore` ให้
+- **การเข้ารหัส:** ตั้ง `backups.encryptionKey` (อย่างน้อย 32 ตัวอักษร เช่น `process.env.EASY_CMS_BACKUP_KEY`)
+  แล้วแต่ละไฟล์จะถูกเข้ารหัสด้วย AES-256-GCM และชื่อลงท้าย `….db.gz.enc` ถ้า bucket หรือดิสก์หลุดออกไปก็อ่านไม่ได้
+  ไฟล์ที่ดาวน์โหลดจากหน้า admin ถูกถอดรหัสให้แล้ว เก็บสำเนาของ key ไว้ที่อื่นที่ไม่ใช่ที่เดียวกับ backup เพราะถ้าไม่มี key
+  จะกู้คืน backup ไม่ได้
 - **backup ตามรอบ** ทำงานพร้อม[งานที่ตั้งเวลาไว้](./drafts#scheduled-publishing): ทุกนาทีบน server ที่ทำงานต่อเนื่อง หรือจาก cron
   ที่เรียก `<api>/jobs/run` ทำทีละชุด ชุดที่ค้างเพราะ process หยุดกลางทางจะถูกทำต่อในรอบถัดไป แดชบอร์ดจะเตือน admin
   เมื่อ backup ตามรอบครั้งล่าสุดไม่สำเร็จ หรือไม่มีชุดที่สำเร็จนานเกินสองรอบ
@@ -61,6 +68,13 @@ backups: {
 
 ```bash
 gunzip my-site-2026-10-04-0300.db.gz
+```
+
+ไฟล์ที่เข้ารหัสซึ่งเอามาจากที่เก็บโดยตรง (`.db.gz.enc`) ต้องถอดรหัสก่อนด้วย
+[`easy-cms backup:decrypt`](./cli#backup-decrypt) ซึ่งใช้ key จาก config:
+
+```bash [pm]
+npx easy-cms backup:decrypt my-site-2026-10-04-0300.db.gz.enc
 ```
 
 - **SQLite:** หยุด server แทนที่ `cms.db` ด้วยไฟล์ที่แตกแล้ว (ลบ `cms.db-wal` และ `cms.db-shm` ถ้ามี) แล้วเริ่ม server

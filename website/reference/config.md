@@ -112,7 +112,8 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `at` | `string` | `03:00` | When, as `HH:MM` in the server's time zone. |
 | `keep` | `number` | `7` | Finished backups to keep; older ones are deleted. |
 | `dir` | `string` | `backups` | Folder for the default local storage. Never served publicly. |
-| `storage` | `StorageAdapter` | local disk | E.g. `s3Storage()` with a private bucket. |
+| `storage` | `StorageAdapter` | local disk | E.g. `s3Storage()` with a private bucket. Public URLs log a warning. |
+| `encryptionKey` | `string` | — | Encrypts the backup files (AES-256-GCM). At least 32 characters, e.g. `process.env.EASY_CMS_BACKUP_KEY`. [Backups](/guide/backups#from-the-admin) |
 | `sqlite` | `(options) => DatabaseAdapter` | — | Postgres only: `sqlite` from `@easy-cms/db-sqlite`, which writes the backup file. [Backups](/guide/backups#from-the-admin) |
 
 <!-- api: AuditConfig -->

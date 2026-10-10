@@ -165,7 +165,8 @@ Public forms attract bots. These are always on:
 - **A honeypot**: a hidden field people don't see and bots fill in.
 - **A minimum time**: a form sent less than 2 seconds after it loaded (`minSubmitSeconds`) is a bot.
 - **A rate limit**: 5 submissions per 10 minutes per visitor and form (`rateLimit`). Visitors
-  are told by IP address, kept only as a hash that changes every window.
+  are told by IP address, kept only as a hash that changes every window. When the adapter gives
+  no client IP, all visitors share one limit of ten times `max`, and the server logs a warning once.
 
 Caught bots get the same "thank you" as people, and nothing is stored, so they don't learn to
 get around the checks.
@@ -201,7 +202,7 @@ the REST API: they come only from the form's endpoint, after validation and the 
 | `defaultTo` | — | Recipients of emails whose "To" is empty. |
 | `defaultFrom` | the adapter's `from` | Sender of emails that set none. |
 | `fieldKinds` | all | Field types editors can use, e.g. `['text', 'email', 'textarea']`. |
-| `rateLimit` | `{ max: 5, window: 600 }` | Submissions per visitor and form per `window` seconds, or `false`. |
+| `rateLimit` | `{ max: 5, window: 600 }` | Submissions per visitor and form per `window` seconds, or `false`. Without the client IP, all visitors share ten times `max`. |
 | `minSubmitSeconds` | `2` | Seconds before a submission counts as a person's. |
 | `turnstile` | — | `{ siteKey, secretKey }` for Cloudflare Turnstile. |
 | `retentionDays` | — | Delete submissions older than this. |

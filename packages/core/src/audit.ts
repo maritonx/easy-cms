@@ -104,10 +104,17 @@ export interface AuditVerification {
   checked: number
   /** Entries whose signature does not match: changed after they were written. */
   invalid: ID[]
-  /** Missing ids between entries: deleted entries, or (rarely) inserts that failed. */
+  /**
+   * Missing ids between entries: deleted entries, or (rarely) inserts that failed. Ids are never
+   * reused, so the newest entries deleted show up here once anything is written after them (a
+   * check writes an entry itself). The server's log has each check's last id, to compare with.
+   */
   gaps: number
   at: string
 }
+
+/** Recorded in the server's log too when there is no audit log. */
+const SIGN_IN_FAILURES = new Set(['login.failed', 'login.locked', 'sso.failed'])
 
 /** JSON with keys in order, so a signature survives databases that reorder them (jsonb). */
 function stable(value: unknown): string {
@@ -192,7 +199,16 @@ export class AuditLog {
     /** The call's context, when it is not the request's. */
     context?: RequestContext
   }): Promise<void> {
-    if (!this.enabled) return
+    if (!this.enabled) {
+      // Without the audit log, failed sign-ins still reach the server's log.
+      if (SIGN_IN_FAILURES.has(entry.action)) {
+        const ip = auditContext.getStore()?.ip
+        this.cms.logger.warn(
+          `${entry.action}: ${entry.email ?? entry.user?.email ?? 'unknown'}${ip ? ` from ${ip}` : ''}`,
+        )
+      }
+      return
+    }
     try {
       const context = auditContext.getStore()
       const user = entry.user !== undefined ? entry.user : (context?.user ?? null)
@@ -382,8 +398,11 @@ export class AuditLog {
     await this.record({
       action: 'audit.verify',
       target: 'audit',
-      detail: { checked, invalid: invalid.length, gaps },
+      detail: { checked, invalid: invalid.length, gaps, lastId: previous ?? null },
     })
+    this.cms.logger.info(
+      `Audit log checked: ${checked} entries, last #${previous ?? '-'}; ${invalid.length} changed, ${gaps} missing`,
+    )
     return verification
   }
 

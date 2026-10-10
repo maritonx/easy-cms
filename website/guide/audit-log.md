@@ -19,6 +19,9 @@ It adds the `audit-logs` table: create a migration (`npx easy-cms migrate:create
 then find **Settings → Audit log**; with [roles from the admin](./roles), other roles can be given
 the page too.
 
+Without the audit log, failed sign-ins (`login.failed`, `login.locked`, `sso.failed`) are still
+written to the server's log as warnings, with the email tried and the IP address.
+
 ## What is recorded
 
 - **Content:** creating, changing, publishing, unpublishing, restoring and deleting documents and
@@ -59,8 +62,13 @@ Entries can't be changed or deleted through Easy CMS: only those older than `kee
 `EASY_CMS_SECRET`. **Check integrity** (and a daily check from [scheduled jobs](./drafts#scheduled-publishing))
 finds entries edited in the database, and missing ones between others.
 
-What it can't see: someone who also has your secret, or who deletes the newest entries. For a copy
-nobody here can change, send events elsewhere too, e.g. with [webhooks](./webhooks).
+Entry ids are never reused, so deleting the newest entries leaves missing ids once anything is
+written after them. A check writes an entry itself, so the next check reports them at the latest.
+Each check also writes a line to the server's log with the number of entries and the last id
+(`Audit log checked: …`), to compare with later.
+
+What it can't see: someone who also has your secret. For a copy nobody here can change, send
+events elsewhere too, e.g. with [webhooks](./webhooks).
 
 ## Writing entries from code
 

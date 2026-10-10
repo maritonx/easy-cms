@@ -283,7 +283,7 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
   // .gitignore
   const ignoreFile = join(dir, '.gitignore')
   const ignore = existsSync(ignoreFile) ? await readFile(ignoreFile, 'utf8') : ''
-  const wanted = ['.env', 'cms.db*', 'uploads/', '.pglite/'].filter(
+  const wanted = ['.env', 'cms.db*', 'uploads/', 'backups/', '.pglite/'].filter(
     (entry) => !ignore.split('\n').some((line) => line.trim() === entry),
   )
   if (wanted.length) {

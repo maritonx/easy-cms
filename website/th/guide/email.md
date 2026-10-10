@@ -39,6 +39,7 @@ SMTP_PASSWORD=re_…
 | `host` | `SMTP_HOST` | SMTP server |
 | `port` | `SMTP_PORT` หรือ `587` | |
 | `secure` | `true` เมื่อใช้ port 465 | ใช้ TLS ตั้งแต่ต้น port อื่นจะอัปเกรดด้วย STARTTLS |
+| `requireTLS` | `true` เมื่อใช้ port 587 | ไม่ยอมส่งถ้าการเชื่อมต่ออัปเกรดด้วย STARTTLS ไม่ได้ ตั้ง `false` เช่น สำหรับ mail catcher ในเครื่องที่ไม่มี TLS |
 | `user`, `password` | `SMTP_USER`, `SMTP_PASSWORD` | |
 | `from` | `SMTP_FROM` | ผู้ส่งเมื่อข้อความไม่ได้ระบุ |
 | `transport` | — | ตัวเลือกอื่นของ [nodemailer](https://nodemailer.com/smtp/) (pooling, DKIM…) |
@@ -55,7 +56,7 @@ SMTP_PASSWORD=re_…
 <Screenshot name="email-settings" alt="ตั้งค่า → อีเมล: ค่า SMTP ที่ใช้อยู่และการส่งอีเมลทดสอบ" />
 
 admin เปิด **ตั้งค่า → อีเมล** ในหน้า admin ได้ หน้านี้แสดง adapter และค่าที่ใช้อยู่ พร้อมที่มาของแต่ละค่า (`SMTP_HOST`,
-`smtp({ from })`…) รหัสผ่านแสดงแค่ว่าตั้งไว้หรือยัง ถ้าจะเปลี่ยนค่า ให้แก้ environment variable หรือ config แล้ว restart
+`smtp({ from })`…) รวมถึง `requireTLS` รหัสผ่านแสดงแค่ว่าตั้งไว้หรือยัง ถ้าจะเปลี่ยนค่า ให้แก้ environment variable หรือ config แล้ว restart
 
 - **ตรวจการเชื่อมต่อ** เชื่อมต่อและ login เข้า SMTP server โดยไม่ส่งอีเมล
 - **ส่งอีเมลทดสอบ** ส่งทันทีหนึ่งฉบับ ไม่ผ่านคิว ถึงตัวคุณเองหรือที่อยู่อื่น (ไม่เกิน 5 ครั้งใน 10 นาที)

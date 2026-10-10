@@ -11,7 +11,7 @@ export {
 export { DEFAULT_PASSWORD_EMAILS } from './auth/emails.js'
 export { hashPassword, MIN_PASSWORD_LENGTH, verifyPassword } from './auth/password.js'
 export { SSO_COOKIE } from './auth/sso.js'
-export { writeBackupFile } from './backups.js'
+export { decryptBackup, writeBackupFile } from './backups.js'
 export { INTERNAL_COLLECTIONS, MEDIA, MEDIA_FOLDERS } from './builtins.js'
 export { conditionIssues } from './conditions.js'
 export { checkRenamedOptions } from './config-keys.js'

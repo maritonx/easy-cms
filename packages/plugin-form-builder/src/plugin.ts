@@ -35,7 +35,7 @@ export interface FormBuilderPluginOptions {
   readonly defaultTo?: string | readonly string[]
   /**
    * Submissions allowed per visitor (by IP address) and form in `window` seconds. Default
-   * 5 in 600. `false` turns it off.
+   * 5 in 600. Without the client's IP, all visitors share ten times `max`. `false` turns it off.
    */
   readonly rateLimit?: { readonly max?: number; readonly window?: number } | false
   /** Submissions sent sooner than this many seconds after the form loaded are treated as bots. Default 2. */
@@ -132,6 +132,7 @@ export function formBuilderPlugin<
     const locales = (config.localization || undefined)?.locales ?? []
     const defaultLocale = (config.localization || undefined)?.defaultLocale ?? locales[0] ?? null
     const rate = options.rateLimit === false ? null : { max: 5, window: 600, ...options.rateLimit }
+    let warnedNoIp = false
     const minTime = (options.minSubmitSeconds ?? 2) * 1000
     const defaultTo =
       options.defaultTo === undefined
@@ -436,8 +437,16 @@ export function formBuilderPlugin<
           ])
 
         let rateKey: string | undefined
-        if (rate && ip) {
-          const keys = rateKeys(secret, ip, form.id, rate.window)
+        if (rate) {
+          // Without the visitor's IP (the adapter can't tell), all of them share one, larger limit.
+          if (!ip && !warnedNoIp) {
+            warnedNoIp = true
+            cms.logger.warn(
+              'formBuilderPlugin: the client IP is unknown, so form rate limits count all visitors together. Set trustProxy behind a proxy.',
+            )
+          }
+          const keys = rateKeys(secret, ip ?? 'unknown', form.id, rate.window)
+          const max = ip ? rate.max : rate.max * 10
           const since = new Date(Date.now() - rate.window * 1000).toISOString()
           const recent = await cms.count(submissions, {
             where: {
@@ -448,7 +457,7 @@ export function formBuilderPlugin<
               ],
             },
           })
-          if (recent >= rate.max)
+          if (recent >= max)
             return fail(429, [
               {
                 message:

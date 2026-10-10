@@ -45,6 +45,7 @@ describe('smtp', () => {
         { key: 'host', value: 'smtp.env.example', source: 'SMTP_HOST' },
         { key: 'port', value: '587', source: 'default' },
         { key: 'secure', value: 'false', source: 'port 465 or not' },
+        { key: 'requireTLS', value: 'true', source: 'port 587 or not' },
         { key: 'user', value: 'mailer', source: 'SMTP_USER' },
         { key: 'password', value: 'set', source: 'SMTP_PASSWORD' },
         { key: 'from', value: 'Site <site@example.org>', source: 'smtp({ from })' },

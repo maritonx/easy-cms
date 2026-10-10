@@ -216,6 +216,24 @@ describe('tamper evidence', () => {
     expect((await call(`/audit-logs/${first?.id}`, 'DELETE', 'admin')).status).toBe(404)
   })
 
+  it('notices the newest entries deleted, by the next check at the latest', async () => {
+    await json<AuditVerification>(call('/admin/audit/verify', 'POST', 'admin'))
+    // Two new entries, then deleted from the database: ids are never reused.
+    await cms.create('posts', { title: 'Will vanish' })
+    await cms.create('posts', { title: 'Will vanish too' })
+    const { docs } = await cms.db.find({
+      collection: 'audit-logs',
+      sort: ['-id'],
+      limit: 2,
+      page: 1,
+    })
+    for (const row of docs) await cms.db.delete({ collection: 'audit-logs', id: row.id })
+    const before = await json<AuditVerification>(call('/admin/audit/verify', 'POST', 'admin'))
+    // This check's own entry comes after the hole, so the next one sees it.
+    const after = await json<AuditVerification>(call('/admin/audit/verify', 'POST', 'admin'))
+    expect(after.gaps - before.gaps).toBe(2)
+  })
+
   it('deletes entries older than `keep` days, once a day', async () => {
     const old = new Date(Date.now() - 400 * 86_400_000).toISOString()
     const row = await cms.db.create({

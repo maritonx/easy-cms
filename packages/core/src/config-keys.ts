@@ -17,7 +17,7 @@ const AUTH = keys(`roles rbac tokenExpiration maxLoginAttempts lockWindow truste
   resetPasswordExpiration inviteExpiration providers providerSignUp password setupCode members emails`)
 const MEMBERS = keys('roles signUp pages emails')
 const UPLOAD = keys('dir maxFileSize mimeTypes storage imageSizes fromURL folders privateStorage')
-const BACKUPS = keys('frequency at keep dir storage sqlite')
+const BACKUPS = keys('frequency at keep dir storage sqlite encryptionKey')
 const AUDIT = keys('keepDays values failedLogins scope')
 const COLLECTION = keys(`slug labels fields useAsTitle drafts versions schedule preview access hooks
   admin`)

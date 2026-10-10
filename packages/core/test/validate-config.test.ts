@@ -265,6 +265,25 @@ describe('validateConfig', () => {
     ])
   })
 
+  it('checks backup encryption keys, and warns about public backup storage', () => {
+    const storage = (url?: (key: string) => string) => ({
+      name: 'memory',
+      put: async () => {},
+      get: async () => null,
+      delete: async () => {},
+      ...(url ? { url } : {}),
+    })
+    expect(validateConfig(baseConfig({ backups: { storage: storage() } }))).toEqual([])
+    const open = validateConfig(
+      baseConfig({ backups: { storage: storage((key) => `https://cdn.test/${key}`) } }),
+    )
+    expect(open).toMatchObject([{ path: 'backups.storage', severity: 'warning' }])
+    expect(validateConfig(baseConfig({ backups: { encryptionKey: 'short' } }))).toMatchObject([
+      { path: 'backups.encryptionKey', message: 'must be at least 32 characters' },
+    ])
+    expect(validateConfig(baseConfig({ backups: { encryptionKey: 'k'.repeat(32) } }))).toEqual([])
+  })
+
   it('checks cronSecret like secret', () => {
     expect(validateConfig(baseConfig({ cronSecret: 'c'.repeat(32) }))).toEqual([])
     expect(validateConfig(baseConfig({ cronSecret: 'short' }))).toMatchObject([

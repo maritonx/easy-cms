@@ -50,6 +50,7 @@ npx easy-cms <command> [--config <file>] [--cwd <dir>]
 | [`admin:create`](#admin-create) | สร้างผู้ใช้ |
 | [`generate:types`](#generate-types) | เขียน type ของ TypeScript สำหรับแอปอื่น |
 | [`backup <file>`](#backup) | คัดลอกฐานข้อมูลเป็นไฟล์ SQLite ขณะที่ CMS ทำงานอยู่ |
+| [`backup:decrypt <file>`](#backup-decrypt) | ถอดรหัส backup ที่ทำด้วย `backups.encryptionKey` |
 | [`copy --from <config>`](#copy) | คัดลอกเนื้อหาทั้งหมดไปอีกฐานข้อมูล เช่น จาก SQLite ไป Postgres |
 | [`jobs:run`](#jobs-run) | รันงานตั้งเวลาที่ถึงกำหนดและส่ง webhook ซ้ำหนึ่งรอบ |
 | [`serve`](#serve) | รัน CMS เป็น server ของตัวเอง |
@@ -116,6 +117,15 @@ npx easy-cms backup backups/cms-2026-09-28.db
 คัดลอกฐานข้อมูลเป็นไฟล์ SQLite ใหม่ขณะที่ CMS ยังทำงาน เป็น snapshot ที่ข้อมูลตรงกันทั้งไฟล์ ชื่อที่ลงท้าย `.gz` จะถูกบีบอัด
 เหมือน backup จากหน้า admin ไฟล์ปลายทางต้องยังไม่มีอยู่ Postgres ต้องมี `backups: { sqlite }` ใน config (หรือใช้ `pg_dump`)
 ไม่รวมไฟล์อัปโหลด ให้สำรองโฟลเดอร์ uploads หรือ bucket แยก ดู [Backup](./backups)
+
+### backup:decrypt {#backup-decrypt}
+
+```bash [pm]
+npx easy-cms backup:decrypt my-site-2026-10-04-0300.db.gz.enc [--out <file>]
+```
+
+ถอดรหัส backup ที่ทำด้วย `backups.encryptionKey` (ไฟล์ `.db.gz.enc` เช่นที่คัดลอกมาจาก bucket ของ backup) เป็นไฟล์ `.db.gz`
+โดยใช้ key จาก config คำสั่งนี้ไม่เปิดฐานข้อมูล ถ้าไม่ใส่ `--out` จะเขียนไฟล์ไว้ข้างกันโดยตัด `.enc` ออก ไฟล์ปลายทางต้องยังไม่มีอยู่
 
 ### copy {#copy}
 

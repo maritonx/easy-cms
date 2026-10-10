@@ -1,11 +1,12 @@
 import {
+  createEasyCMS,
   defineConfig,
   TooManyRequestsError,
   UnauthorizedError,
   ValidationError,
 } from '@easy-cms/core'
 import { describe, expect, it } from 'vitest'
-import { db, open, rawQuery, SECRET, table } from './helpers.js'
+import { db, open, rawQuery, SECRET, table, tempProject } from './helpers.js'
 
 const config = defineConfig({
   secret: SECRET,
@@ -270,6 +271,20 @@ describe('last admin guard', () => {
     await expect(cms.update('users', user.id, { role: 'editor' })).resolves.toMatchObject({
       role: 'editor',
     })
+    await cms.destroy()
+  })
+})
+
+describe('without the audit log', () => {
+  it('still writes failed sign-ins to the server log', async () => {
+    const warnings: string[] = []
+    const logger = { info: () => {}, warn: (m: string) => warnings.push(m), error: () => {} }
+    const cms = await createEasyCMS(config, { cwd: tempProject(), schema: 'push', logger })
+    await cms.create('users', { email: 'who@x.co', password: 'a-long-test-pass', role: 'editor' })
+    await expect(
+      cms.auth.login({ email: 'who@x.co', password: 'wrong-password', ip: '198.51.100.7' }),
+    ).rejects.toThrow(UnauthorizedError)
+    expect(warnings).toContainEqual(expect.stringContaining('login.failed: who@x.co'))
     await cms.destroy()
   })
 })

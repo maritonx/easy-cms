@@ -30,6 +30,15 @@ Invalid Easy CMS config (1 problem):
   (`manualAdapter({ expiresIn })`, in seconds; `false` to keep them, e.g. for cash on delivery).
   Orders made before the upgrade aren't affected. Orders get an `expiresAt` field: in production
   run `easy-cms migrate:create` and deploy the migration.
+- **GraphQL introspection is off in production by default.** Set `introspection: true` on
+  `graphqlPlugin()` to keep it; `easy-cms generate:graphql` still writes the schema for codegen.
+  See [GraphQL](./graphql#options).
+- **SMTP on port 587 requires STARTTLS.** For a server without TLS, e.g. a local mail catcher,
+  set `smtp({ requireTLS: false })`. See [Email](./email).
+- **Backups can be encrypted** with the optional `backups.encryptionKey`; decrypt a file by hand
+  with `easy-cms backup:decrypt`. See [Backups](./backups#from-the-admin).
+- **Without the audit log, failed sign-ins go to the server's log** as warnings.
+- **Forms without a client IP share one larger rate limit** (ten times `max`) instead of none.
 
 ## 0.64
 

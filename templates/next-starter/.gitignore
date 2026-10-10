@@ -3,6 +3,7 @@
 .pglite/
 next-env.d.ts
 uploads/
+backups/
 tsconfig.tsbuildinfo
 node_modules/
 .vercel/

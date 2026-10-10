@@ -8,6 +8,12 @@ export interface SmtpOptions {
   readonly port?: number
   /** TLS from the start (port 465). Default: true for port 465; others upgrade with STARTTLS. */
   readonly secure?: boolean
+  /**
+   * Refuse to send unless the connection upgrades with STARTTLS, so passwords and mail never
+   * cross the network in the clear. Default: true for port 587; `false` e.g. for a local mail
+   * catcher without TLS.
+   */
+  readonly requireTLS?: boolean
   /** Default: `SMTP_USER` and `SMTP_PASSWORD`. */
   readonly user?: string
   readonly password?: string
@@ -40,6 +46,7 @@ export function smtp(options: SmtpOptions = {}): EmailAdapter {
       host,
       port,
       secure: options.secure ?? port === 465,
+      requireTLS: options.requireTLS ?? port === 587,
       ...(user ? { auth: { user, pass } } : {}),
       ...options.transport,
     })
@@ -71,6 +78,11 @@ export function smtp(options: SmtpOptions = {}): EmailAdapter {
           key: 'secure',
           value: String(options.secure ?? port === 465),
           source: options.secure !== undefined ? 'smtp({ secure })' : 'port 465 or not',
+        },
+        {
+          key: 'requireTLS',
+          value: String(options.requireTLS ?? port === 587),
+          source: options.requireTLS !== undefined ? 'smtp({ requireTLS })' : 'port 587 or not',
         },
         setting('user', 'user', options.user, 'SMTP_USER'),
         // Never the password itself.
