@@ -430,6 +430,23 @@ describe('orders in the admin', () => {
     expect((await doc('products', mug)).inventory).toBe(5)
   })
 
+  it('cancels bank transfers left unpaid, putting their items back', async () => {
+    const start = (await doc('products', mug)).inventory as number
+    const order = await bankOrder()
+    const saved = await doc('orders', order.id)
+    const due = Date.parse(String(saved.expiresAt))
+    // Three days by default.
+    expect(due - Date.now()).toBeGreaterThan(3 * 86_400_000 - 60_000)
+    expect((await doc('products', mug)).inventory).toBe(start - 1)
+    await cms.runJobs(new Date(due - 60_000))
+    expect((await doc('orders', order.id)).status).toBe('pending')
+    await cms.runJobs(new Date(due + 10 * 60_000))
+    expect((await doc('orders', order.id)).status).toBe('cancelled')
+    // Back in stock (with any other unpaid orders of earlier tests).
+    expect((await doc('products', mug)).inventory).toBeGreaterThanOrEqual(start)
+    await cms.update('products', mug, { inventory: start })
+  })
+
   it('cancels an unpaid order, putting its items back', async () => {
     const order = await bankOrder()
     expect((await doc('products', mug)).inventory).toBe(4)
@@ -531,7 +548,8 @@ describe('upkeep', () => {
     const id = started.body.transaction
     // A process stopped after claiming it.
     await cms.update('transactions', id, { status: 'processing' })
-    await cms.runJobs(new Date(Date.now() + 11 * 60_000))
+    // Later than the runs of earlier tests (jobs keep when they last ran).
+    await cms.runJobs(new Date(Date.now() + 4 * 86_400_000))
     expect((await doc('transactions', id)).status).toBe('pending')
     const confirmed = await call('POST', '/shop/confirm', { body: { transaction: id, cart } })
     expect(confirmed.body.order.status).toBe('paid')

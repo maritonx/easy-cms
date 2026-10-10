@@ -24,6 +24,13 @@ Invalid Easy CMS config (1 problem):
   • admin.siteUrl: is now `siteURL`
 ```
 
+## 0.65
+
+- **Shop: unpaid bank-transfer orders are cancelled after 3 days** and their stock put back
+  (`manualAdapter({ expiresIn })`, in seconds; `false` to keep them, e.g. for cash on delivery).
+  Orders made before the upgrade aren't affected. Orders get an `expiresAt` field: in production
+  run `easy-cms migrate:create` and deploy the migration.
+
 ## 0.64
 
 - **Cookies are named `__Host-ecms-session`, `__Host-ecms-csrf` and `__Host-ecms-sso` over

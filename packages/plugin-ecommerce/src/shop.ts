@@ -817,6 +817,9 @@ export class Orders {
         stockShort: short,
         locale: snapshot.locale,
         ...(status === 'paid' ? { paidAt: new Date().toISOString() } : {}),
+        ...(status === 'pending' && typeof adapter?.expiresIn === 'number'
+          ? { expiresAt: new Date(Date.now() + adapter.expiresIn * 1000).toISOString() }
+          : {}),
       },
       { context, depth: 0 },
     )) as Data
@@ -965,6 +968,35 @@ export class Orders {
    * Upkeep: transactions left `processing` by a stopped process go back to `pending`, so the
    * next confirmation or webhook makes the order.
    */
+  /** Cancels unpaid orders past their `expiresAt`, putting their stock back. */
+  async expire(now: Date): Promise<number> {
+    const due = await this.cms.find(ORDERS, {
+      where: {
+        and: [{ status: { equals: 'pending' } }, { expiresAt: { lt: now.toISOString() } }],
+      },
+      limit: 100,
+      depth: 0,
+    })
+    let cancelled = 0
+    for (const found of due.docs as Data[]) {
+      // Only if still pending: paid in the meantime, it stays.
+      const order = (await this.cms.update(
+        ORDERS,
+        found.id as ID,
+        { status: 'cancelled' },
+        { where: { status: { equals: 'pending' } }, depth: 0 },
+      )) as Data | null
+      if (!order) continue
+      await this.restock(order)
+      const transaction = await this.transactionOf(order)
+      if (transaction)
+        await this.setTransaction(transaction, { status: 'failed', error: 'expired' })
+      await this.shop.onOrder('cancelled', order as OrderDoc, this.cms)
+      cancelled++
+    }
+    return cancelled
+  }
+
   async release(now: Date): Promise<number> {
     const stale = new Date(now.getTime() - 10 * 60_000).toISOString()
     const stuck = await this.cms.find(TRANSACTIONS, {

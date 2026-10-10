@@ -639,7 +639,10 @@ export function ecommercePlugin<const Cur extends string = 'THB'>(
         {
           name: 'shop:payments',
           every: 300,
-          run: ({ cms, now }) => runtime(cms).orders.release(now),
+          run: async ({ cms, now }) => {
+            await runtime(cms).orders.release(now)
+            await runtime(cms).orders.expire(now)
+          },
         },
         {
           name: 'shop:carts',

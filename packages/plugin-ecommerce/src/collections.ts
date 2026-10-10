@@ -604,6 +604,13 @@ export function shopCollections(o: CollectionOptions): CollectionConfig[] {
         label: { en: 'Paid', th: 'ชำระเมื่อ' },
       },
       {
+        // Unpaid manual orders are cancelled after this (the payment method's `expiresIn`).
+        name: 'expiresAt',
+        type: 'date',
+        access: bySystem,
+        label: { en: 'Unpaid until', th: 'รอชำระถึง' },
+      },
+      {
         name: 'note',
         type: 'textarea',
         label: { en: 'Note (staff only)', th: 'บันทึก (เฉพาะเจ้าหน้าที่)' },

@@ -161,7 +161,9 @@ const result = await checkout({
 2. The payment method starts the payment and returns what the page needs in `result.payment`.
 3. **Bank transfer** (`manualAdapter`): the order is made now, `pending`, and
    `result.payment.instructions` tells the customer where to pay. Staff press **Payment
-   received** on the order when the money arrives.
+   received** on the order when the money arrives. An order left unpaid for 3 days is cancelled
+   and its stock put back, so unpaid orders don't hold stock: `manualAdapter({ expiresIn })` sets
+   the seconds, or `false` to wait for staff (e.g. cash on delivery).
 4. **Stripe**: `result.payment.clientSecret` goes to Stripe.js's Payment Element (card,
    PromptPay…). After paying, the page calls `confirm(result.transaction)`; the shop asks Stripe,
    and makes the order if the money is in. Only whoever paid may confirm: the signed-in customer,

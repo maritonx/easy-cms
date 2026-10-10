@@ -22,6 +22,12 @@ Invalid Easy CMS config (1 problem):
   • admin.siteUrl: is now `siteURL`
 ```
 
+## 0.65
+
+- **ร้านค้า: คำสั่งซื้อแบบโอนเงินที่ไม่จ่ายจะถูกยกเลิกหลัง 3 วัน** และคืนสต็อก (`manualAdapter({ expiresIn })` เป็นวินาที
+  หรือ `false` เพื่อเก็บไว้ เช่น เก็บเงินปลายทาง) คำสั่งซื้อที่สร้างก่อนอัปเกรดไม่ถูกยกเลิก คำสั่งซื้อมี field `expiresAt` เพิ่ม
+  บน production ให้รัน `easy-cms migrate:create` แล้ว deploy migration
+
 ## 0.64
 
 - **cookie ชื่อ `__Host-ecms-session`, `__Host-ecms-csrf` และ `__Host-ecms-sso` เมื่อใช้ HTTPS**

@@ -45,6 +45,11 @@ export interface PaymentAdapter {
   readonly manual?: boolean
   /** For `manual` ones: what to tell the customer, e.g. the bank account (page and email). */
   readonly instructions?: Label
+  /**
+   * For `manual` ones: seconds an order may wait for its payment; then it is cancelled and its
+   * stock put back. `false`: it waits until staff act on it.
+   */
+  readonly expiresIn?: number | false
   /** Starts the payment of a new transaction. */
   readonly initiate: (args: {
     readonly cms: EasyCMS
@@ -85,6 +90,12 @@ export interface ManualAdapterOptions {
    * order email.
    */
   readonly instructions?: Label
+  /**
+   * Seconds an order waits for the money before it is cancelled and its stock put back, so
+   * unpaid orders don't hold stock. Default 3 days; `false` to keep them until staff act (e.g.
+   * cash on delivery).
+   */
+  readonly expiresIn?: number | false
 }
 
 /**
@@ -96,6 +107,7 @@ export function manualAdapter(options: ManualAdapterOptions = {}): PaymentAdapte
     name: options.name ?? 'bank-transfer',
     label: options.label ?? { en: 'Bank transfer', th: 'โอนเงิน' },
     manual: true,
+    expiresIn: options.expiresIn ?? 3 * 86_400,
     ...(options.instructions ? { instructions: options.instructions } : {}),
     initiate: () => ({}),
   }
