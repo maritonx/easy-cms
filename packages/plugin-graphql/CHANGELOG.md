@@ -1,5 +1,12 @@
 # @easy-cms/plugin-graphql
 
+## 0.67.0
+
+### Patch Changes
+
+- Updated dependencies [5742428]
+  - @easy-cms/core@0.67.0
+
 ## 0.66.1
 
 ### Patch Changes

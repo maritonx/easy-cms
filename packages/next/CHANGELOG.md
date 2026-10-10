@@ -1,5 +1,13 @@
 # @easy-cms/next
 
+## 0.67.0
+
+### Patch Changes
+
+- Updated dependencies [5742428]
+  - @easy-cms/core@0.67.0
+  - @easy-cms/admin@0.67.0
+
 ## 0.66.1
 
 ### Patch Changes
