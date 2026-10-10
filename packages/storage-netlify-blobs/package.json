@@ -1,6 +1,6 @@
 {
   "name": "@easy-cms/storage-netlify-blobs",
-  "version": "0.64.0",
+  "version": "0.65.0",
   "description": "Netlify Blobs upload storage for Easy CMS",
   "license": "MIT",
   "type": "module",

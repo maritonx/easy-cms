@@ -1,5 +1,16 @@
 # @easy-cms/plugin-ecommerce
 
+## 0.65.0
+
+### Minor Changes
+
+- 0d4d401: Unpaid manual orders (bank transfer) are cancelled after 3 days and their stock put back, so unpaid orders don't hold stock (#100). `manualAdapter({ expiresIn })` sets the seconds, or `false` to wait for staff (e.g. cash on delivery). Orders get an `expiresAt` field: run `easy-cms migrate:create` in production. Orders made before the upgrade aren't affected.
+
+### Patch Changes
+
+- Updated dependencies [eb1dd41]
+  - @easy-cms/core@0.65.0
+
 ## 0.64.0
 
 ### Patch Changes
