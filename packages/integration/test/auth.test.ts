@@ -80,6 +80,24 @@ describe('users collection (FR-CFG-06, FR-AUTH-02/06)', () => {
     await cms.destroy()
   })
 
+  it('refuses the most common passwords, whatever their case', async () => {
+    const cms = await open(config)
+    for (const password of ['password1', 'Sunshine', 'QWERTYUIOP'])
+      await expect(
+        cms.create('users', { email: `${password}@x.co`, role: 'editor', password }),
+      ).rejects.toThrow(/most common passwords/)
+    const user = await cms.create('users', {
+      email: 'ok@x.co',
+      role: 'editor',
+      password: 'a-long-own-phrase',
+    })
+    // Changing it later too.
+    await expect(cms.update('users', user.id, { password: 'iloveyou' })).rejects.toThrow(
+      ValidationError,
+    )
+    await cms.destroy()
+  })
+
   it('ignores attempts to set the hash directly', async () => {
     const { cms, user } = await withUser()
     await cms.update('users', user.id, { passwordHash: 'scrypt$1$1$1$x$y' } as never)

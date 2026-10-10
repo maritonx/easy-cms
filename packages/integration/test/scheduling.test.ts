@@ -5,7 +5,7 @@ import { db, open, SECRET } from './helpers.js'
 const config = defineConfig({
   secret: SECRET,
   db: db(),
-  cronSecret: 'cron-secret-value',
+  cronSecret: 'cron-secret-value-0123456789abcdef',
   collections: [
     {
       slug: 'posts',
@@ -164,7 +164,9 @@ describe('scheduled publishing (FR-SCH)', () => {
     // The cron endpoint needs the cron secret (or an admin).
     expect((await call('GET', '/jobs/run', undefined, '')).status).toBe(401)
     expect((await call('GET', '/jobs/run', undefined, 'Bearer wrong')).status).toBe(401)
-    expect((await call('GET', '/jobs/run', undefined, 'Bearer cron-secret-value')).json).toEqual({
+    expect(
+      (await call('GET', '/jobs/run', undefined, 'Bearer cron-secret-value-0123456789abcdef')).json,
+    ).toEqual({
       scheduled: { ran: 1, failed: 0 },
       webhooks: { sent: 0, failed: 0 },
       emails: { sent: 0, failed: 0 },
@@ -173,6 +175,20 @@ describe('scheduled publishing (FR-SCH)', () => {
     expect((await call('POST', '/jobs/run')).json).toMatchObject({
       scheduled: { ran: 0, failed: 0 },
     })
+    // Signed in with the session cookie: POST only, so a link can't run jobs.
+    const login = await handle(
+      new Request('http://cms.test/api/cms/auth/login', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', origin: 'http://cms.test' },
+        body: JSON.stringify({ email: 'admin@x.test', password: 'password123' }),
+      }),
+    )
+    const cookie = (login.headers.get('set-cookie') ?? '').split(';')[0] as string
+    const viaCookie = await handle(
+      new Request('http://cms.test/api/cms/jobs/run', { headers: { cookie } }),
+    )
+    expect(viaCookie.status).toBe(405)
+    expect(viaCookie.headers.get('allow')).toBe('POST')
 
     const job = (
       await call('POST', `/posts/${post.id}/schedule`, {

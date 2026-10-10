@@ -16,6 +16,7 @@ import {
 } from './api-keys.js'
 import { AuditLog, auditContext } from './audit.js'
 import { Auth, asMember } from './auth/auth.js'
+import { COMMON_PASSWORDS } from './auth/common-passwords.js'
 import { hashPassword, MIN_PASSWORD_LENGTH, verifyPassword } from './auth/password.js'
 import { signPreviewToken, verifyPreviewToken } from './auth/tokens.js'
 import { runDueBackups } from './backups.js'
@@ -233,6 +234,15 @@ export async function createEasyCMS<const C extends Config>(
     resolved.email !== undefined ||
     resolved.jobs.length > 0
   if (scheduling && options.scheduler !== false) cms.startScheduler()
+  // Until the first admin exists, whoever opens the admin first becomes it.
+  if (
+    process.env.NODE_ENV === 'production' &&
+    !resolved.auth.setupCode &&
+    (await cms.auth.hasUsers().catch(() => true)) === false
+  )
+    logger.warn(
+      'No admin exists yet and no setup code is set: whoever opens the admin first becomes the admin. Set EASY_CMS_SETUP_CODE, or create the admin with `easy-cms admin:create`.',
+    )
   return cms
 }
 
@@ -3265,6 +3275,11 @@ function splitPassword(config: CollectionConfig, raw: Data): { input: Data; pass
   if (typeof password !== 'string' || password.length < MIN_PASSWORD_LENGTH) {
     throw new ValidationError(USERS, [
       { field: 'password', message: `must be at least ${MIN_PASSWORD_LENGTH} characters` },
+    ])
+  }
+  if (COMMON_PASSWORDS.has(password.normalize('NFKC').toLowerCase())) {
+    throw new ValidationError(USERS, [
+      { field: 'password', message: 'is one of the most common passwords; choose another' },
     ])
   }
   return { input, password }

@@ -223,7 +223,14 @@ export class Auth {
       ...(args.name ? { name: args.name } : {}),
     })
     const raw = (await this.db.findById({ collection: USERS, id: user.id })) as RawDocument
-    return this.startSession(raw)
+    const session = await this.startSession(raw)
+    await this.cms.audit.record({
+      action: 'setup',
+      target: 'auth',
+      user: session.user,
+      detail: { setupCode: !!code },
+    })
+    return session
   }
 
   // --- Members signing up (`auth.members.signUp`) ---------------------------------------------

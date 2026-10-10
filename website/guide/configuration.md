@@ -44,7 +44,7 @@ and how to fix it.
 | `db` | — | **Required**. A database adapter: `sqlite()` or `postgres()`. See [Databases](./databases). |
 | `serverURL` | — | Public origin such as `https://example.com`. Makes media URLs absolute, and is where password links point (needed for them in production). |
 | `webhooks` | `[]` | Endpoints notified when content changes. See [Webhooks](./webhooks). |
-| `cronSecret` | `CRON_SECRET` | Lets a cron run [scheduled jobs](./drafts#scheduled-publishing) at `<api>/jobs/run`. |
+| `cronSecret` | `CRON_SECRET` | Lets a cron run [scheduled jobs](./drafts#scheduled-publishing) at `<api>/jobs/run`. At least 32 characters. |
 | `localization` | — | `{ locales, defaultLocale?, fallback? }`: content in several languages (leave it out, or `false`, for one). See [Localization](./localization). |
 | `cors` | `[]` | Origins whose browser code may call the REST API, or `'*'` for any (anonymous requests). Origins in `auth.trustedOrigins` are always allowed, with cookies. |
 | `routes.api` | `/api/cms` | Where the REST API is served. |

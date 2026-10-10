@@ -34,7 +34,7 @@ HTTP API ที่ `/api/cms`: endpoint, การ query, การยืนย�
 | POST | `/:collection/:id/discard-draft` | ทิ้งฉบับร่างที่รอเผยแพร่ |
 | GET / POST | `/:collection/:id/schedule` | งานที่[ตั้งเวลา](./drafts#scheduled-publishing)ไว้และรอดำเนินการ / ตั้งเวลา `{ action, at }` |
 | DELETE | `/:collection/:id/schedule/:job` | ยกเลิกงานที่ตั้งเวลาไว้ |
-| GET / POST | `/jobs/run` | รันงานที่ตั้งเวลาไว้ซึ่งถึงกำหนดแล้ว และลองส่ง webhook ที่ค้างอยู่ใหม่ (cron secret หรือ admin) |
+| GET / POST | `/jobs/run` | รันงานที่ตั้งเวลาไว้ซึ่งถึงกำหนดแล้ว และลองส่ง webhook ที่ค้างอยู่ใหม่ (cron secret หรือ admin ด้วย `POST`) |
 | POST | `/:collection/:id/preview` | [ตัวอย่างสด](./live-preview): `{ doc, url }` ของการแก้ไขที่ยังไม่บันทึก (`/:collection/preview` สำหรับเอกสารใหม่) |
 
 global มี route ของเวอร์ชันชุดเดียวกันใต้ `/globals/:slug/…` (`versions`, `versions/:version`,

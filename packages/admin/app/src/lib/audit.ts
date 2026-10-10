@@ -13,6 +13,7 @@ export const AUDIT_ACTIONS = [
   'delete',
   'schedule',
   'unschedule',
+  'setup',
   'login',
   'login.failed',
   'login.locked',

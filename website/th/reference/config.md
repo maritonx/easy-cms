@@ -22,7 +22,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `db` | `DatabaseAdapter` | — | **จำเป็น** `sqlite()` หรือ `postgres()` [ฐานข้อมูล](/th/guide/databases) |
 | `serverURL` | `string` | — | origin สาธารณะ (`https://example.com`) ทำให้ URL ของ media เป็น URL เต็ม |
 | `cors` | `string[] \| '*'` | `[]` | origin ที่โค้ดใน browser เรียก API ได้ [ความปลอดภัย](/th/guide/security) |
-| `cronSecret` | `string` | `CRON_SECRET` | secret แบบ Bearer สำหรับ `GET <api>/jobs/run` [การตั้งเวลา](/th/guide/drafts#scheduled-publishing) |
+| `cronSecret` | `string` | `CRON_SECRET` | secret แบบ Bearer สำหรับ `GET <api>/jobs/run` ยาวอย่างน้อย 32 ตัวอักษร (ถ้า `CRON_SECRET` สั้นกว่าจะเป็นคำเตือน) [การตั้งเวลา](/th/guide/drafts#scheduled-publishing) |
 | `webhooks` | `WebhookConfig[]` | `[]` | ดู [webhooks](#webhooks) |
 | `events` | `string[]` | `[]` | event ของแอปหรือ plugin นอกจากการแก้เนื้อหา (`<area>.<what>` เช่น `order.paid`) ส่งด้วย `cms.emit()` ไปยัง webhook ที่ระบุไว้ [Webhooks](/th/guide/webhooks#your-own-events) |
 | `jobs` | `JobConfig[]` | `[]` | งานที่รันพร้อมงานตั้งเวลา เช่นงานเก็บกวาดของ plugin ดู [jobs](#jobs) |
@@ -133,7 +133,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `providers` | `AuthProvider[]` | `[]` | เข้าสู่ระบบหน้า admin ด้วยบัญชีภายนอก เช่น `[google()]` จาก `@easy-cms/auth-oauth` [Single sign-on](/th/guide/sso) |
 | `providerSignUp` | `{ domains, role? }` | — | เมื่อมี `providers`: คนจากโดเมนอีเมลเหล่านี้ได้บัญชีตอนเข้าสู่ระบบครั้งแรก เป็น `role` (ห้ามเป็น `admin`) |
 | `password` | `boolean` | `true` | `false`: เฉพาะ admin ที่ใช้รหัสผ่านได้ คนอื่นใช้ `providers` |
-| `setupCode` | `string` | `EASY_CMS_SETUP_CODE` | รหัสที่ admin คนแรกต้องกรอกที่ `/admin` กันคนอื่นแย่งเว็บที่เพิ่ง deploy ถ้าไม่ตั้งจะไม่ถาม [Deploy ด้วยคลิกเดียว](/th/guide/one-click-deploy) |
+| `setupCode` | `string` | `EASY_CMS_SETUP_CODE` | รหัสที่ admin คนแรกต้องกรอกที่ `/admin` กันคนอื่นแย่งเว็บที่เพิ่ง deploy ถ้าไม่ตั้งจะไม่ถาม และบน production server จะเตือนตราบใดที่ยังไม่มี admin [Deploy ด้วยคลิกเดียว](/th/guide/one-click-deploy) |
 | `tokenExpiration` | `number` | `604800` (7 วัน) | อายุของ session เป็นวินาที |
 | `maxLoginAttempts` | `number` | `5` | จำนวนครั้งที่ login ผิดได้ต่อ email (และ IP) ภายใน `lockWindow` |
 | `lockWindow` | `number` | `900` (15 นาที) | เป็นวินาที |

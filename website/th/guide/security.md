@@ -11,6 +11,7 @@ Easy CMS ป้องกันอะไรให้บ้าง อะไรย�
 ### บัญชีและ session {#accounts-and-sessions}
 
 - **รหัสผ่าน** hash ด้วย scrypt (N=2¹⁷) และไม่มี API ไหนส่งคืน ต้องยาวอย่างน้อย 8 ตัวอักษร
+  และต้องไม่อยู่ในรายการรหัสผ่านที่ใช้บ่อยที่สุดราว 2,000 อัน (เช่น `password1` หรือ `iloveyou`)
 - **session token** สุ่มขึ้นมา เซ็นด้วย `EASY_CMS_SECRET` และเก็บเฉพาะค่า hash สำเนาของฐานข้อมูลจึงใช้ login ไม่ได้
 - **cookie** เป็น `HttpOnly`, `SameSite=Lax` และ `Secure` บน production (หรือเมื่อใช้ HTTPS)
 - **จำกัดการ login**: ล้มเหลว 5 ครั้งต่อ email (และ IP ถ้ารู้) ภายใน 15 นาที การ login จะตอบ `429`
@@ -68,6 +69,9 @@ Easy CMS ป้องกันอะไรให้บ้าง อะไรย�
   `--trust-proxy` สำหรับ standalone) เพื่อให้การจำกัด login เห็น IP จริงของผู้ใช้ ระบบใช้ที่อยู่ตัวสุดท้ายของ
   `X-Forwarded-For` ส่วน Vercel และ Netlify ไม่ต้องตั้งอะไร ถ้าไม่รู้ IP การ login ผิดจะนับต่ออีเมล และ log ของ server จะบอกไว้
 - [ ] `EASY_CMS_SECRET` เป็นค่าสุ่ม (`openssl rand -hex 32`) บน production ค่าที่ดูเหมือนตัวอย่างหรือเป็นรูปแบบซ้ำๆ จะใช้ไม่ได้
+- [ ] ตั้ง `EASY_CMS_SETUP_CODE` ไว้จนกว่าจะมี admin คนแรก (บน production server จะเตือนตราบใดที่ยังไม่มี admin
+      และไม่มีรหัส) และการสร้าง admin คนแรกจะถูกบันทึกใน audit log
+- [ ] `CRON_SECRET` เป็นข้อความสุ่มยาวอย่างน้อย 32 ตัวอักษร เหมือน `EASY_CMS_SECRET`
 - [ ] admin คนแรกใช้รหัสผ่านที่แข็งแรง และคนอื่นใช้บทบาท `editor`
 - [ ] รัน migration แล้ว (`easy-cms migrate`) และมีการสำรองข้อมูลตามรอบ
 

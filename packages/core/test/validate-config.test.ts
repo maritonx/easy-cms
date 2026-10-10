@@ -265,6 +265,23 @@ describe('validateConfig', () => {
     ])
   })
 
+  it('checks cronSecret like secret', () => {
+    expect(validateConfig(baseConfig({ cronSecret: 'c'.repeat(32) }))).toEqual([])
+    expect(validateConfig(baseConfig({ cronSecret: 'short' }))).toMatchObject([
+      { path: 'cronSecret', message: 'must be at least 32 characters (got 5)' },
+    ])
+    const before = process.env.CRON_SECRET
+    process.env.CRON_SECRET = 'short'
+    try {
+      expect(validateConfig(baseConfig())).toMatchObject([
+        { path: 'cronSecret', severity: 'warning' },
+      ])
+    } finally {
+      if (before === undefined) delete process.env.CRON_SECRET
+      else process.env.CRON_SECRET = before
+    }
+  })
+
   it('checks auth options', () => {
     const issues = validateConfig(
       baseConfig({

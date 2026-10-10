@@ -24,6 +24,15 @@ Invalid Easy CMS config (1 problem):
   • admin.siteUrl: is now `siteURL`
 ```
 
+## 0.62
+
+- **Common passwords are refused:** setting a password that is one of the ~2,000 most common
+  (`password1`, `iloveyou`…) fails with a validation error. Existing passwords keep working.
+- **`cronSecret` must be at least 32 characters**, like `secret`: a shorter one in the config
+  stops startup; a shorter `CRON_SECRET` is a warning. Generate one with `openssl rand -hex 32`.
+- **`<api>/jobs/run` with the session cookie takes `POST` only** (`405` for `GET`). Crons with
+  `Authorization: Bearer <cronSecret>` still use `GET`.
+
 ## 0.60
 
 0.60 settles the names and shapes kept through 1.x. Most apps only need the config changes

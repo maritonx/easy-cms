@@ -11,7 +11,8 @@ What Easy CMS protects for you, what stays your job, and a checklist before goin
 ### Accounts and sessions
 
 - **Passwords** are hashed with scrypt (N=2¹⁷) and never returned by any API. They must be at
-  least 8 characters.
+  least 8 characters, and not one of the ~2,000 most common passwords (such as `password1` or
+  `iloveyou`).
 - **Session tokens** are random, signed with `EASY_CMS_SECRET`, and stored only as hashes, so a
   copy of the database does not let anyone log in.
 - **Cookies** are `HttpOnly`, `SameSite=Lax`, and `Secure` in production (or over HTTPS).
@@ -76,6 +77,9 @@ What Easy CMS protects for you, what stays your job, and a checklist before goin
   per email, and the server log says so.
 - [ ] `EASY_CMS_SECRET` is random (`openssl rand -hex 32`): in production, one that looks like an
   example or a pattern is refused.
+- [ ] `EASY_CMS_SETUP_CODE` is set until the first admin exists (in production the server warns
+      while there is no admin and no code), and creating that admin is in the audit log.
+- [ ] `CRON_SECRET` is a random string of at least 32 characters, like `EASY_CMS_SECRET`.
 - [ ] The first admin has a strong password; other people have the `editor` role.
 - [ ] Migrations are applied (`easy-cms migrate`) and backups run on a schedule.
 

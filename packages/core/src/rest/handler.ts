@@ -536,6 +536,8 @@ async function route(
     if (!byCron && !isSystemAdmin(ctx.user)) {
       throw ctx.user ? new HttpError('Forbidden', 403) : new UnauthorizedError()
     }
+    // With the session cookie, only POST: it has the CSRF checks, and a link can't run jobs.
+    if (!byCron && ctx.via === 'cookie' && method !== 'POST') throw methodNotAllowed(ctx, 'POST')
     return { body: await cms.runJobs() }
   }
 

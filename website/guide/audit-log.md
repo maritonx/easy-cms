@@ -24,8 +24,8 @@ the page too.
 - **Content:** creating, changing, publishing, unpublishing, restoring and deleting documents and
   globals, uploads, and scheduling, with **which fields changed** and their values before and
   after. A deleted document's title is kept.
-- **Signing in:** logins, failed logins (with the email tried), lock-outs, logouts, forgotten
-  passwords, password links, and [single sign-on](./sso): signing in, linking and unlinking.
+- **Signing in:** creating the first admin, logins, failed logins (with the email tried),
+  lock-outs, logouts, forgotten passwords, password links, and [single sign-on](./sso): signing in, linking and unlinking.
 - **Admin actions:** users (their role, deactivating them), roles, API keys, backups started,
   downloaded and deleted, test emails, and retried or deleted deliveries.
 

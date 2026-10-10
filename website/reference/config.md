@@ -24,7 +24,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `db` | `DatabaseAdapter` | — | **Required**. `sqlite()` or `postgres()`. [Databases](/guide/databases) |
 | `serverURL` | `string` | — | Public origin (`https://example.com`); makes media URLs absolute. |
 | `cors` | `string[] \| '*'` | `[]` | Origins whose browser code may call the API. [Security](/guide/security) |
-| `cronSecret` | `string` | `CRON_SECRET` | Bearer secret for `GET <api>/jobs/run`. [Scheduling](/guide/drafts#scheduled-publishing) |
+| `cronSecret` | `string` | `CRON_SECRET` | Bearer secret for `GET <api>/jobs/run`, at least 32 characters (a shorter `CRON_SECRET` is a warning). [Scheduling](/guide/drafts#scheduled-publishing) |
 | `webhooks` | `WebhookConfig[]` | `[]` | See [webhooks](#webhooks). |
 | `events` | `string[]` | `[]` | Events of the app or its plugins besides content changes (`<area>.<what>`, e.g. `order.paid`), sent with `cms.emit()` to webhooks that list them. [Webhooks](/guide/webhooks#your-own-events) |
 | `jobs` | `JobConfig[]` | `[]` | Work run with the scheduled jobs, e.g. a plugin's clean-up. See [jobs](#jobs). |
@@ -135,7 +135,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `providers` | `AuthProvider[]` | `[]` | Signing in to the admin with outside accounts, e.g. `[google()]` from `@easy-cms/auth-oauth`. [Single sign-on](/guide/sso) |
 | `providerSignUp` | `{ domains, role? }` | — | With `providers`: people from these email domains get an account on their first sign-in, with `role` (not `admin`). |
 | `password` | `boolean` | `true` | `false`: only admins sign in with a password; everyone else uses `providers`. |
-| `setupCode` | `string` | `EASY_CMS_SETUP_CODE` | The code the first admin must enter on `/admin`, so nobody else claims a fresh site. Without one, no code is asked. [One-click deploy](/guide/one-click-deploy) |
+| `setupCode` | `string` | `EASY_CMS_SETUP_CODE` | The code the first admin must enter on `/admin`, so nobody else claims a fresh site. Without one, no code is asked, and in production the server warns while no admin exists. [One-click deploy](/guide/one-click-deploy) |
 | `tokenExpiration` | `number` | `604800` (7 days) | Session lifetime in seconds. |
 | `maxLoginAttempts` | `number` | `5` | Failed logins allowed per email (and IP) within `lockWindow`. |
 | `lockWindow` | `number` | `900` (15 minutes) | In seconds. |

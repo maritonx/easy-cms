@@ -22,6 +22,15 @@ Invalid Easy CMS config (1 problem):
   • admin.siteUrl: is now `siteURL`
 ```
 
+## 0.62
+
+- **ไม่รับรหัสผ่านที่ใช้บ่อย:** การตั้งรหัสผ่านที่อยู่ในรายการราว 2,000 อันที่ใช้บ่อยที่สุด (`password1`, `iloveyou`…)
+  จะได้ validation error ส่วนรหัสผ่านที่ตั้งไว้แล้วยังใช้ได้
+- **`cronSecret` ต้องยาวอย่างน้อย 32 ตัวอักษร** เหมือน `secret`: ถ้าใน config สั้นกว่านั้น แอปจะไม่เริ่มทำงาน
+  ส่วน `CRON_SECRET` ที่สั้นจะเป็นคำเตือน สร้างได้ด้วย `openssl rand -hex 32`
+- **`<api>/jobs/run` ที่ใช้ session cookie รับเฉพาะ `POST`** (`GET` ได้ `405`) ส่วน cron ที่ส่ง
+  `Authorization: Bearer <cronSecret>` ยังใช้ `GET` ได้
+
 ## 0.60
 
 0.60 ล็อกชื่อและรูปร่างที่จะใช้ตลอด 1.x แอปส่วนใหญ่แก้แค่ config (error บอกทีละข้อ)

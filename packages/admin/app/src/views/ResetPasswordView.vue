@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import ApiKeysPanel from '../components/ApiKeysPanel.vue'
 import AuthCard from '../components/AuthCard.vue'
 import ProviderButtons from '../components/ProviderButtons.vue'
 import { ApiError, api } from '../lib/api'
@@ -11,7 +12,7 @@ import { resetPassword, session } from '../lib/session'
 const route = useRoute()
 const router = useRouter()
 const token = typeof route.query.token === 'string' ? route.query.token : ''
-const state = ref<'checking' | 'ready' | 'invalid'>('checking')
+const state = ref<'checking' | 'ready' | 'invalid' | 'keys'>('checking')
 const purpose = ref<'reset' | 'invite'>('reset')
 const email = ref('')
 const password = ref('')
@@ -42,7 +43,9 @@ async function submit() {
   busy.value = true
   try {
     await resetPassword(token, password.value, locale.value)
-    await router.replace('/')
+    // After a reset, the user's API keys (if any) are offered for revoking first.
+    if (purpose.value === 'reset') state.value = 'keys'
+    else await router.replace('/')
   } catch (e) {
     if (e instanceof ApiError && e.fieldErrors.token) state.value = 'invalid'
     else
@@ -59,6 +62,10 @@ async function submit() {
     <div v-else-if="state === 'invalid'" class="form">
       <p class="notice notice-error" role="alert">{{ t('reset.invalid') }}</p>
       <RouterLink v-if="!session.user" :to="{ name: 'forgot-password' }" class="link">{{ t('reset.again') }}</RouterLink>
+    </div>
+    <div v-else-if="state === 'keys'" class="form">
+      <p class="notice" role="status">{{ t('reset.done') }}</p>
+      <ApiKeysPanel after-reset @loaded="(count) => count || router.replace('/')" @done="router.replace('/')" />
     </div>
     <form v-else class="form" @submit.prevent="submit">
       <p class="muted">{{ t(purpose === 'invite' ? 'reset.inviteIntro' : 'reset.intro', { email }) }}</p>

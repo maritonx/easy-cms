@@ -866,6 +866,17 @@ test.describe('logged in as admin', () => {
     expect(await me.json()).toEqual({ data: { me: { email: ADMIN.email } } })
   })
 
+  test('lists your own API keys on Account, to revoke them', async ({ page }) => {
+    await page.getByRole('link', { name: /Account/ }).click()
+    const panel = page.getByRole('region', { name: 'Your API keys' })
+    await expect(panel.getByText('E2E importer')).toBeVisible()
+    await panel.getByRole('button', { name: 'Revoke', exact: true }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Revoke', exact: true }).click()
+    await expect(panel.getByText('You have no API keys.')).toBeVisible()
+    const keys = await page.request.get('/api/cms/api-keys')
+    expect((await keys.json()).totalDocs).toBe(0)
+  })
+
   test('redirects old addresses, and renamed posts (redirects plugin)', async ({ page }) => {
     // Under Settings in the menu, edited in a drawer.
     await page.goto('/admin/')

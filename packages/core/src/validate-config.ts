@@ -57,6 +57,7 @@ export function validateConfig(config: Config): ConfigIssue[] {
   }
 
   validateSecret(config.secret, add)
+  validateCronSecret(config.cronSecret, (issue) => issues.push(issue))
   checkConfigKeys(config, (issue) => issues.push(issue))
   validateAdapterVersions(config, add)
 
@@ -148,6 +149,32 @@ function validateSecret(secret: unknown, add: Add) {
   } else if (process.env.NODE_ENV === 'production' && guessable(secret)) {
     add('secret', 'looks like an example or a repeated pattern, not a random string', hint)
   }
+}
+
+/**
+ * `cronSecret` (or `CRON_SECRET`) lets a request run jobs: as long as `secret`. Set in the config
+ * it must be; from the environment (set by a host, maybe) a short one is a warning.
+ */
+function validateCronSecret(value: unknown, push: (issue: ConfigIssue) => void) {
+  const hint = `use a random string of at least ${MIN_SECRET_LENGTH} characters, e.g. \`openssl rand -hex 32\``
+  if (value !== undefined) {
+    if (typeof value !== 'string') push({ path: 'cronSecret', message: 'must be a string' })
+    else if (value.length < MIN_SECRET_LENGTH)
+      push({
+        path: 'cronSecret',
+        message: `must be at least ${MIN_SECRET_LENGTH} characters (got ${value.length})`,
+        hint,
+      })
+    return
+  }
+  const env = process.env.CRON_SECRET
+  if (env && env.length < MIN_SECRET_LENGTH)
+    push({
+      path: 'cronSecret',
+      message: `CRON_SECRET is ${env.length} characters; anyone who guesses it can run jobs`,
+      hint,
+      severity: 'warning',
+    })
 }
 
 /** A placeholder (`change-me`), or so few different characters it can't be random. */

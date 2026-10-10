@@ -44,7 +44,7 @@ export default defineConfig({
 | `db` | — | **จำเป็น** database adapter: `sqlite()` หรือ `postgres()` ดู [ฐานข้อมูล](./databases) |
 | `serverURL` | — | origin สาธารณะ เช่น `https://example.com` ทำให้ URL ของ media เป็นแบบ absolute และเป็นที่ที่ลิงก์ตั้งรหัสผ่านชี้ไป (production ต้องตั้งถ้าจะใช้ลิงก์นี้) |
 | `webhooks` | `[]` | endpoint ที่จะได้รับแจ้งเมื่อเนื้อหาเปลี่ยนแปลง ดู [Webhooks](./webhooks) |
-| `cronSecret` | `CRON_SECRET` | ให้ cron รัน[งานที่ตั้งเวลาไว้](./drafts#scheduled-publishing)ที่ `<api>/jobs/run` ได้ |
+| `cronSecret` | `CRON_SECRET` | ให้ cron รัน[งานที่ตั้งเวลาไว้](./drafts#scheduled-publishing)ที่ `<api>/jobs/run` ได้ ยาวอย่างน้อย 32 ตัวอักษร |
 | `localization` | — | `{ locales, defaultLocale?, fallback? }`: เนื้อหาหลายภาษา (ถ้ามีภาษาเดียว ไม่ต้องใส่ หรือตั้งเป็น `false`) ดู [หลายภาษา](./localization) |
 | `cors` | `[]` | origin ที่โค้ดฝั่งเบราว์เซอร์เรียก REST API ได้ หรือ `'*'` สำหรับทุก origin (คำขอแบบไม่ระบุตัวตน) origin ใน `auth.trustedOrigins` ได้รับอนุญาตเสมอ พร้อม cookie |
 | `routes.api` | `/api/cms` | ตำแหน่งที่ให้บริการ REST API |

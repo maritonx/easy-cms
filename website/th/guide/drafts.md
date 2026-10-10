@@ -107,7 +107,8 @@ await cms.cancelSchedule('posts', id, jobId)
 { "crons": [{ "path": "/api/cms/jobs/run", "schedule": "* * * * *" }] }
 ```
 
-ตั้งค่า `CRON_SECRET` (หรือ `cronSecret` ใน config) admin ที่เข้าสู่ระบบแล้วก็เรียกได้เช่นกัน และ
+ตั้งค่า `CRON_SECRET` (หรือ `cronSecret` ใน config) เป็นข้อความสุ่มยาวอย่างน้อย 32 ตัวอักษร
+admin ที่เข้าสู่ระบบแล้วก็เรียกได้เช่นกันด้วย `POST` (ลิงก์จึงสั่งรันงานแทน admin ไม่ได้) และ
 `npx easy-cms jobs:run` จะรันงานที่ถึงเวลาหนึ่งครั้งจาก cron ใดก็ได้ งานที่ล้มเหลว (เช่น การเผยแพร่ที่
 ไม่ผ่านการตรวจสอบ) จะถูกบันทึก log และไม่ลองใหม่ การรันเดียวกันนี้จะลองส่ง[webhook](./webhooks#delivery)ที่เคยล้มเหลวใหม่ด้วย
 

@@ -91,6 +91,9 @@ Each row of the table is a collection or global; each column an action:
 - **Revoke** a key by deleting it. It stops working at once.
 - Deactivating a user (or deleting them) turns off their keys too.
 - Admins see every key; other users see and manage only their own.
+- **Account** lists your own keys, with **Revoke** and **Revoke all**. Keys keep working when a
+  password changes, so after you reset a forgotten password the admin shows your keys first and
+  offers to revoke them: whoever had the old password may have made one.
 
 ## In code
 

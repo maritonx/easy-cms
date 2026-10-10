@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import ApiKeysPanel from '../components/ApiKeysPanel.vue'
 import IdentitiesPanel from '../components/IdentitiesPanel.vue'
 import { ApiError, api } from '../lib/api'
 import { locale, setLocale, t } from '../lib/i18n'
@@ -86,6 +87,8 @@ async function save() {
   </form>
 
   <IdentitiesPanel class="account" />
+
+  <ApiKeysPanel class="account" />
 
   <section class="card account" :aria-labelledby="'ui-language'">
     <h2 id="ui-language" class="section-title">{{ t('account.language') }}</h2>
