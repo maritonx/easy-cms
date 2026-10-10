@@ -1,7 +1,12 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
-import { renderShell, SECURITY_HEADERS, SHELL_FILE } from '@easy-cms/admin'
+import {
+  renderShell,
+  SECURITY_HEADERS,
+  SHELL_FILE,
+  STRICT_TRANSPORT_SECURITY,
+} from '@easy-cms/admin'
 import type { Config } from '@easy-cms/core'
 import {
   applyPlugins,
@@ -163,6 +168,7 @@ declare module '${SERVER}' {
     nitro.virtual[ADMIN_SHELL] = `export const basePath = ${JSON.stringify(adminPath)}
 export const html = ${JSON.stringify(shell)}
 export const headers = ${JSON.stringify(SECURITY_HEADERS)}
+export const hsts = ${JSON.stringify(STRICT_TRANSPORT_SECURITY)}
 export const reload = ${nuxt.options.dev ? JSON.stringify({ file: shellFile, options: shellOptions }) : 'null'}
 `
     nitro.publicAssets = [
