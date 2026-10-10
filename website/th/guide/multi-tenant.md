@@ -65,10 +65,11 @@ npx easy-cms tenants:assign brand-a
 - โฟลเดอร์สื่อเป็นของ tenant field upload ที่ตั้ง `folder: 'banners'` จะเปิดโฟลเดอร์ `banners` ของแต่ละ tenant
 - ค่าที่ unique รวมถึง slug ห้ามซ้ำแค่ภายใน tenant สองแบรนด์จึงมี `/posts/hello` ได้ทั้งคู่
 - เพิ่มคนที่ **สมาชิก** ด้วยอีเมล บัญชีหนึ่งอยู่ได้หลาย tenant คนใหม่จะได้อีเมลให้ตั้งรหัสผ่านเมื่อตั้งค่า[อีเมล](./email)แล้ว
-  admin ของ tenant แก้บัญชีของคนอื่นไม่ได้ แก้ได้แค่การเป็นสมาชิก
+  admin ของ tenant แก้บัญชีของคนอื่นไม่ได้ แก้ได้แค่การเป็นสมาชิก ในบัญชีของคนอื่น staff ของ tenant เห็นเฉพาะการเป็นสมาชิก
+  ของ tenant นั้น ส่วนเจ้าของบัญชีเห็นของตัวเองทั้งหมด
 - [API key](./api-keys) จำ tenant ที่สร้างไว้ตลอด
 - [Audit log](./audit-log) เก็บ tenant ของแต่ละ entry admin ของ tenant เห็นของ tenant ตัวเอง ผู้ที่เข้าได้ทุก tenant เห็นทั้งหมด
-  หรือของ tenant ที่เลือก
+  หรือของ tenant ที่เลือก การตรวจความถูกต้องของ log ทั้งหมดทำได้เฉพาะผู้ที่เข้าได้ทุก tenant
 - ตอนแสดงทุก tenant หน้ารายการมีคอลัมน์ Tenant และตัวสลับใช้กรองเหลือ tenant เดียว
 
 ## ใช้กับ plugin อื่น {#with-other-plugins}
@@ -95,6 +96,9 @@ plugins: [
 - **[SEO](./seo):** ดูด้านล่าง
 
 ในที่นี้ `context` คือ `await tenantContext(cms, { host })` หรือ `(await cms.forRequest(request)).context`
+
+ใส่ collection ของ plugin หนึ่งให้ครบทุกตัวหรือไม่ใส่เลย ถ้า `forms` แยกตาม tenant แต่ `form-submissions` ใช้ร่วมกัน
+(หรือ collection บางตัวของร้านค้า) ข้อมูลใน collection ที่ใช้ร่วมจะข้าม tenant ได้ server จะขึ้นคำเตือนตอน request แรกเมื่อเป็นแบบนี้
 
 ## Frontend {#frontends}
 

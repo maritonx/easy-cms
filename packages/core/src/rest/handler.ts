@@ -658,6 +658,8 @@ async function route(
     }
     if (second === 'audit' && third === 'verify' && segments.length === 3) {
       if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
+      // The check covers every part of the site: for admins of the whole system only.
+      if (!isSystemAdmin(ctx.user)) throw new ForbiddenError()
       return { body: await cms.audit.verify() }
     }
     if (second !== 'audit' || third !== undefined) throw new HttpError('Not found', 404)

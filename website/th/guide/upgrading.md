@@ -22,6 +22,14 @@ Invalid Easy CMS config (1 problem):
   • admin.siteUrl: is now `siteURL`
 ```
 
+## 0.66
+
+- **`unique` ใน group, array หรือ block ขึ้นคำเตือน:** ที่นั่นไม่เคยถูกบังคับใช้อยู่แล้ว ให้ย้าย field ขึ้นระดับบนสุด
+  หรือตรวจใน hook แทน
+- **Multi-tenant:** staff ของ tenant เห็นการเป็นสมาชิกของคนอื่นเฉพาะใน tenant นั้น การตรวจ audit log
+  (`POST <api>/admin/audit/verify`) ทำได้เฉพาะ admin ที่เข้าได้ทุก tenant และ collection ของ plugin ที่ใส่แยกตาม tenant
+  ไม่ครบจะขึ้นคำเตือน
+
 ## 0.65
 
 - **ร้านค้า: คำสั่งซื้อแบบโอนเงินที่ไม่จ่ายจะถูกยกเลิกหลัง 3 วัน** และคืนสต็อก (`manualAdapter({ expiresIn })` เป็นวินาที

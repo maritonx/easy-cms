@@ -12,7 +12,7 @@ look in the admin and how they are stored, see [Fields](/guide/fields).
 | `type` | see [types](#types) | **Required**. |
 | `label` | `string \| { en, th }` | Default: the name, humanized. |
 | `required` | `boolean` | Must have a value (not checked while saving a draft). |
-| `unique` | `boolean` | No two documents share the value (top-level fields). |
+| `unique` | `boolean` | No two documents share the value. Top-level fields only (inside a group, array or block it is ignored, with a warning). |
 | `uniqueWithin` | `string \| string[]` | With `unique` or on a slug: sibling fields (e.g. `parent`, `tenant`); values only differ among documents with the same values there. |
 | `index` | `boolean` | Adds a database index. |
 | `defaultValue` | the field's value | Used when a document is created without it. |

@@ -23,7 +23,7 @@ import {
   viaLabel,
 } from '../lib/audit'
 import { formatDate, label, t } from '../lib/i18n'
-import { session } from '../lib/session'
+import { isSystemAdmin, session } from '../lib/session'
 import { settings } from '../lib/settings'
 import { notify } from '../lib/toast'
 
@@ -35,6 +35,8 @@ const failed = ref('')
 const open = ref<string | null>(null)
 const verifying = ref(false)
 const verification = ref<AuditVerification | null>(null)
+/** The check covers the whole site: for admins of all of it, not of one part (a tenant). */
+const canVerify = computed(() => isSystemAdmin(session.user))
 
 const KEYS = ['action', 'target', 'doc', 'actor', 'from', 'to'] as const
 type Key = (typeof KEYS)[number]
@@ -144,7 +146,7 @@ async function verify() {
           <Download :size="16" aria-hidden="true" />
           {{ t('audit.csv') }}
         </a>
-        <button type="button" class="btn" :disabled="verifying" @click="verify">
+        <button v-if="canVerify" type="button" class="btn" :disabled="verifying" @click="verify">
           <ShieldCheck :size="16" aria-hidden="true" />
           {{ t('audit.verify') }}
         </button>

@@ -1,6 +1,7 @@
 import {
   type Access,
   type AccessArgs,
+  type AfterReadHook,
   type AuthUser,
   type BeforeChangeHook,
   type BeforeValidateHook,
@@ -74,6 +75,25 @@ export interface MultiTenantPluginOptions<S extends string = string, T extends s
 
 type Data = Record<string, unknown>
 type Op = 'read' | 'create' | 'update' | 'delete'
+
+/** Other plugins' collections that belong together (their default slugs). */
+const PLUGIN_GROUPS: readonly { plugin: string; slugs: readonly string[] }[] = [
+  { plugin: 'formBuilderPlugin', slugs: ['forms', 'form-submissions'] },
+  {
+    plugin: 'ecommercePlugin',
+    slugs: [
+      'products',
+      'variant-types',
+      'variant-options',
+      'variants',
+      'carts',
+      'addresses',
+      'orders',
+      'transactions',
+      'shop-counters',
+    ],
+  },
+]
 
 type TenantFieldType<T extends string> = {
   readonly name: 'tenant'
@@ -162,6 +182,19 @@ export function multiTenantPlugin<const S extends string, const T extends string
       )
     if (scoped.has(tenantsSlug) || scoped.has('users'))
       throw new Error(`multiTenantPlugin: "${tenantsSlug}" and "users" can't belong to a tenant`)
+    // Collections of a plugin that work together, partly per tenant: what the shared ones hold
+    // (submissions, orders…) would cross tenants. Logged once, on the first request.
+    const partly = PLUGIN_GROUPS.flatMap(({ plugin, slugs }) => {
+      const present = slugs.filter((slug) => declared.has(slug))
+      const listed = present.filter((slug) => scoped.has(slug))
+      const shared = present.filter((slug) => !scoped.has(slug))
+      return listed.length > 0 && shared.length > 0
+        ? [
+            `multiTenantPlugin: ${shared.map((x) => `"${x}"`).join(', ')} of ${plugin} are shared by all tenants while ${listed.map((x) => `"${x}"`).join(', ')} belong to one; list them all in \`collections\`, or none`,
+          ]
+        : []
+    })
+    let warned = partly.length === 0
     const perTenant = new Set(options.globals ?? [])
     const unknownGlobals = [...perTenant].filter(
       (g) => !(config.globals ?? []).some((global) => global.slug === g),
@@ -387,6 +420,26 @@ export function multiTenantPlugin<const S extends string, const T extends string
       }
     }
 
+    // Others' memberships in other tenants are theirs to know: staff of a tenant see this tenant's.
+    const ownMemberships: AfterReadHook = ({ doc, user, context }) => {
+      if (!user || superUser(user, context) || sameId(doc.id, user.id)) return doc
+      const list = doc[MEMBERSHIPS_FIELD]
+      if (!Array.isArray(list)) return doc
+      const { tenant } = tenantOf(context)
+      const idOf = (value: unknown) =>
+        typeof value === 'object' && value !== null ? (value as { id?: unknown }).id : value
+      return {
+        ...doc,
+        [MEMBERSHIPS_FIELD]: list.filter(
+          (m) => tenant !== null && sameId(idOf((m as { tenant?: unknown }).tenant), tenant),
+        ),
+      }
+    }
+    const usersHooks = (hooks: CollectionConfig['hooks'] = {}) => ({
+      ...hooks,
+      afterRead: [...(hooks.afterRead ?? []), ownMemberships],
+    })
+
     const tenantsAccess: CollectionAccess = {
       read: ({ user, context }) => {
         if (!user) return false
@@ -470,6 +523,7 @@ export function multiTenantPlugin<const S extends string, const T extends string
           ...c,
           fields: [...withTenantFilters(c.fields), memberships],
           access: { ...c.access, ...usersAccess(c.access) },
+          hooks: usersHooks(c.hooks),
         })
       } else if (scoped.has(c.slug)) collections.push(scopeCollection(c, BUILTIN_ACCESS[c.slug]))
       else
@@ -484,7 +538,13 @@ export function multiTenantPlugin<const S extends string, const T extends string
           },
         })
     }
-    if (!hasUsers) collections.push({ slug: 'users', fields: [memberships], access: usersAccess() })
+    if (!hasUsers)
+      collections.push({
+        slug: 'users',
+        fields: [memberships],
+        access: usersAccess(),
+        hooks: usersHooks(),
+      })
     // The built-in media library (added after plugins) takes these as its own.
     for (const builtin of [MEDIA, MEDIA_FOLDERS]) {
       if (scoped.has(builtin) && !declared.has(builtin))
@@ -522,6 +582,10 @@ export function multiTenantPlugin<const S extends string, const T extends string
     // After the config's own `onRequest`, whose user it sees and whose context it adds to.
     const previous = config.onRequest
     const onRequest: OnRequest = async (args) => {
+      if (!warned) {
+        warned = true
+        for (const message of partly) args.cms.logger.warn(message)
+      }
       const user = args.user
       const list = await tenantList(args.cms, tenantsSlug)
       const asked =

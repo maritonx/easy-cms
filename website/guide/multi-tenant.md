@@ -73,10 +73,12 @@ npx easy-cms tenants:assign brand-a
   `/posts/hello`.
 - People are added under **Members**, by email: an account can be in several tenants. New people
   get an email to set a password when [email](./email) is set up. Admins of a tenant can't change
-  people's accounts, only their membership.
+  people's accounts, only their membership. On someone's account, the staff of a tenant see
+  that tenant's membership only; people see all of their own.
 - An [API key](./api-keys) keeps the tenant it was created in.
 - The [audit log](./audit-log) keeps each entry's tenant: admins of a tenant see its entries;
-  users with access to all see everything, or the chosen tenant's.
+  users with access to all see everything, or the chosen tenant's. Checking the whole log's
+  integrity is for them only.
 - While all tenants are shown, lists have a Tenant column; the switcher narrows them to one.
 
 ## With other plugins
@@ -105,6 +107,10 @@ plugins: [
 - **[SEO](./seo):** see below.
 
 Here `context` is `await tenantContext(cms, { host })` or `(await cms.forRequest(request)).context`.
+
+List all of a plugin's collections or none: with `forms` per tenant but `form-submissions`
+shared (or some of the shop's collections), what the shared ones hold would cross tenants. The
+server logs a warning on the first request when that is the case.
 
 ## Frontends
 

@@ -284,6 +284,29 @@ describe('validateConfig', () => {
     expect(validateConfig(baseConfig({ backups: { encryptionKey: 'k'.repeat(32) } }))).toEqual([])
   })
 
+  it('warns that unique holds for top-level fields only', () => {
+    const issues = validateConfig(
+      baseConfig({
+        collections: [
+          {
+            slug: 'products',
+            fields: [
+              { name: 'sku', type: 'text', unique: true },
+              {
+                name: 'meta',
+                type: 'group',
+                fields: [{ name: 'code', type: 'text', unique: true }],
+              },
+            ],
+          },
+        ],
+      }),
+    )
+    expect(issues).toMatchObject([
+      { path: 'collections.products.fields.meta.fields.code.unique', severity: 'warning' },
+    ])
+  })
+
   it('checks cronSecret like secret', () => {
     expect(validateConfig(baseConfig({ cronSecret: 'c'.repeat(32) }))).toEqual([])
     expect(validateConfig(baseConfig({ cronSecret: 'short' }))).toMatchObject([

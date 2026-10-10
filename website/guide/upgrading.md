@@ -24,6 +24,14 @@ Invalid Easy CMS config (1 problem):
   • admin.siteUrl: is now `siteURL`
 ```
 
+## 0.66
+
+- **`unique` inside a group, array or block logs a warning:** it was never enforced there. Move
+  the field to the top level, or check it in a hook.
+- **Multi-tenant:** staff of a tenant see others' memberships in that tenant only; checking the
+  audit log (`POST <api>/admin/audit/verify`) is for admins of all tenants; a plugin's
+  collections listed only partly per tenant log a warning.
+
 ## 0.65
 
 - **Shop: unpaid bank-transfer orders are cancelled after 3 days** and their stock put back

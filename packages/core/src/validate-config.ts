@@ -74,6 +74,7 @@ export function validateConfig(config: Config): ConfigIssue[] {
   validateCors(config.cors, add)
   validateLocalization(config, add)
   validateWebhooks(config, add)
+  warnNestedUnique(config, (issue) => issues.push(issue))
 
   const collections = asArray(config.collections, 'collections', add)
   const globals = asArray(config.globals, 'globals', add)
@@ -175,6 +176,37 @@ function validateCronSecret(value: unknown, push: (issue: ConfigIssue) => void) 
       hint,
       severity: 'warning',
     })
+}
+
+/**
+ * `unique` holds for top-level fields only: in a group, array or block it would be ignored, and
+ * with `uniqueWithin` (e.g. per tenant) there would be nothing to scope it by. A warning, since
+ * configs written before this check still work as they did.
+ */
+function warnNestedUnique(config: Config, push: (issue: ConfigIssue) => void) {
+  const walk = (fields: readonly Field[] | undefined, path: string, nested: boolean) => {
+    for (const field of Array.isArray(fields) ? fields : []) {
+      if (typeof field !== 'object' || field === null) continue
+      const at = `${path}.${String(field.name)}`
+      if (nested && field.unique === true)
+        push({
+          path: `${at}.unique`,
+          message: 'only works on top-level fields; inside a group, array or block it is ignored',
+          hint: 'move the field to the top level, or check uniqueness in a beforeValidate hook',
+          severity: 'warning',
+        })
+      if (field.type === 'group' || field.type === 'array') walk(field.fields, `${at}.fields`, true)
+      if (field.type === 'blocks')
+        for (const block of Array.isArray(field.blocks) ? field.blocks : [])
+          walk(block?.fields, `${at}.blocks.${String(block?.slug)}`, true)
+    }
+  }
+  for (const [kind, list] of [
+    ['collections', config.collections],
+    ['globals', config.globals],
+  ] as const)
+    for (const container of Array.isArray(list) ? list : [])
+      walk(container?.fields, `${kind}.${String(container?.slug)}.fields`, false)
 }
 
 /** A storage adapter that hands out public URLs (S3 with `publicURL`, a public Blob store). */

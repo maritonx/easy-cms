@@ -13,7 +13,7 @@ field ทุกประเภท ตัวเลือก หน้าตาใ
 | `label` | string หรือ `{ en, th }` ค่าเริ่มต้นคือชื่อ field ที่แปลงให้อ่านง่าย |
 | `required` | ต้องมีค่า (ข้ามการตรวจสอบขณะบันทึก [ฉบับร่าง (draft)](./drafts)) |
 | `defaultValue` | ใช้เมื่อสร้างเอกสารโดยไม่มี field นี้ |
-| `unique` | เอกสารสองรายการใช้ค่าซ้ำกันไม่ได้ (field ระดับบนสุด) |
+| `unique` | เอกสารสองรายการใช้ค่าซ้ำกันไม่ได้ ใช้ได้กับ field ระดับบนสุดเท่านั้น ถ้าอยู่ใน group, array หรือ block จะไม่มีผล และการตรวจ config จะเตือน |
 | `index` | สร้าง index ในฐานข้อมูล |
 | `validate` | `(value, { data, operation }) => true \| 'error message'` เป็น async ได้ |
 | `access` | `{ read, create, update }` [สิทธิ์](./access-control#field-access)ระดับ field |

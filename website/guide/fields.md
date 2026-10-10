@@ -13,7 +13,7 @@ Every field has a `name` and a `type`. Common options:
 | `label` | String or `{ en, th }`. Defaults to the humanized name. |
 | `required` | Must have a value (skipped while saving a [draft](./drafts)). |
 | `defaultValue` | Used when creating a document without this field. |
-| `unique` | No two documents may share the value (top-level fields). |
+| `unique` | No two documents may share the value. Top-level fields only: inside a group, array or block it is ignored, and the config check warns. |
 | `index` | Create a database index. |
 | `validate` | `(value, { data, operation }) => true \| 'error message'`, may be async. |
 | `access` | `{ read, create, update }` field-level [access](./access-control#field-access). |

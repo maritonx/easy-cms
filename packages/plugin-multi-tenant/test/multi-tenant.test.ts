@@ -453,6 +453,52 @@ describe('audit log', () => {
   })
 })
 
+describe('memberships', () => {
+  it("show others only this tenant's, and people all their own", async () => {
+    const bob = (await call('GET', '/users/me', { as: 'bob' })).body.user as Body
+    const tenantsOf = async (as: string, tenant?: string) =>
+      (
+        (await call('GET', `/users/${bob.id}?depth=0`, { as, ...(tenant ? { tenant } : {}) })).body
+          .tenants as Body[]
+      ).map((m) => m.tenant)
+    expect(await tenantsOf('alice')).toEqual([a])
+    expect(await tenantsOf('bob')).toEqual([a, b])
+    expect(await tenantsOf('root')).toEqual([a, b])
+  })
+
+  it('leave checking the whole audit log to admins of all tenants', async () => {
+    expect((await call('POST', '/admin/audit/verify', { as: 'bob' })).status).toBe(403)
+    expect((await call('POST', '/admin/audit/verify', { as: 'root' })).status).toBe(200)
+  })
+})
+
+describe('plugins partly per tenant', () => {
+  it('are named in the server log', async () => {
+    const warnings: string[] = []
+    const logger = { ...silentLogger, warn: (m: string) => warnings.push(m) }
+    const other = await createEasyCMS(
+      defineConfig({
+        secret: 'x'.repeat(32),
+        db: sqlite({ url: `file:${join(dir, 'partly.db')}` }),
+        collections: [
+          { slug: 'forms', fields: [{ name: 'title', type: 'text' }] },
+          { slug: 'form-submissions', fields: [{ name: 'data', type: 'json' }] },
+        ],
+        plugins: [multiTenantPlugin({ collections: ['forms'] })],
+      }),
+      { cwd: dir, schema: 'push', logger },
+    )
+    try {
+      await other.forRequest(new Headers())
+      expect(warnings).toContainEqual(
+        expect.stringContaining('"form-submissions" of formBuilderPlugin are shared'),
+      )
+    } finally {
+      await other.destroy()
+    }
+  })
+})
+
 describe('tenants', () => {
   it('ask to type their name before deleting, saying what goes', async () => {
     const schema = (await call('GET', '/admin/ui/schema', { as: 'root' })).body
