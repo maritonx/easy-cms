@@ -24,7 +24,67 @@ Invalid Easy CMS config (1 problem):
   • admin.siteUrl: is now `siteURL`
 ```
 
-## 0.66
+## From 0.x to 1.0 {#to-1-0}
+
+0.60 settled the names 1.0 keeps; the releases after it tightened security. An app on 0.48 or
+older meets all of it at once. Changes that stop the app say so, with the new name; the ones in
+[the checklist](#checklist) don't, so read it before you deploy.
+
+### What changed
+
+- **Names** of config options, Local API methods, CLI commands and plugin options
+  ([0.60](#v0-60)). A renamed config option stops startup and names the new one.
+- **REST routes**: signing in moved to `<api>/auth/*`; the old `/users/*` paths, `POST` to a
+  global and `?fallback-locale=` keep working through 1.x with a
+  [deprecation warning](./versioning#deprecations).
+- **Errors** carry a `code` (`NOT_FOUND`, `VALIDATION_ERROR`…): check it instead of the message.
+- **Security defaults**, release by release from [0.62](#v0-62) to [0.66](#v0-66).
+
+### Checklist: changes that don't stop the app {#checklist}
+
+| If your app… | Then |
+| --- | --- |
+| Relies on webhooks for `users` | List `users` in the webhook's `collections` ([0.60](#v0-60)). |
+| Uses `isAdmin` for admins of one tenant | Use your own rule; `isAdmin` now means the whole site ([0.60](#v0-60)). |
+| Expects `403` when changing a document the user can't read | It answers `404` now ([0.63](#v0-63)). |
+| Runs behind its own reverse proxy that changes `Host` | Turn on trust-proxy, or admin writes fail with `403` ([0.64](#v0-64)). |
+| Calls `GET <api>/jobs/run` with an admin's cookie | Use `POST`, or the cron secret ([0.62](#v0-62)). |
+| Has a `cronSecret` shorter than 32 characters | Make it longer: the app won't start ([0.62](#v0-62)). |
+| Sends mail through an SMTP server on port 587 without TLS | Set `requireTLS: false` ([0.65](#v0-65)). |
+| Reads the GraphQL schema from production | Set `introspection: true` ([0.65](#v0-65)). |
+| Takes cash on delivery with `manualAdapter` | Set `expiresIn: false`, or unpaid orders are cancelled after 3 days ([0.65](#v0-65)). |
+| Calls `POST <api>/shop/confirm` without the shop client | Send the guest's cart too ([0.63](#v0-63)). |
+| Has `unique` on a field inside a group, array or block | It was never enforced there; move it up or check it in a hook ([0.66](#v0-66)). |
+
+### Steps
+
+1. **Back up** the database and uploads ([Backups](./backups)). Migrations only go forward.
+2. **Upgrade every package together**, in development first:
+   ```sh [pm]
+   npm install @easy-cms/core@latest easy-cms@latest
+   ```
+   with the other `@easy-cms/*` packages your app uses on the same line.
+3. **Start the app** and fix what the config check names, until it starts without errors. Its
+   warnings (unknown options, `unique` in a group…) are worth reading too.
+4. **Find old names in your code**: run your tests with
+   `NODE_OPTIONS=--throw-deprecation`, so anything still using a deprecated route or command
+   fails loudly. Then go through [the checklist](#checklist).
+5. **Create the migration**: `npx easy-cms migrate:create upgrade`. A release may add internal
+   tables or columns; review the SQL and commit it.
+6. **Try it on a copy of production data**: restore a backup into a scratch database, run
+   `npx easy-cms migrate`, start the app and open the admin.
+7. **Deploy**: back up, run `easy-cms migrate`, start the new version. Watch the server log for
+   warnings on the first requests.
+
+Upgrades from databases made by 0.10 and later releases are tested for every change, on SQLite
+and Postgres.
+
+**Rolling back:** restore the backup taken before the deploy, and deploy the previous version
+of your app.
+
+The sections below list each release's changes.
+
+## 0.66 {#v0-66}
 
 - **`unique` inside a group, array or block logs a warning:** it was never enforced there. Move
   the field to the top level, or check it in a hook.
@@ -32,7 +92,7 @@ Invalid Easy CMS config (1 problem):
   audit log (`POST <api>/admin/audit/verify`) is for admins of all tenants; a plugin's
   collections listed only partly per tenant log a warning.
 
-## 0.65
+## 0.65 {#v0-65}
 
 - **Shop: unpaid bank-transfer orders are cancelled after 3 days** and their stock put back
   (`manualAdapter({ expiresIn })`, in seconds; `false` to keep them, e.g. for cash on delivery).
@@ -48,7 +108,7 @@ Invalid Easy CMS config (1 problem):
 - **Without the audit log, failed sign-ins go to the server's log** as warnings.
 - **Forms without a client IP share one larger rate limit** (ten times `max`) instead of none.
 
-## 0.64
+## 0.64 {#v0-64}
 
 - **Cookies are named `__Host-ecms-session`, `__Host-ecms-csrf` and `__Host-ecms-sso` over
   HTTPS.** Cookies under the old names are still read, so nobody is signed out.
@@ -61,7 +121,7 @@ Invalid Easy CMS config (1 problem):
 - **The SEO plugin's sitemap and `robots.txt` use `serverURL`** for their own addresses instead of
   the request's host. Set `serverURL` in production.
 
-## 0.63
+## 0.63 {#v0-63}
 
 - **Updating or deleting a document the user may not read answers `404`** instead of `403`.
 - **Preview links from the admin read with the access of whoever made them**; `createPreviewToken`
@@ -69,7 +129,7 @@ Invalid Easy CMS config (1 problem):
 - **Shop: `POST <api>/shop/confirm` needs the payment's customer or the guest's cart** (`cart:
   { id, secret }`). The client sends it; custom pages that call the endpoint themselves must too.
 
-## 0.62
+## 0.62 {#v0-62}
 
 - **Common passwords are refused:** setting a password that is one of the ~2,000 most common
   (`password1`, `iloveyou`…) fails with a validation error. Existing passwords keep working.
@@ -78,7 +138,7 @@ Invalid Easy CMS config (1 problem):
 - **`<api>/jobs/run` with the session cookie takes `POST` only** (`405` for `GET`). Crons with
   `Authorization: Bearer <cronSecret>` still use `GET`.
 
-## 0.60
+## 0.60 {#v0-60}
 
 0.60 settles the names and shapes kept through 1.x. Most apps only need the config changes
 (the error tells you each one) and, if they call them, the renamed Local API methods.

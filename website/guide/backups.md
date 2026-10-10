@@ -138,8 +138,8 @@ open the admin. A backup that has never been restored is a guess.
 All `@easy-cms/*` packages, `easy-cms` and `create-easy-cms` share one version number: upgrade
 them together.
 
-1. Read the changelog of the versions in between
-   (`packages/core/CHANGELOG.md` on GitHub, or `npm view @easy-cms/core --json`).
+1. Read what changed in between: [Upgrading](./upgrading) (from 0.x to 1.0, and release by
+   release), or the changelog (`packages/core/CHANGELOG.md` on GitHub).
 2. Upgrade every package to the same version:
    ```bash [pm]
    npm install @easy-cms/core@latest @easy-cms/nuxt@latest @easy-cms/db-sqlite@latest easy-cms@latest

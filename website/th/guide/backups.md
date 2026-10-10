@@ -122,7 +122,8 @@ backup ที่ไม่เคยลองกู้คืนก็ยังไ�
 
 แพ็กเกจ `@easy-cms/*`, `easy-cms` และ `create-easy-cms` ใช้เลขเวอร์ชันเดียวกัน ให้อัปเกรดพร้อมกันทั้งหมด
 
-1. อ่าน changelog ของเวอร์ชันที่อยู่ระหว่างทาง (`packages/core/CHANGELOG.md` บน GitHub หรือ `npm view @easy-cms/core --json`)
+1. อ่านว่ามีอะไรเปลี่ยนระหว่างทาง: [การอัปเกรด](./upgrading) (จาก 0.x ไป 1.0 และทีละ release) หรือ changelog
+   (`packages/core/CHANGELOG.md` บน GitHub)
 2. อัปเกรดทุกแพ็กเกจเป็นเวอร์ชันเดียวกัน:
    ```bash [pm]
    npm install @easy-cms/core@latest @easy-cms/nuxt@latest @easy-cms/db-sqlite@latest easy-cms@latest
