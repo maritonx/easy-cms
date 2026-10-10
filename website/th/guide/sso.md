@@ -37,7 +37,7 @@ export default defineConfig({
 
 ## ใครเข้าได้บ้าง {#who-gets-in}
 
-- **คนที่มีบัญชีอยู่แล้ว** ต้องเชื่อมผู้ให้บริการก่อน: เข้าสู่ระบบด้วยรหัสผ่านแล้วกด **เชื่อม** ที่หน้าบัญชี หลังจากนั้นจะใช้ id
+- **คนที่มีบัญชีอยู่แล้ว** ต้องเชื่อมผู้ให้บริการก่อน: เข้าสู่ระบบด้วยรหัสผ่านแล้วกด **เชื่อม Google** (หรือผู้ให้บริการอื่น) ที่หน้า **บัญชีของฉัน** ปุ่มของผู้ให้บริการที่หน้า login ใช้เชื่อมไม่ได้ หลังจากนั้นจะใช้ id
   ของบัญชีจากผู้ให้บริการ ถ้าอีเมลฝั่งผู้ให้บริการเปลี่ยนก็ยังเข้าได้ ถ้าลองเข้าด้วยผู้ให้บริการก่อนเชื่อม ระบบจะบอกให้เชื่อมก่อน
 - **จับคู่ด้วยอีเมล**แทน สำหรับผู้ให้บริการที่องค์กรของคุณควบคุมอีเมลเอง (Google Workspace หรือ Entra ID ขององค์กร):
   `google({ linkByEmail: true })` นับเฉพาะอีเมลที่ผู้ให้บริการยืนยันแล้ว ส่วนสมาชิกเว็บ (`auth.members`) จับคู่ด้วยอีเมลเสมอ
@@ -78,7 +78,9 @@ auth: { providers: [google()], password: false },
 ### Google {#google}
 
 1. ใน [Google Cloud console](https://console.cloud.google.com/apis/credentials) สร้าง **OAuth client ID** แบบ
-   **Web application** (ถ้าถูกถามให้ตั้ง consent screen ก่อน สำหรับ Google Workspace เลือก **Internal**)
+   **Web application** ถ้าถูกถามให้ตั้ง consent screen ก่อน: สำหรับ Google Workspace เลือก **Internal** ถ้าไม่ใช่ให้เลือก
+   **External** และระหว่างที่อยู่ในสถานะ **Testing** ให้เพิ่มบัญชี Google ที่จะ sign in ไว้ใน **Test users** (บัญชีอื่นจะถูกปฏิเสธ
+   และ Google จะเตือนว่าแอปยังไม่ได้รับการยืนยันจนกว่าจะ publish)
 2. ใส่ callback URL ใน **Authorized redirect URIs** เช่น `https://cms.example.com/api/cms/auth/google/callback`
    (และ `http://localhost:3000/api/cms/auth/google/callback` สำหรับตอนพัฒนา)
 3. ตั้ง `GOOGLE_CLIENT_ID` และ `GOOGLE_CLIENT_SECRET` แล้วใช้ `google()` สำหรับ Workspace

@@ -726,7 +726,8 @@ const en = {
   'sso.passwordAdminsOnly': 'Only admins (a way in if the provider is down)',
   'sso.newPeople': 'New people',
   'sso.signUpDomains': 'From {domains}: an account is made on first sign-in, as {role}',
-  'sso.signUpNone': 'Only users who already have an account (matched by verified email)',
+  'sso.signUpNone':
+    'Only users who already have an account: they link the provider on their Account page first (or are matched by verified email, with linkByEmail)',
   'sso.noServerUrl': 'serverURL is not set: signing in with providers works only in development.',
   'sso.configNote': 'Providers, sign-up domains and passwords are set in the config.',
   'sso.howTo': 'How to set up Google, Microsoft and GitHub',
@@ -1440,7 +1441,8 @@ const th: Record<MessageKey, string> = {
   'sso.passwordAdminsOnly': 'เฉพาะผู้ดูแลระบบ (ทางเข้าสำรองเมื่อผู้ให้บริการล่ม)',
   'sso.newPeople': 'คนใหม่',
   'sso.signUpDomains': 'จาก {domains}: สร้างบัญชีให้ตอนเข้าสู่ระบบครั้งแรก เป็น {role}',
-  'sso.signUpNone': 'เฉพาะผู้ใช้ที่มีบัญชีอยู่แล้ว (จับคู่ด้วยอีเมลที่ยืนยันแล้ว)',
+  'sso.signUpNone':
+    'เฉพาะผู้ใช้ที่มีบัญชีอยู่แล้ว: link provider ที่หน้าบัญชีของตัวเองก่อน (หรือจับคู่ด้วยอีเมลที่ยืนยันแล้ว เมื่อตั้ง linkByEmail)',
   'sso.noServerUrl': 'ยังไม่ได้ตั้ง serverURL การเข้าสู่ระบบด้วยผู้ให้บริการจึงใช้ได้เฉพาะตอนพัฒนา',
   'sso.configNote': 'ผู้ให้บริการ โดเมนที่สมัครได้ และรหัสผ่าน ตั้งค่าใน config',
   'sso.howTo': 'วิธีตั้งค่า Google, Microsoft และ GitHub',

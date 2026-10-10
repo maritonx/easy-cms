@@ -40,7 +40,8 @@ Turning providers on adds the `user-identities` table: create a migration
 ## Who gets in
 
 - **People who already have an account** link the provider first: they sign in with their
-  password and choose **Link** on their account page. After that, the provider's own id for the
+  password and choose **Link Google** (or another provider) on their **Account** page; the
+  provider's button on the login page doesn't link. After that, the provider's own id for the
   account is used, so a changed email at the provider doesn't matter. Someone who tries the
   provider before linking is told to do so.
 - **Matched by email** instead, for a provider whose emails your organization controls (its own
@@ -84,8 +85,10 @@ and unlink a user's accounts on the user's page. Deleting a user forgets their l
 ### Google
 
 1. In the [Google Cloud console](https://console.cloud.google.com/apis/credentials), create an
-   **OAuth client ID** of type **Web application** (set up the consent screen first if asked; for a
-   Google Workspace, choose **Internal**).
+   **OAuth client ID** of type **Web application**. Set up the consent screen first if asked: for a
+   Google Workspace, choose **Internal**; otherwise **External**, and while it is in **Testing**, add
+   the Google accounts that will sign in under **Test users** (others are refused, and Google warns
+   that the app isn't verified until you publish it).
 2. Add the callback URL under **Authorized redirect URIs**, e.g.
    `https://cms.example.com/api/cms/auth/google/callback` (and `http://localhost:3000/api/cms/auth/google/callback`
    for development).
