@@ -1,5 +1,12 @@
 # @easy-cms/drizzle
 
+## 0.64.0
+
+### Patch Changes
+
+- Updated dependencies [42b3c86]
+  - @easy-cms/core@0.64.0
+
 ## 0.63.0
 
 ### Patch Changes
