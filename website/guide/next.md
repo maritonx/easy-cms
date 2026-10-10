@@ -51,12 +51,23 @@ export const { GET, HEAD } = createAdminRouteHandlers(config)
 ## Reading content
 
 ```tsx
+import { connection } from 'next/server'
+import { Suspense } from 'react'
 import { getEasyCMS, getEasyCMSUser } from '@easy-cms/next'
 import config from '@/easy-cms.config'
 
-export const dynamic = 'force-dynamic'
+type Params = Promise<{ slug: string }>
 
-export default async function PostPage({ params }: { params: Promise<{ slug: string }> }) {
+export default function PostPage({ params }: { params: Params }) {
+  return (
+    <Suspense>
+      <Post params={params} />
+    </Suspense>
+  )
+}
+
+async function Post({ params }: { params: Params }) {
+  await connection() // read on each request
   const { slug } = await params
   const cms = await getEasyCMS(config)
   const user = await getEasyCMSUser(config)
@@ -76,8 +87,13 @@ in Server Components, Route Handlers and Server Actions.
 
 ## Things to know
 
-- **Make CMS-backed pages dynamic** (`export const dynamic = 'force-dynamic'`) or use
-  revalidation. Otherwise `next build` prerenders them and queries the database at build time.
+- **Render CMS-backed pages per request**: call `await connection()` (from `next/server`) in an
+  async component inside `<Suspense>`, as above. This works whether or not `cacheComponents` is on
+  in `next.config.ts`; new apps from `create-next-app` have it on, and there `export const dynamic`
+  is not allowed. Or cache on purpose with revalidation. Otherwise `next build` prerenders the pages
+  and queries the database at build time.
+- `notFound()` inside `<Suspense>` shows the not-found page with `noindex`, but the status stays
+  `200`: Next.js has already started sending the page. `generateMetadata` can stay outside.
 - Login rate limiting needs the client's IP. On Vercel and Netlify it is found by itself.
   Behind another proxy that adds to `X-Forwarded-For`, use `createRouteHandlers(config,
   { trustProxy: true })`: the last address in the header counts (the one your proxy added).

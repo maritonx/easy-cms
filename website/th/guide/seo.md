@@ -117,6 +117,8 @@ useHead(seo.head) // ลิงก์ canonical และ hreflang, JSON-LD
 
 ```tsx [หน้า Next.js]
 import { jsonLdScript, seoMeta } from '@easy-cms/plugin-seo'
+import { connection } from 'next/server'
+import { Suspense } from 'react'
 
 async function load(slug: string, locale: string) {
   const cms = await getEasyCMS(config)
@@ -136,7 +138,16 @@ export async function generateMetadata({ params }) {
   return (await load(slug, locale))?.seo.next ?? {}
 }
 
-export default async function Page({ params }) {
+export default function Page({ params }) {
+  return (
+    <Suspense>
+      <Post params={params} />
+    </Suspense>
+  )
+}
+
+async function Post({ params }) {
+  await connection() // อ่านทุก request
   const { slug, locale } = await params
   const page = await load(slug, locale)
   if (!page) notFound()
@@ -193,12 +204,12 @@ export default defineEventHandler(async (event) => {
 ```ts [Next.js: app/sitemap.ts]
 import { getEasyCMS } from '@easy-cms/next'
 import { sitemap } from '@easy-cms/plugin-seo'
+import { connection } from 'next/server'
 import config from '@/easy-cms.config'
-
-export const dynamic = 'force-dynamic'
 
 // รายการมีรูปแบบเดียวกับ MetadataRoute.Sitemap
 export default async function Sitemap() {
+  await connection() // อ่านทุก request ไม่ใช่ตอน build
   return sitemap(await getEasyCMS(config))
 }
 ```
@@ -207,8 +218,6 @@ export default async function Sitemap() {
 import { getEasyCMS } from '@easy-cms/next'
 import { sitemapXml } from '@easy-cms/plugin-seo'
 import config from '@/easy-cms.config'
-
-export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
   const page = new URL(request.url).searchParams.get('page')

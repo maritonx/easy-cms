@@ -51,12 +51,23 @@ export const { GET, HEAD } = createAdminRouteHandlers(config)
 ## การอ่านเนื้อหา {#reading-content}
 
 ```tsx
+import { connection } from 'next/server'
+import { Suspense } from 'react'
 import { getEasyCMS, getEasyCMSUser } from '@easy-cms/next'
 import config from '@/easy-cms.config'
 
-export const dynamic = 'force-dynamic'
+type Params = Promise<{ slug: string }>
 
-export default async function PostPage({ params }: { params: Promise<{ slug: string }> }) {
+export default function PostPage({ params }: { params: Params }) {
+  return (
+    <Suspense>
+      <Post params={params} />
+    </Suspense>
+  )
+}
+
+async function Post({ params }: { params: Params }) {
+  await connection() // อ่านใหม่ทุก request
   const { slug } = await params
   const cms = await getEasyCMS(config)
   const user = await getEasyCMSUser(config)
@@ -76,8 +87,12 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
 
 ## สิ่งที่ควรรู้ {#things-to-know}
 
-- **ทำให้หน้าที่ดึงข้อมูลจาก CMS เป็นแบบ dynamic** (`export const dynamic = 'force-dynamic'`) หรือใช้
-  revalidation มิฉะนั้น `next build` จะ prerender หน้าเหล่านั้นและ query ฐานข้อมูลตอน build
+- **ให้หน้าที่ดึงข้อมูลจาก CMS render ใหม่ทุก request**: เรียก `await connection()` (จาก `next/server`) ใน
+  async component ที่อยู่ใน `<Suspense>` แบบตัวอย่างข้างบน วิธีนี้ใช้ได้ทั้งตอนที่เปิดและไม่เปิด `cacheComponents`
+  ใน `next.config.ts` แอปใหม่จาก `create-next-app` เปิดไว้ และในกรณีนั้นใช้ `export const dynamic` ไม่ได้
+  หรือจะ cache อย่างตั้งใจด้วย revalidation ก็ได้ มิฉะนั้น `next build` จะ prerender หน้าเหล่านั้นและ query ฐานข้อมูลตอน build
+- `notFound()` ที่อยู่ใน `<Suspense>` จะแสดงหน้า not-found พร้อม `noindex` แต่ status ยังเป็น `200` เพราะ Next.js
+  เริ่มส่งหน้าไปแล้ว ส่วน `generateMetadata` อยู่นอก `<Suspense>` ได้
 - การจำกัดอัตราการเข้าสู่ระบบต้องรู้ IP ของ client บน Vercel และ Netlify หาได้เอง หลัง proxy อื่นที่เพิ่มที่อยู่ลงใน
   `X-Forwarded-For` ให้ใช้ `createRouteHandlers(config, { trustProxy: true })` ระบบจะใช้ที่อยู่ตัวสุดท้าย (ตัวที่ proxy ของคุณเพิ่ม)
 - Next.js ตัดเครื่องหมาย slash ท้าย URL ออก หน้า admin จึงอยู่ที่ `/admin` (ไม่ใช่ `/admin/`)

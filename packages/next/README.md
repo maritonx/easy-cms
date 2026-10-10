@@ -38,12 +38,21 @@ export const { GET, HEAD } = createAdminRouteHandlers(config)
 **3. Read content in Server Components** with the typed Local API:
 
 ```tsx
+import { connection } from 'next/server'
+import { Suspense } from 'react'
 import { getEasyCMS, getEasyCMSUser } from '@easy-cms/next'
 import config from '@/easy-cms.config'
 
-export const dynamic = 'force-dynamic'
+export default function Page() {
+  return (
+    <Suspense>
+      <Posts />
+    </Suspense>
+  )
+}
 
-export default async function Page() {
+async function Posts() {
+  await connection() // read on each request
   const cms = await getEasyCMS(config)
   const { docs } = await cms.find('posts', { limit: 10 })
   const user = await getEasyCMSUser(config) // logged-in Easy CMS user or null
@@ -51,8 +60,10 @@ export default async function Page() {
 }
 ```
 
-Pages that read from the CMS should be dynamic (or use `revalidate`), otherwise `next build`
-tries to query the database while prerendering.
+Pages that read from the CMS should render per request: `await connection()` in a component
+inside `<Suspense>`, as above (or cache on purpose with revalidation). Otherwise `next build`
+tries to query the database while prerendering. This works whether or not `cacheComponents` is on;
+new apps from `create-next-app` have it on, and there `export const dynamic` is not allowed.
 
 `createRouteHandlers(config, { trustProxy: true })` uses `X-Forwarded-For` for login rate limiting;
 enable it behind a proxy you trust (Vercel and Netlify are recognized without it). It also takes

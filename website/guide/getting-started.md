@@ -8,7 +8,7 @@ Add Easy CMS to a Nuxt or Next.js project (or run it on its own), create the fir
 
 <Screenshot name="dashboard" alt="The admin dashboard after logging in" />
 
-You need a Nuxt 4 or Next.js 15+ project and Node.js ≥ 22.12. Using another framework, or none?
+You need a Nuxt 4 or Next.js 15+ project and Node.js 22.12 or newer (22.19 or newer with Nuxt). Using another framework, or none?
 Run Easy CMS as a [standalone server](./standalone).
 
 ## Add Easy CMS
@@ -23,7 +23,7 @@ It detects Nuxt or Next.js, asks which database to use, installs the packages an
 
 - creates `easy-cms.config.ts` with a sample `posts` collection and a `site` global
 - adds a random `EASY_CMS_SECRET` to `.env`
-- ignores `cms.db`, `uploads/` and `.pglite/` in `.gitignore`
+- ignores `cms.db`, `uploads/`, `backups/` and `.pglite/` in `.gitignore`
 - **Nuxt:** adds `@easy-cms/nuxt` to `modules`
 - **Next.js:** creates `app/api/cms/[[...path]]/route.ts` and `app/admin/[[...path]]/route.ts`
   and wraps `next.config.ts` in `withEasyCMS()`
@@ -54,12 +54,22 @@ export default defineEventHandler(async () => {
 ```
 
 ```tsx [Next.js: app/page.tsx]
+import { connection } from 'next/server'
+import { Suspense } from 'react'
 import { getEasyCMS } from '@easy-cms/next'
 import config from '@/easy-cms.config'
 
-export const dynamic = 'force-dynamic'
+export default function Home() {
+  return (
+    <Suspense fallback={<p>Loading…</p>}>
+      <Posts />
+    </Suspense>
+  )
+}
 
-export default async function Home() {
+async function Posts() {
+  // Read on each request, so the page shows what was just published.
+  await connection()
   const cms = await getEasyCMS(config)
   const { docs } = await cms.find('posts', { sort: '-createdAt', limit: 10 })
   return <ul>{docs.map((post) => <li key={post.id}>{post.title}</li>)}</ul>
@@ -67,6 +77,12 @@ export default async function Home() {
 ```
 
 :::
+
+**Nuxt:** if `server/` is a new folder, restart `npm run dev` so Nuxt picks it up.
+
+**Next.js:** the page reads the CMS on each request: `await connection()` in a component inside
+`<Suspense>`. This works whether or not `cacheComponents` is on in `next.config.ts` (new apps from
+`create-next-app` have it on, and there `export const dynamic` is not allowed).
 
 `find` returns only published documents by default, and `post.title` is typed as `string`
 because the config says the field is required text.

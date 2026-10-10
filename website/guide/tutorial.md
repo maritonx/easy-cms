@@ -109,11 +109,20 @@ export default defineEventHandler(async () => {
 ```tsx [Next.js: app/page.tsx]
 import { getEasyCMS } from '@easy-cms/next'
 import Link from 'next/link'
+import { connection } from 'next/server'
+import { Suspense } from 'react'
 import config from '@/easy-cms.config'
 
-export const dynamic = 'force-dynamic'
+export default function Home() {
+  return (
+    <Suspense>
+      <Posts />
+    </Suspense>
+  )
+}
 
-export default async function Home() {
+async function Posts() {
+  await connection() // read on each request
   const cms = await getEasyCMS(config)
   const { docs } = await cms.find('posts', { sort: '-publishedAt', limit: 20 })
   return (
@@ -179,11 +188,22 @@ export default defineEventHandler(async (event) => {
 import { getEasyCMS, getEasyCMSUser } from '@easy-cms/next'
 import { renderRichText } from '@easy-cms/richtext'
 import { notFound } from 'next/navigation'
+import { connection } from 'next/server'
+import { Suspense } from 'react'
 import config from '@/easy-cms.config'
 
-export const dynamic = 'force-dynamic'
+type Params = Promise<{ slug: string }>
 
-export default async function PostPage({ params }: { params: Promise<{ slug: string }> }) {
+export default function PostPage({ params }: { params: Params }) {
+  return (
+    <Suspense>
+      <Post params={params} />
+    </Suspense>
+  )
+}
+
+async function Post({ params }: { params: Params }) {
+  await connection() // read on each request
   const { slug } = await params
   const cms = await getEasyCMS(config)
   const user = await getEasyCMSUser(config)

@@ -121,6 +121,8 @@ useHead(seo.head) // canonical and hreflang links, JSON-LD
 
 ```tsx [Next.js page]
 import { jsonLdScript, seoMeta } from '@easy-cms/plugin-seo'
+import { connection } from 'next/server'
+import { Suspense } from 'react'
 
 async function load(slug: string, locale: string) {
   const cms = await getEasyCMS(config)
@@ -140,7 +142,16 @@ export async function generateMetadata({ params }) {
   return (await load(slug, locale))?.seo.next ?? {}
 }
 
-export default async function Page({ params }) {
+export default function Page({ params }) {
+  return (
+    <Suspense>
+      <Post params={params} />
+    </Suspense>
+  )
+}
+
+async function Post({ params }) {
+  await connection() // read on each request
   const { slug, locale } = await params
   const page = await load(slug, locale)
   if (!page) notFound()
@@ -199,12 +210,12 @@ export default defineEventHandler(async (event) => {
 ```ts [Next.js: app/sitemap.ts]
 import { getEasyCMS } from '@easy-cms/next'
 import { sitemap } from '@easy-cms/plugin-seo'
+import { connection } from 'next/server'
 import config from '@/easy-cms.config'
-
-export const dynamic = 'force-dynamic'
 
 // The entries have the shape of MetadataRoute.Sitemap.
 export default async function Sitemap() {
+  await connection() // read on each request, not at build time
   return sitemap(await getEasyCMS(config))
 }
 ```
@@ -213,8 +224,6 @@ export default async function Sitemap() {
 import { getEasyCMS } from '@easy-cms/next'
 import { sitemapXml } from '@easy-cms/plugin-seo'
 import config from '@/easy-cms.config'
-
-export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
   const page = new URL(request.url).searchParams.get('page')

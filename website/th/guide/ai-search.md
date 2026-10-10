@@ -104,11 +104,11 @@ export default defineEventHandler(async (event) => {
 ```ts [Next.js: app/llms.txt/route.ts]
 import { getEasyCMS } from '@easy-cms/next'
 import { llmsTxt } from '@easy-cms/plugin-seo'
+import { connection } from 'next/server'
 import config from '@/easy-cms.config'
 
-export const dynamic = 'force-dynamic'
-
 export async function GET() {
+  await connection() // อ่านทุก request ไม่ใช่ตอน build
   const text = await llmsTxt(await getEasyCMS(config))
   return new Response(text, { headers: { 'content-type': 'text/markdown; charset=utf-8' } })
 }
