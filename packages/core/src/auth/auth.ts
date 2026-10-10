@@ -473,6 +473,13 @@ export class Auth {
     return this.toAuthUser(user)
   }
 
+  /** An active user by id, as requests see them; `null` when deleted or deactivated. @internal */
+  async activeUser(id: ID): Promise<AuthUser | null> {
+    const user = await this.db.findById({ collection: USERS, id })
+    if (!user || user.active === false) return null
+    return this.toAuthUser(user)
+  }
+
   /** The CSRF token clients must echo for a signed session token. @internal */
   csrfFor(signedToken: string): string | undefined {
     const token = unsignToken(this.config.secret, signedToken)

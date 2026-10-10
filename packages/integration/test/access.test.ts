@@ -246,3 +246,45 @@ describe('global access', () => {
     await expect(cms.findGlobal('private', as(editor))).resolves.toBeTruthy()
   })
 })
+
+describe('documents the user may not read', () => {
+  it('answer as if they did not exist; ones they read but may not change are refused', async () => {
+    const cms = await open(
+      defineConfig({
+        secret: SECRET,
+        db: db(),
+        collections: [
+          {
+            slug: 'notes',
+            access: {
+              // Everyone reads public notes and their own; changes only to their own.
+              read: ({ user }) =>
+                user
+                  ? { or: [{ public: { equals: true } }, { owner: { equals: user.id } }] }
+                  : false,
+              update: ({ user }) => (user ? { owner: { equals: user.id } } : false),
+              delete: ({ user }) => (user ? { owner: { equals: user.id } } : false),
+            },
+            fields: [
+              { name: 'text', type: 'text' },
+              { name: 'public', type: 'boolean' },
+              { name: 'owner', type: 'text' },
+            ],
+          },
+        ],
+      }),
+    )
+    const user = { id: 7, email: 'u@x.co', role: 'editor' } as AuthUser
+    const options = { overrideAccess: false, user } as const
+    const secret = await cms.create('notes', { text: 'theirs', owner: '8' })
+    const shown = await cms.create('notes', { text: 'public', public: true, owner: '8' })
+    await expect(cms.update('notes', secret.id, { text: 'x' }, options)).rejects.toMatchObject({
+      status: 404,
+    })
+    await expect(cms.delete('notes', secret.id, options)).rejects.toMatchObject({ status: 404 })
+    await expect(cms.update('notes', shown.id, { text: 'x' }, options)).rejects.toThrow(
+      ForbiddenError,
+    )
+    await cms.destroy()
+  })
+})

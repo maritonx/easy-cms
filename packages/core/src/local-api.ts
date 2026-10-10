@@ -864,18 +864,24 @@ export class EasyCMS<C extends Config = Config> {
 
   /**
    * How many documents use any of these files in a top-level upload field (rich text and fields
-   * inside groups, arrays and blocks are not counted). Drafts count too.
+   * inside groups, arrays and blocks are not counted). Drafts count too. With
+   * `overrideAccess: false`, only documents the user may read.
    */
-  async mediaUsage(ids: readonly ID[]): Promise<number> {
+  async mediaUsage(ids: readonly ID[], options: AccessOptions = {}): Promise<number> {
     if (ids.length === 0) return 0
     let count = 0
     for (const config of this.config.collections) {
       if (INTERNAL_COLLECTIONS.has(config.slug)) continue
       for (const field of config.fields) {
         if (field.type !== 'upload') continue
-        count += await this.db.count({
-          collection: config.slug,
+        count += await this.count(config.slug as Slug<C>, {
+          ...options,
           where: { [field.name]: { in: [...ids] } },
+          draft: true,
+        }).catch((error: unknown) => {
+          // Collections the user may not read count nothing.
+          if (error instanceof ForbiddenError || error instanceof UnauthorizedError) return 0
+          throw error
         })
       }
     }
@@ -1202,16 +1208,19 @@ export class EasyCMS<C extends Config = Config> {
   /**
    * A token that lets a page read one document's current draft for a while (default one hour),
    * without a login: `GET /api/cms/:collection/:id?preview=<token>`. The admin adds one to the
-   * preview URL as `easy-cms-preview`, for sites on another origin.
+   * preview URL as `easy-cms-preview`, for sites on another origin. With `user`, the page reads
+   * it with that user's access (fields they can't read are left out; a deactivated user's token
+   * stops working); without, with full access.
    */
   createPreviewToken(
     target: { collection: string; id: ID } | { global: string },
-    options: { expiresIn?: number } = {},
+    options: { expiresIn?: number; user?: AuthUser | null } = {},
   ): string {
     const seconds = options.expiresIn ?? 60 * 60
     const normalized =
       'global' in target ? target : { collection: target.collection, id: String(target.id) }
-    return signPreviewToken(this.config.secret, normalized, Date.now() + seconds * 1000)
+    const user = options.user ? String(options.user.id) : undefined
+    return signPreviewToken(this.config.secret, normalized, Date.now() + seconds * 1000, user)
   }
 
   /** What a preview token opens, or `null` when it is invalid or expired. */
@@ -1800,7 +1809,12 @@ export class EasyCMS<C extends Config = Config> {
       this.checkDocumentAccess(config, operation, guard, parsed, undefined).then(
         () => true,
         (error: unknown) => {
-          if (error instanceof ForbiddenError || error instanceof UnauthorizedError) return false
+          if (
+            error instanceof ForbiddenError ||
+            error instanceof UnauthorizedError ||
+            error instanceof NotFoundError
+          )
+            return false
           throw error
         },
       )
@@ -2373,7 +2387,44 @@ export class EasyCMS<C extends Config = Config> {
     return andWhere(andWhere(where, access), own)
   }
 
+  /**
+   * Throws unless the caller may update or delete this document. A user who may not even read
+   * it gets `NotFoundError`, as for an id that doesn't exist: a 403 would tell it does.
+   */
   private async checkDocumentAccess(
+    config: CollectionConfig,
+    operation: 'update' | 'delete',
+    guard: Guard,
+    id: ID,
+    data: Data | undefined,
+  ) {
+    await this.hidingDenied(config.slug, guard, id, () =>
+      this.documentAccess(config, operation, guard, id, data),
+    )
+  }
+
+  /** Runs a check; a `ForbiddenError` for a document the user can't read becomes a 404. */
+  private async hidingDenied(collection: string, guard: Guard, id: ID, check: () => Promise<void>) {
+    try {
+      await check()
+    } catch (error) {
+      if (error instanceof ForbiddenError && !(await this.mayRead(collection, guard, id)))
+        throw new NotFoundError(collection, String(id))
+      throw error
+    }
+  }
+
+  private async mayRead(collection: string, guard: Guard, id: ID): Promise<boolean> {
+    const config = this.collection(collection)
+    try {
+      const where = await this.readWhere(config, guard, { id: { equals: id } })
+      return (await this.db.count({ collection, where })) > 0
+    } catch {
+      return false
+    }
+  }
+
+  private async documentAccess(
     config: CollectionConfig,
     operation: 'update' | 'delete',
     guard: Guard,
@@ -2475,13 +2526,15 @@ export class EasyCMS<C extends Config = Config> {
     operation: ApiKeyOperation,
     id: ID,
   ) {
-    const own = await this.checkGrant(guard, { collection }, operation)
-    if (own === true) return
-    const matches = await this.db.count({
-      collection,
-      where: andWhere(own, { id: { equals: id } }),
+    await this.hidingDenied(collection, guard, id, async () => {
+      const own = await this.checkGrant(guard, { collection }, operation)
+      if (own === true) return
+      const matches = await this.db.count({
+        collection,
+        where: andWhere(own, { id: { equals: id } }),
+      })
+      if (matches === 0) throw deny(guard.user)
     })
-    if (matches === 0) throw deny(guard.user)
   }
 
   /** Runs afterRead hooks, populates relationships and removes what the caller may not see. */

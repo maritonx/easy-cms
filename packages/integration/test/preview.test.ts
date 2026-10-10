@@ -23,6 +23,7 @@ const config = defineConfig({
         { name: 'slug', type: 'slug', from: 'title' },
         { name: 'views', type: 'number' },
         { name: 'category', type: 'relationship', to: 'categories' },
+        { name: 'memo', type: 'text', access: { read: ({ user }) => user?.role === 'admin' } },
       ],
     },
     { slug: 'notes', fields: [{ name: 'text', type: 'text' }] },
@@ -165,6 +166,36 @@ describe('live preview (FR-PRV)', () => {
     const globalToken = cms.createPreviewToken({ global: 'site' })
     expect((await get(`/globals/site?preview=${globalToken}`)).status).toBe(200)
     expect((await get(`/globals/site?preview=${token}`)).status).toBe(401)
+    await cms.destroy()
+  })
+
+  it('reads with the access of whoever made the token', async () => {
+    const cms = await open(config)
+    const handle = createRestHandler(cms)
+    const get = (path: string) => handle(new Request(`http://cms.test/api/cms${path}`))
+    const draft = await cms.create('posts', { title: 'Plans', memo: 'For admins' })
+    const user = (email: string, role: string) =>
+      cms.create('users', { email, password: 'a-long-test-pass', role } as never)
+    const admin = await user('boss@x.test', 'admin')
+    const editor = await user('ed@x.test', 'editor')
+    const open_ = async (by: typeof admin) => {
+      const token = cms.createPreviewToken(
+        { collection: 'posts', id: draft.id },
+        { user: by as never },
+      )
+      return get(`/posts/${draft.id}?preview=${token}`)
+    }
+    expect(await (await open_(admin)).json()).toMatchObject({ title: 'Plans', memo: 'For admins' })
+    const asEditor = (await (await open_(editor)).json()) as Record<string, unknown>
+    expect(asEditor.title).toBe('Plans')
+    expect(asEditor).not.toHaveProperty('memo')
+    // A deactivated user's links stop working.
+    const token = cms.createPreviewToken(
+      { collection: 'posts', id: draft.id },
+      { user: editor as never },
+    )
+    await cms.update('users', editor.id, { active: false } as never)
+    expect((await get(`/posts/${draft.id}?preview=${token}`)).status).toBe(401)
     await cms.destroy()
   })
 

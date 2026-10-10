@@ -94,6 +94,10 @@ On the server, `cms.verifyPreviewToken(token)` returns what a token opens
 (`{ collection, id }` or `{ global }`) or `null`, and `cms.createPreviewToken({ collection, id })`
 creates one, e.g. for a "share preview link" button.
 
+A token from the admin reads with the access of **whoever opened the preview**: fields they may
+not read are left out, and their links stop working when the user is deactivated. Pass
+`{ user }` to `createPreviewToken` for the same; without it, the token reads with full access.
+
 ## Things to know
 
 - Render rich text on the client too (`renderRichText` from `@easy-cms/richtext` works in the

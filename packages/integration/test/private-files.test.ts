@@ -64,6 +64,11 @@ describe('private folders', () => {
               { name: 'gallery', type: 'upload', hasMany: true },
             ],
           },
+          {
+            slug: 'contracts',
+            access: { read: ({ user }) => user?.role === 'admin' },
+            fields: [{ name: 'file', type: 'upload' }],
+          },
         ],
       }),
       tempProject(),
@@ -84,7 +89,9 @@ describe('private folders', () => {
       await cms.roles.update(
         role?.id as number,
         {
-          permissions: { collections: { media: ['read', 'create', 'update', 'delete'] } },
+          permissions: {
+            collections: { media: ['read', 'create', 'update', 'delete'], posts: ['read'] },
+          },
         },
         { id: 0, email: 'setup@x.co', role: 'admin' },
       )
@@ -182,6 +189,17 @@ describe('private folders', () => {
     const res = await get(`/api/cms/admin/ui/media-usage?ids=${a.id},${b.id}`, 'eve')
     // Two documents use one or both.
     expect(await res.json()).toEqual({ count: 2 })
+    // Only what the user may read is counted.
+    await cms.create('contracts', { file: b.id })
+    expect(await cms.mediaUsage([b.id])).toBe(2)
+    const usage = async (who: string) =>
+      (
+        (await (await get(`/api/cms/admin/ui/media-usage?ids=${b.id}`, who)).json()) as {
+          count: number
+        }
+      ).count
+    expect(await usage('eve')).toBe(1)
+    expect(await usage('admin')).toBe(2)
   })
 
   it('moves at most 200 files in one change', async () => {

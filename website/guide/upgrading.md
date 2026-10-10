@@ -32,6 +32,11 @@ Invalid Easy CMS config (1 problem):
   stops startup; a shorter `CRON_SECRET` is a warning. Generate one with `openssl rand -hex 32`.
 - **`<api>/jobs/run` with the session cookie takes `POST` only** (`405` for `GET`). Crons with
   `Authorization: Bearer <cronSecret>` still use `GET`.
+- **Updating or deleting a document the user may not read answers `404`** instead of `403`.
+- **Preview links from the admin read with the access of whoever made them**; `createPreviewToken`
+  takes `{ user }` for the same.
+- **Shop: `POST <api>/shop/confirm` needs the payment's customer or the guest's cart** (`cart:
+  { id, secret }`). The client sends it; custom pages that call the endpoint themselves must too.
 
 ## 0.60
 

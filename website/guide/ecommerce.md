@@ -164,7 +164,8 @@ const result = await checkout({
    received** on the order when the money arrives.
 4. **Stripe**: `result.payment.clientSecret` goes to Stripe.js's Payment Element (card,
    PromptPay…). After paying, the page calls `confirm(result.transaction)`; the shop asks Stripe,
-   and makes the order if the money is in.
+   and makes the order if the money is in. Only whoever paid may confirm: the signed-in customer,
+   or the guest whose cart it was (the client sends the cart's secret); others get `404`.
 
 An order is made **exactly once** however often it is confirmed: by the page, a retry, and
 Stripe's webhook at the same moment. The first claims the transaction (an update that only

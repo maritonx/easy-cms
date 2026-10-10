@@ -30,6 +30,10 @@ Invalid Easy CMS config (1 problem):
   ส่วน `CRON_SECRET` ที่สั้นจะเป็นคำเตือน สร้างได้ด้วย `openssl rand -hex 32`
 - **`<api>/jobs/run` ที่ใช้ session cookie รับเฉพาะ `POST`** (`GET` ได้ `405`) ส่วน cron ที่ส่ง
   `Authorization: Bearer <cronSecret>` ยังใช้ `GET` ได้
+- **การแก้ไขหรือลบเอกสารที่ผู้ใช้อ่านไม่ได้ตอบ `404`** แทน `403`
+- **ลิงก์ตัวอย่างจากหน้า admin อ่านด้วยสิทธิ์ของคนที่สร้าง** ส่วน `createPreviewToken` รับ `{ user }` เพื่อให้ทำงานแบบเดียวกัน
+- **ร้านค้า: `POST <api>/shop/confirm` ต้องมาจากลูกค้าของการชำระเงินนั้น หรือผู้เยี่ยมชมที่ส่งตะกร้ามาด้วย** (`cart:
+  { id, secret }`) client ส่งให้อยู่แล้ว ส่วนหน้าที่เรียก endpoint เองต้องส่งด้วย
 
 ## 0.60
 

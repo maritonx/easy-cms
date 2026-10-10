@@ -33,6 +33,10 @@ Each receives `{ user, id?, data? }` (`user` is `null` when not logged in) and r
 - a **where query**: the operation is allowed for matching documents only. For `read` it filters
   results; for `update`/`delete` the document must match. `create` must return a boolean.
 
+Updating or deleting a document the user may not even read answers `404`, as for an id that
+doesn't exist, so ids tell nothing about what exists. One they may read but not change answers
+`403`.
+
 **If you define no rule, only logged-in users are allowed.** Make public content public on
 purpose, e.g. `read: () => true`.
 

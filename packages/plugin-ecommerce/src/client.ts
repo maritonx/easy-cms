@@ -370,7 +370,12 @@ export function createShopClient(options: ShopClientOptions = {}): ShopClient {
     },
     async confirm(transaction, input = {}) {
       return busy(async () => {
-        const result = await call<ConfirmResult>('POST', '/shop/confirm', { ...input, transaction })
+        // A guest proves the payment is theirs with the cart's secret.
+        const result = await call<ConfirmResult>(
+          'POST',
+          '/shop/confirm',
+          withCart({ ...input, transaction }),
+        )
         if (result.order) {
           remember(null)
           set({ cart: null })

@@ -336,12 +336,12 @@ describe('paying by card', () => {
 
   it('makes the order once, however often it is confirmed', async () => {
     card.answer = 'succeeded'
-    const { started } = await checkout(2)
+    const { cart, started } = await checkout(2)
     expect(started.payment).toEqual({ clientSecret: `secret_${started.transaction}` })
     expect(started.order).toBeNull()
     const results = await Promise.all(
       [1, 2, 3].map(() =>
-        call('POST', '/shop/confirm', { body: { transaction: started.transaction } }),
+        call('POST', '/shop/confirm', { body: { transaction: started.transaction, cart } }),
       ),
     )
     const numbers = new Set(results.map((r) => r.body.order?.orderNumber))
@@ -356,9 +356,9 @@ describe('paying by card', () => {
 
   it('makes no order while the provider hasn’t taken the money', async () => {
     card.answer = 'processing'
-    const { started } = await checkout()
+    const { cart, started } = await checkout()
     const result = await call('POST', '/shop/confirm', {
-      body: { transaction: started.transaction },
+      body: { transaction: started.transaction, cart },
     })
     expect(result.body).toEqual({ status: 'processing', order: null })
     // The provider's webhook makes it.
@@ -367,19 +367,29 @@ describe('paying by card', () => {
     })
     expect(hook.body.result.order).toBeDefined()
     const again = await call('POST', '/shop/confirm', {
-      body: { transaction: started.transaction },
+      body: { transaction: started.transaction, cart },
     })
     expect(again.body.order.id).toBe(hook.body.result.order)
     card.answer = 'succeeded'
   })
 
+  it('confirms only for whoever paid: the guest with the cart, or staff', async () => {
+    card.answer = 'succeeded'
+    const { cart, started } = await checkout()
+    const confirm = (body: Record<string, unknown>) =>
+      call('POST', '/shop/confirm', { body: { transaction: started.transaction, ...body } })
+    expect((await confirm({})).status).toBe(404)
+    expect((await confirm({ cart: { id: cart.id, secret: 'guess' } })).status).toBe(404)
+    expect((await confirm({ cart })).body.order.status).toBe('paid')
+  })
+
   it('marks the order when stock ran out meanwhile', async () => {
-    const { started } = await checkout(1)
+    const { cart, started } = await checkout(1)
     // Someone else bought the rest.
     const current = (await doc('variants', red)).inventory as number
     await cms.update('variants', red, { inventory: 0 })
     const result = await call('POST', '/shop/confirm', {
-      body: { transaction: started.transaction },
+      body: { transaction: started.transaction, cart },
     })
     const order = await doc('orders', result.body.order.id)
     expect(order.stockShort).toBe(true)
@@ -434,7 +444,7 @@ describe('orders in the admin', () => {
       body: { cart, method: 'card', email: 'refund@example.com' },
     })
     const confirmed = await call('POST', '/shop/confirm', {
-      body: { transaction: started.body.transaction },
+      body: { transaction: started.body.transaction, cart },
     })
     await act(confirmed.body.order.id, 'refunded')
     expect(card.refunded).toContain(`pi_${started.body.transaction}`)
@@ -523,7 +533,7 @@ describe('upkeep', () => {
     await cms.update('transactions', id, { status: 'processing' })
     await cms.runJobs(new Date(Date.now() + 11 * 60_000))
     expect((await doc('transactions', id)).status).toBe('pending')
-    const confirmed = await call('POST', '/shop/confirm', { body: { transaction: id } })
+    const confirmed = await call('POST', '/shop/confirm', { body: { transaction: id, cart } })
     expect(confirmed.body.order.status).toBe('paid')
   })
 })

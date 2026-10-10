@@ -664,10 +664,12 @@ export class Orders {
 
   /**
    * After the page says the payment went through: asks the payment method, and makes the order
-   * when it did. Safe to call again: the order is made once.
+   * when it did. Safe to call again: the order is made once. Only for whoever started the
+   * payment (its customer, or the guest with its cart's secret) and staff; others get 404.
    */
-  async confirm(id: unknown, input: Data): Promise<ConfirmResult> {
+  async confirm(who: Who, ref: CartRef | null, id: unknown, input: Data): Promise<ConfirmResult> {
     const tx = await this.transaction(id)
+    if (!(await this.startedBy(who, ref, tx))) throw new NotFoundError(TRANSACTIONS, String(id))
     if (tx.order)
       return { status: tx.status as TransactionStatus, order: orderRef(await this.order(tx.order)) }
     const adapter = this.adapter(tx.method)
@@ -688,6 +690,21 @@ export class Orders {
         },
       )
     return { status: outcome === 'failed' ? 'failed' : 'processing', order: null }
+  }
+
+  /** The caller started this payment: its customer, the guest holding its cart, or staff. */
+  private async startedBy(who: Who, ref: CartRef | null, tx: Data): Promise<boolean> {
+    const user = who.user
+    if (user && user.member !== true) return true
+    if (tx.customer) return !!user && same(tx.customer, user.id)
+    const cart = idOf(tx.cart)
+    if (cart === null) return false
+    // The secret is hidden from the API: compare with the stored row.
+    const raw = await this.cms.db.findById({ collection: CARTS, id: cart })
+    if (!raw) return false
+    // A guest who signed in since: the cart became theirs.
+    if (user && same(raw.customer, user.id)) return true
+    return !!ref && same(ref.id, cart) && sameSecret(ref.secret, raw.secret)
   }
 
   /** A payment the provider reports as failed (e.g. from its webhook). */

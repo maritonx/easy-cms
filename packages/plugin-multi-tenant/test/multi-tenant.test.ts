@@ -176,11 +176,12 @@ describe('documents of a tenant', () => {
   it("can't be changed from another tenant", async () => {
     const [inB] = (await cms.find('posts', { where: { title: { equals: 'Hello B' } } })).docs
     const patch = await call('PATCH', `/posts/${inB?.id}`, { as: 'alice', body: { title: 'Mine' } })
-    expect(patch.status).toBe(403)
+    // As if it didn't exist: another tenant's ids tell nothing.
+    expect(patch.status).toBe(404)
     // Bob is in B too, but works in A unless he says otherwise.
     expect(
       (await call('PATCH', `/posts/${inB?.id}`, { as: 'bob', body: { title: 'x' } })).status,
-    ).toBe(403)
+    ).toBe(404)
     expect(
       (await call('PATCH', `/posts/${inB?.id}`, { as: 'bob', tenant: 'b', body: { title: 'B!' } }))
         .status,

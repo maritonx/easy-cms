@@ -90,15 +90,16 @@ async function call(path: string, body: unknown, headers: Record<string, string>
   return { status: response.status, body: (text.startsWith('{') ? JSON.parse(text) : text) as Body }
 }
 
-async function startCheckout() {
+async function startCheckout(): Promise<Body> {
   const added = await call('/shop/cart/add', { product })
+  const cart = { id: added.body.cart.id, secret: added.body.secret }
   const started = await call('/shop/checkout', {
-    cart: { id: added.body.cart.id, secret: added.body.secret },
+    cart,
     method: 'stripe',
     email: 'card@example.com',
   })
   expect(started.status).toBe(200)
-  return started.body
+  return { ...started.body, cart }
 }
 
 beforeAll(async () => {
@@ -135,11 +136,15 @@ describe('stripeAdapter', () => {
   it('makes the order only once Stripe says the money is in', async () => {
     const started = await startCheckout()
     const intent = `pi_${intents.size}`
-    expect((await call('/shop/confirm', { transaction: started.transaction })).body.status).toBe(
-      'failed',
-    )
+    expect(
+      (await call('/shop/confirm', { transaction: started.transaction, cart: started.cart })).body
+        .status,
+    ).toBe('failed')
     ;(intents.get(intent) as { status: string }).status = 'succeeded'
-    const confirmed = await call('/shop/confirm', { transaction: started.transaction })
+    const confirmed = await call('/shop/confirm', {
+      transaction: started.transaction,
+      cart: started.cart,
+    })
     expect(confirmed.body.order.status).toBe('paid')
   })
 
@@ -149,7 +154,8 @@ describe('stripeAdapter', () => {
     intent.status = 'succeeded'
     intent.amount = 1
     expect(
-      (await call('/shop/confirm', { transaction: started.transaction })).body.order,
+      (await call('/shop/confirm', { transaction: started.transaction, cart: started.cart })).body
+        .order,
     ).toBeNull()
   })
 

@@ -47,13 +47,19 @@ export type PreviewTarget =
  * Short-lived token that lets a page read one unpublished document (live preview on another
  * origin): `<payload>.<signature>`, the payload being base64url JSON with an expiry.
  */
-export function signPreviewToken(secret: string, target: PreviewTarget, expiresAt: number): string {
+export function signPreviewToken(
+  secret: string,
+  target: PreviewTarget,
+  expiresAt: number,
+  /** Who made it: the token reads with their access. */
+  user?: string,
+): string {
   const payload = Buffer.from(
-    JSON.stringify(
-      'global' in target
-        ? { g: target.global, e: expiresAt }
-        : { c: target.collection, i: target.id, e: expiresAt },
-    ),
+    JSON.stringify({
+      ...('global' in target ? { g: target.global } : { c: target.collection, i: target.id }),
+      e: expiresAt,
+      ...(user !== undefined ? { u: user } : {}),
+    }),
   ).toString('base64url')
   return `${payload}.${hmac(secret, `preview:${payload}`)}`
 }
@@ -63,7 +69,7 @@ export function verifyPreviewToken(
   secret: string,
   token: string,
   now = Date.now(),
-): (PreviewTarget & { expiresAt: number }) | null {
+): (PreviewTarget & { expiresAt: number; user?: string }) | null {
   const dot = token.lastIndexOf('.')
   if (dot <= 0) return null
   const payload = token.slice(0, dot)
@@ -71,9 +77,10 @@ export function verifyPreviewToken(
   try {
     const data = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'))
     if (typeof data.e !== 'number' || data.e <= now) return null
-    if (typeof data.g === 'string') return { global: data.g, expiresAt: data.e }
+    const user = typeof data.u === 'string' ? { user: data.u } : {}
+    if (typeof data.g === 'string') return { global: data.g, expiresAt: data.e, ...user }
     if (typeof data.c === 'string' && typeof data.i === 'string')
-      return { collection: data.c, id: data.i, expiresAt: data.e }
+      return { collection: data.c, id: data.i, expiresAt: data.e, ...user }
     return null
   } catch {
     return null

@@ -92,6 +92,9 @@ const post = await fetch(
 ฝั่ง server `cms.verifyPreviewToken(token)` คืนสิ่งที่ token เปิดได้ (`{ collection, id }` หรือ `{ global }`)
 หรือ `null` ส่วน `cms.createPreviewToken({ collection, id })` ใช้สร้าง token เอง เช่น ปุ่ม "แชร์ลิงก์ตัวอย่าง"
 
+token จากหน้า admin อ่านด้วยสิทธิ์ของ**คนที่เปิดตัวอย่าง**: field ที่คนนั้นอ่านไม่ได้จะไม่ถูกส่งมา และลิงก์จะใช้ไม่ได้
+เมื่อผู้ใช้นั้นถูกปิดบัญชี ส่ง `{ user }` ให้ `createPreviewToken` เพื่อให้ทำงานแบบเดียวกัน ถ้าไม่ส่งจะอ่านได้ทุกอย่าง
+
 ## ข้อควรรู้ {#things-to-know}
 
 - ให้ render rich text ฝั่ง client ด้วย (`renderRichText` จาก `@easy-cms/richtext` ใช้ในเบราว์เซอร์ได้)

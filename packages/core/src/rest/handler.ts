@@ -672,7 +672,12 @@ async function route(
       .split(',')
       .map((id) => parseId(id))
       .filter((id) => id !== undefined)
-    return { body: { count: await cms.mediaUsage(ids) } }
+    const count = await cms.mediaUsage(ids, {
+      overrideAccess: false,
+      user: ctx.user,
+      context: ctx.context,
+    })
+    return { body: { count } }
   }
 
   // Settings → Roles (`auth.rbac`), for admins: the roles, add, change, delete, history.
@@ -834,9 +839,10 @@ async function route(
     if (third !== undefined) return globalAction(cms, ctx, method, second, segments.slice(2))
     if (method === 'GET') {
       if (ctx.url.searchParams.has('preview')) {
-        requirePreview(cms, ctx, { global: second })
+        const as = await requirePreview(cms, ctx, { global: second })
         return {
           body: await cms.findGlobal(second, {
+            ...as,
             ...parseDepth(ctx.url),
             ...parseLocale(ctx.url),
             draft: true,
@@ -966,8 +972,9 @@ async function route(
   const id = second
   if (method === 'GET' && ctx.url.searchParams.has('preview')) {
     // A preview token opens this one document's current draft, without a login.
-    requirePreview(cms, ctx, { collection, id })
+    const as = await requirePreview(cms, ctx, { collection, id })
     const doc = await cms.findById(collection, id, {
+      ...as,
       ...parseDepth(ctx.url),
       ...parseLocale(ctx.url),
       draft: true,
@@ -1072,7 +1079,7 @@ async function documentAction(
     if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
     const body = await readJson(ctx.request)
     const result = await cms.preview(collection, id, body, { ...access, ...depth })
-    const token = cms.createPreviewToken({ collection, id })
+    const token = cms.createPreviewToken({ collection, id }, { user: ctx.user })
     return { body: { ...result, url: result.url && withPreviewToken(result.url, token) } }
   }
   if (path.length === 1 && (action === 'unpublish' || action === 'discard-draft')) {
@@ -1138,7 +1145,7 @@ async function globalAction(
     if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
     const body = await readJson(ctx.request)
     const result = await cms.previewGlobal(slug, body, { ...access, ...depth })
-    const token = cms.createPreviewToken({ global: slug })
+    const token = cms.createPreviewToken({ global: slug }, { user: ctx.user })
     return { body: { ...result, url: result.url && withPreviewToken(result.url, token) } }
   }
   if (path.length === 1 && (action === 'unpublish' || action === 'discard-draft')) {
@@ -1189,12 +1196,16 @@ function withPreviewToken(url: string, token: string): string {
   return `${base}${separator}${PREVIEW_PARAM}=${encodeURIComponent(token)}${fragment}`
 }
 
-/** Throws unless `?preview=` holds a valid token for exactly this document or global. */
-function requirePreview(
+/**
+ * Throws unless `?preview=` holds a valid token for exactly this document or global. Returns
+ * whose access to read it with: the user who made the token (with this request's context, as
+ * `onRequest` works it out), or none for tokens made in code without a user.
+ */
+async function requirePreview(
   cms: EasyCMS,
   ctx: Context,
   target: { collection: string; id: string } | { global: string },
-) {
+): Promise<{ overrideAccess?: false; user?: AuthUser | null; context?: RequestContext }> {
   const opened = cms.verifyPreviewToken(ctx.url.searchParams.get('preview'))
   const matches =
     opened !== null &&
@@ -1204,6 +1215,12 @@ function requirePreview(
         opened.collection === target.collection &&
         opened.id === target.id)
   if (!matches) throw new UnauthorizedError('Invalid or expired preview token')
+  if (opened.user === undefined) return {}
+  const id = parseId(opened.user)
+  const issuer = id === undefined ? null : await cms.auth.activeUser(id)
+  if (!issuer) throw new UnauthorizedError('Invalid or expired preview token')
+  const { user, context } = await cms.applyOnRequest(ctx.request.headers, ctx.url, issuer)
+  return { overrideAccess: false, user, context }
 }
 
 /** `?page=&limit=` for version lists, validated like list queries. */

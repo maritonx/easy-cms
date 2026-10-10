@@ -546,8 +546,8 @@ export function ecommercePlugin<const Cur extends string = 'THB'>(
       method: 'post',
       handler: async (req) => {
         const body = await req.json()
-        const { transaction, ...input } = body
-        return runtime(req.cms).orders.confirm(transaction, input)
+        const { transaction, cart: _cart, ...input } = body
+        return runtime(req.cms).orders.confirm(who(req), cartRef(body), transaction, input)
       },
     },
     {
