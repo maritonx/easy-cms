@@ -1,5 +1,13 @@
 # easy-cms
 
+## 0.66.1
+
+### Patch Changes
+
+- Updated dependencies [f6df483]
+  - @easy-cms/admin@0.66.1
+  - @easy-cms/core@0.66.1
+
 ## 0.66.0
 
 ### Patch Changes
