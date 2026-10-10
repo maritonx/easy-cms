@@ -182,7 +182,8 @@ describe('roles from the admin', () => {
     expect(list.docs.map((u) => u.email)).toEqual(['editor@x.co'])
     expect((await call(`/users/${me.user.id}`, 'PATCH', 'editor', { name: 'Ed' })).status).toBe(200)
     const admin = await userId('admin@x.co')
-    expect((await call(`/users/${admin}`, 'PATCH', 'editor', { name: 'X' })).status).toBe(403)
+    // Other users are as good as missing.
+    expect((await call(`/users/${admin}`, 'PATCH', 'editor', { name: 'X' })).status).toBe(404)
   })
 
   it('access rules still apply: what is not logged in is left to them', async () => {

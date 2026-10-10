@@ -146,9 +146,9 @@ describe('folders (upload.folders)', () => {
     expect(
       (await call(`/media/${memo}`, 'PATCH', 'mia', { folder: folders.Marketing })).status,
     ).toBe(200)
-    // Now in Marketing: hr can't see or change it.
+    // Now in Marketing: hr can't see or change it, as if it didn't exist.
     expect((await call(`/media/${memo}`, 'GET', 'hank')).status).toBe(404)
-    expect((await call(`/media/${memo}`, 'PATCH', 'hank', { alt: 'x' })).status).toBe(403)
+    expect((await call(`/media/${memo}`, 'PATCH', 'hank', { alt: 'x' })).status).toBe(404)
     // Subfolders: edit is not enough.
     expect(
       (await call('/media-folders', 'POST', 'mia', { name: 'Sub', parent: folders.Archive }))
