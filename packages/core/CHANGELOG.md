@@ -1,5 +1,9 @@
 # @easy-cms/core
 
+## 0.66.1
+
+No changes in this release.
+
 ## 0.66.0
 
 ### Minor Changes

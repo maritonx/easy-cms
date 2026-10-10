@@ -1,5 +1,11 @@
 # @easy-cms/admin
 
+## 0.66.1
+
+### Patch Changes
+
+- f6df483: Settings → Single sign-on says what happens to people who already have an account: they link the provider on their Account page first, or are matched by verified email with `linkByEmail`.
+
 ## 0.66.0
 
 ### Minor Changes
