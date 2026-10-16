@@ -21,6 +21,19 @@ const OLD_VERSIONS = ['0.10.0', '0.20.0', '0.35.0', '0.48.0']
 const DATABASES = ['sqlite', 'postgres', 'pglite'] as const
 type Database = (typeof DATABASES)[number]
 
+/**
+ * Packages an install of a release pulls in. A release publishes them one by one, so for a
+ * moment after one appears on npm the others may not have yet.
+ */
+const RELEASE_PACKAGES = [
+  'easy-cms',
+  '@easy-cms/core',
+  '@easy-cms/db-sqlite',
+  '@easy-cms/db-postgres',
+  '@easy-cms/drizzle',
+  '@easy-cms/admin',
+]
+
 const [dbArg = 'sqlite', ...versionArgs] = process.argv.slice(2)
 if (!DATABASES.includes(dbArg as Database))
   throw new Error(`usage: run.ts [${DATABASES.join('|')}] [versions...]`)
@@ -37,19 +50,6 @@ const pgliteVersion = (
 ).devDependencies['@electric-sql/pglite'] as string
 
 const env = { ...process.env, NODE_ENV: 'production', UPGRADE_DB: db }
-
-/**
- * Packages an install of a release pulls in. A release publishes them one by one, so for a
- * moment after one appears on npm the others may not have yet.
- */
-const RELEASE_PACKAGES = [
-  'easy-cms',
-  '@easy-cms/core',
-  '@easy-cms/db-sqlite',
-  '@easy-cms/db-postgres',
-  '@easy-cms/drizzle',
-  '@easy-cms/admin',
-]
 
 /** The newest release whose packages are all on npm: today's users upgrade from it. */
 function latestRelease(): string {
