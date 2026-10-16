@@ -1,5 +1,12 @@
 # @easy-cms/next
 
+## 0.68.4
+
+### Patch Changes
+
+- @easy-cms/admin@0.68.4
+  - @easy-cms/core@0.68.4
+
 ## 0.68.3
 
 ### Patch Changes
