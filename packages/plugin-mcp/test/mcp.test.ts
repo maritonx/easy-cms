@@ -276,7 +276,11 @@ describe('mcpPlugin', () => {
             jsonrpc: '2.0',
             id: 1,
             method: 'initialize',
-            params: { protocolVersion, capabilities: {}, clientInfo: { name: 'old', version: '1' } },
+            params: {
+              protocolVersion,
+              capabilities: {},
+              clientInfo: { name: 'old', version: '1' },
+            },
           }),
         }),
       )
@@ -294,8 +298,13 @@ describe('mcpPlugin', () => {
       }),
     )
     const visible = async () =>
-      (await cms.find('posts', { overrideAccess: false, user: null, where: { id: { equals: id } } }))
-        .totalDocs
+      (
+        await cms.find('posts', {
+          overrideAccess: false,
+          user: null,
+          where: { id: { equals: id } },
+        })
+      ).totalDocs
     const id = (await call(client, 'create_posts', { data: { title: 'Soon' } })).json.id
     await call(client, 'publish_posts', { id })
     expect(await visible()).toBe(1)
@@ -317,8 +326,8 @@ describe('mcpPlugin', () => {
     const client = await connect(
       await keyFor('admin@x.co', { collections: { posts: ['read', 'create', 'update'] } }),
     )
-    const id = (await call(client, 'create_posts', { data: { title: 'สวัสดี' }, locale: 'th' }))
-      .json.id
+    const id = (await call(client, 'create_posts', { data: { title: 'สวัสดี' }, locale: 'th' })).json
+      .id
     await call(client, 'update_posts', { id, data: { title: 'Hello' }, locale: 'en' })
     const all = await call(client, 'get_posts', { id, locale: 'all' })
     expect(all.json.title).toEqual({ th: 'สวัสดี', en: 'Hello' })
