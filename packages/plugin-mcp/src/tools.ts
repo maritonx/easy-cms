@@ -141,7 +141,7 @@ export function buildTools(
     if (may(target, 'update')) {
       tools.push({
         name: `update_${slug}`,
-        description: `Change fields of a ${name} document; fields left out stay as they are.${drafts ? ` Changes are saved as a draft; call publish_${slug} to put them live.` : ''}`,
+        description: `Change fields of a ${name} document; fields left out stay as they are.${drafts ? (c.versions ? ` Changes are saved as a draft and the live version stays; call publish_${slug} to put them live.` : ` Changes are saved as a draft: a published document goes off the site until you call publish_${slug}.`) : ''}`,
         inputSchema: obj({ id, data: objectSchema(c.fields, false), ...locale }, ['id', 'data']),
         run: async (args) =>
           cms.update(
@@ -246,7 +246,7 @@ export function buildTools(
     if (may(target, 'update')) {
       tools.push({
         name: `update_global_${slug}`,
-        description: `Change the ${name} settings; fields left out stay as they are.${drafts ? ` Saved as a draft; call publish_global_${slug} to put it live.` : ''}`,
+        description: `Change the ${name} settings; fields left out stay as they are.${drafts ? (g.versions ? ` Saved as a draft and the live settings stay; call publish_global_${slug} to put it live.` : ` Saved as a draft: published settings go off the site until you call publish_global_${slug}.`) : ''}`,
         inputSchema: obj({ data: objectSchema(g.fields, false), ...locale }, ['data']),
         run: async (args) =>
           cms.updateGlobal(slug, asDraft(g, prepareInput(g.fields, (args.data ?? {}) as Data)), {

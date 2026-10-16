@@ -13,7 +13,7 @@ import { sqlite } from '@easy-cms/db-sqlite'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { mcpPlugin } from '../src/index.js'
+import { buildTools, mcpPlugin } from '../src/index.js'
 
 const config = defineConfig({
   secret: 'x'.repeat(32),
@@ -26,6 +26,13 @@ const config = defineConfig({
       labels: { plural: 'Categories' },
       access: { read: () => true },
       fields: [{ name: 'name', type: 'text', required: true }],
+    },
+    {
+      slug: 'notes',
+      fields: [
+        { name: 'text', type: 'text' },
+        { name: 'secret', type: 'text', access: { read: () => false } },
+      ],
     },
     {
       slug: 'posts',
@@ -48,7 +55,10 @@ const config = defineConfig({
       ],
     },
   ],
-  globals: [{ slug: 'site', fields: [{ name: 'name', type: 'text' }] }],
+  globals: [
+    { slug: 'site', fields: [{ name: 'name', type: 'text' }] },
+    { slug: 'banner', drafts: true, versions: true, fields: [{ name: 'text', type: 'text' }] },
+  ],
   plugins: [mcpPlugin({ instructions: 'Write in a friendly tone.' })],
 })
 
@@ -249,5 +259,128 @@ describe('mcpPlugin', () => {
       height: 1,
     })
     await client.close()
+  })
+
+  it('answers clients on older protocol versions', async () => {
+    const key = await keyFor('admin@x.co', { collections: { categories: ['read'] } })
+    for (const protocolVersion of ['2024-11-05', '2025-03-26', '2025-06-18']) {
+      const response = await handle(
+        new Request(`${ORIGIN}/api/cms/mcp`, {
+          method: 'POST',
+          headers: {
+            authorization: `Bearer ${key}`,
+            'content-type': 'application/json',
+            accept: 'application/json, text/event-stream',
+          },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            id: 1,
+            method: 'initialize',
+            params: { protocolVersion, capabilities: {}, clientInfo: { name: 'old', version: '1' } },
+          }),
+        }),
+      )
+      const { result } = (await response.json()) as {
+        result: { protocolVersion: string; serverInfo: { name: string } }
+      }
+      expect(result).toMatchObject({ protocolVersion, serverInfo: { name: 'easy-cms' } })
+    }
+  })
+
+  it('unpublishes, schedules and deletes', async () => {
+    const client = await connect(
+      await keyFor('admin@x.co', {
+        collections: { posts: ['read', 'create', 'update', 'delete', 'publish'] },
+      }),
+    )
+    const visible = async () =>
+      (await cms.find('posts', { overrideAccess: false, user: null, where: { id: { equals: id } } }))
+        .totalDocs
+    const id = (await call(client, 'create_posts', { data: { title: 'Soon' } })).json.id
+    await call(client, 'publish_posts', { id })
+    expect(await visible()).toBe(1)
+    const unpublished = await call(client, 'unpublish_posts', { id })
+    expect(unpublished.json.status).toBe('draft')
+    expect(await visible()).toBe(0)
+
+    const at = new Date(Date.now() + 86_400_000).toISOString()
+    const scheduled = await call(client, 'schedule_posts', { id, action: 'publish', at })
+    expect(scheduled.json).toMatchObject({ action: 'publish', state: 'pending' })
+    expect(await cms.findSchedule('posts', id)).toHaveLength(1)
+
+    expect((await call(client, 'delete_posts', { id })).error).toBe(false)
+    expect((await call(client, 'get_posts', { id })).text).toContain(`No posts document with id`)
+    await client.close()
+  })
+
+  it('reads every language at once with locale "all"', async () => {
+    const client = await connect(
+      await keyFor('admin@x.co', { collections: { posts: ['read', 'create', 'update'] } }),
+    )
+    const id = (await call(client, 'create_posts', { data: { title: 'สวัสดี' }, locale: 'th' }))
+      .json.id
+    await call(client, 'update_posts', { id, data: { title: 'Hello' }, locale: 'en' })
+    const all = await call(client, 'get_posts', { id, locale: 'all' })
+    expect(all.json.title).toEqual({ th: 'สวัสดี', en: 'Hello' })
+    await client.close()
+  })
+
+  it('reads, changes and publishes globals', async () => {
+    const client = await connect(
+      await keyFor('admin@x.co', {
+        globals: { site: ['read', 'update'], banner: ['read', 'update', 'publish'] },
+      }),
+    )
+    const names = (await client.listTools()).tools.map((t) => t.name).sort()
+    const tools = (await client.listTools()).tools
+    const about = (name: string) => tools.find((t) => t.name === name)?.description
+    expect(about('update_global_banner')).toContain('the live settings stay')
+    expect(about('update_global_site')).not.toContain('draft')
+    expect(names).toEqual([
+      'get_global_banner',
+      'get_global_site',
+      'publish_global_banner',
+      'update_global_banner',
+      'update_global_site',
+    ])
+    await call(client, 'update_global_site', { data: { name: 'My site' } })
+    expect((await call(client, 'get_global_site')).json.name).toBe('My site')
+
+    // A global with drafts: changes after the first publish stay a draft until published again.
+    await call(client, 'update_global_banner', { data: { text: 'Sale' } })
+    expect((await call(client, 'publish_global_banner')).json.status).toBe('published')
+    await call(client, 'update_global_banner', { data: { text: 'Later', status: 'published' } })
+    expect((await cms.findGlobal('banner')).text).toBe('Sale')
+    await call(client, 'publish_global_banner')
+    expect((await cms.findGlobal('banner')).text).toBe('Later')
+    await client.close()
+  })
+
+  it('leaves out fields the user may not read', async () => {
+    const note = await cms.create('notes', { text: 'Hi', secret: 'hidden' })
+    const client = await connect(await keyFor('admin@x.co', { collections: { notes: ['read'] } }))
+    const read = await call(client, 'get_notes', { id: note.id })
+    expect(read.json.text).toBe('Hi')
+    expect(read.json).not.toHaveProperty('secret')
+    await client.close()
+  })
+
+  it('never offers users or API keys, and offers only the listed collections and globals', async () => {
+    const key = await keyFor('admin@x.co', {
+      collections: { users: ['read'], 'api-keys': ['read'], categories: ['read'], notes: ['read'] },
+      globals: { site: ['read'] },
+    })
+    const client = await connect(key)
+    expect((await client.listTools()).tools.map((t) => t.name).sort()).toEqual([
+      'find_categories',
+      'find_notes',
+      'get_categories',
+      'get_global_site',
+      'get_notes',
+    ])
+    await client.close()
+    const user = await cms.auth.userFromHeaders(new Headers({ authorization: `Bearer ${key}` }))
+    const tools = buildTools(cms as never, user as never, { collections: ['notes'], globals: [] })
+    expect(tools.map((t) => t.name).sort()).toEqual(['find_notes', 'get_notes'])
   })
 })

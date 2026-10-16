@@ -113,7 +113,8 @@ Tools are made for each collection and global, only for what the key allows:
 - **Drafts stay drafts.** In collections with drafts, `create_` and `update_` always save a
   draft, whatever the assistant sends; only `publish_` puts it live. With `versions` as well,
   the published page stays as it is until then. (Without versions, updating a published document
-  as a draft takes it offline until it is published again, as in the admin.)
+  as a draft takes it offline until it is published again, as in the admin; the tool's
+  description tells the assistant so.)
 - **Rich text** accepts plain text (blank lines start new paragraphs) or Tiptap JSON.
 - **Relationships and uploads** take ids; the assistant finds them with `find_` or
   `upload_media`.
