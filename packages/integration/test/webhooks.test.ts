@@ -105,7 +105,7 @@ describe('webhooks (FR-HOOK)', () => {
       .update(first?.body ?? '')
       .digest('hex')
     expect(first?.headers['x-easy-cms-signature']).toBe(`sha256=${signature}`)
-    expect(all.at(-1)?.payload).toMatchObject({
+    expect(all.find((r) => r.payload.global)?.payload).toMatchObject({
       event: 'update',
       global: 'site',
       doc: { name: 'Site' },
