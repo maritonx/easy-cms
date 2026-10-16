@@ -128,6 +128,10 @@ export default defineConfig({
         EASY_CMS_SECRET: SECRET,
         DATABASE_URL: `file:${join(scratch, 'shop.db')}`,
         NEXT_TELEMETRY_DISABLED: '1',
+        // Bank transfer only, even with Stripe test keys in the example's .env.
+        STRIPE_SECRET_KEY: '',
+        STRIPE_PUBLISHABLE_KEY: '',
+        STRIPE_WEBHOOK_SECRET: '',
       },
     },
     // The standalone example's frontend, on its own origin.

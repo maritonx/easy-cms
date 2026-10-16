@@ -71,7 +71,7 @@ test('a guest buys by bank transfer', async ({ page }) => {
   await page.getByLabel('อีเมล').fill('guest@e2e.test')
   await page.getByLabel('ชื่อผู้รับ').fill('Somchai')
   await page.getByLabel('ที่อยู่', { exact: true }).fill('99 Sukhumvit')
-  await page.getByLabel('Bank transfer').check()
+  await page.getByLabel('โอนเงิน').check()
   await page.getByRole('button', { name: 'สั่งซื้อ' }).click()
   await expect(page.getByTestId('order-number')).toHaveText('1001')
   await expect(page.getByText('กสิกรไทย 123-4-56789-0')).toBeVisible()
