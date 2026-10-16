@@ -11,7 +11,7 @@ A shop for Easy CMS: products with variants and prices in several currencies, ca
 npm install @easy-cms/plugin-ecommerce
 ```
 
-Or `pnpm add`, `yarn add` or `bun add`. For Stripe, also install `stripe`.
+Or `pnpm add`, `yarn add` or `bun add`. For Stripe, also install `stripe` (17 to 23).
 
 ## Usage
 

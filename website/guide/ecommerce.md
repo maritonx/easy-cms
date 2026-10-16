@@ -176,6 +176,11 @@ point a Stripe webhook at `/api/cms/shop/payments/stripe/webhook` (events
 `payment_intent.succeeded`, `payment_intent.payment_failed`), so orders are made even when a
 customer closes the page.
 
+Stripe needs the `stripe` package, version 17 to 23. Whichever is installed, the adapter asks
+Stripe for the API version it is tested with, `STRIPE_API_VERSION` (`2026-09-30.endive`), so
+upgrading the package doesn't change Stripe's answers; `stripeAdapter({ apiVersion })` picks
+another. Create the webhook endpoint in Stripe with the same API version.
+
 ### Shipping, tax and discounts
 
 `totals` adds lines to (or, negative, takes them off) the subtotal. It runs for the cart and

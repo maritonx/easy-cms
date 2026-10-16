@@ -167,6 +167,10 @@ const result = await checkout({
 และชี้ webhook ของ Stripe มาที่ `/api/cms/shop/payments/stripe/webhook` (event `payment_intent.succeeded`,
 `payment_intent.payment_failed`) เพื่อให้มีคำสั่งซื้อแม้ลูกค้าปิดหน้าไปก่อน
 
+Stripe ต้องติดตั้งแพ็กเกจ `stripe` เวอร์ชัน 17 ถึง 23 ไม่ว่าติดตั้งเวอร์ชันไหน adapter จะขอ API version ที่ทดสอบไว้จาก Stripe
+คือ `STRIPE_API_VERSION` (`2026-09-30.endive`) การอัปเกรดแพ็กเกจจึงไม่ทำให้คำตอบของ Stripe เปลี่ยน ถ้าต้องการเวอร์ชันอื่นใช้
+`stripeAdapter({ apiVersion })` และตอนสร้าง webhook endpoint ใน Stripe ให้เลือก API version เดียวกัน
+
 ### ค่าส่ง ภาษี และส่วนลด {#shipping-tax-and-discounts}
 
 `totals` เพิ่มรายการเข้าไปในยอดสินค้า (หรือหักออกถ้าติดลบ) ทำงานกับตะกร้า และอีกครั้งตอนชำระเงินพร้อมที่อยู่:

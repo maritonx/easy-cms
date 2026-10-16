@@ -41,7 +41,7 @@
   "peerDependencies": {
     "@easy-cms/core": "workspace:^",
     "react": ">=18.0.0",
-    "stripe": ">=17.0.0",
+    "stripe": ">=17.0.0 <24.0.0",
     "vue": "^3.4.0"
   },
   "peerDependenciesMeta": {
@@ -62,6 +62,8 @@
     "@types/react": "^19.2.0",
     "happy-dom": "^20.14.5",
     "react": "^19.2.0",
+    "stripe": "^23.0.0",
+    "stripe-17": "npm:stripe@^17.7.0",
     "vue": "^3.5.43"
   },
   "engines": {

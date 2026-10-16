@@ -1,6 +1,9 @@
 import type { Label } from '@easy-cms/core'
 import type { PaymentAdapter } from './payments.js'
 import { paymentFailed, paymentSucceeded } from './plugin.js'
+import { createStripeClient, type StripeConstructor } from './stripe-client.js'
+
+export { STRIPE_API_VERSION } from './stripe-client.js'
 
 /** The parts of the `stripe` package's client the adapter uses. */
 export interface StripeClient {
@@ -36,6 +39,8 @@ export interface StripeAdapterOptions {
   readonly label?: Label
   /** Extra `PaymentIntent` parameters, e.g. `{ payment_method_types: ['card', 'promptpay'] }`. */
   readonly paymentIntent?: Record<string, unknown>
+  /** Default `STRIPE_API_VERSION`. Not used with `client`, which has its own. */
+  readonly apiVersion?: string
   /** A Stripe client of your own (or a stand-in in tests). Default: `new Stripe(secretKey)`. */
   readonly client?: StripeClient
 }
@@ -51,15 +56,8 @@ export function stripeAdapter(options: StripeAdapterOptions): PaymentAdapter {
     if (options.client) return Promise.resolve(options.client)
     // A name in a variable: the `stripe` package is optional, installed by those who use it.
     const name = 'stripe'
-    client ??= (
-      import(name) as Promise<{
-        default: new (key: string, config?: Record<string, unknown>) => StripeClient
-      }>
-    ).then(
-      (mod) =>
-        new mod.default(options.secretKey, {
-          appInfo: { name: 'Easy CMS ecommerce', url: 'https://github.com/maritonx/easy-cms' },
-        }),
+    client ??= (import(name) as Promise<{ default: StripeConstructor }>).then((mod) =>
+      createStripeClient(mod.default, options),
     )
     return client
   }
