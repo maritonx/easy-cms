@@ -18,6 +18,9 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
+        with:
+          # The commit before, to see whether this push changed package versions.
+          fetch-depth: 2
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
@@ -27,11 +30,19 @@ jobs:
       # Trusted publishing needs npm 11.5.1 or newer.
       - run: npm install -g npm@11
       - run: pnpm install --frozen-lockfile
+      # Publish only when this push changes a package version (merging "Version Packages").
+      # Other pushes right after a release would find npm not yet showing the new versions and
+      # try to publish them again (E409). A failed release is retried with "Re-run failed jobs".
+      - id: versions
+        run: |
+          if git diff HEAD^ HEAD -- 'packages/*/package.json' | grep -q '^+  "version":'; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
       # Opens a "Version Packages" PR; merging it publishes to npm.
       - uses: changesets/action@v1
         with:
           version: pnpm version-packages
-          publish: pnpm release
+          publish: ${{ steps.versions.outputs.changed == 'true' && 'pnpm release' || '' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
