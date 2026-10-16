@@ -1,5 +1,12 @@
 # @easy-cms/plugin-ecommerce
 
+## 0.68.3
+
+### Patch Changes
+
+- 53d40e1: `stripeAdapter({ clientConfig })` passes more settings to the Stripe client the adapter makes, e.g. `{ maxNetworkRetries: 2 }`, or the host and port of stripe-mock in tests.
+- @easy-cms/core@0.68.3
+
 ## 0.68.2
 
 ### Patch Changes
