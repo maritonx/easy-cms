@@ -1,5 +1,11 @@
 # @easy-cms/plugin-graphql
 
+## 0.68.1
+
+### Patch Changes
+
+- @easy-cms/core@0.68.1
+
 ## 0.68.0
 
 ### Minor Changes
