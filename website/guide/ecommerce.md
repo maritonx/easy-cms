@@ -181,6 +181,12 @@ Stripe for the API version it is tested with, `STRIPE_API_VERSION` (`2026-09-30.
 upgrading the package doesn't change Stripe's answers; `stripeAdapter({ apiVersion })` picks
 another. Create the webhook endpoint in Stripe with the same API version.
 
+`clientConfig` passes more settings to the Stripe client, e.g. `{ maxNetworkRetries: 2 }`. In
+tests, point it at [stripe-mock](https://github.com/stripe/stripe-mock) or your own stand-in
+(`{ host: 'localhost', port: 12111, protocol: 'http' }`), then send the webhook a signed event
+(`Stripe.webhooks.generateTestHeaderStringAsync`) to make the order, as the
+[shop example's end-to-end test](https://github.com/maritonx/easy-cms/blob/main/e2e/tests/shop.spec.ts) does.
+
 ### Shipping, tax and discounts
 
 `totals` adds lines to (or, negative, takes them off) the subtotal. It runs for the cart and

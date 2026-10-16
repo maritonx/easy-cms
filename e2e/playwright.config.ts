@@ -19,6 +19,9 @@ const OIDC = 'http://localhost:3110'
 /** The multi-tenant example (`examples/multi-tenant`), on the standalone server. */
 const TENANTS = 'http://localhost:3104'
 
+/** Stripe's API for the shop (`stripe-mock.ts`); payments arrive as signed webhooks. */
+const STRIPE = 'http://localhost:3111'
+
 /** The shop example (`examples/shop`, Next.js), as a production build. */
 const SHOP = 'http://localhost:3105'
 
@@ -109,6 +112,12 @@ export default defineConfig({
       },
     })),
     {
+      name: 'stripe',
+      command: `node stripe-mock.ts ${new URL(STRIPE).port}`,
+      url: STRIPE,
+      reuseExistingServer: false,
+    },
+    {
       name: 'oidc',
       command: `node oidc-provider.ts ${new URL(OIDC).port}`,
       url: `${OIDC}/.well-known/openid-configuration`,
@@ -135,10 +144,12 @@ export default defineConfig({
         EASY_CMS_SECRET: SECRET,
         DATABASE_URL: `file:${join(scratch, 'shop.db')}`,
         NEXT_TELEMETRY_DISABLED: '1',
-        // Bank transfer only, even with Stripe test keys in the example's .env.
-        STRIPE_SECRET_KEY: '',
-        STRIPE_PUBLISHABLE_KEY: '',
-        STRIPE_WEBHOOK_SECRET: '',
+        // Stripe through the mock, whatever keys the example's .env has. The tests sign
+        // webhooks with this secret.
+        STRIPE_SECRET_KEY: 'sk_test_e2e',
+        STRIPE_PUBLISHABLE_KEY: 'pk_test_e2e',
+        STRIPE_WEBHOOK_SECRET: 'whsec_e2e',
+        STRIPE_API_URL: STRIPE,
       },
     },
     // The standalone example's frontend, on its own origin.

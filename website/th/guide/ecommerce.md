@@ -171,6 +171,11 @@ Stripe ต้องติดตั้งแพ็กเกจ `stripe` เวอ
 คือ `STRIPE_API_VERSION` (`2026-09-30.endive`) การอัปเกรดแพ็กเกจจึงไม่ทำให้คำตอบของ Stripe เปลี่ยน ถ้าต้องการเวอร์ชันอื่นใช้
 `stripeAdapter({ apiVersion })` และตอนสร้าง webhook endpoint ใน Stripe ให้เลือก API version เดียวกัน
 
+`clientConfig` ส่งค่าตั้งเพิ่มให้ Stripe client เช่น `{ maxNetworkRetries: 2 }` ตอนทดสอบให้ชี้ไปที่
+[stripe-mock](https://github.com/stripe/stripe-mock) หรือ server จำลองของคุณเอง (`{ host: 'localhost', port: 12111, protocol: 'http' }`)
+แล้วส่ง event ที่เซ็นแล้ว (`Stripe.webhooks.generateTestHeaderStringAsync`) เข้า webhook เพื่อสร้างคำสั่งซื้อ
+แบบเดียวกับ[เทส end-to-end ของตัวอย่างร้านค้า](https://github.com/maritonx/easy-cms/blob/main/e2e/tests/shop.spec.ts)
+
 ### ค่าส่ง ภาษี และส่วนลด {#shipping-tax-and-discounts}
 
 `totals` เพิ่มรายการเข้าไปในยอดสินค้า (หรือหักออกถ้าติดลบ) ทำงานกับตะกร้า และอีกครั้งตอนชำระเงินพร้อมที่อยู่:

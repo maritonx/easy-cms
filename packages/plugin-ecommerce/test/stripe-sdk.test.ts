@@ -100,3 +100,26 @@ describe.each(majors)('stripe %s', (_, Stripe) => {
     expect(((await post('t=1,v1=nope')) as Response).status).toBe(400)
   })
 })
+
+describe('the client the adapter makes', () => {
+  it('imports stripe, and takes clientConfig', async () => {
+    const seen: string[] = []
+    const fetch = async (url: string | URL, init?: RequestInit) => {
+      seen.push(`${new URL(url).host} ${new Headers(init?.headers).get('stripe-version')}`)
+      return new Response(
+        JSON.stringify({ id: 'pi_9', object: 'payment_intent', client_secret: 's' }),
+        { headers: { 'content-type': 'application/json' } },
+      )
+    }
+    const adapter = stripeAdapter({
+      secretKey: 'sk_test_x',
+      publishableKey: 'pk_test_x',
+      clientConfig: {
+        host: 'stripe.test',
+        httpClient: Stripe23.createFetchHttpClient(fetch as typeof globalThis.fetch),
+      },
+    })
+    await adapter.initiate({ cms, transaction })
+    expect(seen).toEqual([`stripe.test ${STRIPE_API_VERSION}`])
+  })
+})

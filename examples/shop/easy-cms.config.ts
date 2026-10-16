@@ -4,6 +4,7 @@ import { ecommercePlugin, manualAdapter } from '@easy-cms/plugin-ecommerce'
 import { stripeAdapter } from '@easy-cms/plugin-ecommerce/stripe'
 
 /** Card and PromptPay through Stripe, when its keys are set. */
+const stripeAPI = process.env.STRIPE_API_URL ? new URL(process.env.STRIPE_API_URL) : null
 const stripe = process.env.STRIPE_SECRET_KEY
   ? [
       stripeAdapter({
@@ -11,6 +12,16 @@ const stripe = process.env.STRIPE_SECRET_KEY
         publishableKey: process.env.STRIPE_PUBLISHABLE_KEY ?? '',
         ...(process.env.STRIPE_WEBHOOK_SECRET
           ? { webhookSecret: process.env.STRIPE_WEBHOOK_SECRET }
+          : {}),
+        // Another Stripe API, e.g. stripe-mock in tests.
+        ...(stripeAPI
+          ? {
+              clientConfig: {
+                host: stripeAPI.hostname,
+                port: Number(stripeAPI.port || 443),
+                protocol: stripeAPI.protocol.replace(':', ''),
+              },
+            }
           : {}),
       }),
     ]

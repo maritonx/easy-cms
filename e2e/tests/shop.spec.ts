@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto'
 import { expect, type Page, test } from '@playwright/test'
 
 /** A shop (examples/shop, @easy-cms/plugin-ecommerce): a guest buys, staff take the payment. */
@@ -111,6 +112,7 @@ test('a customer signs in, keeps the cart, and sees their own orders', async ({ 
   await page.getByRole('link', { name: 'ชำระเงิน' }).click()
   await page.getByLabel('ชื่อผู้รับ').fill('Buyer')
   await page.getByLabel('ที่อยู่', { exact: true }).fill('1 Silom')
+  await page.getByLabel('โอนเงิน').check()
   await page.getByRole('button', { name: 'สั่งซื้อ' }).click()
   await expect(page.getByTestId('order-number')).toHaveText('1002')
   await page.getByRole('link', { name: 'ดูคำสั่งซื้อของฉัน' }).click()
@@ -124,4 +126,76 @@ test('a customer signs in, keeps the cart, and sees their own orders', async ({ 
   await page.getByLabel('Password').fill(CUSTOMER.password)
   await page.getByRole('button', { name: 'Log in' }).click()
   await expect(page.getByText('This account is for the website, not the admin.')).toBeVisible()
+})
+
+/** What Stripe sends: the event, signed with the endpoint's secret (`STRIPE_WEBHOOK_SECRET`). */
+function stripeEvent(type: string, intent: string) {
+  const body = JSON.stringify({
+    id: `evt_${intent}`,
+    object: 'event',
+    type,
+    data: { object: { id: intent, object: 'payment_intent' } },
+  })
+  const t = Math.floor(Date.now() / 1000)
+  const v1 = createHmac('sha256', 'whsec_e2e').update(`${t}.${body}`).digest('hex')
+  return {
+    data: body,
+    headers: { 'content-type': 'application/json', 'stripe-signature': `t=${t},v1=${v1}` },
+  }
+}
+
+test('a card payment arrives by Stripe webhook, once', async ({ page, request, baseURL }) => {
+  const api = (path: string) => `/api/cms${path}`
+  const origin = { origin: baseURL as string }
+  const stock = async () =>
+    (await (await page.request.get(api('/products?where[slug][equals]=jasmine-tea'))).json())
+      .docs[0]
+  // Staff read the stock; the guest and Stripe use their own requests, without that session.
+  await login(page)
+  const product = await stock()
+
+  // A guest checks out with Stripe (the page would then show Stripe's Payment Element).
+  const added = await (
+    await request.post(api('/shop/cart/add'), {
+      data: { product: product.id },
+      headers: origin,
+    })
+  ).json()
+  const started = await request.post(api('/shop/checkout'), {
+    headers: origin,
+    data: {
+      cart: { id: added.cart.id, secret: added.secret },
+      method: 'stripe',
+      email: 'card@e2e.test',
+      shippingAddress: { name: 'Card Buyer', line1: '5 Sathorn', country: 'TH' },
+    },
+  })
+  expect(started.ok(), await started.text()).toBe(true)
+  const { transaction, payment } = await started.json()
+  expect(payment).toMatchObject({ publishableKey: 'pk_test_e2e' })
+  const intent = String(payment.clientSecret).split('_secret_')[0] as string
+
+  // A forged event is refused; Stripe's signed one makes the order.
+  const forged = stripeEvent('payment_intent.succeeded', intent)
+  const refused = await request.post(api('/shop/payments/stripe/webhook'), {
+    data: forged.data,
+    headers: { ...forged.headers, 'stripe-signature': 't=1,v1=forged' },
+  })
+  expect(refused.status()).toBe(400)
+  for (let attempt = 0; attempt < 2; attempt++) {
+    // Stripe retries a webhook it isn't sure arrived: the second changes nothing.
+    const event = stripeEvent('payment_intent.succeeded', intent)
+    const received = await request.post(api('/shop/payments/stripe/webhook'), event)
+    expect(await received.json()).toEqual({ received: true })
+  }
+
+  const tx = await (await page.request.get(api(`/transactions/${transaction}`))).json()
+  expect(tx.status).toBe('succeeded')
+  const orders = await (
+    await page.request.get(api(`/orders?where[email][equals]=card@e2e.test`))
+  ).json()
+  expect(orders.totalDocs).toBe(1)
+  expect(orders.docs[0].status).toBe('paid')
+  // The stock is taken once.
+  expect((await stock()).inventory).toBe(product.inventory - 1)
 })

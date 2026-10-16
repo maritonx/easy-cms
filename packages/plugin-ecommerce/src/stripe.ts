@@ -41,6 +41,11 @@ export interface StripeAdapterOptions {
   readonly paymentIntent?: Record<string, unknown>
   /** Default `STRIPE_API_VERSION`. Not used with `client`, which has its own. */
   readonly apiVersion?: string
+  /**
+   * More settings for the Stripe client the adapter makes, e.g. `{ maxNetworkRetries: 2 }`, or
+   * `{ host: 'localhost', port: 12111, protocol: 'http' }` for stripe-mock in tests.
+   */
+  readonly clientConfig?: Record<string, unknown>
   /** A Stripe client of your own (or a stand-in in tests). Default: `new Stripe(secretKey)`. */
   readonly client?: StripeClient
 }
@@ -57,7 +62,7 @@ export function stripeAdapter(options: StripeAdapterOptions): PaymentAdapter {
     // A name in a variable: the `stripe` package is optional, installed by those who use it.
     const name = 'stripe'
     client ??= (import(name) as Promise<{ default: StripeConstructor }>).then((mod) =>
-      createStripeClient(mod.default, options),
+      createStripeClient(mod.default, options, options.clientConfig),
     )
     return client
   }
