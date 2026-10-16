@@ -90,6 +90,12 @@ claude mcp add --transport http easy-cms https://example.com/api/cms/mcp \
 
 ผู้ช่วยแต่ละตัวเปลี่ยนวิธีตั้งค่าบ่อย ให้ดูเอกสารของโปรแกรมว่าเพิ่ม MCP server แบบ remote พร้อม header อย่างไร
 
+**Claude Desktop** (ทดสอบเมื่อตุลาคม 2026): เปิดไฟล์จาก **Settings → Developer → Edit Config** แต่ให้แก้ตอนที่ปิด
+Claude แล้ว (⌘Q) ถ้าแก้ตอนที่ Claude เปิดอยู่ ค่าอาจถูกเขียนทับและ server จะไม่ขึ้น เมื่อเปิด Claude ใหม่ หน้าเดียวกันจะแสดง
+`easy-cms` เป็น **running** ถ้าขึ้น "Server disconnected" และใน log (`~/Library/Logs/Claude/mcp-server-easy-cms.log`
+บน macOS) มี `ECONNREFUSED` แปลว่าต่อ CMS ที่ URL นั้นไม่ได้ ในแอป Claude สำหรับเดสก์ท็อป server ที่เพิ่มแบบนี้ใช้ได้ใน
+session ของ Claude Code ด้วย
+
 ## Tool {#the-tools}
 
 tool ถูกสร้างตาม collection และ global และมีเฉพาะที่ key อนุญาต:
