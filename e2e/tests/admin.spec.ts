@@ -702,6 +702,8 @@ test.describe('logged in as admin', () => {
 
     await page.getByRole('button', { name: 'Publish', exact: true }).click()
     await expect(page.getByRole('status')).toHaveText('Created')
+    // "Created" shows before the address becomes the new post's; reloading /new gives a blank form.
+    await expect(page).toHaveURL(/\/admin\/collections\/posts\/\d+$/)
     await page.reload()
     await expect(metaTitle).toHaveValue('Custom SEO title')
 
