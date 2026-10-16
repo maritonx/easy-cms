@@ -1,0 +1,756 @@
+type Query {
+  """User"""
+  user(
+    id: ID!
+
+    """Content language. Default: the default locale."""
+    locale: Locale
+
+    """Use the default locale's value when a value is empty."""
+    fallbackLocale: Boolean
+  ): User
+
+  """Users"""
+  users(
+    where: UserWhere
+    sort: [UserSort!]
+
+    """1 to 100."""
+    limit: Int = 10
+    page: Int = 1
+
+    """Content language. Default: the default locale."""
+    locale: Locale
+
+    """Use the default locale's value when a value is empty."""
+    fallbackLocale: Boolean
+  ): UserList!
+
+  """Media"""
+  mediaItem(
+    id: ID!
+
+    """Content language. Default: the default locale."""
+    locale: Locale
+
+    """Use the default locale's value when a value is empty."""
+    fallbackLocale: Boolean
+  ): Media
+
+  """Media"""
+  media(
+    where: MediaWhere
+    sort: [MediaSort!]
+
+    """1 to 100."""
+    limit: Int = 10
+    page: Int = 1
+
+    """Content language. Default: the default locale."""
+    locale: Locale
+
+    """Use the default locale's value when a value is empty."""
+    fallbackLocale: Boolean
+  ): MediaList!
+  category(
+    id: ID!
+
+    """Content language. Default: the default locale."""
+    locale: Locale
+
+    """Use the default locale's value when a value is empty."""
+    fallbackLocale: Boolean
+  ): Category
+  categories(
+    where: CategoryWhere
+    sort: [CategorySort!]
+
+    """1 to 100."""
+    limit: Int = 10
+    page: Int = 1
+
+    """Content language. Default: the default locale."""
+    locale: Locale
+
+    """Use the default locale's value when a value is empty."""
+    fallbackLocale: Boolean
+  ): CategoryList!
+  post(
+    id: ID!
+
+    """Content language. Default: the default locale."""
+    locale: Locale
+
+    """Use the default locale's value when a value is empty."""
+    fallbackLocale: Boolean
+
+    """Include drafts (logged-in users and API keys only)."""
+    draft: Boolean
+  ): Post
+  posts(
+    where: PostWhere
+    sort: [PostSort!]
+
+    """1 to 100."""
+    limit: Int = 10
+    page: Int = 1
+
+    """Content language. Default: the default locale."""
+    locale: Locale
+
+    """Use the default locale's value when a value is empty."""
+    fallbackLocale: Boolean
+
+    """Include drafts (logged-in users and API keys only)."""
+    draft: Boolean
+  ): PostList!
+  siteSettings(
+    """Content language. Default: the default locale."""
+    locale: Locale
+
+    """Use the default locale's value when a value is empty."""
+    fallbackLocale: Boolean
+
+    """Include drafts (logged-in users and API keys only)."""
+    draft: Boolean
+  ): SiteSettings
+
+  """The logged-in user (or the owner of the API key), or null."""
+  me: User
+}
+
+"""User"""
+type User {
+  id: ID!
+
+  """Email"""
+  email: String
+
+  """Name"""
+  name: String
+
+  """Role"""
+  role: UserRole
+
+  """Active"""
+  active: Boolean
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+enum UserRole {
+  admin
+  editor
+}
+
+"""A date and time as an ISO 8601 string, e.g. 2026-10-08T09:30:00.000Z."""
+scalar DateTime
+
+enum Locale {
+  th
+  en
+}
+
+type UserList {
+  docs: [User!]!
+  totalDocs: Int!
+  limit: Int!
+  page: Int!
+  totalPages: Int!
+  hasNextPage: Boolean!
+  hasPrevPage: Boolean!
+}
+
+input UserWhere {
+  id: IDFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+  email: StringFilter
+  name: StringFilter
+  role: UserRoleFilter
+  active: BooleanFilter
+  AND: [UserWhere!]
+  OR: [UserWhere!]
+}
+
+input IDFilter {
+  equals: ID
+  not_equals: ID
+  in: [ID!]
+  not_in: [ID!]
+  exists: Boolean
+}
+
+input DateTimeFilter {
+  equals: DateTime
+  not_equals: DateTime
+  in: [DateTime!]
+  not_in: [DateTime!]
+  gt: DateTime
+  gte: DateTime
+  lt: DateTime
+  lte: DateTime
+  exists: Boolean
+}
+
+input StringFilter {
+  equals: String
+  not_equals: String
+  in: [String!]
+  not_in: [String!]
+  like: String
+  exists: Boolean
+}
+
+input UserRoleFilter {
+  equals: UserRole
+  not_equals: UserRole
+  in: [UserRole!]
+  not_in: [UserRole!]
+  exists: Boolean
+}
+
+input BooleanFilter {
+  equals: Boolean
+  not_equals: Boolean
+  exists: Boolean
+}
+
+enum UserSort {
+  id_ASC
+  id_DESC
+  email_ASC
+  email_DESC
+  name_ASC
+  name_DESC
+  role_ASC
+  role_DESC
+  active_ASC
+  active_DESC
+  createdAt_ASC
+  createdAt_DESC
+  updatedAt_ASC
+  updatedAt_DESC
+}
+
+"""Media"""
+type Media {
+  id: ID!
+
+  """File name"""
+  filename: String
+
+  """Original name"""
+  originalName: String
+
+  """Type"""
+  mimeType: String
+
+  """Size (bytes)"""
+  filesize: Float
+
+  """Width"""
+  width: Float
+
+  """Height"""
+  height: Float
+
+  """Alternative text"""
+  alt: String
+
+  """Where the file is served."""
+  url: String
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type MediaList {
+  docs: [Media!]!
+  totalDocs: Int!
+  limit: Int!
+  page: Int!
+  totalPages: Int!
+  hasNextPage: Boolean!
+  hasPrevPage: Boolean!
+}
+
+input MediaWhere {
+  id: IDFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+  filename: StringFilter
+  originalName: StringFilter
+  mimeType: StringFilter
+  filesize: FloatFilter
+  width: FloatFilter
+  height: FloatFilter
+  alt: StringFilter
+  AND: [MediaWhere!]
+  OR: [MediaWhere!]
+}
+
+input FloatFilter {
+  equals: Float
+  not_equals: Float
+  in: [Float!]
+  not_in: [Float!]
+  gt: Float
+  gte: Float
+  lt: Float
+  lte: Float
+  exists: Boolean
+}
+
+enum MediaSort {
+  id_ASC
+  id_DESC
+  filename_ASC
+  filename_DESC
+  originalName_ASC
+  originalName_DESC
+  mimeType_ASC
+  mimeType_DESC
+  filesize_ASC
+  filesize_DESC
+  width_ASC
+  width_DESC
+  height_ASC
+  height_DESC
+  alt_ASC
+  alt_DESC
+  createdAt_ASC
+  createdAt_DESC
+  updatedAt_ASC
+  updatedAt_DESC
+}
+
+type Category {
+  id: ID!
+  name: String
+  parent(
+    """Content language. Default: the default locale."""
+    locale: Locale
+
+    """Use the default locale's value when a value is empty."""
+    fallbackLocale: Boolean
+  ): Category
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type CategoryList {
+  docs: [Category!]!
+  totalDocs: Int!
+  limit: Int!
+  page: Int!
+  totalPages: Int!
+  hasNextPage: Boolean!
+  hasPrevPage: Boolean!
+}
+
+input CategoryWhere {
+  id: IDFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+  name: StringFilter
+  parent: IDFilter
+  AND: [CategoryWhere!]
+  OR: [CategoryWhere!]
+}
+
+enum CategorySort {
+  id_ASC
+  id_DESC
+  name_ASC
+  name_DESC
+  createdAt_ASC
+  createdAt_DESC
+  updatedAt_ASC
+  updatedAt_DESC
+}
+
+type Post {
+  id: ID!
+  title: String
+  slug: String
+  summary: String
+  contact: String
+  views: Float
+  featured: Boolean
+  publishedAt: DateTime
+  size: PostSize
+  tags: [PostTags!]
+  category(
+    """Content language. Default: the default locale."""
+    locale: Locale
+
+    """Use the default locale's value when a value is empty."""
+    fallbackLocale: Boolean
+  ): Category
+  related(
+    """Content language. Default: the default locale."""
+    locale: Locale
+
+    """Use the default locale's value when a value is empty."""
+    fallbackLocale: Boolean
+  ): [Post!]
+  cover(
+    """Content language. Default: the default locale."""
+    locale: Locale
+
+    """Use the default locale's value when a value is empty."""
+    fallbackLocale: Boolean
+  ): Media
+  gallery(
+    """Content language. Default: the default locale."""
+    locale: Locale
+
+    """Use the default locale's value when a value is empty."""
+    fallbackLocale: Boolean
+  ): [Media!]
+  body: JSON
+  data: JSON
+  seo: PostSeo
+  links: [PostLinksRow!]
+  layout: [PostLayoutBlock!]
+  status: DocumentStatus
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+enum PostSize {
+  small
+  large
+}
+
+enum PostTags {
+  news
+  tips
+}
+
+"""
+Any JSON value: rich text documents (Tiptap JSON), json fields, block rows.
+"""
+scalar JSON
+
+type PostSeo {
+  title: String
+  noindex: Boolean
+}
+
+type PostLinksRow {
+  id: String
+  label: String
+  url: String
+}
+
+union PostLayoutBlock = HeroBlock | QuoteBlock
+
+type HeroBlock {
+  id: String
+  blockType: String!
+  heading: String
+  image(
+    """Content language. Default: the default locale."""
+    locale: Locale
+
+    """Use the default locale's value when a value is empty."""
+    fallbackLocale: Boolean
+  ): Media
+}
+
+type QuoteBlock {
+  id: String
+  blockType: String!
+  text: String
+}
+
+enum DocumentStatus {
+  draft
+  published
+}
+
+type PostList {
+  docs: [Post!]!
+  totalDocs: Int!
+  limit: Int!
+  page: Int!
+  totalPages: Int!
+  hasNextPage: Boolean!
+  hasPrevPage: Boolean!
+}
+
+input PostWhere {
+  id: IDFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+  status: DocumentStatusFilter
+  title: StringFilter
+  slug: StringFilter
+  summary: StringFilter
+  contact: StringFilter
+  views: FloatFilter
+  featured: BooleanFilter
+  publishedAt: DateTimeFilter
+  size: PostSizeFilter
+  tags: PostTagsFilter
+  category: IDFilter
+  related: IDFilter
+  cover: IDFilter
+  gallery: IDFilter
+  seo: PostSeoWhere
+  AND: [PostWhere!]
+  OR: [PostWhere!]
+}
+
+input DocumentStatusFilter {
+  equals: DocumentStatus
+  not_equals: DocumentStatus
+  in: [DocumentStatus!]
+  not_in: [DocumentStatus!]
+  exists: Boolean
+}
+
+input PostSizeFilter {
+  equals: PostSize
+  not_equals: PostSize
+  in: [PostSize!]
+  not_in: [PostSize!]
+  exists: Boolean
+}
+
+input PostTagsFilter {
+  equals: PostTags
+  not_equals: PostTags
+  in: [PostTags!]
+  not_in: [PostTags!]
+  exists: Boolean
+}
+
+input PostSeoWhere {
+  title: StringFilter
+  noindex: BooleanFilter
+}
+
+enum PostSort {
+  id_ASC
+  id_DESC
+  title_ASC
+  title_DESC
+  slug_ASC
+  slug_DESC
+  summary_ASC
+  summary_DESC
+  contact_ASC
+  contact_DESC
+  views_ASC
+  views_DESC
+  featured_ASC
+  featured_DESC
+  publishedAt_ASC
+  publishedAt_DESC
+  size_ASC
+  size_DESC
+  createdAt_ASC
+  createdAt_DESC
+  updatedAt_ASC
+  updatedAt_DESC
+}
+
+type SiteSettings {
+  name: String
+  featured(
+    """Content language. Default: the default locale."""
+    locale: Locale
+
+    """Use the default locale's value when a value is empty."""
+    fallbackLocale: Boolean
+  ): Post
+  status: DocumentStatus
+
+  """Null until the global is saved for the first time."""
+  updatedAt: DateTime
+}
+
+type Mutation {
+  createUser(
+    data: UserCreateInput!
+
+    """The language the data is in."""
+    locale: Locale
+  ): User
+  updateUser(
+    id: ID!
+    data: UserUpdateInput!
+
+    """The language the data is in."""
+    locale: Locale
+  ): User
+
+  """Deletes the document and returns it. Cannot be undone."""
+  deleteUser(id: ID!): User
+  updateMedia(
+    id: ID!
+    data: MediaUpdateInput!
+
+    """The language the data is in."""
+    locale: Locale
+  ): Media
+
+  """Deletes the document and returns it. Cannot be undone."""
+  deleteMedia(id: ID!): Media
+  createCategory(
+    data: CategoryCreateInput!
+
+    """The language the data is in."""
+    locale: Locale
+  ): Category
+  updateCategory(
+    id: ID!
+    data: CategoryUpdateInput!
+
+    """The language the data is in."""
+    locale: Locale
+  ): Category
+
+  """Deletes the document and returns it. Cannot be undone."""
+  deleteCategory(id: ID!): Category
+  createPost(
+    data: PostCreateInput!
+
+    """The language the data is in."""
+    locale: Locale
+
+    """
+    true: save as a draft. false: publish. Default: as the collection does.
+    """
+    draft: Boolean
+  ): Post
+  updatePost(
+    id: ID!
+    data: PostUpdateInput!
+
+    """The language the data is in."""
+    locale: Locale
+
+    """
+    true: save as a draft. false: publish. Default: as the collection does.
+    """
+    draft: Boolean
+  ): Post
+
+  """Deletes the document and returns it. Cannot be undone."""
+  deletePost(id: ID!): Post
+  updateSiteSettings(
+    data: SiteSettingsInput!
+
+    """The language the data is in."""
+    locale: Locale
+
+    """true: save as a draft. false: publish."""
+    draft: Boolean
+  ): SiteSettings
+}
+
+input UserCreateInput {
+  """Email"""
+  email: String!
+
+  """Name"""
+  name: String
+
+  """Role"""
+  role: UserRole
+
+  """Active"""
+  active: Boolean
+  password: String
+}
+
+input UserUpdateInput {
+  """Email"""
+  email: String
+
+  """Name"""
+  name: String
+
+  """Role"""
+  role: UserRole
+
+  """Active"""
+  active: Boolean
+  password: String
+}
+
+input MediaUpdateInput {
+  """Alternative text"""
+  alt: String
+}
+
+input CategoryCreateInput {
+  name: String!
+  parent: ID
+}
+
+input CategoryUpdateInput {
+  name: String
+  parent: ID
+}
+
+input PostCreateInput {
+  title: String!
+  slug: String
+  summary: String
+  contact: String
+  views: Float
+  featured: Boolean
+  publishedAt: DateTime
+  size: PostSize
+  tags: [PostTags!]
+  category: ID!
+  related: [ID!]
+  cover: ID
+  gallery: [ID!]
+  body: JSON
+  data: JSON
+  seo: PostSeoInput
+  links: [PostLinksRowInput!]
+  layout: [JSON!]
+}
+
+input PostSeoInput {
+  title: String
+  noindex: Boolean
+}
+
+input PostLinksRowInput {
+  id: String
+  label: String
+  url: String
+}
+
+input PostUpdateInput {
+  title: String
+  slug: String
+  summary: String
+  contact: String
+  views: Float
+  featured: Boolean
+  publishedAt: DateTime
+  size: PostSize
+  tags: [PostTags!]
+  category: ID
+  related: [ID!]
+  cover: ID
+  gallery: [ID!]
+  body: JSON
+  data: JSON
+  seo: PostSeoInput
+  links: [PostLinksRowInput!]
+  layout: [JSON!]
+}
+
+input SiteSettingsInput {
+  name: String
+  featured: ID
+}
