@@ -55,6 +55,7 @@ older meets all of it at once. Changes that stop the app say so, with the new na
 | Takes cash on delivery with `manualAdapter` | Set `expiresIn: false`, or unpaid orders are cancelled after 3 days ([0.65](#v0-65)). |
 | Calls `POST <api>/shop/confirm` without the shop client | Send the guest's cart too ([0.63](#v0-63)). |
 | Has `unique` on a field inside a group, array or block | It was never enforced there; move it up or check it in a hook ([0.66](#v0-66)). |
+| Takes payments with Stripe | Give the webhook endpoint API version `2026-09-30.endive`, or set `apiVersion` ([0.67](#v0-67)). |
 
 ### Steps
 
@@ -83,6 +84,18 @@ and Postgres.
 of your app.
 
 The sections below list each release's changes.
+
+## 0.68 {#v0-68}
+
+- **GraphQL needs `graphql` in your project:** `@easy-cms/plugin-graphql` no longer brings its
+  own copy, so the plugin and your `extend` code use the same one. npm, pnpm and Bun install it
+  for you; with Yarn, run `yarn add graphql`. Versions 16 and 17 both work.
+
+## 0.67 {#v0-67}
+
+- **Shop with Stripe:** the adapter asks for Stripe API version `2026-09-30.endive`, whichever
+  `stripe` package (17 to 23) is installed. Create the webhook endpoint with that version, or
+  set `stripeAdapter({ apiVersion })`.
 
 ## 0.66 {#v0-66}
 

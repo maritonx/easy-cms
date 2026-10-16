@@ -19,8 +19,10 @@ minor release ได้ แม้หลัง 1.0 เพราะไม่อย
 ## ติดตั้ง {#set-it-up}
 
 ```bash [pm]
-npm install @easy-cms/plugin-graphql
+npm install @easy-cms/plugin-graphql graphql
 ```
+
+โปรเจกต์ของคุณติดตั้ง `graphql` 16 หรือ 17 เอง plugin กับโค้ด `extend` ของคุณจึงใช้ชุดเดียวกัน
 
 ```ts
 import { graphqlPlugin } from '@easy-cms/plugin-graphql'

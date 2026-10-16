@@ -22,8 +22,11 @@ use Apollo, urql or Relay, or that want one request with only the fields they ne
 ## Set it up
 
 ```bash [pm]
-npm install @easy-cms/plugin-graphql
+npm install @easy-cms/plugin-graphql graphql
 ```
+
+`graphql` 16 or 17 is installed by your project, so the plugin and your own `extend` code use
+the same copy.
 
 ```ts
 import { graphqlPlugin } from '@easy-cms/plugin-graphql'

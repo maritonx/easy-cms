@@ -104,6 +104,9 @@ importers:
       '@electric-sql/pglite':
         specifier: ^0.5.8
         version: 0.5.8
+      graphql:
+        specifier: ^17.0.2
+        version: 17.0.2
       next:
         specifier: ^16.3.8
         version: 16.4.0(@opentelemetry/api@1.9.1)(@playwright/test@1.63.0)(@types/node@22.20.4)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -165,9 +168,12 @@ importers:
       '@easy-cms/richtext':
         specifier: workspace:^
         version: link:../../packages/richtext
+      graphql:
+        specifier: ^17.0.2
+        version: 17.0.2
       nuxt:
         specifier: ^4.5.2
-        version: 4.5.2(@babel/plugin-syntax-jsx@7.29.7(@babel/core@7.29.7))(@babel/plugin-syntax-typescript@7.29.7(@babel/core@7.29.7))(@biomejs/biome@2.5.14)(@electric-sql/pglite@0.5.8)(@libsql/client@0.18.0)(@oxc-project/types@0.151.0)(@types/node@22.20.4)(@vercel/blob@2.8.0)(@vue/compiler-sfc@3.5.43)(aws4fetch@1.0.20)(cac@6.7.14)(commander@14.0.3)(db0@0.3.4(@electric-sql/pglite@0.5.8)(@libsql/client@0.18.0)(drizzle-orm@0.45.3(@electric-sql/pglite@0.5.8)(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(postgres@3.4.9)))(drizzle-orm@0.45.3(@electric-sql/pglite@0.5.8)(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(postgres@3.4.9))(esbuild@0.28.2)(ioredis@5.11.1)(lightningcss@1.33.0)(magicast@0.5.5)(rolldown@1.2.11)(rollup-plugin-visualizer@7.1.1(rolldown@1.2.11)(rollup@4.63.5))(rollup@4.63.5)(terser@5.51.2)(tsx@4.23.15)(typescript@6.0.3)(vite@8.3.1(@types/node@22.20.4)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))(vue-tsc@3.3.11(typescript@6.0.3))(yaml@2.9.1)
+        version: 4.5.2(@babel/plugin-syntax-jsx@7.29.7(@babel/core@7.29.7))(@babel/plugin-syntax-typescript@7.29.7(@babel/core@7.29.7))(@biomejs/biome@2.5.14)(@electric-sql/pglite@0.5.8)(@libsql/client@0.18.0)(@oxc-project/types@0.151.0)(@types/node@22.20.4)(@vercel/blob@2.8.0)(@vue/compiler-sfc@3.5.43)(aws4fetch@1.0.20)(cac@6.7.14)(commander@14.0.3)(db0@0.3.4(@electric-sql/pglite@0.5.8)(@libsql/client@0.18.0)(drizzle-orm@0.45.3(@electric-sql/pglite@0.5.8)(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(postgres@3.4.9)))(drizzle-orm@0.45.3(@electric-sql/pglite@0.5.8)(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(postgres@3.4.9))(esbuild@0.28.2)(ioredis@5.11.1)(lightningcss@1.33.0)(magicast@0.5.5)(rolldown@1.2.11)(rollup-plugin-visualizer@7.1.1(rolldown@1.2.11)(rollup@4.63.5))(rollup@4.63.5)(srvx@0.11.22)(terser@5.51.2)(tsx@4.23.15)(typescript@6.0.3)(vite@8.3.1(@types/node@22.20.4)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))(vue-tsc@3.3.11(typescript@6.0.3))(yaml@2.9.1)
       vue:
         specifier: ^3.5.0
         version: 3.5.43(typescript@6.0.3)
@@ -251,6 +257,9 @@ importers:
       easy-cms:
         specifier: workspace:^
         version: link:../../packages/cli
+      graphql:
+        specifier: ^17.0.2
+        version: 17.0.2
 
   packages/admin:
     devDependencies:
@@ -489,7 +498,7 @@ importers:
         version: 4.3.2(@playwright/test@1.63.0)(@vue/test-utils@2.5.1(@vue/compiler-dom@3.5.43)(@vue/server-renderer@3.5.43)(vue@3.5.43(typescript@6.0.3)))(esbuild@0.28.2)(happy-dom@20.14.5)(magicast@0.5.5)(playwright-core@1.63.0)(rolldown@1.2.11)(rollup@4.63.5)(typescript@6.0.3)(vite@8.3.1(@types/node@22.20.4)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))(vitest@5.0.1(@opentelemetry/api@1.9.1)(@types/node@22.20.4)(happy-dom@20.14.5)(vite@8.3.1(@types/node@22.20.4)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1)))
       nuxt:
         specifier: ^4.5.2
-        version: 4.5.2(@babel/plugin-syntax-jsx@7.29.7(@babel/core@7.29.7))(@babel/plugin-syntax-typescript@7.29.7(@babel/core@7.29.7))(@biomejs/biome@2.5.14)(@electric-sql/pglite@0.5.8)(@libsql/client@0.18.0)(@oxc-project/types@0.151.0)(@types/node@22.20.4)(@vercel/blob@2.8.0)(@vue/compiler-sfc@3.5.43)(aws4fetch@1.0.20)(cac@6.7.14)(commander@14.0.3)(db0@0.3.4(@electric-sql/pglite@0.5.8)(@libsql/client@0.18.0)(drizzle-orm@0.45.3(@electric-sql/pglite@0.5.8)(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(postgres@3.4.9)))(drizzle-orm@0.45.3(@electric-sql/pglite@0.5.8)(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(postgres@3.4.9))(esbuild@0.28.2)(ioredis@5.11.1)(lightningcss@1.33.0)(magicast@0.5.5)(rolldown@1.2.11)(rollup-plugin-visualizer@7.1.1(rolldown@1.2.11)(rollup@4.63.5))(rollup@4.63.5)(srvx@0.11.22)(terser@5.51.2)(tsx@4.23.15)(typescript@6.0.3)(vite@8.3.1(@types/node@22.20.4)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))(vue-tsc@3.3.11(typescript@6.0.3))(yaml@2.9.1)
+        version: 4.5.2(@babel/plugin-syntax-jsx@7.29.7(@babel/core@7.29.7))(@babel/plugin-syntax-typescript@7.29.7(@babel/core@7.29.7))(@biomejs/biome@2.5.14)(@electric-sql/pglite@0.5.8)(@libsql/client@0.18.0)(@oxc-project/types@0.151.0)(@types/node@22.20.4)(@vercel/blob@2.8.0)(@vue/compiler-sfc@3.5.43)(aws4fetch@1.0.20)(cac@6.7.14)(commander@14.0.3)(db0@0.3.4(@electric-sql/pglite@0.5.8)(@libsql/client@0.18.0)(drizzle-orm@0.45.3(@electric-sql/pglite@0.5.8)(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(postgres@3.4.9)))(drizzle-orm@0.45.3(@electric-sql/pglite@0.5.8)(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(postgres@3.4.9))(esbuild@0.28.2)(ioredis@5.11.1)(lightningcss@1.33.0)(magicast@0.5.5)(rolldown@1.2.11)(rollup-plugin-visualizer@7.1.1(rolldown@1.2.11)(rollup@4.63.5))(rollup@4.63.5)(terser@5.51.2)(tsx@4.23.15)(typescript@6.0.3)(vite@8.3.1(@types/node@22.20.4)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))(vue-tsc@3.3.11(typescript@6.0.3))(yaml@2.9.1)
       vue:
         specifier: ^3.5.0
         version: 3.5.43(typescript@6.0.3)
@@ -545,9 +554,6 @@ importers:
       dataloader:
         specifier: ^2.2.3
         version: 2.2.3
-      graphql:
-        specifier: ^16.11.0 || ^17.0.0
-        version: 17.0.2
     devDependencies:
       '@easy-cms/core':
         specifier: workspace:^
@@ -555,6 +561,12 @@ importers:
       '@easy-cms/db-sqlite':
         specifier: workspace:^
         version: link:../db-sqlite
+      graphql:
+        specifier: ^17.0.2
+        version: 17.0.2
+      graphql-16:
+        specifier: npm:graphql@^16.14.2
+        version: graphql@16.14.2
 
   packages/plugin-mcp:
     dependencies:
@@ -4280,6 +4292,10 @@ packages:
 
   graceful-fs@4.2.11:
     resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
+
+  graphql@16.14.2:
+    resolution: {integrity: sha512-Chq1s4CY7jmh8gO2qvLIJyfCDIN+EHLFW/9iShnp1z8FjBQMoodWP1kDC36VAMXXIvAjj4ARa7ntfAV2BrjsbA==}
+    engines: {node: ^12.22.0 || ^14.16.0 || ^16.0.0 || >=17.0.0}
 
   graphql@17.0.2:
     resolution: {integrity: sha512-FRWbddMxfkjiB7z+aQDWIR+E34xo9I8c9mtK2RPv8PmMzKRvrdsreHL/Ui/TmwHJfhHChEtsFPyMHKI+xuarQQ==}
@@ -10294,6 +10310,8 @@ snapshots:
   gopd@1.2.0: {}
 
   graceful-fs@4.2.11: {}
+
+  graphql@16.14.2: {}
 
   graphql@17.0.2: {}
 

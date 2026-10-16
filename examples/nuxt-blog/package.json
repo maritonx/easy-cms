@@ -25,6 +25,7 @@
     "@easy-cms/plugin-redirects": "workspace:^",
     "@easy-cms/plugin-seo": "workspace:^",
     "@easy-cms/richtext": "workspace:^",
+    "graphql": "^17.0.2",
     "nuxt": "^4.5.2",
     "vue": "^3.5.0"
   },

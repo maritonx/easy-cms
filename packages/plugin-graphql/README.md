@@ -8,7 +8,7 @@ A GraphQL API for Easy CMS: a type, queries and mutations for every collection a
 ## Install
 
 ```bash
-npm install @easy-cms/plugin-graphql
+npm install @easy-cms/plugin-graphql graphql
 ```
 
 Or `pnpm add`, `yarn add` or `bun add`.

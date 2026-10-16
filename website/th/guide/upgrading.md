@@ -51,6 +51,7 @@ Invalid Easy CMS config (1 problem):
 | รับเก็บเงินปลายทางด้วย `manualAdapter` | ตั้ง `expiresIn: false` ไม่อย่างนั้นคำสั่งซื้อที่ไม่จ่ายจะถูกยกเลิกหลัง 3 วัน ([0.65](#v0-65)) |
 | เรียก `POST <api>/shop/confirm` โดยไม่ใช้ client ของร้าน | ส่งตะกร้าของผู้เยี่ยมชมไปด้วย ([0.63](#v0-63)) |
 | มี `unique` ใน field ที่อยู่ใน group, array หรือ block | ที่นั่นไม่เคยถูกบังคับใช้ ให้ย้ายขึ้นระดับบนสุดหรือตรวจใน hook ([0.66](#v0-66)) |
+| รับเงินผ่าน Stripe | ตั้ง API version ของ webhook endpoint เป็น `2026-09-30.endive` หรือตั้ง `apiVersion` ([0.67](#v0-67)) |
 
 ### ขั้นตอน {#steps}
 
@@ -73,6 +74,17 @@ Invalid Easy CMS config (1 problem):
 **การย้อนกลับ:** restore backup ที่ทำไว้ก่อน deploy แล้ว deploy แอปเวอร์ชันก่อนหน้า
 
 หัวข้อด้านล่างแสดงการเปลี่ยนแปลงของแต่ละ release
+
+## 0.68 {#v0-68}
+
+- **GraphQL ต้องมี `graphql` ในโปรเจกต์:** `@easy-cms/plugin-graphql` ไม่ติดตั้ง `graphql` ชุดของตัวเองแล้ว plugin
+  กับโค้ด `extend` ของคุณจึงใช้ชุดเดียวกัน npm, pnpm และ Bun ติดตั้งให้เอง ถ้าใช้ Yarn ให้รัน `yarn add graphql`
+  ใช้ได้ทั้งเวอร์ชัน 16 และ 17
+
+## 0.67 {#v0-67}
+
+- **ร้านค้าที่ใช้ Stripe:** adapter ขอ Stripe API version `2026-09-30.endive` ไม่ว่าติดตั้งแพ็กเกจ `stripe` เวอร์ชันไหน
+  (17 ถึง 23) ให้สร้าง webhook endpoint ด้วยเวอร์ชันนี้ หรือตั้ง `stripeAdapter({ apiVersion })`
 
 ## 0.66 {#v0-66}
 

@@ -27,6 +27,7 @@
     "@easy-cms/plugin-seo": "workspace:^",
     "@easy-cms/richtext": "workspace:^",
     "@electric-sql/pglite": "^0.5.8",
+    "graphql": "^17.0.2",
     "next": "^16.3.8",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"

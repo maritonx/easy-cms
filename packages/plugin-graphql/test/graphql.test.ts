@@ -10,7 +10,7 @@ import {
   silentLogger,
 } from '@easy-cms/core'
 import { sqlite } from '@easy-cms/db-sqlite'
-import { GraphQLInt, printSchema } from 'graphql'
+import { GraphQLInt, printSchema, version } from 'graphql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { buildGraphQLSchema, graphqlPlugin, runGraphQL } from '../src/index.js'
 import { checkNames } from '../src/schema.js'
@@ -200,6 +200,10 @@ afterAll(async () => {
   } catch {
     // Windows may still hold the SQLite file; the OS cleans temp.
   }
+})
+
+it('runs with the graphql major of this test project', () => {
+  expect(version.split('.')[0]).toBe(process.env.GRAPHQL_MAJOR)
 })
 
 describe('schema', () => {
