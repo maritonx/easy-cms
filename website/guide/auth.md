@@ -154,7 +154,8 @@ Scripts and apps on other origins can send the session token instead of a cookie
 curl -s -X POST https://example.com/api/cms/auth/login \
   -H 'content-type: application/json' \
   -d '{"email":"bot@example.com","password":"…"}' -c cookies.txt
-# Use the ecms-session value from cookies.txt:
+# Use the session cookie's value from cookies.txt: __Host-ecms-session over HTTPS,
+# ecms-session over plain HTTP in development
 curl https://example.com/api/cms/posts?draft=true -H "Authorization: Bearer $TOKEN"
 ```
 

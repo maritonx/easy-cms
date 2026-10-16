@@ -78,7 +78,8 @@ route เหล่านี้เคยอยู่ใต้ `/users/…` (`/use
 ต้องแนบ CSRF token เป็น `x-csrf-token` (ได้จาก response ของการเข้าสู่ระบบ, `GET /auth/me` หรือ
 cookie `ecms-csrf`) และต้องมาจาก origin ของ API เองหรือ origin ที่อยู่ใน `auth.trustedOrigins`
 
-**Server และแอป** ส่ง `Authorization: Bearer <token>` พร้อม session token โดยไม่ต้องใช้ CSRF token
+**Server และแอป** ส่ง `Authorization: Bearer <token>` พร้อม [API key](./api-keys) หรือ session token
+([วิธีได้มา](./auth#tokens-for-other-apps)) โดยไม่ต้องใช้ CSRF token
 
 ## CORS {#cors}
 

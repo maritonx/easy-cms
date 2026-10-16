@@ -79,8 +79,8 @@ working as aliases through 1.x.
 must include the CSRF token as `x-csrf-token` (from the login response, `GET /auth/me` or the
 `ecms-csrf` cookie), and come from the API's own origin or one in `auth.trustedOrigins`.
 
-**Servers and apps** send `Authorization: Bearer <token>` with the session token; no CSRF token
-is needed.
+**Servers and apps** send `Authorization: Bearer <token>` with an [API key](./api-keys) or the
+session token ([how to get one](./auth#tokens-for-other-apps)); no CSRF token is needed.
 
 ## CORS
 

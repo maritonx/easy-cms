@@ -52,6 +52,7 @@ endpoint อยู่ที่ `<routes.api>/graphql` เช่น `https://exam
 และ `MediaFolder` เมื่อเปิดโฟลเดอร์ API key และ collection ที่ Easy CMS ใช้ภายในไม่อยู่ใน schema
 
 ```graphql
+# `locale` เมื่อเปิด localization, `sizes` เมื่อตั้ง upload.imageSizes
 query Home($category: ID!) {
   posts(where: { category: { equals: $category } }, sort: [publishedAt_DESC], limit: 5, locale: en) {
     docs {
@@ -224,6 +225,45 @@ npx easy-cms generate:graphql web/schema.graphql
 
 คำสั่งนี้เปิดฐานข้อมูลเหมือนคำสั่งอื่น และใช้ได้ไม่ว่าจะเปิด `introspection` หรือไม่ codegen อ่าน schema จาก endpoint ที่รันอยู่ก็ได้
 เมื่ออยู่นอก production หรือตั้ง `introspection: true`
+
+ตัวอย่างกับ [client preset](https://the-guild.dev/graphql/codegen/plugins/presets/preset-client) และ
+[urql](https://commerce.nearform.com/open-source/urql/):
+
+```ts [codegen.ts]
+import type { CodegenConfig } from '@graphql-codegen/cli'
+
+export default {
+  schema: './schema.graphql', // หรือ 'http://localhost:3000/api/cms/graphql'
+  documents: ['src/**/*.ts', '!src/gql/**'],
+  generates: { './src/gql/': { preset: 'client' } },
+} satisfies CodegenConfig
+```
+
+```ts
+import { Client, fetchExchange } from '@urql/core'
+import { graphql } from './gql'
+
+const client = new Client({
+  url: 'https://example.com/api/cms/graphql',
+  exchanges: [fetchExchange],
+  // จาก server หรือสคริปต์ ส่วนหน้าเว็บในเบราว์เซอร์ใช้ session ของผู้เยี่ยมชมแทน
+  fetchOptions: { headers: { authorization: `Bearer ${process.env.EASY_CMS_API_KEY}` } },
+})
+
+const CreatePost = graphql(`
+  mutation CreatePost($data: PostCreateInput!) {
+    createPost(data: $data, draft: true) { id status }
+  }
+`)
+const { data, error } = await client
+  .mutation(CreatePost, { data: { title: 'Hello', category: '1' } })
+  .toPromise()
+// data.createPost.status มี type แล้ว ส่วน error.graphQLErrors[0].extensions.code บอกว่าผิดอะไร
+```
+
+ส่งค่าผ่าน variable แบบด้านบน เพราะ client preset จับคู่ document จากข้อความ และ escape อย่าง `\n` ใน query
+ทำให้จับคู่ไม่เจอ ชื่อ input type คือ `<Type>CreateInput`, `<Type>UpdateInput` และ `<Global>Input`
+ถ้ารันด้วย ES module ของ Node โดยตรง ให้ตั้ง `config: { importExtension: '.ts' }` (หรือ `'.js'`) ที่ output
 
 ถ้าจะให้บริการ schema จาก GraphQL server ของคุณเอง (Apollo Server, Yoga, gateway) ให้สร้าง schema แล้วให้ context ต่อ request:
 

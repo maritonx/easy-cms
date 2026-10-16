@@ -149,7 +149,8 @@ export default defineConfig({
 curl -s -X POST https://example.com/api/cms/auth/login \
   -H 'content-type: application/json' \
   -d '{"email":"bot@example.com","password":"…"}' -c cookies.txt
-# ใช้ค่า ecms-session จาก cookies.txt:
+# ใช้ค่า cookie ของ session จาก cookies.txt: __Host-ecms-session เมื่อเป็น HTTPS
+# หรือ ecms-session เมื่อเป็น HTTP ตอนพัฒนา
 curl https://example.com/api/cms/posts?draft=true -H "Authorization: Bearer $TOKEN"
 ```
 

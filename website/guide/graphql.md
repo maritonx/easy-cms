@@ -58,6 +58,7 @@ Plus `me`, the logged-in user (or the owner of the API key). The built-in collec
 keys and the collections Easy CMS uses internally are never in the schema.
 
 ```graphql
+# `locale` with localization, `sizes` with upload.imageSizes
 query Home($category: ID!) {
   posts(where: { category: { equals: $category } }, sort: [publishedAt_DESC], limit: 5, locale: en) {
     docs {
@@ -240,6 +241,46 @@ npx easy-cms generate:graphql web/schema.graphql
 
 It opens the database like other commands, and works whether or not `introspection` is on. Codegen
 can also read the schema from the running endpoint, outside production or with `introspection: true`.
+
+With the [client preset](https://the-guild.dev/graphql/codegen/plugins/presets/preset-client) and
+[urql](https://commerce.nearform.com/open-source/urql/), for example:
+
+```ts [codegen.ts]
+import type { CodegenConfig } from '@graphql-codegen/cli'
+
+export default {
+  schema: './schema.graphql', // or 'http://localhost:3000/api/cms/graphql'
+  documents: ['src/**/*.ts', '!src/gql/**'],
+  generates: { './src/gql/': { preset: 'client' } },
+} satisfies CodegenConfig
+```
+
+```ts
+import { Client, fetchExchange } from '@urql/core'
+import { graphql } from './gql'
+
+const client = new Client({
+  url: 'https://example.com/api/cms/graphql',
+  exchanges: [fetchExchange],
+  // From a server or script; pages in the browser use the visitor's session instead.
+  fetchOptions: { headers: { authorization: `Bearer ${process.env.EASY_CMS_API_KEY}` } },
+})
+
+const CreatePost = graphql(`
+  mutation CreatePost($data: PostCreateInput!) {
+    createPost(data: $data, draft: true) { id status }
+  }
+`)
+const { data, error } = await client
+  .mutation(CreatePost, { data: { title: 'Hello', category: '1' } })
+  .toPromise()
+// data.createPost.status is typed; error.graphQLErrors[0].extensions.code says what went wrong.
+```
+
+Pass values as variables, as above: the client preset matches each document by its text, and
+escapes such as `\n` inside the query make it miss. Input types are named `<Type>CreateInput`,
+`<Type>UpdateInput` and `<Global>Input`. For Node's own ES modules, set
+`config: { importExtension: '.ts' }` (or `'.js'`) on the output.
 
 To serve the schema from your own GraphQL server (Apollo Server, Yoga, a gateway), build it and
 give each request a context:
