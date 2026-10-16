@@ -2,7 +2,7 @@
 
 - **สถานะ:** Accepted
 - **วันที่:** 2026-10-09
-- **เวอร์ชันปัจจุบัน:** 0.67.1 (M2 · API freeze เสร็จแล้ว)
+- **เวอร์ชันปัจจุบัน:** 0.68.2
 - **เป้าหมาย:** 1.0.0 วันที่ 2026-12-15
 - **ติดตามงาน:** GitHub Milestones ของ `maritonx/easy-cms` (หนึ่ง issue ต่อหนึ่งงาน, issue เขียนเป็นภาษาอังกฤษ)
 
@@ -65,6 +65,7 @@
 | [#113](https://github.com/maritonx/easy-cms/issues/113) | Pin the Stripe API version and cap the stripe peer range | area:plugins, release-blocker | adapter ส่ง `apiVersion` คงที่, peer `stripe` มีเพดานบน, เทสกับ major ต่ำสุดและสูงสุดที่รองรับ |
 | [#114](https://github.com/maritonx/easy-cms/issues/114) | Test the GraphQL plugin against graphql 16 and 17 | area:plugins, release-blocker | CI รันเทสของ plugin กับ graphql 16 และ 17 |
 | [#115](https://github.com/maritonx/easy-cms/issues/115) | Test the MCP server through the real MCP SDK client, every tool | area:plugins, release-blocker | เทสต่อผ่าน client ของ `@modelcontextprotocol/sdk` และเรียกครบทุก tool |
+| [#128](https://github.com/maritonx/easy-cms/issues/128) | Run the Nuxt e2e suite against a production build | area:release | e2e ของ Nuxt รันจาก production build พร้อม migration, retry รายงานข้อที่ล้มจริง, ผ่านโดยไม่ต้อง retry |
 
 ### M2 — `API freeze` (2026-11-20) {#m2}
 
