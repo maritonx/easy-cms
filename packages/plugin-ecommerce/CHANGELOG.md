@@ -1,5 +1,12 @@
 # @easy-cms/plugin-ecommerce
 
+## 0.67.1
+
+### Patch Changes
+
+- 34731ed: Payment methods are named in the page's language: `GET <api>/shop/config?locale=th` (the shop client sends its `locale`) gives `โอนเงิน` instead of `Bank transfer`. Found testing the shop end to end with Stripe in test mode (#69).
+- @easy-cms/core@0.67.1
+
 ## 0.67.0
 
 ### Patch Changes
