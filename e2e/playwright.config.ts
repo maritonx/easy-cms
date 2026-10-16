@@ -26,14 +26,17 @@ const SHOP = 'http://localhost:3105'
 const FRONTEND = 'http://localhost:3103'
 
 /**
- * The same admin suite runs against both adapters and the standalone server (FR-ADP-03): Nuxt in
- * development, Next.js as a production build, standalone as `easy-cms serve`.
+ * The same admin suite runs against both adapters and the standalone server (FR-ADP-03): Nuxt and
+ * Next.js as production builds, standalone as `easy-cms serve`.
  */
 const apps = [
   {
     name: 'nuxt',
     port: 3100,
-    command: 'pnpm --dir ../examples/nuxt-blog exec nuxi dev --port 3100',
+    // A production build, like Next.js: `nuxi dev` compiles on demand and reloaded pages mid-test,
+    // so tests failed at random (#128). Production also verifies the migrations.
+    command:
+      'pnpm --dir ../examples/nuxt-blog exec nuxi build && pnpm --dir ../examples/nuxt-blog exec easy-cms migrate && pnpm --dir ../examples/nuxt-blog exec node .output/server/index.mjs',
   },
   {
     name: 'next',
@@ -76,7 +79,8 @@ export default defineConfig({
       name: app.name,
       command: app.command,
       url: `http://localhost:${app.port}/api/cms/auth/init`,
-      timeout: 180_000,
+      // Two production builds.
+      timeout: 300_000,
       reuseExistingServer: false,
       env: {
         EASY_CMS_SECRET: SECRET,
@@ -84,6 +88,8 @@ export default defineConfig({
         DATABASE_URL: app.name === 'next' ? '' : `file:${join(scratch, `${app.name}.db`)}`,
         PGLITE_DIR: join(scratch, 'next-pglite'),
         NUXT_TELEMETRY_DISABLED: '1',
+        // The built Nuxt server's port (the others take --port).
+        PORT: String(app.port),
         NEXT_TELEMETRY_DISABLED: '1',
         CORS_ORIGINS: FRONTEND,
         // Standalone example: live preview opens the frontend, which calls this server.
@@ -91,8 +97,9 @@ export default defineConfig({
         CMS_URL: `http://localhost:${app.port}`,
         // The key file is served; nothing is sent, as localhost isn't a public site.
         INDEXNOW_KEY: 'e2e-indexnow-key',
-        // Single sign-on, where the database schema is pushed (the Next app runs migrations).
-        ...(app.name === 'next'
+        // Single sign-on on standalone, where the schema is pushed. Nuxt and Next.js run from the
+        // examples' migrations, which are made without a provider.
+        ...(app.name !== 'standalone'
           ? {}
           : {
               OIDC_ISSUER: OIDC,

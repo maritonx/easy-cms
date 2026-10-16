@@ -81,7 +81,10 @@ async function shot(page: Page, name: string) {
 
 test('shows Thai by default and asks for the first admin (FR-ADM-02, FR-ADM-11)', async ({
   page,
-}) => {
+}, testInfo) => {
+  // The suite is serial, so a retry starts here again; the admin made by the first attempt is
+  // still there, and the setup page is gone. Skip, so the retry reports the test that failed.
+  test.skip(testInfo.retry > 0, 'The first attempt made the admin')
   await page.goto('/admin/')
   await expect(page).toHaveURL(/\/admin\/setup$/)
   await expect(page.getByRole('heading', { name: 'สร้างผู้ดูแลระบบคนแรก' })).toBeVisible()
@@ -1209,9 +1212,9 @@ test.describe('logged in as admin', () => {
     page,
     browser,
   }) => {
-    // Next.js runs as a production build without serverURL: links could point anywhere, so
-    // the admin doesn't offer them. The other examples run in development.
-    const links = test.info().project.name !== 'next'
+    // Nuxt and Next.js run as production builds without serverURL: links could point anywhere,
+    // so the admin doesn't offer them. The standalone server has its URL.
+    const links = standalone()
     await page.goto('/admin/collections/users/new')
     await page.getByLabel('Email').fill('invitee@e2e.test')
     await page.getByLabel('Role').selectOption('editor')
@@ -1466,8 +1469,9 @@ test.describe('logged in as editor', () => {
 })
 
 test.describe('single sign-on', () => {
-  // The Next app runs from migrations, without a provider; Nuxt and standalone have one (OIDC).
-  test.skip(() => test.info().project.name === 'next', 'no provider in the Next app')
+  // Nuxt and Next.js run from the examples' migrations, made without a provider; standalone has
+  // one (OIDC).
+  test.skip(() => test.info().project.name !== 'standalone', 'no provider in this app')
   test.beforeEach(async ({ page }) => {
     await english(page)
   })

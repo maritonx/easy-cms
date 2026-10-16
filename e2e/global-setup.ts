@@ -1,6 +1,5 @@
-// Dev servers compile a route on its first request and may reload the page while doing so, which
-// aborts a test's first navigation. Request every route once up front. (Next.js runs a
-// production build, standalone needs no compiling, but warming it costs nothing.)
+// Request every route once up front, so no test waits for a route's first load. (Nuxt and Next.js
+// run production builds and standalone needs no compiling; warming them costs nothing.)
 const PAGES = [
   '/',
   '/admin/',

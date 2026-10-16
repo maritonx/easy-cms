@@ -4,7 +4,10 @@
   "description": "Forms for Easy CMS: build forms in the admin, collect submissions, email notifications, spam protection and an <easy-form> element",
   "license": "MIT",
   "type": "module",
-  "sideEffects": false,
+  "sideEffects": [
+    "./dist/element.js",
+    "./dist/element.css"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
