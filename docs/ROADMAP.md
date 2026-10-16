@@ -22,6 +22,9 @@
 - **อัปเกรดจาก 0.x:** migration อัตโนมัติ มีการทดสอบกับฐานข้อมูลของ 0.x รุ่นเก่า
 - **Experimental:** `@easy-cms/plugin-ecommerce`, `@easy-cms/plugin-graphql`, `@easy-cms/plugin-mcp` ได้เลข 1.0 เหมือนแพ็กเกจอื่น
   (fixed group) แต่ยังเปลี่ยนแบบ breaking ใน minor ได้ จนกว่าจะประกาศว่าเสถียร
+  ก่อน RC ทั้งสามต้องพร้อมใช้ใน production (ทดสอบกับบริการหรือ client จริง, dependency ภายนอกถูก pin)
+  แต่ยังติดป้ายไว้ ถอดป้ายใน 1.x ตามเกณฑ์ใน [#122](https://github.com/maritonx/easy-cms/issues/122)
+  ลำดับความสำคัญ: ecommerce > GraphQL > MCP
 - **การซัพพอร์ต:** 0.x หยุดซัพพอร์ตเมื่อ 1.0 ออก, แก้ช่องโหว่ใน minor ล่าสุดของ 1.x,
   เมื่อมี 2.0 แล้ว 1.x ได้แพตช์ความปลอดภัยอีก 6 เดือน
 
@@ -59,6 +62,9 @@
 | [#71](https://github.com/maritonx/easy-cms/issues/71) | Security self-review against OWASP ASVS level 1 | area:security, release-blocker | ไล่ checklist ครบ, ข้อที่ไม่ผ่านแก้แล้วหรือมี issue, ผลบันทึกใน `docs/` |
 | [#72](https://github.com/maritonx/easy-cms/issues/72) | Clear `pnpm audit` findings | area:security | ไม่มี high/critical ใน dependency ที่ติดไปกับแพ็กเกจที่ publish |
 | [#73](https://github.com/maritonx/easy-cms/issues/73) | A working private channel for reporting vulnerabilities | area:security, area:docs | `SECURITY.md` ชี้ไปที่ GitHub private vulnerability reporting (เจ้าของ repo เปิดใน Settings เอง) และบอกระยะเวลาตอบกลับ |
+| [#113](https://github.com/maritonx/easy-cms/issues/113) | Pin the Stripe API version and cap the stripe peer range | area:plugins, release-blocker | adapter ส่ง `apiVersion` คงที่, peer `stripe` มีเพดานบน, เทสกับ major ต่ำสุดและสูงสุดที่รองรับ |
+| [#114](https://github.com/maritonx/easy-cms/issues/114) | Test the GraphQL plugin against graphql 16 and 17 | area:plugins, release-blocker | CI รันเทสของ plugin กับ graphql 16 และ 17 |
+| [#115](https://github.com/maritonx/easy-cms/issues/115) | Test the MCP server through the real MCP SDK client, every tool | area:plugins, release-blocker | เทสต่อผ่าน client ของ `@modelcontextprotocol/sdk` และเรียกครบทุก tool |
 
 ### M2 — `0.60 · API freeze` (2026-11-20) {#m2}
 
@@ -78,6 +84,13 @@
 | [#80](https://github.com/maritonx/easy-cms/issues/80) | Run Getting started from scratch on a clean machine: Next.js, Nuxt, standalone | area:docs, release-blocker | ทำตามเอกสารคำต่อคำกับ RC ได้ทั้งสามแบบโดยไม่ต้องเดา; แก้เอกสารที่ไม่ตรง |
 | [#81](https://github.com/maritonx/easy-cms/issues/81) | Upgrade guide from 0.x to 1.0 | area:docs, release-blocker | หน้าในเอกสาร (EN/TH): สิ่งที่เปลี่ยนใน 0.60, ขั้นตอน backup → อัปเกรด → migrate |
 | [#82](https://github.com/maritonx/easy-cms/issues/82) | Smoke-test `create-easy-cms` against the RC with npm, pnpm, Yarn and Bun | area:release | smoke test ที่มีอยู่รันกับ `@next` ผ่านทั้งสี่ตัว |
+| [#116](https://github.com/maritonx/easy-cms/issues/116) | Automated end-to-end test of the Stripe webhook | area:plugins | e2e ส่ง event ที่เซ็นถูกต้อง → order paid, ตัดสต็อก, ส่งซ้ำไม่เปลี่ยนอะไร |
+| [#117](https://github.com/maritonx/easy-cms/issues/117) | Test the React and Vue shop hooks | area:plugins | เทส hook ของตะกร้าและ checkout ทั้ง React และ Vue |
+| [#118](https://github.com/maritonx/easy-cms/issues/118) | Review the PaymentAdapter contract against what Omise needs | area:plugins, area:docs | เอกสารใน `docs/` เทียบ flow ของ Omise กับ `definePaymentAdapter`, ส่วนที่ต้องแก้ทำใน 1.1 |
+| [#119](https://github.com/maritonx/easy-cms/issues/119) | Snapshot the generated GraphQL schema | area:plugins | SDL จาก config ที่ใช้ทุกชนิด field เทียบกับ snapshot ใน repo |
+| [#120](https://github.com/maritonx/easy-cms/issues/120) | Test the GraphQL API with a real client and codegen | area:plugins | urql (หรือ Apollo) + GraphQL Code Generator ทำงานตาม `graphql.md`; แก้เอกสารที่ไม่ตรง |
+| [#121](https://github.com/maritonx/easy-cms/issues/121) | Test the MCP server with Claude Desktop | area:plugins | Claude Desktop (และ Claude Code) ต่อด้วย API key ตาม `mcp.md`, อ่าน ร่าง publish ได้; แก้เอกสารที่ไม่ตรง |
+| [#122](https://github.com/maritonx/easy-cms/issues/122) | Write down when an experimental package becomes stable | area:docs | หน้า versioning (EN/TH) มีเกณฑ์: ทดสอบกับของจริง, ไม่ breaking 3 minor ติดกัน, CI ครอบคลุมทุก option |
 
 ### M4 — `1.0.0` (2026-12-15) {#m4}
 
