@@ -2,7 +2,7 @@
 
 - **สถานะ:** Accepted
 - **วันที่:** 2026-10-09
-- **เวอร์ชันปัจจุบัน:** 0.67.1 (M2 · 0.60 เสร็จแล้ว)
+- **เวอร์ชันปัจจุบัน:** 0.67.1 (M2 · API freeze เสร็จแล้ว)
 - **เป้าหมาย:** 1.0.0 วันที่ 2026-12-15
 - **ติดตามงาน:** GitHub Milestones ของ `maritonx/easy-cms` (หนึ่ง issue ต่อหนึ่งงาน, issue เขียนเป็นภาษาอังกฤษ)
 
@@ -37,8 +37,8 @@
 
 | Milestone | ครบกำหนด | เป้าหมาย |
 |---|---|---|
-| [`0.50 · Hardening`](https://github.com/maritonx/easy-cms/milestone/1) | 2026-10-30 | ทดสอบกับบริการจริง, ความปลอดภัย, release ที่ปลอดภัย |
-| [`0.60 · API freeze`](https://github.com/maritonx/easy-cms/milestone/2) | 2026-11-20 | ทบทวนและล็อก API, ทดสอบการอัปเกรด, นโยบายเวอร์ชัน |
+| [`Hardening`](https://github.com/maritonx/easy-cms/milestone/1) | 2026-10-30 | ทดสอบกับบริการจริง, ความปลอดภัย, release ที่ปลอดภัย |
+| [`API freeze`](https://github.com/maritonx/easy-cms/milestone/2) | 2026-11-20 | ทบทวนและล็อก API, ทดสอบการอัปเกรด, นโยบายเวอร์ชัน |
 | [`1.0.0-rc`](https://github.com/maritonx/easy-cms/milestone/3) | 2026-12-01 | RC, เอกสารเริ่มต้นและอัปเกรด, รับเฉพาะการแก้บั๊ก |
 | [`1.0.0`](https://github.com/maritonx/easy-cms/milestone/4) | 2026-12-15 | ออก 1.0 และประกาศ |
 | [`1.1`](https://github.com/maritonx/easy-cms/milestone/5) | — | ฟีเจอร์แรกหลัง 1.0 |
@@ -50,7 +50,7 @@
 
 ---
 
-### M1 — `0.50 · Hardening` (2026-10-30) {#m1}
+### M1 — `Hardening` (2026-10-30) {#m1}
 
 | # | Issue | Labels | เสร็จเมื่อ |
 |---|---|---|---|
@@ -66,7 +66,7 @@
 | [#114](https://github.com/maritonx/easy-cms/issues/114) | Test the GraphQL plugin against graphql 16 and 17 | area:plugins, release-blocker | CI รันเทสของ plugin กับ graphql 16 และ 17 |
 | [#115](https://github.com/maritonx/easy-cms/issues/115) | Test the MCP server through the real MCP SDK client, every tool | area:plugins, release-blocker | เทสต่อผ่าน client ของ `@modelcontextprotocol/sdk` และเรียกครบทุก tool |
 
-### M2 — `0.60 · API freeze` (2026-11-20) {#m2}
+### M2 — `API freeze` (2026-11-20) {#m2}
 
 | # | Issue | Labels | เสร็จเมื่อ |
 |---|---|---|---|

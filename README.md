@@ -103,7 +103,7 @@ Then read it in your pages, fully typed:
 // Nuxt: server/api/posts.get.ts
 export default defineEventHandler(async () => {
   const cms = await useEasyCMS()
-  return cms.find('posts', { where: { status: { equals: 'published' } } })
+  return cms.find('posts', { sort: '-createdAt', limit: 10 })
 })
 ```
 
