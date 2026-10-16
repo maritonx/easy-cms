@@ -1,81 +1,16 @@
-import { mkdtempSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import {
-  consoleEmail,
-  createEasyCMS,
-  createRestHandler,
-  defineConfig,
-  silentLogger,
-} from '@easy-cms/core'
-import { sqlite } from '@easy-cms/db-sqlite'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createShopClient, ShopError } from '../src/client.js'
-import { ecommercePlugin, manualAdapter } from '../src/index.js'
+import { openShop } from './shop-server.js'
 
-const mail = consoleEmail({ log: () => {} })
-const config = defineConfig({
-  secret: 'x'.repeat(32),
-  db: sqlite({ url: 'file:./cms.db' }),
-  serverURL: 'http://shop.test',
-  email: mail,
-  plugins: [ecommercePlugin({ payments: { methods: [manualAdapter()] } })],
-})
-
-const ORIGIN = 'http://shop.test'
-let dir: string
-let cms: Awaited<ReturnType<typeof createEasyCMS<typeof config>>>
-let handle: (request: Request) => Promise<Response>
+let server: Awaited<ReturnType<typeof openShop>>
 let mug: number
-
-/** A browser: requests to the handler, with its cookies. */
-function browser() {
-  const jar = new Map<string, string>()
-  const fetcher = async (input: RequestInfo | URL, init?: RequestInit) => {
-    const headers = new Headers(init?.headers)
-    headers.set('origin', ORIGIN)
-    if (jar.size > 0) headers.set('cookie', [...jar].map(([k, v]) => `${k}=${v}`).join('; '))
-    const response = await handle(new Request(new URL(String(input), ORIGIN), { ...init, headers }))
-    for (const line of response.headers.getSetCookie()) {
-      const [pair = ''] = line.split(';')
-      const eq = pair.indexOf('=')
-      const value = pair.slice(eq + 1)
-      if (/max-age=0/i.test(line) || value === '') jar.delete(pair.slice(0, eq))
-      else jar.set(pair.slice(0, eq), value)
-    }
-    return response
-  }
-  const store = new Map<string, string>()
-  const storage = {
-    getItem: (k: string) => store.get(k) ?? null,
-    setItem: (k: string, v: string) => void store.set(k, v),
-    removeItem: (k: string) => void store.delete(k),
-  }
-  return { fetch: fetcher as typeof fetch, storage, store }
-}
+const browser = () => server.browser()
 
 beforeAll(async () => {
-  dir = mkdtempSync(join(tmpdir(), 'easy-cms-shop-client-'))
-  cms = await createEasyCMS(config, { cwd: dir, schema: 'push', logger: silentLogger })
-  handle = createRestHandler(cms)
-  mug = (await cms.create('products', { title: 'Mug', priceInTHB: 25_000, status: 'published' }))
-    .id as number
-  await cms.create('users', {
-    email: 'cust@example.com',
-    password: 'customer-1',
-    role: 'customer',
-    emailVerified: true,
-  })
+  server = await openShop()
+  mug = server.mug
 })
-
-afterAll(async () => {
-  await cms.destroy()
-  try {
-    rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
-  } catch {
-    // Windows may still hold the SQLite file; the OS cleans temp.
-  }
-})
+afterAll(() => server.close())
 
 describe('the shop client', () => {
   it('shops as a guest, remembering the cart', async () => {

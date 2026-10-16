@@ -135,7 +135,9 @@ export function useAddresses() {
     }
   }, [client, user])
   useEffect(() => {
-    void reload()
+    // On its own (signing in or out), a failure leaves the list empty instead of throwing
+    // where nobody catches it; reload() itself still throws.
+    void reload().catch(() => setAddresses([]))
   }, [reload])
   return {
     addresses,

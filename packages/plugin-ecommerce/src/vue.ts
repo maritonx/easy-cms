@@ -142,7 +142,12 @@ export function useAddresses() {
   }
   const stop = watch(
     () => state.value.user,
-    () => void reload(),
+    // On its own (signing in or out), a failure leaves the list empty instead of throwing
+    // where nobody catches it; reload() itself still throws.
+    () =>
+      void reload().catch(() => {
+        addresses.value = []
+      }),
     { immediate: true },
   )
   onScopeDispose(stop)

@@ -60,8 +60,10 @@
     "@easy-cms/db-sqlite": "workspace:^",
     "@easy-cms/plugin-multi-tenant": "workspace:^",
     "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.3.0",
     "happy-dom": "^20.14.5",
     "react": "^19.2.0",
+    "react-dom": "^19.3.0",
     "stripe": "^23.0.0",
     "stripe-17": "npm:stripe@^17.7.0",
     "vue": "^3.5.43"
