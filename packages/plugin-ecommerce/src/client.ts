@@ -252,7 +252,7 @@ export function createShopClient(options: ShopClientOptions = {}): ShopClient {
     async load() {
       try {
         const [settings, user] = await Promise.all([
-          call<ShopSettings>('GET', '/shop/config'),
+          call<ShopSettings>('GET', `/shop/config?locale=${encodeURIComponent(locale)}`),
           me().catch(() => null),
         ])
         set({ settings, user })

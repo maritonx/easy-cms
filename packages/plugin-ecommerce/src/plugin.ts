@@ -439,16 +439,24 @@ export function ecommercePlugin<const Cur extends string = 'THB'>(
   }
   const who = (req: EndpointRequest): Who => ({ user: req.user, context: req.context })
 
-  const settings = (): ShopSettings => ({
+  const settings = (locale?: string): ShopSettings => ({
     currencies,
     defaultCurrency,
-    paymentMethods: [...methods.values()].map((m) => ({ name: m.name, label: labelText(m.label) })),
+    // Labels in the page's language (`?locale=`), as the order emails use the order's.
+    paymentMethods: [...methods.values()].map((m) => ({
+      name: m.name,
+      label: labelText(m.label, locale),
+    })),
     guests: shop.guests,
     countries,
   })
 
   const endpoints: Endpoint[] = [
-    { path: '/shop/config', method: 'get', handler: () => settings() },
+    {
+      path: '/shop/config',
+      method: 'get',
+      handler: ({ url }) => settings(url.searchParams.get('locale') ?? undefined),
+    },
     {
       path: '/shop/cart',
       method: 'post',

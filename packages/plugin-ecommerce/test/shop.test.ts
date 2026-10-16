@@ -177,6 +177,9 @@ describe('setup', () => {
       { name: 'bank-transfer', label: 'Bank transfer' },
     ])
     expect(body).toMatchObject({ defaultCurrency: 'THB', guests: true, countries: ['TH'] })
+    // In the page's language.
+    const th = (await call('GET', '/shop/config?locale=th')).body
+    expect(th.paymentMethods[1]).toEqual({ name: 'bank-transfer', label: 'โอนเงิน' })
   })
 
   it('keeps prices as whole amounts', async () => {
