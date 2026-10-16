@@ -43,15 +43,20 @@ your repository, the admin and APIs come with it, and there is no extra server t
   API.
 - **An admin editors like**, in English and Thai: drafts, version history, live preview,
   scheduled publishing, blocks, translations, a media library and a light and dark theme.
+- **Secure by default:** [self-reviewed](docs/security/asvs-l1.md) against OWASP ASVS level 1.
+  Common passwords are refused, cookies are `__Host-` and HSTS is on in production, unreadable
+  documents answer 404, and the audit log is signed against tampering.
 - **Official plugins** for SEO, forms, redirects, nested pages, a shop, GraphQL, several sites in
   one CMS (multi-tenant) and AI assistants (MCP).
 
 > [!NOTE]
-> Easy CMS is pre-1.0: the API may change between minor versions. Each release lists its changes in
-> the [changelog](packages/core/CHANGELOG.md); see
-> [Backups & upgrades](https://easy-cms-website.vercel.app/docs/backups) before upgrading.
-> 1.0, the first version meant for production use, is planned for December 2026: see the
-> [roadmap](docs/ROADMAP.md) and its [milestones](https://github.com/maritonx/easy-cms/milestones).
+> Easy CMS is pre-1.0. The API for 1.0 was settled in 0.60: names that changed still work for now
+> and warn once in the log. Before upgrading, read the
+> [upgrade guide](https://easy-cms-website.vercel.app/docs/upgrading) and the
+> [changelog](packages/core/CHANGELOG.md); [Versions and deprecations](https://easy-cms-website.vercel.app/docs/versioning)
+> says what each version promises. 1.0, the first version meant for production use, is planned
+> for December 2026: see the [roadmap](docs/ROADMAP.md) and its
+> [milestones](https://github.com/maritonx/easy-cms/milestones).
 
 ## Quick start
 
@@ -156,8 +161,10 @@ cd my-cms && npm run dev       # http://localhost:4000/admin
 - Uploads on disk, S3, Cloudflare R2, MinIO, Vercel Blob or Netlify Blobs, also from links (the
   server downloads them)
 - One-click deploy to Vercel or Netlify, with a database and file storage
-- Database backups on a schedule or by hand from the admin, downloadable
+- Database backups on a schedule or by hand from the admin, downloadable, optionally encrypted
+  (AES-256-GCM)
 - `easy-cms` CLI: migrations, backups, copying between databases, scheduled jobs
+- Upgrades tested in CI: databases made by older releases migrate to the current one
 
 **SEO and AI**
 - Meta fields with a search preview, sitemaps, robots.txt, hreflang and JSON-LD
@@ -172,10 +179,13 @@ cd my-cms && npm run dev       # http://localhost:4000/admin
 | [`@easy-cms/plugin-form-builder`](packages/plugin-form-builder) | Forms built in the admin, submissions with an overview and a dashboard panel, email notifications, spam protection, `<easy-form>` | [Forms](https://easy-cms-website.vercel.app/docs/forms) |
 | [`@easy-cms/plugin-redirects`](packages/plugin-redirects) | Redirects managed in the admin, automatic redirects when a page moves | [Redirects](https://easy-cms-website.vercel.app/docs/redirects) |
 | [`@easy-cms/plugin-nested-docs`](packages/plugin-nested-docs) | Pages inside pages: parents, full paths, breadcrumbs, a tree in the admin | [Nested pages](https://easy-cms-website.vercel.app/docs/nested-docs) |
-| [`@easy-cms/plugin-graphql`](packages/plugin-graphql) | GraphQL API: queries and mutations for every collection and global, with your access rules | [GraphQL](https://easy-cms-website.vercel.app/docs/graphql) |
-| [`@easy-cms/plugin-mcp`](packages/plugin-mcp) | Model Context Protocol server for AI assistants | [MCP](https://easy-cms-website.vercel.app/docs/mcp) |
+| [`@easy-cms/plugin-graphql`](packages/plugin-graphql) (experimental) | GraphQL API: queries and mutations for every collection and global, with your access rules | [GraphQL](https://easy-cms-website.vercel.app/docs/graphql) |
+| [`@easy-cms/plugin-mcp`](packages/plugin-mcp) (experimental) | Model Context Protocol server for AI assistants | [MCP](https://easy-cms-website.vercel.app/docs/mcp) |
 | [`@easy-cms/plugin-multi-tenant`](packages/plugin-multi-tenant) | Several sites or clients in one CMS: content, members, roles and settings per tenant, a tenant switcher | [Multi-tenant](https://easy-cms-website.vercel.app/docs/multi-tenant) |
-| [`@easy-cms/plugin-ecommerce`](packages/plugin-ecommerce) | A shop: products and variants, prices in several currencies, carts, checkout with Stripe or bank transfer, orders, stock, customer accounts, React and Vue hooks | [Shop](https://easy-cms-website.vercel.app/docs/ecommerce) |
+| [`@easy-cms/plugin-ecommerce`](packages/plugin-ecommerce) (experimental) | A shop: products and variants, prices in several currencies, carts, checkout with Stripe or bank transfer (unpaid orders expire and return their stock), orders, stock, customer accounts, React and Vue hooks | [Shop](https://easy-cms-website.vercel.app/docs/ecommerce) |
+
+Experimental plugins share the version number but may still change in a minor release, even
+after 1.0, until they are declared stable.
 
 Plugins are functions over your config: write your own with fields, endpoints, admin components,
 admin pages, dashboard panels and CLI commands. See
@@ -220,7 +230,7 @@ admin pages, dashboard panels and CLI commands. See
 
 ## Requirements
 
-- Node.js 22.12 or later
+- Node.js 22.12 or later (22.19 or later with Nuxt)
 - Nuxt 4, Next.js 15 or later (App Router), or no framework (standalone)
 - SQLite or Postgres
 - npm, pnpm, Yarn (node-modules) or Bun to install

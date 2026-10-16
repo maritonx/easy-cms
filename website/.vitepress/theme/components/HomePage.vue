@@ -11,8 +11,8 @@ const { isDark } = useData()
 
 const COPY = {
   en: {
-    badge: 'New in 0.47: menu groups, ⌘K search and tabs in the admin',
-    badgeLink: 'multi-tenant',
+    badge: 'On the way to 1.0: the API is set. Upgrading from 0.x',
+    badgeLink: 'upgrading#to-1-0',
     title: 'Your CMS,',
     titleAccent: 'inside your app',
     tagline:
@@ -192,6 +192,7 @@ const COPY = {
         id: 'mcp',
         name: 'MCP',
         pkg: '@easy-cms/plugin-mcp',
+        experimental: true,
         text: 'Let AI assistants read and write your content through the Model Context Protocol, with an API key that limits what they can do.',
         link: '/guide/mcp',
         shot: 'api-keys',
@@ -200,6 +201,7 @@ const COPY = {
     ],
     pluginsShow: 'Show',
     pluginsGuide: 'Guide',
+    pluginsExperimental: 'Experimental',
     pluginsWrite: 'Write your own plugin',
     compareTitle: 'Why embedded?',
     compareCols: ['SaaS headless CMS', 'Separate CMS server', 'Easy CMS'],
@@ -230,8 +232,8 @@ const COPY = {
     ctaGuide: 'Read the guide',
   },
   th: {
-    badge: 'ใหม่ใน 0.47: เมนูเป็นกลุ่ม ค้นหาด้วย ⌘K และแท็บในหน้าแก้ไข',
-    badgeLink: 'multi-tenant',
+    badge: 'กำลังไปสู่ 1.0: API ลงตัวแล้ว ดูวิธีอัปเกรดจาก 0.x',
+    badgeLink: 'upgrading#to-1-0',
     title: 'CMS ที่อยู่',
     titleAccent: 'ในแอปของคุณ',
     tagline: 'กำหนดเนื้อหาด้วย TypeScript ได้หน้า admin, API ที่มี type และ plugin โดยไม่ต้องดูแล server แยก',
@@ -365,6 +367,7 @@ const COPY = {
         id: 'mcp',
         name: 'MCP',
         pkg: '@easy-cms/plugin-mcp',
+        experimental: true,
         text: 'ให้ผู้ช่วย AI อ่านและเขียนเนื้อหาผ่าน Model Context Protocol ด้วย API key ที่จำกัดว่าทำอะไรได้บ้าง',
         link: '/th/guide/mcp',
         shot: 'api-keys',
@@ -373,6 +376,7 @@ const COPY = {
     ],
     pluginsShow: 'ดูตัวอย่าง',
     pluginsGuide: 'คู่มือ',
+    pluginsExperimental: 'Experimental',
     pluginsWrite: 'เขียน plugin เอง',
     compareTitle: 'ทำไมต้องฝังในแอป',
     compareCols: ['Headless CMS แบบ SaaS', 'CMS ที่แยก server', 'Easy CMS'],
@@ -404,7 +408,7 @@ const command = 'npx create-easy-cms'
 /** The one-click deploy buttons, as in the README and the guide. */
 const DEPLOY = {
   vercel:
-    'https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fmaritonx%2Feasy-cms%2Ftree%2Fmain%2Ftemplates%2Fnext-starter&project-name=easy-cms&repository-name=easy-cms&env=EASY_CMS_SETUP_CODE&envDescription=A+code+you+choose%3A+you+type+it+to+create+the+first+admin+at+%2Fadmin&envLink=https%3A%2F%2Fmaritonx.github.io%2Feasy-cms%2Fguide%2Fone-click-deploy&stores=%5B%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22neon%22%2C%22productSlug%22%3A%22neon%22%2C%22protocol%22%3A%22storage%22%7D%2C%7B%22type%22%3A%22blob%22%2C%22access%22%3A%22public%22%7D%5D',
+    'https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fmaritonx%2Feasy-cms%2Ftree%2Fmain%2Ftemplates%2Fnext-starter&project-name=easy-cms&repository-name=easy-cms&env=EASY_CMS_SETUP_CODE&envDescription=A+code+you+choose%3A+you+type+it+to+create+the+first+admin+at+%2Fadmin&envLink=https%3A%2F%2Feasy-cms-website.vercel.app%2Fdocs%2Fone-click-deploy&stores=%5B%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22neon%22%2C%22productSlug%22%3A%22neon%22%2C%22protocol%22%3A%22storage%22%7D%2C%7B%22type%22%3A%22blob%22%2C%22access%22%3A%22public%22%7D%5D',
   netlify:
     'https://app.netlify.com/start/deploy?repository=https://github.com/maritonx/easy-cms&create_from_path=templates/next-starter',
 }
@@ -587,6 +591,7 @@ const ICONS = [
               </button>
             </div>
             <code>{{ plugin.pkg }}</code>
+            <span v-if="plugin.experimental" class="experimental">{{ t.pluginsExperimental }}</span>
             <p>{{ plugin.text }}</p>
             <a class="guide-link" :href="withBase(plugin.link)">{{ t.pluginsGuide }} →</a>
           </div>
@@ -1032,6 +1037,16 @@ p {
   gap: 16px;
   position: sticky;
   top: calc(var(--vp-nav-height, 64px) + 24px);
+}
+.experimental {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 0 8px;
+  border: 1px solid var(--vp-c-warning-2);
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 20px;
+  color: var(--vp-c-warning-1);
 }
 .plugin code {
   display: inline-block;
