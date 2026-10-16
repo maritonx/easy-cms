@@ -34,7 +34,7 @@ With `easy-cms.config.ts` in the project root you get:
   export default defineEventHandler(async (event) => {
     const cms = await useEasyCMS()
     const user = await useEasyCMSUser(event) // logged-in Easy CMS user or null
-    return cms.find('posts', { where: { status: { equals: 'published' } } })
+    return cms.find('posts', { sort: '-createdAt', limit: 10 })
   })
   ```
 
