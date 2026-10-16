@@ -43,7 +43,18 @@ other way; the changelog says so.
 [`@easy-cms/plugin-ecommerce`](./ecommerce), [`@easy-cms/plugin-graphql`](./graphql) and
 [`@easy-cms/plugin-mcp`](./mcp) share the version number but not the promise: their options,
 endpoints and data may change in a minor release, after 1.0 too. Their pages and READMEs say so
-at the top. They leave this list when they settle, in a minor release.
+at the top.
+
+A package leaves this list, in a minor release, once all of these hold:
+
+1. **Tested against the real thing:** a real service or client (Stripe, a GraphQL client and
+   codegen, an MCP client such as Claude Desktop), with the result written down in an issue.
+2. **Settled:** no breaking change in 3 minor releases in a row.
+3. **Covered:** CI tests every option the docs list.
+
+The changelog and the [upgrade guide](./upgrading) say when a package leaves; from then on the
+promise above covers it. The [roadmap](https://github.com/maritonx/easy-cms/blob/main/docs/ROADMAP.md)
+lists the work still open for each.
 
 ## Deprecations {#deprecations}
 

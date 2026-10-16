@@ -40,7 +40,16 @@ Easy CMS ใช้ [semantic versioning](https://semver.org) แพ็กเก�
 [`@easy-cms/plugin-ecommerce`](./ecommerce), [`@easy-cms/plugin-graphql`](./graphql) และ
 [`@easy-cms/plugin-mcp`](./mcp) ใช้เลขเวอร์ชันเดียวกันแต่ไม่อยู่ใต้สัญญา option, endpoint และข้อมูล
 อาจเปลี่ยนใน minor release ได้ แม้หลัง 1.0 หน้าเอกสารและ README ของแต่ละตัวมีป้ายบอกไว้ด้านบน
-เมื่อนิ่งแล้วจะออกจากรายการนี้ใน minor release
+
+แพ็กเกจจะออกจากรายการนี้ใน minor release เมื่อครบทุกข้อ:
+
+1. **ทดสอบกับของจริงแล้ว:** บริการหรือ client จริง (Stripe, client GraphQL พร้อม codegen, MCP client เช่น
+   Claude Desktop) และบันทึกผลไว้ใน issue
+2. **นิ่งแล้ว:** ไม่มีการเปลี่ยนแบบ breaking ติดกัน 3 minor release
+3. **ครอบคลุม:** CI เทสทุก option ที่มีในเอกสาร
+
+changelog และ[คู่มืออัปเกรด](./upgrading)จะบอกเมื่อแพ็กเกจออกจากรายการ หลังจากนั้นสัญญาด้านบนครอบคลุมแพ็กเกจนั้นด้วย
+งานที่ยังเหลือของแต่ละตัวอยู่ใน [roadmap](https://github.com/maritonx/easy-cms/blob/main/docs/ROADMAP.md)
 
 ## การเลิกใช้ {#deprecations}
 
