@@ -38,16 +38,36 @@ const pgliteVersion = (
 
 const env = { ...process.env, NODE_ENV: 'production', UPGRADE_DB: db }
 
-/** The latest version of `easy-cms` on npm: today's users upgrade from it. */
+/**
+ * Packages an install of a release pulls in. A release publishes them one by one, so for a
+ * moment after one appears on npm the others may not have yet.
+ */
+const RELEASE_PACKAGES = [
+  'easy-cms',
+  '@easy-cms/core',
+  '@easy-cms/db-sqlite',
+  '@easy-cms/db-postgres',
+  '@easy-cms/drizzle',
+  '@easy-cms/admin',
+]
+
+/** The newest release whose packages are all on npm: today's users upgrade from it. */
 function latestRelease(): string {
-  const result = spawnSync('npm', ['view', 'easy-cms', 'version'], {
-    encoding: 'utf8',
-    shell: process.platform === 'win32',
+  const published = RELEASE_PACKAGES.map((name) => {
+    const result = spawnSync('npm', ['view', name, 'versions', '--json'], {
+      encoding: 'utf8',
+      shell: process.platform === 'win32',
+    })
+    if (result.status !== 0) throw new Error(`npm view ${name} versions failed: ${result.stderr}`)
+    return new Set(JSON.parse(result.stdout) as string[])
   })
-  const version = result.stdout.trim()
-  if (result.status !== 0 || !/^\d+\.\d+\.\d+$/.test(version))
-    throw new Error(`npm view easy-cms version failed: ${result.stderr}`)
-  return version
+  const [cli, ...rest] = published as [Set<string>, ...Set<string>[]]
+  const release = [...cli]
+    .filter((v) => /^\d+\.\d+\.\d+$/.test(v) && rest.every((versions) => versions.has(v)))
+    .sort((a, b) => a.localeCompare(b, 'en', { numeric: true }))
+    .at(-1)
+  if (!release) throw new Error('No release of easy-cms has all its packages on npm')
+  return release
 }
 
 function run(command: string, args: string[], cwd: string) {
