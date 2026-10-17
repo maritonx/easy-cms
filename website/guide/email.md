@@ -65,6 +65,9 @@ change a setting, change the environment variable or the config and restart.
 - **Check the connection** connects and logs in to the SMTP server without sending anything.
 - **Send test email** sends one email right away, not through the queue, to you or another
   address (5 in 10 minutes at most).
+  With `consoleEmail()` nothing is sent: the page says the email went to the server log, and so
+  does the answer (`{ "ok": true, "logged": true }`), as it does for any adapter whose
+  `describe()` says `delivery: log`.
 
 Both show the server's answer, with a hint for the usual mistakes: a wrong user or password
 (Gmail needs an app password), the port and `secure` not matching (465 is TLS from the start, 587

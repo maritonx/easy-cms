@@ -227,8 +227,11 @@ const en = {
   'email.testText': 'Sent right away, not through the queue. Up to 5 tests in 10 minutes.',
   'email.sentTo': 'Sent to {to}.',
   'email.sentCheck': 'Check the inbox, and the spam folder.',
-  'email.sentConsole':
-    'The console adapter prints emails to the server log instead of sending them.',
+  'email.loggedTo': 'Not sent to {to}: printed to the server log.',
+  'email.loggedHelp':
+    'The console adapter prints emails instead of sending them. To send them, set up an adapter such as smtp() (on a live site, check that SMTP_HOST and the other variables are set there) and restart.',
+  'email.logOnly':
+    'Emails are not sent: they are printed to the server log. Fine in development; on a live site, set up an email adapter.',
   'email.sendFailed': 'Not sent',
   'email.hintAuth':
     'The server refused the user or password. Check SMTP_USER and SMTP_PASSWORD (Gmail and others need an app password).',
@@ -956,7 +959,11 @@ const th: Record<MessageKey, string> = {
   'email.testText': 'ส่งทันที ไม่ผ่านคิว ทดสอบได้ไม่เกิน 5 ครั้งใน 10 นาที',
   'email.sentTo': 'ส่งถึง {to} แล้ว',
   'email.sentCheck': 'ตรวจกล่องจดหมาย และโฟลเดอร์สแปมด้วย',
-  'email.sentConsole': 'console adapter พิมพ์อีเมลลง log ของ server แทนการส่งจริง',
+  'email.loggedTo': 'ไม่ได้ส่งถึง {to}: พิมพ์ลง log ของ server แทน',
+  'email.loggedHelp':
+    'console adapter พิมพ์อีเมลแทนการส่งจริง ถ้าจะส่งจริงให้ตั้ง adapter เช่น smtp() (บนเว็บจริงให้ตรวจว่ามี SMTP_HOST และตัวแปรอื่นตั้งไว้ที่นั่น) แล้ว restart',
+  'email.logOnly':
+    'อีเมลไม่ได้ถูกส่ง แต่พิมพ์ลง log ของ server ตอนพัฒนาไม่เป็นไร แต่บนเว็บจริงต้องตั้ง email adapter',
   'email.sendFailed': 'ส่งไม่สำเร็จ',
   'email.hintAuth':
     'server ไม่ยอมรับ user หรือรหัสผ่าน ตรวจ SMTP_USER และ SMTP_PASSWORD (Gmail และอีกหลายเจ้าต้องใช้ app password)',

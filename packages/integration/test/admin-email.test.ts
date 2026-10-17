@@ -1,5 +1,6 @@
 import {
   type AdminEmail,
+  consoleEmail,
   createRestHandler,
   defineConfig,
   type EmailAdapter,
@@ -108,6 +109,34 @@ describe('email settings in the admin', () => {
     expect((await call('/test', 'POST', {})).status).toBe(200)
     expect((await call('/test', 'POST', {})).status).toBe(200)
     expect((await call('/test', 'POST', {})).status).toBe(429)
+  })
+
+  it('says when the adapter only prints to the log', async () => {
+    const logged: string[] = []
+    const local = await open(
+      defineConfig({
+        secret: SECRET,
+        db: db(),
+        email: consoleEmail({ log: (text) => logged.push(text) }),
+        collections: [],
+      }),
+    )
+    try {
+      await local.create('users', { email: 'dev@x.co', password: 'password123', role: 'admin' })
+      const { token } = await local.auth.login({ email: 'dev@x.co', password: 'password123' })
+      const response = await createRestHandler(local)(
+        new Request('http://cms.test/api/cms/admin/email/test', {
+          method: 'POST',
+          headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+          body: '{}',
+        }),
+      )
+      // Nothing was sent: the answer says so, and the email is in the log.
+      expect(await response.json()).toEqual({ ok: true, logged: true })
+      expect(logged.at(-1)).toContain('Email to dev@x.co')
+    } finally {
+      await local.destroy()
+    }
   })
 
   it('is for admins only', async () => {

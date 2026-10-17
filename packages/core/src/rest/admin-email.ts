@@ -17,7 +17,11 @@ export interface AdminEmail {
   canVerify: boolean
 }
 
-export type EmailCheck = { ok: true } | { ok: false; error: string }
+/**
+ * A connection check or test email. `logged`: the adapter only prints emails to the server log
+ * (`describe()` says `delivery: log`, as `consoleEmail()` does), so nothing was sent.
+ */
+export type EmailCheck = { ok: true; logged?: true } | { ok: false; error: string }
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 /** Test emails per admin in `WINDOW`: enough to fix settings, not to send mail with. */
@@ -25,6 +29,17 @@ const LIMIT = 5
 const WINDOW = 10 * 60_000
 /** Per CMS (one process can run several) and per admin. */
 const sentAt = new WeakMap<EasyCMS, Map<string, number[]>>()
+
+/** The adapter prints emails to the log instead of sending them (`delivery: log`). */
+function logsOnly(cms: EasyCMS) {
+  try {
+    return (cms.config.email?.describe?.() ?? []).some(
+      (s) => s.key === 'delivery' && s.value === 'log',
+    )
+  } catch {
+    return false
+  }
+}
 
 const message = (error: unknown) =>
   error instanceof Error ? error.message || error.name : String(error)
@@ -96,7 +111,7 @@ export async function sendTestEmail(
     : `This email was sent from Settings → Email in ${site} to test the settings.\n\nSent by: ${user.email}\nAdapter: ${adapter.name ?? 'custom'}\nFrom: ${from}\nTime: ${time}`
   try {
     await adapter.send({ to: address, subject, text, from })
-    return { ok: true }
+    return logsOnly(cms) ? { ok: true, logged: true } : { ok: true }
   } catch (error) {
     return { ok: false, error: message(error) }
   }
