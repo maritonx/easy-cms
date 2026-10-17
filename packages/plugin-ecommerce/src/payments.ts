@@ -46,8 +46,11 @@ export interface PaymentAdapter {
   /** For `manual` ones: what to tell the customer, e.g. the bank account (page and email). */
   readonly instructions?: Label
   /**
-   * For `manual` ones: seconds an order may wait for its payment; then it is cancelled and its
-   * stock put back. `false`: it waits until staff act on it.
+   * Seconds a payment may wait. For `manual` ones, then its order is cancelled and its stock put
+   * back; `false`: it waits until staff act on it. For the others, the shop asks the provider
+   * (`confirm`) about payments still pending after a few minutes, and past `expiresIn` gives up
+   * on those that didn't go through, e.g. an expired PromptPay QR code. Without it, they are
+   * asked about for a day and then left pending.
    */
   readonly expiresIn?: number | false
   /** Starts the payment of a new transaction. */

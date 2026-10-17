@@ -131,6 +131,13 @@ const writeAs = (who: Who) => ({ context: who.context, user: who.user })
 
 // --- Carts --------------------------------------------------------------------------------
 
+/** How long a payment waits before the shop asks its provider about it (the page may still). */
+const RECHECK_AFTER = 2 * 60_000
+/** How long payments without `expiresIn` are asked about. */
+const RECHECK_FOR = 86_400_000
+/** Payments older than this are not looked at, whatever their `expiresIn`. */
+const RECHECK_FOR_AT_MOST = 7 * 86_400_000
+
 export class Carts {
   constructor(
     private readonly cms: EasyCMS,
@@ -964,10 +971,6 @@ export class Orders {
       await this.take({ product: item.product, variant: item.variant }, Number(item.quantity))
   }
 
-  /**
-   * Upkeep: transactions left `processing` by a stopped process go back to `pending`, so the
-   * next confirmation or webhook makes the order.
-   */
   /** Cancels unpaid orders past their `expiresAt`, putting their stock back. */
   async expire(now: Date): Promise<number> {
     const due = await this.cms.find(ORDERS, {
@@ -997,6 +1000,10 @@ export class Orders {
     return cancelled
   }
 
+  /**
+   * Upkeep: transactions left `processing` by a stopped process go back to `pending`, so the
+   * next confirmation or webhook makes the order.
+   */
   async release(now: Date): Promise<number> {
     const stale = new Date(now.getTime() - 10 * 60_000).toISOString()
     const stuck = await this.cms.find(TRANSACTIONS, {
@@ -1020,5 +1027,58 @@ export class Orders {
         },
       )
     return stuck.docs.length
+  }
+
+  /**
+   * Upkeep: asks the payment provider again about payments still `pending` after a few minutes,
+   * for when neither the page nor a webhook said they went through (a closed tab, a webhook not
+   * set up, a provider that doesn't retry webhooks). A payment that went through gets its order.
+   * Past the method's `expiresIn`, a payment that didn't is given up (`failed`, "expired"); if it
+   * goes through after all, the order is still made. Without `expiresIn`, payments are asked
+   * about for a day.
+   */
+  async recheck(now: Date): Promise<{ paid: number; expired: number }> {
+    const settled = new Date(now.getTime() - RECHECK_AFTER).toISOString()
+    const stale = await this.cms.find(TRANSACTIONS, {
+      where: {
+        and: [
+          { status: { equals: 'pending' } },
+          { order: { exists: false } },
+          { createdAt: { lt: settled } },
+          { createdAt: { gt: new Date(now.getTime() - RECHECK_FOR_AT_MOST).toISOString() } },
+        ],
+      },
+      sort: 'createdAt',
+      limit: 100,
+      depth: 0,
+    })
+    let paid = 0
+    let expired = 0
+    for (const tx of stale.docs as Data[]) {
+      const adapter = this.shop.methods.get(String(tx.method))
+      if (!adapter || adapter.manual || !adapter.confirm) continue
+      const age = now.getTime() - new Date(String(tx.createdAt)).getTime()
+      const expiresIn = typeof adapter.expiresIn === 'number' ? adapter.expiresIn * 1000 : null
+      if (expiresIn === null && age > RECHECK_FOR) continue
+      // A provider that can't answer now is asked again next time.
+      const outcome = await adapter
+        .confirm({ cms: this.cms, transaction: toPayment(tx), input: {} })
+        .catch(() => 'processing' as const)
+      if (outcome === 'succeeded') {
+        // A failure here leaves it pending, for the next run.
+        const order = await this.finalize(tx.id as ID, 'paid').catch(() => null)
+        if (order) paid++
+      } else if (expiresIn !== null && age > expiresIn) {
+        // "failed" from confirm may only mean not paid yet; past its time, it is given up.
+        const given = await this.cms.update(
+          TRANSACTIONS,
+          tx.id as ID,
+          { status: 'failed', error: 'expired' },
+          { where: { status: { equals: 'pending' } }, depth: 0 },
+        )
+        if (given) expired++
+      }
+    }
+    return { paid, expired }
   }
 }

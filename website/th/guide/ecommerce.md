@@ -167,6 +167,10 @@ const result = await checkout({
 และชี้ webhook ของ Stripe มาที่ `/api/cms/shop/payments/stripe/webhook` (event `payment_intent.succeeded`,
 `payment_intent.payment_failed`) เพื่อให้มีคำสั่งซื้อแม้ลูกค้าปิดหน้าไปก่อน
 
+ถ้าไม่ได้ตั้ง webhook หรือ webhook หาย งานตามเวลาจะตามให้: การชำระเงินที่ยัง pending อยู่หลังผ่านไปไม่กี่นาทีจะถูกถามซ้ำกับ
+provider (`confirm` ของ adapter) และได้คำสั่งซื้อถ้าเงินเข้าแล้ว วิธีชำระที่ตั้ง `expiresIn` จะเลิกรอการชำระที่ไม่สำเร็จภายในเวลานั้น
+(`failed`, "expired") เช่น QR ของพร้อมเพย์ที่หมดอายุ ถ้ามีเงินเข้าทีหลังก็ยังได้คำสั่งซื้อ ถ้าไม่ตั้ง `expiresIn` จะถามซ้ำอยู่หนึ่งวัน
+
 Stripe ต้องติดตั้งแพ็กเกจ `stripe` เวอร์ชัน 17 ถึง 23 ไม่ว่าติดตั้งเวอร์ชันไหน adapter จะขอ API version ที่ทดสอบไว้จาก Stripe
 คือ `STRIPE_API_VERSION` (`2026-09-30.endive`) การอัปเกรดแพ็กเกจจึงไม่ทำให้คำตอบของ Stripe เปลี่ยน ถ้าต้องการเวอร์ชันอื่นใช้
 `stripeAdapter({ apiVersion })` และตอนสร้าง webhook endpoint ใน Stripe ให้เลือก API version เดียวกัน
