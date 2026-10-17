@@ -12,5 +12,6 @@
 | [แกลเลอรีรูปภาพ](./image-galleries) | หลายรูปในบทความ เรียงตามที่ผู้แก้เลือก |
 | [Deploy บน Vercel](../deploy/vercel) | serverless: Postgres หรือ Turso, Vercel Blob หรือ R2 สำหรับไฟล์ และ cron สำหรับบทความที่ตั้งเวลา |
 | [ย้ายจาก SQLite ไป Postgres](./sqlite-to-postgres) | เปลี่ยนฐานข้อมูลก่อนเปิดตัว หรือย้ายพร้อมข้อมูล |
+| [ย้ายจาก WordPress](./wordpress) | บทความ หน้า หมวดหมู่ และรูปภาพจาก WordPress REST API พร้อม redirect จากที่อยู่เดิม |
 | [สำรองข้อมูลอัตโนมัติ](./automate-backups) | สำรองฐานข้อมูลและไฟล์อัปโหลดทุกวัน และซ้อมกู้คืน |
 | [เตรียมเว็บให้เครื่องมือค้นหา](./search-engines) | meta tag, sitemap, robots.txt, hreflang และข้อมูลแบบมีโครงสร้าง แล้วส่งให้ Search Console |

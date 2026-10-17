@@ -12,5 +12,6 @@ Short, complete answers for common tasks. Each one is a few steps you can copy i
 | [Image galleries](./image-galleries) | Several photos on a post, in the order editors choose. |
 | [Deploy on Vercel](../deploy/vercel) | Serverless: Postgres or Turso, Vercel Blob or R2 for files, and a cron for scheduled posts. |
 | [Move from SQLite to Postgres](./sqlite-to-postgres) | Switch databases before launch, or with your data. |
+| [Move from WordPress](./wordpress) | Posts, pages, categories and images from the WordPress REST API, with redirects from the old addresses. |
 | [Automate backups](./automate-backups) | Daily copies of the database and uploads, and restore drills. |
 | [Get your site ready for search engines](./search-engines) | Meta tags, a sitemap, robots.txt, hreflang and structured data, then Search Console. |
