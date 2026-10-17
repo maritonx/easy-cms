@@ -13,7 +13,7 @@ them together.
 
 ## What a version number promises
 
-- **Before 1.0 (now):** a minor release (0.60 → 0.61) may change APIs, config or REST answers;
+- **Before 1.0 (0.x):** a minor release (0.60 → 0.61) could change APIs, config or REST answers;
   the changelog and the [upgrade guide](./upgrading) say what and how to update. Patch releases
   (0.60.0 → 0.60.1) only fix bugs.
 - **From 1.0:** breaking changes only in a major release (1.x → 2.0), with an upgrade guide.

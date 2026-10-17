@@ -50,13 +50,11 @@ your repository, the admin and APIs come with it, and there is no extra server t
   one CMS (multi-tenant) and AI assistants (MCP).
 
 > [!NOTE]
-> Easy CMS is pre-1.0. The API for 1.0 was settled in 0.60: names that changed still work for now
-> and warn once in the log. Before upgrading, read the
-> [upgrade guide](https://easy-cms-website.vercel.app/docs/upgrading) and the
-> [changelog](packages/core/CHANGELOG.md); [Versions and deprecations](https://easy-cms-website.vercel.app/docs/versioning)
-> says what each version promises. 1.0, the first version meant for production use, is planned
-> for December 2026: see the [roadmap](docs/ROADMAP.md) and its
-> [milestones](https://github.com/maritonx/easy-cms/milestones).
+> **Easy CMS 1.0 is out** (2026-10-17), the first version meant for production use. From 1.0,
+> breaking changes come only in a major release, with an upgrade guide; renamed APIs keep working
+> until the next major, with a warning. [Versions and deprecations](https://easy-cms-website.vercel.app/docs/versioning)
+> says what is covered (the shop, GraphQL and MCP plugins are still experimental). Upgrading from
+> 0.x: [From 0.x to 1.0](https://easy-cms-website.vercel.app/docs/upgrading#to-1-0).
 
 ## Quick start
 
