@@ -3,6 +3,9 @@ name: Release
 on:
   push:
     branches: [main]
+  # Publishes the current versions by hand, e.g. after a failed release (Re-run uses the workflow
+  # as it was at that commit).
+  workflow_dispatch:
 
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
@@ -35,14 +38,18 @@ jobs:
       # try to publish them again (E409). A failed release is retried with "Re-run failed jobs".
       - id: versions
         run: |
-          if git diff HEAD^ HEAD -- 'packages/*/package.json' | grep -q '^+  "version":'; then
+          if [ "${{ github.event_name }}" = workflow_dispatch ] ||
+            git diff HEAD^ HEAD -- 'packages/*/package.json' | grep -q '^+  "version":'; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
       # Opens a "Version Packages" PR; merging it publishes to npm.
-      - uses: changesets/action@v1
+      # v2 reads the .changeset/pre layout of Changesets 3 (prereleases); v1 failed on it.
+      - uses: changesets/action@v2
         with:
-          version: pnpm version-packages
-          publish: ${{ steps.versions.outputs.changed == 'true' && 'pnpm release' || '' }}
+          version-script: pnpm version-packages
+          publish-script: ${{ steps.versions.outputs.changed == 'true' && 'pnpm release' || '' }}
+          # As with v1: no tags or GitHub Releases per package; releases are written by hand.
+          create-github-releases: false
+          push-git-tags: false
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
