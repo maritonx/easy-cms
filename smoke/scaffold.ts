@@ -1,6 +1,8 @@
 // Creates a standalone Easy CMS project the way a user would, with one package manager, from
 // the smoke-test registry, and checks that it works: migrations, an admin, the server.
 //   node smoke/scaffold.ts <npm|pnpm|yarn|bun> [registry]
+// Against a release on npmjs instead (#82), e.g. the release candidate:
+//   SMOKE_TAG=rc SMOKE_VERSION=1.0.0-rc.0 node smoke/scaffold.ts npm https://registry.npmjs.org
 import { type ChildProcess, spawn } from 'node:child_process'
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
@@ -82,11 +84,27 @@ function report(error: unknown) {
 
 // 1. `npm create easy-cms`, `pnpm create easy-cms`…: the package manager runs create-easy-cms,
 //    which then installs with it (it sees which one in npm_config_user_agent).
+// biome-ignore lint/suspicious/noUndeclaredEnvVars: set by whoever runs the smoke test, not Turborepo
+const TAG = process.env.SMOKE_TAG
+const initializer = TAG ? `easy-cms@${TAG}` : 'easy-cms'
 const create: Record<typeof PM, [string, string[]]> = {
-  npm: ['npm', ['create', 'easy-cms@latest', '--', 'my-cms', '--yes']],
-  pnpm: ['pnpm', ['create', 'easy-cms', 'my-cms', '--yes']],
-  yarn: ['yarn', ['create', 'easy-cms', 'my-cms', '--yes']],
-  bun: ['bun', ['create', 'easy-cms', 'my-cms', '--yes']],
+  npm: ['npm', ['create', TAG ? initializer : 'easy-cms@latest', '--', 'my-cms', '--yes']],
+  pnpm: ['pnpm', ['create', initializer, 'my-cms', '--yes']],
+  yarn: ['yarn', ['create', initializer, 'my-cms', '--yes']],
+  bun: ['bun', ['create', initializer, 'my-cms', '--yes']],
+}
+// Yarn 1's `yarn create` can't take a version or tag: it runs a binary named `create-easy-cms@rc`.
+// Its users try a tagged release through npx, telling create-easy-cms to install with Yarn.
+if (PM === 'yarn' && TAG && (await yarnMajor()) === 1)
+  create.yarn = ['npx', ['--yes', `create-easy-cms@${TAG}`, 'my-cms', '--yes', '--pm', 'yarn']]
+
+async function yarnMajor() {
+  const { execFileSync } = await import('node:child_process')
+  return Number(
+    execFileSync('yarn', ['--version'], { cwd: root, env, shell: windows })
+      .toString()
+      .split('.')[0],
+  )
 }
 await run(...create[PM], root)
 
@@ -106,7 +124,10 @@ const lock = lockfiles[PM].find((file) => {
 })
 if (!lock) throw new Error(`installed without ${PM}: no ${lockfiles[PM].join(' or ')}`)
 // The packages from this commit (smoke/publish.ts gave them a version npmjs doesn't have).
-const expected = readFileSync(join(import.meta.dirname, '.registry', 'version'), 'utf8').trim()
+const expected =
+  // biome-ignore lint/suspicious/noUndeclaredEnvVars: set by whoever runs the smoke test, not Turborepo
+  process.env.SMOKE_VERSION ??
+  readFileSync(join(import.meta.dirname, '.registry', 'version'), 'utf8').trim()
 const installed = JSON.parse(
   readFileSync(join(project, 'node_modules', '@easy-cms', 'core', 'package.json'), 'utf8'),
 ).version
@@ -179,7 +200,7 @@ try {
       `the server did not answer /healthz in ${Math.round((Date.now() - started) / 1000)} s`,
     )
   console.log(`✓ /healthz answered after ${Math.round((Date.now() - started) / 1000)} s`)
-  const init = (await (await fetch(`http://localhost:${port}/api/cms/users/init`)).json()) as {
+  const init = (await (await fetch(`http://localhost:${port}/api/cms/auth/init`)).json()) as {
     hasUsers?: boolean
   }
   if (init.hasUsers !== true) throw new Error(`expected the admin: ${JSON.stringify(init)}`)
