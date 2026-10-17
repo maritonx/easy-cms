@@ -1,9 +1,9 @@
 # Easy CMS — Design Document
 
 - **สถานะ:** Accepted (living document)
-- **วันที่:** 2026-10-01 (ฉบับแรก 2026-09-25)
+- **วันที่:** 2026-10-17 (ฉบับแรก 2026-09-25)
 - **ผู้เขียน:** Kanawoot K.
-- **ครอบคลุม:** v0.1 ถึง v0.47
+- **ครอบคลุม:** v0.1 ถึง v0.68 และแผนของ 1.0 ([§15.3](#153-10))
 - **Requirements:** [SRS.md](SRS.md)
 
 ---
@@ -313,11 +313,13 @@ easy-cms <plugin command>      # คำสั่งจาก `commands` ใน c
 |---|---|---|
 | Unit | Vitest | config, validation, access, hooks, plugin, CLI |
 | Integration | Vitest (`packages/integration`) | Local API / REST ชุดเดียวบน SQLite, PGlite และ Postgres 17 |
-| Plugin | Vitest | `plugin-seo`, `plugin-mcp` (ใช้ MCP client จริง) |
-| E2E | Playwright | หน้า Admin บน `examples/nuxt-blog` (dev), `examples/next-blog` (production build) และ `examples/standalone` ทุก PR |
+| Plugin | Vitest | ทุก plugin มี test ของตัวเอง: MCP ผ่าน client ของ MCP SDK, GraphQL กับ `graphql` 16 และ 17 พร้อม snapshot ของ schema, ร้านค้ากับแพ็กเกจ `stripe` 17 และ 23 และ hook ของ React/Vue |
+| E2E | Playwright | หน้า Admin บน `examples/nuxt-blog` และ `examples/next-blog` (production build ทั้งคู่) และ `examples/standalone`, ร้านค้า (`examples/shop` กับ Stripe จำลอง) และ multi-tenant ทุก PR |
+| อัปเกรด | `upgrade/run.ts` | ฐานข้อมูลจาก 0.10, 0.20, 0.35, 0.48 และ release ล่าสุด migrate ด้วยแพ็กเกจปัจจุบัน บน SQLite และ Postgres |
+| Canary | `canary/run.sh` | Getting started คำต่อคำใน container Ubuntu ใหม่ (standalone, Next.js, Nuxt) |
 | Docs | node:test | หน้า API Reference เทียบกับ type ของ core และคำสั่งของ CLI |
 
-CI รัน lint, typecheck, build และ test บน Linux, macOS และ Windows
+CI รัน lint, typecheck, build และ test บน Linux, macOS และ Windows (บน Windows แพ็กเกจที่ worker ของ test crash ตอนปิดตัวเพราะ libsql ([libsql-js#231](https://github.com/tursodatabase/libsql-js/issues/231)) จะรันซ้ำหนึ่งครั้ง)
 
 ## 15. Roadmap
 
@@ -335,10 +337,27 @@ CI รัน lint, typecheck, build และ test บน Linux, macOS และ
 | **M7** CLI + Docs + Release | `create-easy-cms`, `generate:types`, VitePress, publish v0.1 |
 
 ### 15.2 หลัง v0.1 (เสร็จแล้ว)
-0.2 standalone + S3 → 0.3 versions → 0.4–0.5 live preview, localization → 0.6–0.9 blocks, webhooks, การตั้งเวลา → 0.10 backup → 0.11–0.12 admin redesign → 0.13 plugin ecosystem + SEO → 0.14 copy → 0.15 API keys → 0.16 MCP → 0.17 SEO ระดับทั้งเว็บ → 0.18 SEO สำหรับ AI → 0.19 redirects → 0.20 อีเมลและฟอร์ม → 0.21 หน้าย่อย → 0.22 npm, pnpm, Yarn และ Bun → 0.23 แกลเลอรี (upload หลายไฟล์) → 0.24 ลืมรหัสผ่านและคำเชิญ → 0.25 type ของ plugin → 0.26 ชนิด field เพิ่มเติม (`color`) → 0.27 หน้าของ plugin และกล่องบนแดชบอร์ด → 0.28 อัปโหลดจากลิงก์ → 0.29 แดชบอร์ดสำหรับ admin (ต้องดูแล, ระบบ) → 0.30 หน้าการส่ง (webhook และอีเมลที่ล้ม) → 0.31 ตั้งค่า → อีเมล (ดูค่าและทดสอบ) → 0.32 Backups จากหน้า admin → 0.33 บทบาทและสิทธิ์จากหน้า admin (RBAC) → 0.34 เฉพาะเอกสารของตัวเองและสิทธิ์ระดับ field → 0.35 Single sign-on → 0.36 Audit log → 0.37 Deploy ด้วยคลิกเดียว (รายละเอียดใน [SRS §8.2](SRS.md#82-releases-หลัง-v01))
+0.2 standalone + S3 → 0.3 versions → 0.4–0.5 live preview, localization → 0.6–0.9 blocks, webhooks, การตั้งเวลา → 0.10 backup → 0.11–0.12 admin redesign → 0.13 plugin ecosystem + SEO → 0.14 copy → 0.15 API keys → 0.16 MCP → 0.17 SEO ระดับทั้งเว็บ → 0.18 SEO สำหรับ AI → 0.19 redirects → 0.20 อีเมลและฟอร์ม → 0.21 หน้าย่อย → 0.22 npm, pnpm, Yarn และ Bun → 0.23 แกลเลอรี (upload หลายไฟล์) → 0.24 ลืมรหัสผ่านและคำเชิญ → 0.25 type ของ plugin → 0.26 ชนิด field เพิ่มเติม (`color`) → 0.27 หน้าของ plugin และกล่องบนแดชบอร์ด → 0.28 อัปโหลดจากลิงก์ → 0.29 แดชบอร์ดสำหรับ admin (ต้องดูแล, ระบบ) → 0.30 หน้าการส่ง (webhook และอีเมลที่ล้ม) → 0.31 ตั้งค่า → อีเมล (ดูค่าและทดสอบ) → 0.32 Backups จากหน้า admin → 0.33 บทบาทและสิทธิ์จากหน้า admin (RBAC) → 0.34 เฉพาะเอกสารของตัวเองและสิทธิ์ระดับ field → 0.35 Single sign-on → 0.36 Audit log → 0.37 Deploy ด้วยคลิกเดียว → 0.38–0.42 คลังสื่อ (โฟลเดอร์, ไฟล์ส่วนตัว, อัปโหลดตรงไป storage) และชุดเครื่องมือสำหรับ framework → 0.43 GraphQL → 0.44–0.45 multi-tenant → 0.46 สมาชิกและร้านค้า → 0.47 เมนูเป็นกลุ่มและ command palette → 0.60 API freeze → 0.62–0.66 เสริมความปลอดภัยตาม ASVS ระดับ 1 → 0.67–0.68 plugin ทดลองพร้อมใช้ใน production (รายละเอียดใน [SRS §8.2](SRS.md#82-releases-หลัง-v01))
 
-### 15.3 ถึง 1.0 และหลังจากนั้น
-แผนถึง 1.0 (2026-12-15) และแนวคิดหลัง 1.0 อยู่ใน [ROADMAP.md](ROADMAP.md)
+### 15.3 1.0
+
+1.0 (แผน 2026-12-15) คือเวอร์ชันแรกที่พร้อมใช้งานจริง ไม่ได้เพิ่มฟีเจอร์ งานตั้งแต่ 0.60 จึงเป็นการล็อก API ความปลอดภัย
+และการอัปเกรด ส่วนที่ล็อกและส่วนที่ไม่ล็อก (สิ่งที่ export จาก `@easy-cms/core` และ `/plugin` เทียบกับ `/internal` และ
+`@easy-cms/drizzle`) อยู่ใน [SRS §8.3](SRS.md#83-10)
+
+ผลต่อการออกแบบ:
+
+- **สัญญาของ plugin:** `apiVersion: 1` ทั้งฝั่ง server (`definePlugin`) และ admin (`ADMIN_API_VERSION` จาก `@easy-cms/core/plugin`) core หยุดตอนเริ่มทำงาน
+  ถ้าเลขไม่ตรงกับที่รองรับ พร้อมบอกว่าต้องอัปเกรดอะไร
+- **การเลิกใช้:** `warnDeprecated(code, message)` ใน core เตือนครั้งเดียวต่อ process ผ่าน `process.emitWarning`
+  ชื่อเดิมของ REST และ option ของ plugin ใช้ได้จนถึง 2.0 ส่วน option ของ config ที่เปลี่ยนชื่อจะหยุดการเริ่มทำงานและบอกชื่อใหม่
+- **การอัปเกรด:** migration ไปข้างหน้าอย่างเดียว ทดสอบใน CI กับฐานข้อมูลจาก release เก่า (`upgrade/run.ts`)
+- **การ release:** RC อยู่บน dist-tag `rc` (changesets pre mode) โดย `latest` และ template ของปุ่ม Deploy ยังเป็นเวอร์ชันเสถียร
+  workflow Release publish เฉพาะ push ที่เปลี่ยนเลขเวอร์ชัน
+- **แพ็กเกจทดลอง:** ecommerce, GraphQL และ MCP อยู่ใน fixed group แต่ไม่อยู่ใต้สัญญา จนกว่าจะผ่านเกณฑ์ในหน้า versioning
+
+### 15.4 หลัง 1.0
+แผนถึง 1.0 ทีละ issue และแนวคิดหลัง 1.0 อยู่ใน [ROADMAP.md](ROADMAP.md)
 
 ## 16. ความเสี่ยง
 
@@ -349,7 +368,7 @@ CI รัน lint, typecheck, build และ test บน Linux, macOS และ
 | ช่องโหว่ security กระทบแอปลูกค้า | ความเชื่อมั่นเสียหาย | ปิดทุก operation เป็น default, มี security baseline, มี `SECURITY.md` |
 | ผู้ช่วย AI หรือสคริปต์ทำเกินสิทธิ์ | เนื้อหาถูกเผยแพร่หรือลบโดยไม่ตั้งใจ | API key สิทธิ์น้อยที่สุด, MCP บันทึกเป็นฉบับร่างเสมอ, versions ย้อนกลับได้ |
 | Plugin จากคนนอกทำงานด้วยสิทธิ์ของผู้ใช้ในหน้า Admin | โค้ดที่ไม่น่าเชื่อถือเข้าถึงข้อมูลได้ | ถือเป็น dependency ที่ต้องเชื่อถือ, โหลดจาก origin เดียวกัน, สัญญามี `apiVersion` |
-| ฟีเจอร์ opt-in เยอะขึ้นทำให้ schema และ migration ซับซ้อน | อัปเกรดยาก | ตารางภายในเพิ่มเฉพาะเมื่อเปิดใช้, migration มีแค่ส่วนเพิ่ม, เอกสาร Backups & upgrades |
+| ฟีเจอร์ opt-in เยอะขึ้นทำให้ schema และ migration ซับซ้อน | อัปเกรดยาก | ตารางภายในเพิ่มเฉพาะเมื่อเปิดใช้, migration มีแค่ส่วนเพิ่ม, คู่มืออัปเกรดทีละ release, ทดสอบอัปเกรดจาก release เก่าใน CI |
 | Payload เพิ่มการรองรับ Vue | จุดต่างหายไป | เน้นประสบการณ์ที่เรียบง่าย DX ของ Nuxt และภาษาไทย |
 
 ## 17. ADRs

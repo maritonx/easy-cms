@@ -1,9 +1,9 @@
 # Software Requirements Specification — Easy CMS
 
-- **เวอร์ชันเอกสาร:** 3.22
-- **วันที่:** 2026-10-08
+- **เวอร์ชันเอกสาร:** 3.23
+- **วันที่:** 2026-10-17
 - **ผู้เขียน:** Kanawoot K.
-- **ครอบคลุม:** v0.1 (baseline) ถึง v0.47
+- **ครอบคลุม:** v0.1 (baseline) ถึง v0.68 และแผนของ 1.0 ([8.3](#83-10))
 - **สถานะ:** Living document (อัปเดตทุกครั้งที่เพิ่มฟีเจอร์)
 - **เอกสารที่เกี่ยวข้อง:** [DESIGN.md](DESIGN.md), [ADRs](adr/)
 
@@ -820,6 +820,14 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 0.18 | SEO สำหรับ AI: crawler ของ AI, llms.txt, Markdown, IndexNow | FR-SEO-09..12 | [0021](adr/0021-seo-for-ai.md) |
 | 0.19 | Redirects plugin, `admin.group: 'settings'` | FR-RDR-*, FR-ADM-19 | [0022](adr/0022-redirects-plugin.md) |
 | 0.20 | อีเมลใน core, email-smtp, form builder | FR-EML-*, FR-FRM-*, FR-STA-06 | [0023](adr/0023-email-and-form-builder.md) |
+| 0.67–0.68 | plugin ทดลองพร้อมใช้ใน production: Stripe API version คงที่, GraphQL กับ `graphql` 16 และ 17 (peer), MCP ทดสอบด้วย client ของ SDK | — | — |
+| 0.62–0.66 | เสริมความปลอดภัยตามผลตรวจ [OWASP ASVS ระดับ 1](security/asvs-l1.md): รหัสผ่านที่ใช้บ่อย, cookie `__Host-`, HSTS, 404 แทน 403, backup เข้ารหัส, GraphQL introspection ปิดใน production, audit log ตาม tenant | NFR-SEC-* | — |
+| 0.60 | API freeze: ชื่อของ config, Local API, REST และ plugin ที่ใช้ต่อใน 1.x, `apiVersion` ของ plugin, คำเตือน deprecation, ทดสอบอัปเกรดจาก release เก่า ([รายละเอียด](api-review-0.60.md)) | — | — |
+| 0.47 | เมนูเป็นกลุ่ม, command palette และ layout ของหน้าแก้ไข | FR-ADM-19..28 | [0050](adr/0050-admin-navigation-and-layouts.md) |
+| 0.46 | สมาชิกของเว็บ และร้านค้า (`@easy-cms/plugin-ecommerce`) | FR-MBR-01..04, FR-SHOP-01..12 | [0049](adr/0049-ecommerce.md) |
+| 0.45 | Multi-tenant ครบขึ้น: ไฟล์ โฟลเดอร์ plugin อื่น audit และการลบ | FR-MT-11..16 | [0048](adr/0048-multi-tenant-follow-ups.md) |
+| 0.44 | Multi-tenant (`@easy-cms/plugin-multi-tenant`) | FR-MT-01..10 | [0047](adr/0047-multi-tenant.md) |
+| 0.43 | GraphQL (`@easy-cms/plugin-graphql`) | FR-GQL-01..09 | [0046](adr/0046-graphql-plugin.md) |
 | 0.42 | ชุดเครื่องมือกลางสำหรับ framework และเอกสาร Framework อื่นๆ | FR-ADP-06 | [0045](adr/0045-framework-kit.md) |
 | 0.41 | อัปโหลดไฟล์ใหญ่ตรงไปที่ storage (S3, Vercel Blob) และจำกัดการย้ายไฟล์ 200 ไฟล์ | FR-UPL-15..16 | [0044](adr/0044-direct-uploads.md) |
 | 0.40 | ไฟล์ส่วนตัว ลิงก์ที่เซ็น key ของโฟลเดอร์ใน upload field และ API key ตามโฟลเดอร์ | FR-UPL-13..14, FR-ACL-15 | [0043](adr/0043-private-files.md) |
@@ -843,6 +851,35 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 0.22 | npm, pnpm, Yarn และ Bun: `--pm`, คำสั่งตาม package manager, แท็บในเอกสาร, smoke test | FR-INS-11..13 | [0025](adr/0025-package-managers.md) |
 | 0.21 | หน้าย่อย (nested docs), `filterOptions`, `uniqueWithin`, tree list, `live`, `commands`, BreadcrumbList | FR-NST-*, FR-MOD-11..12, FR-ADM-20, FR-LAPI-08, FR-INS-10, FR-SEO-13 | [0024](adr/0024-nested-docs.md) |
 
+### 8.3 1.0
+
+**แผน:** `1.0.0-rc.0` บน dist-tag `rc` หลังผ่าน canary บน Ubuntu ([#70](https://github.com/maritonx/easy-cms/issues/70))
+และ `1.0.0` บน `latest` วันที่ 2026-12-15 ([ROADMAP](ROADMAP.md)) 1.0 คือเวอร์ชันแรกที่พร้อมใช้งานจริง ไม่ใช่เวอร์ชันที่ฟีเจอร์ครบ
+
+**สัญญาความเสถียร** (รายละเอียดใน[หน้า Versions and deprecations](https://easy-cms-website.vercel.app/th/docs/versioning)):
+
+- breaking change มีเฉพาะใน major (1.x → 2.0) พร้อม[คู่มืออัปเกรด](https://easy-cms-website.vercel.app/th/docs/upgrading)
+  minor เพิ่มความสามารถ patch แก้บั๊ก ทุกแพ็กเกจใช้เลขเวอร์ชันเดียวกัน (changesets fixed group)
+- **ครอบคลุม:** สิ่งที่ `@easy-cms/core` และ `@easy-cms/core/plugin` export, option ของ config, Local API, route และ
+  `code` ของ REST, คำสั่ง CLI, adapter และ option, ข้อมูลของผู้ใช้ (อัปเกรดแล้ว migrate ไปข้างหน้า)
+- **ไม่ครอบคลุม:** `@easy-cms/core/internal`, `@easy-cms/drizzle`, `cms.db`, `<api>/admin/ui/*`, หน้าตาและข้อความของ admin,
+  สมาชิกที่ติด `@internal`
+- **การเลิกใช้:** ชื่อเดิมใช้ได้จนถึง major ถัดไป และเตือนครั้งเดียวต่อ process (`EASY_CMS_DEP…`)
+- **แพ็กเกจทดลอง:** `@easy-cms/plugin-ecommerce`, `@easy-cms/plugin-graphql`, `@easy-cms/plugin-mcp` ได้เลขเดียวกัน
+  แต่เปลี่ยนแบบ breaking ใน minor ได้ ถอดป้ายเมื่อ ทดสอบกับของจริงแล้ว, ไม่มี breaking ติดกัน 3 minor และ CI ครอบคลุมทุก option
+  ที่มีในเอกสาร
+
+**การซัพพอร์ต:** 0.x หยุดซัพพอร์ตเมื่อ 1.0 ออก การแก้ช่องโหว่ออกให้ minor ล่าสุดของ 1.x เมื่อมี 2.0 แล้ว 1.x ได้แพตช์
+ความปลอดภัยต่ออีก 6 เดือน แจ้งช่องโหว่ตาม [SECURITY.md](../SECURITY.md)
+
+**การอัปเกรดจาก 0.x:** ขั้นตอนอยู่ในคู่มืออัปเกรด (หัวข้อ "จาก 0.x ไป 1.0") และ CI ทดสอบทุก commit ด้วยฐานข้อมูลที่สร้างจาก
+0.10, 0.20, 0.35, 0.48 และ release ล่าสุด บน SQLite และ Postgres (`upgrade/run.ts`)
+
+**เกณฑ์ตรวจรับ 1.0** (นอกจาก [7.2](#72-เกณฑ์สำหรับทุก-release-หลัง-v01)): issue ใน milestone
+[`1.0.0-rc`](https://github.com/maritonx/easy-cms/milestone/3) และ [`1.0.0`](https://github.com/maritonx/easy-cms/milestone/4)
+ปิดครบ, Getting started ทำตามได้คำต่อคำบนเครื่องใหม่กับ RC ทั้ง Next.js, Nuxt และ standalone (#80), smoke test
+`create-easy-cms` ผ่านกับ npm, pnpm, Yarn และ Bun (#82)
+
 ---
 
 ## 9. ประวัติการแก้ไข
@@ -855,6 +892,7 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 | 1.3 | 2026-09-25 | M5: FR-REST-08 (อัปโหลด/ไฟล์), FR-CFG-07 (`routes.api`, `serverURL`), ระบุว่า drafts ใน v0.1 ไม่มี version แยก |
 | 1.4 | 2026-09-25 | M6: ผลวัด NFR-PERF-01/02 บน Postgres 17 (Local API p95 2.7 ms, REST p95 4.3 ms), Next.js adapter ใช้ `getEasyCMS(config)` |
 | 1.5 | 2026-09-25 | M7: ผลตรวจรับ v0.1 (7.1) |
+| 3.23 | 2026-10-17 | 8.2: release 0.43–0.68, 8.3: 1.0 สัญญาความเสถียรและการซัพพอร์ต |
 | 3.22 | 2026-10-09 | 0.47: FR-ADM-19..28 |
 | 3.21 | 2026-10-09 | 0.46: FR-MBR-01..04, FR-SHOP-01..12 |
 | 3.20 | 2026-10-09 | 0.45: FR-MT-11..16 |
