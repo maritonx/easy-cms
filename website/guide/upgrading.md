@@ -26,7 +26,8 @@ Invalid Easy CMS config (1 problem):
 
 ## From 0.x to 1.0 {#to-1-0}
 
-0.60 settled the names 1.0 keeps; the releases after it tightened security. An app on 0.48 or
+0.60 settled the names 1.0 keeps; the releases after it tightened security and readied the
+experimental plugins. An app on 0.48 or
 older meets all of it at once. Changes that stop the app say so, with the new name; the ones in
 [the checklist](#checklist) don't, so read it before you deploy.
 
@@ -39,6 +40,8 @@ older meets all of it at once. Changes that stop the app say so, with the new na
   [deprecation warning](./versioning#deprecations).
 - **Errors** carry a `code` (`NOT_FOUND`, `VALIDATION_ERROR`…): check it instead of the message.
 - **Security defaults**, release by release from [0.62](#v0-62) to [0.66](#v0-66).
+- **GraphQL** needs `graphql` installed in your project ([0.68](#v0-68)); without it the app
+  doesn't start (`Cannot find module 'graphql'`). npm, pnpm and Bun add it for you, Yarn doesn't.
 
 ### Checklist: changes that don't stop the app {#checklist}
 
