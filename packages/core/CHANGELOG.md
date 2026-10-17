@@ -1,5 +1,11 @@
 # @easy-cms/core
 
+## 1.0.0
+
+### Major Changes
+
+- 0e7d00a: Easy CMS 1.0: the first version meant for production use. From 1.0, breaking changes come only in a major release, with an upgrade guide; renamed APIs keep working until the next major, with a deprecation warning. `@easy-cms/plugin-ecommerce`, `@easy-cms/plugin-graphql` and `@easy-cms/plugin-mcp` stay experimental. Upgrading from 0.x: https://easy-cms-website.vercel.app/docs/upgrading#to-1-0
+
 ## 1.0.0-rc.0
 
 ### Major Changes
