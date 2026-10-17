@@ -82,6 +82,11 @@ async function sendTest() {
   }
 }
 
+/** The adapter prints emails to the server log, as `consoleEmail()` does: nothing is sent. */
+const logsOnly = computed(
+  () => !!email.value?.settings.some((s) => s.key === 'delivery' && s.value === 'log'),
+)
+
 const docs = computed(
   () => `https://easy-cms-website.vercel.app${locale.value === 'th' ? '/th' : ''}/docs/email`,
 )
@@ -112,6 +117,10 @@ const docs = computed(
     <div v-else class="grid">
       <section class="card panel" aria-labelledby="settings-heading">
         <h2 id="settings-heading">{{ t('email.settings') }}</h2>
+        <p v-if="logsOnly" class="notice notice-warning">
+          {{ t('email.logOnly') }}
+          <a :href="docs" target="_blank" rel="noopener">{{ t('email.howToSetUp') }}</a>
+        </p>
         <dl>
           <dt>{{ t('email.adapter') }}</dt>
           <dd>{{ email.name }}</dd>
@@ -160,10 +169,22 @@ const docs = computed(
             </button>
           </div>
           <p class="muted hint">{{ t('email.testText') }}</p>
-          <div v-if="testResult" class="result" :class="testResult.ok ? 'ok' : 'bad'" role="status">
-            <strong>{{ testResult.ok ? t('email.sentTo', { to: testResult.to }) : t('email.sendFailed') }}</strong>
-            <span v-if="testResult.ok">{{ email.name === 'console' ? t('email.sentConsole') : t('email.sentCheck') }}</span>
+          <div
+            v-if="testResult"
+            class="result"
+            :class="!testResult.ok ? 'bad' : testResult.logged ? 'warn' : 'ok'"
+            role="status"
+          >
+            <template v-if="testResult.ok && testResult.logged">
+              <strong>{{ t('email.loggedTo', { to: testResult.to }) }}</strong>
+              <span>{{ t('email.loggedHelp') }}</span>
+            </template>
+            <template v-else-if="testResult.ok">
+              <strong>{{ t('email.sentTo', { to: testResult.to }) }}</strong>
+              <span>{{ t('email.sentCheck') }}</span>
+            </template>
             <template v-else>
+              <strong>{{ t('email.sendFailed') }}</strong>
               <code>{{ testResult.error }}</code>
               <span v-if="hintFor(testResult.error)">{{ hintFor(testResult.error) }}</span>
             </template>
@@ -276,6 +297,10 @@ dd {
 .result.bad {
   background: var(--danger-soft);
   color: var(--danger);
+}
+.result.warn {
+  background: var(--warning-soft);
+  color: var(--warning-text);
 }
 .result code {
   color: var(--text);
