@@ -1,5 +1,9 @@
 # @easy-cms/admin
 
+## 1.0.0-rc.0
+
+No changes in this release.
+
 ## 0.68.5
 
 ### Patch Changes
