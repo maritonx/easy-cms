@@ -470,6 +470,13 @@
           }
         },
         {
+          "path": "guide/recipes/wordpress",
+          "title": {
+            "en": "Move from WordPress",
+            "th": "ย้ายจาก WordPress"
+          }
+        },
+        {
           "path": "guide/recipes/automate-backups",
           "title": {
             "en": "Automate backups",
