@@ -27,9 +27,9 @@ Invalid Easy CMS config (1 problem):
 ## From 0.x to 1.0 {#to-1-0}
 
 0.60 settled the names 1.0 keeps; the releases after it tightened security and readied the
-experimental plugins. An app on 0.48 or
-older meets all of it at once. Changes that stop the app say so, with the new name; the ones in
-[the checklist](#checklist) don't, so read it before you deploy.
+experimental plugins. An app on 0.48 or older meets all of it at once. Changes that stop the app
+say so, with the new name; the ones in [the checklist](#checklist) don't, so read it before you
+deploy.
 
 ### What changed
 
