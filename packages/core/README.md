@@ -47,7 +47,8 @@ export type Post = CollectionDocument<typeof config, 'posts'>
 The Nuxt and Next.js adapters (or `easy-cms serve`) serve the admin and REST API from this config;
 `useEasyCMS()` / `getEasyCMS(config)` give you the Local API, typed from it.
 
-> Easy CMS is pre-1.0: the API may change between minor versions. See the
+> From 1.0, breaking changes come only in a major release, with an upgrade guide. See
+> [Versions and deprecations](https://easy-cms-website.vercel.app/docs/versioning) and the
 > [changelog](https://github.com/maritonx/easy-cms/blob/main/packages/core/CHANGELOG.md).
 
 ## Links

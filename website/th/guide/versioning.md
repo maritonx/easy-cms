@@ -12,7 +12,7 @@ Easy CMS ใช้ [semantic versioning](https://semver.org) แพ็กเก�
 
 ## เลขเวอร์ชันสัญญาอะไร
 
-- **ก่อน 1.0 (ตอนนี้):** minor release (0.60 → 0.61) อาจเปลี่ยน API, config หรือคำตอบของ REST
+- **ก่อน 1.0 (0.x):** minor release (0.60 → 0.61) เปลี่ยน API, config หรือคำตอบของ REST ได้
   changelog และ[คู่มืออัปเกรด](./upgrading)จะบอกว่าเปลี่ยนอะไรและต้องแก้อย่างไร ส่วน patch release
   (0.60.0 → 0.60.1) แก้บั๊กอย่างเดียว
 - **ตั้งแต่ 1.0:** breaking change มีเฉพาะใน major release (1.x → 2.0) พร้อมคู่มืออัปเกรด
