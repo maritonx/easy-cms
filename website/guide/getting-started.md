@@ -11,6 +11,12 @@ Add Easy CMS to a Nuxt or Next.js project (or run it on its own), create the fir
 You need a Nuxt 4 or Next.js 15+ project and Node.js 22.12 or newer (22.19 or newer with Nuxt). Using another framework, or none?
 Run Easy CMS as a [standalone server](./standalone).
 
+::: tip Node on Ubuntu
+Ubuntu 26.04's own `nodejs` package is new enough, but its npm (9.2) fails to install a new Nuxt
+app. Install Node from [NodeSource](https://github.com/nodesource/distributions) or
+[nvm](https://github.com/nvm-sh/nvm), or update npm first with `sudo npm install -g npm`.
+:::
+
 ## Add Easy CMS
 
 In your project directory:
