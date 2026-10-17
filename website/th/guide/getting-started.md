@@ -9,7 +9,8 @@
 <Screenshot name="dashboard" alt="แดชบอร์ดของหน้า admin หลัง login" />
 
 คุณต้องมีโปรเจกต์ Nuxt 4 หรือ Next.js 15+ และ Node.js 22.12 ขึ้นไป (ถ้าใช้ Nuxt ต้อง 22.19 ขึ้นไป) ใช้ framework อื่น หรือไม่ใช้เลย?
-ให้รัน Easy CMS เป็น [standalone server](./standalone)
+ให้รัน Easy CMS เป็น [standalone server](./standalone) ยังไม่มีโปรเจกต์? สร้างด้วย
+`npx create-next-app@latest my-app --yes` หรือ `npm create nuxt@latest my-app`
 
 ::: tip Node บน Ubuntu
 แพ็กเกจ `nodejs` ของ Ubuntu 26.04 ใหม่พอ แต่ npm ที่มาด้วย (9.2) ติดตั้งแอป Nuxt ใหม่ไม่ผ่าน ให้ติดตั้ง Node จาก

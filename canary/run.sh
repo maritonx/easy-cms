@@ -1,17 +1,20 @@
 #!/bin/bash
-# Canary (#70): Getting started on a fresh Linux, as a new user would, with the packages on npm.
-# Standalone, Next.js and Nuxt, each with npm: install, run, create the first admin, publish a
-# post and read it back. On the host it starts a clean container and runs itself inside:
+# Canary (#70) and Getting started on a clean machine (#80): the guide on a fresh Linux, as a new
+# user would, with the packages on npm. Standalone, Next.js and Nuxt, each with npm: install,
+# run, create the first admin, publish a post, read it back over REST and with the guide's
+# "Read content" code. On the host it starts a clean container and runs itself inside:
 #   canary/run.sh [image] [node]    image: ubuntu:26.04 (default)    node: apt | nodesource (24)
+#   EASY_CMS_TAG=rc canary/run.sh   the release on that npm tag (default latest)
 # Prints PASS or FAIL per step; exits non-zero if any failed.
 set -uo pipefail
 
 IMAGE="${1:-ubuntu:26.04}"
 NODE="${2:-nodesource}"
+TAG="${EASY_CMS_TAG:-latest}"
 
 if [ ! -f /.dockerenv ]; then
-  echo "== $IMAGE, Node from $NODE"
-  exec docker run --rm -e NODE_FROM="$NODE" -v "$(cd "$(dirname "$0")" && pwd)/run.sh:/canary.sh:ro" \
+  echo "== $IMAGE, Node from $NODE, easy-cms@$TAG"
+  exec docker run --rm -e NODE_FROM="$NODE" -e EASY_CMS_TAG="$TAG" -v "$(cd "$(dirname "$0")" && pwd)/run.sh:/canary.sh:ro" \
     "$IMAGE" bash /canary.sh "$IMAGE" "$NODE"
 fi
 
@@ -72,9 +75,9 @@ node -e 'const [a,b]=process.versions.node.split(".").map(Number);process.exit(a
   || NUXT_OK=0
 mkdir -p /work && cd /work || exit 1
 
-step "Standalone: npm create easy-cms@latest my-cms"
-if npm create easy-cms@latest my-cms -- --yes > standalone.log 2>&1; then
-  pass "standalone: created"
+step "Standalone: npm create easy-cms@$TAG my-cms"
+if npm create "easy-cms@$TAG" my-cms -- --yes > standalone.log 2>&1; then
+  pass "standalone: created ($(node -p "require('./my-cms/node_modules/@easy-cms/core/package.json').version"))"
   (cd my-cms && npm run dev > ../standalone-dev.log 2>&1 &)
   if wait_for http://localhost:4000/api/cms/auth/init 120; then
     check_cms http://localhost:4000 standalone
@@ -86,14 +89,42 @@ else
   fail "standalone: create failed"; tail -20 standalone.log
 fi
 
-step "Next.js: create-next-app, then npx create-easy-cms"
+step "Next.js: create-next-app, then npx create-easy-cms@$TAG"
 if npx --yes create-next-app@latest next-app --yes > next-create.log 2>&1; then
   cd next-app || exit 1
-  if npx --yes create-easy-cms --yes > ../next-easy.log 2>&1; then
-    pass "next: Easy CMS added"
+  if npx --yes "create-easy-cms@$TAG" --yes > ../next-easy.log 2>&1; then
+    pass "next: Easy CMS added ($(node -p "require('./node_modules/@easy-cms/core/package.json').version"))"
     (PORT=3000 npm run dev > ../next-dev.log 2>&1 &)
     if wait_for http://localhost:3000/api/cms/auth/init 240; then
       check_cms http://localhost:3000 next
+      # Getting started → Read content, word for word.
+      APP_DIR=app; [ -d src/app ] && APP_DIR=src/app
+      cat > "$APP_DIR/page.tsx" <<'PAGE'
+import { connection } from 'next/server'
+import { Suspense } from 'react'
+import { getEasyCMS } from '@easy-cms/next'
+import config from '@/easy-cms.config'
+
+export default function Home() {
+  return (
+    <Suspense fallback={<p>Loading…</p>}>
+      <Posts />
+    </Suspense>
+  )
+}
+
+async function Posts() {
+  // Read on each request, so the page shows what was just published.
+  await connection()
+  const cms = await getEasyCMS(config)
+  const { docs } = await cms.find('posts', { sort: '-createdAt', limit: 10 })
+  return <ul>{docs.map((post) => <li key={post.id}>{post.title}</li>)}</ul>
+}
+PAGE
+      wait_for http://localhost:3000/ 120
+      curl -s http://localhost:3000/ | grep -q 'Hello from the canary' \
+        && pass "next: the guide's app/page.tsx shows the post ($APP_DIR)" \
+        || { fail "next: the guide's app/page.tsx doesn't show the post ($APP_DIR)"; tail -15 ../next-dev.log; }
     else
       fail "next: the dev server didn't start"; tail -20 ../next-dev.log
     fi
@@ -106,17 +137,29 @@ else
   fail "next: create-next-app failed"; tail -20 next-create.log
 fi
 
-step "Nuxt: npm create nuxt@latest, then npx create-easy-cms"
+step "Nuxt: npm create nuxt@latest, then npx create-easy-cms@$TAG"
 if [ "$NUXT_OK" = 0 ]; then
   fail "nuxt: Node $NODE_VERSION is older than 22.19, which Nuxt needs (skipped)"
 elif npm create nuxt@latest nuxt-app -- --template minimal --packageManager npm --gitInit=false \
   --no-modules --force > nuxt-create.log 2>&1 < /dev/null; then
   cd nuxt-app || exit 1
-  if npx --yes create-easy-cms --yes > ../nuxt-easy.log 2>&1; then
-    pass "nuxt: Easy CMS added"
+  if npx --yes "create-easy-cms@$TAG" --yes > ../nuxt-easy.log 2>&1; then
+    pass "nuxt: Easy CMS added ($(node -p "require('./node_modules/@easy-cms/core/package.json').version"))"
     (npm run dev -- --port 3001 > ../nuxt-dev.log 2>&1 &)
     if wait_for http://localhost:3001/api/cms/auth/init 240; then
       check_cms http://localhost:3001 nuxt
+      # Getting started → Read content, word for word.
+      mkdir -p server/api
+      cat > server/api/posts.get.ts <<'API'
+export default defineEventHandler(async () => {
+  const cms = await useEasyCMS()
+  return cms.find('posts', { sort: '-createdAt', limit: 10 })
+})
+API
+      for _ in $(seq 1 60); do curl -s http://localhost:3001/api/posts | grep -q 'Hello from the canary' && break; sleep 1; done
+      curl -s http://localhost:3001/api/posts | grep -q 'Hello from the canary' \
+        && pass "nuxt: the guide's server/api/posts.get.ts returns the post" \
+        || { fail "nuxt: the guide's server/api/posts.get.ts doesn't return the post"; tail -15 ../nuxt-dev.log; }
     else
       fail "nuxt: the dev server didn't start"; tail -20 ../nuxt-dev.log
     fi
@@ -130,6 +173,6 @@ else
 fi
 
 echo
-[ "$FAILED" = 0 ] && echo "== canary passed ($IMAGE, node $NODE_VERSION)" \
-  || echo "== canary FAILED ($IMAGE, node $NODE_VERSION)"
+[ "$FAILED" = 0 ] && echo "== canary passed ($IMAGE, node $NODE_VERSION, easy-cms@$TAG)" \
+  || echo "== canary FAILED ($IMAGE, node $NODE_VERSION, easy-cms@$TAG)"
 exit "$FAILED"
