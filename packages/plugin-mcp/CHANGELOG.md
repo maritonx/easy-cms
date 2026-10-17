@@ -1,5 +1,11 @@
 # @easy-cms/plugin-mcp
 
+## 0.68.5
+
+### Patch Changes
+
+- @easy-cms/core@0.68.5
+
 ## 0.68.4
 
 ### Patch Changes

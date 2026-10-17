@@ -1,5 +1,11 @@
 # @easy-cms/admin
 
+## 0.68.5
+
+### Patch Changes
+
+- a4fbaeb: Links to the documentation (dashboard health checks, single sign-on, email, deliveries and backups pages) now go to https://easy-cms-website.vercel.app instead of the old GitHub Pages address. Package READMEs link there too.
+
 ## 0.68.4
 
 No changes in this release.
