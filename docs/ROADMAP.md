@@ -81,10 +81,10 @@
 
 | # | Issue | Labels | เสร็จเมื่อ |
 |---|---|---|---|
-| [#79](https://github.com/maritonx/easy-cms/issues/79) | Enter changesets pre mode and release 1.0.0-rc.1 | area:release, release-blocker | `changeset pre enter rc`, ทุกแพ็กเกจออก `1.0.0-rc.1` ด้วย dist-tag `next` (ไม่แตะ `latest`) |
+| [#79](https://github.com/maritonx/easy-cms/issues/79) | Enter changesets pre mode and release 1.0.0-rc.0 | area:release, release-blocker | `changeset pre enter rc`, ทุกแพ็กเกจออก `1.0.0-rc.0` ด้วย dist-tag `rc` (ไม่แตะ `latest`), template ของปุ่ม Deploy ยังใช้เวอร์ชันเสถียร |
 | [#80](https://github.com/maritonx/easy-cms/issues/80) | Run Getting started from scratch on a clean machine: Next.js, Nuxt, standalone | area:docs, release-blocker | ทำตามเอกสารคำต่อคำกับ RC ได้ทั้งสามแบบโดยไม่ต้องเดา; แก้เอกสารที่ไม่ตรง |
 | [#81](https://github.com/maritonx/easy-cms/issues/81) | Upgrade guide from 0.x to 1.0 | area:docs, release-blocker | หน้าในเอกสาร (EN/TH): สิ่งที่เปลี่ยนใน 0.60, ขั้นตอน backup → อัปเกรด → migrate |
-| [#82](https://github.com/maritonx/easy-cms/issues/82) | Smoke-test `create-easy-cms` against the RC with npm, pnpm, Yarn and Bun | area:release | smoke test ที่มีอยู่รันกับ `@next` ผ่านทั้งสี่ตัว |
+| [#82](https://github.com/maritonx/easy-cms/issues/82) | Smoke-test `create-easy-cms` against the RC with npm, pnpm, Yarn and Bun | area:release | smoke test ที่มีอยู่รันกับ `@rc` ผ่านทั้งสี่ตัว |
 | [#116](https://github.com/maritonx/easy-cms/issues/116) | Automated end-to-end test of the Stripe webhook | area:plugins | e2e ส่ง event ที่เซ็นถูกต้อง → order paid, ตัดสต็อก, ส่งซ้ำไม่เปลี่ยนอะไร |
 | [#117](https://github.com/maritonx/easy-cms/issues/117) | Test the React and Vue shop hooks | area:plugins | เทส hook ของตะกร้าและ checkout ทั้ง React และ Vue |
 | [#118](https://github.com/maritonx/easy-cms/issues/118) | Review the PaymentAdapter contract against what Omise needs | area:plugins, area:docs | เอกสารใน `docs/` เทียบ flow ของ Omise กับ `definePaymentAdapter`, ส่วนที่ต้องแก้ทำใน 1.1 |
