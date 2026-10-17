@@ -36,6 +36,6 @@ if (redirect) return Response.redirect(new URL(redirect.location, request.url), 
 
 ## Links
 
-[Redirects](https://maritonx.github.io/easy-cms/guide/redirects) · [Documentation](https://maritonx.github.io/easy-cms/) ([ภาษาไทย](https://maritonx.github.io/easy-cms/th/)) · [GitHub](https://github.com/maritonx/easy-cms)
+[Redirects](https://easy-cms-website.vercel.app/docs/redirects) · [Documentation](https://easy-cms-website.vercel.app/docs) ([ภาษาไทย](https://easy-cms-website.vercel.app/th/docs)) · [GitHub](https://github.com/maritonx/easy-cms)
 
 MIT License

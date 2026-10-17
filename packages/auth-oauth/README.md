@@ -34,6 +34,6 @@ The redirect (callback) URL to give the provider is `<serverURL>/api/cms/auth/<i
 
 ## Links
 
-[Single sign-on](https://maritonx.github.io/easy-cms/guide/sso) · [Documentation](https://maritonx.github.io/easy-cms/) ([ภาษาไทย](https://maritonx.github.io/easy-cms/th/)) · [GitHub](https://github.com/maritonx/easy-cms)
+[Single sign-on](https://easy-cms-website.vercel.app/docs/sso) · [Documentation](https://easy-cms-website.vercel.app/docs) ([ภาษาไทย](https://easy-cms-website.vercel.app/th/docs)) · [GitHub](https://github.com/maritonx/easy-cms)
 
 MIT License

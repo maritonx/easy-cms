@@ -32,6 +32,6 @@ claude mcp add --transport http easy-cms https://example.com/api/cms/mcp \
 
 ## Links
 
-[MCP](https://maritonx.github.io/easy-cms/guide/mcp) · [Documentation](https://maritonx.github.io/easy-cms/) ([ภาษาไทย](https://maritonx.github.io/easy-cms/th/)) · [GitHub](https://github.com/maritonx/easy-cms)
+[MCP](https://easy-cms-website.vercel.app/docs/mcp) · [Documentation](https://easy-cms-website.vercel.app/docs) ([ภาษาไทย](https://easy-cms-website.vercel.app/th/docs)) · [GitHub](https://github.com/maritonx/easy-cms)
 
 MIT License

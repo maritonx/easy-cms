@@ -30,6 +30,6 @@ const menu = await getTree(cms, 'pages', { depth: 2 })
 
 ## Links
 
-[Nested pages](https://maritonx.github.io/easy-cms/guide/nested-docs) · [Documentation](https://maritonx.github.io/easy-cms/) ([ภาษาไทย](https://maritonx.github.io/easy-cms/th/)) · [GitHub](https://github.com/maritonx/easy-cms)
+[Nested pages](https://easy-cms-website.vercel.app/docs/nested-docs) · [Documentation](https://easy-cms-website.vercel.app/docs) ([ภาษาไทย](https://easy-cms-website.vercel.app/th/docs)) · [GitHub](https://github.com/maritonx/easy-cms)
 
 MIT License

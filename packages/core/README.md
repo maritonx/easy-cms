@@ -52,6 +52,6 @@ The Nuxt and Next.js adapters (or `easy-cms serve`) serve the admin and REST API
 
 ## Links
 
-[Configuration](https://maritonx.github.io/easy-cms/guide/configuration) · [Local API](https://maritonx.github.io/easy-cms/guide/local-api) · [Documentation](https://maritonx.github.io/easy-cms/) ([ภาษาไทย](https://maritonx.github.io/easy-cms/th/)) · [GitHub](https://github.com/maritonx/easy-cms)
+[Configuration](https://easy-cms-website.vercel.app/docs/configuration) · [Local API](https://easy-cms-website.vercel.app/docs/local-api) · [Documentation](https://easy-cms-website.vercel.app/docs) ([ภาษาไทย](https://easy-cms-website.vercel.app/th/docs)) · [GitHub](https://github.com/maritonx/easy-cms)
 
 MIT License

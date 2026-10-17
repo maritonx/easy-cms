@@ -71,6 +71,6 @@ enable it behind a proxy you trust (Vercel and Netlify are recognized without it
 
 ## Links
 
-[Next.js](https://maritonx.github.io/easy-cms/guide/next) · [Documentation](https://maritonx.github.io/easy-cms/) ([ภาษาไทย](https://maritonx.github.io/easy-cms/th/)) · [GitHub](https://github.com/maritonx/easy-cms)
+[Next.js](https://easy-cms-website.vercel.app/docs/next) · [Documentation](https://easy-cms-website.vercel.app/docs) ([ภาษาไทย](https://easy-cms-website.vercel.app/th/docs)) · [GitHub](https://github.com/maritonx/easy-cms)
 
 MIT License

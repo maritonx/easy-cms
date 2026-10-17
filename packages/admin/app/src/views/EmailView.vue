@@ -83,7 +83,7 @@ async function sendTest() {
 }
 
 const docs = computed(
-  () => `https://maritonx.github.io/easy-cms${locale.value === 'th' ? '/th' : ''}/guide/email`,
+  () => `https://easy-cms-website.vercel.app${locale.value === 'th' ? '/th' : ''}/docs/email`,
 )
 </script>
 

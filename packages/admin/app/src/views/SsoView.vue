@@ -37,7 +37,7 @@ const DETAILS: Record<string, Parameters<typeof t>[0]> = {
   server: 'sso.server',
 }
 const docs = computed(
-  () => `https://maritonx.github.io/easy-cms${locale.value === 'th' ? '/th' : ''}/guide/sso`,
+  () => `https://easy-cms-website.vercel.app${locale.value === 'th' ? '/th' : ''}/docs/sso`,
 )
 </script>
 

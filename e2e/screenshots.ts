@@ -584,7 +584,7 @@ async function seed() {
   await call('POST', '/redirects', { from: '/blog/hello', to_posts: featured })
   const redirect = await call('POST', '/redirects', {
     from: '/old-docs',
-    to: 'https://maritonx.github.io/easy-cms/',
+    to: 'https://easy-cms-website.vercel.app/docs',
     type: '302',
   })
   await call('POST', '/redirects', { from: '/start', to: '/posts/get-started' })

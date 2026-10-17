@@ -47,6 +47,6 @@ function AddToCart({ product }: { product: number }) {
 
 ## Links
 
-[Shop guide](https://maritonx.github.io/easy-cms/guide/ecommerce) · [Documentation](https://maritonx.github.io/easy-cms/) ([ภาษาไทย](https://maritonx.github.io/easy-cms/th/)) · [GitHub](https://github.com/maritonx/easy-cms)
+[Shop guide](https://easy-cms-website.vercel.app/docs/ecommerce) · [Documentation](https://easy-cms-website.vercel.app/docs) ([ภาษาไทย](https://easy-cms-website.vercel.app/th/docs)) · [GitHub](https://github.com/maritonx/easy-cms)
 
 MIT License

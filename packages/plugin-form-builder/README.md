@@ -29,6 +29,6 @@ export default defineConfig({
 
 ## Links
 
-[Forms](https://maritonx.github.io/easy-cms/guide/forms) · [Documentation](https://maritonx.github.io/easy-cms/) ([ภาษาไทย](https://maritonx.github.io/easy-cms/th/)) · [GitHub](https://github.com/maritonx/easy-cms)
+[Forms](https://easy-cms-website.vercel.app/docs/forms) · [Documentation](https://easy-cms-website.vercel.app/docs) ([ภาษาไทย](https://easy-cms-website.vercel.app/th/docs)) · [GitHub](https://github.com/maritonx/easy-cms)
 
 MIT License

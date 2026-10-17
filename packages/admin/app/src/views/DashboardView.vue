@@ -117,7 +117,7 @@ async function loadStatus() {
   }
 }
 
-const DOCS = 'https://maritonx.github.io/easy-cms'
+const DOCS = 'https://easy-cms-website.vercel.app'
 const ANCHORS: Record<AdminAttention['id'], string> = {
   webhooks: 'failed-webhooks',
   emails: 'emails-not-sent',
@@ -131,7 +131,7 @@ const ANCHORS: Record<AdminAttention['id'], string> = {
 }
 /** An attention item as text, with where the docs explain the fix. */
 function describe(item: AdminAttention) {
-  const href = `${DOCS}${locale.value === 'th' ? '/th' : ''}/guide/health-checks#${ANCHORS[item.id]}`
+  const href = `${DOCS}${locale.value === 'th' ? '/th' : ''}/docs/health-checks#${ANCHORS[item.id]}`
   switch (item.id) {
     case 'webhooks':
       return {

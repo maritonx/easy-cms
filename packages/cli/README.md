@@ -33,6 +33,6 @@ command loads `.env` from the project root and takes `--config <file>`, `--cwd <
 
 ## Links
 
-[CLI](https://maritonx.github.io/easy-cms/guide/cli) · [Documentation](https://maritonx.github.io/easy-cms/) ([ภาษาไทย](https://maritonx.github.io/easy-cms/th/)) · [GitHub](https://github.com/maritonx/easy-cms)
+[CLI](https://easy-cms-website.vercel.app/docs/cli) · [Documentation](https://easy-cms-website.vercel.app/docs) ([ภาษาไทย](https://easy-cms-website.vercel.app/th/docs)) · [GitHub](https://github.com/maritonx/easy-cms)
 
 MIT License

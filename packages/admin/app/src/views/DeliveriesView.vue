@@ -114,7 +114,7 @@ const pretty = (body: string) => {
 }
 const docs = computed(
   () =>
-    `https://maritonx.github.io/easy-cms${locale.value === 'th' ? '/th' : ''}/guide/health-checks#${kind.value === 'webhook' ? 'failed-webhooks' : 'emails-not-sent'}`,
+    `https://easy-cms-website.vercel.app${locale.value === 'th' ? '/th' : ''}/docs/health-checks#${kind.value === 'webhook' ? 'failed-webhooks' : 'emails-not-sent'}`,
 )
 </script>
 

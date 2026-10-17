@@ -26,6 +26,6 @@ customize a node. No dependencies; works in Node and browsers.
 
 ## Links
 
-[Rich text](https://maritonx.github.io/easy-cms/guide/rich-text) · [Documentation](https://maritonx.github.io/easy-cms/) ([ภาษาไทย](https://maritonx.github.io/easy-cms/th/)) · [GitHub](https://github.com/maritonx/easy-cms)
+[Rich text](https://easy-cms-website.vercel.app/docs/rich-text) · [Documentation](https://easy-cms-website.vercel.app/docs) ([ภาษาไทย](https://easy-cms-website.vercel.app/th/docs)) · [GitHub](https://github.com/maritonx/easy-cms)
 
 MIT License

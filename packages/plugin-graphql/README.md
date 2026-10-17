@@ -37,6 +37,6 @@ Send it to `/api/cms/graphql`, or open that address in a browser for GraphiQL (o
 
 ## Links
 
-[GraphQL](https://maritonx.github.io/easy-cms/guide/graphql) · [Documentation](https://maritonx.github.io/easy-cms/) ([ภาษาไทย](https://maritonx.github.io/easy-cms/th/)) · [GitHub](https://github.com/maritonx/easy-cms)
+[GraphQL](https://easy-cms-website.vercel.app/docs/graphql) · [Documentation](https://easy-cms-website.vercel.app/docs) ([ภาษาไทย](https://easy-cms-website.vercel.app/th/docs)) · [GitHub](https://github.com/maritonx/easy-cms)
 
 MIT License
