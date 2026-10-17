@@ -176,6 +176,12 @@ point a Stripe webhook at `/api/cms/shop/payments/stripe/webhook` (events
 `payment_intent.succeeded`, `payment_intent.payment_failed`), so orders are made even when a
 customer closes the page.
 
+Without a webhook, or when one is lost, the scheduled jobs catch up: a payment still pending
+after a few minutes is checked with its provider (the adapter's `confirm`), and gets its order if
+the money is in. A method with `expiresIn` gives up on payments that didn't go through in that
+time (`failed`, "expired"), e.g. an expired PromptPay QR code; one that is paid later still gets
+its order. Without `expiresIn`, payments are checked for a day.
+
 Stripe needs the `stripe` package, version 17 to 23. Whichever is installed, the adapter asks
 Stripe for the API version it is tested with, `STRIPE_API_VERSION` (`2026-09-30.endive`), so
 upgrading the package doesn't change Stripe's answers; `stripeAdapter({ apiVersion })` picks

@@ -399,6 +399,58 @@ describe('paying by card', () => {
     expect((await doc('variants', red)).inventory).toBe(0)
     await cms.update('variants', red, { inventory: current })
   })
+
+  /** The shop's upkeep job, run at a given time (runJobs keeps when jobs last ran). */
+  const upkeep = (minutes: number) =>
+    cms.config.jobs
+      .find((job) => job.name === 'shop:payments')
+      ?.run({ cms: cms as never, now: new Date(Date.now() + minutes * 60_000) })
+
+  /** Stock for these tests, given back afterwards; card.answer back to yes. */
+  async function withStock(run: () => Promise<void>) {
+    const current = (await doc('variants', red)).inventory as number
+    await cms.update('variants', red, { inventory: 10 })
+    try {
+      await run()
+    } finally {
+      card.answer = 'succeeded'
+      await cms.update('variants', red, { inventory: current })
+    }
+  }
+
+  it('asks the provider again about payments nobody confirmed', () =>
+    withStock(async () => {
+      card.answer = 'failed' // as Stripe says while the customer hasn't paid yet
+      const tx = (await checkout()).started.transaction
+      await upkeep(5)
+      // Not paid yet, and no expiresIn: it waits.
+      expect((await doc('transactions', tx)).status).toBe('pending')
+      card.answer = 'succeeded' // paid; the tab was closed and no webhook came
+      await upkeep(10)
+      const paid = await doc('transactions', tx)
+      expect((await doc('orders', idOf(paid.order))).status).toBe('paid')
+    }))
+
+  it("gives up on payments past the method's expiresIn, and still takes them if they arrive", () =>
+    withStock(async () => {
+      const adapter = fakeCard as { expiresIn?: number | false }
+      adapter.expiresIn = 3600
+      try {
+        card.answer = 'failed'
+        const tx = (await checkout()).started.transaction
+        await upkeep(30)
+        expect((await doc('transactions', tx)).status).toBe('pending')
+        await upkeep(120)
+        expect(await doc('transactions', tx)).toMatchObject({ status: 'failed', error: 'expired' })
+        // The money came after all (a late webhook): the order is still made.
+        const late = await call('POST', '/shop/payments/card/webhook', {
+          body: { reference: `pi_${tx}` },
+        })
+        expect(late.body.result.order).toBeTruthy()
+      } finally {
+        delete adapter.expiresIn
+      }
+    }))
 })
 
 describe('orders in the admin', () => {

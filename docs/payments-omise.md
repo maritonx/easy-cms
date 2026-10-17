@@ -80,6 +80,8 @@ Omise ต่อกับสัญญาปัจจุบันได้**บา
 
 ### G4 — shop ไม่เคยถาม provider ซ้ำ {#g4}
 
+> **ทำแล้วบน branch `next` (1.1):** งาน `shop:payments` ถามซ้ำผ่าน `confirm` และ `expiresIn` ใช้ได้กับ adapter ทุกแบบ
+
 **ปัญหา:** ปัจจุบัน transaction ของ adapter ที่ไม่ใช่ `manual` เปลี่ยนสถานะได้แค่จาก `confirm` (หน้าเว็บเรียก)
 หรือ webhook งาน `shop:payments` คืนแค่ transaction ที่ค้างอยู่ใน `processing` กลับเป็น `pending`
 ไม่ได้ถาม provider และไม่ทำให้ `pending` หมดอายุ
