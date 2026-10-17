@@ -37,7 +37,7 @@
     "@easy-cms/db-sqlite": "workspace:^",
     "@nuxt/schema": "^4.5.2",
     "@nuxt/test-utils": "^4.3.2",
-    "nuxt": "^4.5.2",
+    "nuxt": "^4.6.2",
     "vue": "^3.5.0"
   },
   "publishConfig": {
