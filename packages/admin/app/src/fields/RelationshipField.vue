@@ -49,12 +49,18 @@ async function loadTitles(ids: Id[]) {
   }
   for (const id of missing) titles.value[String(id)] ??= `#${id}`
 }
+/** A chip's text: the title, or "Loading…" until it arrives (`#id` when it can't be read). */
+const chipTitle = (id: Id) => titles.value[String(id)] ?? t('common.loading')
 onMounted(() => loadTitles(selectedIds.value))
 watch(selectedIds, loadTitles)
 
 const query = ref('')
 const open = ref(false)
 const options = ref<Doc[]>([])
+/** A search is under way: say so instead of "No matches". */
+const searching = ref(false)
+/** Only the latest search may set the options; an older, slower answer is dropped. */
+let latest = 0
 const active = ref(0)
 let timer: ReturnType<typeof setTimeout> | undefined
 
@@ -65,20 +71,26 @@ const filterQuery = useFilterQuery(() => props.filterPath)
 async function search() {
   const field = target?.useAsTitle
   const where = query.value && field ? { [field]: { like: query.value } } : undefined
+  const run = ++latest
+  searching.value = true
   try {
     const result = await api<Paginated<Doc>>(
       'GET',
       `/${props.to}${toQuery({ where, limit: 10, depth: 0, draft: true, sort: field ?? '-updatedAt' })}${filterQuery()}`,
     )
+    if (run !== latest) return
     options.value = result.docs.filter((d) => !selectedIds.value.includes(d.id))
     for (const doc of result.docs) titles.value[String(doc.id)] = titleOf(target, doc)
   } catch {
+    if (run !== latest) return
     options.value = []
   }
+  searching.value = false
   active.value = 0
 }
 function onInput() {
   open.value = true
+  searching.value = true
   clearTimeout(timer)
   timer = setTimeout(search, 200)
 }
@@ -138,8 +150,8 @@ function created(doc: Doc) {
     <ul v-if="selectedIds.length" class="chips">
       <li v-for="id in selectedIds" :key="String(id)" class="chip">
         <span v-if="noAccess">#{{ id }}</span>
-        <RouterLink v-else :to="`/collections/${to}/${id}`">{{ titles[String(id)] ?? `#${id}` }}</RouterLink>
-        <button v-if="!readOnly && !noAccess" type="button" class="chip-remove" :aria-label="t('field.remove', { title: titles[String(id)] ?? `#${id}` })" @click="removeId(id)"><X :size="13" aria-hidden="true" /></button>
+        <RouterLink v-else :to="`/collections/${to}/${id}`">{{ chipTitle(id) }}</RouterLink>
+        <button v-if="!readOnly && !noAccess" type="button" class="chip-remove" :aria-label="t('field.remove', { title: chipTitle(id) })" @click="removeId(id)"><X :size="13" aria-hidden="true" /></button>
       </li>
     </ul>
     <p v-if="noAccess" class="field-hint">
@@ -174,7 +186,8 @@ function created(doc: Doc) {
         >
           {{ titleOf(target, doc) }}
         </li>
-        <li v-if="!options.length" class="muted empty">{{ t('field.noMatches') }}</li>
+        <li v-if="!options.length && searching" class="muted empty" role="status">{{ t('common.loading') }}</li>
+        <li v-else-if="!options.length" class="muted empty">{{ t('field.noMatches') }}</li>
       </ul>
     </div>
     <button v-if="!readOnly && !noAccess && canCreate && (hasMany || !selectedIds.length)" type="button" class="btn btn-ghost btn-sm create" @click="creating = true">
