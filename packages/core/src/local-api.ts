@@ -1953,13 +1953,26 @@ export class EasyCMS<C extends Config = Config> {
       await this.audit
         .upkeep(now)
         .catch((error) => this.logger.error(`Audit log: ${(error as Error).message}`))
-      return {
+      const result = {
         scheduled,
         webhooks: await this.retryWebhooks(now),
         emails: await this.mailer.retry(now),
         jobs: await this.runConfigJobs(now),
       }
+      // When jobs last ran, for Settings → Jobs: whether anything runs them at all (a cron on
+      // serverless hosts). The real time, not `now`, which tests move.
+      const ranAt = new Date().toISOString()
+      await this.db
+        .updateGlobal({ slug: JOBS_RAN, data: { at: ranAt, updatedAt: ranAt } })
+        .catch((error) => this.logger.error(`Jobs: ${(error as Error).message}`))
+      return result
     })
+  }
+
+  /** @internal When jobs last ran (the scheduler, the cron endpoint or `easy-cms jobs:run`). */
+  async jobsLastRan(): Promise<string | null> {
+    const row = (await this.db.findGlobal({ slug: JOBS_RAN })) as { at?: unknown } | null
+    return typeof row?.at === 'string' ? row.at : null
   }
 
   /**
@@ -3603,6 +3616,8 @@ export function jobSchedule(
   return { every: job.every, at: job.at, overridden: false }
 }
 
+/** When jobs last ran, kept in the globals table (no migration). */
+const JOBS_RAN = 'easy-cms:jobs-ran'
 /** Where job runs were kept before the `job-runs` collection: read once, when a job has no row. */
 const LEGACY_JOB_RUNS = 'easy-cms:jobs'
 /** A scheduled job claimed this long ago by a process that never finished it goes back to the queue. */
