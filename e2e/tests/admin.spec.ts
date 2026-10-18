@@ -1440,6 +1440,29 @@ test.describe('logged in as admin', () => {
     await expect(page.getByRole('region', { name: 'Activity' })).toContainText('Created')
   })
 
+  test('shows skeletons while slow pages load, then the content (#146)', async ({ page }) => {
+    // A collection's first page: skeleton rows with a "Loading…" status, then the posts.
+    const list = await hold(page, /\/api\/cms\/posts\?/)
+    await page.goto('/admin/collections/posts')
+    const table = page.locator('.table-wrap')
+    await expect(table.locator('.skeleton-row').first()).toBeVisible()
+    await expect(table).toHaveAttribute('aria-busy', 'true')
+    await expect(table.getByRole('status')).toHaveText('Loading…')
+    list.release()
+    await expect(table.locator('.skeleton-row')).toHaveCount(0)
+    const first = table.locator('tbody').getByRole('link').first()
+    await expect(first).toBeVisible()
+
+    // A document: a form skeleton, then the form.
+    const href = String(await first.getAttribute('href'))
+    const doc = await hold(page, /\/api\/cms\/posts\/\d+/)
+    await page.goto(href)
+    await expect(page.locator('.form-skeleton')).toBeVisible()
+    doc.release()
+    await expect(page.locator('.form-skeleton')).toHaveCount(0)
+    await expect(page.locator('form.editor')).toBeVisible()
+  })
+
   test('creates an editor account', async ({ page }) => {
     await page.goto('/admin/collections/users/new')
     await page.getByLabel('Email').fill(EDITOR.email)

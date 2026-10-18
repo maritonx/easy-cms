@@ -2,12 +2,16 @@
 import type { AdminEmail, EmailCheck } from '@easy-cms/core'
 import { ChevronRight, PlugZap, Send } from '@lucide/vue'
 import { computed, onMounted, ref, useId } from 'vue'
+import PanelSkeleton from '../components/PanelSkeleton.vue'
 import { ApiError, api } from '../lib/api'
 import { locale, t } from '../lib/i18n'
+import { useDelayedLoading } from '../lib/loading'
 import { session } from '../lib/session'
 
 /** Settings → Email (admins): the settings in use, a connection check and a test email. */
 const email = ref<AdminEmail | null>(null)
+/** A skeleton while the page loads (only when it is slow). */
+const showSkeleton = useDelayedLoading(() => !email.value)
 const failed = ref('')
 const to = ref(session.user?.email ?? '')
 const toId = useId()
@@ -106,7 +110,8 @@ const docs = computed(
     </header>
 
     <p v-if="failed" class="field-error">{{ failed }}</p>
-    <p v-else-if="!email" class="muted">{{ t('common.loading') }}</p>
+    <PanelSkeleton v-else-if="showSkeleton" />
+    <template v-else-if="!email" />
 
     <section v-else-if="!email.configured" class="card panel">
       <h2>{{ t('email.notSetUp') }}</h2>

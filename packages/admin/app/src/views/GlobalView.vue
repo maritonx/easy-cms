@@ -5,6 +5,7 @@ import { onBeforeRouteLeave, useRoute } from 'vue-router'
 import ActivityPanel from '../components/ActivityPanel.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import ErrorSummary from '../components/ErrorSummary.vue'
+import FormSkeleton from '../components/FormSkeleton.vue'
 import LivePreview from '../components/LivePreview.vue'
 import LocaleSwitcher from '../components/LocaleSwitcher.vue'
 import PluginElement from '../components/PluginElement.vue'
@@ -16,6 +17,7 @@ import { ApiError, api } from '../lib/api'
 import { contentLocale, localeQuery, setContentLocale } from '../lib/content-locale'
 import { snapshot, toFormValues } from '../lib/fields'
 import { formatDate, label, t } from '../lib/i18n'
+import { useDelayedLoading } from '../lib/loading'
 import { useLocalDraft } from '../lib/local-draft'
 import { FORM, setPath } from '../lib/plugins'
 import { findGlobal, session } from '../lib/session'
@@ -33,6 +35,8 @@ const form = ref<Data>({})
 const meta = ref<{ updatedAt?: unknown; status?: unknown }>({})
 const baseline = ref('')
 const loading = ref(true)
+/** A form skeleton while the global loads (only when it is slow). */
+const showSkeleton = useDelayedLoading(loading)
 const saving = ref(false)
 const errors = ref<Record<string, string[]>>({})
 const message = ref<{ kind: 'success' | 'error'; text: string } | null>(null)
@@ -245,7 +249,8 @@ onBeforeUnmount(() => {
 
 <template>
   <p v-if="!global" class="notice">{{ t('common.notFound') }}</p>
-  <p v-else-if="loading" class="muted">{{ t('common.loading') }}</p>
+  <FormSkeleton v-else-if="showSkeleton" :fields="mainFields" header />
+  <template v-else-if="loading" />
   <form v-else novalidate @submit.prevent="save(global.drafts ? (draftOnly ? 'draft' : 'published') : undefined)">
     <header class="editor-header">
       <div class="title-row">

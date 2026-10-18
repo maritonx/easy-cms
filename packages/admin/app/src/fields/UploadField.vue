@@ -26,6 +26,8 @@ const filterQuery = useFilterQuery(() => props.filterPath)
 
 const media = ref<Doc | null>(null)
 const picking = ref(false)
+/** The chosen file's details are on their way: not "no access" yet. */
+const loadingMedia = ref(false)
 
 async function load(id: unknown) {
   if (id === null || id === undefined || id === '') {
@@ -33,9 +35,11 @@ async function load(id: unknown) {
     return
   }
   if (media.value && String(media.value.id) === String(id)) return
+  loadingMedia.value = true
   media.value = await api<Doc>('GET', `/media/${encodeURIComponent(String(id))}?depth=0`).catch(
     () => null,
   )
+  loadingMedia.value = false
 }
 watch(() => props.modelValue, load, { immediate: true })
 
@@ -69,6 +73,12 @@ function choose(doc: Doc) {
           <Trash2 :size="15" aria-hidden="true" />
           {{ t('media.remove') }}
         </button>
+      </div>
+    </div>
+    <div v-else-if="loadingMedia" class="selected card">
+      <span class="locked" aria-hidden="true"><span class="spinner" /></span>
+      <div class="info">
+        <span class="name muted" role="status">{{ t('common.loading') }}</span>
       </div>
     </div>
     <!-- A file in a folder the user may not see: it stays unless they change or remove it. -->

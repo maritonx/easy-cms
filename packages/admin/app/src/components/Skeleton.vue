@@ -5,9 +5,9 @@
  */
 defineProps<{
   /** CSS width, e.g. `60%` or `8rem`. Default: the whole line. */
-  width?: string
+  width?: string | undefined
   /** CSS height. Default: one line of text. */
-  height?: string
+  height?: string | undefined
   /** `line` (default): text; `block`: an image or a control; `circle`: an avatar or icon. */
   shape?: 'line' | 'block' | 'circle'
 }>()
