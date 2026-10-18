@@ -1,5 +1,11 @@
 # @easy-cms/auth-oauth
 
+## 1.1.0
+
+### Patch Changes
+
+- @easy-cms/core@1.1.0
+
 ## 1.0.1
 
 ### Patch Changes
