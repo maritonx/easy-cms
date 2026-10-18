@@ -421,6 +421,11 @@ fieldset {
   vertical-align: -0.15em;
   animation: spinner 0.8s linear infinite;
 }
+.loading-line {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
 @keyframes spinner {
   to {
     transform: rotate(1turn);

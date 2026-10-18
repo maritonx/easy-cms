@@ -102,7 +102,7 @@ onBeforeUnmount(() => {
     <p v-if="error" class="field-error">{{ error }}</p>
     <p v-else-if="noPage" class="muted">{{ t('preview.none') }}</p>
     <iframe v-else-if="src" ref="frame" :src="src" :title="t('preview.title')" />
-    <p v-else class="muted">{{ t('common.loading') }}</p>
+    <p v-else class="muted loading-line" aria-live="polite"><span class="spinner" aria-hidden="true" />{{ t('common.loading') }}</p>
   </section>
 </template>
 

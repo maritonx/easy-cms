@@ -186,7 +186,7 @@ function created(doc: Doc) {
         >
           {{ titleOf(target, doc) }}
         </li>
-        <li v-if="!options.length && searching" class="muted empty" role="status">{{ t('common.loading') }}</li>
+        <li v-if="!options.length && searching" class="muted empty loading-line" role="status"><span class="spinner" aria-hidden="true" />{{ t('common.loading') }}</li>
         <li v-else-if="!options.length" class="muted empty">{{ t('field.noMatches') }}</li>
       </ul>
     </div>

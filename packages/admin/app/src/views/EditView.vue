@@ -7,6 +7,7 @@ import ApiKeyCreated from '../components/ApiKeyCreated.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import DeleteDialog from '../components/DeleteDialog.vue'
 import ErrorSummary from '../components/ErrorSummary.vue'
+import FormSkeleton from '../components/FormSkeleton.vue'
 import IdentitiesPanel from '../components/IdentitiesPanel.vue'
 import LivePreview from '../components/LivePreview.vue'
 import LocaleSwitcher from '../components/LocaleSwitcher.vue'
@@ -22,6 +23,7 @@ import { contentLocale, localeQuery, setContentLocale } from '../lib/content-loc
 import { initialValues, snapshot, titleOf, toFormValues } from '../lib/fields'
 import { formatBytes, formatDate, label, singularize, t } from '../lib/i18n'
 import { listPath } from '../lib/list-memory'
+import { useDelayedLoading } from '../lib/loading'
 import { useLocalDraft } from '../lib/local-draft'
 import { FORM, setPath } from '../lib/plugins'
 import { remember } from '../lib/recent'
@@ -109,6 +111,8 @@ async function sendPasswordLink(
 const doc = ref<Doc | null>(null)
 const baseline = ref('')
 const loading = ref(id !== undefined)
+/** A form skeleton while the document loads (only when it is slow). */
+const showSkeleton = useDelayedLoading(loading)
 const saving = ref(false)
 const errors = ref<Record<string, string[]>>({})
 const message = ref<{ kind: 'success' | 'error'; text: string } | null>(null)
@@ -483,7 +487,8 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
     {{ notFound ? t('edit.notFound') : t('common.notFound') }}
     <RouterLink :to="`/collections/${slug}`">{{ t('common.back') }}</RouterLink>
   </p>
-  <p v-else-if="loading" class="muted">{{ t('common.loading') }}</p>
+  <FormSkeleton v-else-if="showSkeleton" :fields="mainFields" header />
+  <template v-else-if="loading" />
   <form v-else class="editor" novalidate @submit.prevent="save(collection.drafts ? (draftOnly ? 'draft' : 'published') : undefined)">
     <header class="editor-header">
       <div class="title-block">

@@ -3,14 +3,18 @@ import type { AdminBackup, AdminBackups } from '@easy-cms/core'
 import { ChevronRight, DatabaseBackup, Download, Trash2, TriangleAlert } from '@lucide/vue'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import PanelSkeleton from '../components/PanelSkeleton.vue'
 import { ApiError, api } from '../lib/api'
 import { formatBytes, formatDate, locale, t } from '../lib/i18n'
+import { useDelayedLoading } from '../lib/loading'
 import { session } from '../lib/session'
 import { settings } from '../lib/settings'
 import { notify } from '../lib/toast'
 
 /** Settings → Backups (admins): the schedule, the backups, back up now, download, delete. */
 const data = ref<AdminBackups | null>(null)
+/** A skeleton while the page loads (only when it is slow). */
+const showSkeleton = useDelayedLoading(() => !data.value)
 const failed = ref('')
 const starting = ref(false)
 const deleting = ref<AdminBackup | null>(null)
@@ -108,7 +112,8 @@ const STATES = {
     </header>
 
     <p v-if="failed" class="field-error">{{ failed }}</p>
-    <p v-else-if="!data" class="muted">{{ t('common.loading') }}</p>
+    <PanelSkeleton v-else-if="showSkeleton" />
+    <template v-else-if="!data" />
     <template v-else>
       <p v-if="data.settings.unavailable" class="warning" role="alert">
         <TriangleAlert :size="16" aria-hidden="true" />

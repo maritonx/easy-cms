@@ -195,7 +195,7 @@ function insertUrl() {
         </button>
       </li>
     </ul>
-    <p v-if="!loaded" class="muted" role="status">{{ t('common.loading') }}</p>
+    <p v-if="!loaded" class="muted loading-line" role="status"><span class="spinner" aria-hidden="true" />{{ t('common.loading') }}</p>
     <p v-else-if="!items.length" class="muted">{{ t('media.empty') }}</p>
     <ul class="grid">
       <li v-for="item in items" :key="String(item.id)">
