@@ -141,7 +141,9 @@ mutation {
   always does.
 - Relationships and uploads take ids. Rich text takes a Tiptap document or plain text (blank
   lines start new paragraphs). Blocks take rows as JSON with `blockType`.
-- Required fields are required in `create` inputs; `update` inputs change only what you send.
+- Required fields are required in `create` inputs, inside groups and array rows too (their
+  create types are named `…CreateInput`, e.g. `PostLinksRowCreateInput`); `update` inputs
+  change only what you send.
 - Files are uploaded over [REST](./uploads), then used by id. Logging in, versions and
   scheduling are REST too.
 

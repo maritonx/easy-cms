@@ -133,7 +133,8 @@ mutation {
 - `draft: true` บันทึกเป็น draft, `draft: false` เผยแพร่ ถ้าไม่ส่ง collection ทำตามปกติของมัน
 - relationship และ upload รับ id, rich text รับเอกสาร Tiptap หรือข้อความธรรมดา (บรรทัดว่างขึ้นย่อหน้าใหม่), blocks รับแถวเป็น JSON
   ที่มี `blockType`
-- field ที่ required ต้องส่งใน input ของ `create` ส่วน input ของ `update` เปลี่ยนเฉพาะที่ส่งมา
+- field ที่ required ต้องส่งใน input ของ `create` รวมถึงใน group และแถวของ array ด้วย (type สำหรับ create ชื่อ
+  `…CreateInput` เช่น `PostLinksRowCreateInput`) ส่วน input ของ `update` เปลี่ยนเฉพาะที่ส่งมา
 - ไฟล์อัปโหลดผ่าน [REST](./uploads) แล้วใช้ id ส่วนการล็อกอิน, version และการตั้งเวลาก็ใช้ REST
 
 ## ใครทำอะไรได้ {#who-may-do-what}

@@ -967,6 +967,7 @@ class Builder {
   }
 
   private nestedInputs = new Map<Field, GraphQLInputObjectType>()
+  private nestedCreateInputs = new Map<Field, GraphQLInputObjectType>()
   private inputFields(
     fields: readonly Field[],
     path: string,
@@ -975,12 +976,8 @@ class Builder {
     const out: GraphQLInputFieldConfigMap = {}
     for (const field of fields) {
       if (field.hidden || !isValidName(field.name)) continue
-      const type = this.inputOf(field, path)
-      const required =
-        strict &&
-        field.required === true &&
-        field.defaultValue === undefined &&
-        !['slug', 'group', 'array', 'blocks'].includes(field.type)
+      const type = this.inputOf(field, path, strict)
+      const required = strict && isRequiredInput(field)
       out[field.name] = {
         type: required ? new GraphQLNonNull(type as never) : type,
         ...describe(field.label),
@@ -989,7 +986,12 @@ class Builder {
     return out
   }
 
-  private inputOf(field: Field, path: string): GraphQLInputType {
+  /**
+   * `strict` (create inputs): required fields inside groups and array rows are non-null too, in
+   * `…CreateInput` types made only where something inside is required. Updates and globals use
+   * the plain types: drafts may leave required fields empty, and rows are sent whole.
+   */
+  private inputOf(field: Field, path: string, strict = false): GraphQLInputType {
     const many = (type: GraphQLInputType) => (hasMany(field) ? list(type) : type)
     switch (field.type) {
       case 'number':
@@ -1011,18 +1013,21 @@ class Builder {
         return list(JSONScalar)
       case 'group':
       case 'array': {
-        let type = this.nestedInputs.get(field)
+        const create = strict && requiresInside(field.fields)
+        const cache = create ? this.nestedCreateInputs : this.nestedInputs
+        let type = cache.get(field)
         if (!type) {
           const base = `${path}${pascal(field.name)}`
-          const name = field.type === 'group' ? `${base}Input` : `${base}RowInput`
+          const kind = create ? 'CreateInput' : 'Input'
+          const name = field.type === 'group' ? `${base}${kind}` : `${base}Row${kind}`
           type = new GraphQLInputObjectType({
             name: this.claim(name),
             fields: () => ({
               ...(field.type === 'array' ? { id: { type: GraphQLString } } : {}),
-              ...this.inputFields(field.fields, base, false),
+              ...this.inputFields(field.fields, base, create),
             }),
           })
-          this.nestedInputs.set(field, type)
+          cache.set(field, type)
         }
         return field.type === 'group' ? type : list(type)
       }
@@ -1030,6 +1035,26 @@ class Builder {
         return GraphQLString
     }
   }
+}
+
+/** A field a create input must have: required, without a default, and not filled in for you. */
+function isRequiredInput(field: Field): boolean {
+  return (
+    field.required === true &&
+    field.defaultValue === undefined &&
+    !['slug', 'group', 'array', 'blocks'].includes(field.type)
+  )
+}
+
+/** Something inside these fields (or their groups and rows) is required in a create input. */
+function requiresInside(fields: readonly Field[]): boolean {
+  return fields.some(
+    (f) =>
+      !f.hidden &&
+      isValidName(f.name) &&
+      (isRequiredInput(f) ||
+        ((f.type === 'group' || f.type === 'array') && requiresInside(f.fields))),
+  )
 }
 
 /** A typed `where` as the Local API takes it: `AND`/`OR`, groups as dotted paths, ids. */

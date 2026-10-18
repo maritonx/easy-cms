@@ -714,7 +714,7 @@ input PostCreateInput {
   body: JSON
   data: JSON
   seo: PostSeoInput
-  links: [PostLinksRowInput!]
+  links: [PostLinksRowCreateInput!]
   layout: [JSON!]
 }
 
@@ -723,10 +723,10 @@ input PostSeoInput {
   noindex: Boolean
 }
 
-input PostLinksRowInput {
+input PostLinksRowCreateInput {
   id: String
   label: String
-  url: String
+  url: String!
 }
 
 input PostUpdateInput {
@@ -748,6 +748,12 @@ input PostUpdateInput {
   seo: PostSeoInput
   links: [PostLinksRowInput!]
   layout: [JSON!]
+}
+
+input PostLinksRowInput {
+  id: String
+  label: String
+  url: String
 }
 
 input SiteSettingsInput {

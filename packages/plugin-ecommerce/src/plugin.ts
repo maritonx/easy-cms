@@ -650,6 +650,7 @@ export function ecommercePlugin<const Cur extends string = 'THB'>(
           run: async ({ cms, now }) => {
             await runtime(cms).orders.release(now)
             await runtime(cms).orders.expire(now)
+            await runtime(cms).orders.recheck(now)
           },
         },
         {
