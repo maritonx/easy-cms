@@ -2,12 +2,15 @@
 import type { AdminAttention, AdminCollection, AdminStatus } from '@easy-cms/core'
 import { ArrowUpRight, CalendarClock, Plus, TriangleAlert } from '@lucide/vue'
 import { computed, onMounted, ref } from 'vue'
+import LoadingStatus from '../components/LoadingStatus.vue'
 import PluginElement from '../components/PluginElement.vue'
+import Skeleton from '../components/Skeleton.vue'
 import { api, type Doc, type Paginated, toQuery } from '../lib/api'
 import { counts, refreshCounts } from '../lib/counts'
 import { titleOf } from '../lib/fields'
 import { formatDate, label, locale, singularize, t } from '../lib/i18n'
 import { collectionIcon } from '../lib/icons'
+import { useDelayedLoading } from '../lib/loading'
 import { listed, menuOrder } from '../lib/menu'
 import { inSettings } from '../lib/nav'
 import { session } from '../lib/session'
@@ -216,7 +219,9 @@ const system = computed(() => {
 
 onMounted(() => {
   if (views?.status) void loadStatus()
-  void refreshCounts(true)
+  void refreshCounts(true).finally(() => {
+    countsPending.value = false
+  })
   void Promise.all(content.map((c) => latest(c))).then((lists) => {
     recent.value = lists
       .flatMap((l) => l.entries)
@@ -242,6 +247,13 @@ onMounted(() => {
     void loadScheduled()
   else scheduled.value = []
 })
+
+// Skeletons while the lists and numbers load (shown only when they are slow).
+const draftsLoading = useDelayedLoading(() => drafts.value === null)
+const recentLoading = useDelayedLoading(() => recent.value === null)
+const countsPending = ref(true)
+const countsLoading = useDelayedLoading(countsPending)
+const listsLoading = computed(() => draftsLoading.value || recentLoading.value)
 
 const showScheduled = computed(() => scheduled.value !== null && scheduled.value.length > 0)
 /** Without scheduled jobs or plugin panels, the main column takes the whole width. */
@@ -305,7 +317,10 @@ const statusOf = (doc: Doc) => (doc.status === 'published' ? 'published' : 'draf
             <component :is="collectionIcon(c.icon)" :size="16" aria-hidden="true" />
             {{ label(c.labels?.plural, c.slug) }}
           </span>
-          <span class="tile-count" aria-hidden="true">{{ counts[c.slug] ?? '…' }}</span>
+          <span class="tile-count" aria-hidden="true">
+            <Skeleton v-if="counts[c.slug] === undefined && countsLoading" width="2ch" height="1.4rem" />
+            <template v-else>{{ counts[c.slug] ?? '' }}</template>
+          </span>
           <span class="visually-hidden">{{ t('dashboard.documents', { count: counts[c.slug] ?? 0 }) }}</span>
         </RouterLink>
         <!-- Media is created by uploading, in its list. -->
@@ -323,13 +338,23 @@ const statusOf = (doc: Doc) => (doc.status === 'published' ? 'published' : 'draf
 
   <!-- Left: what needs doing, then what changed. Right: schedule and plugin panels. -->
   <div :class="['panels', { single: sideEmpty }]">
-    <div class="main-col">
+    <div class="main-col" :aria-busy="listsLoading">
+      <LoadingStatus v-if="listsLoading" />
       <section v-if="content.some((c) => c.drafts)" class="card panel">
         <h2>
           {{ t('dashboard.drafts') }}
           <span v-if="draftTotal" class="count-badge">{{ draftTotal }}</span>
         </h2>
-        <p v-if="drafts && drafts.length === 0" class="empty muted">{{ t('dashboard.noDrafts') }}</p>
+        <ul v-if="draftsLoading" class="entries compact">
+          <li v-for="n in 3" :key="n" class="row">
+            <span class="entry-text skeleton-lines">
+              <Skeleton width="55%" />
+              <Skeleton width="30%" height="0.7em" />
+            </span>
+            <Skeleton shape="block" width="4.5rem" height="1.9rem" />
+          </li>
+        </ul>
+        <p v-else-if="drafts && drafts.length === 0" class="empty muted">{{ t('dashboard.noDrafts') }}</p>
         <ul v-else class="entries compact">
           <li v-for="entry in drafts ?? []" :key="`${entry.collection.slug}-${entry.doc.id}`" class="row">
             <span class="entry-text">
@@ -349,7 +374,18 @@ const statusOf = (doc: Doc) => (doc.status === 'published' ? 'published' : 'draf
 
       <section class="card panel">
         <h2>{{ t('dashboard.recent') }}</h2>
-        <p v-if="recent && recent.length === 0" class="empty muted">{{ t('dashboard.noRecent') }}</p>
+        <ul v-if="recentLoading" class="entries">
+          <li v-for="n in 5" :key="n">
+            <span class="entry">
+              <Skeleton shape="block" width="2.1rem" height="2.1rem" />
+              <span class="entry-text skeleton-lines">
+                <Skeleton width="45%" />
+                <Skeleton width="65%" height="0.7em" />
+              </span>
+            </span>
+          </li>
+        </ul>
+        <p v-else-if="recent && recent.length === 0" class="empty muted">{{ t('dashboard.noRecent') }}</p>
         <ul v-else class="entries">
           <li v-for="entry in recent ?? []" :key="`${entry.collection.slug}-${entry.doc.id}`">
             <RouterLink :to="`/collections/${entry.collection.slug}/${entry.doc.id}`" class="entry">
@@ -612,6 +648,9 @@ const statusOf = (doc: Doc) => (doc.status === 'published' ? 'published' : 'draf
 .entry-meta {
   color: var(--faint);
   font-size: 0.82rem;
+}
+.skeleton-lines {
+  gap: 0.45rem;
 }
 .compact .row {
   display: flex;

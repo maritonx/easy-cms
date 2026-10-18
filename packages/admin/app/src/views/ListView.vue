@@ -37,8 +37,10 @@ import FolderMoveDialog from '../components/FolderMoveDialog.vue'
 import FolderNameDialog from '../components/FolderNameDialog.vue'
 import FolderPermissionsDialog from '../components/FolderPermissionsDialog.vue'
 import FolderTree from '../components/FolderTree.vue'
+import LoadingStatus from '../components/LoadingStatus.vue'
 import MediaThumb from '../components/MediaThumb.vue'
 import PluginElement from '../components/PluginElement.vue'
+import Skeleton from '../components/Skeleton.vue'
 import TransferDialog from '../components/TransferDialog.vue'
 import UploadDropzone from '../components/UploadDropzone.vue'
 import { ApiError, api, type Doc, type Id, type Paginated, toQuery } from '../lib/api'
@@ -61,6 +63,7 @@ import {
 } from '../lib/folders'
 import { formatBytes, formatDate, humanize, label, t } from '../lib/i18n'
 import { leaveList, scrollFor } from '../lib/list-memory'
+import { useDelayedLoading } from '../lib/loading'
 import { crumbsFor, isPinned, togglePin } from '../lib/nav'
 import { findCollection, session } from '../lib/session'
 import { notify } from '../lib/toast'
@@ -556,6 +559,9 @@ async function toggleNode(doc: Doc) {
 
 const result = ref<Paginated<Doc> | null>(null)
 const loading = ref(false)
+/** The first page: skeleton rows. Later loads (page, sort, search) dim the rows shown. */
+const firstLoad = useDelayedLoading(() => loading.value && result.value === null)
+const reloading = useDelayedLoading(() => loading.value && result.value !== null)
 const error = ref('')
 const selected = ref<Set<Doc['id']>>(new Set())
 // With versions and drafts, a live document can have a newer draft; the list shows the draft,
@@ -988,13 +994,22 @@ async function deleteSelected(query = '') {
 
     <p v-if="error" class="notice notice-error" role="alert">{{ error }}</p>
 
-    <div :class="['card', 'table-wrap', { 'grid-wrap': grid }]" :aria-busy="loading">
+    <div :class="['card', 'table-wrap', { 'grid-wrap': grid, reloading }]" :aria-busy="loading">
+      <div v-if="reloading" class="progress-line table-progress" aria-hidden="true"><span /></div>
+      <LoadingStatus v-if="firstLoad || reloading" />
       <template v-if="grid">
         <label v-if="rows.length" class="grid-all">
           <input type="checkbox" :checked="allSelected" @change="toggleAll" />
           {{ t('list.selectAll') }}
         </label>
         <ul class="media-grid">
+          <template v-if="firstLoad">
+            <li v-for="n in 12" :key="`skeleton-${n}`" class="media-card skeleton-card" aria-hidden="true">
+              <Skeleton shape="block" class="skeleton-thumb" />
+              <Skeleton width="75%" />
+              <Skeleton width="45%" height="0.7em" />
+            </li>
+          </template>
           <li
             v-for="{ doc } in rows"
             :key="doc.id"
@@ -1091,6 +1106,18 @@ async function deleteSelected(query = '') {
           </tr>
         </thead>
         <tbody>
+          <template v-if="firstLoad">
+            <tr v-for="n in 8" :key="`skeleton-${n}`" class="skeleton-row" aria-hidden="true">
+              <td class="check"><Skeleton shape="block" width="1rem" height="1rem" /></td>
+              <td v-if="isMedia" class="preview"><Skeleton shape="block" width="2.5rem" height="2.5rem" /></td>
+              <td><Skeleton :width="`${9 + ((n * 5) % 7)}rem`" /></td>
+              <td v-for="f in extraColumns" :key="f.name"><Skeleton width="5rem" /></td>
+              <td v-if="localized"><Skeleton width="3rem" /></td>
+              <td v-if="collection.drafts"><Skeleton shape="block" width="4.5rem" height="1.4rem" /></td>
+              <td class="date"><Skeleton width="6rem" /></td>
+              <td class="more" />
+            </tr>
+          </template>
           <tr
             v-for="{ doc, depth } in rows"
             :key="doc.id"
@@ -1727,7 +1754,36 @@ button.menu-item {
   margin-bottom: 0.9rem;
 }
 .table-wrap {
+  position: relative;
   overflow-x: auto;
+}
+.table-progress {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 1;
+}
+/* Reloading: the rows shown stay in place, dimmed, until the new ones arrive. */
+.table-wrap.reloading tbody,
+.table-wrap.reloading .media-grid {
+  opacity: 0.55;
+  transition: opacity 0.15s;
+}
+.skeleton-row td {
+  vertical-align: middle;
+}
+.skeleton-row .check .skeleton {
+  border-radius: 4px;
+}
+.skeleton-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.4rem 0.4rem 0.7rem;
+}
+.skeleton-thumb {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
 }
 table {
   width: 100%;

@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { setUnauthorizedHandler } from './lib/api'
+import { navigating } from './lib/loading'
 import { loadSession, session } from './lib/session'
 import { settings } from './lib/settings'
 
@@ -77,6 +78,17 @@ export const router = createRouter({
       ],
     },
   ],
+})
+
+// The navigation bar: from the start of a route change until it ends, or fails.
+router.beforeEach(() => {
+  navigating.value = true
+})
+router.afterEach(() => {
+  navigating.value = false
+})
+router.onError(() => {
+  navigating.value = false
 })
 
 router.beforeEach(async (to) => {
