@@ -53,6 +53,11 @@ how long it took, its result (with the error when it failed) and when it runs ne
 lists [scheduled publishing](./drafts#scheduled-publishing) that is waiting, running or failed.
 **Run due jobs now** runs whatever is due, as the cron would.
 
+The page also says when jobs last ran, and warns when nothing has run them for 10 minutes (on
+serverless hosts, usually a missing cron). **Built in** lists what Easy CMS does with every run:
+scheduled publishing, webhook and email retries, scheduled backups and the audit log check, each
+with a link to its page.
+
 Admins of the whole site can also:
 
 - **Pause** a job, for example while the service it calls is down. It doesn't run until someone

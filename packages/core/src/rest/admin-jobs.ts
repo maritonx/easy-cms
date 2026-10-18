@@ -1,6 +1,6 @@
 import type { ID } from '../access.js'
 import { type AuthUser, isSystemAdmin } from '../access.js'
-import { JOB_RUNS, SCHEDULED_JOBS } from '../builtins.js'
+import { EMAIL_DELIVERIES, JOB_RUNS, SCHEDULED_JOBS, WEBHOOK_DELIVERIES } from '../builtins.js'
 import type { ResolvedConfig } from '../config.js'
 import type { RawDocument } from '../database.js'
 import { EasyCMSError, ForbiddenError, NotFoundError, QueryError } from '../errors.js'
@@ -46,8 +46,15 @@ export interface AdminScheduledJob {
 }
 
 /** What Settings → Jobs shows (`GET <api>/admin/jobs`). */
+/** Work Easy CMS itself does with every run of the jobs, when it is set up. */
+export type BuiltInJob = 'scheduled' | 'webhooks' | 'emails' | 'backups' | 'audit'
+
 export interface AdminJobs {
   jobs: AdminJob[]
+  /** When jobs last ran (the scheduler, the cron endpoint), `null` if never. */
+  lastRanAt: string | null
+  /** Built-in work done with every run, in the order it runs. */
+  builtIn: BuiltInJob[]
   /** The time zone of `at` (`timeZone` in the config), `null`: the server's. */
   timeZone: string | null
   /** This user may pause jobs and change schedules (admins of the whole system). */
@@ -100,7 +107,20 @@ export async function adminJobs(cms: EasyCMS, user: AuthUser): Promise<AdminJobs
       lastDurationMs: typeof row?.lastDurationMs === 'number' ? row.lastDurationMs : null,
     }
   })
-  const head = { jobs, timeZone: config.timeZone ?? null, canChange: isSystemAdmin(user) }
+  const builtIn: BuiltInJob[] = [
+    ...(has(config, SCHEDULED_JOBS) ? (['scheduled'] as const) : []),
+    ...(has(config, WEBHOOK_DELIVERIES) ? (['webhooks'] as const) : []),
+    ...(has(config, EMAIL_DELIVERIES) ? (['emails'] as const) : []),
+    ...(config.backups?.frequency ? (['backups'] as const) : []),
+    ...(config.audit ? (['audit'] as const) : []),
+  ]
+  const head = {
+    jobs,
+    lastRanAt: await cms.jobsLastRan(),
+    builtIn,
+    timeZone: config.timeZone ?? null,
+    canChange: isSystemAdmin(user),
+  }
   if (!has(config, SCHEDULED_JOBS)) return { ...head, scheduled: null }
   const { docs } = await cms.db.find({
     collection: SCHEDULED_JOBS,

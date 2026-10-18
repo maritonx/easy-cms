@@ -69,6 +69,10 @@ const job = (data: AdminJobs, name: string) => data.jobs.find((j) => j.name === 
 
 describe('Settings → Jobs', () => {
   it('lists the jobs with their schedule and last run, and the scheduled queue', async () => {
+    // Before anything ran the jobs: no time, and the built-in work this config has.
+    const before = (await call('/admin/jobs')).json as AdminJobs
+    expect(before.lastRanAt).toBeNull()
+    expect(before.builtIn).toEqual(['scheduled'])
     const post = await cms.create('posts', { title: 'Soon' })
     await cms.schedule('posts', post.id, {
       action: 'publish',
@@ -79,6 +83,8 @@ describe('Settings → Jobs', () => {
     expect(status).toBe(200)
     const data = json as AdminJobs
     expect(data.timeZone).toBe('Asia/Bangkok')
+    // When jobs last ran: for Settings → Jobs to say whether anything runs them.
+    expect(Date.now() - Date.parse(data.lastRanAt as string)).toBeLessThan(60_000)
     expect(data.canChange).toBe(true)
     expect(job(data, 'sitemap')).toMatchObject({
       every: null,

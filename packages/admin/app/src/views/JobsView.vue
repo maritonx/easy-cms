@@ -87,6 +87,27 @@ async function runNow() {
 
 const views = session.schema?.views
 
+/** Nothing ran the jobs for this long (or ever): say so, with how to run them. */
+const STALE = 10 * 60_000
+const stale = computed(
+  () =>
+    !!data.value &&
+    (!data.value.lastRanAt || Date.now() - Date.parse(data.value.lastRanAt) > STALE),
+)
+const cronDocs = computed(
+  () =>
+    `https://easy-cms-website.vercel.app${locale.value === 'th' ? '/th' : ''}/docs/drafts#scheduled-publishing`,
+)
+/** Where each built-in job's own page is, when this user may open it. */
+function builtInLink(id: string): string | null {
+  if (id === 'scheduled') return '/jobs?tab=scheduled'
+  if ((id === 'webhooks' || id === 'emails') && views?.deliveries)
+    return `/deliveries?kind=${id === 'webhooks' ? 'webhook' : 'email'}`
+  if (id === 'backups' && views?.backups) return '/backups'
+  if (id === 'audit' && views?.audit) return '/audit'
+  return null
+}
+
 // Pausing and schedules (admins of the whole system; `canChange`).
 const changing = ref<string | null>(null)
 const editing = ref<AdminJob | null>(null)
@@ -119,8 +140,7 @@ const route = useRoute()
 const router = useRouter()
 const tabs = computed<Tab[]>(() => {
   if (!data.value) return []
-  const list: Tab[] = []
-  if (data.value.jobs.length > 0 || !data.value.scheduled) list.push('jobs')
+  const list: Tab[] = ['jobs']
   if (data.value.scheduled) list.push('scheduled')
   return list
 })
@@ -217,6 +237,21 @@ const docs = computed(
 
     <PanelSkeleton v-if="showSkeleton" />
     <template v-else-if="data">
+      <p v-if="stale" class="notice notice-warning heartbeat" role="note">
+        <TriangleAlert :size="16" aria-hidden="true" />
+        <span>
+          {{ data.lastRanAt ? t('jobs.staleSince', { ago: ago(data.lastRanAt) }) : t('jobs.neverRan') }}
+          {{ t('jobs.staleHelp') }}
+          <a :href="cronDocs" target="_blank" rel="noopener">{{ t('jobs.howToRun') }}</a>
+        </span>
+      </p>
+      <p v-else-if="data.lastRanAt" class="heartbeat muted">
+        <CircleCheck :size="15" aria-hidden="true" class="ok-icon" />
+        <span>
+          {{ t('jobs.lastRan') }}
+          <time :datetime="data.lastRanAt" :title="formatDate(data.lastRanAt)">{{ ago(data.lastRanAt) }}</time>
+        </span>
+      </p>
       <div v-if="tabs.length > 1" class="segmented tabs" role="group" :aria-label="t('jobs.title')">
         <button type="button" :aria-pressed="tab === 'jobs'" @click="setTab('jobs')">
           {{ t('jobs.configJobs') }}
@@ -232,7 +267,13 @@ const docs = computed(
 
       <section v-if="tab === 'jobs'" aria-labelledby="jobs-heading">
         <h2 id="jobs-heading" class="visually-hidden">{{ t('jobs.configJobs') }}</h2>
-        <p v-if="data.jobs.length === 0" class="card empty muted">{{ t('jobs.noJobs') }}</p>
+        <div v-if="data.jobs.length === 0" class="card empty-jobs">
+          <p>{{ t('jobs.noJobsLead') }}</p>
+          <pre><code>jobs: [
+  { name: 'sitemap:refresh', at: '02:00', run: ({ cms }) => refresh(cms) },
+]</code></pre>
+          <a :href="docs" target="_blank" rel="noopener">{{ t('jobs.howToAdd') }} →</a>
+        </div>
         <ul v-else class="jobs">
           <li
             v-for="job in data.jobs"
@@ -318,6 +359,20 @@ const docs = computed(
         <p v-if="data.jobs.some((j) => j.at)" class="zone muted">
           {{ data.timeZone ? t('jobs.inZone', { zone: data.timeZone }) : t('jobs.serverZone') }}
         </p>
+
+        <section v-if="data.builtIn.length" class="card built-in" aria-labelledby="built-in-heading">
+          <h3 id="built-in-heading">{{ t('jobs.builtIn') }}</h3>
+          <p class="muted small-lead">{{ t('jobs.builtInLead') }}</p>
+          <ul>
+            <li v-for="id in data.builtIn" :key="id">
+              <span class="built-in-name">{{ t(`jobs.builtIn.${id}`) }}</span>
+              <span class="muted">{{ t(`jobs.builtIn.${id}.detail`) }}</span>
+              <RouterLink v-if="builtInLink(id)" :to="builtInLink(id) as string" class="built-in-link">
+                {{ t('jobs.open') }} →
+              </RouterLink>
+            </li>
+          </ul>
+        </section>
       </section>
 
       <ConfirmDialog
@@ -370,10 +425,6 @@ const docs = computed(
         </div>
       </section>
 
-      <p v-if="views?.deliveries || views?.backups" class="more">
-        <RouterLink v-if="views?.deliveries" to="/deliveries">{{ t('jobs.deliveries') }} →</RouterLink>
-        <RouterLink v-if="views?.backups" to="/backups">{{ t('jobs.backups') }} →</RouterLink>
-      </p>
     </template>
   </template>
 </template>
@@ -553,6 +604,69 @@ const docs = computed(
 .job-error svg {
   flex-shrink: 0;
   margin-top: 0.1rem;
+}
+.heartbeat {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  margin: 0 0 1rem;
+  font-size: 0.875rem;
+}
+.heartbeat svg {
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+}
+.ok-icon {
+  color: var(--ok);
+}
+.empty-jobs {
+  padding: 1rem 1.1rem;
+  font-size: 0.9rem;
+}
+.empty-jobs p {
+  margin: 0 0 0.6rem;
+  color: var(--text-muted);
+}
+.empty-jobs pre {
+  margin: 0 0 0.6rem;
+  padding: 0.6rem 0.75rem;
+  overflow-x: auto;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-family: var(--mono);
+  font-size: 0.8rem;
+}
+.built-in {
+  margin-top: 1rem;
+  padding: 0.9rem 1.1rem 0.4rem;
+}
+.built-in h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+.small-lead {
+  margin: 0.2rem 0 0.5rem;
+  font-size: 0.85rem;
+}
+.built-in ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.built-in li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--border);
+  font-size: 0.875rem;
+}
+.built-in-name {
+  font-weight: 500;
+}
+.built-in-link {
+  margin-left: auto;
 }
 .zone {
   margin: 0.6rem 0 0;
