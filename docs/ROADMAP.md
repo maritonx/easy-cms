@@ -44,7 +44,7 @@
 | [`1.0.0`](https://github.com/maritonx/easy-cms/milestone/4) | 2026-12-15 | ออก 1.0 และประกาศ |
 | [`1.1`](https://github.com/maritonx/easy-cms/milestone/5) | — | Hardening: หลาย instance ปลอดภัย, ดูแลระบบได้, เครื่องมือความปลอดภัย |
 | [`1.2`](https://github.com/maritonx/easy-cms/milestone/6) | — | ความปลอดภัยและ identity, ฟีเจอร์ admin |
-| `1.3` | — | performance ที่ 1M เอกสาร |
+| [`1.3`](https://github.com/maritonx/easy-cms/milestone/7) | — | performance ที่ 1M เอกสาร |
 
 ### Labels
 
@@ -110,31 +110,31 @@
 
 | # | Issue | Labels | เสร็จเมื่อ |
 |---|---|---|---|
-| — | Claim scheduled jobs and webhook deliveries with `SKIP LOCKED` | area:core, release-blocker | เทสต์สอง instance บน Postgres เดียวกัน: ทุกงานรันครั้งเดียว; งานของ worker ที่ตายกลับเข้าคิวเมื่อ lease หมด ([ADR-0052](adr/0052-postgres-job-queue.md)) |
-| — | Run two instances against one Postgres in CI | area:core, area:release | CI รัน REST, login, upload ไป S3 และ jobs ผ่านสอง instance หลังตัวกระจายโหลด |
-| — | Configurable Postgres pool and `prepare`, tested behind PgBouncer | area:core | ตั้ง `prepare`, `statementTimeout`, `idleTimeout`, `connectTimeout`, `applicationName` (ค่าปริยาย `'easy-cms'`) ได้, CI รันเทสต์หลักผ่าน PgBouncer แบบ transaction pooling, เอกสารมีสูตรจำนวน connection และคำเตือนสำหรับ serverless ([ADR-0055](adr/0055-database-isolation.md)) |
-| — | Document database isolation levels and test a separate schema | area:docs, area:core | หน้า "Database isolation" (EN/TH) อธิบาย L0–L3, CI รันบน role ที่มี `search_path` เป็น schema ของตัวเอง และตรวจว่าไม่มีตารางใน `public` |
-| — | JSON logs with a request id | area:core | ตัวเลือกให้ log เป็น JSON บรรทัดละรายการ มี request id ที่ส่งกลับใน header ด้วย; ค่าปริยายยังอ่านง่ายสำหรับ dev |
-| — | `/healthz` and `/readyz` in the Next and Nuxt adapters | area:adapters | สอง endpoint ทำงานเหมือน standalone; `/readyz` เช็กฐานข้อมูลและ migration |
-| — | Official Docker image | area:release | image ที่ build ใน CI สำหรับ `easy-cms serve`, รันเป็น non-root, ติด tag ตามเวอร์ชัน, เอกสาร docker ใช้ image นี้ |
-| — | Document the reference architecture and what is not supported | area:docs | หน้า deploy (EN/TH) บอกชุดที่รับรองและข้อจำกัดของ SQLite/local disk |
-| — | Load test at 1M documents | area:release | `load.ts` seed ได้ถึง 1M เอกสาร, workflow รายคืนเก็บผลและเตือนเมื่อ p95 ช้าลงเกิน 20%; ตัวเลขแรกบันทึกใน SRS |
-| — | Truthful `SECURITY.md`, Dependabot and CodeQL | area:security | `SECURITY.md` ตรงกับ 1.x, มี Dependabot และ CodeQL ใน `.github/`, เปิด secret scanning ใน Settings |
+| [#153](https://github.com/maritonx/easy-cms/issues/153) | Claim scheduled jobs and webhook deliveries with `SKIP LOCKED` | area:core, release-blocker | เทสต์สอง instance บน Postgres เดียวกัน: ทุกงานรันครั้งเดียว; งานของ worker ที่ตายกลับเข้าคิวเมื่อ lease หมด ([ADR-0052](adr/0052-postgres-job-queue.md)) |
+| [#154](https://github.com/maritonx/easy-cms/issues/154) | Run two instances against one Postgres in CI | area:core, area:release | CI รัน REST, login, upload ไป S3 และ jobs ผ่านสอง instance หลังตัวกระจายโหลด |
+| [#155](https://github.com/maritonx/easy-cms/issues/155) | Configurable Postgres pool and `prepare`, tested behind PgBouncer | area:core | ตั้ง `prepare`, `statementTimeout`, `idleTimeout`, `connectTimeout`, `applicationName` (ค่าปริยาย `'easy-cms'`) ได้, CI รันเทสต์หลักผ่าน PgBouncer แบบ transaction pooling, เอกสารมีสูตรจำนวน connection และคำเตือนสำหรับ serverless ([ADR-0055](adr/0055-database-isolation.md)) |
+| [#156](https://github.com/maritonx/easy-cms/issues/156) | Document database isolation levels and test a separate schema | area:docs, area:core | หน้า "Database isolation" (EN/TH) อธิบาย L0–L3, CI รันบน role ที่มี `search_path` เป็น schema ของตัวเอง และตรวจว่าไม่มีตารางใน `public` |
+| [#157](https://github.com/maritonx/easy-cms/issues/157) | JSON logs with a request id | area:core | ตัวเลือกให้ log เป็น JSON บรรทัดละรายการ มี request id ที่ส่งกลับใน header ด้วย; ค่าปริยายยังอ่านง่ายสำหรับ dev |
+| [#158](https://github.com/maritonx/easy-cms/issues/158) | `/healthz` and `/readyz` in the Next and Nuxt adapters | area:adapters | สอง endpoint ทำงานเหมือน standalone; `/readyz` เช็กฐานข้อมูลและ migration |
+| [#159](https://github.com/maritonx/easy-cms/issues/159) | Official Docker image | area:release | image ที่ build ใน CI สำหรับ `easy-cms serve`, รันเป็น non-root, ติด tag ตามเวอร์ชัน, เอกสาร docker ใช้ image นี้ |
+| [#160](https://github.com/maritonx/easy-cms/issues/160) | Document the reference architecture and what is not supported | area:docs | หน้า deploy (EN/TH) บอกชุดที่รับรองและข้อจำกัดของ SQLite/local disk |
+| [#161](https://github.com/maritonx/easy-cms/issues/161) | Load test at 1M documents | area:release | `load.ts` seed ได้ถึง 1M เอกสาร, workflow รายคืนเก็บผลและเตือนเมื่อ p95 ช้าลงเกิน 20%; ตัวเลขแรกบันทึกใน SRS |
+| [#162](https://github.com/maritonx/easy-cms/issues/162) | Truthful `SECURITY.md`, Dependabot and CodeQL | area:security | `SECURITY.md` ตรงกับ 1.x, มี Dependabot และ CodeQL ใน `.github/`, เปิด secret scanning ใน Settings |
 
 ### M6 — `1.2` ความปลอดภัย, identity และ admin (ไม่กำหนดวัน) {#m6}
 
 | # | Issue | Labels | เสร็จเมื่อ |
 |---|---|---|---|
-| — | Require single sign-on for everyone (turn off password login) | area:security | ตัวเลือกปิด login ด้วยรหัสผ่านทุกคน ยกเว้นบัญชีฉุกเฉินที่ระบุ |
-| — | Map identity-provider groups to roles | area:security | claim กลุ่มจาก OIDC แมปเป็นบทบาท อัปเดตทุกครั้งที่ login, ทดสอบกับ Entra ID |
-| — | TOTP two-factor sign-in for password accounts | area:security | ตั้งและบังคับ TOTP ได้, มีรหัสกู้คืน, admin รีเซ็ตให้คนอื่นได้ และบันทึกใน audit log |
-| — | Sign webhook timestamps to stop replays | area:core, area:security | ลายเซ็นครอบ timestamp, เอกสารบอกวิธีตรวจและช่วงเวลาที่ยอมรับ |
-| — | Rotate `EASY_CMS_SECRET` without logging everyone out | area:security | รับ secret เก่าและใหม่พร้อมกันช่วงหนึ่ง, เอกสารขั้นตอนหมุน |
-| — | `schema` option for `@easy-cms/db-postgres` | area:core | ตารางทั้งหมดใช้ `pgSchema()`, คำสั่ง CLI ย้ายตารางของระบบที่ติดตั้งแล้วไป schema ใหม่ พร้อมเทสต์อัปเกรด |
-| — | Run with a database role that can only read and write data | area:core, area:security | `verify()` ไม่ใช้ DDL, เอกสารให้ `easy-cms migrate` ใช้ role เจ้าของ schema, CI รัน runtime ด้วย role ที่มีแค่ DML |
-| — | Rate limit the API | area:core, area:security | จำกัดต่อ IP และต่อ API key ได้ เก็บในฐานข้อมูลเพื่อใช้ได้หลาย instance |
-| — | OpenSSF Scorecard | area:security | workflow และ badge ใน README |
-| — | Security self-review against OWASP ASVS level 2 | area:security | ไล่ ASVS 4.0.3 L2 ทีละข้อ อ้างเลขข้อจากเอกสารจริง, ผลใน `docs/security/` แทนฉบับ L1 |
+| [#163](https://github.com/maritonx/easy-cms/issues/163) | Require single sign-on for everyone (turn off password login) | area:security | ตัวเลือกปิด login ด้วยรหัสผ่านทุกคน ยกเว้นบัญชีฉุกเฉินที่ระบุ |
+| [#164](https://github.com/maritonx/easy-cms/issues/164) | Map identity-provider groups to roles | area:security | claim กลุ่มจาก OIDC แมปเป็นบทบาท อัปเดตทุกครั้งที่ login, ทดสอบกับ Entra ID |
+| [#165](https://github.com/maritonx/easy-cms/issues/165) | TOTP two-factor sign-in for password accounts | area:security | ตั้งและบังคับ TOTP ได้, มีรหัสกู้คืน, admin รีเซ็ตให้คนอื่นได้ และบันทึกใน audit log |
+| [#166](https://github.com/maritonx/easy-cms/issues/166) | Sign webhook timestamps to stop replays | area:core, area:security | ลายเซ็นครอบ timestamp, เอกสารบอกวิธีตรวจและช่วงเวลาที่ยอมรับ |
+| [#167](https://github.com/maritonx/easy-cms/issues/167) | Rotate `EASY_CMS_SECRET` without logging everyone out | area:security | รับ secret เก่าและใหม่พร้อมกันช่วงหนึ่ง, เอกสารขั้นตอนหมุน |
+| [#172](https://github.com/maritonx/easy-cms/issues/172) | `schema` option for `@easy-cms/db-postgres` | area:core | ตารางทั้งหมดใช้ `pgSchema()`, คำสั่ง CLI ย้ายตารางของระบบที่ติดตั้งแล้วไป schema ใหม่ พร้อมเทสต์อัปเกรด |
+| [#173](https://github.com/maritonx/easy-cms/issues/173) | Run with a database role that can only read and write data | area:core, area:security | `verify()` ไม่ใช้ DDL, เอกสารให้ `easy-cms migrate` ใช้ role เจ้าของ schema, CI รัน runtime ด้วย role ที่มีแค่ DML |
+| [#168](https://github.com/maritonx/easy-cms/issues/168) | Rate limit the API | area:core, area:security | จำกัดต่อ IP และต่อ API key ได้ เก็บในฐานข้อมูลเพื่อใช้ได้หลาย instance |
+| [#169](https://github.com/maritonx/easy-cms/issues/169) | OpenSSF Scorecard | area:security | workflow และ badge ใน README |
+| [#170](https://github.com/maritonx/easy-cms/issues/170) | Security self-review against OWASP ASVS level 2 | area:security | ไล่ ASVS 4.0.3 L2 ทีละข้อ อ้างเลขข้อจากเอกสารจริง, ผลใน `docs/security/` แทนฉบับ L1 |
 | [#86](https://github.com/maritonx/easy-cms/issues/86) | Omise payments for the shop: PromptPay, cards, mobile banking | area:plugins | |
 | [#87](https://github.com/maritonx/easy-cms/issues/87) | Saved list views in the admin | area:admin | |
 | [#88](https://github.com/maritonx/easy-cms/issues/88) | List filters with several conditions | area:admin | |
@@ -146,12 +146,12 @@
 
 | # | Issue | Labels | เสร็จเมื่อ |
 |---|---|---|---|
-| — | Cache published public reads with ETag and cache tags | area:core, area:adapters | `ETag`, `s-maxage`, `stale-while-revalidate` ต่อ collection, purge ด้วย tag ต่อกับ Next และ Nuxt ([ADR-0054](adr/0054-http-cache-not-redis.md)) |
-| — | Cursor pagination for REST and the Local API | area:core | `?cursor=` คืน cursor ถัดไป, offset ยังใช้ได้แต่ API public จำกัดความลึก |
-| — | Trigram indexes for `like` and `contains` on Postgres | area:core | `index: 'trigram'` สร้าง GIN `pg_trgm`, ค้นภาษาไทยได้, load test แสดงผลต่าง |
-| — | Search adapter interface | area:plugins | interface สำหรับ search ภายนอก พร้อม adapter ตัวแรก ทดสอบการตัดคำไทย |
-| — | Opt-in outbox for `afterChange` and webhooks | area:core | ตัวเลือกใน config ตาม [ADR-0053](adr/0053-outbox-for-after-hooks.md), เอกสารเรื่อง hook ที่รันซ้ำได้ |
-| — | OpenTelemetry traces and metrics | area:core | peer dependency แบบเลือกใช้, span ของ request และ query, metrics ของคิวงาน |
+| [#174](https://github.com/maritonx/easy-cms/issues/174) | Cache published public reads with ETag and cache tags | area:core, area:adapters | `ETag`, `s-maxage`, `stale-while-revalidate` ต่อ collection, purge ด้วย tag ต่อกับ Next และ Nuxt ([ADR-0054](adr/0054-http-cache-not-redis.md)) |
+| [#175](https://github.com/maritonx/easy-cms/issues/175) | Cursor pagination for REST and the Local API | area:core | `?cursor=` คืน cursor ถัดไป, offset ยังใช้ได้แต่ API public จำกัดความลึก |
+| [#176](https://github.com/maritonx/easy-cms/issues/176) | Trigram indexes for `like` and `contains` on Postgres | area:core | `index: 'trigram'` สร้าง GIN `pg_trgm`, ค้นภาษาไทยได้, load test แสดงผลต่าง |
+| [#177](https://github.com/maritonx/easy-cms/issues/177) | Search adapter interface | area:plugins | interface สำหรับ search ภายนอก พร้อม adapter ตัวแรก ทดสอบการตัดคำไทย |
+| [#178](https://github.com/maritonx/easy-cms/issues/178) | Opt-in outbox for `afterChange` and webhooks | area:core | ตัวเลือกใน config ตาม [ADR-0053](adr/0053-outbox-for-after-hooks.md), เอกสารเรื่อง hook ที่รันซ้ำได้ |
+| [#179](https://github.com/maritonx/easy-cms/issues/179) | OpenTelemetry traces and metrics | area:core | peer dependency แบบเลือกใช้, span ของ request และ query, metrics ของคิวงาน |
 
 ---
 
