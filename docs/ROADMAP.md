@@ -112,7 +112,8 @@
 |---|---|---|---|
 | — | Claim scheduled jobs and webhook deliveries with `SKIP LOCKED` | area:core, release-blocker | เทสต์สอง instance บน Postgres เดียวกัน: ทุกงานรันครั้งเดียว; งานของ worker ที่ตายกลับเข้าคิวเมื่อ lease หมด ([ADR-0052](adr/0052-postgres-job-queue.md)) |
 | — | Run two instances against one Postgres in CI | area:core, area:release | CI รัน REST, login, upload ไป S3 และ jobs ผ่านสอง instance หลังตัวกระจายโหลด |
-| — | Configurable Postgres pool and `prepare`, tested behind PgBouncer | area:core | ตั้ง `max` และ `prepare` ได้, CI รันเทสต์หลัก ผ่าน PgBouncer แบบ transaction pooling, เอกสาร deploy บอกค่าที่ต้องตั้ง |
+| — | Configurable Postgres pool and `prepare`, tested behind PgBouncer | area:core | ตั้ง `prepare`, `statementTimeout`, `idleTimeout`, `connectTimeout`, `applicationName` (ค่าปริยาย `'easy-cms'`) ได้, CI รันเทสต์หลักผ่าน PgBouncer แบบ transaction pooling, เอกสารมีสูตรจำนวน connection และคำเตือนสำหรับ serverless ([ADR-0055](adr/0055-database-isolation.md)) |
+| — | Document database isolation levels and test a separate schema | area:docs, area:core | หน้า "Database isolation" (EN/TH) อธิบาย L0–L3, CI รันบน role ที่มี `search_path` เป็น schema ของตัวเอง และตรวจว่าไม่มีตารางใน `public` |
 | — | JSON logs with a request id | area:core | ตัวเลือกให้ log เป็น JSON บรรทัดละรายการ มี request id ที่ส่งกลับใน header ด้วย; ค่าปริยายยังอ่านง่ายสำหรับ dev |
 | — | `/healthz` and `/readyz` in the Next and Nuxt adapters | area:adapters | สอง endpoint ทำงานเหมือน standalone; `/readyz` เช็กฐานข้อมูลและ migration |
 | — | Official Docker image | area:release | image ที่ build ใน CI สำหรับ `easy-cms serve`, รันเป็น non-root, ติด tag ตามเวอร์ชัน, เอกสาร docker ใช้ image นี้ |
@@ -129,6 +130,8 @@
 | — | TOTP two-factor sign-in for password accounts | area:security | ตั้งและบังคับ TOTP ได้, มีรหัสกู้คืน, admin รีเซ็ตให้คนอื่นได้ และบันทึกใน audit log |
 | — | Sign webhook timestamps to stop replays | area:core, area:security | ลายเซ็นครอบ timestamp, เอกสารบอกวิธีตรวจและช่วงเวลาที่ยอมรับ |
 | — | Rotate `EASY_CMS_SECRET` without logging everyone out | area:security | รับ secret เก่าและใหม่พร้อมกันช่วงหนึ่ง, เอกสารขั้นตอนหมุน |
+| — | `schema` option for `@easy-cms/db-postgres` | area:core | ตารางทั้งหมดใช้ `pgSchema()`, คำสั่ง CLI ย้ายตารางของระบบที่ติดตั้งแล้วไป schema ใหม่ พร้อมเทสต์อัปเกรด |
+| — | Run with a database role that can only read and write data | area:core, area:security | `verify()` ไม่ใช้ DDL, เอกสารให้ `easy-cms migrate` ใช้ role เจ้าของ schema, CI รัน runtime ด้วย role ที่มีแค่ DML |
 | — | Rate limit the API | area:core, area:security | จำกัดต่อ IP และต่อ API key ได้ เก็บในฐานข้อมูลเพื่อใช้ได้หลาย instance |
 | — | OpenSSF Scorecard | area:security | workflow และ badge ใน README |
 | — | Security self-review against OWASP ASVS level 2 | area:security | ไล่ ASVS 4.0.3 L2 ทีละข้อ อ้างเลขข้อจากเอกสารจริง, ผลใน `docs/security/` แทนฉบับ L1 |
