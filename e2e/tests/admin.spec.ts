@@ -1440,6 +1440,14 @@ test.describe('logged in as admin', () => {
     await expect(page.getByRole('region', { name: 'Activity' })).toContainText('Created')
   })
 
+  test('goes back from a document to the list as it was left', async ({ page }) => {
+    await page.goto('/admin/collections/posts?sort=title')
+    await page.locator('tbody').getByRole('link').first().click()
+    await expect(page).toHaveURL(/\/admin\/collections\/posts\/\d+$/)
+    await page.locator('a.back').click()
+    await expect(page).toHaveURL(/\/admin\/collections\/posts\?sort=title$/)
+  })
+
   test('shows skeletons while slow pages load, then the content (#146)', async ({ page }) => {
     // A collection's first page: skeleton rows with a "Loading…" status, then the posts.
     const list = await hold(page, /\/api\/cms\/posts\?/)

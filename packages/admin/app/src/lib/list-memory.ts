@@ -25,8 +25,15 @@ function left(slug: string): Left | null {
   }
 }
 
-/** The list as it was left, for back links; the plain list otherwise. */
-export const listPath = (slug: string) => left(slug)?.path ?? `/collections/${slug}`
+/**
+ * The list as it was left, for back links; the plain list otherwise, or when what was kept isn't
+ * that list (versions before 1.2 could keep the document's own address).
+ */
+export function listPath(slug: string): string {
+  const list = `/collections/${slug}`
+  const path = left(slug)?.path
+  return path && path.split('?')[0] === list ? path : list
+}
 
 /** Where to scroll a list shown again as it was left; `null` for a fresh one. */
 export function scrollFor(slug: string, path: string): number | null {
