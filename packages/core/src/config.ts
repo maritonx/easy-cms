@@ -635,10 +635,21 @@ export interface JobConfig {
   /** Unique, e.g. `ecommerce:carts`. */
   readonly name: string
   /**
-   * At most this often, in seconds. Default: every run. The last run is kept in the database, so
-   * it holds across processes and serverless invocations.
+   * At most this often, in seconds. Default: every run, or a day with `at`. The last run is kept
+   * in the database, so it holds across processes and serverless invocations.
    */
   readonly every?: number
+  /**
+   * At this time of day, as `HH:MM` in `timeZone`: once a day, or every few days when `every` is
+   * a number of whole days (e.g. `604800`, weekly). Missed (e.g. the server was down), it runs
+   * once as soon as jobs run again.
+   */
+  readonly at?: string
+  /**
+   * Admins may change how often it runs (and at what time) in Settings → Jobs, and go back to
+   * this config's schedule. Any job can be paused there. Default `false`.
+   */
+  readonly adminSchedule?: boolean
   readonly run: (args: { readonly cms: EasyCMS; readonly now: Date }) => MaybePromise<unknown>
 }
 
@@ -748,7 +759,7 @@ export function definePlugin<const T extends PluginTypes = Record<never, never>>
 export interface BackupsConfig {
   /** Back up automatically every day or week. Default: only by hand. */
   readonly frequency?: 'daily' | 'weekly'
-  /** When, as `HH:MM` in the server's time zone. Default `03:00`. */
+  /** When, as `HH:MM` in `timeZone` (the server's by default). Default `03:00`. */
   readonly at?: string
   /** How many finished backups to keep; older ones are deleted. Default 7. */
   readonly keep?: number
@@ -791,6 +802,11 @@ export interface Config {
    * convention of Vercel Cron). Logged-in admins can always run jobs.
    */
   readonly cronSecret?: string
+  /**
+   * The time zone of times of day in the config (`jobs[].at`, `backups.at`), e.g.
+   * `Asia/Bangkok`. Default: the server's, which is often UTC on serverless hosts.
+   */
+  readonly timeZone?: string
   /** Endpoints notified when content changes, e.g. to rebuild a static site. */
   readonly webhooks?: readonly WebhookConfig[]
   /**

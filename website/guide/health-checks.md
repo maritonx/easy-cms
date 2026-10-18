@@ -62,6 +62,20 @@ minute. On serverless platforms, call `<api>/jobs/run` every minute from a cron 
 `Authorization: Bearer $CRON_SECRET`, or run `npx easy-cms jobs:run` from one. The late jobs
 run on the next call, and so do webhook and email retries.
 
+## Failed jobs
+
+**Shown when** the last run of one of the config's [jobs](./jobs) (or a plugin's) failed.
+
+**Fix:** open **Settings → Jobs** to see the error. Fix the cause (a service that was down, a
+setting), then **Run due jobs now**, or wait for its next run. The warning goes once a run
+succeeds.
+
+## Paused jobs
+
+**Shown when** an admin paused a job on **Settings → Jobs**. It doesn't run until resumed.
+
+**Fix:** **Resume** it on Settings → Jobs once it should run again. The audit log says who paused it.
+
 ## Backups
 
 **Shown when** `backups.every` is set and the last scheduled backup failed, or no backup finished

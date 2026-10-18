@@ -1,5 +1,13 @@
 import type { AdminNavGroup, AdminNavItem, AdminNavNode } from '@easy-cms/core'
-import { DatabaseBackup, KeyRound, Mail, ScrollText, Send, ShieldCheck } from '@lucide/vue'
+import {
+  DatabaseBackup,
+  KeyRound,
+  ListChecks,
+  Mail,
+  ScrollText,
+  Send,
+  ShieldCheck,
+} from '@lucide/vue'
 import { type Component, computed, reactive, watch } from 'vue'
 import { label, t } from './i18n'
 import { collectionIcon, globalIcon } from './icons'
@@ -25,6 +33,7 @@ const VIEWS: Record<
   backups: { to: '/backups', key: 'backups.title', icon: DatabaseBackup },
   email: { to: '/email', key: 'email.title', icon: Mail },
   deliveries: { to: '/deliveries', key: 'deliveries.title', icon: Send },
+  jobs: { to: '/jobs', key: 'jobs.title', icon: ListChecks },
   audit: { to: '/audit', key: 'audit.title', icon: ScrollText },
 }
 

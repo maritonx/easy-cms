@@ -2,6 +2,7 @@ import { backupAttention } from '../backups.js'
 import { EMAIL_DELIVERIES, SCHEDULED_JOBS, WEBHOOK_DELIVERIES } from '../builtins.js'
 import type { EasyCMS } from '../local-api.js'
 import { VERSION } from '../version.js'
+import { failedJobs, pausedJobs } from './admin-jobs.js'
 
 /** Something an admin should look at, shown on the dashboard with a link to how to fix it. */
 export type AdminAttention =
@@ -23,6 +24,10 @@ export type AdminAttention =
   | { id: 'audit-failures'; count: number }
   /** The last check of the audit log found entries changed in the database. */
   | { id: 'audit-tampered'; invalid: number; at: string }
+  /** `jobs` of the config whose last run failed (Settings → Jobs). */
+  | { id: 'jobs'; count: number; names: string[] }
+  /** `jobs` paused from Settings → Jobs. */
+  | { id: 'jobs-paused'; count: number; names: string[] }
 
 /** What the dashboard shows admins (`GET <api>/admin/status`). */
 export interface AdminStatus {
@@ -102,6 +107,11 @@ export async function adminStatus(cms: EasyCMS): Promise<AdminStatus> {
     })
     if (count > 0) attention.push({ id: 'scheduled', count })
   }
+
+  const failed = await failedJobs(cms)
+  if (failed.length > 0) attention.push({ id: 'jobs', count: failed.length, names: failed })
+  const paused = await pausedJobs(cms)
+  if (paused.length > 0) attention.push({ id: 'jobs-paused', count: paused.length, names: paused })
 
   const backups = await backupAttention(cms)
   if (backups) attention.push(backups)

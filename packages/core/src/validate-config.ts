@@ -12,6 +12,7 @@ import { ADAPTER_API_VERSION } from './database.js'
 import type { ConfigIssue } from './errors.js'
 import { FIELD_TYPES, type Field, type SelectOption } from './fields.js'
 import { NAV_ID, navGroups, navIds } from './nav.js'
+import { isTimeZone } from './time-of-day.js'
 import { WEBHOOK_EVENTS } from './webhooks.js'
 
 export const MIN_SECRET_LENGTH = 32
@@ -94,6 +95,7 @@ export function validateConfig(config: Config): ConfigIssue[] {
   validateEndpoints(config, collectionSlugs, add)
   validateCommands(config, add)
   validateJobs(config, add)
+  validateTimeZone(config, add)
   validateEvents(config, add)
   const apiKeys: unknown = config.apiKeys
   if (apiKeys !== undefined && typeof apiKeys !== 'boolean') add('apiKeys', 'must be true or false')
@@ -845,7 +847,7 @@ function validateBackups(config: Config, add: Add, push: (issue: ConfigIssue) =>
     )
   if (frequency !== undefined && frequency !== 'daily' && frequency !== 'weekly')
     add('backups.frequency', 'must be "daily" or "weekly"')
-  if (at !== undefined && (typeof at !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(at)))
+  if (at !== undefined && (typeof at !== 'string' || !TIME_OF_DAY.test(at)))
     add('backups.at', 'must be a time like "03:00"')
   if (keep !== undefined && !(Number.isInteger(keep) && (keep as number) >= 1))
     add('backups.keep', 'must be a whole number, 1 or more')
@@ -1488,6 +1490,16 @@ function validateCommands(config: Config, add: Add) {
   })
 }
 
+/** `HH:MM`, 24-hour. */
+const TIME_OF_DAY = /^([01]\d|2[0-3]):[0-5]\d$/
+
+function validateTimeZone(config: Config, add: Add) {
+  const zone: unknown = config.timeZone
+  if (zone === undefined) return
+  if (typeof zone !== 'string' || !isTimeZone(zone))
+    add('timeZone', 'must be an IANA time zone', "e.g. 'Asia/Bangkok' or 'UTC'")
+}
+
 function validateJobs(config: Config, add: Add) {
   const jobs: unknown = config.jobs
   if (jobs === undefined) return
@@ -1498,13 +1510,25 @@ function validateJobs(config: Config, add: Add) {
   const seen = new Set<string>()
   jobs.forEach((job: unknown, i) => {
     const path = `jobs[${i}]`
-    const { name, every, run } = (job ?? {}) as Record<string, unknown>
+    const { name, every, at, adminSchedule, run } = (job ?? {}) as Record<string, unknown>
     if (typeof name !== 'string' || !/^[a-z][a-z0-9-]*(:[a-z0-9-]+)*$/.test(name))
       add(`${path}.name`, 'must be lowercase letters, digits, - and :', "e.g. 'shop:clean-up'")
     else if (seen.has(name)) add(`${path}.name`, `"${name}" is already used by another job`)
     else seen.add(name)
     if (every !== undefined && (typeof every !== 'number' || !(every > 0)))
       add(`${path}.every`, 'must be a number of seconds above 0')
+    if (at !== undefined) {
+      if (typeof at !== 'string' || !TIME_OF_DAY.test(at))
+        add(`${path}.at`, 'must be a time like "02:00"')
+      else if (typeof every === 'number' && (every <= 0 || every % 86_400 !== 0))
+        add(
+          `${path}.every`,
+          'must be a number of whole days with `at`',
+          'e.g. 86400 (daily) or 604800 (weekly)',
+        )
+    }
+    if (adminSchedule !== undefined && typeof adminSchedule !== 'boolean')
+      add(`${path}.adminSchedule`, 'must be true or false')
     if (typeof run !== 'function') add(`${path}.run`, 'must be a function')
   })
 }

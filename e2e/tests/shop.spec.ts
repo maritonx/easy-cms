@@ -199,3 +199,30 @@ test('a card payment arrives by Stripe webhook, once', async ({ page, request, b
   // The stock is taken once.
   expect((await stock()).inventory).toBe(product.inventory - 1)
 })
+
+test("Settings → Jobs shows the shop's jobs; an admin runs, pauses and resumes them (#185)", async ({
+  page,
+}) => {
+  await login(page)
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Jobs' }).click()
+  await expect(page.getByRole('heading', { level: 1, name: 'Jobs' })).toBeVisible()
+  const payments = page.locator('li.job').filter({ hasText: 'shop:payments' })
+  await expect(payments).toContainText('Every 5 min')
+  await expect(page.locator('li.job').filter({ hasText: 'shop:carts' })).toContainText('Every day')
+
+  await page.getByRole('button', { name: 'Run due jobs now' }).click()
+  await expect(page.getByRole('status').filter({ hasText: /^Ran / })).toBeVisible()
+  await expect(payments).toContainText('OK')
+
+  // Pausing asks first, then the job shows as paused (and on the dashboard).
+  await payments.getByRole('button', { name: 'Pause' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Pause job' }).click()
+  await expect(payments).toContainText('Paused')
+  await page.goto('/admin/')
+  await expect(page.getByText('Paused jobs: 1')).toBeVisible()
+  await page.goto('/admin/jobs')
+  await payments.getByRole('button', { name: 'Resume' }).click()
+  await expect(payments.getByText('Paused', { exact: true })).toHaveCount(0)
+  // The shop's jobs keep the plugin's schedule: no "Change schedule".
+  await expect(payments.getByRole('button', { name: 'Change schedule' })).toHaveCount(0)
+})

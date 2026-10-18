@@ -13,6 +13,7 @@ import type { CollectionConfig, ResolvedConfig } from './config.js'
 import type { Database, RawDocument } from './database.js'
 import { EasyCMSError, NotFoundError, ValidationError } from './errors.js'
 import type { Field, Label } from './fields.js'
+import { hasJobsPage } from './rest/admin-jobs.js'
 import { VersionStore } from './versions.js'
 
 /** What a role may do with a collection or global, ticked in Settings → Roles. */
@@ -217,8 +218,8 @@ export class Roles {
   async canView(user: AuthUser, id: string): Promise<boolean> {
     if (isSystemAdmin(user)) return true
     if (user.apiKey) return false
-    // Deliveries belong to the whole system, not to a part of it (e.g. a tenant).
-    if (id === 'deliveries' && user.scoped === true) return false
+    // Deliveries and jobs belong to the whole system, not to a part of it (e.g. a tenant).
+    if ((id === 'deliveries' || id === 'jobs') && user.scoped === true) return false
     // Admins of a part of the site (e.g. a tenant) see its audit log, when entries have a part.
     if (
       id === 'audit' &&
@@ -551,6 +552,7 @@ export class Roles {
       )
         ? [{ id: 'deliveries' }]
         : []),
+      ...(hasJobsPage(this.config) ? [{ id: 'jobs' }] : []),
       ...this.config.admin.pages.map((page) => ({ id: viewId.page(page.path), label: page.label })),
       ...this.config.admin.dashboard.map((widget) => ({
         id: viewId.widget(widget.id ?? tagOf(widget.component)),

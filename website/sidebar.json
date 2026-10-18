@@ -313,6 +313,13 @@
           }
         },
         {
+          "path": "guide/jobs",
+          "title": {
+            "en": "Jobs",
+            "th": "งานเบื้องหลัง"
+          }
+        },
+        {
           "path": "guide/backups",
           "title": {
             "en": "Backups & upgrades",
