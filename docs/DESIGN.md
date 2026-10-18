@@ -423,3 +423,8 @@ CI รัน lint, typecheck, build และ test บน Linux, macOS และ
 - [ADR-0048](adr/0048-multi-tenant-follow-ups.md) — Multi-tenant ครบขึ้น: ไฟล์ โฟลเดอร์ plugin อื่น audit และการลบ
 - [ADR-0049](adr/0049-ecommerce.md) — ร้านค้า (ecommerce) เป็น plugin พร้อมจุดต่อกลางใน core
 - [ADR-0050](adr/0050-admin-navigation-and-layouts.md) — เมนูเป็นกลุ่ม, command palette และ layout ของหน้าแก้ไข
+- [ADR-0051](adr/0051-reference-architecture.md) — สถาปัตยกรรมอ้างอิง: Postgres + S3 + app stateless หลาย instance
+- [ADR-0052](adr/0052-postgres-job-queue.md) — ใช้ Postgres เป็นคิวงาน (`SKIP LOCKED`) ไม่เพิ่ม Redis
+- [ADR-0053](adr/0053-outbox-for-after-hooks.md) — outbox สำหรับ afterChange และ webhook (opt-in ใน 1.x)
+- [ADR-0054](adr/0054-http-cache-not-redis.md) — cache ด้วย HTTP และ CDN ก่อน ไม่เพิ่ม Redis
+- [ADR-0055](adr/0055-database-isolation.md) — แยกฐานข้อมูลจากแอปได้สี่ระดับ (รวม, schema แยก, database แยก, server แยก)
