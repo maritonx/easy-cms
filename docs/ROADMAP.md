@@ -2,10 +2,11 @@
 
 - **สถานะ:** Accepted
 - **วันที่:** 2026-10-09, แผน 1.x เพิ่มเมื่อ 2026-10-18
-- **เวอร์ชันปัจจุบัน:** 1.0.1
+- **เวอร์ชันปัจจุบัน:** 1.2.0
 - **เป้าหมาย 1.0:** 1.0.0 วันที่ 2026-12-15 — **ออกแล้ว 2026-10-17** (RC 1.0.0-rc.0 วันเดียวกัน)
 - **เป้าหมาย 1.x:** open source ที่องค์กร self-host ได้อย่างมั่นใจ ดู [1.x](#one-x)
 - **ติดตามงาน:** GitHub Milestones ของ `maritonx/easy-cms` (หนึ่ง issue ต่อหนึ่งงาน, issue เขียนเป็นภาษาอังกฤษ)
+- **การออกเวอร์ชันใน 1.x:** ออกทันทีที่ merge (บั๊กเป็น patch, ฟีเจอร์เป็น minor) milestone ของ 1.x จึงตั้งชื่อตามหัวข้อ ไม่ผูกกับเลขเวอร์ชัน (ตกลง 2026-10-18)
 
 ---
 
@@ -30,7 +31,7 @@
   เมื่อมี 2.0 แล้ว 1.x ได้แพตช์ความปลอดภัยอีก 6 เดือน
 
 **Feature freeze:** ตั้งแต่วันนี้ถึง 1.0 รับเฉพาะการแก้บั๊ก งานใน milestone และการปรับ API ในเฟส 0.60
-ไอเดียใหม่ใส่ใน [1.1](#m5) หรือ [หลัง 1.0](#later)
+ไอเดียใหม่ใส่ใน [milestone ของ 1.x](#m5) หรือ [หลัง 1.0](#later)
 
 ---
 
@@ -42,9 +43,9 @@
 | [`API freeze`](https://github.com/maritonx/easy-cms/milestone/2) | 2026-11-20 | ทบทวนและล็อก API, ทดสอบการอัปเกรด, นโยบายเวอร์ชัน |
 | [`1.0.0-rc`](https://github.com/maritonx/easy-cms/milestone/3) | 2026-12-01 | RC, เอกสารเริ่มต้นและอัปเกรด, รับเฉพาะการแก้บั๊ก |
 | [`1.0.0`](https://github.com/maritonx/easy-cms/milestone/4) | 2026-12-15 | ออก 1.0 และประกาศ |
-| [`1.1`](https://github.com/maritonx/easy-cms/milestone/5) | — | Hardening: หลาย instance ปลอดภัย, ดูแลระบบได้, เครื่องมือความปลอดภัย |
-| [`1.2`](https://github.com/maritonx/easy-cms/milestone/6) | — | ความปลอดภัยและ identity, ฟีเจอร์ admin |
-| [`1.3`](https://github.com/maritonx/easy-cms/milestone/7) | — | performance ที่ 1M เอกสาร |
+| [`Multi-instance & operations`](https://github.com/maritonx/easy-cms/milestone/5) | — | Hardening: หลาย instance ปลอดภัย, ดูแลระบบได้, เครื่องมือความปลอดภัย |
+| [`Security, identity & admin`](https://github.com/maritonx/easy-cms/milestone/6) | — | ความปลอดภัยและ identity, ฟีเจอร์ admin |
+| [`Scale (1M documents)`](https://github.com/maritonx/easy-cms/milestone/7) | — | performance ที่ 1M เอกสาร |
 
 ### Labels
 
@@ -104,7 +105,7 @@
 | [#84](https://github.com/maritonx/easy-cms/issues/84) | The website shows the 1.0 docs and a release announcement | area:docs | เว็บ build จาก 1.0.0 และมีหน้าประกาศ (เปิดให้กลับไปทำงานเว็บได้ที่ milestone นี้) |
 | [#85](https://github.com/maritonx/easy-cms/issues/85) | Update SRS and DESIGN for 1.0 | area:docs | SRS §8 และ DESIGN §15 บันทึก 1.0, สัญญาความเสถียร, นโยบายการซัพพอร์ต |
 
-### M5 — `1.1` Hardening (ไม่กำหนดวัน) {#m5}
+### M5 — `Multi-instance & operations` (ไม่กำหนดวัน) {#m5}
 
 ปิดสิ่งที่ทำให้รันหลาย instance ไม่ได้หรือดูแลระบบไม่ได้ ตาม [ADR-0051](adr/0051-reference-architecture.md) ไม่มีฟีเจอร์ใหม่ที่ผู้ใช้เห็น
 
@@ -121,7 +122,7 @@
 | [#161](https://github.com/maritonx/easy-cms/issues/161) | Load test at 1M documents | area:release | `load.ts` seed ได้ถึง 1M เอกสาร, workflow รายคืนเก็บผลและเตือนเมื่อ p95 ช้าลงเกิน 20%; ตัวเลขแรกบันทึกใน SRS |
 | [#162](https://github.com/maritonx/easy-cms/issues/162) | Truthful `SECURITY.md`, Dependabot and CodeQL | area:security | `SECURITY.md` ตรงกับ 1.x, มี Dependabot และ CodeQL ใน `.github/`, เปิด secret scanning ใน Settings |
 
-### M6 — `1.2` ความปลอดภัย, identity และ admin (ไม่กำหนดวัน) {#m6}
+### M6 — `Security, identity & admin` (ไม่กำหนดวัน) {#m6}
 
 | # | Issue | Labels | เสร็จเมื่อ |
 |---|---|---|---|
@@ -140,9 +141,9 @@
 | [#88](https://github.com/maritonx/easy-cms/issues/88) | List filters with several conditions | area:admin | |
 | [#89](https://github.com/maritonx/easy-cms/issues/89) | Export a list to CSV | area:admin | |
 
-### M7 — `1.3` performance (ไม่กำหนดวัน) {#m7}
+### M7 — `Scale (1M documents)` (ไม่กำหนดวัน) {#m7}
 
-ทุกงานวัดกับ load test 1M เอกสารจาก 1.1 ก่อนและหลัง
+ทุกงานวัดกับ load test 1M เอกสาร ([#161](https://github.com/maritonx/easy-cms/issues/161)) ก่อนและหลัง
 
 | # | Issue | Labels | เสร็จเมื่อ |
 |---|---|---|---|
