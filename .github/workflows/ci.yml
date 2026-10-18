@@ -14,7 +14,7 @@ jobs:
   # The "Version Packages" pull request and its merge only change versions and changelogs: the
   # same code already passed on the commit before. They get lint only, not the full suite.
   scope:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       full: ${{ steps.check.outputs.full }}
     steps:
@@ -31,7 +31,7 @@ jobs:
           fi
 
   lint:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -50,7 +50,7 @@ jobs:
       matrix:
         # Other jobs (and releases) stay on ubuntu-24.04; `ubuntu-latest` here shows first what a
         # new Ubuntu image breaks (it moves to Ubuntu 26 from 2026-10-19).
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-26.04]
         node: [22, 24]
     runs-on: ${{ matrix.os }}
     steps:
@@ -80,7 +80,7 @@ jobs:
     needs: scope
     if: needs.scope.outputs.full == 'true'
     # The shared integration suites against a real Postgres server (SQLite and PGlite run in "test").
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     services:
       postgres:
         image: postgres:17
@@ -109,7 +109,7 @@ jobs:
     if: needs.scope.outputs.full == 'true'
     # Databases made by older releases (and the latest), migrated and read by this commit.
     name: upgrade (${{ matrix.db }})
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
       matrix:
@@ -140,7 +140,7 @@ jobs:
   s3:
     needs: scope
     if: needs.scope.outputs.full == 'true'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     services:
       # S3-compatible server that verifies SigV4 signatures (MinIO no longer publishes images).
       s3:
@@ -169,7 +169,7 @@ jobs:
   e2e:
     needs: scope
     if: needs.scope.outputs.full == 'true'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -193,7 +193,7 @@ jobs:
     # templates/next-starter (the one-click deploy) with this commit's packages: build, start, pages.
     needs: scope
     if: needs.scope.outputs.full == 'true'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -213,11 +213,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-24.04, pm: npm }
-          - { os: ubuntu-24.04, pm: pnpm }
-          - { os: ubuntu-24.04, pm: yarn, yarn: stable }
-          - { os: ubuntu-24.04, pm: yarn, yarn: '1.22.22' }
-          - { os: ubuntu-24.04, pm: bun }
+          - { os: ubuntu-26.04, pm: npm }
+          - { os: ubuntu-26.04, pm: pnpm }
+          - { os: ubuntu-26.04, pm: yarn, yarn: stable }
+          - { os: ubuntu-26.04, pm: yarn, yarn: '1.22.22' }
+          - { os: ubuntu-26.04, pm: bun }
           - { os: windows-latest, pm: npm }
           - { os: windows-latest, pm: pnpm }
     runs-on: ${{ matrix.os }}
