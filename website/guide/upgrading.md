@@ -24,6 +24,16 @@ Invalid Easy CMS config (1 problem):
   • admin.siteUrl: is now `siteURL`
 ```
 
+## 1.3 {#v1-3}
+
+- **Apps with `jobs`** (in the config or from a plugin, such as the shop's) get a `job-runs`
+  table: each run is claimed there, so it happens once however many instances run jobs. Run
+  `npx easy-cms migrate:create` and commit the migration, then `npx easy-cms migrate` where you
+  deploy; a production server refuses to start until the migration is applied. When each job
+  last ran is carried over, so nothing runs early.
+- Scheduled publishes, webhook and email retries and backups are claimed the same way (1.2.1),
+  with no migration.
+
 ## From 0.x to 1.0 {#to-1-0}
 
 0.60 settled the names 1.0 keeps; the releases after it tightened security and readied the
