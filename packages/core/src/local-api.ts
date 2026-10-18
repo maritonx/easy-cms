@@ -23,6 +23,7 @@ import { runDueBackups } from './backups.js'
 import {
   EMAIL_DELIVERIES,
   INTERNAL_COLLECTIONS,
+  JOB_RUNS,
   MEDIA,
   MEDIA_FOLDERS,
   SCHEDULED_JOBS,
@@ -1952,35 +1953,103 @@ export class EasyCMS<C extends Config = Config> {
     })
   }
 
-  /** `jobs` of the config that are due; when each last ran is kept in the database. */
+  /**
+   * `jobs` of the config that are due. When each last ran is a row of `job-runs`; an instance
+   * claims a run by moving `lastRunAt` from the value it read, so each run happens once however
+   * many instances run jobs.
+   */
   private async runConfigJobs(now: Date): Promise<{ ran: number; failed: number }> {
     const { jobs } = this.config
     if (jobs.length === 0) return { ran: 0, failed: 0 }
-    const last = ((await this.db.findGlobal({ slug: JOB_RUNS })) ?? {}) as Record<string, unknown>
-    const runs: Record<string, string> = {}
-    for (const [name, at] of Object.entries(last)) if (typeof at === 'string') runs[name] = at
+    const { docs } = await this.db.find({ collection: JOB_RUNS, sort: ['name'], limit: 0, page: 1 })
+    const rows = new Map(docs.map((row) => [String(row.name), row]))
+    let legacy: Record<string, unknown> | undefined
+    const stamp = now.toISOString()
     let ran = 0
     let failed = 0
     for (const job of jobs) {
-      const previous = runs[job.name]
-      if (
-        job.every !== undefined &&
-        previous !== undefined &&
-        now.getTime() - Date.parse(previous) < job.every * 1000
-      )
-        continue
-      runs[job.name] = now.toISOString()
+      const due = (previous: unknown) =>
+        job.every === undefined ||
+        typeof previous !== 'string' ||
+        now.getTime() - Date.parse(previous) >= job.every * 1000
+      const row = rows.get(job.name)
+      let claimed: boolean
+      if (row) {
+        if (!due(row.lastRunAt)) continue
+        claimed = await this.claim(
+          JOB_RUNS,
+          row,
+          { lastRunAt: stamp, lastStatus: 'running', updatedAt: stamp },
+          { lastRunAt: { equals: String(row.lastRunAt) } },
+        )
+      } else {
+        // The first run here: carry over when it last ran before `job-runs` existed.
+        legacy ??= ((await this.db.findGlobal({ slug: LEGACY_JOB_RUNS })) ?? {}) as Record<
+          string,
+          unknown
+        >
+        const previous = legacy[job.name]
+        const run = due(previous)
+        claimed = await this.db
+          .create({
+            collection: JOB_RUNS,
+            data: {
+              name: job.name,
+              lastRunAt: run ? stamp : String(previous),
+              lastStatus: run ? 'running' : null,
+              lastError: null,
+              lastDurationMs: null,
+              createdAt: stamp,
+              updatedAt: stamp,
+            },
+          })
+          // `name` is unique: another instance created the row, and runs it, first.
+          .then(
+            () => run,
+            () => false,
+          )
+      }
+      if (!claimed) continue
+      const started = Date.now()
+      let error: string | null = null
       try {
         await job.run({ cms: this as unknown as EasyCMS, now })
         ran++
-      } catch (error) {
+      } catch (caught) {
         failed++
-        this.logger.error(`Job ${job.name} failed: ${(error as Error).message}`)
+        error = ((caught as Error).message || String(caught)).slice(0, 500)
+        this.logger.error(`Job ${job.name} failed: ${error}`)
       }
+      // The result, for Settings → Jobs: only this instance runs it at this time.
+      await this.recordJobRun(job.name, stamp, error, Date.now() - started).catch((caught) =>
+        this.logger.error(`Job ${job.name}: ${(caught as Error).message}`),
+      )
     }
-    // `updatedAt` is the globals table's own column.
-    await this.db.updateGlobal({ slug: JOB_RUNS, data: { ...runs, updatedAt: now.toISOString() } })
     return { ran, failed }
+  }
+
+  private async recordJobRun(name: string, at: string, error: string | null, ms: number) {
+    const { docs } = await this.db.find({
+      collection: JOB_RUNS,
+      where: { name: { equals: name } },
+      sort: ['name'],
+      limit: 1,
+      page: 1,
+    })
+    const row = docs[0]
+    // Another run started since: its result is the one to keep.
+    if (!row || row.lastRunAt !== at) return
+    await this.claim(
+      JOB_RUNS,
+      row,
+      {
+        lastStatus: error ? 'failed' : 'ok',
+        lastError: error,
+        lastDurationMs: ms,
+        updatedAt: new Date().toISOString(),
+      },
+      { lastRunAt: { equals: at } },
+    )
   }
 
   /**
@@ -3471,7 +3540,8 @@ interface UploadTicket {
 /** Files one request may move between public and private storage. */
 const MAX_FILES_TO_MOVE = 200
 /** The row of the globals table that holds when each of the config's `jobs` last ran. */
-const JOB_RUNS = 'easy-cms:jobs'
+/** Where job runs were kept before the `job-runs` collection: read once, when a job has no row. */
+const LEGACY_JOB_RUNS = 'easy-cms:jobs'
 /** A scheduled job claimed this long ago by a process that never finished it goes back to the queue. */
 const JOB_LEASE = 10 * 60_000
 

@@ -194,4 +194,65 @@ describe('background work claimed by one instance (#153)', () => {
       await one.destroy()
     }
   })
+
+  it("runs each of the config's jobs once when two instances run jobs together", async () => {
+    const runs: string[] = []
+    const withJobs = () =>
+      defineConfig({
+        ...config(),
+        jobs: [
+          { name: 'hourly', every: 3600, run: () => void runs.push('hourly') },
+          { name: 'always', run: () => void runs.push('always') },
+        ],
+      })
+    const cwd = tempProject()
+    const one = await open(withJobs(), cwd)
+    const two = await open(withJobs(), cwd)
+    try {
+      const now = new Date()
+      await Promise.all([one.runJobs(now), two.runJobs(now)])
+      // Each job once at this moment, whichever instance got to it.
+      expect(runs.sort()).toEqual(['always', 'hourly'])
+      // An hour has not passed: only the job without `every` runs again.
+      runs.length = 0
+      await Promise.all([
+        one.runJobs(new Date(now.getTime() + 60_000)),
+        two.runJobs(new Date(now.getTime() + 60_000)),
+      ])
+      expect(runs).toEqual(['always'])
+      // The last result of each, for Settings → Jobs.
+      const rows = await one.db.find({ collection: 'job-runs', sort: ['name'], limit: 0, page: 1 })
+      expect(rows.docs.map((r) => [r.name, r.lastStatus, r.lastError])).toEqual([
+        ['always', 'ok', null],
+        ['hourly', 'ok', null],
+      ])
+      expect(typeof rows.docs[0]?.lastDurationMs).toBe('number')
+    } finally {
+      await one.destroy()
+      await two.destroy()
+    }
+  })
+
+  it('keeps when jobs last ran from before the job-runs table', async () => {
+    const runs: string[] = []
+    const cms = await open(
+      defineConfig({
+        ...config(),
+        jobs: [{ name: 'hourly', every: 3600, run: () => void runs.push('hourly') }],
+      }),
+    )
+    try {
+      const ranAt = new Date(Date.now() - 10 * 60_000).toISOString()
+      await cms.db.updateGlobal({
+        slug: 'easy-cms:jobs',
+        data: { hourly: ranAt, updatedAt: ranAt },
+      })
+      await cms.runJobs()
+      expect(runs).toEqual([])
+      await cms.runJobs(new Date(Date.now() + 3600_000))
+      expect(runs).toEqual(['hourly'])
+    } finally {
+      await cms.destroy()
+    }
+  })
 })

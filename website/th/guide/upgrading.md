@@ -22,6 +22,14 @@ Invalid Easy CMS config (1 problem):
   • admin.siteUrl: is now `siteURL`
 ```
 
+## 1.3 {#v1-3}
+
+- **แอปที่มี `jobs`** (ใน config หรือจาก plugin เช่นของร้านค้า) จะมีตาราง `job-runs` แต่ละรอบของงานถูกจองในตารางนี้
+  จึงรันครั้งเดียวไม่ว่ามีกี่ instance ให้รัน `npx easy-cms migrate:create` แล้ว commit migration จากนั้นรัน
+  `npx easy-cms migrate` ที่ที่ deploy เพราะ server ใน production จะไม่เริ่มทำงานจนกว่าจะ apply migration
+  เวลาที่แต่ละงานรันล่าสุดถูกย้ายมาด้วย งานจึงไม่รันก่อนเวลา
+- publish ตามเวลา, การส่ง webhook และอีเมลซ้ำ และ backup ก็จองแบบเดียวกัน (1.2.1) โดยไม่ต้องสร้าง migration
+
 ## จาก 0.x ไป 1.0 {#to-1-0}
 
 0.60 ล็อกชื่อที่ 1.0 จะใช้ต่อ ส่วน release หลังจากนั้นเพิ่มความปลอดภัยและเตรียม plugin ทดลองให้พร้อมใช้ แอปที่ยังอยู่ 0.48 หรือเก่ากว่าจะเจอทุกอย่างพร้อมกัน
