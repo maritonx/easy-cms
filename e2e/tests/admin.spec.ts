@@ -1189,8 +1189,14 @@ test.describe('logged in as admin', () => {
       .click()
     await expect(page.getByRole('heading', { level: 1, name: 'Email' })).toBeVisible()
     await expect(page.getByRole('region', { name: 'Settings in use' })).toContainText('console')
+    // The examples print emails to the log: the admin warns that nothing is sent.
+    await expect(
+      page.getByText(/^Emails are not sent: they are printed to the server log/),
+    ).toBeVisible()
     await page.getByRole('button', { name: 'Send test email' }).click()
-    await expect(page.getByRole('status').filter({ hasText: /^Sent to / })).toBeVisible()
+    await expect(
+      page.getByRole('status').filter({ hasText: /^Not sent to .*: printed to the server log/ }),
+    ).toBeVisible()
 
     // Saved emails and webhook deliveries, under Settings (email is set up in the examples).
     await page
