@@ -29,7 +29,7 @@ import {
   X,
 } from '@lucide/vue'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import DeleteDialog from '../components/DeleteDialog.vue'
 import DocumentDrawer from '../components/DocumentDrawer.vue'
@@ -714,9 +714,13 @@ onMounted(async () => {
   await loadTree()
   void load()
 })
+// Where the list was left (filters, page, scroll), for the document's back link. Before leaving:
+// by the time the list unmounts, the route is already the next page's.
+onBeforeRouteLeave((_to, from) => {
+  leaveList(slug, from.fullPath)
+})
 // A pending search must not apply its query to the next page.
 onBeforeUnmount(() => {
-  leaveList(slug, route.fullPath)
   clearTimeout(debounce)
   document.removeEventListener('click', onDocumentClick)
 })

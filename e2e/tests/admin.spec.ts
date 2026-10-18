@@ -1440,6 +1440,14 @@ test.describe('logged in as admin', () => {
     await expect(page.getByRole('region', { name: 'Activity' })).toContainText('Created')
   })
 
+  test('goes back from a document to the list as it was left', async ({ page }) => {
+    await page.goto('/admin/collections/posts?sort=title')
+    await page.locator('tbody').getByRole('link').first().click()
+    await expect(page).toHaveURL(/\/admin\/collections\/posts\/\d+$/)
+    await page.locator('a.back').click()
+    await expect(page).toHaveURL(/\/admin\/collections\/posts\?sort=title$/)
+  })
+
   test('creates an editor account', async ({ page }) => {
     await page.goto('/admin/collections/users/new')
     await page.getByLabel('Email').fill(EDITOR.email)
