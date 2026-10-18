@@ -1,9 +1,10 @@
-# Easy CMS — Roadmap ถึง 1.0
+# Easy CMS — Roadmap
 
 - **สถานะ:** Accepted
-- **วันที่:** 2026-10-09
-- **เวอร์ชันปัจจุบัน:** 1.0.0
-- **เป้าหมาย:** 1.0.0 วันที่ 2026-12-15 — **ออกแล้ว 2026-10-17** (RC 1.0.0-rc.0 วันเดียวกัน)
+- **วันที่:** 2026-10-09, แผน 1.x เพิ่มเมื่อ 2026-10-18
+- **เวอร์ชันปัจจุบัน:** 1.0.1
+- **เป้าหมาย 1.0:** 1.0.0 วันที่ 2026-12-15 — **ออกแล้ว 2026-10-17** (RC 1.0.0-rc.0 วันเดียวกัน)
+- **เป้าหมาย 1.x:** open source ที่องค์กร self-host ได้อย่างมั่นใจ ดู [1.x](#one-x)
 - **ติดตามงาน:** GitHub Milestones ของ `maritonx/easy-cms` (หนึ่ง issue ต่อหนึ่งงาน, issue เขียนเป็นภาษาอังกฤษ)
 
 ---
@@ -41,7 +42,9 @@
 | [`API freeze`](https://github.com/maritonx/easy-cms/milestone/2) | 2026-11-20 | ทบทวนและล็อก API, ทดสอบการอัปเกรด, นโยบายเวอร์ชัน |
 | [`1.0.0-rc`](https://github.com/maritonx/easy-cms/milestone/3) | 2026-12-01 | RC, เอกสารเริ่มต้นและอัปเกรด, รับเฉพาะการแก้บั๊ก |
 | [`1.0.0`](https://github.com/maritonx/easy-cms/milestone/4) | 2026-12-15 | ออก 1.0 และประกาศ |
-| [`1.1`](https://github.com/maritonx/easy-cms/milestone/5) | — | ฟีเจอร์แรกหลัง 1.0 |
+| [`1.1`](https://github.com/maritonx/easy-cms/milestone/5) | — | Hardening: หลาย instance ปลอดภัย, ดูแลระบบได้, เครื่องมือความปลอดภัย |
+| [`1.2`](https://github.com/maritonx/easy-cms/milestone/6) | — | ความปลอดภัยและ identity, ฟีเจอร์ admin |
+| `1.3` | — | performance ที่ 1M เอกสาร |
 
 ### Labels
 
@@ -101,18 +104,69 @@
 | [#84](https://github.com/maritonx/easy-cms/issues/84) | The website shows the 1.0 docs and a release announcement | area:docs | เว็บ build จาก 1.0.0 และมีหน้าประกาศ (เปิดให้กลับไปทำงานเว็บได้ที่ milestone นี้) |
 | [#85](https://github.com/maritonx/easy-cms/issues/85) | Update SRS and DESIGN for 1.0 | area:docs | SRS §8 และ DESIGN §15 บันทึก 1.0, สัญญาความเสถียร, นโยบายการซัพพอร์ต |
 
-### M5 — `1.1` (ไม่กำหนดวัน) {#m5}
+### M5 — `1.1` Hardening (ไม่กำหนดวัน) {#m5}
 
-| # | Issue | Labels |
-|---|---|---|
-| [#86](https://github.com/maritonx/easy-cms/issues/86) | Omise payments for the shop: PromptPay, cards, mobile banking | area:plugins |
-| [#87](https://github.com/maritonx/easy-cms/issues/87) | Saved list views in the admin | area:admin |
-| [#88](https://github.com/maritonx/easy-cms/issues/88) | List filters with several conditions | area:admin |
-| [#89](https://github.com/maritonx/easy-cms/issues/89) | Export a list to CSV | area:admin |
+ปิดสิ่งที่ทำให้รันหลาย instance ไม่ได้หรือดูแลระบบไม่ได้ ตาม [ADR-0051](adr/0051-reference-architecture.md) ไม่มีฟีเจอร์ใหม่ที่ผู้ใช้เห็น
+
+| # | Issue | Labels | เสร็จเมื่อ |
+|---|---|---|---|
+| — | Claim scheduled jobs and webhook deliveries with `SKIP LOCKED` | area:core, release-blocker | เทสต์สอง instance บน Postgres เดียวกัน: ทุกงานรันครั้งเดียว; งานของ worker ที่ตายกลับเข้าคิวเมื่อ lease หมด ([ADR-0052](adr/0052-postgres-job-queue.md)) |
+| — | Run two instances against one Postgres in CI | area:core, area:release | CI รัน REST, login, upload ไป S3 และ jobs ผ่านสอง instance หลังตัวกระจายโหลด |
+| — | Configurable Postgres pool and `prepare`, tested behind PgBouncer | area:core | ตั้ง `max` และ `prepare` ได้, CI รันเทสต์หลัก ผ่าน PgBouncer แบบ transaction pooling, เอกสาร deploy บอกค่าที่ต้องตั้ง |
+| — | JSON logs with a request id | area:core | ตัวเลือกให้ log เป็น JSON บรรทัดละรายการ มี request id ที่ส่งกลับใน header ด้วย; ค่าปริยายยังอ่านง่ายสำหรับ dev |
+| — | `/healthz` and `/readyz` in the Next and Nuxt adapters | area:adapters | สอง endpoint ทำงานเหมือน standalone; `/readyz` เช็กฐานข้อมูลและ migration |
+| — | Official Docker image | area:release | image ที่ build ใน CI สำหรับ `easy-cms serve`, รันเป็น non-root, ติด tag ตามเวอร์ชัน, เอกสาร docker ใช้ image นี้ |
+| — | Document the reference architecture and what is not supported | area:docs | หน้า deploy (EN/TH) บอกชุดที่รับรองและข้อจำกัดของ SQLite/local disk |
+| — | Load test at 1M documents | area:release | `load.ts` seed ได้ถึง 1M เอกสาร, workflow รายคืนเก็บผลและเตือนเมื่อ p95 ช้าลงเกิน 20%; ตัวเลขแรกบันทึกใน SRS |
+| — | Truthful `SECURITY.md`, Dependabot and CodeQL | area:security | `SECURITY.md` ตรงกับ 1.x, มี Dependabot และ CodeQL ใน `.github/`, เปิด secret scanning ใน Settings |
+
+### M6 — `1.2` ความปลอดภัย, identity และ admin (ไม่กำหนดวัน) {#m6}
+
+| # | Issue | Labels | เสร็จเมื่อ |
+|---|---|---|---|
+| — | Require single sign-on for everyone (turn off password login) | area:security | ตัวเลือกปิด login ด้วยรหัสผ่านทุกคน ยกเว้นบัญชีฉุกเฉินที่ระบุ |
+| — | Map identity-provider groups to roles | area:security | claim กลุ่มจาก OIDC แมปเป็นบทบาท อัปเดตทุกครั้งที่ login, ทดสอบกับ Entra ID |
+| — | TOTP two-factor sign-in for password accounts | area:security | ตั้งและบังคับ TOTP ได้, มีรหัสกู้คืน, admin รีเซ็ตให้คนอื่นได้ และบันทึกใน audit log |
+| — | Sign webhook timestamps to stop replays | area:core, area:security | ลายเซ็นครอบ timestamp, เอกสารบอกวิธีตรวจและช่วงเวลาที่ยอมรับ |
+| — | Rotate `EASY_CMS_SECRET` without logging everyone out | area:security | รับ secret เก่าและใหม่พร้อมกันช่วงหนึ่ง, เอกสารขั้นตอนหมุน |
+| — | Rate limit the API | area:core, area:security | จำกัดต่อ IP และต่อ API key ได้ เก็บในฐานข้อมูลเพื่อใช้ได้หลาย instance |
+| — | OpenSSF Scorecard | area:security | workflow และ badge ใน README |
+| — | Security self-review against OWASP ASVS level 2 | area:security | ไล่ ASVS 4.0.3 L2 ทีละข้อ อ้างเลขข้อจากเอกสารจริง, ผลใน `docs/security/` แทนฉบับ L1 |
+| [#86](https://github.com/maritonx/easy-cms/issues/86) | Omise payments for the shop: PromptPay, cards, mobile banking | area:plugins | |
+| [#87](https://github.com/maritonx/easy-cms/issues/87) | Saved list views in the admin | area:admin | |
+| [#88](https://github.com/maritonx/easy-cms/issues/88) | List filters with several conditions | area:admin | |
+| [#89](https://github.com/maritonx/easy-cms/issues/89) | Export a list to CSV | area:admin | |
+
+### M7 — `1.3` performance (ไม่กำหนดวัน) {#m7}
+
+ทุกงานวัดกับ load test 1M เอกสารจาก 1.1 ก่อนและหลัง
+
+| # | Issue | Labels | เสร็จเมื่อ |
+|---|---|---|---|
+| — | Cache published public reads with ETag and cache tags | area:core, area:adapters | `ETag`, `s-maxage`, `stale-while-revalidate` ต่อ collection, purge ด้วย tag ต่อกับ Next และ Nuxt ([ADR-0054](adr/0054-http-cache-not-redis.md)) |
+| — | Cursor pagination for REST and the Local API | area:core | `?cursor=` คืน cursor ถัดไป, offset ยังใช้ได้แต่ API public จำกัดความลึก |
+| — | Trigram indexes for `like` and `contains` on Postgres | area:core | `index: 'trigram'` สร้าง GIN `pg_trgm`, ค้นภาษาไทยได้, load test แสดงผลต่าง |
+| — | Search adapter interface | area:plugins | interface สำหรับ search ภายนอก พร้อม adapter ตัวแรก ทดสอบการตัดคำไทย |
+| — | Opt-in outbox for `afterChange` and webhooks | area:core | ตัวเลือกใน config ตาม [ADR-0053](adr/0053-outbox-for-after-hooks.md), เอกสารเรื่อง hook ที่รันซ้ำได้ |
+| — | OpenTelemetry traces and metrics | area:core | peer dependency แบบเลือกใช้, span ของ request และ query, metrics ของคิวงาน |
 
 ---
 
-## 3. หลัง 1.0 (ยังไม่ได้ตัดสินใจ, ไม่สร้างเป็น issue) {#later}
+## 3. 1.x: open source ที่องค์กร self-host ได้ {#one-x}
+
+ตกลงเมื่อ 2026-10-18 หลังทบทวนจุดแข็งจุดอ่อนเทียบกับ Strapi, Payload, Directus และ WordPress
+
+- **เป้าหมาย:** องค์กรเอาไป self-host เองได้อย่างมั่นใจ วัดจากคุณภาพทางเทคนิค ไม่มีสัญญาหรือ SLA
+- **สถาปัตยกรรมอ้างอิง:** Postgres + storage แบบ S3 + app stateless หลาย instance ([ADR-0051](adr/0051-reference-architecture.md)); SQLite และ local disk สำหรับ dev และ instance เดียว
+- **ขนาดเป้าหมาย:** 1M เอกสารต่อ collection, editor พร้อมกัน 200 คน, API p95 ต่ำกว่า 200 ms
+- **ไม่เพิ่ม infra:** คิวงานใช้ Postgres ([ADR-0052](adr/0052-postgres-job-queue.md)), cache ใช้ HTTP/CDN ([ADR-0054](adr/0054-http-cache-not-redis.md))
+- **multi-tenant:** แนะนำ CMS แยกต่อลูกค้า (instance-per-client) เป็นหลัก ส่วน plugin เหมาะกับหลายเว็บในเครือเดียวกัน
+- **localization:** เก็บแบบคอลัมน์ต่อภาษาต่อไป เหมาะกับไม่เกิน 5 ภาษา
+- **ผู้ดูแล:** หา co-maintainer เพื่อลดการพึ่งคนเดียว
+
+---
+
+## 4. หลัง 1.0 (ยังไม่ได้ตัดสินใจ, ไม่สร้างเป็น issue) {#later}
 
 - **ร้านค้า:** Stripe Checkout, ตะกร้าแบบ web component, กันสต็อกระหว่างชำระเงิน, ค่าส่ง/VAT/คูปองสำเร็จรูป,
   สมาชิกรายเดือน, บัญชี Stripe แยกต่อ tenant
@@ -122,10 +176,11 @@
 - **อัปโหลดจากลิงก์:** proxy ขาออก (`HTTP_PROXY`), ดึงรูปอัตโนมัติเมื่อวางเนื้อหาลงใน rich text
 - **SEO:** FAQPage JSON-LD, ตรวจคุณภาพเนื้อหา
 - **Runtime:** Bun (`bun --bun easy-cms serve`), Yarn Plug'n'Play
-- **หน้าย่อย:** ไล่อัปเดตผ่าน job queue สำหรับต้นไม้ขนาดใหญ่
+- **หน้าย่อย:** ไล่อัปเดตผ่านคิวงาน ([ADR-0052](adr/0052-postgres-job-queue.md)) สำหรับต้นไม้ขนาดใหญ่
 - **Redirects:** export เป็น `_redirects`/`vercel.json`, นำเข้าจาก CSV, pattern/wildcard
-- **SSO:** แมปบทบาทจากกลุ่มฝั่งผู้ให้บริการ, SAML
+- **SSO:** SAML (เปิดให้ทำเป็น plugin ของ community), SCIM, WebAuthn/passkey
 - **Audit log:** ส่งออกแบบ real-time (syslog, SIEM)
 - **Deploy คลิกเดียว:** template สำหรับ Nuxt, ปุ่มบน[เว็บไซต์](https://easy-cms-website.vercel.app)
 - **บทบาท:** สิทธิ์ของ field ย่อยใน group/array/blocks, กำหนดเจ้าของทีละหลายเอกสาร, ผู้ใช้หลายบทบาท
-- **ความปลอดภัย:** pentest โดยภายนอกเมื่อมีผู้ใช้ production จริง
+- **ความปลอดภัย:** pentest โดยภายนอก
+- **Scale:** outbox เป็นค่าปริยายใน 2.0, cache ใน Redis แบบเลือกใช้ถ้า load test บอกว่าจำเป็น, read replica, multi-region
