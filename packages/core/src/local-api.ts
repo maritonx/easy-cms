@@ -2366,22 +2366,22 @@ export class EasyCMS<C extends Config = Config> {
     const collection = kind === 'webhook' ? WEBHOOK_DELIVERIES : EMAIL_DELIVERIES
     const row = await this.db.findById({ collection, id })
     if (!row) throw new NotFoundError(collection, id)
-    // Claimed like a queued retry, so the queue (or a second click) doesn't send it at the same time.
+    // Claimed while it is sent (`sending`): the queue skips it, and a second click (or another
+    // instance) sees it is taken rather than claiming it again.
+    const busy = { ok: false, error: 'it is being sent right now; try again in a minute' } as const
+    if (row.state !== 'pending' && row.state !== 'failed') return busy
     const claimed = await this.claim(
       collection,
       row,
-      {
-        nextAttemptAt: new Date(Date.now() + 5 * 60_000).toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
+      { state: 'sending', updatedAt: new Date().toISOString() },
       {
         and: [
-          { state: { equals: String(row.state) } },
+          { state: { equals: row.state } },
           { nextAttemptAt: { equals: String(row.nextAttemptAt) } },
         ],
       },
     )
-    if (!claimed) return { ok: false, error: 'it is being sent right now; try again in a minute' }
+    if (!claimed) return busy
     const error =
       kind === 'webhook'
         ? await this.webhooks
@@ -2407,11 +2407,33 @@ export class EasyCMS<C extends Config = Config> {
     return { ok: false, error }
   }
 
-  /** Removes webhook deliveries and emails that failed more than 30 days ago. */
+  /**
+   * Removes webhook deliveries and emails that failed more than 30 days ago, and marks as failed
+   * the ones an admin's Retry left `sending` because its instance stopped.
+   */
   private async pruneFailedDeliveries(now: Date): Promise<void> {
     const before = new Date(now.getTime() - 30 * 86_400_000).toISOString()
+    const stuck = new Date(now.getTime() - 5 * 60_000).toISOString()
     for (const collection of [WEBHOOK_DELIVERIES, EMAIL_DELIVERIES]) {
       if (!this.config.collections.some((c) => c.slug === collection)) continue
+      const sending = await this.db.find({
+        collection,
+        where: { and: [{ state: { equals: 'sending' } }, { updatedAt: { lt: stuck } }] },
+        sort: ['updatedAt'],
+        limit: 100,
+        page: 1,
+      })
+      for (const row of sending.docs)
+        await this.claim(
+          collection,
+          row,
+          {
+            state: 'failed',
+            error: 'Interrupted: the server stopped while sending',
+            updatedAt: now.toISOString(),
+          },
+          { and: [{ state: { equals: 'sending' } }, { updatedAt: { lt: stuck } }] },
+        )
       for (;;) {
         const { docs } = await this.db.find({
           collection,

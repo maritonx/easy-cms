@@ -184,12 +184,37 @@ describe('background work claimed by one instance (#153)', () => {
         },
       })
       received.length = 0
-      const results = await Promise.all([
-        one.retryDelivery('webhook', row.id),
-        one.retryDelivery('webhook', row.id),
-      ])
+      // `retryDelivery` is internal (the admin's REST route calls it).
+      const retry = (
+        one as unknown as {
+          retryDelivery(kind: 'webhook', id: unknown): Promise<{ ok: boolean }>
+        }
+      ).retryDelivery.bind(one)
+      const results = await Promise.all([retry('webhook', row.id), retry('webhook', row.id)])
       expect(results.filter((r) => r.ok)).toHaveLength(1)
       expect(received).toEqual(['clicked-twice'])
+
+      // A Retry whose instance stopped mid-send leaves it `sending`: after 5 minutes it is failed.
+      const old = new Date(Date.now() - 6 * 60_000).toISOString()
+      const stuck = await one.db.create({
+        collection: 'webhook-deliveries',
+        data: {
+          url: `${url}/hook`,
+          event: 'create',
+          body: '{}',
+          delivery: 'stuck',
+          attempts: 7,
+          nextAttemptAt: old,
+          state: 'sending',
+          error: null,
+          createdAt: old,
+          updatedAt: old,
+        },
+      })
+      await one.runJobs()
+      expect(
+        await one.db.findById({ collection: 'webhook-deliveries', id: stuck.id }),
+      ).toMatchObject({ state: 'failed', error: 'Interrupted: the server stopped while sending' })
     } finally {
       await one.destroy()
     }
