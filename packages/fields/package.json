@@ -1,6 +1,6 @@
 {
   "name": "@easy-cms/fields",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "description": "Field types for Easy CMS: color, with a picker and swatches in the admin",
   "license": "MIT",
   "type": "module",
