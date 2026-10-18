@@ -1,5 +1,16 @@
 # @easy-cms/admin
 
+## 1.2.0
+
+### Minor Changes
+
+- 4b0217b: More of the admin shows when it is loading: form skeletons on the edit and global pages and in the document drawer (shaped by the fields), skeletons on the settings pages (email, roles, SSO, audit log, backups, deliveries), version history and the activity panel, and a spinner in the media and relationship pickers, the upload field and live preview. Version history no longer says "No versions yet", and an upload field no longer says the file can't be seen, while they are still loading.
+- e9eae54: The admin shows when it is loading: skeletons shaped like the content on the dashboard and a collection's first page (table and media grid), a thin bar while the list reloads after paging, sorting or searching (the rows shown stay, dimmed), and a thin bar at the top during route changes. Indicators appear only after 250ms and stay at least 300ms, stand still with reduced motion, and screen readers hear "Loading…" once.
+
+### Patch Changes
+
+- d9e2b19: The back button on a document goes back to its list again, with the filters, page and scroll it was left at. It pointed at the document itself, so clicking it did nothing.
+
 ## 1.1.0
 
 ### Patch Changes
