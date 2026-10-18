@@ -1447,7 +1447,7 @@ test.describe('logged in as admin', () => {
     const table = page.locator('.table-wrap')
     await expect(table.locator('.skeleton-row').first()).toBeVisible()
     await expect(table).toHaveAttribute('aria-busy', 'true')
-    await expect(table.getByRole('status')).toHaveText('Loading…')
+    await expect(table.getByText('Loading…')).toBeAttached()
     list.release()
     await expect(table.locator('.skeleton-row')).toHaveCount(0)
     const first = table.locator('tbody').getByRole('link').first()

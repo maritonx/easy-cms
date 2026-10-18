@@ -7,6 +7,7 @@ import { api, type Doc } from '../lib/api'
 import { useFilterQuery } from '../lib/filter'
 import type { FieldFolder } from '../lib/folders'
 import { t } from '../lib/i18n'
+import { useDelayedLoading } from '../lib/loading'
 
 const props = defineProps<{
   id: string
@@ -28,6 +29,7 @@ const media = ref<Doc | null>(null)
 const picking = ref(false)
 /** The chosen file's details are on their way: not "no access" yet. */
 const loadingMedia = ref(false)
+const showLoading = useDelayedLoading(loadingMedia)
 
 async function load(id: unknown) {
   if (id === null || id === undefined || id === '') {
@@ -75,12 +77,13 @@ function choose(doc: Doc) {
         </button>
       </div>
     </div>
-    <div v-else-if="loadingMedia" class="selected card">
+    <div v-else-if="showLoading" class="selected card">
       <span class="locked" aria-hidden="true"><span class="spinner" /></span>
       <div class="info">
-        <span class="name muted" role="status">{{ t('common.loading') }}</span>
+        <span class="name muted" aria-live="polite">{{ t('common.loading') }}</span>
       </div>
     </div>
+    <template v-else-if="loadingMedia" />
     <!-- A file in a folder the user may not see: it stays unless they change or remove it. -->
     <div v-else-if="modelValue !== null && modelValue !== undefined && modelValue !== ''" class="selected card">
       <span class="locked" aria-hidden="true"><Lock :size="18" /></span>
