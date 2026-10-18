@@ -1,5 +1,11 @@
 # @easy-cms/admin
 
+## 1.4.1
+
+### Patch Changes
+
+- 2d3425d: Settings → Jobs is complete without `jobs` in the config: the Jobs tab always shows, with how to add jobs when there are none; a Built in section lists what Easy CMS does with every run (scheduled publishing, webhook and email retries, scheduled backups, the audit log check) with links to their pages; and the page says when jobs last ran, or warns when nothing has run them for 10 minutes (a missing cron on serverless hosts).
+
 ## 1.4.0
 
 ### Minor Changes
