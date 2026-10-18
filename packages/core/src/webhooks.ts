@@ -71,6 +71,11 @@ export interface QueuedDelivery {
 export interface WebhookQueue {
   add(delivery: QueuedDelivery): Promise<ID>
   update(id: ID, delivery: QueuedDelivery): Promise<void>
+  /**
+   * Writes `next` only if the entry still matches `current` (its state and next attempt): `false`
+   * when another process claimed it first.
+   */
+  claim(id: ID, current: QueuedDelivery, next: QueuedDelivery): Promise<boolean>
   remove(id: ID): Promise<void>
   /** Pending deliveries whose next attempt is due, oldest first. */
   due(now: Date, limit: number): Promise<(QueuedDelivery & { id: ID })[]>
@@ -137,8 +142,13 @@ export class Webhooks {
         continue
       }
       const attempts = queued.attempts + 1
-      // Claim it first, so another process running `retry` at the same time skips it.
-      await this.queue.update(id, { ...queued, attempts, nextAttemptAt: later(now, CLAIM) })
+      // Claim it first: another process running `retry` at the same time skips it.
+      const claimed = await this.queue.claim(id, queued, {
+        ...queued,
+        attempts,
+        nextAttemptAt: later(now, CLAIM),
+      })
+      if (!claimed) continue
       const result = await this.attempt(hook, queued.event, queued.body, queued.delivery)
       if (result.ok) {
         await this.queue.remove(id)

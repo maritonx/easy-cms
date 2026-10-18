@@ -11,9 +11,11 @@
 
 ## การตัดสินใจ
 
-- **Postgres:** หยิบงานด้วย `UPDATE … WHERE id IN (SELECT … FOR UPDATE SKIP LOCKED LIMIT n) RETURNING …` พร้อมเวลาที่หยิบ (lease) งานของ worker ที่ตายระหว่างทางกลับเข้าคิวเมื่อ lease หมดเวลา
-- **SQLite:** instance เดียวตาม [ADR-0051](./0051-reference-architecture.md) ใช้ `UPDATE … WHERE status = 'pending'` แล้วดูจำนวนแถวที่เปลี่ยนก็พอ
-- ทั้ง scheduler ใน process และ `GET /jobs/run` (cron บน serverless) ใช้ทางหยิบงานเดียวกัน
+- **หยิบงานทีละแถวแบบ compare-and-set** ทั้ง Postgres และ SQLite: `update` ของ adapter ที่มี `where` (มีอยู่แล้วใน `Database`) เขียนเฉพาะเมื่อแถวยังตรงเงื่อนไข เช่น `state = 'pending'` แล้วคืน `null` ถ้าอีก process หยิบไปก่อน
+  - ไม่เพิ่ม `claim()` แบบ `FOR UPDATE SKIP LOCKED` ใน adapter: ความถูกต้องเท่ากัน `SKIP LOCKED` ช่วยแค่ลดการแย่งกันเมื่องานหลายพันต่อวินาที และ adapter เป็น API ที่ 1.0 สัญญาไว้ (เปลี่ยนเมื่อ 2026-10-18 ตอนทำ [#153](https://github.com/maritonx/easy-cms/issues/153))
+- **lease โดยไม่เพิ่มคอลัมน์:** งานตั้งเวลาเปลี่ยน `state` เป็น `running` และใช้ `updatedAt` เป็นเวลาที่หยิบ ค้างเกิน 10 นาทีกลับเป็น `pending`; webhook และอีเมลใช้ `nextAttemptAt` เป็นเวลาหมดสิทธิ์อยู่แล้ว; backup หยิบด้วย `state = 'pending'`
+- ทั้ง scheduler ใน process และ `GET /jobs/run` (cron บน serverless) ใช้ทางหยิบงานเดียวกัน และใน process เดียว `runJobs` รันทีละรอบ
+- **`jobs` ใน config:** หยิบผ่านตาราง `job-runs` (หนึ่งแถวต่องาน, `name` unique, compare-and-set ที่ `lastRunAt`)
 - **ไม่เพิ่ม Redis หรือ BullMQ** เพราะจะเป็น infra ชิ้นที่สองที่องค์กรต้องดูแล สำรอง และเฝ้า ทั้งที่ปริมาณงานของ CMS (หลักร้อยถึงหลักพันงานต่อชั่วโมง) อยู่ในระดับที่ Postgres รับได้สบาย
 - เทสต์: สอง instance บน Postgres เดียวกัน รัน scheduler และ endpoint พร้อมกัน ทุกงานต้องรันครั้งเดียว
 
@@ -21,6 +23,6 @@
 
 - ✅ หลาย instance ปลอดภัยโดยไม่ต้องมี infra เพิ่ม
 - ✅ งานกับข้อมูลอยู่ในฐานข้อมูลเดียวกัน จึงเพิ่มงานใน transaction เดียวกับการบันทึกได้ (ฐานของ [ADR-0053](./0053-outbox-for-after-hooks.md))
-- ⚠️ ต้องมี migration เพิ่มคอลัมน์ lease ในตารางงาน
+- ⚠️ โปรเจกต์ที่ใช้ `jobs` ต้องสร้าง migration ครั้งเดียวสำหรับตาราง `job-runs` (งานอื่นไม่ต้อง)
 - ⚠️ ถ้าวันหนึ่งงานมีปริมาณระดับหลายพันต่อวินาที ต้องกลับมาคิดใหม่ แต่ไม่ใช่งานของ CMS
 - ❌ ยังไม่มี: priority, rate limit ต่อประเภทงาน, หน้า admin สำหรับดูคิวงานทั่วไป (มีแค่ของ webhook)

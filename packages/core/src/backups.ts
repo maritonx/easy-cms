@@ -266,7 +266,17 @@ export async function startBackup(
 /** Makes the backup for a pending record: write, compress, store, then keep only the newest. */
 async function runBackup(cms: EasyCMS, record: RawDocument): Promise<void> {
   const started = new Date()
-  let row = await update(cms, record, { state: 'running', startedAt: started.toISOString() })
+  // Claimed: only one process makes the backup of a record.
+  const { id, ...rest } = record
+  const changes = { state: 'running', startedAt: started.toISOString() }
+  const claimed = await cms.db.update({
+    collection: DATABASE_BACKUPS,
+    id,
+    data: { ...rest, ...changes, updatedAt: started.toISOString() },
+    where: { state: { equals: 'pending' } },
+  })
+  if (!claimed) return
+  let row: RawDocument = { ...record, ...changes }
   const dir = await mkdtemp(join(tmpdir(), 'easy-cms-backup-'))
   try {
     const file = join(dir, 'backup.db')

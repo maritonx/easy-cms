@@ -93,6 +93,11 @@ export interface QueuedEmail {
 export interface EmailQueue {
   add(email: QueuedEmail): Promise<ID>
   update(id: ID, email: QueuedEmail): Promise<void>
+  /**
+   * Writes `next` only if the entry still matches `current` (its state and next attempt): `false`
+   * when another process claimed it first.
+   */
+  claim(id: ID, current: QueuedEmail, next: QueuedEmail): Promise<boolean>
   remove(id: ID): Promise<void>
   due(now: Date, limit: number): Promise<(QueuedEmail & { id: ID })[]>
 }
@@ -158,8 +163,13 @@ export class Mailer {
     let failed = 0
     for (const { id, ...queued } of await this.queue.due(now, 50)) {
       const attempts = queued.attempts + 1
-      // Claim it first, so another process retrying at the same time skips it.
-      await this.queue.update(id, { ...queued, attempts, nextAttemptAt: later(now, CLAIM) })
+      // Claim it first: another process retrying at the same time skips it.
+      const claimed = await this.queue.claim(id, queued, {
+        ...queued,
+        attempts,
+        nextAttemptAt: later(now, CLAIM),
+      })
+      if (!claimed) continue
       const error = await this.attempt(JSON.parse(queued.message) as EmailMessage)
       if (!error) {
         await this.queue.remove(id)

@@ -1862,6 +1862,16 @@ export class EasyCMS<C extends Config = Config> {
           data: toRow(email, current?.createdAt as string | undefined),
         })
       },
+      claim: async (id, current, next) => {
+        const row = await this.db.findById({ collection, id })
+        if (!row) return false
+        return this.claim(collection, row, toRow(next, row.createdAt as string | undefined), {
+          and: [
+            { state: { equals: current.state } },
+            { nextAttemptAt: { equals: current.nextAttemptAt } },
+          ],
+        })
+      },
       remove: async (id) => {
         await this.db.delete({ collection, id })
       },
@@ -1897,10 +1907,8 @@ export class EasyCMS<C extends Config = Config> {
   startScheduler(interval = 60_000): void {
     if (this.schedulerTimer) return
     this.schedulerTimer = setInterval(() => {
-      this.running = this.running.then(() =>
-        this.runJobs().catch((error) =>
-          this.logger.error(`Scheduled jobs failed: ${(error as Error).message}`),
-        ),
+      void this.runJobs().catch((error) =>
+        this.logger.error(`Scheduled jobs failed: ${(error as Error).message}`),
       )
     }, interval)
     this.schedulerTimer.unref?.()
@@ -1910,13 +1918,21 @@ export class EasyCMS<C extends Config = Config> {
    * Runs due scheduled publishes and unpublishes, and retries failed webhook deliveries. What the
    * scheduler and the cron endpoint (`GET <api>/jobs/run`) call.
    */
-  async runJobs(now: Date = new Date()): Promise<{
+  runJobs(now: Date = new Date()): Promise<{
     /** Scheduled publishes and unpublishes. */
     scheduled: { ran: number; failed: number }
     webhooks: { sent: number; failed: number }
     emails: { sent: number; failed: number }
     jobs: { ran: number; failed: number }
   }> {
+    // One run at a time in this process: the scheduler and the cron endpoint wait for each other.
+    // Other processes are kept apart by claiming each piece of work in the database.
+    const run = this.running.then(() => this.runJobsNow(now))
+    this.running = run.catch(() => {})
+    return run
+  }
+
+  private runJobsNow(now: Date) {
     // What jobs change is the scheduler's doing, in the audit log.
     return auditContext.run({ via: 'scheduler', user: null }, async () => {
       const scheduled = await this.runScheduled(now)
@@ -2002,6 +2018,16 @@ export class EasyCMS<C extends Config = Config> {
           data: toRow(delivery, current?.createdAt as string | undefined),
         })
       },
+      claim: async (id, current, next) => {
+        const row = await this.db.findById({ collection, id })
+        if (!row) return false
+        return this.claim(collection, row, toRow(next, row.createdAt as string | undefined), {
+          and: [
+            { state: { equals: current.state } },
+            { nextAttemptAt: { equals: current.nextAttemptAt } },
+          ],
+        })
+      },
       remove: async (id) => {
         await this.db.delete({ collection, id })
       },
@@ -2021,12 +2047,46 @@ export class EasyCMS<C extends Config = Config> {
   }
 
   /**
+   * Takes a queued row for this process by writing `changes`, only if it still matches `expect`
+   * (compare and set): `false` when another process changed it first.
+   */
+  private async claim(
+    collection: string,
+    row: RawDocument,
+    changes: Record<string, unknown>,
+    expect: Where,
+  ): Promise<boolean> {
+    const { id, ...data } = row
+    return (
+      (await this.db.update({ collection, id, data: { ...data, ...changes }, where: expect })) !==
+      null
+    )
+  }
+
+  /**
    * Publishes or unpublishes documents whose scheduled time has come. Safe to call often, e.g.
-   * from a cron job (`GET <api>/jobs/run`) where no process keeps running.
+   * from a cron job (`GET <api>/jobs/run`) where no process keeps running, and from several
+   * processes at once: each job is claimed before it runs.
    */
   async runScheduled(now: Date = new Date()): Promise<{ ran: number; failed: number }> {
     if (!this.config.collections.some((c) => c.slug === SCHEDULED_JOBS))
       return { ran: 0, failed: 0 }
+    // Jobs claimed by a process that stopped before finishing them go back to the queue.
+    const expired = new Date(now.getTime() - JOB_LEASE).toISOString()
+    const stuck = await this.db.find({
+      collection: SCHEDULED_JOBS,
+      where: { and: [{ state: { equals: 'running' } }, { updatedAt: { lt: expired } }] },
+      sort: ['updatedAt'],
+      limit: 100,
+      page: 1,
+    })
+    for (const row of stuck.docs)
+      await this.claim(
+        SCHEDULED_JOBS,
+        row,
+        { state: 'pending', updatedAt: now.toISOString() },
+        { and: [{ state: { equals: 'running' } }, { updatedAt: { lt: expired } }] },
+      )
     const due = await this.db.find({
       collection: SCHEDULED_JOBS,
       where: {
@@ -2036,8 +2096,17 @@ export class EasyCMS<C extends Config = Config> {
       limit: 100,
       page: 1,
     })
+    let ran = 0
     let failed = 0
     for (const row of due.docs) {
+      const claimed = await this.claim(
+        SCHEDULED_JOBS,
+        row,
+        { state: 'running', updatedAt: now.toISOString() },
+        { state: { equals: 'pending' } },
+      )
+      // Another process took it.
+      if (!claimed) continue
       const parent = String(row.parent)
       const action = row.action as ScheduledPublish['action']
       try {
@@ -2060,8 +2129,9 @@ export class EasyCMS<C extends Config = Config> {
         await this.db.update({
           collection: SCHEDULED_JOBS,
           id: row.id,
-          data: { ...row, state: 'done' },
+          data: { ...row, state: 'done', updatedAt: new Date().toISOString() },
         })
+        ran++
       } catch (error) {
         failed++
         const message = (error as Error).message
@@ -2069,11 +2139,16 @@ export class EasyCMS<C extends Config = Config> {
         await this.db.update({
           collection: SCHEDULED_JOBS,
           id: row.id,
-          data: { ...row, state: 'failed', error: message.slice(0, 500) },
+          data: {
+            ...row,
+            state: 'failed',
+            error: message.slice(0, 500),
+            updatedAt: new Date().toISOString(),
+          },
         })
       }
     }
-    return { ran: due.docs.length - failed, failed }
+    return { ran, failed }
   }
 
   /** Schedules a publish or unpublish, replacing a pending job with the same action. */
@@ -2291,6 +2366,22 @@ export class EasyCMS<C extends Config = Config> {
     const collection = kind === 'webhook' ? WEBHOOK_DELIVERIES : EMAIL_DELIVERIES
     const row = await this.db.findById({ collection, id })
     if (!row) throw new NotFoundError(collection, id)
+    // Claimed while it is sent (`sending`): the queue skips it, and a second click (or another
+    // instance) sees it is taken rather than claiming it again.
+    const busy = { ok: false, error: 'it is being sent right now; try again in a minute' } as const
+    if (row.state !== 'pending' && row.state !== 'failed') return busy
+    const claimed = await this.claim(
+      collection,
+      row,
+      { state: 'sending', updatedAt: new Date().toISOString() },
+      {
+        and: [
+          { state: { equals: row.state } },
+          { nextAttemptAt: { equals: String(row.nextAttemptAt) } },
+        ],
+      },
+    )
+    if (!claimed) return busy
     const error =
       kind === 'webhook'
         ? await this.webhooks
@@ -2316,11 +2407,33 @@ export class EasyCMS<C extends Config = Config> {
     return { ok: false, error }
   }
 
-  /** Removes webhook deliveries and emails that failed more than 30 days ago. */
+  /**
+   * Removes webhook deliveries and emails that failed more than 30 days ago, and marks as failed
+   * the ones an admin's Retry left `sending` because its instance stopped.
+   */
   private async pruneFailedDeliveries(now: Date): Promise<void> {
     const before = new Date(now.getTime() - 30 * 86_400_000).toISOString()
+    const stuck = new Date(now.getTime() - 5 * 60_000).toISOString()
     for (const collection of [WEBHOOK_DELIVERIES, EMAIL_DELIVERIES]) {
       if (!this.config.collections.some((c) => c.slug === collection)) continue
+      const sending = await this.db.find({
+        collection,
+        where: { and: [{ state: { equals: 'sending' } }, { updatedAt: { lt: stuck } }] },
+        sort: ['updatedAt'],
+        limit: 100,
+        page: 1,
+      })
+      for (const row of sending.docs)
+        await this.claim(
+          collection,
+          row,
+          {
+            state: 'failed',
+            error: 'Interrupted: the server stopped while sending',
+            updatedAt: now.toISOString(),
+          },
+          { and: [{ state: { equals: 'sending' } }, { updatedAt: { lt: stuck } }] },
+        )
       for (;;) {
         const { docs } = await this.db.find({
           collection,
@@ -3381,6 +3494,8 @@ interface UploadTicket {
 const MAX_FILES_TO_MOVE = 200
 /** The row of the globals table that holds when each of the config's `jobs` last ran. */
 const JOB_RUNS = 'easy-cms:jobs'
+/** A scheduled job claimed this long ago by a process that never finished it goes back to the queue. */
+const JOB_LEASE = 10 * 60_000
 
 /** `3600`, `'30m'`, `'1h'`, `'7d'` as seconds; at most 7 days. */
 function durationSeconds(value: number | string): number {
