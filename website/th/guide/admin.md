@@ -25,7 +25,7 @@
 ตั้งค่า
   เว็บไซต์           global, redirects
   ผู้ใช้และสิทธิ์      ผู้ใช้ บทบาท API keys SSO
-  ระบบ              Backups อีเมล การส่ง Audit log
+  ระบบ              Backups อีเมล การส่ง งานเบื้องหลัง Audit log
 ```
 
 collection, global และหน้าระบุกลุ่มของตัวเองด้วย `admin.group` ส่วนกลุ่มของคุณเองประกาศใน `admin.nav`:

@@ -37,7 +37,7 @@ import { sqlite } from '@easy-cms/db-sqlite'
 
 backups: {
   frequency: 'daily',   // or 'weekly'; leave out for backups by hand only
-  at: '03:00',           // the server's time
+  at: '03:00',           // in `timeZone` (the server's by default; see Jobs)
   keep: 7,               // older ones are deleted
   // dir: 'backups',     // default; never served publicly
   // storage: s3Storage({ bucket: 'my-private-backups' }), // instead of the server's disk

@@ -10,6 +10,31 @@ const withFields = (fields: Field[], extra: Partial<CollectionConfig> = {}) =>
   paths([{ slug: 'posts', fields, ...extra }])
 
 describe('validateConfig', () => {
+  it('checks job times and the time zone', () => {
+    const run = () => {}
+    const issues = (config: Parameters<typeof baseConfig>[0]) =>
+      validateConfig(baseConfig(config)).map((i) => i.path)
+    expect(
+      issues({
+        timeZone: 'Asia/Bangkok',
+        jobs: [
+          { name: 'daily', at: '02:00', run },
+          { name: 'weekly', at: '23:59', every: 604_800, adminSchedule: true, run },
+        ],
+      }),
+    ).toEqual([])
+    expect(issues({ timeZone: 'Mars/Olympus' })).toEqual(['timeZone'])
+    expect(
+      issues({
+        jobs: [
+          { name: 'late', at: '24:00', run },
+          { name: 'hourly', at: '02:00', every: 3600, run },
+          { name: 'flag', adminSchedule: 'yes' as unknown as boolean, run },
+        ],
+      }),
+    ).toEqual(['jobs[0].at', 'jobs[1].every', 'jobs[2].adminSchedule'])
+  })
+
   it('accepts a minimal config', () => {
     expect(validateConfig(baseConfig())).toEqual([])
   })

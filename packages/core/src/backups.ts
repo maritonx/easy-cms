@@ -12,6 +12,7 @@ import type { RawDocument } from './database.js'
 import { EasyCMSError, NotFoundError } from './errors.js'
 import type { EasyCMS } from './local-api.js'
 import { diskStorage, type StorageAdapter } from './storage.js'
+import { lastSlot } from './time-of-day.js'
 
 const gzipAsync = promisify(gzip)
 
@@ -344,13 +345,6 @@ async function pruneBackups(cms: EasyCMS, room = 0): Promise<void> {
 }
 
 /** The latest slot of a schedule at or before `now`: today's (or the past) `HH:MM`. */
-function lastSlot(now: Date, at: string): Date {
-  const [hours, minutes] = at.split(':').map(Number) as [number, number]
-  const slot = new Date(now)
-  slot.setHours(hours, minutes, 0, 0)
-  if (slot.getTime() > now.getTime()) slot.setDate(slot.getDate() - 1)
-  return slot
-}
 
 /**
  * Runs with scheduled jobs: finishes backups a stopped process left pending, marks stale
@@ -379,7 +373,7 @@ export async function runDueBackups(cms: EasyCMS, now: Date = new Date()): Promi
 
   const every = cms.config.backups?.frequency
   if (!every) return
-  const slot = lastSlot(now, cms.config.backups?.at ?? DEFAULT_BACKUP_TIME)
+  const slot = lastSlot(now, cms.config.backups?.at ?? DEFAULT_BACKUP_TIME, cms.config.timeZone)
   const latest = await cms.db.find({
     collection: DATABASE_BACKUPS,
     where: { trigger: { equals: 'scheduled' } },

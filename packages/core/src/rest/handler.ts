@@ -30,6 +30,7 @@ import {
   retryFailedDeliveries,
 } from './admin-deliveries.js'
 import { adminEmail, sendTestEmail, verifyEmail } from './admin-email.js'
+import { adminJobs, hasJobsPage, updateJob } from './admin-jobs.js'
 import { readAdminModule } from './admin-modules.js'
 import { adminSchema } from './admin-schema.js'
 import { adminCounts, adminSearch } from './admin-search.js'
@@ -781,6 +782,37 @@ async function route(
       detail: { kind },
     })
     return { body: { deleted: 1 } }
+  }
+
+  // Settings → Jobs, for admins and roles given it: the config's jobs and the scheduled queue,
+  // and running what is due (claimed like any other run, so it never doubles one).
+  if (first === 'admin' && second === 'jobs') {
+    if (!ctx.user) throw new UnauthorizedError()
+    if (!hasJobsPage(cms.config)) throw new HttpError('Not found', 404)
+    if (!(await cms.roles.canView(ctx.user, 'jobs'))) throw new ForbiddenError()
+    if (third === undefined && segments.length === 2) {
+      if (method !== 'GET') throw methodNotAllowed(ctx, 'GET')
+      return { body: await adminJobs(cms, ctx.user) }
+    }
+    if (third === 'run' && segments.length === 3) {
+      if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
+      const result = await cms.runJobs()
+      await cms.audit.record({ action: 'jobs.run', target: 'jobs', detail: result })
+      return { body: result }
+    }
+    // /admin/jobs/:name: pause or resume it, or set its schedule (admins of the whole system).
+    if (third !== undefined && segments.length === 3) {
+      if (method !== 'PATCH') throw methodNotAllowed(ctx, 'PATCH')
+      const { action, detail } = await updateJob(
+        cms,
+        ctx.user,
+        decodeURIComponent(third),
+        await readJson(ctx.request),
+      )
+      await cms.audit.record({ action, target: 'jobs', detail })
+      return { body: await adminJobs(cms, ctx.user) }
+    }
+    throw new HttpError('Not found', 404)
   }
 
   // Admin UI metadata

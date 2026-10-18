@@ -30,7 +30,14 @@ import {
   USERS,
   WEBHOOK_DELIVERIES,
 } from './builtins.js'
-import type { CollectionConfig, Config, GlobalConfig, ImageSize, ResolvedConfig } from './config.js'
+import type {
+  CollectionConfig,
+  Config,
+  GlobalConfig,
+  ImageSize,
+  JobConfig,
+  ResolvedConfig,
+} from './config.js'
 import type { Database, PaginatedDocs, RawDocument, SchemaMode } from './database.js'
 import {
   applyDefaults,
@@ -89,6 +96,7 @@ import { fetchRemoteFile, RemoteFileError } from './remote-file.js'
 import { resolveConfig } from './resolve-config.js'
 import { Roles } from './roles.js'
 import { type DirectUpload, diskStorage, type StorageAdapter } from './storage.js'
+import { dueAt } from './time-of-day.js'
 import {
   collectionParent,
   globalParent,
@@ -254,7 +262,8 @@ export interface ScheduledPublish {
   readonly action: 'publish' | 'unpublish'
   /** ISO time the job runs at (or after). */
   readonly runAt: string
-  readonly state: 'pending' | 'done' | 'failed'
+  /** `running`: claimed by an instance that is publishing it now. */
+  readonly state: 'pending' | 'running' | 'done' | 'failed'
   readonly error: string | null
   readonly author: ID | null
 }
@@ -1968,11 +1977,24 @@ export class EasyCMS<C extends Config = Config> {
     let ran = 0
     let failed = 0
     for (const job of jobs) {
-      const due = (previous: unknown) =>
-        job.every === undefined ||
-        typeof previous !== 'string' ||
-        now.getTime() - Date.parse(previous) >= job.every * 1000
-      const row = rows.get(job.name)
+      // What an admin set in Settings → Jobs comes first: paused, or (with `adminSchedule`) a
+      // schedule in place of the config's.
+      const fresh = rows.has(job.name)
+        ? await this.db.findById({ collection: JOB_RUNS, id: rows.get(job.name)?.id as ID })
+        : null
+      const row = fresh ?? undefined
+      if (row?.pausedAt) continue
+      const schedule = jobSchedule(job, row)
+      const due = (previous: unknown) => {
+        const last = typeof previous === 'string' && previous !== '' ? previous : undefined
+        if (schedule.at)
+          return dueAt(now, schedule.at, schedule.every ?? 86_400, last, this.config.timeZone)
+        return (
+          schedule.every === undefined ||
+          last === undefined ||
+          now.getTime() - Date.parse(last) >= schedule.every * 1000
+        )
+      }
       let claimed: boolean
       if (row) {
         if (!due(row.lastRunAt)) continue
@@ -3562,6 +3584,25 @@ interface UploadTicket {
 /** Files one request may move between public and private storage. */
 const MAX_FILES_TO_MOVE = 200
 /** The row of the globals table that holds when each of the config's `jobs` last ran. */
+/**
+ * How often a job runs and at what time: what an admin set in Settings → Jobs when the job allows
+ * it (`adminSchedule`), else the config's.
+ */
+export function jobSchedule(
+  job: JobConfig,
+  row: RawDocument | undefined,
+): { every: number | undefined; at: string | undefined; overridden: boolean } {
+  const every = row?.everyOverride
+  const at = row?.atOverride
+  if (job.adminSchedule && (typeof every === 'number' || typeof at === 'string'))
+    return {
+      every: typeof every === 'number' ? every : undefined,
+      at: typeof at === 'string' && at !== '' ? at : undefined,
+      overridden: true,
+    }
+  return { every: job.every, at: job.at, overridden: false }
+}
+
 /** Where job runs were kept before the `job-runs` collection: read once, when a job has no row. */
 const LEGACY_JOB_RUNS = 'easy-cms:jobs'
 /** A scheduled job claimed this long ago by a process that never finished it goes back to the queue. */

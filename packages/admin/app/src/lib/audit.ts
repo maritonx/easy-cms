@@ -35,6 +35,10 @@ export const AUDIT_ACTIONS = [
   'email.test',
   'delivery.retry',
   'delivery.delete',
+  'jobs.run',
+  'jobs.pause',
+  'jobs.resume',
+  'jobs.schedule',
   'audit.verify',
 ] as const
 
@@ -63,7 +67,7 @@ export function targetLabel(target: string | null): string {
   const collection = session.schema?.collections.find((c) => c.slug === target)
   if (collection) return label(collection.labels?.plural, target)
   const area = `audit.target.${target}` as MessageKey
-  return ['auth', 'roles', 'backups', 'email', 'deliveries', 'audit'].includes(target)
+  return ['auth', 'roles', 'backups', 'email', 'deliveries', 'jobs', 'audit'].includes(target)
     ? t(area)
     : target
 }

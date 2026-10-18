@@ -27,7 +27,7 @@ Shop             a group of a plugin, e.g. the shop's
 Settings
   Site             globals, redirects
   Users & access   users, roles, API keys, single sign-on
-  System           backups, email, deliveries, audit log
+  System           backups, email, deliveries, jobs, audit log
 ```
 
 Collections, globals and pages name their group in `admin.group`; groups of your own are declared

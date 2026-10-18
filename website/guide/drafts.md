@@ -112,7 +112,8 @@ Set `CRON_SECRET` (or `cronSecret` in the config) to a random string of at least
 Logged-in admins can call it too, with `POST` (a link can't run jobs for them), and
 `npx easy-cms jobs:run` runs due jobs once from any cron. Failed jobs (e.g. a publish that
 doesn't pass validation) are logged and not retried. The same run retries
-[webhook deliveries](./webhooks#delivery) that failed earlier.
+[webhook deliveries](./webhooks#delivery) that failed earlier. **Settings → Jobs** lists what is
+waiting, running or failed, and runs your own [jobs](./jobs) too.
 
 ## Next steps
 

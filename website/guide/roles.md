@@ -21,7 +21,7 @@ a translator…), copy one to start from, rename them, and tick what each may do
 - **Content:** each collection and global against **Read**, **Create**, **Update**, **Delete** and
   **Publish** (Publish only with [drafts](./drafts)). Ticking anything else ticks Read too; a whole
   row or column can be ticked at once. **Create** on Media means uploading.
-- **Admin pages:** the system status on the dashboard, [Deliveries](./health-checks), and the pages
+- **Admin pages:** the system status on the dashboard, [Deliveries](./health-checks), [Jobs](./jobs), and the pages
   and dashboard panels of [plugins](./plugins#pages-and-dashboard-panels). Backups, Email and Roles
   stay with admins: a backup holds the whole database, and Email sends mail from the site.
 

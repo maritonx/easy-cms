@@ -185,6 +185,7 @@ export type {
   DeliveryState,
 } from './rest/admin-deliveries.js'
 export type { AdminEmail, EmailCheck } from './rest/admin-email.js'
+export type { AdminJob, AdminJobs, AdminScheduledJob } from './rest/admin-jobs.js'
 export type {
   AdminCollection,
   AdminComponentRef,

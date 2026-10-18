@@ -28,6 +28,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `webhooks` | `WebhookConfig[]` | `[]` | See [webhooks](#webhooks). |
 | `events` | `string[]` | `[]` | Events of the app or its plugins besides content changes (`<area>.<what>`, e.g. `order.paid`), sent with `cms.emit()` to webhooks that list them. [Webhooks](/guide/webhooks#your-own-events) |
 | `jobs` | `JobConfig[]` | `[]` | Work run with the scheduled jobs, e.g. a plugin's clean-up. See [jobs](#jobs). |
+| `timeZone` | `string` | the server's | IANA time zone of times of day in the config (`jobs[].at`, `backups.at`), e.g. `Asia/Bangkok`. [Jobs](/guide/jobs) |
 | `localization` | `LocalizationConfig \| false` | — | See [localization](#localization). |
 | `routes` | `RoutesConfig` | | See [routes](#routes). |
 | `admin` | `AdminConfig` | | See [admin](#admin). |
@@ -227,11 +228,14 @@ that list them.
 | Option | Type | |
 |---|---|---|
 | `name` | `string` | Unique, lowercase with `-` and `:`, e.g. `shop:carts`. |
-| `every` | `number` | At most this often, in seconds; when each last ran is kept in the database. Default: every run. |
+| `every` | `number` | At most this often, in seconds; when each last ran is kept in the database. With `at`, whole days (default one). Default: every run. |
+| `at` | `string` | A time of day, `HH:MM` in `timeZone`. A missed time runs once when jobs next run. |
+| `adminSchedule` | `boolean` | Admins may change `every` and `at` on Settings → Jobs. Default `false`. |
 | `run` | `({ cms, now }) => unknown` | The work. A failure is logged; the other jobs still run. |
 
 They run with the scheduled jobs: every minute in a server, or each time a cron calls
-`GET <api>/jobs/run`.
+`GET <api>/jobs/run`. Each run is claimed in the database, so it happens once across instances.
+Admins see, run and pause them on Settings → Jobs. [Jobs](/guide/jobs)
 
 <!-- api: CollectionConfig -->
 ## collections

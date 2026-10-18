@@ -38,6 +38,7 @@ import {
   type ResolvedNavGroup,
 } from '../nav.js'
 import type { RoleOperation } from '../roles.js'
+import { hasJobsPage } from './admin-jobs.js'
 import { adminModuleUrls } from './admin-modules.js'
 
 /** Built-in collections listed under Settings › Users & access in the menu. */
@@ -69,7 +70,10 @@ export type AdminNavItem =
   | { kind: 'collection'; slug: string }
   | { kind: 'global'; slug: string }
   | { kind: 'page'; path: string }
-  | { kind: 'view'; view: 'roles' | 'sso' | 'backups' | 'email' | 'deliveries' | 'audit' }
+  | {
+      kind: 'view'
+      view: 'roles' | 'sso' | 'backups' | 'email' | 'deliveries' | 'jobs' | 'audit'
+    }
 
 /** A group of the admin menu (`admin.nav`), with what this user may open in it. */
 export interface AdminNavGroup {
@@ -235,6 +239,8 @@ export interface AdminSchema {
   views: {
     status: boolean
     deliveries: boolean
+    /** Settings → Jobs: the config's `jobs` and the scheduled-publish queue. */
+    jobs: boolean
     backups: boolean
     email: boolean
     roles: boolean
@@ -510,6 +516,7 @@ export async function adminSchema(
   const views = {
     status: await cms.roles.canView(user, 'status'),
     deliveries: deliveries && (await cms.roles.canView(user, 'deliveries')),
+    jobs: hasJobsPage(cms.config) && (await cms.roles.canView(user, 'jobs')),
     backups: admin,
     email: admin,
     roles: admin && cms.roles.enabled,
@@ -683,6 +690,7 @@ const VIEW_GROUPS: readonly [ViewKey, string][] = [
   ['backups', 'settings.system'],
   ['email', 'settings.system'],
   ['deliveries', 'settings.system'],
+  ['jobs', 'settings.system'],
   ['audit', 'settings.system'],
 ]
 

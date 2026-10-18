@@ -26,6 +26,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `webhooks` | `WebhookConfig[]` | `[]` | ดู [webhooks](#webhooks) |
 | `events` | `string[]` | `[]` | event ของแอปหรือ plugin นอกจากการแก้เนื้อหา (`<area>.<what>` เช่น `order.paid`) ส่งด้วย `cms.emit()` ไปยัง webhook ที่ระบุไว้ [Webhooks](/th/guide/webhooks#your-own-events) |
 | `jobs` | `JobConfig[]` | `[]` | งานที่รันพร้อมงานตั้งเวลา เช่นงานเก็บกวาดของ plugin ดู [jobs](#jobs) |
+| `timeZone` | `string` | เขตเวลาของ server | เขตเวลา IANA ของเวลาของวันใน config (`jobs[].at`, `backups.at`) เช่น `Asia/Bangkok` [งานเบื้องหลัง](/th/guide/jobs) |
 | `localization` | `LocalizationConfig \| false` | — | ดู [localization](#localization) |
 | `routes` | `RoutesConfig` | | ดู [routes](#routes) |
 | `admin` | `AdminConfig` | | ดู [admin](#admin) |
@@ -224,10 +225,14 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | ตัวเลือก | Type | |
 |---|---|---|
 | `name` | `string` | ไม่ซ้ำกัน ตัวพิมพ์เล็ก ใช้ `-` และ `:` ได้ เช่น `shop:carts` |
-| `every` | `number` | รันห่างกันอย่างน้อยกี่วินาที เวลาที่รันล่าสุดเก็บในฐานข้อมูล ค่าเริ่มต้น: ทุกรอบ |
+| `every` | `number` | รันห่างกันอย่างน้อยกี่วินาที เวลาที่รันล่าสุดเก็บในฐานข้อมูล ถ้ามี `at` ต้องเป็นจำนวนวันเต็ม (ค่าเริ่มต้นหนึ่งวัน) ค่าเริ่มต้น: ทุกรอบ |
+| `at` | `string` | เวลาของวัน `HH:MM` ตาม `timeZone` ถ้าพลาดเวลาไปจะรันหนึ่งครั้งเมื่องานรันครั้งถัดไป |
+| `adminSchedule` | `boolean` | ให้แอดมินเปลี่ยน `every` และ `at` ได้ในหน้า ตั้งค่า → งานเบื้องหลัง ค่าเริ่มต้น `false` |
 | `run` | `({ cms, now }) => unknown` | งานที่ทำ ถ้าล้มเหลวจะบันทึก log และงานอื่นยังรันต่อ |
 
 งานเหล่านี้รันพร้อมงานตั้งเวลา: ทุกนาทีบน server หรือทุกครั้งที่ cron เรียก `GET <api>/jobs/run`
+แต่ละรอบถูกจองในฐานข้อมูล จึงรันครั้งเดียวแม้มีหลาย instance แอดมินดู รัน และหยุดงานได้ในหน้า ตั้งค่า → งานเบื้องหลัง
+[งานเบื้องหลัง](/th/guide/jobs)
 
 <!-- api: CollectionConfig -->
 ## collections {#collections}

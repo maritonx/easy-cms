@@ -160,6 +160,7 @@ describe('roles from the admin', () => {
     expect(schema.views).toEqual({
       status: true,
       deliveries: false,
+      jobs: false,
       backups: false,
       email: false,
       roles: false,
