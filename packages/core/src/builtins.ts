@@ -12,6 +12,7 @@ export const SCHEDULED_JOBS = 'scheduled-jobs'
 export const WEBHOOK_DELIVERIES = 'webhook-deliveries'
 export const EMAIL_DELIVERIES = 'email-deliveries'
 export const DATABASE_BACKUPS = 'database-backups'
+export const JOB_RUNS = 'job-runs'
 export const ROLES = 'user-roles'
 export const USER_IDENTITIES = 'user-identities'
 export const AUDIT_LOGS = 'audit-logs'
@@ -25,6 +26,7 @@ export const INTERNAL_COLLECTIONS: ReadonlySet<string> = new Set([
   WEBHOOK_DELIVERIES,
   EMAIL_DELIVERIES,
   DATABASE_BACKUPS,
+  JOB_RUNS,
   ROLES,
   USER_IDENTITIES,
   AUDIT_LOGS,
@@ -532,6 +534,31 @@ export const auditLogsCollection: CollectionConfig = {
 }
 
 /** Emails until they are sent; added only when `email` is set. */
+/**
+ * When each of the config's `jobs` last ran, one row per job; added only when `jobs` is set. An
+ * instance claims a run by moving `lastRunAt` from the value it read (compare and set).
+ */
+export const jobRunsCollection: CollectionConfig = {
+  slug: JOB_RUNS,
+  access: { read: nobody, create: nobody, update: nobody, delete: nobody },
+  fields: [
+    { name: 'name', type: 'text', required: true, unique: true },
+    { name: 'lastRunAt', type: 'text', required: true },
+    // running | ok | failed; empty until it first runs here.
+    { name: 'lastStatus', type: 'text' },
+    { name: 'lastError', type: 'text' },
+    { name: 'lastDurationMs', type: 'number' },
+    // Set from Settings → Jobs by an admin: paused, or a schedule in place of the code's (only
+    // for jobs with `adminSchedule`). Empty: as the code says.
+    { name: 'pausedAt', type: 'text' },
+    { name: 'pausedBy', type: 'text' },
+    { name: 'everyOverride', type: 'number' },
+    { name: 'atOverride', type: 'text' },
+    { name: 'changedBy', type: 'text' },
+    { name: 'changedAt', type: 'text' },
+  ],
+}
+
 export const emailDeliveriesCollection: CollectionConfig = {
   slug: EMAIL_DELIVERIES,
   access: { read: nobody, create: nobody, update: nobody, delete: nobody },
