@@ -1,7 +1,7 @@
 import { createHash, createHmac } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { expect, type Page, test } from '@playwright/test'
+import { expect, type Page, type Route, test } from '@playwright/test'
 import sharp from 'sharp'
 
 const ADMIN = { email: 'admin@e2e.test', password: 'admin-password-1' }
@@ -62,6 +62,22 @@ const badge = (page: Page, text: string) =>
  * A password link's token, signed like the CMS does with the e2e secret: only for accounts
  * without a password (an invitation), whose fingerprint is known.
  */
+/**
+ * Holds the admin's API requests matching `url` until `release()`, so a test can see what a
+ * screen shows while it waits for data. Later requests go straight through.
+ */
+async function hold(page: Page, url: RegExp) {
+  let open!: () => void
+  const released = new Promise<void>((resolve) => {
+    open = resolve
+  })
+  await page.route(url, async (route: Route) => {
+    await released
+    await route.fallback()
+  })
+  return { release: () => open() }
+}
+
 function passwordToken(userId: string, purpose: 'invite' | 'reset') {
   const payload = Buffer.from(
     JSON.stringify({ u: userId, p: purpose, e: Date.now() + 3_600_000 }),
@@ -171,8 +187,13 @@ test.describe('logged in as admin', () => {
     await page.keyboard.type(' text.')
     await expect(editor.locator('strong')).toHaveText('bold')
 
-    // Relationship picker: search and choose.
+    // Relationship picker: search and choose. While the search is under way it says so,
+    // not "No matches" (#145).
+    const categories = await hold(page, /\/categories\?/)
     await page.getByLabel('Category', { exact: true }).fill('Gui')
+    await expect(page.getByRole('listbox').getByRole('status')).toHaveText('Loading…')
+    await expect(page.getByRole('listbox')).not.toContainText('No matches')
+    categories.release()
     await page.getByRole('option', { name: 'Guides' }).click()
     await expect(page.getByRole('link', { name: 'Guides' })).toBeVisible()
 
@@ -246,8 +267,13 @@ test.describe('logged in as admin', () => {
     await page.goto('/admin/collections/posts?q=Hello')
     await page.getByRole('link', { name: 'Hello from Playwright' }).click()
     // The first upload field is the cover; the SEO plugin's share image comes later.
+    // While the library loads, the picker says so instead of claiming it is empty (#145).
+    const library = await hold(page, /\/media\?/)
     await page.getByRole('button', { name: 'Choose from media library' }).first().click()
     const picker = page.getByRole('dialog', { name: 'Choose a file' })
+    await expect(picker.getByRole('status')).toHaveText('Loading…')
+    await expect(picker).not.toContainText('No files yet')
+    library.release()
     await picker.getByRole('button', { name: 'A green circle' }).click()
     await expect(picker).toBeHidden()
     await expect(page.getByRole('link', { name: 'A green circle' })).toBeVisible()

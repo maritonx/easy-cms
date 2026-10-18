@@ -61,6 +61,8 @@ const items = ref<Doc[]>([])
 const page = ref(1)
 const hasMore = ref(false)
 const urlInput = ref('')
+/** False until the first page answers, so an empty library isn't claimed while it loads. */
+const loaded = ref(false)
 
 // Folders (`upload.folders`): the picker opens where the user last worked.
 const useFolders = foldersOn()
@@ -120,12 +122,16 @@ async function load(reset = true) {
         ),
       },
     ]
-  const result = await api<Paginated<Doc>>(
-    'GET',
-    `/media${toQuery({ where, limit: 24, page: page.value, sort: '-createdAt', depth: 0 })}${props.filterQuery ?? ''}`,
-  )
-  items.value = reset ? result.docs : [...items.value, ...result.docs]
-  hasMore.value = result.hasNextPage
+  try {
+    const result = await api<Paginated<Doc>>(
+      'GET',
+      `/media${toQuery({ where, limit: 24, page: page.value, sort: '-createdAt', depth: 0 })}${props.filterQuery ?? ''}`,
+    )
+    items.value = reset ? result.docs : [...items.value, ...result.docs]
+    hasMore.value = result.hasNextPage
+  } finally {
+    loaded.value = true
+  }
 }
 
 watch(
@@ -133,6 +139,7 @@ watch(
   (open) => {
     if (open) {
       chosen.value = []
+      loaded.value = false
       dialog.value?.showModal()
       void loadTree().then(() => load())
     } else {
@@ -188,7 +195,8 @@ function insertUrl() {
         </button>
       </li>
     </ul>
-    <p v-if="!items.length" class="muted">{{ t('media.empty') }}</p>
+    <p v-if="!loaded" class="muted" role="status">{{ t('common.loading') }}</p>
+    <p v-else-if="!items.length" class="muted">{{ t('media.empty') }}</p>
     <ul class="grid">
       <li v-for="item in items" :key="String(item.id)">
         <button
