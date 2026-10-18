@@ -1692,10 +1692,11 @@ button.menu-item {
 }
 .filter select {
   min-height: 2.25rem;
-  padding: 0 1.9rem 0 0.75rem;
+  padding: 0 2.25rem 0 0.75rem;
   border: 1px dashed var(--border-strong);
   border-radius: var(--radius-sm);
-  background: transparent;
+  /* The color only: the arrow is the global select's background image. */
+  background-color: transparent;
   color: var(--text-muted);
   font: inherit;
   font-size: 0.875rem;
@@ -1709,7 +1710,7 @@ button.menu-item {
 .filter.on select {
   border-style: solid;
   border-color: transparent;
-  background: var(--accent-soft);
+  background-color: var(--accent-soft);
   color: var(--accent-ink);
 }
 .columns {
