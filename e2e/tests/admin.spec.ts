@@ -64,24 +64,18 @@ const badge = (page: Page, text: string) =>
  */
 /**
  * Holds the admin's API requests matching `url` until `release()`, so a test can see what a
- * screen shows while it waits for data.
+ * screen shows while it waits for data. Later requests go straight through.
  */
 async function hold(page: Page, url: RegExp) {
   let open!: () => void
   const released = new Promise<void>((resolve) => {
     open = resolve
   })
-  const handler = async (route: Route) => {
+  await page.route(url, async (route: Route) => {
     await released
-    await route.continue()
-  }
-  await page.route(url, handler)
-  return {
-    async release() {
-      open()
-      await page.unroute(url, handler)
-    },
-  }
+    await route.fallback()
+  })
+  return { release: () => open() }
 }
 
 function passwordToken(userId: string, purpose: 'invite' | 'reset') {
@@ -199,7 +193,7 @@ test.describe('logged in as admin', () => {
     await page.getByLabel('Category', { exact: true }).fill('Gui')
     await expect(page.getByRole('listbox').getByRole('status')).toHaveText('Loading…')
     await expect(page.getByRole('listbox')).not.toContainText('No matches')
-    await categories.release()
+    categories.release()
     await page.getByRole('option', { name: 'Guides' }).click()
     await expect(page.getByRole('link', { name: 'Guides' })).toBeVisible()
 
@@ -279,7 +273,7 @@ test.describe('logged in as admin', () => {
     const picker = page.getByRole('dialog', { name: 'Choose a file' })
     await expect(picker.getByRole('status')).toHaveText('Loading…')
     await expect(picker).not.toContainText('No files yet')
-    await library.release()
+    library.release()
     await picker.getByRole('button', { name: 'A green circle' }).click()
     await expect(picker).toBeHidden()
     await expect(page.getByRole('link', { name: 'A green circle' })).toBeVisible()
