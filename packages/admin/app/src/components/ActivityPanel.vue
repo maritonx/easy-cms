@@ -5,6 +5,9 @@ import { ref, watch } from 'vue'
 import { api } from '../lib/api'
 import { actionLabel, viaLabel } from '../lib/audit'
 import { formatDate, t } from '../lib/i18n'
+import { useDelayedLoading } from '../lib/loading'
+import LoadingStatus from './LoadingStatus.vue'
+import Skeleton from './Skeleton.vue'
 
 /** A document's (or global's) latest entries in the audit log, for those who may see it. */
 const props = defineProps<{
@@ -34,12 +37,16 @@ function toggle() {
   }
 }
 
+/** The first answer hasn't come: a skeleton (when slow); without access the panel then goes. */
+const pending = ref(true)
+const showSkeleton = useDelayedLoading(pending)
 async function load() {
   const params = new URLSearchParams({ target: props.target })
   if (props.doc) params.set('doc', props.doc)
   entries.value =
     (await api<AuditPage>('GET', `/admin/audit?${params}`).catch(() => null))?.docs.slice(0, 8) ??
     null
+  pending.value = false
 }
 watch(() => [props.target, props.doc, props.reloadKey], load, { immediate: true })
 
@@ -51,7 +58,15 @@ const fields = (entry: AuditEntry) => (entry.changes ?? []).map((c) => c.field).
 </script>
 
 <template>
-  <section v-if="entries" class="card side-card activity" :aria-label="t('audit.activity')">
+  <section v-if="showSkeleton" class="card side-card activity" :aria-label="t('audit.activity')" aria-busy="true">
+    <LoadingStatus />
+    <Skeleton width="6rem" height="1rem" />
+    <span v-for="n in 3" :key="n" class="activity-skeleton-row">
+      <Skeleton width="70%" />
+      <Skeleton width="40%" height="0.7em" />
+    </span>
+  </section>
+  <section v-else-if="entries" class="card side-card activity" :aria-label="t('audit.activity')">
     <h2>
       <button type="button" class="fold" :aria-expanded="open" aria-controls="activity-body" @click="toggle">
         <component :is="open ? ChevronDown : ChevronRight" :size="16" aria-hidden="true" />
@@ -77,6 +92,12 @@ const fields = (entry: AuditEntry) => (entry.changes ?? []).map((c) => c.field).
 </template>
 
 <style scoped>
+.activity-skeleton-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.9rem;
+}
 .activity h2 {
   margin: 0 0 0.6rem;
   font-size: 0.9rem;

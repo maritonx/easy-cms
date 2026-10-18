@@ -11,6 +11,7 @@ import {
 } from '@lucide/vue'
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import PanelSkeleton from '../components/PanelSkeleton.vue'
 import { ApiError, api } from '../lib/api'
 import {
   AUDIT_ACTIONS,
@@ -23,6 +24,7 @@ import {
   viaLabel,
 } from '../lib/audit'
 import { formatDate, label, t } from '../lib/i18n'
+import { useDelayedLoading } from '../lib/loading'
 import { isSystemAdmin, session } from '../lib/session'
 import { settings } from '../lib/settings'
 import { notify } from '../lib/toast'
@@ -31,6 +33,8 @@ import { notify } from '../lib/toast'
 const route = useRoute()
 const router = useRouter()
 const data = ref<AuditPage | null>(null)
+/** A skeleton while the page loads (only when it is slow). */
+const showSkeleton = useDelayedLoading(() => !data.value)
 const failed = ref('')
 const open = ref<string | null>(null)
 const verifying = ref(false)
@@ -195,7 +199,8 @@ async function verify() {
     <p v-if="value('doc')" class="muted small">{{ t('audit.oneDocument', { doc: value('doc') }) }}</p>
 
     <p v-if="failed" class="field-error">{{ failed }}</p>
-    <p v-else-if="!data" class="muted">{{ t('common.loading') }}</p>
+    <PanelSkeleton v-else-if="showSkeleton" />
+    <template v-else-if="!data" />
     <section v-else class="card list" :aria-label="t('audit.title')">
       <p v-if="!data.docs.length" class="empty muted">{{ t('audit.none') }}</p>
       <ol v-else>

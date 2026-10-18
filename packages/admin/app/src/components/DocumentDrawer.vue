@@ -6,11 +6,13 @@ import { ApiError, api, type Doc } from '../lib/api'
 import { contentLocale, localeQuery, setContentLocale } from '../lib/content-locale'
 import { initialValues, snapshot, titleOf, toFormValues } from '../lib/fields'
 import { label, singularize, t } from '../lib/i18n'
+import { useDelayedLoading } from '../lib/loading'
 import { FORM, setPath } from '../lib/plugins'
 import { findCollection, session } from '../lib/session'
 import { notify } from '../lib/toast'
 import { missingLocales } from '../lib/translation'
 import DeleteDialog from './DeleteDialog.vue'
+import FormSkeleton from './FormSkeleton.vue'
 import LocaleSwitcher from './LocaleSwitcher.vue'
 import PluginElement from './PluginElement.vue'
 
@@ -41,6 +43,8 @@ const password = ref('')
 const doc = ref<Doc | null>(null)
 const baseline = ref('')
 const loading = ref(props.id !== null)
+/** A form skeleton while the document loads (only when it is slow). */
+const showSkeleton = useDelayedLoading(loading)
 const saving = ref(false)
 const errors = ref<Record<string, string[]>>({})
 const permissions = ref<{ update: boolean; delete: boolean } | null>(null)
@@ -227,7 +231,8 @@ onMounted(() => {
 
       <div class="panel-body">
         <LocaleSwitcher v-if="localized" :missing="untranslated" @change="switchLocale" />
-        <p v-if="loading" class="muted">{{ t('common.loading') }}</p>
+        <FormSkeleton v-if="showSkeleton" :fields="collection?.fields ?? []" />
+        <template v-else-if="loading" />
         <template v-else-if="collection">
           <p v-if="!canSave" class="notice notice-warning">{{ t('edit.readOnly') }}</p>
           <FieldList v-model="form" :fields="collection.fields" :errors="errors" :read-only="!canSave" />

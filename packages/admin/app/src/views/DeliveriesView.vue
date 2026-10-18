@@ -4,8 +4,10 @@ import { ChevronLeft, ChevronRight, RotateCw, Trash2 } from '@lucide/vue'
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import PanelSkeleton from '../components/PanelSkeleton.vue'
 import { ApiError, api } from '../lib/api'
 import { formatDate, locale, t } from '../lib/i18n'
+import { useDelayedLoading } from '../lib/loading'
 import { session } from '../lib/session'
 import { notify } from '../lib/toast'
 
@@ -25,6 +27,8 @@ const page = computed(() => Math.max(1, Number(route.query.page) || 1))
 
 const list = ref<AdminDeliveries | null>(null)
 const loading = ref(false)
+/** A skeleton while the first page loads (only when it is slow). */
+const showSkeleton = useDelayedLoading(() => loading.value && !list.value)
 const busy = ref<string | null>(null)
 const confirmingAll = ref(false)
 
@@ -166,7 +170,7 @@ const docs = computed(
       </div>
     </div>
 
-    <p v-if="loading && !list" class="muted">{{ t('common.loading') }}</p>
+    <PanelSkeleton v-if="showSkeleton" />
     <p v-else-if="list && list.docs.length === 0" class="card empty muted">
       {{ t(state === 'failed' ? 'deliveries.noneFailed' : 'deliveries.nonePending') }}
     </p>

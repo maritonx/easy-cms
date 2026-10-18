@@ -5,7 +5,10 @@ import FieldList from '../fields/FieldList.vue'
 import { ApiError, api, type Paginated } from '../lib/api'
 import { toFormValues } from '../lib/fields'
 import { formatDate, t } from '../lib/i18n'
+import { useDelayedLoading } from '../lib/loading'
 import { session } from '../lib/session'
+import LoadingStatus from './LoadingStatus.vue'
+import Skeleton from './Skeleton.vue'
 
 const props = defineProps<{
   /** The document's API path, e.g. `/posts/3` or `/globals/site`. */
@@ -29,6 +32,9 @@ const selected = ref<Version | null>(null)
 const preview = ref<Record<string, unknown>>({})
 const restoring = ref(false)
 const dialog = ref<HTMLDialogElement>()
+/** False until the first page answers, so "No versions yet" isn't said while it loads. */
+const loaded = ref(false)
+const showSkeleton = useDelayedLoading(() => !loaded.value)
 
 async function load(reset = true) {
   if (reset) page.value = 1
@@ -42,6 +48,8 @@ async function load(reset = true) {
     error.value = ''
   } catch (e) {
     error.value = e instanceof ApiError && e.status === 403 ? t('common.forbidden') : String(e)
+  } finally {
+    loaded.value = true
   }
 }
 
@@ -102,6 +110,14 @@ watch(
   <aside class="card history" :aria-label="t('history.title')">
     <h2>{{ t('history.title') }}</h2>
     <p v-if="error" class="field-error">{{ error }}</p>
+    <div v-else-if="showSkeleton" class="history-skeleton" aria-busy="true">
+      <LoadingStatus />
+      <span v-for="n in 3" :key="n" class="history-skeleton-row">
+        <Skeleton width="60%" />
+        <Skeleton width="35%" height="0.7em" />
+      </span>
+    </div>
+    <template v-else-if="!loaded" />
     <p v-else-if="versions.length === 0" class="muted">{{ t('history.empty') }}</p>
     <ol v-else>
       <li v-for="version in versions" :key="String(version.id)">
@@ -148,6 +164,16 @@ watch(
 </template>
 
 <style scoped>
+.history-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+.history-skeleton-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
 .history {
   padding: 1rem;
 }

@@ -22,8 +22,10 @@ import {
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import PanelSkeleton from '../components/PanelSkeleton.vue'
 import { ApiError, api } from '../lib/api'
 import { formatDate, label, t } from '../lib/i18n'
+import { useDelayedLoading } from '../lib/loading'
 import { session } from '../lib/session'
 import { notify } from '../lib/toast'
 
@@ -31,6 +33,8 @@ import { notify } from '../lib/toast'
 const route = useRoute()
 const router = useRouter()
 const data = ref<AdminRoles | null>(null)
+/** A skeleton while the page loads (only when it is slow). */
+const showSkeleton = useDelayedLoading(() => !data.value)
 const failed = ref('')
 const saving = ref(false)
 
@@ -408,7 +412,8 @@ const ticks = (p: RolePermissions) =>
     </header>
 
     <p v-if="failed" class="field-error">{{ failed }}</p>
-    <p v-else-if="!data" class="muted">{{ t('common.loading') }}</p>
+    <PanelSkeleton v-else-if="showSkeleton" />
+    <template v-else-if="!data" />
     <div v-else class="layout">
       <ul class="role-list card" :aria-label="t('roles.title')">
         <li v-for="role in data.roles" :key="role.key">

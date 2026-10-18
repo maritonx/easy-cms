@@ -2,13 +2,17 @@
 import type { AdminSso } from '@easy-cms/core'
 import { Check, ChevronRight, Copy, TriangleAlert } from '@lucide/vue'
 import { computed, onMounted, ref } from 'vue'
+import PanelSkeleton from '../components/PanelSkeleton.vue'
 import ProviderIcon from '../components/ProviderIcon.vue'
 import { ApiError, api } from '../lib/api'
 import { locale, t } from '../lib/i18n'
+import { useDelayedLoading } from '../lib/loading'
 import { session } from '../lib/session'
 
 /** Settings → SSO (admins): the providers, the callback URLs to give them, who uses a password. */
 const sso = ref<AdminSso | null>(null)
+/** A skeleton while the page loads (only when it is slow). */
+const showSkeleton = useDelayedLoading(() => !sso.value)
 const failed = ref('')
 const copied = ref('')
 
@@ -55,7 +59,8 @@ const docs = computed(
     </header>
 
     <p v-if="failed" class="field-error">{{ failed }}</p>
-    <p v-else-if="!sso" class="muted">{{ t('common.loading') }}</p>
+    <PanelSkeleton v-else-if="showSkeleton" />
+    <template v-else-if="!sso" />
     <template v-else>
       <p v-if="!sso.serverURL" class="warning" role="alert">
         <TriangleAlert :size="16" aria-hidden="true" />
