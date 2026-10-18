@@ -548,6 +548,14 @@ export const jobRunsCollection: CollectionConfig = {
     { name: 'lastStatus', type: 'text' },
     { name: 'lastError', type: 'text' },
     { name: 'lastDurationMs', type: 'number' },
+    // Set from Settings → Jobs by an admin: paused, or a schedule in place of the code's (only
+    // for jobs with `adminSchedule`). Empty: as the code says.
+    { name: 'pausedAt', type: 'text' },
+    { name: 'pausedBy', type: 'text' },
+    { name: 'everyOverride', type: 'number' },
+    { name: 'atOverride', type: 'text' },
+    { name: 'changedBy', type: 'text' },
+    { name: 'changedAt', type: 'text' },
   ],
 }
 

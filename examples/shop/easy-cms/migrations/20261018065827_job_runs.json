@@ -1,6 +1,6 @@
 {
   "dialect": "sqlite",
-  "hash": "4a6a5ec97e09f644",
+  "hash": "4fb226ee9757ed44",
   "snapshot": {
     "version": "6",
     "dialect": "sqlite",
@@ -1824,6 +1824,48 @@
             "primaryKey": false,
             "notNull": false,
             "autoincrement": false
+          },
+          "paused_at": {
+            "name": "paused_at",
+            "type": "text",
+            "primaryKey": false,
+            "notNull": false,
+            "autoincrement": false
+          },
+          "paused_by": {
+            "name": "paused_by",
+            "type": "text",
+            "primaryKey": false,
+            "notNull": false,
+            "autoincrement": false
+          },
+          "every_override": {
+            "name": "every_override",
+            "type": "real",
+            "primaryKey": false,
+            "notNull": false,
+            "autoincrement": false
+          },
+          "at_override": {
+            "name": "at_override",
+            "type": "text",
+            "primaryKey": false,
+            "notNull": false,
+            "autoincrement": false
+          },
+          "changed_by": {
+            "name": "changed_by",
+            "type": "text",
+            "primaryKey": false,
+            "notNull": false,
+            "autoincrement": false
+          },
+          "changed_at": {
+            "name": "changed_at",
+            "type": "text",
+            "primaryKey": false,
+            "notNull": false,
+            "autoincrement": false
           }
         },
         "indexes": {
@@ -2018,7 +2060,7 @@
     "internal": {
       "indexes": {}
     },
-    "id": "8a9ce1cf-ae95-41d7-9a07-8a715d487890",
+    "id": "38a0b1f4-64d9-42f6-aee9-1dd871675dcb",
     "prevId": "00000000-0000-0000-0000-000000000000",
     "easyCms": {
       "localization": null
