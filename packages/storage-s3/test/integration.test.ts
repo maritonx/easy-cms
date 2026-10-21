@@ -129,4 +129,37 @@ describe.skipIf(!endpoint)('s3Storage against a real server', () => {
       await cms.destroy()
     }
   })
+
+  it('refuses a presigned PUT with another Content-Type, so it is never served as one', async () => {
+    const cms = await createEasyCMS(
+      {
+        secret: 'x'.repeat(32),
+        db: sqlite({ url: `file:${join(cwd, 'direct-type.db')}` }),
+        upload: { storage: s3Storage(options) },
+        collections: [],
+      },
+      { cwd, logger: silentLogger },
+    )
+    try {
+      const page = new TextEncoder().encode('<script>alert(1)</script>')
+      const started = await cms.createUpload({ name: 'brochure.pdf', size: page.byteLength })
+      expect(started.upload?.headers).toEqual({ 'content-type': 'application/pdf' })
+      // Someone who never calls complete, sending a page instead, or no type at all.
+      for (const headers of [{ 'content-type': 'text/html' }, {}]) {
+        const sent = await fetch(started.upload?.url as string, {
+          method: 'PUT',
+          headers,
+          body: page,
+        })
+        expect(sent.ok).toBe(false)
+      }
+      const key = JSON.parse(
+        Buffer.from(started.ticket.split('.')[0] as string, 'base64url').toString(),
+      ).key
+      expect(await cms.storage.get(key)).toBeNull()
+      await expect(cms.completeUpload(started.ticket)).rejects.toThrow(/was not uploaded/)
+    } finally {
+      await cms.destroy()
+    }
+  })
 })
