@@ -111,6 +111,8 @@ describe('s3Storage', () => {
     )
     expect(url.searchParams.get('X-Amz-Expires')).toBe('900')
     expect(url.searchParams.get('X-Amz-Signature')).toMatch(/^[0-9a-f]{64}$/)
+    // The type is signed: S3 refuses the PUT with any other type.
+    expect(url.searchParams.get('X-Amz-SignedHeaders')).toBe('content-type;host')
     expect(upload?.headers).toEqual({ 'content-type': 'video/mp4' })
     // Nothing is sent to S3 for that: the browser sends the file.
     expect(calls).toEqual([])

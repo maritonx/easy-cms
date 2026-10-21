@@ -110,13 +110,20 @@ export function s3Storage(options: S3StorageOptions): StorageAdapter {
     },
 
     // Large files from the browser: a presigned PUT (the bucket needs CORS for the admin's
-    // origin). The size is checked once the file is there.
+    // origin). The size and contents are checked once the file is there.
     async uploadURL(key, { contentType, expiresIn }) {
       if (!client) throw new Error('s3Storage used before init()')
       const url = new URL(objectURL(prefix + key))
       url.searchParams.set('X-Amz-Expires', String(expiresIn))
-      const signed = await client.sign(url.toString(), { method: 'PUT', aws: { signQuery: true } })
-      return { url: signed.url, method: 'PUT', headers: { 'content-type': contentType } }
+      // The type is signed (aws4fetch leaves Content-Type out unless `allHeaders`), so S3 refuses
+      // a PUT with any other type: a file that is never completed can't be served as, say, HTML.
+      const headers = { 'content-type': contentType }
+      const signed = await client.sign(url.toString(), {
+        method: 'PUT',
+        headers,
+        aws: { signQuery: true, allHeaders: true },
+      })
+      return { url: signed.url, method: 'PUT', headers }
     },
 
     async getStart(key, bytes): Promise<StoredFile | null> {
