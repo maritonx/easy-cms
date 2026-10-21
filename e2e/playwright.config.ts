@@ -98,6 +98,8 @@ export default defineConfig({
         // Standalone example: live preview opens the frontend, which calls this server.
         FRONTEND_URL: FRONTEND,
         CMS_URL: `http://localhost:${app.port}`,
+        // Nuxt and Next.js examples: the site's address for the sitemap, robots.txt and llms.txt.
+        SITE_URL: `http://localhost:${app.port}`,
         // The key file is served; nothing is sent, as localhost isn't a public site.
         INDEXNOW_KEY: 'e2e-indexnow-key',
         // Single sign-on on standalone, where the schema is pushed. Nuxt and Next.js run from the

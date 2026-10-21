@@ -107,7 +107,8 @@ export default createHandler(config, ${JSON.stringify({ basePath: apiPath, trust
     })
 
     // Types for the virtual module; the config is imported as a type so its literal
-    // collection types flow into useEasyCMS().
+    // collection types flow into useEasyCMS(). In the app's types too: typed `$fetch` and
+    // `useFetch` routes import the server handlers, which then type-check with the app.
     addTypeTemplate(
       {
         filename: 'types/easy-cms.d.ts',
@@ -130,7 +131,7 @@ declare module '${SERVER}' {
 `
         },
       },
-      { nitro: true, nuxt: false },
+      { nitro: true, nuxt: true },
     )
 
     addServerImports([

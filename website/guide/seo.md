@@ -48,6 +48,11 @@ checkbox is a new column too, so create a migration after updating.
   for thank-you pages, landing pages for ads and the like.
 - **Generate** buttons for each generator you configure. They send the form as it is, unsaved,
   to your generator on the server, and fill the field.
+
+A generator's `doc` is a plain object (the plugin is set up before the config, so it can't be
+typed from the collection), and a generator may return a field as it reads it, as above: text
+for the title, description and address, a media id or document for the image. Other values
+suggest nothing.
 - **Search result preview** below the group: the meta title (or the document's title), the
   address from `generateURL` and the description.
 
@@ -61,7 +66,7 @@ checkbox is a new column too, so create a migration after updating.
 | `tab` | `true` | With `position: 'main'`: the fields in an **SEO** tab of the edit page ([layouts](./admin#edit-pages)), its label, or `false` to keep them below the other fields. |
 | `generateTitle` | — | Suggests a meta title. |
 | `generateDescription` | — | Suggests a meta description. |
-| `generateImage` | — | Suggests a share image: the id of a media document. |
+| `generateImage` | — | Suggests a share image: a media document or its id. |
 | `generateURL` | — | The page's address, for the preview and the [sitemap](#sitemap). |
 | `autoGenerate` | `false` | Fill empty meta fields with the generators when a document is saved. |
 | `fields` | — | `(defaults) => fields`: change the group's fields, e.g. add a keywords field. |

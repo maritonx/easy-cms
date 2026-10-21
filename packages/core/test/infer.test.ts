@@ -153,3 +153,77 @@ describe('APIs accept typed instances', () => {
     >().toEqualTypeOf<Typed>()
   })
 })
+
+describe("reads with locale: 'all'", () => {
+  const localized = defineConfig({
+    secret: 'x'.repeat(32),
+    db: fakeDb,
+    localization: { locales: ['th', 'en'] },
+    collections: [
+      {
+        slug: 'pages',
+        fields: [
+          { name: 'title', type: 'text', required: true, localized: true },
+          { name: 'slug', type: 'text', required: true },
+          { name: 'tags', type: 'select', options: ['a', 'b'], hasMany: true, localized: true },
+          { name: 'parent', type: 'relationship', to: 'pages', localized: true },
+          { name: 'author', type: 'relationship', to: 'pages' },
+          {
+            name: 'seo',
+            type: 'group',
+            fields: [{ name: 'description', type: 'textarea', localized: true }],
+          },
+        ],
+      },
+    ],
+    globals: [{ slug: 'site', fields: [{ name: 'name', type: 'text', localized: true }] }],
+  })
+  type Localized = typeof localized
+  type Cms = import('../src/index.js').EasyCMS<Localized>
+  type Map<V> = { th?: V | null; en?: V | null }
+
+  // Never called: the calls are only type-checked.
+  const reads = (cms: Cms, anyLocale: string) => ({
+    all: cms.find('pages', { locale: 'all' }),
+    one: cms.find('pages', { locale: 'th' }),
+    dynamic: cms.find('pages', { locale: anyLocale }),
+    byId: cms.findById('pages', 1, { locale: 'all' }),
+    global: cms.findGlobal('site', { locale: 'all' }),
+    globalDefault: cms.findGlobal('site'),
+  })
+  type Reads = { [K in keyof ReturnType<typeof reads>]: Awaited<ReturnType<typeof reads>[K]> }
+  type Page = Reads['all']['docs'][number]
+
+  it('types localized fields as maps of their locales', () => {
+    expectTypeOf<Page['title']>().toEqualTypeOf<Map<string>>()
+    expectTypeOf<Page['slug']>().toEqualTypeOf<string>()
+    expectTypeOf<Page['tags']>().toEqualTypeOf<Map<('a' | 'b')[]>>()
+    expectTypeOf<NonNullable<Page['seo']>['description']>().toEqualTypeOf<
+      Map<string> | null | undefined
+    >()
+  })
+
+  it('leaves localized relationships as ids and populates the others in every locale', () => {
+    expectTypeOf<Page['parent']>().toEqualTypeOf<Map<ID> | null | undefined>()
+    expectTypeOf<Exclude<NonNullable<Page['author']>, ID>['title']>().toEqualTypeOf<Map<string>>()
+  })
+
+  it('types findById and findGlobal too', () => {
+    expectTypeOf<NonNullable<Reads['byId']>['title']>().toEqualTypeOf<Map<string>>()
+    expectTypeOf<Reads['global']['name']>().toEqualTypeOf<Map<string> | null | undefined>()
+    expectTypeOf<Reads['globalDefault']['name']>().toEqualTypeOf<string | null | undefined>()
+  })
+
+  it('reads one locale otherwise', () => {
+    expectTypeOf<Reads['one']['docs'][number]['title']>().toEqualTypeOf<string>()
+    expectTypeOf<Reads['dynamic']['docs'][number]['title']>().toEqualTypeOf<string>()
+  })
+
+  it("ignores 'all' without localization", () => {
+    const plain = (cms: import('../src/index.js').EasyCMS<Config>) =>
+      cms.find('posts', { locale: 'all' })
+    expectTypeOf<
+      Awaited<ReturnType<typeof plain>>['docs'][number]['title']
+    >().toEqualTypeOf<string>()
+  })
+})

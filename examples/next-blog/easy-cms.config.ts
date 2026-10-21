@@ -28,7 +28,13 @@ export default defineConfig({
     ? postgres({ url: process.env.DATABASE_URL })
     : postgres({ pglite: process.env.PGLITE_DIR ?? '.pglite' }),
   // The admin menu: posts first; users are listed under Settings.
-  admin: { locale: 'th' },
+  admin: {
+    locale: 'th',
+    // The site's public address (SITE_URL): the sitemap, robots.txt, llms.txt and Markdown pages
+    // make their links absolute with it. Not from the request: a client can send any Host, and
+    // these answers are cached.
+    ...(process.env.SITE_URL ? { siteURL: process.env.SITE_URL } : {}),
+  },
   // API keys for scripts and AI assistants, managed under Settings → API keys.
   apiKeys: true,
   // Posts and the site name in Thai and English; the slug and other fields are shared.
@@ -263,8 +269,8 @@ export default defineConfig({
       // Posts: "Title | Easy CMS Blog"; the site: its name.
       generateTitle: ({ doc, collection }) =>
         collection ? (doc.title ? `${doc.title} | Easy CMS Blog` : null) : (doc.siteName as string),
-      generateDescription: ({ doc }) => (doc.excerpt as string | undefined) ?? null,
-      generateImage: ({ doc }) => (doc.cover as number | undefined) ?? null,
+      generateDescription: ({ doc }) => doc.excerpt,
+      generateImage: ({ doc }) => doc.cover,
       // A post's page (English at ?locale=en), for the search preview, the sitemap and
       // hreflang links. Posts without a slug have no page yet.
       generateURL: ({ doc, collection, locale }) =>

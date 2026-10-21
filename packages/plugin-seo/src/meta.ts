@@ -92,9 +92,17 @@ export interface NuxtSeoMeta {
   twitterImage?: string
 }
 
+/**
+ * A link in `NuxtSeoHead`: the canonical one, or the page in another locale. One type per `rel`,
+ * as unhead (Nuxt's `useHead()`) types them.
+ */
+export type NuxtSeoLink =
+  | { rel: 'canonical'; href: string; hreflang?: undefined }
+  | { rel: 'alternate'; href: string; hreflang: string }
+
 /** Input for Nuxt's `useHead()`: the canonical and hreflang links, and the JSON-LD script. */
 export interface NuxtSeoHead {
-  link: { rel: 'canonical' | 'alternate'; href: string; hreflang?: string }[]
+  link: NuxtSeoLink[]
   script: { type: 'application/ld+json'; innerHTML: string }[]
 }
 

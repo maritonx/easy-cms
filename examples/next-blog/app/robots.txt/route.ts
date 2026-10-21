@@ -4,10 +4,9 @@ import config from '@/easy-cms.config'
 export const dynamic = 'force-dynamic'
 
 // /robots.txt: keeps crawlers out of the admin and the API, and points them to the sitemap.
-export function GET(request: Request) {
+export function GET() {
   const text = robotsTxt({
     config,
-    siteURL: new URL(request.url).origin,
     // AI training crawlers stay out; AI search and assistants may still read and cite posts.
     ai: { training: false },
   })

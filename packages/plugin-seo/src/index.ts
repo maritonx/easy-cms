@@ -12,6 +12,7 @@ export {
   jsonLdScript,
   type NextSeoMetadata,
   type NuxtSeoHead,
+  type NuxtSeoLink,
   type NuxtSeoMeta,
   type SeoBreadcrumb,
   type SeoImage,

@@ -73,6 +73,24 @@ await cms.find('redirects') // the collection the plugin adds
 
 Your own plugins can do the same with [`definePlugin`](./plugins#typing-your-plugin).
 
+### Every locale at once
+
+With [localization](./localization), reads with `locale: 'all'` type localized fields as a map of
+the config's locales; each locale may be missing or empty:
+
+```ts
+const post = await cms.findById('posts', id, { locale: 'all' })
+post.title // { th?: string | null; en?: string | null }
+post.slug // string (not localized)
+
+const { docs } = await cms.find('posts', { locale: 'en' })
+docs[0].title // string
+```
+
+Only the literal `'all'` does this: a locale typed `string` reads as one locale. Localized
+relationships stay ids in the map (they are not populated). Name the type with
+`CollectionDocument<typeof config, 'posts', true>` (`GlobalDocument` likewise).
+
 ## Naming the types
 
 ```ts

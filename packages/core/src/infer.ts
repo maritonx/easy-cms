@@ -146,9 +146,32 @@ type GlobalBySlug<C extends Config, S> = WithPluginFields<
 >
 
 /** Relationships are ids at depth 0 and documents when populated. */
-type RelationValue<C extends Config, S> = [CollectionBySlug<C, S>] extends [never]
+type RelationValue<C extends Config, S, A extends boolean> = [CollectionBySlug<C, S>] extends [
+  never,
+]
   ? ID | Record<string, unknown>
-  : ID | CollectionDocument<C, S & string>
+  : ID | CollectionDocument<C, S & string, A>
+
+/** The content locales of a config (`localization.locales`); `string` when not literal. */
+export type LocaleOf<C extends Config> = C extends {
+  readonly localization: { readonly locales: readonly (infer L extends string)[] }
+}
+  ? L
+  : string
+
+/**
+ * A localized field read with `locale: 'all'`: its value per locale, which may be missing or
+ * empty for a locale. Relationships in it are ids (they are not populated).
+ */
+type LocaleMap<F extends Field, C extends Config> = {
+  [L in LocaleOf<C>]?:
+    | (F extends { readonly type: 'relationship' | 'upload' }
+        ? F extends { readonly hasMany: true }
+          ? ID[]
+          : ID
+        : FieldValue<F, C>)
+    | null
+}
 
 export interface MediaSize {
   filename: string
@@ -181,7 +204,21 @@ export interface MediaDocument {
   [field: string]: unknown
 }
 
-export type FieldValue<F extends Field, C extends Config = Config> = F extends {
+/**
+ * The value of a field as read. With `AllLocales` (reads with `locale: 'all'`), localized fields
+ * are `{ [locale]: value }` maps.
+ */
+export type FieldValue<
+  F extends Field,
+  C extends Config = Config,
+  AllLocales extends boolean = false,
+> = AllLocales extends true
+  ? F extends { readonly localized: true }
+    ? LocaleMap<F, C>
+    : OneLocaleValue<F, C, true>
+  : OneLocaleValue<F, C, false>
+
+type OneLocaleValue<F extends Field, C extends Config, A extends boolean> = F extends {
   readonly type: 'text' | 'textarea' | 'email' | 'slug' | 'date'
 }
   ? string
@@ -201,23 +238,23 @@ export type FieldValue<F extends Field, C extends Config = Config> = F extends {
                 : ID | MediaDocument
               : F extends { readonly type: 'relationship'; readonly to: infer S }
                 ? F extends { readonly hasMany: true }
-                  ? RelationValue<C, S>[]
-                  : RelationValue<C, S>
+                  ? RelationValue<C, S, A>[]
+                  : RelationValue<C, S, A>
                 : F extends {
                       readonly type: 'array'
                       readonly fields: infer Sub extends readonly Field[]
                     }
-                  ? Simplify<FieldsValue<Sub, C> & { id: string }>[]
+                  ? Simplify<FieldsValue<Sub, C, A> & { id: string }>[]
                   : F extends {
                         readonly type: 'group'
                         readonly fields: infer Sub extends readonly Field[]
                       }
-                    ? FieldsValue<Sub, C>
+                    ? FieldsValue<Sub, C, A>
                     : F extends {
                           readonly type: 'blocks'
                           readonly blocks: infer B extends readonly Block[]
                         }
-                      ? BlockValue<B[number], C>[]
+                      ? BlockValue<B[number], C, A>[]
                       : CustomValue<F>
 
 /** The value of a field of an added type (`CustomFieldTypes`). */
@@ -228,11 +265,11 @@ type CustomValue<F> = F extends { readonly type: infer T extends keyof CustomFie
   : never
 
 /** One row of a `blocks` field: the block's fields plus `id` and `blockType` (distributes over kinds). */
-type BlockValue<B, C extends Config> = B extends {
+type BlockValue<B, C extends Config, A extends boolean> = B extends {
   readonly slug: infer S
   readonly fields: infer Sub extends readonly Field[]
 }
-  ? Simplify<FieldsValue<Sub, C> & { id: string; blockType: S }>
+  ? Simplify<FieldsValue<Sub, C, A> & { id: string; blockType: S }>
   : never
 
 type BlockInput<B> = B extends {
@@ -251,10 +288,14 @@ type Present =
 type RequiredFields<Fs extends readonly Field[]> = Extract<Visible<Fs>, Present>
 type OptionalFields<Fs extends readonly Field[]> = Exclude<Visible<Fs>, Present>
 
-/** The shape of the data described by a list of fields. */
-export type FieldsValue<Fs extends readonly Field[], C extends Config = Config> = Simplify<
-  { -readonly [F in RequiredFields<Fs> as F['name']]: FieldValue<F, C> } & {
-    -readonly [F in OptionalFields<Fs> as F['name']]?: FieldValue<F, C> | null
+/** The shape of the data described by a list of fields (`AllLocales`: see `FieldValue`). */
+export type FieldsValue<
+  Fs extends readonly Field[],
+  C extends Config = Config,
+  AllLocales extends boolean = false,
+> = Simplify<
+  { -readonly [F in RequiredFields<Fs> as F['name']]: FieldValue<F, C, AllLocales> } & {
+    -readonly [F in OptionalFields<Fs> as F['name']]?: FieldValue<F, C, AllLocales> | null
   }
 >
 
@@ -267,16 +308,22 @@ type SystemFields<T extends { readonly drafts?: unknown }> = {
 /** What document types are inferred from: a collection's or global's fields and drafts. */
 type FieldsOwner = { readonly fields: readonly Field[]; readonly drafts?: unknown }
 
-export type InferCollection<T extends FieldsOwner, C extends Config = Config> = Simplify<
-  SystemFields<T> & FieldsValue<T['fields'], C>
->
+export type InferCollection<
+  T extends FieldsOwner,
+  C extends Config = Config,
+  AllLocales extends boolean = false,
+> = Simplify<SystemFields<T> & FieldsValue<T['fields'], C, AllLocales>>
 
-export type InferGlobal<T extends FieldsOwner, C extends Config = Config> = Simplify<
+export type InferGlobal<
+  T extends FieldsOwner,
+  C extends Config = Config,
+  AllLocales extends boolean = false,
+> = Simplify<
   /** `null` until the global is saved for the first time. */
   { updatedAt: string | null } & (T extends { readonly drafts: true }
     ? { status: 'draft' | 'published' }
     : unknown) &
-    FieldsValue<T['fields'], C>
+    FieldsValue<T['fields'], C, AllLocales>
 >
 
 export type CollectionSlug<C extends Config> =
@@ -288,16 +335,22 @@ export type CollectionSlug<C extends Config> =
   | PluginCollections<C>['slug']
 export type GlobalSlug<C extends Config> = NonNullable<C['globals']>[number]['slug']
 
-/** Document type of a collection, e.g. `CollectionDocument<typeof config, 'posts'>`. */
-export type CollectionDocument<C extends Config, S extends CollectionSlug<C>> = S extends 'media'
-  ? MediaDocument
-  : InferCollection<CollectionBySlug<C, S>, C>
+/**
+ * Document type of a collection, e.g. `CollectionDocument<typeof config, 'posts'>`. With
+ * `AllLocales` (reads with `locale: 'all'`), localized fields are `{ [locale]: value }` maps.
+ */
+export type CollectionDocument<
+  C extends Config,
+  S extends CollectionSlug<C>,
+  AllLocales extends boolean = false,
+> = S extends 'media' ? MediaDocument : InferCollection<CollectionBySlug<C, S>, C, AllLocales>
 
-/** Data type of a global, e.g. `GlobalDocument<typeof config, 'site'>`. */
-export type GlobalDocument<C extends Config, S extends GlobalSlug<C>> = InferGlobal<
-  GlobalBySlug<C, S>,
-  C
->
+/** Data type of a global, e.g. `GlobalDocument<typeof config, 'site'>` (`AllLocales`: as above). */
+export type GlobalDocument<
+  C extends Config,
+  S extends GlobalSlug<C>,
+  AllLocales extends boolean = false,
+> = InferGlobal<GlobalBySlug<C, S>, C, AllLocales>
 
 // ---------------------------------------------------------------------------
 // Input types for create / update

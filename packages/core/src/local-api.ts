@@ -113,14 +113,25 @@ type Data = Record<string, unknown>
 // When the config type is not a literal (e.g. loaded at runtime), fall back to loose types.
 type Slug<C extends Config> = string extends CollectionSlug<C> ? string : CollectionSlug<C>
 type GSlug<C extends Config> = string extends GlobalSlug<C> ? string : GlobalSlug<C>
-type Doc<C extends Config, S> =
-  string extends CollectionSlug<C> ? RawDocument : CollectionDocument<C, S & CollectionSlug<C>>
+/**
+ * Whether reads with the locale `L` return localized fields as `{ [locale]: value }` maps: only
+ * the literal `'all'`, with `localization` set. A locale typed `string` reads as one locale.
+ */
+type AllLocales<C extends Config, L> = [L] extends ['all']
+  ? C extends { readonly localization: { readonly locales: readonly string[] } }
+    ? true
+    : false
+  : false
+type Doc<C extends Config, S, L = undefined> =
+  string extends CollectionSlug<C>
+    ? RawDocument
+    : CollectionDocument<C, S & CollectionSlug<C>, AllLocales<C, L>>
 type Create<C extends Config, S> =
   string extends CollectionSlug<C> ? Data : CreateInput<C, S & CollectionSlug<C>>
 type Update<C extends Config, S> =
   string extends CollectionSlug<C> ? Data : UpdateInput<C, S & CollectionSlug<C>>
-type GDoc<C extends Config, S> =
-  string extends GlobalSlug<C> ? Data : GlobalDocument<C, S & GlobalSlug<C>>
+type GDoc<C extends Config, S, L = undefined> =
+  string extends GlobalSlug<C> ? Data : GlobalDocument<C, S & GlobalSlug<C>, AllLocales<C, L>>
 type GInput<C extends Config, S> =
   string extends GlobalSlug<C> ? Data : GlobalInput<C, S & GlobalSlug<C>>
 
@@ -128,9 +139,10 @@ type GInput<C extends Config, S> =
 export type SlugOf<C extends Config> = Slug<C>
 /**
  * A document of collection `S` as the Local API returns it, e.g. for helpers that take an
- * `EasyCMS<C>`: inferred from a literal config, loose otherwise.
+ * `EasyCMS<C>`: inferred from a literal config, loose otherwise. `L` is the locale read
+ * (`'all'`: localized fields are `{ [locale]: value }` maps).
  */
-export type DocumentOf<C extends Config, S> = Doc<C, S>
+export type DocumentOf<C extends Config, S, L = undefined> = Doc<C, S, L>
 
 export interface AccessOptions {
   /**
@@ -391,10 +403,10 @@ export class EasyCMS<C extends Config = Config> {
     }
   }
 
-  async find<S extends Slug<C>>(
+  async find<S extends Slug<C>, L extends string | undefined = undefined>(
     collection: S,
-    options: FindOptions = {},
-  ): Promise<PaginatedDocs<Doc<C, S>>> {
+    options: FindOptions & { readonly locale?: L } = {},
+  ): Promise<PaginatedDocs<Doc<C, S, L>>> {
     const config = this.collection(collection)
     const guard = guardOf(options)
     const limit = options.limit ?? 10
@@ -424,14 +436,14 @@ export class EasyCMS<C extends Config = Config> {
     const result = await this.db.find({ collection, where, sort, limit, page })
     const found = draft ? await this.withDrafts(config, result.docs) : result.docs
     const docs = await this.output(config, found, guard, { ...options, draft })
-    return { ...result, docs: docs as Doc<C, S>[] }
+    return { ...result, docs: docs as Doc<C, S, L>[] }
   }
 
-  async findById<S extends Slug<C>>(
+  async findById<S extends Slug<C>, L extends string | undefined = undefined>(
     collection: S,
     id: ID,
-    options: ReadOptions = {},
-  ): Promise<Doc<C, S> | null> {
+    options: ReadOptions & { readonly locale?: L } = {},
+  ): Promise<Doc<C, S, L> | null> {
     const config = this.collection(collection)
     const guard = guardOf(options)
     const parsed = parseId(id)
@@ -456,7 +468,7 @@ export class EasyCMS<C extends Config = Config> {
     if (!doc) return null
     const [current] = draft ? await this.withDrafts(config, [doc]) : [doc]
     const [out] = await this.output(config, [current as RawDocument], guard, { ...options, draft })
-    return (out ?? null) as Doc<C, S> | null
+    return (out ?? null) as Doc<C, S, L> | null
   }
 
   async count<S extends Slug<C>>(
@@ -1540,12 +1552,15 @@ export class EasyCMS<C extends Config = Config> {
     return out as Doc<C, S>
   }
 
-  async findGlobal<S extends GSlug<C>>(slug: S, options: ReadOptions = {}): Promise<GDoc<C, S>> {
+  async findGlobal<S extends GSlug<C>, L extends string | undefined = undefined>(
+    slug: S,
+    options: ReadOptions & { readonly locale?: L } = {},
+  ): Promise<GDoc<C, S, L>> {
     const config = this.global(slug)
     const guard = guardOf(options)
     await this.checkGlobalAccess(config, 'read', guard)
     return this.readGlobal(config, this.globalKey(config, guard), guard, options) as Promise<
-      GDoc<C, S>
+      GDoc<C, S, L>
     >
   }
 

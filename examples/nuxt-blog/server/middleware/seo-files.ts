@@ -4,7 +4,7 @@ import { docMarkdown, indexNowKeyFile } from '@easy-cms/plugin-seo'
 // - /posts/<slug>.md: a published post as Markdown (linked from /llms.txt)
 // - /<key>.txt: the IndexNow key, when INDEXNOW_KEY is set
 export default defineEventHandler(async (event) => {
-  const { pathname, origin } = getRequestURL(event)
+  const { pathname } = getRequestURL(event)
   const markdown = /^\/posts\/([^/]+)\.md$/.exec(pathname)
   if (markdown) {
     const cms = await useEasyCMS()
@@ -18,8 +18,10 @@ export default defineEventHandler(async (event) => {
     const post = docs[0]
     const hidden = post?.meta.noindex
     if (!post || hidden) throw createError({ statusCode: 404 })
+    // The address on the site from the config (SITE_URL), not from the request's Host.
+    const url = `${cms.config.admin.siteURL.replace(/\/+$/, '')}/posts/${post.slug}`
     setHeader(event, 'content-type', 'text/markdown; charset=utf-8')
-    return docMarkdown(cms, { collection: 'posts', doc: post, url: `${origin}/posts/${post.slug}` })
+    return docMarkdown(cms, { collection: 'posts', doc: post, url })
   }
   if (/^\/[^/]+\.txt$/.test(pathname)) {
     const key = indexNowKeyFile(await useEasyCMS(), pathname)

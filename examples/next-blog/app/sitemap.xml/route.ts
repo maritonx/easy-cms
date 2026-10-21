@@ -8,10 +8,7 @@ export const dynamic = 'force-dynamic'
 // plugin's generateURL. Drafts and posts marked "Hide from search engines" are left out.
 // (A site with a fixed address can use app/sitemap.ts with `sitemap(cms)` instead.)
 export async function GET(request: Request) {
-  const url = new URL(request.url)
-  const xml = await sitemapXml(await getEasyCMS(config), {
-    siteURL: url.origin,
-    page: url.searchParams.get('page'),
-  })
+  const page = new URL(request.url).searchParams.get('page')
+  const xml = await sitemapXml(await getEasyCMS(config), { page })
   return new Response(xml, { headers: { 'content-type': 'application/xml; charset=utf-8' } })
 }
