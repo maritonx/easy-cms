@@ -7,7 +7,7 @@
     "build": "nuxi build",
     "preview": "node .output/server/index.mjs",
     "seed": "node --env-file-if-exists=.env scripts/seed.ts",
-    "typecheck": "nuxi prepare && tsc -p .nuxt/tsconfig.server.json --noEmit",
+    "typecheck": "nuxi typecheck",
     "migrate:create": "easy-cms migrate:create",
     "migrate": "easy-cms migrate"
   },
@@ -30,6 +30,7 @@
     "vue": "^3.5.0"
   },
   "devDependencies": {
-    "easy-cms": "workspace:^"
+    "easy-cms": "workspace:^",
+    "vue-tsc": "^3.3.11"
   }
 }

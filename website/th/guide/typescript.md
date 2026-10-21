@@ -72,6 +72,24 @@ await cms.find('redirects') // collection ที่ plugin เพิ่ม
 
 plugin ของคุณเองก็ทำแบบเดียวกันได้ด้วย [`definePlugin`](./plugins#typing-your-plugin)
 
+### ทุกภาษาพร้อมกัน {#every-locale-at-once}
+
+เมื่อใช้ [หลายภาษา](./localization) การอ่านด้วย `locale: 'all'` จะให้ field ที่ localized มี type เป็น map ของภาษาใน
+config โดยแต่ละภาษาอาจไม่มีค่าหรือว่างได้
+
+```ts
+const post = await cms.findById('posts', id, { locale: 'all' })
+post.title // { th?: string | null; en?: string | null }
+post.slug // string (ไม่ได้ localized)
+
+const { docs } = await cms.find('posts', { locale: 'en' })
+docs[0].title // string
+```
+
+ต้องเป็นค่า `'all'` ตรงตัวเท่านั้น ถ้า locale มี type เป็น `string` จะถือว่าอ่านภาษาเดียว relationship ที่ localized
+จะเป็น id ใน map (ไม่ถูก populate) ตั้งชื่อ type ได้ด้วย `CollectionDocument<typeof config, 'posts', true>`
+(`GlobalDocument` ก็เช่นกัน)
+
 ## ตั้งชื่อ type {#naming-the-types}
 
 ```ts

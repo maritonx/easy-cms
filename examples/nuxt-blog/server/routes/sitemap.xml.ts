@@ -4,8 +4,5 @@ import { sitemapXml } from '@easy-cms/plugin-seo'
 // plugin's generateURL. Drafts and posts marked "Hide from search engines" are left out.
 export default defineEventHandler(async (event) => {
   setHeader(event, 'content-type', 'application/xml; charset=utf-8')
-  return sitemapXml(await useEasyCMS(), {
-    siteURL: getRequestURL(event).origin,
-    page: getQuery(event).page as string | undefined,
-  })
+  return sitemapXml(await useEasyCMS(), { page: getQuery(event).page as string | undefined })
 })

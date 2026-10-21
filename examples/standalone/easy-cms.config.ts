@@ -258,8 +258,8 @@ export default defineConfig({
       // Posts: "Title | Easy CMS Blog"; the site: its name.
       generateTitle: ({ doc, collection }) =>
         collection ? (doc.title ? `${doc.title} | Easy CMS Blog` : null) : (doc.siteName as string),
-      generateDescription: ({ doc }) => (doc.excerpt as string | undefined) ?? null,
-      generateImage: ({ doc }) => (doc.cover as number | undefined) ?? null,
+      generateDescription: ({ doc }) => doc.excerpt,
+      generateImage: ({ doc }) => doc.cover,
       // The frontend shows a post by id (see `preview` above).
       generateURL: ({ id, collection }) =>
         collection === 'posts' && id !== null ? `${frontendURL}/?post=${id}` : `${frontendURL}/`,

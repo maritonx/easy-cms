@@ -50,7 +50,22 @@ export interface GenerateArgs {
   readonly user: AuthUser | null
 }
 
-export type Generate<T> = (args: GenerateArgs) => MaybePromise<T | null | undefined>
+/**
+ * Suggests a value from the document. `doc` isn't typed from the collection (the plugin is set
+ * up before the config it belongs to), so a generator may return a field as read, e.g.
+ * `({ doc }) => doc.excerpt`: text for titles, descriptions and URLs, a media id (or media
+ * document) for the image. Other values suggest nothing.
+ */
+export type Generate<T = unknown> = (args: GenerateArgs) => MaybePromise<T | null | undefined>
+
+/** A generator's value as the plugin uses it, or `null` when it suggests nothing. */
+function suggestion(kind: GenerateKind, value: unknown): string | number | null {
+  if (kind === 'image') {
+    const id = typeof value === 'object' && value !== null && 'id' in value ? value.id : value
+    return (typeof id === 'string' && id !== '') || typeof id === 'number' ? id : null
+  }
+  return typeof value === 'string' && value !== '' ? value : null
+}
 
 export interface SeoPluginOptions {
   /** Collections that get SEO fields, by slug. */
@@ -66,13 +81,13 @@ export interface SeoPluginOptions {
    */
   readonly tab?: boolean | Label
   /** Suggests a meta title, e.g. `({ doc }) => \`${doc.title} | My Blog\``. Adds a Generate button. */
-  readonly generateTitle?: Generate<string>
+  readonly generateTitle?: Generate
   /** Suggests a meta description, e.g. from an excerpt. Adds a Generate button. */
-  readonly generateDescription?: Generate<string>
-  /** Suggests a share image: the id of a media document, e.g. the post's cover. */
-  readonly generateImage?: Generate<string | number>
+  readonly generateDescription?: Generate
+  /** Suggests a share image: a media document or its id, e.g. the post's cover. */
+  readonly generateImage?: Generate
   /** The page's address (absolute, or a path on `admin.siteURL`), shown in the search preview. */
-  readonly generateURL?: Generate<string>
+  readonly generateURL?: Generate
   /** Fill empty meta fields with the generators when a document is saved. Default false. */
   readonly autoGenerate?: boolean
   /** Changes the fields of the group, e.g. `(defaults) => [...defaults, noindexField]`. */
@@ -239,8 +254,11 @@ export function seoPlugin<const C extends string = never, const G extends string
             const generate = generators[kind]
             if (!generate || !isEmpty(meta[kind])) continue
             const id = (previousDoc?.id as string | number | undefined) ?? null
-            const value = await generate({ doc, id, locale: null, cms, user, ...target })
-            if (value !== null && value !== undefined && value !== '') meta[kind] = value
+            const value = suggestion(
+              kind,
+              await generate({ doc, id, locale: null, cms, user, ...target }),
+            )
+            if (value !== null) meta[kind] = value
           }
           return { ...data, [META_FIELD]: meta }
         }
@@ -381,7 +399,7 @@ export function seoPlugin<const C extends string = never, const G extends string
           user,
           ...(collection ? { collection } : { global: global as string }),
         })
-        return { value: value ?? null }
+        return { value: suggestion(kind, value) }
       },
     }
 

@@ -55,8 +55,9 @@ const generators = seoPlugin({
   collections: ['posts'],
   globals: ['site'],
   generateTitle: ({ doc }) => (doc.title ? `${doc.title} | Blog` : null),
-  generateDescription: ({ doc }) => doc.excerpt as string,
-  generateImage: ({ doc }) => doc.cover as number,
+  // Fields as read, without casts: values of the wrong kind suggest nothing.
+  generateDescription: ({ doc }) => doc.excerpt,
+  generateImage: ({ doc }) => doc.cover,
   generateURL: ({ doc, collection }) =>
     collection ? `https://blog.test/posts/${doc.slug}` : 'https://blog.test/',
 })
@@ -186,6 +187,14 @@ describe('generate endpoint', () => {
       expect(await url.json()).toEqual({ value: 'https://blog.test/' })
       const empty = await generate({ kind: 'title', collection: 'posts', doc: {} })
       expect(await empty.json()).toEqual({ value: null })
+      // Values as read from the document: media ids or documents, text only for text.
+      const suggest = async (kind: string, doc: unknown) =>
+        (await (await generate({ kind, collection: 'posts', doc })).json()).value
+      expect(await suggest('image', { cover: 5 })).toBe(5)
+      expect(await suggest('image', { cover: { id: 7, url: '/m.png' } })).toBe(7)
+      expect(await suggest('image', { cover: null })).toBeNull()
+      expect(await suggest('description', { excerpt: 'About' })).toBe('About')
+      expect(await suggest('description', { excerpt: 42 })).toBeNull()
 
       expect((await generate({ kind: 'title', collection: 'posts', doc: {} }, false)).status).toBe(
         401,

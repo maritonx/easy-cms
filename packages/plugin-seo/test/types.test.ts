@@ -18,6 +18,9 @@ const config = defineConfig({
       globals: ['site'],
       // Callbacks keep their parameter types.
       generateTitle: ({ doc }) => `${String(doc.title)} | Blog`,
+      // Fields as read, as the docs show them: generators may return any value.
+      generateDescription: ({ doc }) => doc.excerpt,
+      generateImage: ({ doc }) => doc.cover,
     }),
   ],
 })

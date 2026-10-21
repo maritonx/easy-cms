@@ -50,6 +50,8 @@ await cms.update('posts', id, { title: 'Hello' }, { locale: 'en' }) // Thai titl
 
 - การเขียนจะตั้งค่าของภาษาที่ระบุ (ภาษาเริ่มต้นถ้าไม่ระบุ) และเก็บค่าของภาษาอื่นไว้ตามเดิม ส่วน `locale: 'all'`
   เขียนเป็น map แบบ `{ [locale]: value }` โดยตรง
+- การอ่านด้วย `locale: 'all'` มี type ตามนั้นด้วย คือ `title` เป็น `{ th?: string | null; en?: …}`
+  ([TypeScript](./typescript#every-locale-at-once))
 - `required` และ `validate` ที่เขียนเองจะตรวจเฉพาะภาษาที่กำลังเขียน
 - `where` และ `sort` ใช้ภาษาที่กำลังอ่าน เช่น `{ locale: 'en', where: { title: { like: 'x' } } }` จะค้นใน
   ชื่อภาษาอังกฤษ ถ้าต้องการระบุภาษาเองให้ใช้ `title.en`

@@ -51,6 +51,8 @@ await cms.update('posts', id, { title: 'Hello' }, { locale: 'en' }) // Thai titl
 
 - Writes set the given locale's values (the default locale when none is given) and keep the other
   locales. `locale: 'all'` writes `{ [locale]: value }` maps directly.
+- Reads with `locale: 'all'` are typed that way too: `title` is `{ th?: string | null; en?: …}`
+  ([TypeScript](./typescript#every-locale-at-once)).
 - `required` and custom `validate` apply to the locale being written.
 - `where` and `sort` use the locale being read: `{ locale: 'en', where: { title: { like: 'x' } } }`
   matches English titles. Name a locale explicitly with `title.en`.
