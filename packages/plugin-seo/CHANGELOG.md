@@ -1,5 +1,14 @@
 # @easy-cms/plugin-seo
 
+## 1.4.2
+
+### Patch Changes
+
+- e34f015: Types that fit what the docs show: generators may return a field as read (`({ doc }) => doc.excerpt`, `({ doc }) => doc.cover`); text, media ids and media documents are used, other values suggest nothing. `seo.head` fits `useHead()` in Nuxt 4.6 (unhead 3), whose link types differ per `rel`.
+- Updated dependencies [e34f015]
+  - @easy-cms/core@1.4.2
+  - @easy-cms/richtext@1.4.2
+
 ## 1.4.1
 
 ### Patch Changes

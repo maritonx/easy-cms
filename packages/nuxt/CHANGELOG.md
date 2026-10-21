@@ -1,5 +1,14 @@
 # @easy-cms/nuxt
 
+## 1.4.2
+
+### Patch Changes
+
+- e34f015: `useEasyCMS()` is typed in the app's TypeScript project too, not only the server's: typed `$fetch` and `useFetch` routes import server handlers, which `nuxi typecheck` then checked without the Easy CMS types (implicit `any` errors).
+- Updated dependencies [e34f015]
+  - @easy-cms/core@1.4.2
+  - @easy-cms/admin@1.4.2
+
 ## 1.4.1
 
 ### Patch Changes
