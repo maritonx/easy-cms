@@ -84,6 +84,7 @@ admin ใช้ มีแค่สคริปต์นำเข้าที่�
 //
 //   npx tsx --env-file=.env scripts/import-wordpress.ts https://old-site.com [--limit 10]
 import { createEasyCMS } from '@easy-cms/core'
+import { normalizePath } from '@easy-cms/plugin-redirects'
 import Image from '@tiptap/extension-image'
 import { generateJSON } from '@tiptap/html'
 import StarterKit from '@tiptap/starter-kit'
@@ -170,9 +171,10 @@ async function save(collection: 'categories' | 'posts' | 'pages', wpId: number, 
 
 /** A 301 from the old address, when it differs from the new one. */
 async function redirect(oldLink: string, to: string) {
-  // Stored without the trailing slash WordPress adds.
-  const from = decodeURI(new URL(oldLink).pathname).replace(/(.)\/$/, '$1')
-  if (from === to) return
+  // The path as the plugin stores it: no trailing slash, and Thai text, `%e0%b8%aa…` and
+  // `%E0%B8%AA…` all as `%E0%B8%AA…`, so the next run finds it.
+  const from = normalizePath(new URL(oldLink).pathname)
+  if (!from || from === normalizePath(to)) return
   const { totalDocs } = await cms.find('redirects', { where: { from: { equals: from } }, limit: 0 })
   if (!totalDocs) await cms.create('redirects', { from, to, type: '301' })
 }
@@ -247,9 +249,10 @@ NODE_ENV=production DATABASE_URL=… npx tsx --env-file=.env scripts/import-word
 ## 4. Redirect {#_4-redirects}
 
 สคริปต์เพิ่ม `301` จากที่อยู่เดิมไปที่อยู่ใหม่ของทุกชิ้น เช่น `/2024/05/hello-world/` → `/blog/hello-world`
-ลิงก์เดิมและอันดับในการค้นหาจึงตามมาด้วย ที่อยู่ภาษาไทยก็ใช้ได้: slug แบบ `%e0%b8%aa…` ของ WordPress จะถูกเก็บเป็น
-ข้อความภาษาไทย ให้เว็บของคุณทำตาม redirect เหล่านี้ตาม[เสิร์ฟ redirect](../redirects#serve-them): server middleware
-ใน Nuxt หรือ proxy ใน Next.js หน้ารวมหมวดหมู่ แท็ก และหน้ารวมตามวันที่เดิมไม่ได้ถูก redirect ให้เพิ่มเฉพาะหน้าที่สำคัญเองใน
+ลิงก์เดิมและอันดับในการค้นหาจึงตามมาด้วย ที่อยู่ภาษาไทยก็ใช้ได้: ที่อยู่ถูกเก็บแบบ percent-encoded (`/%E0%B8%82…`)
+และตรงกับคำขอไม่ว่าจะเขียนแบบไหน ทั้ง `%e0%b8%82…` ตัวพิมพ์เล็กแบบที่ WordPress ใช้ หรือข้อความภาษาไทย
+ให้เว็บของคุณทำตาม redirect เหล่านี้ตาม[เสิร์ฟ redirect](../redirects#serve-them): server middleware ใน Nuxt
+หรือ proxy ใน Next.js หน้ารวมหมวดหมู่ แท็ก และหน้ารวมตามวันที่เดิมไม่ได้ถูก redirect ให้เพิ่มเฉพาะหน้าที่สำคัญเองใน
 **ตั้งค่า → การเปลี่ยนเส้นทาง**
 
 ## อะไรย้ายมาได้ อะไรไม่ได้ {#what-comes-across-and-what-doesn-t}

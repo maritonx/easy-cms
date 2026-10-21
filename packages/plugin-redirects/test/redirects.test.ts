@@ -65,6 +65,18 @@ describe('normalizePath', () => {
     expect(normalizePath('old')).toBeNull()
     expect(normalizePath('')).toBeNull()
   })
+
+  it('spells escapes one way, so encoded and decoded paths match', () => {
+    const thai = '/%E0%B8%82%E0%B9%88%E0%B8%B2%E0%B8%A7'
+    // WordPress writes lowercase escapes, browsers uppercase ones.
+    expect(normalizePath('/%e0%b8%82%e0%b9%88%e0%b8%b2%e0%b8%a7/')).toBe(thai)
+    expect(normalizePath(`${thai}/`)).toBe(thai)
+    expect(normalizePath('https://x.test/%e0%b8%82%E0%B9%88%e0%b8%b2%e0%b8%a7')).toBe(thai)
+    expect(normalizePath(decodeURI(thai))).toBe(thai)
+    expect(decodeURI(normalizePath('/ข่าว/ล่าสุด') ?? '')).toBe('/ข่าว/ล่าสุด')
+    // Unreserved characters need no escape; reserved ones keep theirs.
+    expect(normalizePath('/%7euser/%41-%2f')).toBe('/~user/A-%2F')
+  })
 })
 
 describe('redirectsPlugin config', () => {
@@ -171,6 +183,48 @@ describe('redirects', () => {
       await cms.update('posts', post.id, { slug: 'hello', status: 'published' })
       expect(await resolveRedirect(cms, '/posts/hello')).toBeNull()
       expect((await resolveRedirect(cms, '/posts/third'))?.location).toBe('/posts/hello')
+    } finally {
+      await cms.destroy()
+    }
+  })
+
+  it('handles Thai addresses in any spelling, and sends them encoded', async () => {
+    const cms = await open(base())
+    try {
+      const lower = '/2024/05/%e0%b8%82%e0%b9%88%e0%b8%b2%e0%b8%a7/'
+      // Stored once, however it is spelled: a second import finds the first.
+      const created = await cms.create('redirects', { from: lower, to: '/blog/ข่าว' })
+      expect(created.from).toBe('/2024/05/%E0%B8%82%E0%B9%88%E0%B8%B2%E0%B8%A7')
+      for (const from of [lower, '/2024/05/ข่าว', created.from as string]) {
+        const path = normalizePath(from) ?? ''
+        const { totalDocs } = await cms.find('redirects', { where: { from: { equals: path } } })
+        expect(totalDocs).toBe(1)
+        await expect(cms.create('redirects', { from, to: '/blog/ข่าว' })).rejects.toThrow()
+      }
+
+      const location = '/blog/%E0%B8%82%E0%B9%88%E0%B8%B2%E0%B8%A7'
+      for (const from of [lower, '/2024/05/%E0%B8%82%E0%B9%88%E0%B8%B2%E0%B8%A7', '/2024/05/ข่าว'])
+        expect(await resolveRedirect(cms, from)).toEqual({ location, status: 301 })
+      expect(await resolveRedirect(cms, new URL(`https://site.test${lower}?utm=x`))).toEqual({
+        location: `${location}?utm=x`,
+        status: 301,
+      })
+
+      // Addresses with Thai text, also from documents, are valid Location headers.
+      await cms.create('redirects', { from: '/full', to: 'https://ตัวอย่าง.test/ข่าว?ก=1' })
+      expect((await resolveRedirect(cms, '/full'))?.location).toBe(
+        'https://xn--72c1a1bt4awk9o.test/%E0%B8%82%E0%B9%88%E0%B8%B2%E0%B8%A7?%E0%B8%81=1',
+      )
+      const post = await cms.create('posts', { title: 'ข่าว', slug: 'ข่าว', status: 'published' })
+      await cms.create('redirects', { from: '/p', to_posts: post.id })
+      expect((await resolveRedirect(cms, '/p'))?.location).toBe(
+        '/posts/%E0%B8%82%E0%B9%88%E0%B8%B2%E0%B8%A7',
+      )
+      for (const from of [lower, '/full', '/p']) {
+        const redirect = await resolveRedirect(cms, from)
+        expect(() => new Headers({ location: redirect?.location ?? '' })).not.toThrow()
+        expect(redirect?.location).toMatch(/^[\x21-\x7e]+$/)
+      }
     } finally {
       await cms.destroy()
     }

@@ -87,6 +87,7 @@ the same editor the admin uses. Only the import script needs them.
 //
 //   npx tsx --env-file=.env scripts/import-wordpress.ts https://old-site.com [--limit 10]
 import { createEasyCMS } from '@easy-cms/core'
+import { normalizePath } from '@easy-cms/plugin-redirects'
 import Image from '@tiptap/extension-image'
 import { generateJSON } from '@tiptap/html'
 import StarterKit from '@tiptap/starter-kit'
@@ -173,9 +174,10 @@ async function save(collection: 'categories' | 'posts' | 'pages', wpId: number, 
 
 /** A 301 from the old address, when it differs from the new one. */
 async function redirect(oldLink: string, to: string) {
-  // Stored without the trailing slash WordPress adds.
-  const from = decodeURI(new URL(oldLink).pathname).replace(/(.)\/$/, '$1')
-  if (from === to) return
+  // The path as the plugin stores it: no trailing slash, and Thai text, `%e0%b8%aa…` and
+  // `%E0%B8%AA…` all as `%E0%B8%AA…`, so the next run finds it.
+  const from = normalizePath(new URL(oldLink).pathname)
+  if (!from || from === normalizePath(to)) return
   const { totalDocs } = await cms.find('redirects', { where: { from: { equals: from } }, limit: 0 })
   if (!totalDocs) await cms.create('redirects', { from, to, type: '301' })
 }
@@ -251,7 +253,8 @@ Blob there too, not the local `uploads/` folder.
 
 The script adds a `301` from each old address to the new one, such as
 `/2024/05/hello-world/` → `/blog/hello-world`, so links and search rankings carry over. Thai
-addresses work too: WordPress's `%e0%b8%aa…` slugs are stored as the Thai text. Make your site
+addresses work too: they are stored percent-encoded (`/%E0%B8%82…`) and match however a request
+spells them, as WordPress's lowercase `%e0%b8%82…` or as Thai text. Make your site
 follow them as [Serve them](../redirects#serve-them) shows: a server middleware in Nuxt, the proxy
 in Next.js. Old category, tag and date archive pages aren't redirected; add the ones
 that matter in **Settings → Redirects**.
