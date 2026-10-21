@@ -29,8 +29,9 @@ export interface Redirect {
 }
 
 /**
- * A path as redirects store it: the pathname only (no query or fragment), no trailing slash.
- * `null` when it isn't a path.
+ * A path as redirects store it: the pathname only (no query or fragment), no trailing slash,
+ * percent-encoded with uppercase escapes. `/ข่าว`, `/%e0%b8%82…` and `/%E0%B8%82…` are the same
+ * path. `null` when it isn't a path.
  */
 export function normalizePath(input: string): string | null {
   const value = input.trim()
@@ -42,7 +43,34 @@ export function normalizePath(input: string): string | null {
     return null
   }
   if (!/^(\/|https?:\/\/)/i.test(value)) return null
-  return url.pathname.replace(/\/+$/, '') || '/'
+  return canonicalEscapes(url.pathname.replace(/\/+$/, '')) || '/'
+}
+
+/**
+ * Escapes spelled one way (RFC 3986, 6.2.2): `%e0` → `%E0`, and `%41` → `A` for characters
+ * that need none. Browsers send uppercase escapes, links copied from WordPress lowercase ones.
+ */
+function canonicalEscapes(value: string): string {
+  return value.replace(/%([0-9a-f]{2})/gi, (_, hex: string) => {
+    const char = String.fromCharCode(Number.parseInt(hex, 16))
+    return /[A-Za-z0-9\-._~]/.test(char) ? char : `%${hex.toUpperCase()}`
+  })
+}
+
+/**
+ * A redirect's address as a valid `Location` header: non-ASCII text and spaces percent-encoded
+ * (Node.js rejects a header with `ข่าว` in it), a non-ASCII host as punycode. ASCII addresses are
+ * kept as they are.
+ */
+function encodeLocation(location: string): string | null {
+  if (!/[^\x21-\x7e]/.test(location)) return location
+  try {
+    if (/^https?:\/\//i.test(location)) return new URL(location).href
+    const url = new URL(location, 'http://site.invalid')
+    return canonicalEscapes(url.pathname) + url.search + url.hash
+  } catch {
+    return null
+  }
 }
 
 interface Cache {
@@ -174,7 +202,7 @@ async function target(
   source: RedirectsSource,
   doc: Doc,
 ): Promise<string | null> {
-  if (typeof doc.to === 'string' && doc.to.trim()) return doc.to.trim()
+  if (typeof doc.to === 'string' && doc.to.trim()) return encodeLocation(doc.to.trim())
   for (const collection of source.collections) {
     const ref = doc[targetField(collection)]
     const id = typeof ref === 'object' && ref !== null ? (ref as Doc).id : ref
@@ -186,7 +214,7 @@ async function target(
     })
     if (!page || (page.status !== undefined && page.status !== 'published')) return null
     const url = await source.url?.({ collection, doc: page, locale })
-    return typeof url === 'string' && url.trim() ? url.trim() : null
+    return typeof url === 'string' && url.trim() ? encodeLocation(url.trim()) : null
   }
   return null
 }

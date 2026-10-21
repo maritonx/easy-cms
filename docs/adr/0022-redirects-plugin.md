@@ -30,8 +30,11 @@
 **การเสิร์ฟ**
 - `resolveRedirect(cms, url)` อ่าน redirect ทั้งหมดครั้งเดียวแล้วเก็บเป็น Map ในหน่วยความจำ ผูกกับ instance ด้วย
   `Symbol.for(…)` (ไม่ใช่ตัวแปรระดับ module เพราะ Next.js bundle plugin แยกตาม layer) ล้างทันทีเมื่อ redirect หรือเอกสารปลายทางเปลี่ยน
-  และหมดอายุตาม `cacheTTL` (60 วินาที) สำหรับ instance อื่น
+  และหมดอายุตาม `cacheMaxAge` (60 วินาที, เดิมชื่อ `cacheTTL` ที่รับเป็นมิลลิวินาที) สำหรับ instance อื่น
 - query string ของผู้เข้าชมถูกส่งต่อ ถ้าปลายทางไม่มี query ของตัวเอง
+- path ที่ไม่ใช่ ASCII (เช่น slug ภาษาไทย) เก็บและเทียบแบบ percent-encoded ที่เขียน escape แบบเดียว (ตัวพิมพ์ใหญ่ ตาม RFC 3986
+  6.2.2) เพราะ WordPress เขียน `%e0%b8…` ส่วน browser เขียน `%E0%B8…` ส่วน `location` ที่มีอักษรนอก ASCII ถูก encode ตอนอ่าน
+  เพราะ Node.js ไม่รับ header `Location` ที่มีภาษาไทย
 - Nuxt ใช้ server middleware, Next.js 16 ใช้ `proxy.ts` (ทำงานบน Node.js) ส่วน frontend อื่นเรียก `GET <api>/resolve-redirect?path=`
   (endpoint ขึ้นต้นด้วย slug ของ collection ไม่ได้ จึงไม่ใช้ `/redirects/resolve`)
 - ยังไม่ export เป็นไฟล์ของ host (`_redirects`, `vercel.json`) และยังไม่รองรับ pattern หรือ wildcard

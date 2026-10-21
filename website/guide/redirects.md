@@ -43,6 +43,8 @@ redirects`, see [Migrations](./deployment)).
 Each redirect has:
 
 - **From**: the old path, e.g. `/old-page`. The query string and a trailing slash are ignored.
+  A Thai path like `/ข่าว` is stored percent-encoded (`/%E0%B8%82…`) and matches requests
+  however they spell it, lowercase escapes included.
 - **To (address)**: a path on the site or a full URL, **or** a document from `collections`. A
   redirect to a document always goes to its current address, even after it moves again.
 - **Type**: `301` (moved for good, the default), `302` or `307` (for now), `308` (for good,
