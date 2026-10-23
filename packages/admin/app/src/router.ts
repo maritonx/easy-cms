@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { setUnauthorizedHandler } from './lib/api'
 import { navigating } from './lib/loading'
-import { loadSession, session } from './lib/session'
+import { loadSession, loggingOut, logout, session } from './lib/session'
 import { settings } from './lib/settings'
 
 const PUBLIC = new Set(['login', 'setup', 'forgot-password'])
@@ -96,6 +96,12 @@ router.onError(() => {
 router.beforeEach(async (to) => {
   if (!session.loaded) await loadSession()
   const name = String(to.name ?? '')
+  // The Log out button (logOutAndLeave). Leave guards ran first, so a page with unsaved changes
+  // has already agreed; the session ends before the address changes.
+  if (name === 'login' && loggingOut.leaving) {
+    await logout()
+    return true
+  }
   if (name === 'reset-password') return true
   if (!session.user) {
     if (!session.hasUsers) return name === 'setup' ? true : { name: 'setup' }

@@ -17,7 +17,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { refreshCounts } from '../lib/counts'
 import { locale, setLocale, t } from '../lib/i18n'
 import { navState, pinnedEntries } from '../lib/nav'
-import { logout, session } from '../lib/session'
+import { logOutAndLeave, session } from '../lib/session'
 import { settings } from '../lib/settings'
 import { installShortcuts, modKey, openPalette } from '../lib/shortcuts'
 import { brandName, initials, setTheme, type ThemeMode, themeMode } from '../lib/theme'
@@ -103,9 +103,8 @@ const themes: {
   { mode: 'system', icon: Monitor, key: 'theme.system' },
 ]
 
-async function onLogout() {
-  await logout()
-  await router.push({ name: 'login' })
+function onLogout() {
+  return logOutAndLeave(router)
 }
 </script>
 

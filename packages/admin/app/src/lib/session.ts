@@ -1,5 +1,6 @@
 import type { AdminCollection, AdminGlobal, AdminSchema, SsoProviderRef } from '@easy-cms/core'
 import { reactive } from 'vue'
+import type { Router } from 'vue-router'
 import { api } from './api'
 import { loadModules } from './plugins'
 
@@ -99,6 +100,23 @@ export async function registerFirstUser(data: {
 }) {
   await api('POST', '/auth/first-register', data)
   await loadSession()
+}
+
+/** Set while the Log out button goes to the login page: the router logs out on the way. */
+export const loggingOut = { leaving: false }
+
+/**
+ * The Log out button: goes to the login page, and the router ends the session on the way, after
+ * the page being left agreed. A page with unsaved changes asks first, and staying keeps the
+ * user logged in; leaving logs out before the address changes.
+ */
+export async function logOutAndLeave(router: Router): Promise<void> {
+  loggingOut.leaving = true
+  try {
+    await router.push({ name: 'login' })
+  } finally {
+    loggingOut.leaving = false
+  }
 }
 
 export async function logout(): Promise<void> {
