@@ -29,7 +29,7 @@
 - **L1 ทำสองขั้น:**
   1. ตอนนี้: เอกสาร `CREATE SCHEMA` + `ALTER ROLE … SET search_path` (ใช้ได้หลัง PgBouncer เพราะค่าอยู่ที่ role ไม่ใช่ startup parameter) และเทสต์ใน CI ว่าตารางทั้งหมดไปอยู่ใน schema นั้น
   2. ทีหลัง: ตัวเลือก `schema` ใน `@easy-cms/db-postgres` ใช้ `pgSchema()` ให้ชื่อตารางระบุ schema เสมอ ไม่ขึ้นกับ `search_path` พร้อมคำสั่ง CLI ย้ายตารางของระบบที่ติดตั้งแล้ว (`ALTER TABLE … SET SCHEMA`)
-- **ตัวเลือกของ pool:** `statementTimeout`, `idleTimeout`, `connectTimeout`, `applicationName` (ค่าปริยาย `'easy-cms'`) และ `prepare` ส่วน `statementTimeout` ไม่มีค่าปริยาย เพราะ migration และ backup อาจใช้เวลานาน เอกสารให้สูตร: instance × `max` ไม่เกิน 10–20% ของ `max_connections` และบน serverless ให้ใช้ pooler
+- **ตัวเลือกของ pool:** `statementTimeoutMs`, `idleTimeoutMs`, `connectTimeoutMs` (มิลลิวินาที เหมือน `busyTimeoutMs` ของ SQLite), `applicationName` (ค่าปริยาย `'easy-cms'`) และ `prepare` ส่วน `statementTimeoutMs` ไม่มีค่าปริยาย เพราะ migration และ backup อาจใช้เวลานาน เอกสารให้สูตร: instance × `max` ไม่เกิน 10–20% ของ `max_connections` และบน serverless ให้ใช้ pooler
 - **role แยกสำหรับ migration:** runtime ใช้ role ที่มีแค่ DML ได้ โดย `verify()` ต้องตรวจตาราง migrations โดยไม่ใช้ DDL ส่วน `easy-cms migrate` รันด้วย role เจ้าของ schema (connection string อีกตัว)
 
 ## ผลที่ตามมา

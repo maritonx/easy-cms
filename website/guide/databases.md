@@ -49,6 +49,44 @@ PGlite is handy locally and in tests: real Postgres with nothing to install. A c
 db: process.env.DATABASE_URL ? postgres({ url: process.env.DATABASE_URL }) : postgres({ pglite: '.pglite' }),
 ```
 
+### Connections
+
+| Option | Default | |
+|---|---|---|
+| `max` | `10` | Connections in the pool, per instance |
+| `prepare` | `true` | Prepared statements. Turn off behind a pooler that can't keep them |
+| `statementTimeoutMs` | — | Cancels a statement that runs longer. Not behind PgBouncer (see below) |
+| `idleTimeoutMs` | — | Closes connections left idle this long |
+| `connectTimeoutMs` | `30000` | Gives up opening a connection after this long |
+| `applicationName` | `easy-cms` | Shown in `pg_stat_activity`. `PGAPPNAME` also works |
+
+Options in the URL (`?prepare=false`) and the `PG*` environment variables still apply when
+the option isn't set. `statementTimeoutMs` has no default because migrations and backups can
+take a while: `easy-cms migrate` and `easy-cms backup` read the same config, so leave them room.
+
+**How many connections.** Every instance opens up to `max`, so the total is instances ×
+`max`. Keep it under 10–20% of the server's `max_connections` (`SHOW max_connections`), leaving
+room for your app, migrations and admin tools.
+
+**Serverless and poolers.** Each serverless function instance has its own pool, and a burst of
+traffic starts many of them: connect through a pooler (PgBouncer, or your host's: Neon,
+Supabase, RDS Proxy) and keep `max` small, 1–3.
+
+```ts
+db: postgres({ url: process.env.DATABASE_POOLER_URL, max: 2, prepare: false })
+```
+
+- **Transaction mode** gives each transaction any server connection. Easy CMS keeps nothing
+  between transactions, so it works, tested in CI against PgBouncer.
+- **`prepare: false`** unless the pooler keeps prepared statements across server connections:
+  PgBouncer does from 1.24 (`max_prepared_statements`, default 200). Otherwise queries fail
+  with "prepared statement … does not exist".
+- **Settings on the role**, not the connection: PgBouncer refuses startup parameters such as
+  `statement_timeout`. Use `ALTER ROLE cms SET statement_timeout = '15s'` instead of
+  `statementTimeoutMs`.
+- **Migrations** run through the pooler too, or over a direct connection if your host offers
+  one.
+
 ## Common options
 
 | Option | Default | |

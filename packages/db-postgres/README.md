@@ -27,6 +27,11 @@ export default defineConfig({
 |---|---|---|
 | `url` | — | Connection string |
 | `max` | `10` | Pool size |
+| `prepare` | `true` | Prepared statements; `false` behind a pooler that can't keep them |
+| `statementTimeoutMs` | — | Cancels longer statements (not behind PgBouncer: set it on the role) |
+| `idleTimeoutMs` | — | Closes idle connections after this long |
+| `connectTimeoutMs` | `30000` | Gives up opening a connection after this long |
+| `applicationName` | `easy-cms` | Shown in `pg_stat_activity` |
 | `pglite` | — | Data directory (relative to the project), `memory://`, or a `PGlite` instance. Needs `@electric-sql/pglite`. |
 | `tablePrefix` | `ecms_` | Prefix of every table Easy CMS creates |
 | `migrationDir` | `easy-cms/migrations` | Where migration files are written |
@@ -36,6 +41,6 @@ Text sorting follows the database collation (server defaults like `en_US.UTF-8` 
 
 ## Links
 
-[Databases](https://easy-cms-website.vercel.app/docs/databases) · [Documentation](https://easy-cms-website.vercel.app/docs) ([ภาษาไทย](https://easy-cms-website.vercel.app/th/docs)) · [GitHub](https://github.com/maritonx/easy-cms)
+[Databases](https://easy-cms-website.vercel.app/docs/databases) (connections, poolers, serverless) · [Documentation](https://easy-cms-website.vercel.app/docs) ([ภาษาไทย](https://easy-cms-website.vercel.app/th/docs)) · [GitHub](https://github.com/maritonx/easy-cms)
 
 MIT License

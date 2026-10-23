@@ -128,6 +128,44 @@ jobs:
       - run: pnpm build
       - run: pnpm --filter easy-cms-integration-tests exec vitest run --project postgres
 
+  pgbouncer:
+    needs: scope
+    if: needs.scope.outputs.full == 'true'
+    # The same suites through PgBouncer in transaction mode, as serverless hosts' poolers run:
+    # any server connection per transaction, no prepared statements.
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: easycms
+          POSTGRES_PASSWORD: easycms
+          POSTGRES_DB: easycms
+        options: >-
+          --health-cmd "pg_isready -U easycms" --health-interval 5s --health-timeout 5s --health-retries 10
+      pgbouncer:
+        image: edoburu/pgbouncer:v1.26.0-p0
+        env:
+          DATABASE_URL: postgres://easycms:easycms@postgres:5432/easycms
+          POOL_MODE: transaction
+          AUTH_TYPE: scram-sha-256
+          MAX_CLIENT_CONN: 200
+          DEFAULT_POOL_SIZE: 20
+        ports: ['6432:5432']
+    env:
+      POSTGRES_URL: postgres://easycms:easycms@localhost:6432/easycms
+      POSTGRES_PREPARE: 'false'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm --filter easy-cms-integration-tests exec vitest run --project postgres
+
   upgrade:
     needs: scope
     if: needs.scope.outputs.full == 'true'

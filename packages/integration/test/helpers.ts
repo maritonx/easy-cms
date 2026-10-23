@@ -8,7 +8,7 @@ import {
   type SchemaMode,
   silentLogger,
 } from '@easy-cms/core'
-import { postgres } from '@easy-cms/db-postgres'
+import { type PostgresAdapterOptions, postgres } from '@easy-cms/db-postgres'
 import { sqlite } from '@easy-cms/db-sqlite'
 import { PGlite } from '@electric-sql/pglite'
 import { createClient } from '@libsql/client'
@@ -81,8 +81,11 @@ afterAll(async () => {
   }
 })
 
-/** The database adapter under test. Each project directory gets isolated tables. */
-export function db(): DatabaseAdapter {
+/**
+ * The database adapter under test. Each project directory gets isolated tables. `server` options
+ * apply to a Postgres server only.
+ */
+export function db(server: Partial<PostgresAdapterOptions> = {}): DatabaseAdapter {
   return {
     name: `test-${DIALECT}`,
     init(args) {
@@ -92,7 +95,14 @@ export function db(): DatabaseAdapter {
         pglite ??= new PGlite()
         return postgres({ pglite, tablePrefix }).init(args)
       }
-      return postgres({ url: process.env.POSTGRES_URL as string, max: 3, tablePrefix }).init(args)
+      return postgres({
+        url: process.env.POSTGRES_URL as string,
+        max: 3,
+        // CI also runs the suites through PgBouncer in transaction mode, without prepared statements.
+        prepare: process.env.POSTGRES_PREPARE !== 'false',
+        ...server,
+        tablePrefix,
+      }).init(args)
     },
   }
 }
