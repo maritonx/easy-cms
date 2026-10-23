@@ -21,7 +21,7 @@
     "@electric-sql/pglite": "^0.5.8",
     "@netlify/database": "^2.0.1",
     "easy-cms": "^1.4.2",
-    "next": "^16.3.8",
+    "next": "^16.4.3",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   },
