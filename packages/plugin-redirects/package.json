@@ -1,6 +1,6 @@
 {
   "name": "@easy-cms/plugin-redirects",
-  "version": "1.4.2",
+  "version": "1.4.3",
   "description": "Redirects for Easy CMS: 301s managed in the admin, automatic redirects when a page's address changes",
   "license": "MIT",
   "type": "module",

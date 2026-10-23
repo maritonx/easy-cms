@@ -1,5 +1,11 @@
 # @easy-cms/admin
 
+## 1.4.3
+
+### Patch Changes
+
+- 5475000: Log out leaves the page first: on a page with unsaved changes the admin asks, and choosing to stay keeps you logged in with your changes. It used to end the session before asking, so staying left you on the page logged out.
+
 ## 1.4.2
 
 No changes in this release.
