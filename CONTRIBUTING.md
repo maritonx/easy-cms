@@ -37,6 +37,10 @@ pnpm lint         # Biome
 
 - **Unit and integration:** `pnpm test`. The integration suites run on SQLite and PGlite, and on
   a Postgres server too with `POSTGRES_URL=postgres://… pnpm --filter easy-cms-integration-tests test`.
+- **Coverage:** `pnpm coverage` builds the packages with source maps, runs the same tests with
+  coverage and writes `coverage/lcov.info`, with line coverage per package. The admin and the Nuxt
+  module are left out: their tests run in a browser or another process. CI reports it to
+  [Codecov](https://codecov.io/gh/maritonx/easy-cms) on every pull request; it doesn't fail a check.
 - **End to end:** `pnpm test:e2e` runs the same admin suite against the three examples (Nuxt in
   development, Next.js as a production build, the standalone server and its frontend).
   Locally it uses your installed Chrome.

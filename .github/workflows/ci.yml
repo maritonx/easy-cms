@@ -76,6 +76,30 @@ jobs:
       - if: failure()
         run: node .github/scripts/annotate-failures.mjs test-output.log "Tests failed (${{ matrix.os }}, Node ${{ matrix.node }})"
 
+  # Line coverage of the server packages, reported to Codecov: not a check that fails.
+  coverage:
+    needs: scope
+    if: needs.scope.outputs.full == 'true'
+    runs-on: ubuntu-24.04
+    env:
+      # Missing on forks' pull requests: the report is made, not uploaded.
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm coverage
+      - if: env.CODECOV_TOKEN != ''
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage/lcov.info
+          token: ${{ env.CODECOV_TOKEN }}
+          disable_search: true
+
   postgres:
     needs: scope
     if: needs.scope.outputs.full == 'true'
