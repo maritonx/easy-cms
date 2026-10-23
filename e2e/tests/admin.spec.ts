@@ -140,6 +140,28 @@ test.describe('logged in as admin', () => {
     await expect(page.getByRole('heading', { name: 'Posts' })).toBeVisible()
   })
 
+  test('asks before logging out of unsaved changes, and stays logged in on cancel', async ({
+    page,
+  }) => {
+    const signedIn = async () =>
+      Boolean((await (await page.request.get('/api/cms/auth/me')).json()).user)
+    await page.goto('/admin/collections/posts/new')
+    await page.getByRole('textbox', { name: 'Title', exact: true }).fill('Not saved yet')
+    // Cancel: still on the page, still logged in, the text still there.
+    page.once('dialog', (dialog) => void dialog.dismiss())
+    await page.getByRole('button', { name: 'Log out' }).click()
+    await expect(page).toHaveURL(/\/collections\/posts\/new$/)
+    await expect(page.getByRole('textbox', { name: 'Title', exact: true })).toHaveValue(
+      'Not saved yet',
+    )
+    expect(await signedIn()).toBe(true)
+    // Leave: logged out, on the login page.
+    page.once('dialog', (dialog) => void dialog.accept())
+    await page.getByRole('button', { name: 'Log out' }).click()
+    await expect(page).toHaveURL(/\/admin\/login$/)
+    expect(await signedIn()).toBe(false)
+  })
+
   test('shows collections and globals in the sidebar (FR-ADM-03)', async ({ page }) => {
     const nav = page.getByRole('navigation', { name: 'Main' })
     for (const name of ['Users', 'Media', 'Categories', 'Posts', 'Site']) {

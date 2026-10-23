@@ -21,7 +21,7 @@ import { label, locale, setLocale, t } from '../lib/i18n'
 import { collectionIcon } from '../lib/icons'
 import { crumbsFor, entryOf, flatten, navState } from '../lib/nav'
 import { recent } from '../lib/recent'
-import { logout, session } from '../lib/session'
+import { logOutAndLeave, session } from '../lib/session'
 import { modKey, overlays } from '../lib/shortcuts'
 import { setTheme, themeMode } from '../lib/theme'
 
@@ -170,10 +170,7 @@ const options = computed<Option[]>(() => {
       section: 'commands',
       label: t('nav.logout'),
       icon: LogOut,
-      run: async () => {
-        await logout()
-        await router.push({ name: 'login' })
-      },
+      run: () => logOutAndLeave(router),
     },
   ]
   out.push(
