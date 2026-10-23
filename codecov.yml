@@ -1,0 +1,12 @@
+# Coverage is reported, not enforced (yet): the checks and the comment are informational.
+coverage:
+  status:
+    project:
+      default:
+        informational: true
+    patch:
+      default:
+        informational: true
+comment:
+  layout: "condensed_header, diff, files"
+  require_changes: true
