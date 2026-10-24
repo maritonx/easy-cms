@@ -73,7 +73,7 @@ afterAll(async () => {
     // Leave the shared server clean for the next file.
     for (const prefix of prefixes.values()) {
       const tables =
-        await server`select tablename from pg_tables where schemaname = 'public' and tablename like ${`${prefix}%`}`
+        await server`select tablename from pg_tables where schemaname = current_schema() and tablename like ${`${prefix}%`}`
       for (const { tablename } of tables)
         await server.unsafe(`drop table if exists "${tablename}" cascade`)
     }

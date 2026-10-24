@@ -299,6 +299,13 @@
           }
         },
         {
+          "path": "guide/database-isolation",
+          "title": {
+            "en": "Database isolation",
+            "th": "แยกฐานข้อมูลจากแอป"
+          }
+        },
+        {
           "path": "guide/deployment",
           "title": {
             "en": "Migrations & deployment",

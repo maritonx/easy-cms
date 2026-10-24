@@ -97,7 +97,8 @@ db: postgres({ url: process.env.DATABASE_POOLER_URL, max: 2, prepare: false })
 ## Sharing a database with your app
 
 Easy CMS creates and changes only tables with its prefix, so it can use your app's database.
-Your own tables are never touched, in development or by migrations.
+Your own tables are never touched, in development or by migrations. To keep it further apart,
+in a schema, database or server of its own, see [Database isolation](./database-isolation).
 
 ## Differences to know
 
@@ -141,5 +142,6 @@ What that means for your site:
 
 ## Next steps
 
+- [Database isolation](./database-isolation): a schema, database or server of its own.
 - [Migrations & deployment](./deployment): migrations in production.
 - [Backups & upgrades](./backups): back up the database.
