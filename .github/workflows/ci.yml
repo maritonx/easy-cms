@@ -132,7 +132,8 @@ jobs:
     needs: scope
     if: needs.scope.outputs.full == 'true'
     # The same suites through PgBouncer in transaction mode, as serverless hosts' poolers run:
-    # any server connection per transaction, no prepared statements.
+    # any server connection per transaction, no prepared statements. They connect as a role
+    # whose search_path is its own schema (database isolation L1), set up as the docs show.
     runs-on: ubuntu-24.04
     services:
       postgres:
@@ -141,21 +142,29 @@ jobs:
           POSTGRES_USER: easycms
           POSTGRES_PASSWORD: easycms
           POSTGRES_DB: easycms
+        ports: ['5432:5432']
         options: >-
           --health-cmd "pg_isready -U easycms" --health-interval 5s --health-timeout 5s --health-retries 10
       pgbouncer:
         image: edoburu/pgbouncer:v1.26.0-p0
         env:
-          DATABASE_URL: postgres://easycms:easycms@postgres:5432/easycms
+          DATABASE_URL: postgres://cms:cms@postgres:5432/easycms
           POOL_MODE: transaction
           AUTH_TYPE: scram-sha-256
           MAX_CLIENT_CONN: 200
           DEFAULT_POOL_SIZE: 20
         ports: ['6432:5432']
     env:
-      POSTGRES_URL: postgres://easycms:easycms@localhost:6432/easycms
+      POSTGRES_URL: postgres://cms:cms@localhost:6432/easycms
       POSTGRES_PREPARE: 'false'
+      POSTGRES_SCHEMA: easy_cms
     steps:
+      - name: Create the role and its schema
+        run: >-
+          psql postgres://easycms:easycms@localhost:5432/easycms -v ON_ERROR_STOP=1
+          -c "CREATE ROLE cms LOGIN PASSWORD 'cms'"
+          -c "CREATE SCHEMA easy_cms AUTHORIZATION cms"
+          -c "ALTER ROLE cms SET search_path = easy_cms"
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7

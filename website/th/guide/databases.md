@@ -90,7 +90,8 @@ db: postgres({ url: process.env.DATABASE_POOLER_URL, max: 2, prepare: false })
 ## ใช้ฐานข้อมูลร่วมกับแอปของคุณ {#sharing-a-database-with-your-app}
 
 Easy CMS สร้างและแก้ไขเฉพาะตารางที่มี prefix ของตัวเอง จึงใช้ฐานข้อมูลของแอปคุณได้
-ตารางของคุณเองจะไม่ถูกแตะต้อง ทั้งในช่วงพัฒนา (development) และโดย migration
+ตารางของคุณเองจะไม่ถูกแตะต้อง ทั้งในช่วงพัฒนา (development) และโดย migration ถ้าต้องการแยกมากกว่านี้ (schema, ฐานข้อมูล หรือ server ของตัวเอง)
+ดู[แยกฐานข้อมูลจากแอป](./database-isolation)
 
 ## ข้อแตกต่างที่ควรรู้ {#differences-to-know}
 
@@ -132,5 +133,6 @@ Easy CMS สร้างและแก้ไขเฉพาะตาราง�
 
 ## ขั้นต่อไป {#next-steps}
 
+- [แยกฐานข้อมูลจากแอป](./database-isolation): schema, ฐานข้อมูล หรือ server ของตัวเอง
 - [Migration และการ deploy](./deployment): migration บน production
 - [Backup และการอัปเกรด](./backups): สำรองฐานข้อมูล
