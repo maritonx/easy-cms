@@ -228,6 +228,46 @@ jobs:
         run: for i in $(seq 1 30); do curl -s -o /dev/null localhost:9000 && exit 0; sleep 1; done; exit 1
       - run: pnpm --filter @easy-cms/storage-s3 test
 
+  multi-instance:
+    needs: scope
+    if: needs.scope.outputs.full == 'true'
+    # Two `easy-cms serve` instances on one Postgres and one S3 bucket, behind a round-robin
+    # proxy (ADR-0051): REST, sessions and CSRF, login rate limits, uploads and jobs.
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: easycms
+          POSTGRES_PASSWORD: easycms
+          POSTGRES_DB: easycms
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U easycms" --health-interval 5s --health-timeout 5s --health-retries 10
+      s3:
+        image: rustfs/rustfs:1.0.0
+        env:
+          RUSTFS_ACCESS_KEY: ecmsaccess
+          RUSTFS_SECRET_KEY: ecmssecret123
+        ports: ['9000:9000']
+    env:
+      POSTGRES_URL: postgres://easycms:easycms@localhost:5432/easycms
+      S3_TEST_ENDPOINT: http://localhost:9000
+      S3_TEST_ACCESS_KEY: ecmsaccess
+      S3_TEST_SECRET_KEY: ecmssecret123
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Wait for the S3 server
+        run: for i in $(seq 1 30); do curl -s -o /dev/null localhost:9000 && exit 0; sleep 1; done; exit 1
+      - run: pnpm --filter easy-cms-integration-tests test:multi-instance
+
   e2e:
     needs: scope
     if: needs.scope.outputs.full == 'true'

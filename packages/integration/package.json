@@ -6,15 +6,19 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "bench": "node bench.ts",
-    "load": "node load.ts"
+    "load": "node load.ts",
+    "test:multi-instance": "vitest run --config multi-instance/vitest.config.ts"
   },
   "devDependencies": {
     "@easy-cms/auth-oauth": "workspace:^",
     "@easy-cms/core": "workspace:^",
     "@easy-cms/db-postgres": "workspace:^",
     "@easy-cms/db-sqlite": "workspace:^",
+    "@easy-cms/storage-s3": "workspace:^",
     "@electric-sql/pglite": "^0.5.8",
     "@libsql/client": "^0.18.0",
+    "aws4fetch": "^1.0.20",
+    "easy-cms": "workspace:^",
     "postgres": "^3.4.9",
     "sharp": "^0.35.5"
   }
