@@ -1,5 +1,16 @@
 # @easy-cms/db-postgres
 
+## 1.5.0
+
+### Minor Changes
+
+- b951b6e: Postgres connection options: `prepare`, `statementTimeoutMs`, `idleTimeoutMs`, `connectTimeoutMs` and `applicationName`. Connections are now named `easy-cms` in `pg_stat_activity` (or `PGAPPNAME`). Options left unset still come from the URL and the `PG*` environment variables. The Databases guide covers pool sizing, serverless and poolers such as PgBouncer.
+
+### Patch Changes
+
+- @easy-cms/core@1.5.0
+  - @easy-cms/drizzle@1.5.0
+
 ## 1.4.3
 
 ### Patch Changes
