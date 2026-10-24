@@ -48,6 +48,38 @@ PGlite สะดวกสำหรับใช้งานในเครื่�
 db: process.env.DATABASE_URL ? postgres({ url: process.env.DATABASE_URL }) : postgres({ pglite: '.pglite' }),
 ```
 
+### Connection {#connections}
+
+| ตัวเลือก | ค่าเริ่มต้น | |
+|---|---|---|
+| `max` | `10` | จำนวน connection ใน pool ต่อ instance |
+| `prepare` | `true` | prepared statement ปิดเมื่ออยู่หลัง pooler ที่เก็บไว้ไม่ได้ |
+| `statementTimeoutMs` | — | ยกเลิก statement ที่รันนานเกินนี้ ใช้หลัง PgBouncer ไม่ได้ (ดูข้างล่าง) |
+| `idleTimeoutMs` | — | ปิด connection ที่ว่างนานเท่านี้ |
+| `connectTimeoutMs` | `30000` | เลิกรอเปิด connection หลังจากนี้ |
+| `applicationName` | `easy-cms` | แสดงใน `pg_stat_activity` ใช้ `PGAPPNAME` ได้ด้วย |
+
+ตัวเลือกใน URL (`?prepare=false`) และตัวแปร `PG*` ยังใช้ได้ถ้าไม่ได้ตั้งตัวเลือกนั้น `statementTimeoutMs`
+ไม่มีค่าเริ่มต้น เพราะ migration และ backup อาจใช้เวลานาน และ `easy-cms migrate` กับ `easy-cms backup` อ่าน config เดียวกัน จึงควรเผื่อเวลาไว้
+
+**จำนวน connection** ทุก instance เปิดได้ถึง `max` รวมทั้งหมดจึงเป็นจำนวน instance × `max` ควรให้ไม่เกิน 10–20%
+ของ `max_connections` ของ server (`SHOW max_connections`) เผื่อไว้ให้แอปของคุณ migration และเครื่องมือของแอดมิน
+
+**Serverless และ pooler** function แต่ละตัวบน serverless มี pool ของตัวเอง และ traffic ที่พุ่งขึ้นทีเดียวจะเปิดหลายตัวพร้อมกัน
+ให้ต่อผ่าน pooler (PgBouncer หรือของผู้ให้บริการ เช่น Neon, Supabase, RDS Proxy) และตั้ง `max` น้อย ๆ 1–3
+
+```ts
+db: postgres({ url: process.env.DATABASE_POOLER_URL, max: 2, prepare: false })
+```
+
+- **Transaction mode** ให้แต่ละ transaction ได้ server connection ตัวไหนก็ได้ Easy CMS ไม่เก็บอะไรค้างไว้ระหว่าง
+  transaction จึงใช้ได้ และ CI ทดสอบกับ PgBouncer
+- **`prepare: false`** ยกเว้น pooler เก็บ prepared statement ข้าม server connection ได้ ซึ่ง PgBouncer ทำได้ตั้งแต่ 1.24
+  (`max_prepared_statements` ค่าเริ่มต้น 200) ไม่อย่างนั้น query จะล้มด้วย "prepared statement … does not exist"
+- **ตั้งค่าที่ role** ไม่ใช่ที่ connection เพราะ PgBouncer ปฏิเสธ startup parameter อย่าง `statement_timeout`
+  ใช้ `ALTER ROLE cms SET statement_timeout = '15s'` แทน `statementTimeoutMs`
+- **Migration** รันผ่าน pooler ได้ หรือต่อตรงก็ได้ถ้าผู้ให้บริการมีให้
+
 ## ตัวเลือกทั่วไป {#common-options}
 
 | ตัวเลือก | ค่าเริ่มต้น | |

@@ -32,6 +32,27 @@ export interface PostgresAdapterOptions extends DrizzleAdapterOptions {
   /** Maximum connections in the pool. Default 10. */
   readonly max?: number
   /**
+   * Use prepared statements. Default true. Turn off behind a pooler in transaction mode that
+   * can't keep them (PgBouncer before 1.24, or with `max_prepared_statements = 0`, and some
+   * hosted poolers): it would run the next query on a server connection without the statement.
+   */
+  readonly prepare?: boolean
+  /**
+   * Cancels a statement running longer than this (ms), sent as `statement_timeout` when a
+   * connection opens. No default: migrations and backups may take a while. PgBouncer refuses
+   * the parameter; set it on the role there (`ALTER ROLE … SET statement_timeout = …`).
+   */
+  readonly statementTimeoutMs?: number
+  /** Closes a connection left idle this long (ms). Default: never. */
+  readonly idleTimeoutMs?: number
+  /** Gives up opening a connection after this long (ms). Default 30000. */
+  readonly connectTimeoutMs?: number
+  /**
+   * `application_name` of the connections, shown in `pg_stat_activity`. Default `PGAPPNAME`,
+   * then `'easy-cms'`.
+   */
+  readonly applicationName?: string
+  /**
    * Use PGlite (Postgres in WebAssembly) instead of a server: a data directory
    * (relative to the project root), `memory://`, or a PGlite instance you manage.
    * Handy for local development and tests. Requires `@electric-sql/pglite`.
@@ -122,15 +143,30 @@ export function postgres(options: PostgresAdapterOptions): DatabaseAdapter {
     init: async (args) => {
       const connection = options.pglite
         ? await pgliteConnection(options.pglite, args.cwd)
-        : postgresJsConnection(options.url as string, options.max ?? 10)
+        : postgresJsConnection(options.url as string, options)
       return connectDatabase(postgresDialect, connection, args, options)
     },
   }
 }
 
-function postgresJsConnection(url: string, max: number): Connection {
-  // Keep Easy CMS quiet: Postgres NOTICEs (e.g. "relation already exists, skipping") are expected.
-  const client = postgresJs(url, { max, onnotice: () => {} })
+function postgresJsConnection(url: string, options: PostgresAdapterOptions): Connection {
+  // Only what is set: postgres.js lets an option passed here win over the URL (`?prepare=false`)
+  // and the PG* environment variables.
+  const set = <T>(key: string, value: T | undefined) =>
+    value === undefined ? {} : { [key]: value }
+  const seconds = (ms: number | undefined) => (ms === undefined ? undefined : ms / 1000)
+  const client = postgresJs(url, {
+    max: options.max ?? 10,
+    ...set('prepare', options.prepare),
+    ...set('idle_timeout', seconds(options.idleTimeoutMs)),
+    ...set('connect_timeout', seconds(options.connectTimeoutMs)),
+    connection: {
+      application_name: options.applicationName ?? (process.env.PGAPPNAME || 'easy-cms'),
+      ...set('statement_timeout', options.statementTimeoutMs),
+    },
+    // Keep Easy CMS quiet: Postgres NOTICEs (e.g. "relation already exists, skipping") are expected.
+    onnotice: () => {},
+  })
   const runner: SqlRunner = {
     async query(text, params = []) {
       return [...(await client.unsafe(text, [...params] as never[]))] as Record<string, unknown>[]
