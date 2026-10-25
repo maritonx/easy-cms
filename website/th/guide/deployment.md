@@ -75,6 +75,38 @@ logs: { format: 'json' }
 `easy-cms serve` ใช้ค่าเดียวกัน ถ้าส่ง `logger` ของคุณเองให้ `createEasyCMS` ค่า `logs` จะไม่มีผล ใช้ `jsonLogger()`
 จาก `@easy-cms/core` ถ้าต้องการรูปแบบนี้
 
+## Health check {#health-checks}
+
+load balancer, แพลตฟอร์ม container และ Kubernetes ถามสองคำถาม:
+
+| Path | ตอบ | ใช้เป็น |
+|---|---|---|
+| `<api>/healthz` | `200 ok` เมื่อ process ยังทำงาน ไม่แตะฐานข้อมูลเลย | Liveness: restart process เมื่อไม่ตอบ |
+| `<api>/readyz` | `200` เมื่อ Easy CMS เริ่มแล้ว ฐานข้อมูลตอบ และไม่มี migration ค้าง ไม่อย่างนั้นตอบ `503` | Readiness: ส่ง traffic ไปเฉพาะ instance ที่พร้อม |
+
+`<api>` คือ `routes.api` (ค่าเริ่มต้น `/api/cms`) ทุก setup จึงมีทั้งสองตัว: Next.js, Nuxt และ
+[standalone server](./standalone) ซึ่งตอบ `/healthz` และ `/readyz` ที่ root ด้วย ทั้งสองตัวไม่ต้อง login และไม่ถูก cache
+
+```json
+{ "status": "ok", "checks": { "database": "ok", "migrations": "ok" } }
+{ "status": "error", "checks": { "database": "ok", "migrations": "1 pending" } }
+```
+
+response บอกแค่ชื่อข้อที่ไม่ผ่าน ไม่บอกรายละเอียด ข้อความ error อยู่ใน log พร้อม [request id](#logs) ถ้า Easy CMS
+เริ่มไม่ขึ้น (config ผิด หรือต่อฐานข้อมูลไม่ได้) `/healthz` ยังตอบ `200` และ `/readyz` ตอบ `503` พร้อม `"startup": "error"`
+
+```yaml
+# Kubernetes
+livenessProbe:
+  httpGet: { path: /api/cms/healthz, port: 3000 }
+readinessProbe:
+  httpGet: { path: /api/cms/readyz, port: 3000 }
+  periodSeconds: 5
+```
+
+ให้ liveness เรียก `healthz` ไม่ใช่ `readyz` เพราะเมื่อฐานข้อมูลล่ม ควรเอา instance ออกจาก load balancer ไม่ใช่ restart
+ทุกตัว probe ไม่ถูกเขียนเป็น[บรรทัดของ request ใน log](#logs)
+
 ## Checklist {#checklist}
 
 - ตั้งค่า `EASY_CMS_SECRET` ใน environment ของ production (อักขระสุ่มอย่างน้อย 32 ตัว:

@@ -31,7 +31,8 @@ script, `easy-cms.config.ts` และ secret ใน `.env` สำหรับ�
 |---|---|
 | `/admin` | หน้า admin (`admin.path`) |
 | `/api/cms` | [REST API](./rest-api) (`routes.api`) |
-| `/healthz` | `ok` สำหรับ load balancer และ health check ของ container |
+| `/healthz` | `ok` เมื่อ process ยังทำงาน: liveness |
+| `/readyz` | `200` เมื่อฐานข้อมูลตอบและไม่มี migration ค้าง: readiness ดู[Health check](./deployment#health-checks) |
 | `/` | redirect ไปยังหน้า admin |
 
 ## การเรียกใช้จาก frontend {#calling-it-from-a-frontend}

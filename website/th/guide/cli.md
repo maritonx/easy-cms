@@ -162,7 +162,7 @@ npx easy-cms serve --watch          # ตอนพัฒนา: โหลดใ�
 ```
 
 รัน Easy CMS โดยไม่ใช้ Nuxt หรือ Next.js: หน้า admin ที่ `/admin`, REST API ที่ `/api/cms`
-และ `/healthz` สำหรับ load balancer
+และ `/healthz` กับ `/readyz` สำหรับ load balancer
 
 | ตัวเลือก | |
 |---|---|

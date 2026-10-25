@@ -31,7 +31,8 @@ with an error is reported and the previous one keeps serving.
 |---|---|
 | `/admin` | Admin UI (`admin.path`) |
 | `/api/cms` | [REST API](./rest-api) (`routes.api`) |
-| `/healthz` | `ok`, for load balancers and container health checks |
+| `/healthz` | `ok` while the process runs: liveness |
+| `/readyz` | `200` when the database answers and no migration is pending: readiness. See [Health checks](./deployment#health-checks) |
 | `/` | Redirects to the admin |
 
 ## Calling it from a frontend

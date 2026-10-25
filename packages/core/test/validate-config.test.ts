@@ -520,8 +520,14 @@ describe('validateConfig', () => {
           { slug: 'globals', fields: [] },
           { slug: 'pages', fields: [] },
           { slug: 'pages', fields: [] },
+          { slug: 'readyz', fields: [] },
         ]),
-      ).toEqual(['collections[0].slug', 'collections[1].slug', 'collections[3].slug'])
+      ).toEqual([
+        'collections[0].slug',
+        'collections[1].slug',
+        'collections[3].slug',
+        'collections[4].slug',
+      ])
     })
 
     it('allows a global and a collection to share a slug', () => {
