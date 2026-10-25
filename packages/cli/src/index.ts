@@ -140,7 +140,7 @@ for a cron job where no server process keeps running. Servers do this every minu
   serve: `Usage: easy-cms serve [--port <n>] [--host <host>] [--watch] [--trust-proxy] [options]
 
 Runs Easy CMS without Nuxt or Next.js: the admin at /admin, the REST API at /api/cms and
-/healthz for load balancers. Frontends on other origins need \`cors\` in the config.
+/healthz and /readyz for load balancers. Frontends on other origins need \`cors\` in the config.
 
   --port <n>       Port (default: PORT, then 4000)
   --host <host>    Interface to listen on (default: HOST, then all interfaces)

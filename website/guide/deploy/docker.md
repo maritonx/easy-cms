@@ -34,7 +34,7 @@ ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0
 COPY --from=build /app ./
 EXPOSE 3000
 HEALTHCHECK --interval=30s --start-period=30s \
-  CMD node -e "fetch('http://localhost:3000/api/cms/auth/init').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+  CMD node -e "fetch('http://localhost:3000/api/cms/readyz').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
 CMD ["sh", "-c", "npx easy-cms migrate && npx next start"]
 ```
 
@@ -52,7 +52,7 @@ ENV NODE_ENV=production PORT=3000 HOST=0.0.0.0
 COPY --from=build /app ./
 EXPOSE 3000
 HEALTHCHECK --interval=30s --start-period=30s \
-  CMD node -e "fetch('http://localhost:3000/api/cms/auth/init').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+  CMD node -e "fetch('http://localhost:3000/api/cms/readyz').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
 CMD ["sh", "-c", "npx easy-cms migrate && node .output/server/index.mjs"]
 ```
 
@@ -67,8 +67,8 @@ COPY easy-cms ./easy-cms
 
 - The `build` script must not migrate: the image is built without a database. Run `next build`
   (or `nuxi build`) directly, as above.
-- The health check calls `<api>/auth/init`, which needs the database; the standalone server also
-  answers `/healthz`.
+- The health check calls `/readyz`: the database answers and no migration is pending. See
+  [Health checks](../deployment#health-checks).
 - The standalone image needs only your config and migrations: Easy CMS itself comes from
   [the official image](#the-official-image), and it listens on port 4000.
 - With pnpm, start the build stage with `RUN corepack enable`, copy `pnpm-lock.yaml` and run

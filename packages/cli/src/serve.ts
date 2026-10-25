@@ -12,7 +12,11 @@ import {
   type Logger,
   type ResolvedConfig,
 } from '@easy-cms/core'
-import { createRootEndpointHandler, forwardedClientIp } from '@easy-cms/core/internal'
+import {
+  createRootEndpointHandler,
+  forwardedClientIp,
+  healthResponse,
+} from '@easy-cms/core/internal'
 
 export interface StandaloneOptions {
   /** Use `X-Forwarded-For` / `X-Forwarded-Proto` from a reverse proxy you control. */
@@ -23,7 +27,7 @@ type Handler = (request: Request, clientIp?: string) => Promise<Response>
 
 /**
  * One Web-standard handler for the whole standalone server: the REST API at `routes.api`, the
- * admin at `admin.path`, `/healthz` for load balancers, and endpoints marked `root` (such as a
+ * admin at `admin.path`, `/healthz` and `/readyz` for load balancers, and endpoints marked `root` (such as a
  * plugin's `/robots.txt`). `/` redirects to the admin.
  */
 export function createStandaloneHandler<C extends Config>(
@@ -46,8 +50,8 @@ export function createStandaloneHandler<C extends Config>(
       return api(request)
     }
     if (under(pathname, adminPath)) return admin(request)
-    if (pathname === '/healthz')
-      return new Response('ok', { headers: { 'cache-control': 'no-store' } })
+    if (pathname === '/healthz' || pathname === '/readyz')
+      return healthResponse(pathname === '/healthz' ? 'healthz' : 'readyz', cms)
     clientIps.set(request, clientIp)
     const endpoint = await rootEndpoints(request)
     if (endpoint) return endpoint

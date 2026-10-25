@@ -174,7 +174,7 @@ npx easy-cms serve --watch          # development: reload on config changes
 ```
 
 Runs Easy CMS without Nuxt or Next.js: the admin at `/admin`, the REST API at `/api/cms`, and
-`/healthz` for load balancers.
+`/healthz` and `/readyz` for load balancers.
 
 | Option | |
 |---|---|

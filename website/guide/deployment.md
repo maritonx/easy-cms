@@ -80,6 +80,40 @@ or set `EASY_CMS_LOG_FORMAT=json` on the host, which wins over the config:
 `easy-cms serve` follows the same setting. With your own `logger` passed to `createEasyCMS`,
 `logs` is ignored: `jsonLogger()` from `@easy-cms/core` writes this format.
 
+## Health checks
+
+Load balancers, container platforms and Kubernetes ask two questions:
+
+| Path | Answers | Use for |
+|---|---|---|
+| `<api>/healthz` | `200 ok` while the process runs; never touches the database | Liveness: restart the process when it stops answering |
+| `<api>/readyz` | `200` when Easy CMS started, its database answers and no migration is pending; `503` otherwise | Readiness: send traffic only to instances that can serve it |
+
+`<api>` is `routes.api`, `/api/cms` by default, so every setup has them: Next.js, Nuxt and the
+[standalone server](./standalone), which also answers `/healthz` and `/readyz` at the root.
+Neither needs credentials, and neither is cached.
+
+```json
+{ "status": "ok", "checks": { "database": "ok", "migrations": "ok" } }
+{ "status": "error", "checks": { "database": "ok", "migrations": "1 pending" } }
+```
+
+A failed check is named, never explained: the error goes to the log, with its
+[request id](#logs). When Easy CMS can't start (a bad config, an unreachable database),
+`/healthz` still answers `200` and `/readyz` answers `503` with `"startup": "error"`.
+
+```yaml
+# Kubernetes
+livenessProbe:
+  httpGet: { path: /api/cms/healthz, port: 3000 }
+readinessProbe:
+  httpGet: { path: /api/cms/readyz, port: 3000 }
+  periodSeconds: 5
+```
+
+Point liveness at `healthz`, not `readyz`: a database outage should take instances out of the
+load balancer, not restart them all. Probes are left out of the [request log lines](#logs).
+
 ## Checklist
 
 - `EASY_CMS_SECRET` set in the production environment (at least 32 random characters:

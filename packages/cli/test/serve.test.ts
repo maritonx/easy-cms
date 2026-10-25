@@ -57,6 +57,9 @@ describe('easy-cms serve (FR-STD-01)', () => {
     expect(await admin.text()).toContain('<meta name="easy-cms"')
 
     expect(await (await fetch(`${server.url}/healthz`)).text()).toBe('ok')
+    const ready = await fetch(`${server.url}/readyz`)
+    expect(ready.status).toBe(200)
+    expect(await ready.json()).toMatchObject({ status: 'ok' })
     expect((await fetch(`${server.url}/elsewhere`)).status).toBe(404)
     // Endpoints marked root are served from the root.
     expect(await (await fetch(`${server.url}/robots.txt`)).text()).toBe('User-agent: *')

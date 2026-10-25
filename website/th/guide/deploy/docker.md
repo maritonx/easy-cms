@@ -32,7 +32,7 @@ ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0
 COPY --from=build /app ./
 EXPOSE 3000
 HEALTHCHECK --interval=30s --start-period=30s \
-  CMD node -e "fetch('http://localhost:3000/api/cms/auth/init').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+  CMD node -e "fetch('http://localhost:3000/api/cms/readyz').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
 CMD ["sh", "-c", "npx easy-cms migrate && npx next start"]
 ```
 
@@ -50,7 +50,7 @@ ENV NODE_ENV=production PORT=3000 HOST=0.0.0.0
 COPY --from=build /app ./
 EXPOSE 3000
 HEALTHCHECK --interval=30s --start-period=30s \
-  CMD node -e "fetch('http://localhost:3000/api/cms/auth/init').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+  CMD node -e "fetch('http://localhost:3000/api/cms/readyz').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
 CMD ["sh", "-c", "npx easy-cms migrate && node .output/server/index.mjs"]
 ```
 
@@ -65,7 +65,7 @@ COPY easy-cms ./easy-cms
 
 - script `build` ต้องไม่ migrate เพราะ image ถูก build โดยไม่มีฐานข้อมูล ให้รัน `next build` (หรือ `nuxi build`) ตรงๆ
   แบบข้างบน
-- health check เรียก `<api>/auth/init` ซึ่งต้องต่อฐานข้อมูลได้ standalone server ตอบ `/healthz` ได้ด้วย
+- health check เรียก `/readyz`: ฐานข้อมูลตอบและไม่มี migration ค้าง ดู[Health check](../deployment#health-checks)
 - image แบบ standalone ต้องการแค่ config และ migration ของคุณ ตัว Easy CMS มาจาก[image อย่างเป็นทางการ](#the-official-image)
   และฟังที่ port 4000
 - ถ้าใช้ pnpm ให้เริ่ม stage build ด้วย `RUN corepack enable` คัดลอก `pnpm-lock.yaml` และรัน

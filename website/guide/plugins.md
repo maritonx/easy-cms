@@ -174,8 +174,8 @@ API's format.
 - `root: true` serves the path from the site's root instead, e.g. `/robots.txt`. Only the
   [standalone server](./standalone) serves these: a Nuxt or Next.js app owns its root, so a
   plugin with a root endpoint should also offer a helper for the app's own route (as the
-  [SEO plugin](./seo#robots-txt) does). Root paths can't be under `routes.api`, the admin or
-  `/healthz`.
+  [SEO plugin](./seo#robots-txt) does). Root paths can't be under `routes.api`, the admin,
+  `/healthz` or `/readyz`.
 
 ## Admin components
 
