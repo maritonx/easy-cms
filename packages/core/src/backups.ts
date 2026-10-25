@@ -259,7 +259,7 @@ export async function startBackup(
     },
   })
   void runBackup(cms, row).catch((error) =>
-    cms.logger.error(`Backup failed: ${(error as Error).message}`),
+    cms.logger.error(`Backup failed: ${(error as Error).message}`, { error }),
   )
   return toAdmin(row)
 }
@@ -388,7 +388,7 @@ export async function runDueBackups(cms: EasyCMS, now: Date = new Date()): Promi
   if (!due) return
   if (await inProgress(cms, now.getTime())) return
   await startBackup(cms, 'scheduled').catch((error) =>
-    cms.logger.error(`Scheduled backup could not start: ${(error as Error).message}`),
+    cms.logger.error(`Scheduled backup could not start: ${(error as Error).message}`, { error }),
   )
 }
 

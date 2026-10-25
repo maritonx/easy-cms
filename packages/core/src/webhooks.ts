@@ -184,7 +184,9 @@ export class Webhooks {
 
   private track(delivery: Promise<void>) {
     const tracked = delivery
-      .catch((error) => this.logger.error(`Webhook queue failed: ${(error as Error).message}`))
+      .catch((error) =>
+        this.logger.error(`Webhook queue failed: ${(error as Error).message}`, { error }),
+      )
       .finally(() => this.pending.delete(tracked))
     this.pending.add(tracked)
   }
@@ -215,7 +217,7 @@ export class Webhooks {
     try {
       queued = await saved
     } catch (error) {
-      this.logger.error(`Could not save webhook delivery: ${(error as Error).message}`)
+      this.logger.error(`Could not save webhook delivery: ${(error as Error).message}`, { error })
     }
     for (let attempt = 0; ; attempt++) {
       const result = await this.attempt(hook, event, body, delivery)

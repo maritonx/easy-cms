@@ -168,7 +168,10 @@ export {
 } from './local-api.js'
 export {
   consoleLogger,
+  jsonLogger,
+  type LogDetails,
   type Logger,
+  type LogsConfig,
   silentLogger,
 } from './logger.js'
 export type {

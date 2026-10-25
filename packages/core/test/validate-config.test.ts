@@ -458,6 +458,15 @@ describe('validateConfig', () => {
     expect(audit('yes')).toEqual(['audit'])
   })
 
+  it('checks the logs options', () => {
+    const logs = (value: unknown) =>
+      validateConfig(baseConfig({ logs: value as never })).map((i) => i.path)
+    expect(logs({ format: 'json', requests: false })).toEqual([])
+    expect(logs({ format: 'text', requests: 'no' })).toEqual(['logs.format', 'logs.requests'])
+    expect(logs({ level: 'debug' })).toEqual(['logs.level'])
+    expect(logs('json')).toEqual(['logs'])
+  })
+
   it('checks cors origins', () => {
     expect(validateConfig(baseConfig({ cors: '*' }))).toEqual([])
     expect(validateConfig(baseConfig({ cors: ['https://ok.test'] }))).toEqual([])

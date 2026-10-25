@@ -422,7 +422,10 @@ export function ecommercePlugin<const Cur extends string = 'THB'>(
         if (event === 'paid')
           await sendOrderEmail(cms, emails.paymentReceived ?? paymentReceived, order.email, order)
       } catch (error) {
-        cms.logger.error(`Shop: email for order ${order.orderNumber}: ${(error as Error).message}`)
+        cms.logger.error(
+          `Shop: email for order ${order.orderNumber}: ${(error as Error).message}`,
+          { error },
+        )
       }
     },
   }

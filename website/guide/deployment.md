@@ -50,6 +50,36 @@ is for development; whether production reads it depends on how the server starts
 When `EASY_CMS_SECRET` is missing, the API answers `500` and the log says
 `secret: is required`.
 
+## Logs
+
+By default Easy CMS writes readable lines, `[easy-cms] …`, with an error's stack under it. For a
+log pipeline (Datadog, Loki, CloudWatch, `docker logs` into a collector), write one JSON object
+per line instead:
+
+```ts
+logs: { format: 'json' }
+```
+
+or set `EASY_CMS_LOG_FORMAT=json` on the host, which wins over the config:
+
+```json
+{"time":"2026-10-25T14:22:19.280Z","level":"info","name":"easy-cms","message":"GET /api/cms/posts 200","requestId":"lb-7f3a","method":"GET","path":"/api/cms/posts","status":200,"durationMs":7,"userId":3}
+{"time":"2026-10-25T14:22:20.011Z","level":"error","name":"easy-cms","message":"REST request failed: …","requestId":"0b6f…","error":{"name":"Error","message":"…","stack":"…"}}
+```
+
+- **Request ids.** Every API response has an `X-Request-Id` header, and every line logged while
+  answering it has the same `requestId`. An `X-Request-Id` from your load balancer is kept
+  when it is plain (letters, digits, `.`, `_`, `-`, up to 128), so one id follows a request
+  from the proxy's log to Easy CMS's.
+- **A line per request**, with method, path (without the query string, which may hold personal
+  data), status, duration and the user's id. Turn it off with `logs: { requests: false }` when
+  the load balancer already logs requests.
+- **Background jobs.** Each run of scheduled publishing and jobs logs with its own `runId`, and
+  with the `requestId` of the cron call that started it.
+
+`easy-cms serve` follows the same setting. With your own `logger` passed to `createEasyCMS`,
+`logs` is ignored: `jsonLogger()` from `@easy-cms/core` writes this format.
+
 ## Checklist
 
 - `EASY_CMS_SECRET` set in the production environment (at least 32 random characters:

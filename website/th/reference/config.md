@@ -41,6 +41,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `email` | `EmailAdapter` | — | ส่งอีเมลให้ plugin เช่น `smtp()` หรือ `consoleEmail()` [อีเมล](/th/guide/email) |
 | `backups` | `BackupsConfig` | กดทำเองเท่านั้น | backup ฐานข้อมูลตามรอบ ดู [backups](#backups) |
 | `audit` | `boolean \| AuditConfig` | ปิด | audit log: ใครแก้อะไร การเข้าสู่ระบบ การจัดการระบบ ดู [audit](#audit) |
+| `logs` | `LogsConfig` | บรรทัดที่อ่านง่าย | `{ format: 'json' }` เขียน JSON บรรทัดละหนึ่ง object พร้อม request id ดู [logs](#logs) |
 | `plugins` | `Plugin[]` | `[]` | `(config) => config` ทำงานตามลำดับก่อนตรวจ config `definePlugin(fn, { name, version, apiVersion? })` ตั้งชื่อให้แสดงบนแดชบอร์ด ส่วน `apiVersion` (`PLUGIN_API_VERSION`) หยุดการเริ่มทำงานถ้า plugin เขียนไว้สำหรับ plugin API เวอร์ชันอื่น [Plugins](/th/guide/plugins) |
 | `fieldTypes` | `FieldTypeDefinition[]` | `[]` | ชนิด field จากแพ็กเกจ เช่น `color` จาก `@easy-cms/fields` [ชนิด field เพิ่มเติม](/th/guide/field-types) |
 
@@ -124,6 +125,14 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `values` | `boolean` | `true` | เก็บค่าก่อนและหลังการแก้ `false`: เก็บแค่ชื่อ field ที่เปลี่ยน |
 | `failedLogins` | `number` | `20` | จำนวน login ไม่สำเร็จในหนึ่งชั่วโมงที่แดชบอร์ดจะเตือน [Audit log](/th/guide/audit-log) |
 | `scope` | `({ context, user }) => string \| null` | — | ส่วนของเว็บที่ entry เป็นของ เช่น tenant (ปกติ plugin เป็นผู้ตั้ง) admin ของส่วนนั้น (`scoped`) เห็นเฉพาะของส่วนตัวเอง คนอื่นเห็นของส่วนที่เลือกหรือทั้งหมด |
+
+<!-- api: LogsConfig -->
+## logs {#logs}
+
+| ตัวเลือก | Type | ค่าเริ่มต้น | |
+|---|---|---|---|
+| `format` | `'pretty' \| 'json'` | `'pretty'` | `json`: บรรทัดละหนึ่ง object (`time`, `level`, `message`, `requestId`, `error`) ตัวแปร `EASY_CMS_LOG_FORMAT` มีผลเหนือค่านี้ [Log](/th/guide/deployment#logs) |
+| `requests` | `boolean` | `true` | เมื่อเป็น `json` เขียนหนึ่งบรรทัดต่อ API request: method, path, status, เวลาที่ใช้ และผู้ใช้ |
 
 <!-- api: AuthConfig -->
 ## auth {#auth}

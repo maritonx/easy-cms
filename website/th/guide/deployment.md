@@ -49,6 +49,32 @@ field ที่เปลี่ยนไปถูกเปลี่ยนชื�
 เมื่อไม่มี `EASY_CMS_SECRET` API จะตอบ `500` และ log จะแสดง
 `secret: is required`
 
+## Log {#logs}
+
+โดยปกติ Easy CMS เขียนบรรทัดที่อ่านง่าย `[easy-cms] …` และ stack ของ error อยู่ใต้บรรทัดนั้น ถ้าส่ง log เข้าระบบรวบรวม log
+(Datadog, Loki, CloudWatch หรือ `docker logs` เข้า collector) ให้เขียนเป็น JSON บรรทัดละหนึ่ง object แทน:
+
+```ts
+logs: { format: 'json' }
+```
+
+หรือตั้ง `EASY_CMS_LOG_FORMAT=json` บน host ซึ่งมีผลเหนือ config:
+
+```json
+{"time":"2026-10-25T14:22:19.280Z","level":"info","name":"easy-cms","message":"GET /api/cms/posts 200","requestId":"lb-7f3a","method":"GET","path":"/api/cms/posts","status":200,"durationMs":7,"userId":3}
+{"time":"2026-10-25T14:22:20.011Z","level":"error","name":"easy-cms","message":"REST request failed: …","requestId":"0b6f…","error":{"name":"Error","message":"…","stack":"…"}}
+```
+
+- **Request id** ทุก response ของ API มี header `X-Request-Id` และทุกบรรทัดที่ log ระหว่างตอบ request นั้นมี `requestId`
+  เดียวกัน ถ้า load balancer ส่ง `X-Request-Id` มาและเป็นค่าธรรมดา (ตัวอักษร ตัวเลข `.` `_` `-` ยาวไม่เกิน 128)
+  จะใช้ค่านั้นต่อ id เดียวจึงตามจาก log ของ proxy มาถึง log ของ Easy CMS ได้
+- **หนึ่งบรรทัดต่อ request** มี method, path (ไม่รวม query string ซึ่งอาจมีข้อมูลส่วนตัว), status, เวลาที่ใช้ และ id ของผู้ใช้
+  ปิดได้ด้วย `logs: { requests: false }` ถ้า load balancer log request อยู่แล้ว
+- **งานเบื้องหลัง** การเผยแพร่ตามกำหนดเวลาและ job แต่ละรอบ log พร้อม `runId` ของรอบนั้น และ `requestId` ของ cron ที่เรียกให้รัน
+
+`easy-cms serve` ใช้ค่าเดียวกัน ถ้าส่ง `logger` ของคุณเองให้ `createEasyCMS` ค่า `logs` จะไม่มีผล ใช้ `jsonLogger()`
+จาก `@easy-cms/core` ถ้าต้องการรูปแบบนี้
+
 ## Checklist {#checklist}
 
 - ตั้งค่า `EASY_CMS_SECRET` ใน environment ของ production (อักขระสุ่มอย่างน้อย 32 ตัว:

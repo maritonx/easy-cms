@@ -74,7 +74,7 @@ function formatError(error: GraphQLError, cms: EasyCMS): Json {
       extensions: { ...error.extensions, ...(original as GraphQLError | undefined)?.extensions },
     }
   }
-  cms.logger.error(`GraphQL: ${original.stack ?? original.message}`)
+  cms.logger.error(`GraphQL: ${original.message}`, { error: original })
   return {
     ...base,
     message: process.env.NODE_ENV === 'production' ? 'Internal server error' : original.message,

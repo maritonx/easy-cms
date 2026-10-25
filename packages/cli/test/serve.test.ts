@@ -63,6 +63,11 @@ describe('easy-cms serve (FR-STD-01)', () => {
     expect(await (await fetch(`${server.url}/api/cms/posts`)).json()).toMatchObject({ docs: [] })
   })
 
+  it('returns the request id of API requests', async () => {
+    const res = await fetch(`${server.url}/api/cms/posts`, { headers: { 'x-request-id': 'lb-1' } })
+    expect(res.headers.get('x-request-id')).toBe('lb-1')
+  })
+
   it('passes request bodies, cookies and CORS through', async () => {
     const register = await fetch(`${server.url}/api/cms/users/first-register`, {
       method: 'POST',

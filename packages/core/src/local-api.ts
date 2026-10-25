@@ -1,4 +1,4 @@
-import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
+import { createHmac, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto'
 import type { AuthUser, ID, RequestContext, Where } from './access.js'
 import {
   andWhere,
@@ -77,7 +77,7 @@ import {
   pickLocale,
   toLocaleMaps,
 } from './localization.js'
-import { consoleLogger, type Logger } from './logger.js'
+import { consoleLogger, jsonLogger, type Logger, logFormat } from './logger.js'
 import {
   EXTENSIONS,
   imageDimensions,
@@ -233,7 +233,8 @@ export async function createEasyCMS<const C extends Config>(
   options: CreateEasyCMSOptions = {},
 ): Promise<EasyCMS<C>> {
   const resolved = await resolveConfig(config)
-  const logger = options.logger ?? consoleLogger
+  const logger =
+    options.logger ?? (logFormat(resolved.logs) === 'json' ? jsonLogger() : consoleLogger)
   for (const warning of resolved.warnings)
     logger.warn(
       `Config: ${warning.path} ${warning.message}${warning.hint ? ` (${warning.hint})` : ''}`,
@@ -1320,7 +1321,9 @@ export class EasyCMS<C extends Config = Config> {
     try {
       return config.preview({ doc, locale }) ?? null
     } catch (error) {
-      this.logger.error(`preview URL of "${config.slug}" failed: ${(error as Error).message}`)
+      this.logger.error(`preview URL of "${config.slug}" failed: ${(error as Error).message}`, {
+        error,
+      })
       return null
     }
   }
@@ -1933,7 +1936,7 @@ export class EasyCMS<C extends Config = Config> {
     if (this.schedulerTimer) return
     this.schedulerTimer = setInterval(() => {
       void this.runJobs().catch((error) =>
-        this.logger.error(`Scheduled jobs failed: ${(error as Error).message}`),
+        this.logger.error(`Scheduled jobs failed: ${(error as Error).message}`, { error }),
       )
     }, interval)
     this.schedulerTimer.unref?.()
@@ -1958,16 +1961,24 @@ export class EasyCMS<C extends Config = Config> {
   }
 
   private runJobsNow(now: Date) {
-    // What jobs change is the scheduler's doing, in the audit log.
-    return auditContext.run({ via: 'scheduler', user: null }, async () => {
+    // What jobs change is the scheduler's doing, in the audit log. Its log lines carry the run's
+    // id, and the request's when the cron endpoint started it.
+    const requestId = auditContext.getStore()?.requestId
+    const run = {
+      via: 'scheduler' as const,
+      user: null,
+      runId: randomUUID(),
+      ...(requestId ? { requestId } : {}),
+    }
+    return auditContext.run(run, async () => {
       const scheduled = await this.runScheduled(now)
       await this.pruneFailedDeliveries(now)
       await runDueBackups(this as unknown as EasyCMS, now).catch((error) =>
-        this.logger.error(`Backups: ${(error as Error).message}`),
+        this.logger.error(`Backups: ${(error as Error).message}`, { error }),
       )
       await this.audit
         .upkeep(now)
-        .catch((error) => this.logger.error(`Audit log: ${(error as Error).message}`))
+        .catch((error) => this.logger.error(`Audit log: ${(error as Error).message}`, { error }))
       const result = {
         scheduled,
         webhooks: await this.retryWebhooks(now),
@@ -1979,7 +1990,7 @@ export class EasyCMS<C extends Config = Config> {
       const ranAt = new Date().toISOString()
       await this.db
         .updateGlobal({ slug: JOBS_RAN, data: { at: ranAt, updatedAt: ranAt } })
-        .catch((error) => this.logger.error(`Jobs: ${(error as Error).message}`))
+        .catch((error) => this.logger.error(`Jobs: ${(error as Error).message}`, { error }))
       return result
     })
   }
@@ -2068,11 +2079,11 @@ export class EasyCMS<C extends Config = Config> {
       } catch (caught) {
         failed++
         error = ((caught as Error).message || String(caught)).slice(0, 500)
-        this.logger.error(`Job ${job.name} failed: ${error}`)
+        this.logger.error(`Job ${job.name} failed: ${error}`, { error: caught, job: job.name })
       }
       // The result, for Settings → Jobs: only this instance runs it at this time.
       await this.recordJobRun(job.name, stamp, error, Date.now() - started).catch((caught) =>
-        this.logger.error(`Job ${job.name}: ${(caught as Error).message}`),
+        this.logger.error(`Job ${job.name}: ${(caught as Error).message}`, { error: caught }),
       )
     }
     return { ran, failed }
@@ -2254,7 +2265,9 @@ export class EasyCMS<C extends Config = Config> {
       } catch (error) {
         failed++
         const message = (error as Error).message
-        this.logger.error(`Scheduled ${action} of ${parent} ${row.doc} failed: ${message}`)
+        this.logger.error(`Scheduled ${action} of ${parent} ${row.doc} failed: ${message}`, {
+          error,
+        })
         await this.db.update({
           collection: SCHEDULED_JOBS,
           id: row.id,

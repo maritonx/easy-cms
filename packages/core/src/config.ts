@@ -15,6 +15,7 @@ import type { ConfigIssue } from './errors.js'
 import type { FieldTypeDefinition } from './field-types.js'
 import type { AdminComponent, Field, Label } from './fields.js'
 import type { EasyCMS } from './local-api.js'
+import type { LogsConfig } from './logger.js'
 import type { StorageAdapter } from './storage.js'
 import type { WebhookConfig } from './webhooks.js'
 
@@ -863,6 +864,11 @@ export interface Config {
    * actions, kept for `keep` days. `true` for the defaults.
    */
   readonly audit?: boolean | AuditConfig
+  /**
+   * How Easy CMS writes its logs: `{ format: 'json' }` for one JSON object per line, with the
+   * request id. Ignored when `createEasyCMS` is given a `logger`.
+   */
+  readonly logs?: LogsConfig
   readonly plugins?: readonly Plugin[]
 }
 

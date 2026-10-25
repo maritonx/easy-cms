@@ -144,7 +144,7 @@ export async function startServer(options: StartOptions): Promise<RunningServer>
         await handler(toWebRequest(req, trustProxy), clientIpOf(req, trustProxy)),
       )
     } catch (error) {
-      logger.error(`Request failed: ${(error as Error).message}`)
+      logger.error(`Request failed: ${(error as Error).message}`, { error })
       if (!res.headersSent) {
         res.statusCode = 500
         res.setHeader('content-type', 'application/json; charset=utf-8')

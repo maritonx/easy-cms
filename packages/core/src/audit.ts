@@ -47,6 +47,10 @@ export interface AuditContext {
   readonly via?: 'scheduler'
   /** The request's context (`onRequest`). */
   readonly context?: RequestContext
+  /** The request's id (`X-Request-Id`), in its log lines. */
+  readonly requestId?: string
+  /** A run of the background jobs, in its log lines. */
+  readonly runId?: string
 }
 export const auditContext = new AsyncLocalStorage<AuditContext>()
 
