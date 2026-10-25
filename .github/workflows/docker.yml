@@ -27,15 +27,22 @@ jobs:
       IMAGE: ghcr.io/maritonx/easy-cms
     steps:
       - uses: actions/checkout@v7
-      # npm can take a few minutes to serve a version it just accepted.
+      # npm can take a while to serve a version it just accepted, the tarballs after the metadata:
+      # download every package the image installs (and the admin, which easy-cms pulls in).
       - name: Wait for npm
         run: |
-          for i in $(seq 1 40); do
-            [ "$(npm view "easy-cms@$VERSION" version 2>/dev/null)" = "$VERSION" ] &&
-              [ "$(npm view "@easy-cms/db-postgres@$VERSION" version 2>/dev/null)" = "$VERSION" ] && exit 0
-            sleep 15
+          packages="easy-cms @easy-cms/core @easy-cms/admin @easy-cms/drizzle @easy-cms/db-sqlite @easy-cms/db-postgres @easy-cms/storage-s3 @easy-cms/email-smtp"
+          dir=$(mktemp -d)
+          for i in $(seq 1 60); do
+            missing=""
+            for package in $packages; do
+              npm pack "$package@$VERSION" --pack-destination "$dir" > /dev/null 2>&1 || missing="$missing $package"
+            done
+            [ -z "$missing" ] && exit 0
+            echo "not on npm yet:$missing"
+            sleep 20
           done
-          echo "easy-cms@$VERSION is not on npm" && exit 1
+          exit 1
       # The version's own tag always; 1.7, 1 and latest only for the newest release, so building
       # an older version again doesn't move them back.
       - name: Tags
