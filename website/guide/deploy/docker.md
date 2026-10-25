@@ -57,16 +57,10 @@ CMD ["sh", "-c", "npx easy-cms migrate && node .output/server/index.mjs"]
 ```
 
 ```dockerfile [Standalone]
-FROM node:24-slim
-WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
-COPY . .
-ENV NODE_ENV=production PORT=4000
-EXPOSE 4000
-HEALTHCHECK --interval=30s --start-period=20s \
-  CMD node -e "fetch('http://localhost:4000/readyz').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
-CMD ["sh", "-c", "npx easy-cms migrate && npx easy-cms serve --trust-proxy"]
+# The official image: easy-cms serve with the common adapters. See "The official image" below.
+FROM ghcr.io/maritonx/easy-cms:1
+COPY easy-cms.config.ts ./
+COPY easy-cms ./easy-cms
 ```
 
 :::
@@ -75,8 +69,8 @@ CMD ["sh", "-c", "npx easy-cms migrate && npx easy-cms serve --trust-proxy"]
   (or `nuxi build`) directly, as above.
 - The health check calls `/readyz`: the database answers and no migration is pending. See
   [Health checks](../deployment#health-checks).
-- `easy-cms` must be in `dependencies` (not only `devDependencies`) for the standalone image, which
-  installs without dev dependencies.
+- The standalone image needs only your config and migrations: Easy CMS itself comes from
+  [the official image](#the-official-image), and it listens on port 4000.
 - With pnpm, start the build stage with `RUN corepack enable`, copy `pnpm-lock.yaml` and run
   `pnpm install --frozen-lockfile`.
 
@@ -93,6 +87,35 @@ data
 *.db
 .git
 ```
+
+### The official image
+
+`ghcr.io/maritonx/easy-cms` runs [`easy-cms serve`](../standalone) for the version in its tag:
+`1.7.0`, `1.7`, `1` (the newest 1.x) and `latest`, for `linux/amd64` and `linux/arm64`. It holds
+`easy-cms`, `@easy-cms/core`, the SQLite and Postgres adapters, S3 storage, SMTP email and
+`sharp` for image sizes, built from the packages on npm.
+
+| | |
+|---|---|
+| Your files | `/app`: copy `easy-cms.config.ts` and the `easy-cms` folder (migrations) there |
+| Data | `/app/data`, a volume: point SQLite (`file:./data/cms.db`) and local uploads (`upload: { dir: './data/uploads' }`) at it |
+| Port | `4000` (`PORT`) |
+| User | `node`, not root |
+| Start | `easy-cms migrate`, then `easy-cms serve --trust-proxy`; `EASY_CMS_MIGRATE=false` skips the migration |
+| Health check | `/readyz`: the database answers and no migration is pending |
+
+Other packages your config imports, such as plugins, go in with `npm install` in your Dockerfile:
+
+```dockerfile
+FROM ghcr.io/maritonx/easy-cms:1
+RUN npm install @easy-cms/plugin-seo@1 @easy-cms/plugin-redirects@1
+COPY easy-cms.config.ts ./
+COPY easy-cms ./easy-cms
+```
+
+Keep their versions on the same release as the image. With several containers on one database,
+migrate once before starting them (a release step, or an init container running
+`easy-cms migrate`) and start the containers with `EASY_CMS_MIGRATE=false`.
 
 ## 2. Compose
 
@@ -158,7 +181,8 @@ volumes:
 
 The config reads the database from `DATABASE_URL`, for example
 `postgres({ url: process.env.DATABASE_URL })` or `sqlite({ url: process.env.DATABASE_URL })`. With
-SQLite, run one container only: a SQLite file has one server.
+SQLite, run one container only: a SQLite file has one server. With the standalone image, map
+`"4000:4000"` and mount the `data` volume at `/app/data`.
 
 Put the secrets in a `.env` file next to `compose.yaml` (not in the image), then start:
 
