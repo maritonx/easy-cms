@@ -1,0 +1,76 @@
+name: Docker image
+
+# ghcr.io/maritonx/easy-cms: built from the packages published on npm, tested, then pushed.
+# release.yml calls this after each release; run it by hand to build a version again.
+on:
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version on npm, e.g. 1.6.0
+        type: string
+        required: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  image:
+    runs-on: ubuntu-24.04
+    env:
+      VERSION: ${{ inputs.version }}
+      IMAGE: ghcr.io/maritonx/easy-cms
+    steps:
+      - uses: actions/checkout@v7
+      # npm can take a few minutes to serve a version it just accepted.
+      - name: Wait for npm
+        run: |
+          for i in $(seq 1 40); do
+            [ "$(npm view "easy-cms@$VERSION" version 2>/dev/null)" = "$VERSION" ] &&
+              [ "$(npm view "@easy-cms/db-postgres@$VERSION" version 2>/dev/null)" = "$VERSION" ] && exit 0
+            sleep 15
+          done
+          echo "easy-cms@$VERSION is not on npm" && exit 1
+      # The version's own tag always; 1.7, 1 and latest only for the newest release, so building
+      # an older version again doesn't move them back.
+      - name: Tags
+        id: tags
+        run: |
+          tags="$IMAGE:$VERSION"
+          if [ "$(npm view easy-cms version)" = "$VERSION" ]; then
+            minor=${VERSION%.*}
+            tags="$tags,$IMAGE:$minor,$IMAGE:${minor%.*},$IMAGE:latest"
+          fi
+          echo "tags=$tags" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+      # Test the amd64 image before pushing anything.
+      - uses: docker/build-push-action@v7
+        with:
+          context: docker
+          build-args: VERSION=${{ env.VERSION }}
+          load: true
+          tags: easy-cms:test
+      - run: docker/test.sh easy-cms:test
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v7
+        with:
+          context: docker
+          build-args: VERSION=${{ env.VERSION }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.tags.outputs.tags }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/maritonx/easy-cms
+            org.opencontainers.image.version=${{ env.VERSION }}
+            org.opencontainers.image.licenses=MIT
+            org.opencontainers.image.description=Easy CMS standalone server (easy-cms serve)

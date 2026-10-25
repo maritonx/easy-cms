@@ -55,16 +55,10 @@ CMD ["sh", "-c", "npx easy-cms migrate && node .output/server/index.mjs"]
 ```
 
 ```dockerfile [Standalone]
-FROM node:24-slim
-WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
-COPY . .
-ENV NODE_ENV=production PORT=4000
-EXPOSE 4000
-HEALTHCHECK --interval=30s --start-period=20s \
-  CMD node -e "fetch('http://localhost:4000/healthz').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
-CMD ["sh", "-c", "npx easy-cms migrate && npx easy-cms serve --trust-proxy"]
+# image อย่างเป็นทางการ: easy-cms serve พร้อม adapter ที่ใช้บ่อย ดู "image อย่างเป็นทางการ" ข้างล่าง
+FROM ghcr.io/maritonx/easy-cms:1
+COPY easy-cms.config.ts ./
+COPY easy-cms ./easy-cms
 ```
 
 :::
@@ -72,8 +66,8 @@ CMD ["sh", "-c", "npx easy-cms migrate && npx easy-cms serve --trust-proxy"]
 - script `build` ต้องไม่ migrate เพราะ image ถูก build โดยไม่มีฐานข้อมูล ให้รัน `next build` (หรือ `nuxi build`) ตรงๆ
   แบบข้างบน
 - health check เรียก `<api>/auth/init` ซึ่งต้องต่อฐานข้อมูลได้ standalone server ตอบ `/healthz` ได้ด้วย
-- image แบบ standalone ติดตั้งโดยไม่มี dev dependency จึงต้องมี `easy-cms` อยู่ใน `dependencies` (ไม่ใช่แค่
-  `devDependencies`)
+- image แบบ standalone ต้องการแค่ config และ migration ของคุณ ตัว Easy CMS มาจาก[image อย่างเป็นทางการ](#the-official-image)
+  และฟังที่ port 4000
 - ถ้าใช้ pnpm ให้เริ่ม stage build ด้วย `RUN corepack enable` คัดลอก `pnpm-lock.yaml` และรัน
   `pnpm install --frozen-lockfile`
 
@@ -90,6 +84,33 @@ data
 *.db
 .git
 ```
+
+### image อย่างเป็นทางการ {#the-official-image}
+
+`ghcr.io/maritonx/easy-cms` รัน [`easy-cms serve`](../standalone) ของเวอร์ชันตาม tag: `1.7.0`, `1.7`, `1` (1.x
+ล่าสุด) และ `latest` สำหรับ `linux/amd64` และ `linux/arm64` ข้างในมี `easy-cms`, `@easy-cms/core`, adapter ของ
+SQLite และ Postgres, S3 storage, อีเมล SMTP และ `sharp` สำหรับย่อรูป build จากแพ็กเกจบน npm
+
+| | |
+|---|---|
+| ไฟล์ของคุณ | `/app`: คัดลอก `easy-cms.config.ts` และโฟลเดอร์ `easy-cms` (migration) ไปไว้ที่นี่ |
+| ข้อมูล | `/app/data` เป็น volume: ชี้ SQLite (`file:./data/cms.db`) และไฟล์ upload บนดิสก์ (`upload: { dir: './data/uploads' }`) มาที่นี่ |
+| Port | `4000` (`PORT`) |
+| User | `node` ไม่ใช่ root |
+| ตอนเริ่ม | `easy-cms migrate` แล้ว `easy-cms serve --trust-proxy` ตั้ง `EASY_CMS_MIGRATE=false` เพื่อข้าม migration |
+| Health check | `/readyz`: ฐานข้อมูลตอบและไม่มี migration ค้าง |
+
+แพ็กเกจอื่นที่ config import เช่น plugin ให้ติดตั้งด้วย `npm install` ใน Dockerfile ของคุณ:
+
+```dockerfile
+FROM ghcr.io/maritonx/easy-cms:1
+RUN npm install @easy-cms/plugin-seo@1 @easy-cms/plugin-redirects@1
+COPY easy-cms.config.ts ./
+COPY easy-cms ./easy-cms
+```
+
+ใช้เวอร์ชันของแพ็กเกจเหล่านั้นให้ตรงกับ release ของ image ถ้ามีหลาย container บนฐานข้อมูลเดียวกัน ให้ migrate
+ครั้งเดียวก่อนเริ่ม (ขั้น release หรือ init container ที่รัน `easy-cms migrate`) แล้วเริ่ม container ด้วย `EASY_CMS_MIGRATE=false`
 
 ## 2. Compose {#2-compose}
 
@@ -155,6 +176,7 @@ volumes:
 
 config อ่านฐานข้อมูลจาก `DATABASE_URL` เช่น `postgres({ url: process.env.DATABASE_URL })` หรือ
 `sqlite({ url: process.env.DATABASE_URL })` ถ้าใช้ SQLite ให้รัน container เดียว เพราะไฟล์ SQLite มี server ได้ตัวเดียว
+ถ้าใช้ image แบบ standalone ให้ map `"4000:4000"` และ mount volume `data` ที่ `/app/data`
 
 ใส่ secret ในไฟล์ `.env` ข้าง `compose.yaml` (ไม่ใส่ใน image) แล้ว start:
 

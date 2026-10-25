@@ -277,6 +277,17 @@ jobs:
         run: for i in $(seq 1 30); do curl -s -o /dev/null localhost:9000 && exit 0; sleep 1; done; exit 1
       - run: pnpm --filter easy-cms-integration-tests test:multi-instance
 
+  docker:
+    needs: scope
+    if: needs.scope.outputs.full == 'true'
+    # The official image's Dockerfile, built from the newest release on npm and started the way
+    # the Docker guide shows. Releases build and publish it (docker.yml).
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker build --build-arg VERSION="$(npm view easy-cms version)" -t easy-cms:test docker
+      - run: docker/test.sh easy-cms:test
+
   e2e:
     needs: scope
     if: needs.scope.outputs.full == 'true'
