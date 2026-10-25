@@ -71,6 +71,7 @@ export function validateConfig(config: Config): ConfigIssue[] {
   validateUpload(config, add)
   validateBackups(config, add, (issue) => issues.push(issue))
   validateAudit(config, add)
+  validateLogs(config, add)
   validateAuth(config, add)
   validateCors(config.cors, add)
   validateLocalization(config, add)
@@ -800,6 +801,20 @@ const HOST_PATTERN =
   /^(\*|(\*\.)?[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*)$/i
 
 /** `audit`: true, or its settings. */
+function validateLogs(config: Config, add: Add) {
+  const logs: unknown = config.logs
+  if (logs === undefined) return
+  if (typeof logs !== 'object' || logs === null) {
+    add('logs', 'must be an object', "e.g. logs: { format: 'json' }")
+    return
+  }
+  const { format, requests } = logs as Record<string, unknown>
+  if (format !== undefined && format !== 'pretty' && format !== 'json')
+    add('logs.format', "must be 'pretty' or 'json'")
+  if (requests !== undefined && typeof requests !== 'boolean')
+    add('logs.requests', 'must be true or false')
+}
+
 function validateAudit(config: Config, add: Add) {
   const audit: unknown = config.audit
   if (audit !== undefined && typeof audit !== 'boolean') {

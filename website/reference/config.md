@@ -43,6 +43,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `email` | `EmailAdapter` | — | Sends email for plugins, e.g. `smtp()` or `consoleEmail()`. [Email](/guide/email) |
 | `backups` | `BackupsConfig` | by hand only | Database backups on a schedule. See [backups](#backups). |
 | `audit` | `boolean \| AuditConfig` | off | The audit log: who changed what, sign-ins, admin actions. See [audit](#audit). |
+| `logs` | `LogsConfig` | readable lines | `{ format: 'json' }` for one JSON object per line, with request ids. See [logs](#logs). |
 | `plugins` | `Plugin[]` | `[]` | `(config) => config`, run in order before validation; `definePlugin(fn, { name, version, apiVersion? })` names one for the dashboard; `apiVersion` (`PLUGIN_API_VERSION`) stops startup when the plugin is for another plugin API. [Plugins](/guide/plugins) |
 | `fieldTypes` | `FieldTypeDefinition[]` | `[]` | Field types from packages, e.g. `color` from `@easy-cms/fields`. [Custom field types](/guide/field-types) |
 
@@ -126,6 +127,14 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `values` | `boolean` | `true` | Keep values before and after a change; `false`: only which fields changed. |
 | `failedLogins` | `number` | `20` | Failed sign-ins within an hour that the dashboard warns about. [Audit log](/guide/audit-log) |
 | `scope` | `({ context, user }) => string \| null` | — | The part of the site an entry belongs to, e.g. its tenant (usually set by a plugin). Admins of a part (`scoped`) see its entries; others the chosen part's, or all. |
+
+<!-- api: LogsConfig -->
+## logs
+
+| Option | Type | Default | |
+|---|---|---|---|
+| `format` | `'pretty' \| 'json'` | `'pretty'` | `json`: one object per line (`time`, `level`, `message`, `requestId`, `error`). `EASY_CMS_LOG_FORMAT` wins over it. [Logs](/guide/deployment#logs) |
+| `requests` | `boolean` | `true` | With `json`, a line for every API request: method, path, status, duration, user. |
 
 <!-- api: AuthConfig -->
 ## auth

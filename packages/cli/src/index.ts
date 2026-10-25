@@ -9,6 +9,7 @@ import {
   createEasyCMS,
   type EasyCMS,
   EasyCMSError,
+  jsonLogger,
   type Logger,
   loadConfig,
   ValidationError,
@@ -18,6 +19,7 @@ import {
   copyDatabase,
   decryptBackup,
   generateTypes,
+  logFormat,
   writeBackupFile,
 } from '@easy-cms/core/internal'
 import { startServer } from './serve.js'
@@ -466,24 +468,36 @@ async function serve(
     return 1
   }
   const host = values.host ?? process.env.HOST
+  const config = await load()
+  // `logs.format: 'json'` (or EASY_CMS_LOG_FORMAT=json): every line JSON, these ones too.
+  const json = logFormat(config.logs) === 'json'
+  const serverLogger = json ? jsonLogger() : logger
   const server = await startServer({
     port,
     ...(host ? { host } : {}),
     cwd,
-    logger,
+    logger: serverLogger,
     loadConfig: load,
     watch: values.watch ?? false,
     trustProxy: values['trust-proxy'] ?? false,
   })
-  const config = await load()
-  io.out(`Easy CMS running at ${server.url}`)
-  io.out(`  admin  ${server.url}/${config.admin.path.replace(/^\/+|\/+$/g, '')}`)
-  io.out(`  API    ${server.url}${config.routes.api}`)
-  if (values.watch) io.out('  watching for changes')
+  const admin = `${server.url}/${config.admin.path.replace(/^\/+|\/+$/g, '')}`
+  if (json) {
+    serverLogger.info(`Easy CMS running at ${server.url}`, {
+      admin,
+      api: `${server.url}${config.routes.api}`,
+    })
+  } else {
+    io.out(`Easy CMS running at ${server.url}`)
+    io.out(`  admin  ${admin}`)
+    io.out(`  API    ${server.url}${config.routes.api}`)
+    if (values.watch) io.out('  watching for changes')
+  }
 
   await new Promise<void>((resolveStop) => {
     const stop = (signal: string) => {
-      io.out(`\n${signal} received, shutting down…`)
+      if (json) serverLogger.info(`${signal} received, shutting down`)
+      else io.out(`\n${signal} received, shutting down…`)
       resolveStop()
     }
     process.once('SIGINT', () => stop('SIGINT'))

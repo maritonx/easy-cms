@@ -146,7 +146,7 @@ export class Mailer {
         error: null,
       })
     } catch (error) {
-      this.logger.error(`Could not save email: ${(error as Error).message}`)
+      this.logger.error(`Could not save email: ${(error as Error).message}`, { error })
     }
     this.track(this.deliver(message, body, id))
   }
@@ -200,7 +200,9 @@ export class Mailer {
 
   private track(delivery: Promise<void>) {
     const tracked = delivery
-      .catch((error) => this.logger.error(`Email queue failed: ${(error as Error).message}`))
+      .catch((error) =>
+        this.logger.error(`Email queue failed: ${(error as Error).message}`, { error }),
+      )
       .finally(() => this.pending.delete(tracked))
     this.pending.add(tracked)
   }

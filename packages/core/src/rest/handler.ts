@@ -1,4 +1,5 @@
-import { type AuthUser, isSystemAdmin, type RequestContext } from '../access.js'
+import { randomUUID } from 'node:crypto'
+import { type AuthUser, type ID, isSystemAdmin, type RequestContext } from '../access.js'
 import { API_KEYS, type ApiKeyPermissions } from '../api-keys.js'
 import { auditContext } from '../audit.js'
 import { type Session, SIGNUP_HONEYPOT } from '../auth/auth.js'
@@ -21,6 +22,7 @@ import {
   ValidationError,
 } from '../errors.js'
 import type { EasyCMS } from '../local-api.js'
+import { isJsonLogger } from '../logger.js'
 import { EXTENSIONS, PRIVATE_KEY, withCharset } from '../media.js'
 import {
   deleteDelivery,
@@ -146,7 +148,13 @@ function withCors(
   }
 }
 
-/** One request: `path` is the path under the API (or from the root), `null` when outside. */
+/** An `X-Request-Id` from a proxy is kept when it is plain; else the request gets a new one. */
+const REQUEST_ID = /^[\w.-]{1,128}$/
+
+/**
+ * One request, under its request id: the `X-Request-Id` response header, the `requestId` of every
+ * line it logs, and, with a JSON logger, a line when it is done.
+ */
 async function respond(
   cms: EasyCMS,
   request: Request,
@@ -155,6 +163,47 @@ async function respond(
   root: boolean,
   options: RestHandlerOptions,
   production: boolean,
+): Promise<Response> {
+  const started = performance.now()
+  const incoming = request.headers.get('x-request-id')
+  const requestId = incoming && REQUEST_ID.test(incoming) ? incoming : randomUUID()
+  const requestLog = { userId: undefined as ID | undefined }
+  const response = await auditContext.run({ requestId }, () =>
+    respondNow(cms, request, url, path, root, options, production, requestId, requestLog),
+  )
+  let tagged: Response
+  try {
+    response.headers.set('x-request-id', requestId)
+    tagged = response
+  } catch {
+    // Immutable headers (a fetched response passed through): copy them.
+    tagged = withHeaders(response, new Headers({ 'x-request-id': requestId }))
+  }
+  if (cms.config.logs?.requests !== false && isJsonLogger(cms.logger)) {
+    auditContext.run({ requestId }, () =>
+      cms.logger.info(`${request.method} ${url.pathname} ${tagged.status}`, {
+        method: request.method,
+        path: url.pathname,
+        status: tagged.status,
+        durationMs: Math.round(performance.now() - started),
+        ...(requestLog.userId === undefined ? {} : { userId: requestLog.userId }),
+      }),
+    )
+  }
+  return tagged
+}
+
+/** One request: `path` is the path under the API (or from the root), `null` when outside. */
+async function respondNow(
+  cms: EasyCMS,
+  request: Request,
+  url: URL,
+  path: string | null,
+  root: boolean,
+  options: RestHandlerOptions,
+  production: boolean,
+  requestId: string,
+  requestLog: { userId: ID | undefined },
 ): Promise<Response> {
   const headers = new Headers({
     'content-type': 'application/json; charset=utf-8',
@@ -172,6 +221,7 @@ async function respond(
       throw new UnauthorizedError('Invalid or expired API key')
     // The config's `onRequest` (e.g. a tenant plugin): the context, and the user within it.
     const { user, context } = await cms.applyOnRequest(request.headers, url, signedIn)
+    requestLog.userId = user?.id
     const ctx: Context = {
       request,
       url,
@@ -192,6 +242,7 @@ async function respond(
       context,
       ip: options.getClientIp?.(request),
       userAgent: request.headers.get('user-agent'),
+      requestId,
     }
     const result = await auditContext.run(audit, async () =>
       root
@@ -1685,7 +1736,7 @@ function errorResponse(
     if (error instanceof TooManyRequestsError && error.retryAfter !== undefined)
       headers.set('retry-after', String(error.retryAfter))
     if (error.status >= 500) {
-      cms.logger.error(`REST request failed: ${error.stack ?? error.message}`)
+      cms.logger.error(`REST request failed: ${error.message}`, { error })
       if (production)
         return new Response(
           JSON.stringify({ errors: [{ message: 'Internal Server Error', code }] }),
@@ -1695,9 +1746,7 @@ function errorResponse(
     return new Response(JSON.stringify({ errors }), { status: error.status, headers })
   }
   const message = error instanceof Error ? error.message : String(error)
-  cms.logger.error(
-    `REST request failed: ${error instanceof Error ? (error.stack ?? message) : message}`,
-  )
+  cms.logger.error(`REST request failed: ${message}`, { error })
   const body = {
     errors: [
       { message: production ? 'Internal Server Error' : message, code: 'INTERNAL_SERVER_ERROR' },

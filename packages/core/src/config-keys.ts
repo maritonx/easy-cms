@@ -11,7 +11,7 @@ const keys = (list: string) => new Set(list.split(/\s+/).filter(Boolean))
 const CONFIG =
   keys(`secret db serverURL cors cronSecret timeZone webhooks events jobs localization routes admin
   upload auth collections globals endpoints cliCommands onRequest fieldTypes apiKeys email backups
-  audit plugins`)
+  audit logs plugins`)
 const ADMIN = keys('path locale brand siteURL nav commands modules pages dashboard switcher')
 const AUTH = keys(`roles rbac tokenExpiration maxLoginAttempts lockWindow trustedOrigins
   resetPasswordExpiration inviteExpiration providers providerSignUp password setupCode members emails`)
@@ -19,6 +19,7 @@ const MEMBERS = keys('roles signUp pages emails')
 const UPLOAD = keys('dir maxFileSize mimeTypes storage imageSizes fromURL folders privateStorage')
 const BACKUPS = keys('frequency at keep dir storage sqlite encryptionKey')
 const AUDIT = keys('keepDays values failedLogins scope')
+const LOGS = keys('format requests')
 const COLLECTION = keys(`slug labels fields useAsTitle drafts versions schedule preview access hooks
   admin`)
 const GLOBAL = keys('slug label fields drafts versions schedule preview access hooks scope admin')
@@ -151,6 +152,7 @@ export function checkConfigKeys(config: Config, add: Add) {
   check(c.upload, 'upload', 'upload', UPLOAD, add)
   check(c.backups, 'backups', 'backups', BACKUPS, add)
   if (isObject(c.audit)) check(c.audit, 'audit', 'audit', AUDIT, add)
+  check(c.logs, 'logs', 'logs', LOGS, add)
   for (const [kind, list] of [
     ['collections', c.collections],
     ['globals', c.globals],

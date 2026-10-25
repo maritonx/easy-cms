@@ -30,6 +30,7 @@ export { FIELD_TYPE_BASES } from './field-types.js'
 export { hasRows, isHasMany, mimeAllowedBy, rowFields, uniqueWithinOf } from './fields.js'
 export { forwardedClientIp, platformClientIp } from './framework.js'
 export { CONFIG_FILE_NAMES, findConfigFile, importConfig } from './load-config.js'
+export { isJsonLogger, logFormat } from './logger.js'
 export {
   EXTENSIONS,
   expandMimeTypes,
