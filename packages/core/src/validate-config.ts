@@ -39,6 +39,8 @@ const RESERVED_SLUGS = new Set([
   'auth',
   'migrations',
   'access',
+  'healthz',
+  'readyz',
 ])
 
 const SYSTEM_FIELD_NAMES = new Set(['id', 'createdAt', 'updatedAt'])
@@ -1461,6 +1463,8 @@ const RESERVED_ENDPOINT_ROOTS = new Set([
   'media',
   'api-keys',
   'auth',
+  'healthz',
+  'readyz',
   // Kept free for later versions.
   'system',
   'health',
@@ -1599,13 +1603,14 @@ function validateEndpoints(config: Config, collectionSlugs: ReadonlySet<string>,
           config.routes?.api ?? '/api/cms',
           `/${(config.admin?.path ?? '/admin').replace(/^\/+|\/+$/g, '')}`,
           '/healthz',
+          '/readyz',
         ]
           .map((p) => p.replace(/\/+$/, ''))
           .find((p) => route === p || route.startsWith(`${p}/`) || p.startsWith(`${route}/`))
         if (taken)
           add(
             `${path}.path`,
-            `"${route}" is served by ${taken === '/healthz' ? 'the standalone server' : `"${taken}"`}`,
+            `"${route}" is served by ${taken === '/healthz' || taken === '/readyz' ? 'the standalone server' : `"${taken}"`}`,
           )
       } else if (RESERVED_ENDPOINT_ROOTS.has(first) || collectionSlugs.has(first)) {
         add(

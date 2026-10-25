@@ -1,6 +1,8 @@
 import type { Config } from './config.js'
 import { configSignature } from './config-signature.js'
+import { healthResponse } from './health.js'
 import { type CreateEasyCMSOptions, createEasyCMS, type EasyCMS } from './local-api.js'
+import { consoleLogger, jsonLogger, logFormat } from './logger.js'
 import { createRestHandler, type RestHandler } from './rest/handler.js'
 
 /**
@@ -92,8 +94,24 @@ export function createApiHandler(
     (options.trustProxy
       ? (r: Request) => forwardedClientIp(r.headers.get('x-forwarded-for'))
       : (r: Request) => platformClientIp(r.headers))
+  const base = (options.basePath ?? config.routes?.api ?? '/api/cms').replace(/\/+$/, '')
   return async (request) => {
-    const cms = (await sharedEasyCMS(config)) as EasyCMS
+    let cms: EasyCMS
+    try {
+      cms = (await sharedEasyCMS(config)) as EasyCMS
+    } catch (error) {
+      // The probes still answer when the CMS can't start (bad config, database down): the
+      // process is alive, and not ready.
+      const { pathname } = new URL(request.url)
+      const probe =
+        pathname === `${base}/healthz` ? 'healthz' : pathname === `${base}/readyz` ? 'readyz' : null
+      if (!probe) throw error
+      if (probe === 'readyz') {
+        const logger = logFormat(config.logs) === 'json' ? jsonLogger() : consoleLogger
+        logger.error(`Readiness check failed: ${(error as Error).message}`, { error })
+      }
+      return healthResponse(probe, null)
+    }
     let handler = handlers.get(cms)
     if (!handler) {
       handler = createRestHandler(cms, {

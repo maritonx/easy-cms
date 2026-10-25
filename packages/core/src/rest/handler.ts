@@ -21,6 +21,7 @@ import {
   UnauthorizedError,
   ValidationError,
 } from '../errors.js'
+import { type HealthCheck, healthResponse } from '../health.js'
 import type { EasyCMS } from '../local-api.js'
 import { isJsonLogger } from '../logger.js'
 import { EXTENSIONS, PRIVATE_KEY, withCharset } from '../media.js'
@@ -148,6 +149,11 @@ function withCors(
   }
 }
 
+const HEALTH_CHECKS = new Map<string, HealthCheck>([
+  ['healthz', 'healthz'],
+  ['readyz', 'readyz'],
+])
+
 /** An `X-Request-Id` from a proxy is kept when it is plain; else the request gets a new one. */
 const REQUEST_ID = /^[\w.-]{1,128}$/
 
@@ -179,7 +185,9 @@ async function respond(
     // Immutable headers (a fetched response passed through): copy them.
     tagged = withHeaders(response, new Headers({ 'x-request-id': requestId }))
   }
-  if (cms.config.logs?.requests !== false && isJsonLogger(cms.logger)) {
+  // Probes every few seconds would drown the other lines.
+  const probe = !root && (path === '/healthz' || path === '/readyz')
+  if (!probe && cms.config.logs?.requests !== false && isJsonLogger(cms.logger)) {
     auditContext.run({ requestId }, () =>
       cms.logger.info(`${request.method} ${url.pathname} ${tagged.status}`, {
         method: request.method,
@@ -214,6 +222,17 @@ async function respondNow(
   try {
     if (path === null) throw new HttpError('Not found', 404)
     const segments = pathSegments(path)
+    // Probes: before auth, so a load balancer needs no credentials and a bad token can't fail them.
+    const probe =
+      !root && segments.length === 1 ? HEALTH_CHECKS.get(segments[0] as string) : undefined
+    if (probe) {
+      const method = request.method.toUpperCase()
+      if (method !== 'GET' && method !== 'HEAD') {
+        headers.set('allow', 'GET, HEAD')
+        throw new HttpError('Method not allowed', 405)
+      }
+      return await healthResponse(probe, cms)
+    }
     const { token, via } = readToken(request)
     const signedIn = token ? await cms.auth.verify(token) : null
     // A script sending a bad key should hear so, not get anonymous access.
