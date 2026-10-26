@@ -1,0 +1,9 @@
+# What ships: the packages' sources. Demos, the docs site, tests and build output are left out.
+paths:
+  - packages
+paths-ignore:
+  - packages/integration
+  - '**/test'
+  - '**/*.test.ts'
+  - '**/dist'
+  - '**/node_modules'

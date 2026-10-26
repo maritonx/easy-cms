@@ -1,0 +1,29 @@
+# Version updates once a week: minor and patch together in one pull request, each major on its
+# own. Security updates come separately, as soon as an advisory is out (Settings → Code security).
+# Dependabot's pull requests carry no changeset, so they release nothing by themselves: add a
+# patch changeset when a fix should reach the published packages.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: Asia/Bangkok
+    # Raise a range only when the new version is outside it, so the published packages' ranges
+    # (peer ranges included) don't climb for nothing.
+    versioning-strategy: increase-if-necessary
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: Asia/Bangkok
+    groups:
+      actions:
+        patterns: ["*"]
