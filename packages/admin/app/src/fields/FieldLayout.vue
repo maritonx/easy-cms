@@ -103,7 +103,7 @@ function onTabKey(event: KeyboardEvent, i: number) {
   if (next === -1) return
   event.preventDefault()
   select(next)
-  void nextTick(() => document.getElementById(`tab-${props.storageKey}-${next}`)?.focus())
+  void nextTick().then(() => document.getElementById(`tab-${props.storageKey}-${next}`)?.focus())
 }
 </script>
 
