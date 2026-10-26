@@ -5,7 +5,14 @@ set -eu
 image=$1
 dir=$(mktemp -d)
 name=easy-cms-image-test-$$
-trap 'docker rm -f "$name" > /dev/null 2>&1; docker image rm "$name" > /dev/null 2>&1; rm -rf "$dir"' EXIT
+cleanup() {
+  docker rm -f "$name" > /dev/null 2>&1 || true
+  docker image rm "$name" > /dev/null 2>&1 || true
+  # The migration was written by the image's user, another uid than this one on Linux.
+  docker run --rm --user root -v "$dir:/work" --entrypoint rm "$image" -rf /work/easy-cms > /dev/null 2>&1 || true
+  rm -rf "$dir"
+}
+trap cleanup EXIT
 
 mkdir "$dir/easy-cms"
 chmod 777 "$dir/easy-cms"
