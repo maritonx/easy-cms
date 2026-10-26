@@ -108,3 +108,4 @@ On SQLite, a file of its own is already a database of its own.
 
 - [Databases](./databases#connections): pool size, poolers and serverless.
 - [Migrations & deployment](./deployment): running migrations in production.
+- [Reference architecture](./deploy/production): several instances on one database.

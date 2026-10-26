@@ -56,3 +56,5 @@ Two kinds of host behave differently:
 
 - [One-click deploy](../one-click-deploy): a starter site on Vercel or Netlify in a few clicks.
 - [Vercel](./vercel), [Netlify](./netlify), [Docker](./docker) or [a VPS](./vps): step by step.
+- [Reference architecture](./production): several instances on Postgres and S3, and what is
+  single-instance only.

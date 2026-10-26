@@ -129,5 +129,6 @@ readinessProbe:
 ## ขั้นต่อไป {#next-steps}
 
 - [การ Deploy](./deploy/): ทีละขั้นตอนบน Vercel, Netlify, Docker, VPS และโฮสต์อื่นๆ
+- [สถาปัตยกรรมสำหรับ production](./deploy/production): หลาย instance หลัง load balancer
 - [Backup และการอัปเกรด](./backups): สำรองข้อมูลก่อนอัปเกรด
 - [ความปลอดภัย](./security): เช็กลิสต์ก่อนขึ้นระบบจริง
