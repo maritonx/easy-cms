@@ -55,6 +55,19 @@ The [security guide](https://easy-cms-website.vercel.app/docs/security) lists wh
 (password hashing, login rate limiting, CSRF and origin checks, upload sandboxing) and what to set
 up in production.
 
+## What is checked
+
+Easy CMS has had no external security audit or penetration test. What there is:
+
+- **A self-review** against [OWASP ASVS](https://owasp.org/www-project-application-security-verification-standard/)
+  level 1 (below). Level 2 is planned.
+- **Tests in CI** for authentication, access control, CSRF and origin checks, login rate limits,
+  uploads, and several instances sharing one database (sessions, limits and jobs across servers).
+- **Code scanning** with CodeQL on every pull request and weekly.
+- **Dependencies**: Dependabot alerts and security updates, and weekly version updates.
+- **Secrets**: GitHub secret scanning with push protection. npm packages are published from CI
+  with trusted publishing and provenance, so no npm token is stored.
+
 ## Past reviews
 
 - [OWASP ASVS level 1 review](docs/security/asvs-l1.md) (October 2026): what was found and the
