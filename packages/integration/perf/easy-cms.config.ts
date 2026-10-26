@@ -1,0 +1,17 @@
+// What `easy-cms serve` runs in the nightly perf job (.github/workflows/perf.yml): the load-test
+// schema on the seeded tables.
+import { defineConfig } from '@easy-cms/core'
+import { postgres } from '@easy-cms/db-postgres'
+import { schema } from './schema.ts'
+
+const docs = Number(process.env.PERF_DOCS ?? 1_000_000)
+
+export default defineConfig({
+  secret: process.env.EASY_CMS_SECRET as string,
+  db: postgres({
+    url: process.env.POSTGRES_URL as string,
+    max: Number(process.env.PERF_POOL ?? 10),
+    tablePrefix: `load${docs}_`,
+  }),
+  ...schema,
+})

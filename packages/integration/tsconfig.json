@@ -1,4 +1,6 @@
 {
   "extends": "../../tsconfig.base.json",
-  "include": ["test", "multi-instance", "vitest.config.ts", "bench.ts"]
+  // load.ts and perf/ run on Node's own TypeScript support, which needs the .ts in imports.
+  "compilerOptions": { "allowImportingTsExtensions": true, "noEmit": true },
+  "include": ["test", "multi-instance", "perf", "vitest.config.ts", "bench.ts", "load.ts"]
 }
