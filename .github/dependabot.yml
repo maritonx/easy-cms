@@ -14,11 +14,13 @@ updates:
     # (peer ranges included) don't climb for nothing.
     versioning-strategy: increase-if-necessary
     open-pull-requests-limit: 5
-    # The oldest majors the packages support, installed under aliases (stripe-17, graphql-16) to
-    # test against them. A major update would replace what they are there to test.
+    # Updates done by hand, each for its reason.
     ignore:
+      # Version updates of stripe fail on the stripe-17 alias (unknown_error), whatever the update
+      # type. Security updates still come; minor versions are taken by hand.
       - dependency-name: stripe
-        update-types: [version-update:semver-major]
+      # graphql 16 is installed as graphql-16 to test the oldest supported major; a major update
+      # would replace it.
       - dependency-name: graphql
         update-types: [version-update:semver-major]
       # Nuxt's server (Nitro) runs on h3 1; the Nuxt module's handler must use the same major.
@@ -26,6 +28,10 @@ updates:
         update-types: [version-update:semver-major]
       # TypeScript 7 changed the compiler's JavaScript API, which tsup's declaration build uses.
       - dependency-name: typescript
+        update-types: [version-update:semver-major]
+      # The types of the oldest Node the packages support (engines: 22.12), so code can't use newer
+      # APIs by accident.
+      - dependency-name: '@types/node'
         update-types: [version-update:semver-major]
     groups:
       minor-and-patch:
