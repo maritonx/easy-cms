@@ -24,7 +24,7 @@
     "@changesets/cli": "^3.0.3",
     "@types/node": "^22.20.4",
     "@vitest/coverage-v8": "5.0.1",
-    "tsup": "^8.5.1",
+    "tsup": "^9.0.0",
     "turbo": "^2.11.4",
     "typescript": "~6.0.3",
     "vitest": "^5.0.1"
