@@ -94,7 +94,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm coverage
       - if: env.CODECOV_TOKEN != ''
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
           files: coverage/lcov.info
           token: ${{ env.CODECOV_TOKEN }}
