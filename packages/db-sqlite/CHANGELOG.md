@@ -1,5 +1,14 @@
 # @easy-cms/db-sqlite
 
+## 1.7.1
+
+### Patch Changes
+
+- 2bb1d74: drizzle-orm 0.45.4.
+- Updated dependencies [2bb1d74]
+  - @easy-cms/drizzle@1.7.1
+  - @easy-cms/core@1.7.1
+
 ## 1.7.0
 
 ### Patch Changes

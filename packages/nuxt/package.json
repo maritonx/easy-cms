@@ -1,6 +1,6 @@
 {
   "name": "@easy-cms/nuxt",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "description": "Nuxt module for Easy CMS",
   "license": "MIT",
   "type": "module",
