@@ -1,0 +1,108 @@
+name: Perf
+
+# 1M posts under 200 editors (90% reads, 10% saves) every night, against `easy-cms serve` on
+# Postgres 17. Fails when a kind of request is more than 20% slower (p95) than the median of the
+# last 7 nights; the 200 ms target is reported, not enforced. Results are kept as artifacts.
+on:
+  schedule:
+    - cron: '0 20 * * *' # 03:00 in Bangkok
+  workflow_dispatch:
+    inputs:
+      docs:
+        description: Posts
+        default: '1000000'
+      users:
+        description: Editors
+        default: '200'
+      seconds:
+        description: Seconds measured
+        default: '300'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency: perf
+
+jobs:
+  load:
+    if: github.repository == 'maritonx/easy-cms'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    env:
+      PERF_DOCS: ${{ inputs.docs || '1000000' }}
+      PERF_USERS: ${{ inputs.users || '200' }}
+      PERF_SECONDS: ${{ inputs.seconds || '300' }}
+      PERF_CWD: ${{ github.workspace }}/perf-data/project
+      POSTGRES_URL: postgres://easycms:easycms@127.0.0.1:5432/easycms
+      # A throwaway database on the runner: not secrets.
+      EASY_CMS_SECRET: perf-only-secret-not-used-anywhere-else-0123456789
+      PERF_PASSWORD: perf-only-editor-password
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      # The seeded database (and its migration files), reused until the schema or seed changes.
+      - id: data
+        uses: actions/cache/restore@v6
+        with:
+          path: perf-data
+          key: perf-pg17-${{ env.PERF_DOCS }}-${{ hashFiles('packages/integration/perf/schema.ts', 'packages/integration/perf/seed.ts') }}
+      - name: Start Postgres
+        run: |
+          mkdir -p perf-data/pg perf-data/project
+          docker run -d --name pg --user "$(id -u):$(id -g)" -v /etc/passwd:/etc/passwd:ro \
+            -v "$PWD/perf-data/pg:/var/lib/postgresql/data" -p 5432:5432 \
+            -e POSTGRES_USER=easycms -e POSTGRES_PASSWORD=easycms -e POSTGRES_DB=easycms \
+            postgres:17 -c shared_buffers=1GB -c effective_cache_size=4GB -c max_connections=200
+          for i in $(seq 1 60); do docker exec pg pg_isready -U easycms -h 127.0.0.1 && exit 0; sleep 2; done; exit 1
+      - name: Seed
+        run: pnpm --filter easy-cms-integration-tests perf:seed
+      # Stopped, so the files are consistent while they are saved.
+      - name: Stop Postgres
+        if: steps.data.outputs.cache-hit != 'true'
+        run: docker stop pg && du -sh perf-data
+      - if: steps.data.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: perf-data
+          key: ${{ steps.data.outputs.cache-primary-key }}
+      - name: Start easy-cms serve
+        run: |
+          docker start pg
+          for i in $(seq 1 60); do docker exec pg pg_isready -U easycms -h 127.0.0.1 && break; sleep 2; done
+          NODE_ENV=production PERF_POOL=20 nohup node packages/cli/bin/easy-cms.js serve --port 4000 \
+            --config "$PWD/packages/integration/perf/easy-cms.config.ts" --cwd "$PERF_CWD" > serve.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://127.0.0.1:4000/readyz && exit 0; sleep 2; done
+          cat serve.log; exit 1
+      - name: Editors
+        run: |
+          mkdir -p perf-results
+          pnpm --filter easy-cms-integration-tests perf:editors "$PWD/perf-results/results.json"
+      - name: Requests one by one (concurrency 20, as in the Databases guide)
+        working-directory: packages/integration
+        run: |
+          node load.ts "$PERF_DOCS" 15 20 | tee ../../perf-results/scenarios.txt
+          { echo '### One kind of request at a time (20 concurrent, in process)'; echo; echo '```'; grep -v '^\[' ../../perf-results/scenarios.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: perf-results-${{ github.run_id }}
+          path: perf-results
+          retention-days: 90
+      - name: Earlier nights
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p earlier
+          for id in $(gh run list --workflow perf.yml --status success --limit 7 --json databaseId --jq '.[].databaseId'); do
+            gh run download "$id" --dir "earlier/$id" --pattern 'perf-results-*' || true
+          done
+      - name: Compare
+        run: pnpm --filter easy-cms-integration-tests perf:compare "$PWD/perf-results/results.json" "$PWD/earlier"
+      - if: failure()
+        run: tail -50 serve.log || true

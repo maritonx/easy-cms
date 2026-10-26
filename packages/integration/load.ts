@@ -6,6 +6,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createEasyCMS, createRestHandler, defineConfig, silentLogger } from '@easy-cms/core'
 import { postgres } from '@easy-cms/db-postgres'
+import { schema, TAGS } from './perf/schema.ts'
+import { seed } from './perf/seed.ts'
 
 const url = process.env.POSTGRES_URL
 if (!url) throw new Error('Set POSTGRES_URL')
@@ -17,55 +19,7 @@ const POOL = Number(process.env.POOL ?? 10)
 const config = defineConfig({
   secret: 's'.repeat(32),
   db: postgres({ url, max: POOL, tablePrefix: `load${DOCS}_` }),
-  localization: { locales: ['th', 'en'], defaultLocale: 'th' },
-  collections: [
-    { slug: 'authors', access: { read: () => true }, fields: [{ name: 'name', type: 'text' }] },
-    {
-      slug: 'categories',
-      access: { read: () => true },
-      fields: [{ name: 'name', type: 'text', localized: true }],
-    },
-    {
-      slug: 'posts',
-      drafts: true,
-      versions: true,
-      access: { read: () => true },
-      fields: [
-        { name: 'title', type: 'text', required: true, localized: true },
-        { name: 'slug', type: 'slug', from: 'title', localized: true },
-        { name: 'excerpt', type: 'textarea', localized: true },
-        { name: 'views', type: 'number', index: true },
-        { name: 'publishedAt', type: 'date', index: true },
-        { name: 'author', type: 'relationship', to: 'authors' },
-        { name: 'category', type: 'relationship', to: 'categories' },
-        {
-          name: 'tags',
-          type: 'select',
-          options: ['news', 'guide', 'review', 'event'],
-          hasMany: true,
-        },
-        {
-          name: 'seo',
-          type: 'group',
-          fields: [{ name: 'description', type: 'text', localized: true }],
-        },
-        {
-          name: 'layout',
-          type: 'blocks',
-          blocks: [
-            { slug: 'hero', fields: [{ name: 'heading', type: 'text', localized: true }] },
-            { slug: 'text', fields: [{ name: 'body', type: 'textarea', localized: true }] },
-            {
-              slug: 'gallery',
-              fields: [
-                { name: 'items', type: 'array', fields: [{ name: 'caption', type: 'text' }] },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-  ],
+  ...schema,
 })
 
 const cwd = mkdtempSync(join(tmpdir(), 'easy-cms-load-'))
@@ -74,50 +28,8 @@ const handle = createRestHandler(cms)
 
 // --- Seed ------------------------------------------------------------------
 
-async function pool<T>(count: number, parallel: number, run: (i: number) => Promise<T>) {
-  let next = 0
-  await Promise.all(
-    Array.from({ length: parallel }, async () => {
-      while (next < count) await run(next++)
-    }),
-  )
-}
-
-const TAGS = ['news', 'guide', 'review', 'event'] as const
-let authors = (await cms.find('authors', { limit: 0 })).docs.map((d) => d.id)
-const categories = (await cms.find('categories', { limit: 0 })).docs.map((d) => d.id)
-const existing = await cms.count('posts', { draft: true } as never)
-if (existing < DOCS) {
-  const t = performance.now()
-  if (authors.length === 0) {
-    for (let i = 0; i < 50; i++)
-      authors.push((await cms.create('authors', { name: `Author ${i}` })).id)
-    for (let i = 0; i < 20; i++)
-      categories.push((await cms.create('categories', { name: `หมวด ${i}` })).id)
-  }
-  await pool(DOCS - existing, 16, async (n) => {
-    const i = existing + n
-    const post = await cms.create('posts', {
-      title: `บทความที่ ${i}`,
-      excerpt: 'เนื้อหาย่อ '.repeat(10),
-      views: (i * 7919) % 10_000,
-      publishedAt: new Date(Date.UTC(2024, 0, 1) + i * 60_000).toISOString(),
-      author: authors[i % authors.length] as number,
-      category: categories[i % categories.length] as number,
-      tags: [TAGS[i % 4] as (typeof TAGS)[number], TAGS[(i + 1) % 4] as (typeof TAGS)[number]],
-      seo: { description: `คำอธิบาย ${i}` },
-      layout: [
-        { blockType: i % 10 === 0 ? 'hero' : 'text', heading: `หัวข้อ ${i}`, body: 'ย่อหน้า' },
-        { blockType: 'gallery', items: [{ caption: `ภาพ ${i}` }, { caption: 'ภาพสอง' }] },
-      ] as never,
-      status: i % 5 === 0 ? 'draft' : 'published',
-    })
-    await cms.update('posts', post.id, { title: `Post ${i}` }, { locale: 'en' })
-    if ((n + 1) % 10_000 === 0) console.log(`  seeded ${n + 1}`)
-  })
-  console.log(`seeded ${DOCS - existing} posts in ${((performance.now() - t) / 1000).toFixed(0)}s`)
-}
-authors = (await cms.find('authors', { limit: 0 })).docs.map((d) => d.id)
+await seed(cms, DOCS)
+const authors = (await cms.find('authors', { limit: 0 })).docs.map((d) => d.id)
 
 const admin =
   (await cms.find('users', { limit: 1 })).docs[0] ??
