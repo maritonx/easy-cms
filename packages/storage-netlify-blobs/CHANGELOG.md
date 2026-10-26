@@ -1,5 +1,11 @@
 # @easy-cms/storage-netlify-blobs
 
+## 1.7.1
+
+### Patch Changes
+
+- @easy-cms/core@1.7.1
+
 ## 1.7.0
 
 ### Patch Changes
