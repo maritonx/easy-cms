@@ -14,6 +14,13 @@ updates:
     # (peer ranges included) don't climb for nothing.
     versioning-strategy: increase-if-necessary
     open-pull-requests-limit: 5
+    # The oldest majors the packages support, installed under aliases (stripe-17, graphql-16) to
+    # test against them. A major update would replace what they are there to test.
+    ignore:
+      - dependency-name: stripe
+        update-types: [version-update:semver-major]
+      - dependency-name: graphql
+        update-types: [version-update:semver-major]
     groups:
       minor-and-patch:
         update-types: [minor, patch]
