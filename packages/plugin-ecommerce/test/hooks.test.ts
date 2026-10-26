@@ -39,6 +39,7 @@ const reactHooks = {
 
 function renderReact(shop: ShopClient) {
   const seen: { current: Hooks<typeof reactHooks> | null } = { current: null }
+  // biome-ignore lint/correctness/noComponentHookFactories: a probe that reads the hooks for one render
   function Probe() {
     seen.current = Object.fromEntries(
       Object.entries(reactHooks).map(([name, hook]) => [name, hook()]),
@@ -141,6 +142,7 @@ describe('React hooks', () => {
   it('need the provider', () => {
     const root = createRoot(document.createElement('div'))
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    // biome-ignore lint/correctness/noComponentHookFactories: a component rendered once, outside the provider
     function Lonely() {
       react.useCart()
       return null
