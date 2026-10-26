@@ -384,6 +384,13 @@
           }
         },
         {
+          "path": "guide/deploy/production",
+          "title": {
+            "en": "Reference architecture",
+            "th": "สถาปัตยกรรมสำหรับ production"
+          }
+        },
+        {
           "path": "guide/deploy/vercel",
           "title": {
             "en": "Vercel",

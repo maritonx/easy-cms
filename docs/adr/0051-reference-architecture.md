@@ -31,6 +31,20 @@
   - Docker image อย่างเป็นทางการ
 - **ไม่ทำ:** multi-region, read replica และฐานข้อมูลอื่นนอกจาก Postgres และ SQLite จนกว่าจะมีผู้ใช้ที่ต้องการจริง
 
+## สถานะ (2026-10-26)
+
+ข้อกำหนดก่อนเรียกว่ารองรับครบแล้ว:
+
+- งานเบื้องหลังล็อกข้าม instance ด้วย `SKIP LOCKED` (#153, [ADR-0052](./0052-postgres-job-queue.md))
+- CI รัน 2 instance บน Postgres และ bucket เดียวกัน หลัง proxy แบบ round-robin (#154, job `multi-instance`)
+- เทสต์ผ่าน PgBouncer แบบ transaction pooling และตั้ง `prepare`, timeout, `applicationName` ได้ (#155, job `pgbouncer`)
+- log เป็น JSON และมี request id (#157)
+- `<api>/healthz` และ `<api>/readyz` ในทุก adapter (#158)
+- Docker image อย่างเป็นทางการ `ghcr.io/maritonx/easy-cms` (#159)
+- เอกสาร: หน้า Reference architecture (`website/guide/deploy/production.md`, #160)
+
+ที่ยังเหลือ: CDN ยังต้อง cache ที่ frontend เพราะ API ตอบ `no-store` (`ETag` และ cache tag ใน #174) และตัวเลขที่ 1M เอกสารรอ load test (#161)
+
 ## ผลที่ตามมา
 
 - ✅ องค์กรมีคำตอบชัดว่าต้องเตรียมอะไร และโปรเจกต์ทดสอบแค่ชุดที่รับรอง แทนการรองรับทุกชุดแบบผิวเผิน

@@ -137,5 +137,6 @@ After going live, the dashboard tells admins what needs attention: see
 ## Next steps
 
 - [Deploy](./deploy/): step by step on Vercel, Netlify, Docker, a VPS and other hosts.
+- [Reference architecture](./deploy/production): several instances behind a load balancer.
 - [Backups & upgrades](./backups): back up before upgrading.
 - [Security](./security): a checklist for going live.

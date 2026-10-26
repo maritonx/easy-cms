@@ -99,3 +99,4 @@ Easy CMS ไม่ join ตารางของตัวเองกับข�
 
 - [ฐานข้อมูล](./databases#connections): ขนาด pool, pooler และ serverless
 - [Migration และการ deploy](./deployment): รัน migration บน production
+- [สถาปัตยกรรมสำหรับ production](./deploy/production): หลาย instance บนฐานข้อมูลเดียว

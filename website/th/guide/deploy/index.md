@@ -53,3 +53,4 @@ Easy CMS รันได้ทุกที่ที่รัน server ด้ว
 
 - [Deploy ด้วยคลิกเดียว](../one-click-deploy): เว็บ starter บน Vercel หรือ Netlify ในไม่กี่คลิก
 - [Vercel](./vercel), [Netlify](./netlify), [Docker](./docker) หรือ [VPS](./vps): ทีละขั้นตอน
+- [สถาปัตยกรรมสำหรับ production](./production): หลาย instance บน Postgres และ S3 และอะไรที่ใช้ได้แค่ instance เดียว
