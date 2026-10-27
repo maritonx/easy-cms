@@ -53,9 +53,18 @@ await cms.upcomingSchedules({ limit: 10 }) // next scheduled publishes across th
 await cms.flushWebhooks() // wait for webhook deliveries (serverless)
 ```
 
+## Find results
+
 `find` returns `{ docs, totalDocs, limit, page, totalPages, hasNextPage, hasPrevPage }`.
 `limit: 0` returns every match. `findById` returns `null` when missing; `update` and `delete`
 throw `NotFoundError`.
+
+`totalDocs` counts every matching document, which takes time on large collections (hundreds of
+thousands of documents). Where only "next page" matters, such as a blog archive or an infinite
+scroll, pass `count: false`: `totalDocs` and `totalPages` are `null`, and `hasNextPage` still
+says whether there is more. Totals are reused for [`countCacheSeconds`](/reference/config) (5 by
+default), so a list many people open is counted once in that time. The documents are always
+current; only the total can be that old, also right after a write. `0` counts every time.
 
 ## Options
 
@@ -64,6 +73,7 @@ throw `NotFoundError`.
 | `where` | — | Filter, below |
 | `sort` | `-createdAt` | Field path or list; `-` for descending |
 | `limit`, `page` | `10`, `1` | Pagination |
+| `count` | `true` | `find` only: `false` skips counting the matches, below |
 | `depth` | `1` | Levels of relationships to populate (max 3) |
 | `draft` | `false` | Include drafts |
 | `locale` | default locale | With [localization](./localization): the locale to read or write, or `'all'` |

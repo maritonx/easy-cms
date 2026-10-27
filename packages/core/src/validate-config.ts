@@ -74,6 +74,7 @@ export function validateConfig(config: Config): ConfigIssue[] {
   validateBackups(config, add, (issue) => issues.push(issue))
   validateAudit(config, add)
   validateLogs(config, add)
+  validateCountCache(config, add)
   validateAuth(config, add)
   validateCors(config.cors, add)
   validateLocalization(config, add)
@@ -803,6 +804,15 @@ const HOST_PATTERN =
   /^(\*|(\*\.)?[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*)$/i
 
 /** `audit`: true, or its settings. */
+function validateCountCache(config: Config, add: Add) {
+  const seconds: unknown = config.countCacheSeconds
+  if (
+    seconds !== undefined &&
+    !(typeof seconds === 'number' && Number.isFinite(seconds) && seconds >= 0)
+  )
+    add('countCacheSeconds', 'must be a number of seconds, 0 or more')
+}
+
 function validateLogs(config: Config, add: Add) {
   const logs: unknown = config.logs
   if (logs === undefined) return

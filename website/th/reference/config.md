@@ -41,6 +41,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `email` | `EmailAdapter` | — | ส่งอีเมลให้ plugin เช่น `smtp()` หรือ `consoleEmail()` [อีเมล](/th/guide/email) |
 | `backups` | `BackupsConfig` | กดทำเองเท่านั้น | backup ฐานข้อมูลตามรอบ ดู [backups](#backups) |
 | `audit` | `boolean \| AuditConfig` | ปิด | audit log: ใครแก้อะไร การเข้าสู่ระบบ การจัดการระบบ ดู [audit](#audit) |
+| `countCacheSeconds` | `number` | `5` | กี่วินาทีที่ใช้ผลนับของ list (`totalDocs`, `totalPages`) ซ้ำสำหรับ query เดียวกัน ตัวเอกสารเป็นปัจจุบันเสมอ `0`: นับทุกครั้ง [การนับ](/th/guide/local-api#find-results) |
 | `logs` | `LogsConfig` | บรรทัดที่อ่านง่าย | `{ format: 'json' }` เขียน JSON บรรทัดละหนึ่ง object พร้อม request id ดู [logs](#logs) |
 | `plugins` | `Plugin[]` | `[]` | `(config) => config` ทำงานตามลำดับก่อนตรวจ config `definePlugin(fn, { name, version, apiVersion? })` ตั้งชื่อให้แสดงบนแดชบอร์ด ส่วน `apiVersion` (`PLUGIN_API_VERSION`) หยุดการเริ่มทำงานถ้า plugin เขียนไว้สำหรับ plugin API เวอร์ชันอื่น [Plugins](/th/guide/plugins) |
 | `fieldTypes` | `FieldTypeDefinition[]` | `[]` | ชนิด field จากแพ็กเกจ เช่น `color` จาก `@easy-cms/fields` [ชนิด field เพิ่มเติม](/th/guide/field-types) |

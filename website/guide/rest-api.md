@@ -12,7 +12,7 @@ Served at `routes.api` (default `/api/cms`). All responses are JSON; access rule
 
 | Method | Path | |
 |---|---|---|
-| GET | `/:collection` | List. Query: `where`, `sort`, `limit` (1–100), `page`, `depth`, `draft` |
+| GET | `/:collection` | List. Query: `where`, `sort`, `limit` (1–100), `page`, `depth`, `draft`, `count=false` (no `totalDocs`/`totalPages`, faster on large collections: [counting](./local-api#find-results)) |
 | POST | `/:collection` | Create (JSON body) |
 | GET | `/:collection/:id` | One document. Query: `depth`, `draft`, `preview` (a [preview token](./live-preview#preview-tokens): the current draft, no login) |
 | PATCH | `/:collection/:id` | Update the given fields |

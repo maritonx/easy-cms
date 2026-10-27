@@ -15,6 +15,12 @@ export interface PaginatedDocs<T> {
   hasPrevPage: boolean
 }
 
+/** A page read with `count: false`: no totals, which saves counting every matching document. */
+export interface UncountedDocs<T> extends Omit<PaginatedDocs<T>, 'totalDocs' | 'totalPages'> {
+  totalDocs: null
+  totalPages: null
+}
+
 /**
  * How the adapter treats the database schema on startup.
  * - `push`: apply schema changes directly (development).
@@ -57,6 +63,11 @@ export interface CreateMigrationResult {
 /** A connected database bound to one config. Returned by `DatabaseAdapter.init`. */
 export interface Database {
   find(args: FindArgs): Promise<PaginatedDocs<RawDocument>>
+  /**
+   * A page without counting the matching documents (`find` with `count: false`): `hasNextPage`
+   * from one row more. Optional: without it, `find` runs and its totals are dropped.
+   */
+  findPage?(args: FindArgs): Promise<UncountedDocs<RawDocument>>
   findById(args: { collection: string; id: ID }): Promise<RawDocument | null>
   /** Documents of one collection by id, in any order. Used to populate relationships. */
   findByIds(args: { collection: string; ids: readonly ID[] }): Promise<RawDocument[]>

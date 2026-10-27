@@ -12,7 +12,7 @@ HTTP API ที่ `/api/cms`: endpoint, การ query, การยืนย�
 
 | Method | Path | |
 |---|---|---|
-| GET | `/:collection` | แสดงรายการ Query: `where`, `sort`, `limit` (1–100), `page`, `depth`, `draft` |
+| GET | `/:collection` | แสดงรายการ Query: `where`, `sort`, `limit` (1–100), `page`, `depth`, `draft`, `count=false` (ไม่มี `totalDocs`/`totalPages` เร็วกว่าเมื่อ collection ใหญ่ ดู[การนับ](./local-api#find-results)) |
 | POST | `/:collection` | สร้าง (JSON body) |
 | GET | `/:collection/:id` | เอกสารหนึ่งรายการ Query: `depth`, `draft`, `preview` ([preview token](./live-preview#preview-tokens): ฉบับร่างปัจจุบันโดยไม่ต้องเข้าสู่ระบบ) |
 | PATCH | `/:collection/:id` | อัปเดต field ที่ระบุ |

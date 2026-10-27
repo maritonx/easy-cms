@@ -458,6 +458,15 @@ describe('validateConfig', () => {
     expect(audit('yes')).toEqual(['audit'])
   })
 
+  it('checks countCacheSeconds', () => {
+    const seconds = (value: unknown) =>
+      validateConfig(baseConfig({ countCacheSeconds: value as never })).map((i) => i.path)
+    expect(seconds(0)).toEqual([])
+    expect(seconds(30)).toEqual([])
+    expect(seconds(-1)).toEqual(['countCacheSeconds'])
+    expect(seconds('10')).toEqual(['countCacheSeconds'])
+  })
+
   it('checks the logs options', () => {
     const logs = (value: unknown) =>
       validateConfig(baseConfig({ logs: value as never })).map((i) => i.path)

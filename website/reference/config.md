@@ -43,6 +43,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `email` | `EmailAdapter` | — | Sends email for plugins, e.g. `smtp()` or `consoleEmail()`. [Email](/guide/email) |
 | `backups` | `BackupsConfig` | by hand only | Database backups on a schedule. See [backups](#backups). |
 | `audit` | `boolean \| AuditConfig` | off | The audit log: who changed what, sign-ins, admin actions. See [audit](#audit). |
+| `countCacheSeconds` | `number` | `5` | Seconds a list's total (`totalDocs`, `totalPages`) is reused for the same query; the documents are always current. `0`: count every time. [Counting](/guide/local-api#find-results) |
 | `logs` | `LogsConfig` | readable lines | `{ format: 'json' }` for one JSON object per line, with request ids. See [logs](#logs). |
 | `plugins` | `Plugin[]` | `[]` | `(config) => config`, run in order before validation; `definePlugin(fn, { name, version, apiVersion? })` names one for the dashboard; `apiVersion` (`PLUGIN_API_VERSION`) stops startup when the plugin is for another plugin API. [Plugins](/guide/plugins) |
 | `fieldTypes` | `FieldTypeDefinition[]` | `[]` | Field types from packages, e.g. `color` from `@easy-cms/fields`. [Custom field types](/guide/field-types) |

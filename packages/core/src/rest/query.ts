@@ -71,6 +71,8 @@ export interface ListQuery {
   limit: number
   page: number
   depth?: number
+  /** `?count=false`: no totals. */
+  count?: false
 }
 
 export const MAX_REST_LIMIT = 100
@@ -84,7 +86,7 @@ function integer(name: string, raw: unknown, min: number, max: number): number |
   return n
 }
 
-/** Reads `where`, `sort`, `limit`, `page` and `depth` from a URL. */
+/** Reads `where`, `sort`, `limit`, `page`, `depth` and `count` from a URL. */
 export function parseListQuery(url: URL): ListQuery {
   const params = parseNested(url.searchParams)
   let where: unknown = params.where
@@ -110,6 +112,10 @@ export function parseListQuery(url: URL): ListQuery {
   if (sort) query.sort = sort
   const depth = integer('depth', params.depth, 0, 3)
   if (depth !== undefined) query.depth = depth
+  if (params.count !== undefined && params.count !== 'true') {
+    if (params.count !== 'false') throw new QueryError('count must be true or false')
+    query.count = false
+  }
   return query
 }
 
