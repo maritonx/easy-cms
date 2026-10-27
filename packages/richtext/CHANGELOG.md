@@ -1,5 +1,11 @@
 # @easy-cms/richtext
 
+## 1.14.0
+
+### Minor Changes
+
+- b6903e8: Tables in rich text. The admin's editor inserts a table with a header row, and while the cursor is in one, adds and deletes rows and columns (cells can't be merged). `renderRichText` renders tables with their header rows in `<thead>`, `renderMarkdown` writes GFM tables (a cell's paragraphs joined with `<br>`), and `richTextToPlainText` puts each cell on a line of its own. Search adapters index the text in tables.
+
 ## 1.13.0
 
 No changes in this release.
