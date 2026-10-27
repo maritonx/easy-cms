@@ -63,6 +63,13 @@ db: postgres({ url: 'postgres://cms:…@db.example.com:5432/app' })
   บรรทัดสุดท้ายครอบคลุมตารางที่ migration สร้างทีหลัง แล้วอ้างถึงเป็น `easy_cms.ecms_posts` หรือเพิ่ม schema นี้ใน
   `search_path` ของ role ของแอป
 
+ถ้าใช้ [`index: 'trigram'`](./databases#search-with-like) role นี้สร้าง extension `pg_trgm` เองไม่ได้ และจะหาเจอเฉพาะใน
+schema ของตัวเอง ให้เจ้าของฐานข้อมูลสร้างไว้ใน schema นั้นหนึ่งครั้ง:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS pg_trgm SCHEMA easy_cms;
+```
+
 ตัวเลือก `schema` ของ `postgres()` ที่ไม่ขึ้นกับ `search_path` และการรันด้วย role ที่อ่านเขียนข้อมูลได้อย่างเดียวอยู่ในแผนแล้ว
 
 ## ย้ายระบบที่ติดตั้งแล้วไป L1 {#moving-an-existing-install-to-l1}

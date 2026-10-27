@@ -164,6 +164,7 @@ jobs:
           psql postgres://easycms:easycms@localhost:5432/easycms -v ON_ERROR_STOP=1
           -c "CREATE ROLE cms LOGIN PASSWORD 'cms'"
           -c "CREATE SCHEMA easy_cms AUTHORIZATION cms"
+          -c "CREATE EXTENSION IF NOT EXISTS pg_trgm SCHEMA easy_cms"
           -c "ALTER ROLE cms SET search_path = easy_cms"
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
