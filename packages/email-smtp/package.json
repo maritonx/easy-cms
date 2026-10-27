@@ -1,6 +1,6 @@
 {
   "name": "@easy-cms/email-smtp",
-  "version": "1.9.0",
+  "version": "1.10.0",
   "description": "SMTP email for Easy CMS (nodemailer): Gmail, Amazon SES, Resend, Mailgun and any SMTP server",
   "license": "MIT",
   "type": "module",
