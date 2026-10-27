@@ -913,6 +913,15 @@ export interface Config {
    * requests get `400`, pointing to `cursor`. Deep pages are read row by row. Default: no limit.
    */
   readonly maxPage?: number
+  /**
+   * Runs `afterChange` and `afterDelete` hooks, webhooks and `httpCache.purge` from an outbox:
+   * saving a document also queues them, in the same database transaction, and a worker runs them
+   * after it commits, retrying what fails. A save that succeeds always gets its side effects (at
+   * least once; hooks must be safe to run again), and the response doesn't wait for them. Hooks
+   * then get the user who saved but no `context`. Needs a migration for the `outbox` table.
+   * Default `false`: hooks run in the request, after the save.
+   */
+  readonly outbox?: boolean
   readonly plugins?: readonly Plugin[]
 }
 

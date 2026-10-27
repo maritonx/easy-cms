@@ -89,6 +89,18 @@ export interface CreateMigrationResult {
   readonly statements: readonly string[]
 }
 
+/**
+ * A row written with a document, in the same transaction (`outbox: true` in the config): a write
+ * that commits leaves it, one that doesn't leaves nothing. Not written when an `update` with
+ * `where` doesn't match.
+ */
+export interface OutboxRow {
+  /** The collection the row goes to. */
+  readonly collection: string
+  /** The row's fields, given the written document's id (`null` for a global). */
+  data(id: ID | null): Record<string, unknown>
+}
+
 /** A connected database bound to one config. Returned by `DatabaseAdapter.init`. */
 export interface Database {
   find(args: FindArgs): Promise<PaginatedDocs<RawDocument>>
@@ -107,18 +119,28 @@ export interface Database {
   findByIds(args: { collection: string; ids: readonly ID[] }): Promise<RawDocument[]>
   count(args: { collection: string; where?: Where | undefined }): Promise<number>
   /** `data` holds every field, `createdAt` and `updatedAt`. Runs in one transaction. */
-  create(args: { collection: string; data: Record<string, unknown> }): Promise<RawDocument>
+  create(args: {
+    collection: string
+    data: Record<string, unknown>
+    outbox?: OutboxRow | undefined
+  }): Promise<RawDocument>
   /**
    * `data` holds the whole document after merging. Runs in one transaction. With `where`, only
    * when the stored document matches it at the moment of writing (compare and set): `null` when
    * it doesn't, and nothing is written.
    */
-  update(args: { collection: string; id: ID; data: Record<string, unknown> }): Promise<RawDocument>
+  update(args: {
+    collection: string
+    id: ID
+    data: Record<string, unknown>
+    outbox?: OutboxRow | undefined
+  }): Promise<RawDocument>
   update(args: {
     collection: string
     id: ID
     data: Record<string, unknown>
     where: Where
+    outbox?: OutboxRow | undefined
   }): Promise<RawDocument | null>
   /**
    * Adds `by` to a top-level number field in one statement, safe against concurrent calls; an
@@ -133,12 +155,18 @@ export interface Database {
     min?: number | undefined
     max?: number | undefined
   }): Promise<number | null>
-  delete(args: { collection: string; id: ID }): Promise<void>
+  delete(args: { collection: string; id: ID; outbox?: OutboxRow | undefined }): Promise<void>
   findGlobal(args: { slug: string }): Promise<Record<string, unknown> | null>
   updateGlobal(args: {
     slug: string
     data: Record<string, unknown>
+    outbox?: OutboxRow | undefined
   }): Promise<Record<string, unknown>>
+  /**
+   * True when `create`, `update`, `delete` and `updateGlobal` take `outbox`, a row written in
+   * the same transaction. Required by `outbox: true` in the config.
+   */
+  readonly outbox?: boolean | undefined
 
   /** Writes a migration file for the difference between the config and the latest migration. `null` when nothing changed. */
   createMigration(args: { name: string }): Promise<CreateMigrationResult | null>

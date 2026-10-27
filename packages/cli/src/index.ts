@@ -270,7 +270,7 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
           return 0
         }
         case 'jobs:run': {
-          const { scheduled, webhooks, emails } = await cms.runJobs()
+          const { scheduled, webhooks, emails, outbox } = await cms.runJobs()
           const { ran, failed } = scheduled
           io.out(`Ran ${ran} scheduled job(s)${failed ? `, ${failed} failed` : ''}.`)
           if (webhooks.sent || webhooks.failed)
@@ -280,6 +280,10 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
           if (emails.sent || emails.failed)
             io.out(
               `Retried emails: ${emails.sent} sent${emails.failed ? `, ${emails.failed} gave up` : ''}.`,
+            )
+          if (outbox.ran || outbox.failed)
+            io.out(
+              `Outbox: ${outbox.ran} ran${outbox.failed ? `, ${outbox.failed} failed (retried later)` : ''}.`,
             )
           return failed ? 1 : 0
         }

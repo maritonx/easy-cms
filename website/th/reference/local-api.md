@@ -99,12 +99,13 @@ Local API เชื่อผู้เรียกและข้ามกฎส�
 
 | Method | คืนค่า | |
 |---|---|---|
-| `runJobs(now?)` | `{ scheduled, webhooks, emails, jobs }` | งานตั้งเวลาที่ถึงกำหนด webhook และอีเมลที่ต้องส่งซ้ำ และ `jobs` ของ config (สิ่งที่ cron และตัวจับเวลาเรียก) |
+| `runJobs(now?)` | `{ scheduled, webhooks, emails, jobs, outbox }` | งานตั้งเวลาที่ถึงกำหนด webhook และอีเมลที่ต้องส่งซ้ำ `jobs` ของ config และรายการ outbox ที่ถึงเวลา (สิ่งที่ cron และตัวจับเวลาเรียก) |
 | `emit(event, data, about?)` | — | ส่ง event ใน `events` ของ config (เช่น `order.paid`) ไปยัง webhook ที่ระบุไว้ `about` คือ `{ collection, id }` [Webhooks](/th/guide/webhooks#your-own-events) |
 | `runScheduled(now?)` | `{ ran, failed }` | เฉพาะงานตั้งเวลาที่ถึงกำหนด |
 | `retryWebhooks(now?)` | `{ sent, failed }` | เฉพาะ webhook ที่ถึงเวลาส่งซ้ำ |
 | `startScheduler(interval?)` | — | รัน `runJobs` ทุก `interval` ms (ค่าเริ่มต้น 1 นาที) `createEasyCMS` เริ่มให้เองเมื่อมีการตั้งเวลาหรือมี webhook |
 | `flushWebhooks()` | — | รอให้การส่ง webhook ที่กำลังทำอยู่เสร็จ เรียกก่อนฟังก์ชัน serverless จะจบ |
+| `flushOutbox()` | — | เมื่อ `outbox: true`: รอให้ outbox รันงานที่การบันทึกทิ้งไว้จนถึงตอนนี้ เรียกก่อนฟังก์ชัน serverless จะจบ งานที่ล้มยังอยู่ในคิวรอ retry |
 | `sendEmail(message)` | — | เข้าคิวอีเมลให้ adapter `email` ใน config แล้วส่งเบื้องหลัง [อีเมล](/th/guide/email) |
 | `flushEmails()` | — | รอให้อีเมลที่กำลังส่งเสร็จ เรียกก่อนฟังก์ชัน serverless จะจบ |
 

@@ -1,7 +1,7 @@
 import type { ID } from './access.js'
 import { VERSIONS } from './builtins.js'
 import type { CollectionConfig, GlobalConfig } from './config.js'
-import type { Database, RawDocument } from './database.js'
+import type { Database, OutboxRow, RawDocument } from './database.js'
 import type { Field } from './fields.js'
 
 export const DEFAULT_MAX_VERSIONS = 50
@@ -65,6 +65,7 @@ export class VersionStore {
     snapshot: Record<string, unknown>
     author: ID | null
     max: number
+    outbox?: OutboxRow | undefined
   }): Promise<VersionSummary> {
     const { parent, doc } = args
     const previous = await this.db.find({
@@ -90,6 +91,7 @@ export class VersionStore {
         createdAt: now,
         updatedAt: now,
       },
+      outbox: args.outbox,
     })
     await this.prune(parent, doc, args.max)
     return toSummary(created)

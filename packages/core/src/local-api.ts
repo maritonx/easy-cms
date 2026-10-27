@@ -26,6 +26,7 @@ import {
   JOB_RUNS,
   MEDIA,
   MEDIA_FOLDERS,
+  OUTBOX,
   SCHEDULED_JOBS,
   USERS,
   WEBHOOK_DELIVERIES,
@@ -41,6 +42,7 @@ import type {
 import type {
   CursorDocs,
   Database,
+  OutboxRow,
   PaginatedDocs,
   RawDocument,
   SchemaMode,
@@ -57,6 +59,7 @@ import {
 } from './document.js'
 import { type EmailMessage, type EmailQueue, Mailer, type QueuedEmail } from './email.js'
 import {
+  ConfigError,
   EasyCMSError,
   type FieldError,
   ForbiddenError,
@@ -98,6 +101,7 @@ import {
   withPrivacy,
 } from './media.js'
 import { MediaFolders, PUBLIC_FILES } from './media-folders.js'
+import { Outbox, type OutboxEntry, type OutboxStep } from './outbox.js'
 import { DEFAULT_DEPTH, type Loader, MAX_DEPTH, populate } from './populate.js'
 import { fetchRemoteFile, RemoteFileError } from './remote-file.js'
 import { resolveConfig } from './resolve-config.js'
@@ -268,12 +272,23 @@ export async function createEasyCMS<const C extends Config>(
     logger,
     interactive: options.interactive ?? false,
   })
+  if (resolved.outbox && db.outbox !== true) {
+    await db.destroy()
+    throw new ConfigError([
+      {
+        path: 'outbox',
+        message: `needs a database adapter that writes outbox rows; "${resolved.db.name}" doesn't`,
+        hint: 'use @easy-cms/db-sqlite or @easy-cms/db-postgres 1.12 or later',
+      },
+    ])
+  }
   const cms = new EasyCMS<C>(resolved, db, logger, storage, cwd)
   const scheduling =
     [...resolved.collections, ...resolved.globals].some((c) => c.schedule) ||
     (resolved.webhooks?.length ?? 0) > 0 ||
     resolved.email !== undefined ||
-    resolved.jobs.length > 0
+    resolved.jobs.length > 0 ||
+    resolved.outbox === true
   if (scheduling && options.scheduler !== false) cms.startScheduler()
   // Until the first admin exists, whoever opens the admin first becomes it.
   if (
@@ -339,6 +354,8 @@ export class EasyCMS<C extends Config = Config> {
   private readonly versions: VersionStore
   private readonly webhooks: Webhooks
   private readonly mailer: Mailer
+  /** With `outbox: true`: runs after hooks and events from rows saves write. */
+  private readonly outbox: Outbox | undefined
 
   /** @internal */
   constructor(
@@ -380,6 +397,9 @@ export class EasyCMS<C extends Config = Config> {
       logger,
       config.collections.some((c) => c.slug === EMAIL_DELIVERIES) ? this.emailQueue() : undefined,
     )
+    this.outbox = config.collections.some((c) => c.slug === OUTBOX)
+      ? new Outbox(db, logger, (entry, done, mark) => this.runOutbox(entry, done, mark))
+      : undefined
     this.auth = new Auth(this as unknown as EasyCMS)
   }
 
@@ -1480,14 +1500,21 @@ export class EasyCMS<C extends Config = Config> {
         ])
       }
       const draft = { ...prepared, id: parsed, createdAt: existing.createdAt, updatedAt: now }
-      await this.saveVersion(config, collectionParent(collection), parsed, draft, guard)
-      await this.notify(config.hooks?.afterChange, 'afterChange', config.slug, {
-        ...base,
-        doc: draft,
+      const outbox = this.outboxRow(config, 'draft', guard, draft, {
+        docId: parsed,
         previousDoc: current,
-        operation: 'update',
       })
-      this.emitChange(config, 'draft', draft)
+      await this.saveVersion(config, collectionParent(collection), parsed, draft, guard, outbox)
+      if (outbox) this.outbox?.kick()
+      else {
+        await this.notify(config.hooks?.afterChange, 'afterChange', config.slug, {
+          ...base,
+          doc: draft,
+          previousDoc: current,
+          operation: 'update',
+        })
+        this.emitChange(config, 'draft', draft)
+      }
       await this.audited(config, 'draft', draft, current, guard, mode)
       const [out] = await this.output(config, [draft as RawDocument], guard, {
         ...options,
@@ -1522,9 +1549,20 @@ export class EasyCMS<C extends Config = Config> {
     }
 
     const data = { ...prepared, createdAt: existing.createdAt, updatedAt: now }
+    const outbox = this.outboxRow(
+      config,
+      'update',
+      guard,
+      { ...data, id: parsed },
+      {
+        docId: parsed,
+        previousDoc: current,
+        before: existing.status,
+      },
+    )
     const doc = options.where
-      ? await this.db.update({ collection, id: parsed, data, where: options.where })
-      : await this.db.update({ collection, id: parsed, data })
+      ? await this.db.update({ collection, id: parsed, data, where: options.where, outbox })
+      : await this.db.update({ collection, id: parsed, data, outbox })
     if (!doc) return null
     if (moved) await moved.cleanUp()
     if (collection === MEDIA_FOLDERS) {
@@ -1540,13 +1578,16 @@ export class EasyCMS<C extends Config = Config> {
     if (!live) await this.saveVersion(config, collectionParent(collection), parsed, doc, guard)
     // A new password signs the user out everywhere.
     if (password !== undefined) await this.auth.revokeSessions(parsed)
-    await this.notify(config.hooks?.afterChange, 'afterChange', config.slug, {
-      ...base,
-      doc,
-      previousDoc: current,
-      operation: 'update',
-    })
-    this.emitChange(config, 'update', doc, existing.status)
+    if (outbox) this.outbox?.kick()
+    else {
+      await this.notify(config.hooks?.afterChange, 'afterChange', config.slug, {
+        ...base,
+        doc,
+        previousDoc: current,
+        operation: 'update',
+      })
+      this.emitChange(config, 'update', doc, existing.status)
+    }
     await this.audited(config, 'update', doc, current, guard, mode)
     const [out] = await this.output(config, [doc], guard, { ...options, draft: true })
     return out as RawDocument
@@ -1592,7 +1633,8 @@ export class EasyCMS<C extends Config = Config> {
       await this.checkMoveLimit(await this.folders.privacyAfter(parsed, { private: false }))
       await this.folders.release(existing)
     }
-    await this.db.delete({ collection, id: parsed })
+    const outbox = this.outboxRow(config, 'delete', guard, existing, { docId: parsed })
+    await this.db.delete({ collection, id: parsed, outbox })
     if (collection === MEDIA_FOLDERS) {
       this.folders.invalidate()
       // What moved up may now be public (or private).
@@ -1605,12 +1647,15 @@ export class EasyCMS<C extends Config = Config> {
       for (const job of await this.pendingJobs(collection, parsed))
         await this.db.delete({ collection: SCHEDULED_JOBS, id: job.id })
     }
-    await this.notify(config.hooks?.afterDelete, 'afterDelete', config.slug, {
-      ...base,
-      id: parsed,
-      doc: existing,
-    })
-    this.emitChange(config, 'delete', existing)
+    if (outbox) this.outbox?.kick()
+    else {
+      await this.notify(config.hooks?.afterDelete, 'afterDelete', config.slug, {
+        ...base,
+        id: parsed,
+        doc: existing,
+      })
+      this.emitChange(config, 'delete', existing)
+    }
     await this.audited(config, 'delete', existing, existing, guard)
     const [out] = await this.output(config, [existing], guard, { depth: 0, draft: true })
     return out as Doc<C, S>
@@ -1822,27 +1867,39 @@ export class EasyCMS<C extends Config = Config> {
       prepared.status === 'draft'
     ) {
       const draft = { ...prepared, updatedAt: now }
-      await this.saveVersion(config, globalParent(key), 0, draft, guard)
-      await this.notify(config.hooks?.afterChange, 'afterChange', slug, {
-        ...base,
-        doc: draft,
-        previousDoc: current,
-        operation: 'update',
-      })
-      this.emitChange(config, 'draft', draft)
+      const outbox = this.outboxRow(config, 'draft', guard, draft, { previousDoc: current })
+      await this.saveVersion(config, globalParent(key), 0, draft, guard, outbox)
+      if (outbox) this.outbox?.kick()
+      else {
+        await this.notify(config.hooks?.afterChange, 'afterChange', slug, {
+          ...base,
+          doc: draft,
+          previousDoc: current,
+          operation: 'update',
+        })
+        this.emitChange(config, 'draft', draft)
+      }
       await this.audited(config, 'draft', draft, current, guard, mode)
       return this.readGlobal(config, key, guard, { ...options, draft: true })
     }
 
-    const doc = await this.db.updateGlobal({ slug: key, data: { ...prepared, updatedAt: now } })
-    await this.saveVersion(config, globalParent(key), 0, doc, guard)
-    await this.notify(config.hooks?.afterChange, 'afterChange', slug, {
-      ...base,
-      doc,
+    const data = { ...prepared, updatedAt: now }
+    const outbox = this.outboxRow(config, 'update', guard, data, {
       previousDoc: current,
-      operation: 'update',
+      before: existing.status,
     })
-    this.emitChange(config, 'update', doc, existing.status)
+    const doc = await this.db.updateGlobal({ slug: key, data, outbox })
+    await this.saveVersion(config, globalParent(key), 0, doc, guard)
+    if (outbox) this.outbox?.kick()
+    else {
+      await this.notify(config.hooks?.afterChange, 'afterChange', slug, {
+        ...base,
+        doc,
+        previousDoc: current,
+        operation: 'update',
+      })
+      this.emitChange(config, 'update', doc, existing.status)
+    }
     await this.audited(config, 'update', doc, current, guard, mode)
     return this.readGlobal(config, key, guard, { ...options, draft: true })
   }
@@ -1979,9 +2036,23 @@ export class EasyCMS<C extends Config = Config> {
     }
   }
 
+  /**
+   * Waits until the outbox (`outbox: true`) ran what saves left so far, e.g. before a serverless
+   * function returns. What fails stays queued for its retry.
+   */
+  flushOutbox(): Promise<void> {
+    return this.outbox?.flush() ?? Promise.resolve()
+  }
+
+  /** @internal Puts a failed outbox entry back in line (Settings → Jobs). */
+  retryOutbox(id: ID): Promise<boolean> {
+    return this.outbox?.retry(id) ?? Promise.resolve(false)
+  }
+
   async destroy(): Promise<void> {
     if (this.schedulerTimer) clearInterval(this.schedulerTimer)
     await this.running
+    await this.outbox?.flush()
     await this.webhooks.flush()
     await this.mailer.flush()
     await this.db.destroy()
@@ -2013,6 +2084,8 @@ export class EasyCMS<C extends Config = Config> {
     webhooks: { sent: number; failed: number }
     emails: { sent: number; failed: number }
     jobs: { ran: number; failed: number }
+    /** Outbox entries (`outbox: true`) run, and those that failed (to be retried). */
+    outbox: { ran: number; failed: number }
   }> {
     // One run at a time in this process: the scheduler and the cron endpoint wait for each other.
     // Other processes are kept apart by claiming each piece of work in the database.
@@ -2045,6 +2118,7 @@ export class EasyCMS<C extends Config = Config> {
         webhooks: await this.retryWebhooks(now),
         emails: await this.mailer.retry(now),
         jobs: await this.runConfigJobs(now),
+        outbox: (await this.outbox?.run(now)) ?? { ran: 0, failed: 0 },
       }
       // When jobs last ran, for Settings → Jobs: whether anything runs them at all (a cron on
       // serverless hosts). The real time, not `now`, which tests move.
@@ -2950,18 +3024,20 @@ export class EasyCMS<C extends Config = Config> {
     if (collection === MEDIA_FOLDERS) await this.validateFolder(prepared, undefined)
 
     const now = new Date().toISOString()
-    const doc = await this.db.create({
-      collection,
-      data: { ...prepared, createdAt: now, updatedAt: now },
-    })
+    const row = { ...prepared, createdAt: now, updatedAt: now }
+    const outbox = this.outboxRow(config, 'create', hookGuard ?? guard, row)
+    const doc = await this.db.create({ collection, data: row, outbox })
     if (collection === MEDIA_FOLDERS) this.folders.invalidate()
     await this.saveVersion(config, collectionParent(collection), doc.id, doc, guard)
-    await this.notify(config.hooks?.afterChange, 'afterChange', collection, {
-      ...base,
-      doc,
-      operation: 'create',
-    })
-    this.emitChange(config, 'create', doc)
+    if (outbox) this.outbox?.kick()
+    else {
+      await this.notify(config.hooks?.afterChange, 'afterChange', collection, {
+        ...base,
+        doc,
+        operation: 'create',
+      })
+      this.emitChange(config, 'create', doc)
+    }
     await this.audited(config, 'create', doc, undefined, hookGuard ?? guard)
     const [out] = await this.output(config, [doc], hookGuard ?? guard, { ...options, draft: true })
     return out as RawDocument
@@ -3044,37 +3120,39 @@ export class EasyCMS<C extends Config = Config> {
   }
 
   /**
-   * `httpCache.purge`: what readers see changed (anything, without drafts; with drafts, a
-   * published document saved, published, unpublished or deleted). Not awaited; failures are
-   * logged.
+   * The tags `httpCache.purge` gets for a change: what readers see changed (anything, without
+   * drafts; with drafts, a published document saved, published, unpublished or deleted).
    */
-  private purgePublic(
+  private purgeTags(
     config: CollectionConfig | GlobalConfig,
-    isGlobal: boolean,
     event: WebhookEvent,
     doc: Data,
     before: unknown,
-  ) {
-    const purge = this.config.httpCache?.purge
-    if (!purge || config.httpCache === false || event === 'draft') return
+  ): string[] | undefined {
+    if (!this.config.httpCache?.purge || config.httpCache === false || event === 'draft') return
     if (config.drafts && doc.status !== 'published' && before !== 'published') return
-    const tags = isGlobal ? cacheTags.global(config.slug) : cacheTags.document(config.slug, doc.id)
-    void Promise.resolve()
-      .then(() => purge(tags))
-      .catch((error) =>
-        this.logger.error(`httpCache.purge failed: ${(error as Error).message}`, { error }),
-      )
+    return this.isGlobal(config)
+      ? cacheTags.global(config.slug)
+      : cacheTags.document(config.slug, doc.id as ID)
   }
 
-  /** Sends webhook events for a change; `before` is the stored status before it, if any. */
-  private emitChange(
+  private isGlobal(config: CollectionConfig | GlobalConfig): config is GlobalConfig {
+    return !this.config.collections.includes(config as CollectionConfig)
+  }
+
+  /** The webhook events of a change; `before` is the stored status before it, if any. */
+  private changeEvents(
     config: CollectionConfig | GlobalConfig,
     event: WebhookEvent,
     doc: Data,
     before?: unknown,
-  ) {
-    const isGlobal = !this.config.collections.includes(config as CollectionConfig)
-    if (!isGlobal && INTERNAL_COLLECTIONS.has(config.slug)) return
+  ): {
+    event: WebhookEvent
+    target: { collection: string; id: ID } | { global: string }
+    body: Data
+  }[] {
+    const isGlobal = this.isGlobal(config)
+    if (!isGlobal && INTERNAL_COLLECTIONS.has(config.slug)) return []
     const body = isGlobal
       ? { ...snapshotOf(config.fields, doc), updatedAt: doc.updatedAt }
       : {
@@ -3086,13 +3164,111 @@ export class EasyCMS<C extends Config = Config> {
     const target = isGlobal
       ? { global: config.slug }
       : { collection: config.slug, id: doc.id as ID }
-    this.webhooks.emit(event, target, body)
-    this.purgePublic(config, isGlobal, event, doc, before)
-    if (event === 'draft' || event === 'delete' || !config.drafts) return
+    const events = [{ event, target, body }]
+    if (event === 'draft' || event === 'delete' || !config.drafts) return events
     const after = doc.status
-    if (after === 'published' && before !== 'published') this.webhooks.emit('publish', target, body)
+    if (after === 'published' && before !== 'published')
+      events.push({ event: 'publish', target, body })
     if (after !== 'published' && before === 'published')
-      this.webhooks.emit('unpublish', target, body)
+      events.push({ event: 'unpublish', target, body })
+    return events
+  }
+
+  /**
+   * Sends webhook events for a change and purges the HTTP cache. Not awaited; purge failures
+   * are logged.
+   */
+  private emitChange(
+    config: CollectionConfig | GlobalConfig,
+    event: WebhookEvent,
+    doc: Data,
+    before?: unknown,
+  ) {
+    for (const change of this.changeEvents(config, event, doc, before))
+      this.webhooks.emit(change.event, change.target, change.body)
+    const purge = this.config.httpCache?.purge
+    const tags = this.purgeTags(config, event, doc, before)
+    if (!purge || !tags) return
+    void Promise.resolve()
+      .then(() => purge(tags))
+      .catch((error) =>
+        this.logger.error(`httpCache.purge failed: ${(error as Error).message}`, { error }),
+      )
+  }
+
+  /**
+   * The outbox row of a save (`outbox: true`): written in its transaction, then run by the outbox
+   * in place of its after hooks and events. `undefined` without the outbox, or with nothing to run.
+   */
+  private outboxRow(
+    config: CollectionConfig | GlobalConfig,
+    event: 'create' | 'update' | 'draft' | 'delete',
+    guard: Guard,
+    doc: Data,
+    extra: { docId?: ID; previousDoc?: Data; before?: unknown } = {},
+  ): OutboxRow | undefined {
+    if (!this.outbox) return undefined
+    const hooks =
+      event === 'delete'
+        ? (config as CollectionConfig).hooks?.afterDelete
+        : config.hooks?.afterChange
+    const isGlobal = this.isGlobal(config)
+    const effects =
+      (isGlobal || !INTERNAL_COLLECTIONS.has(config.slug)) &&
+      ((this.config.webhooks?.length ?? 0) > 0 || this.config.httpCache?.purge !== undefined)
+    if (!hooks?.length && !effects) return undefined
+    return this.outbox.row({
+      event,
+      target: config.slug,
+      global: isGlobal,
+      docId: extra.docId,
+      before: typeof extra.before === 'string' ? extra.before : null,
+      doc,
+      previousDoc: extra.previousDoc,
+      user: guard.user,
+    })
+  }
+
+  /** Runs an outbox entry: what its save would have run right after it, without the outbox. */
+  private async runOutbox(
+    entry: OutboxEntry,
+    done: ReadonlySet<OutboxStep>,
+    mark: (step: OutboxStep) => Promise<void>,
+  ): Promise<void> {
+    const config = entry.global
+      ? this.config.globals.find((g) => g.slug === entry.target)
+      : this.config.collections.find((c) => c.slug === entry.target)
+    // Removed from the config since.
+    if (!config) return
+    const { doc, event } = entry
+    if (!done.has('hooks')) {
+      const base = this.hookArgs(config, { enforce: false, user: entry.user, context: {} })
+      const hooks =
+        event === 'delete'
+          ? (config as CollectionConfig).hooks?.afterDelete
+          : config.hooks?.afterChange
+      const args =
+        event === 'delete'
+          ? { ...base, id: parseId(entry.docId ?? undefined), doc }
+          : {
+              ...base,
+              doc,
+              ...(entry.previousDoc ? { previousDoc: entry.previousDoc } : {}),
+              operation: event === 'create' ? 'create' : 'update',
+            }
+      for (const hook of hooks ?? [])
+        await (hook as unknown as (a: Record<string, unknown>) => unknown)(args)
+      if (hooks?.length) await mark('hooks')
+    }
+    if (!done.has('webhooks')) {
+      const changes = this.changeEvents(config, event, doc, entry.before)
+      for (const change of changes)
+        await this.webhooks.emitSaved(change.event, change.target, change.body)
+      if (changes.length > 0 && (this.config.webhooks?.length ?? 0) > 0) await mark('webhooks')
+    }
+    const purge = this.config.httpCache?.purge
+    const tags = this.purgeTags(config, event, doc, entry.before)
+    if (purge && tags) await purge(tags)
   }
 
   /**
@@ -3148,6 +3324,8 @@ export class EasyCMS<C extends Config = Config> {
     id: ID,
     doc: Data,
     guard: Guard,
+    /** Written with the version: for a draft, the version is the save. */
+    outbox?: OutboxRow,
   ): Promise<void> {
     const max = versionLimit(config)
     if (max === undefined) return
@@ -3158,6 +3336,7 @@ export class EasyCMS<C extends Config = Config> {
       snapshot: snapshotOf(config.fields, doc),
       author: guard.user?.id ?? null,
       max,
+      outbox,
     })
   }
 

@@ -57,6 +57,47 @@ Globals support `beforeValidate`, `beforeChange`, `afterChange` and `afterRead`.
 - Hooks in a list run one after another; each sees the previous one's result.
 - Hooks run outside the database transaction: an `afterChange` sees the saved document, and
   a slow one delays the response. Send long work to a queue or a [webhook](./webhooks).
+  With the [outbox](#outbox), after hooks run after the response instead, and are retried.
+
+## Outbox
+
+By default an after hook runs in the request, right after the save. If it fails, or the process
+stops in between, the change is saved but its side effects never happen: no email, no webhook,
+no cache purge. Turn on the outbox to make them happen whenever the save does:
+
+```ts
+export default defineConfig({
+  outbox: true,
+  // ...
+})
+```
+
+- Saving a document also writes an outbox entry, in the same database transaction: a save that
+  commits always has one, a save that fails has none.
+- A worker runs the entry right after the save, in the background: `afterChange` and
+  `afterDelete` hooks, then [webhooks](./webhooks), then `httpCache.purge`. The response doesn't
+  wait for them.
+- What fails is retried after 1 minute, 5 minutes, 30 minutes, 2 hours and 12 hours, with the
+  [scheduled jobs](./jobs) (a cron on serverless hosts). Steps that succeeded aren't run again.
+  After that the entry is marked failed; **Settings → Jobs → Outbox** lists it with its error,
+  and an admin can retry it.
+- Several instances can run the outbox at once: each entry is claimed by one.
+
+What changes for hooks:
+
+- **They must be safe to run more than once.** An entry runs at least once, not exactly once: a
+  retry runs the hooks again, and a worker that stops midway leaves the entry to another. Check
+  before you act (has this email been sent for this order?), or use an id the other side
+  ignores when it sees it again.
+- They run after the response: the saving request doesn't see their effects, and their errors
+  don't reach it. Entries aren't guaranteed to run in the order they were saved.
+- `user` is the user who saved, as they were then; `context` is empty. `doc` and `previousDoc`
+  are as saved.
+- On serverless hosts, call `await cms.flushOutbox()` before the function returns, or the
+  scheduled jobs pick the entries up later.
+
+The outbox needs a migration for its table (`easy-cms migrate:create`), and `@easy-cms/db-sqlite`
+or `@easy-cms/db-postgres`. In 2.0 it becomes the default.
 
 ## Recipes
 

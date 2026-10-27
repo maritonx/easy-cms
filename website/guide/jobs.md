@@ -51,11 +51,13 @@ until its next time.
 Admins, and [roles](./roles) given **Jobs**, see every job with its schedule, when it last ran and
 how long it took, its result (with the error when it failed) and when it runs next. A second tab
 lists [scheduled publishing](./drafts#scheduled-publishing) that is waiting, running or failed.
+With the [outbox](./hooks#outbox), an **Outbox** tab counts the entries waiting and lists those
+that failed, with their errors; admins of the whole site can **Retry** one that was given up on.
 **Run due jobs now** runs whatever is due, as the cron would.
 
 The page also says when jobs last ran, and warns when nothing has run them for 10 minutes (on
 serverless hosts, usually a missing cron). **Built in** lists what Easy CMS does with every run:
-scheduled publishing, webhook and email retries, scheduled backups and the audit log check, each
+scheduled publishing, webhook and email retries, the outbox, scheduled backups and the audit log check, each
 with a link to its page.
 
 Admins of the whole site can also:

@@ -33,7 +33,7 @@ import {
   retryFailedDeliveries,
 } from './admin-deliveries.js'
 import { adminEmail, sendTestEmail, verifyEmail } from './admin-email.js'
-import { adminJobs, hasJobsPage, updateJob } from './admin-jobs.js'
+import { adminJobs, hasJobsPage, retryOutbox, updateJob } from './admin-jobs.js'
 import { readAdminModule } from './admin-modules.js'
 import { adminSchema } from './admin-schema.js'
 import { adminCounts, adminSearch } from './admin-search.js'
@@ -887,6 +887,14 @@ async function route(
       const result = await cms.runJobs()
       await cms.audit.record({ action: 'jobs.run', target: 'jobs', detail: result })
       return { body: result }
+    }
+    // /admin/jobs/outbox/:id: retry a failed outbox entry (admins of the whole system).
+    if (third === 'outbox' && segments.length === 4) {
+      if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
+      const id = segments[3] as string
+      await retryOutbox(cms, ctx.user, id)
+      await cms.audit.record({ action: 'jobs.outbox.retry', target: 'jobs', detail: { id } })
+      return { body: await adminJobs(cms, ctx.user) }
     }
     // /admin/jobs/:name: pause or resume it, or set its schedule (admins of the whole system).
     if (third !== undefined && segments.length === 3) {
