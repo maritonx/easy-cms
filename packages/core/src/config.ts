@@ -211,12 +211,33 @@ export interface CollectionConfig {
   readonly versions?: boolean | VersionsConfig
   /** Allow scheduling publish/unpublish for a later time (needs `drafts`). */
   readonly schedule?: boolean
+  /**
+   * HTTP caching of public reads of this content (no login, published only), for a CDN in front.
+   * Overrides the config's `httpCache` for this one; `false` keeps every read `no-store`.
+   */
+  readonly httpCache?: false | HttpCacheTimes
   /** Live preview: the page that shows a document, e.g. `({ doc }) => \`/posts/${doc.slug}\``. */
   readonly preview?: PreviewURL
   readonly access?: CollectionAccess
   readonly hooks?: CollectionHooks
   /** How the collection looks in the admin: its menu item, list, edit page and components. */
   readonly admin?: CollectionAdmin
+}
+
+/** How long a CDN may keep a public read. */
+export interface HttpCacheTimes {
+  /** Seconds a CDN serves it without asking again (`s-maxage`). Default 60. */
+  readonly sMaxAge?: number
+  /** Seconds after that it may still serve it while it fetches a fresh one. Default 300. */
+  readonly staleWhileRevalidate?: number
+}
+
+export interface HttpCacheConfig extends HttpCacheTimes {
+  /**
+   * Called after public content changes, with the cache tags of what changed: purge them from
+   * your CDN, or call Next's `revalidateTag` for each. Not awaited; a failure is logged.
+   */
+  readonly purge?: (tags: string[]) => void | Promise<void>
 }
 
 export interface GlobalConfig {
@@ -228,6 +249,11 @@ export interface GlobalConfig {
   readonly versions?: boolean | VersionsConfig
   /** Allow scheduling publish/unpublish for a later time (needs `drafts`). */
   readonly schedule?: boolean
+  /**
+   * HTTP caching of public reads of this content (no login, published only), for a CDN in front.
+   * Overrides the config's `httpCache` for this one; `false` keeps every read `no-store`.
+   */
+  readonly httpCache?: false | HttpCacheTimes
   /** Live preview: the page that shows the global. See `CollectionConfig.preview`. */
   readonly preview?: PreviewURL
   readonly access?: GlobalAccess
@@ -876,6 +902,12 @@ export interface Config {
    * Default 5.
    */
   readonly countCacheSeconds?: number
+  /**
+   * HTTP caching of public reads (no login, no API key, published content) by a CDN or proxy in
+   * front: `Cache-Control` with `s-maxage`, an `ETag`, and cache tags to purge by. Off by default:
+   * every response is `no-store`. Collections and globals can override it.
+   */
+  readonly httpCache?: HttpCacheConfig
   /**
    * The deepest `page` the REST API serves to API clients (not to the signed-in admin); deeper
    * requests get `400`, pointing to `cursor`. Deep pages are read row by row. Default: no limit.

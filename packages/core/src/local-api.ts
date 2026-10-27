@@ -101,6 +101,7 @@ import { MediaFolders, PUBLIC_FILES } from './media-folders.js'
 import { DEFAULT_DEPTH, type Loader, MAX_DEPTH, populate } from './populate.js'
 import { fetchRemoteFile, RemoteFileError } from './remote-file.js'
 import { resolveConfig } from './resolve-config.js'
+import { cacheTags } from './rest/http-cache.js'
 import { Roles } from './roles.js'
 import { type DirectUpload, diskStorage, type StorageAdapter } from './storage.js'
 import { dueAt } from './time-of-day.js'
@@ -3042,6 +3043,29 @@ export class EasyCMS<C extends Config = Config> {
     })
   }
 
+  /**
+   * `httpCache.purge`: what readers see changed (anything, without drafts; with drafts, a
+   * published document saved, published, unpublished or deleted). Not awaited; failures are
+   * logged.
+   */
+  private purgePublic(
+    config: CollectionConfig | GlobalConfig,
+    isGlobal: boolean,
+    event: WebhookEvent,
+    doc: Data,
+    before: unknown,
+  ) {
+    const purge = this.config.httpCache?.purge
+    if (!purge || config.httpCache === false || event === 'draft') return
+    if (config.drafts && doc.status !== 'published' && before !== 'published') return
+    const tags = isGlobal ? cacheTags.global(config.slug) : cacheTags.document(config.slug, doc.id)
+    void Promise.resolve()
+      .then(() => purge(tags))
+      .catch((error) =>
+        this.logger.error(`httpCache.purge failed: ${(error as Error).message}`, { error }),
+      )
+  }
+
   /** Sends webhook events for a change; `before` is the stored status before it, if any. */
   private emitChange(
     config: CollectionConfig | GlobalConfig,
@@ -3063,6 +3087,7 @@ export class EasyCMS<C extends Config = Config> {
       ? { global: config.slug }
       : { collection: config.slug, id: doc.id as ID }
     this.webhooks.emit(event, target, body)
+    this.purgePublic(config, isGlobal, event, doc, before)
     if (event === 'draft' || event === 'delete' || !config.drafts) return
     const after = doc.status
     if (after === 'published' && before !== 'published') this.webhooks.emit('publish', target, body)

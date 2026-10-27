@@ -35,7 +35,7 @@ CI รันแบบนี้ทุกครั้งที่มีการ�
 | **Storage** | S3 หรือบริการที่ใช้ API แบบ S3 สำหรับไฟล์ upload ที่ทุก instance ใช้ร่วมกัน บน Vercel และ Netlify ใช้ Vercel Blob และ Netlify Blobs ได้ | [ไฟล์ upload](../uploads#s3-cloudflare-r2-and-minio) |
 | **Instance** | กี่ตัวก็ได้ เหมือนกันทุกตัว: config, เวอร์ชัน และ `EASY_CMS_SECRET` เดียวกัน ไม่ต้องใช้ sticky session เปิด `trustProxy` เมื่ออยู่หลัง load balancer | [Health check](../deployment#health-checks) |
 | **Load balancer** | ส่ง traffic ไปเฉพาะ instance ที่ `<api>/readyz` ตอบ `200` และส่ง `X-Forwarded-For` (และ `X-Request-Id` ถ้าสร้างเอง) ต่อให้ | [Log](../deployment#logs) |
-| **CDN** | cache หน้าสาธารณะและไฟล์ media ไว้หน้าเว็บ ตอนนี้ API ตอบ `no-store` จึงต้อง cache ที่ frontend แล้ว revalidate จาก [webhook](../webhooks) | [Performance](../databases#performance) |
+| **CDN** | cache หน้าสาธารณะและไฟล์ media ไว้หน้าเว็บ และการอ่าน API ด้วย [`httpCache`](../deployment#http-caching) แล้ว purge ตาม cache tag | [HTTP caching](../deployment#http-caching) |
 
 ขนาด pool รวมกัน: จำนวน instance × `max` ควรไม่เกิน 10–20% ของ `max_connections` ของ Postgres ถ้ามีหลาย instance
 หรือใช้ serverless function ให้ใส่ pooler ไว้ข้างหน้า

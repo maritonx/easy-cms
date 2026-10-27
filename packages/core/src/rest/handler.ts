@@ -8,7 +8,7 @@ import { SSO_COOKIE } from '../auth/sso.js'
 import { safeEqual } from '../auth/tokens.js'
 import { deleteBackup, downloadBackup, listBackups, startBackup } from '../backups.js'
 import { INTERNAL_COLLECTIONS, MEDIA, USERS } from '../builtins.js'
-import type { Config } from '../config.js'
+import type { CollectionConfig, Config, GlobalConfig } from '../config.js'
 import { warnDeprecated } from '../deprecation.js'
 import { parseId } from '../document.js'
 import {
@@ -39,6 +39,7 @@ import { adminSchema } from './admin-schema.js'
 import { adminCounts, adminSearch } from './admin-search.js'
 import { adminStatus } from './admin-status.js'
 import { pickerFilter } from './filter-options.js'
+import { cacheableResponse, cacheTags, cacheTimes } from './http-cache.js'
 import { parseDepth, parseListQuery } from './query.js'
 
 export { SESSION_COOKIE }
@@ -270,7 +271,22 @@ async function respondNow(
     )
     if (!result) throw new HttpError('Not found', 404)
     if (result.body instanceof Response) return result.body
-    return new Response(JSON.stringify(result.body), { status: result.status ?? 200, headers })
+    const body = JSON.stringify(result.body)
+    // Public: no user, no session or key (even an expired one), and no drafts asked for.
+    const times =
+      result.cache && !user && !ctx.via && !ctx.token && !url.searchParams.has('draft')
+        ? cacheTimes(cms.config, result.cache.container)
+        : null
+    if (times && result.cache)
+      return cacheableResponse(
+        request,
+        body,
+        result.status ?? 200,
+        headers,
+        times,
+        result.cache.tags,
+      )
+    return new Response(body, { status: result.status ?? 200, headers })
   } catch (error) {
     return errorResponse(cms, error, headers, production)
   }
@@ -342,6 +358,8 @@ function withHeaders(response: Response, extra: Headers): Response {
 interface Result {
   body: unknown
   status?: number
+  /** A read a CDN may cache when it is public (`httpCache`): what it reads, and its tags. */
+  cache?: { container: CollectionConfig | GlobalConfig; tags: string[] }
 }
 
 /** Runs the config's endpoint matching the request, if any (`endpoints` in the config). */
@@ -965,7 +983,11 @@ async function route(
           }),
         }
       }
-      return { body: await cms.findGlobal(second, { ...access, ...parseDepth(ctx.url), draft }) }
+      const global = cms.config.globals.find((g) => g.slug === second) as GlobalConfig
+      return {
+        body: await cms.findGlobal(second, { ...access, ...parseDepth(ctx.url), draft }),
+        cache: { container: global, tags: cacheTags.global(second) },
+      }
     }
     // PATCH, as for documents; POST as well, as before 0.60.
     if (method === 'PATCH' || method === 'POST') {
@@ -1084,6 +1106,7 @@ async function route(
           collection,
           query.cursor === undefined ? { ...options, page } : options,
         ),
+        cache: { container: cms.collection(collection), tags: cacheTags.collection(collection) },
       }
     }
     if (method === 'POST') {
@@ -1112,7 +1135,13 @@ async function route(
   if (method === 'GET') {
     const doc = await cms.findById(collection, id, { ...access, ...parseDepth(ctx.url), draft })
     if (!doc) throw new NotFoundError(collection, id)
-    return { body: doc }
+    return {
+      body: doc,
+      cache: {
+        container: cms.collection(collection),
+        tags: cacheTags.document(collection, doc.id),
+      },
+    }
   }
   if (method === 'PATCH') {
     const body = await readJson(ctx.request)

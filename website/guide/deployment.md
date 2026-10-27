@@ -114,6 +114,53 @@ readinessProbe:
 Point liveness at `healthz`, not `readyz`: a database outage should take instances out of the
 load balancer, not restart them all. Probes are left out of the [request log lines](#logs).
 
+## HTTP caching
+
+By default every API response is `no-store`: each read reaches the database. With a CDN or a
+caching proxy in front, let it keep public reads of published content:
+
+```ts
+httpCache: {
+  sMaxAge: 60, // the CDN serves it for a minute without asking again
+  staleWhileRevalidate: 300, // then for five more while it fetches a fresh copy
+  purge: async (tags) => {
+    await fetch('https://api.cloudflare.com/client/v4/zones/<zone>/purge_cache', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${process.env.CF_TOKEN}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ tags }),
+    })
+  },
+},
+```
+
+- **What is cached:** `GET` lists, documents by id and globals, read without a login, a session
+  cookie or a key, and without `draft`. Everything else stays `no-store`, so nothing that depends
+  on who asks reaches a shared cache. Browsers get `max-age=0` and check back with the ETag.
+- **Per collection or global:** `httpCache: { sMaxAge: 5 }` for content that changes often, or
+  `httpCache: false` to keep it uncached.
+- **ETags:** every cached read has one; a request with a matching `If-None-Match` gets `304`
+  without the body.
+- **Cache tags:** responses carry `Cache-Tag` (Cloudflare, Bunny) and `Surrogate-Key` (Fastly,
+  Akamai): `ecms`, `ecms:posts` and, for one document, `ecms:posts:42`; a global has
+  `ecms:global:site`. `purge` receives the tags of what readers saw change (a save of a published
+  document, publishing, unpublishing, deleting; not drafts).
+- **Next.js:** tag your own fetches with `cacheTags` from `@easy-cms/next`, and revalidate them
+  in `purge`:
+
+  ```ts
+  import { cacheTags } from '@easy-cms/next'
+  import { revalidateTag } from 'next/cache'
+
+  await fetch(`${api}/posts/${id}`, { next: { tags: cacheTags.document('posts', id) } })
+  // in the config
+  httpCache: { purge: (tags) => tags.forEach((tag) => revalidateTag(tag)) }
+  ```
+- **Nuxt:** with a Nitro cached handler keyed by these tags, remove the matching entries from
+  `useStorage('cache')` in `purge`.
+- **`onRequest`:** a CDN keys its cache by URL (host included). If your `onRequest` picks the
+  context from something else, such as a header, add that header to `Vary` at the CDN, or turn
+  `httpCache` off for those collections.
+
 ## Checklist
 
 - `EASY_CMS_SECRET` set in the production environment (at least 32 random characters:

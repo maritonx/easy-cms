@@ -209,6 +209,7 @@ export {
   type RestHandler,
   type RestHandlerOptions,
 } from './rest/handler.js'
+export { cacheTags } from './rest/http-cache.js'
 export {
   type AdminRole,
   type AdminRoleChange,

@@ -14,6 +14,8 @@ import {
 
 type Handler = (request: Request) => Promise<Response>
 
+/** The tags of Easy CMS content, for `fetch(url, { next: { tags } })` and `revalidateTag`. */
+export { cacheTags } from '@easy-cms/core'
 export type { ApiHandlerOptions }
 
 /**

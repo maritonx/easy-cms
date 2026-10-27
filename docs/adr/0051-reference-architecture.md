@@ -43,7 +43,9 @@
 - Docker image อย่างเป็นทางการ `ghcr.io/maritonx/easy-cms` (#159)
 - เอกสาร: หน้า Reference architecture (`website/guide/deploy/production.md`, #160)
 
-ที่ยังเหลือ: CDN ยังต้อง cache ที่ frontend เพราะ API ตอบ `no-store` (`ETag` และ cache tag ใน #174) และตัวเลขที่ 1M เอกสารรอ load test (#161)
+- HTTP cache ของการอ่านแบบสาธารณะ (`httpCache`: `s-maxage`, `ETag`, cache tag และ purge) ให้ CDN ใช้ได้ (#174)
+
+ที่ยังเหลือ: ตัวเลขที่ 1M เอกสารรอ load test ทุกคืน (#161)
 
 ## ผลที่ตามมา
 

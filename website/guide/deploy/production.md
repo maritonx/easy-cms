@@ -36,7 +36,7 @@ runs several, use this setup. CI runs it on every change.
 | **Storage** | S3 or an S3-compatible service for uploads, shared by every instance. Vercel Blob and Netlify Blobs on those platforms | [Uploads](../uploads#s3-cloudflare-r2-and-minio) |
 | **Instances** | Any number, identical: the same config, version and `EASY_CMS_SECRET`. No sticky sessions. `trustProxy` behind the load balancer | [Health checks](../deployment#health-checks) |
 | **Load balancer** | Routes to instances whose `<api>/readyz` answers `200`, and passes `X-Forwarded-For` (and `X-Request-Id`, if it makes one) | [Logs](../deployment#logs) |
-| **CDN** | Caches public pages and media in front of your site. The API answers `no-store` for now: cache in your frontend and revalidate from [webhooks](../webhooks) | [Performance](../databases#performance) |
+| **CDN** | Caches public pages and media in front of your site, and API reads with [`httpCache`](../deployment#http-caching), purged by cache tag | [HTTP caching](../deployment#http-caching) |
 
 Pool sizes add up: instances × `max` connections should stay under 10–20% of Postgres's
 `max_connections`. With many instances or serverless functions, put the pooler in front.

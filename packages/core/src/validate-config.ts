@@ -78,6 +78,7 @@ export function validateConfig(config: Config): ConfigIssue[] {
   validateLogs(config, add)
   validateCountCache(config, add)
   validateMaxPage(config, add)
+  validateHttpCache(config, add)
   validateAuth(config, add)
   validateCors(config.cors, add)
   validateLocalization(config, add)
@@ -807,6 +808,27 @@ const HOST_PATTERN =
   /^(\*|(\*\.)?[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*)$/i
 
 /** `audit`: true, or its settings. */
+function validateHttpCache(config: Config, add: Add) {
+  const times = (value: unknown, path: string, purge: boolean) => {
+    if (value === undefined) return
+    if (value === false && !purge) return
+    if (typeof value !== 'object' || value === null) {
+      add(path, purge ? 'must be an object' : 'must be false or an object')
+      return
+    }
+    const v = value as Record<string, unknown>
+    for (const key of ['sMaxAge', 'staleWhileRevalidate'])
+      if (v[key] !== undefined && !(Number.isInteger(v[key]) && (v[key] as number) >= 0))
+        add(`${path}.${key}`, 'must be a whole number of seconds, 0 or more')
+    if (purge && v.purge !== undefined && typeof v.purge !== 'function')
+      add(`${path}.purge`, 'must be a function')
+  }
+  times(config.httpCache, 'httpCache', true)
+  for (const c of config.collections ?? [])
+    times(c?.httpCache, `collections.${c?.slug}.httpCache`, false)
+  for (const g of config.globals ?? []) times(g?.httpCache, `globals.${g?.slug}.httpCache`, false)
+}
+
 function validateMaxPage(config: Config, add: Add) {
   const max: unknown = config.maxPage
   if (max !== undefined && !(Number.isInteger(max) && (max as number) >= 1))
