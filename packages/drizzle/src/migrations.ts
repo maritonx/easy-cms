@@ -105,8 +105,18 @@ export class Migrator {
     return { ...snapshot, [META]: meta }
   }
 
-  /** SQL statements that turn `prev` into `cur`. Renames become drop + add unless interactive. */
+  /** SQL statements that turn `prev` into `cur`, with the extensions their indexes need. */
   private async diff(prev: Snapshot, cur: Snapshot, interactive: boolean): Promise<string[]> {
+    const statements = await this.changes(prev, cur, interactive)
+    // `index: 'trigram'` on Postgres: pg_trgm is a trusted extension, which the database's owner
+    // can create (Postgres 13 and later).
+    return statements.some((s) => s.includes('gin_trgm_ops'))
+      ? ['CREATE EXTENSION IF NOT EXISTS pg_trgm', ...statements]
+      : statements
+  }
+
+  /** Renames become drop + add unless interactive. */
+  private async changes(prev: Snapshot, cur: Snapshot, interactive: boolean): Promise<string[]> {
     const { dialect } = this.options
     const moves = this.localeMoves(prev, metaOf(prev), metaOf(cur))
     const [from, to] = [withoutMeta(prev), withoutMeta(cur)]

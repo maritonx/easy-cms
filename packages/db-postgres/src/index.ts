@@ -54,7 +54,8 @@ export interface PostgresAdapterOptions extends DrizzleAdapterOptions {
   readonly applicationName?: string
   /**
    * Use PGlite (Postgres in WebAssembly) instead of a server: a data directory
-   * (relative to the project root), `memory://`, or a PGlite instance you manage.
+   * (relative to the project root), `memory://`, or a PGlite instance you manage (load
+   * `pg_trgm` in it for `index: 'trigram'`).
    * Handy for local development and tests. Requires `@electric-sql/pglite`.
    */
   readonly pglite?: string | PGlite
@@ -78,6 +79,10 @@ export const postgresDialect: Dialect = {
   table: (name, columns, indexes) => pgTable(name, columns, indexes),
   index: (name) => index(name),
   uniqueIndex: (name) => uniqueIndex(name),
+  // GIN with pg_trgm: `ILIKE '%…%'` (the `like` operator) uses it, in Thai as in English.
+  trigramIndex: (name) => ({
+    on: (column) => index(name).using('gin', sql`${column} gin_trgm_ops`),
+  }),
   serial: (name) => serial(name).primaryKey(),
   text: (name) => text(name),
   integer: (name) => integer(name),
@@ -185,8 +190,10 @@ async function pgliteConnection(source: string | PGlite, cwd: string): Promise<C
   let pg: PGlite
   if (typeof source === 'string') {
     const { PGlite } = await import('@electric-sql/pglite')
+    // pg_trgm for `index: 'trigram'`, as on a Postgres server.
+    const { pg_trgm } = await import('@electric-sql/pglite/contrib/pg_trgm')
     const dataDir = source.includes('://') || isAbsolute(source) ? source : resolve(cwd, source)
-    pg = new PGlite(dataDir)
+    pg = new PGlite(dataDir, { extensions: { pg_trgm } })
   } else {
     pg = source
   }

@@ -130,8 +130,9 @@ What that means for your site:
 - **Pages and lookups are fast.** Frontends read by id or slug, and list the first pages.
 - **Deep pages cost more** the further in they are: the database skips the rows before them.
   Paginate archives by date (`where[publishedAt][lt]=…`) rather than to page 5,000.
-- **`like` reads every row.** For site search, use a search service (Meilisearch, Algolia,
-  Typesense) fed by [webhooks](./webhooks), or add a `pg_trgm` index on Postgres yourself.
+- **`like` reads every row**, unless the field has `index: 'trigram'` on Postgres (below). For
+  a full site search, use a search service (Meilisearch, Algolia, Typesense) fed by
+  [webhooks](./webhooks).
 - **Queries inside blocks** read the JSON of every document. On Postgres, `equals` and `in` use
   JSON containment and are about six times faster than other operators; keep them for filters,
   not for every page view.
@@ -139,6 +140,28 @@ What that means for your site:
   most traffic then never reaches the CMS.
 - More concurrent requests than connections wait for a connection; raise `max` on
   `postgres()` if the database has room.
+
+## Search with like
+
+`like` finds any part of a text, which no ordinary index helps with. On Postgres,
+`index: 'trigram'` adds one (GIN with the `pg_trgm` extension) that does, in Thai as in English:
+
+```ts
+{ name: 'title', type: 'text', localized: true, index: 'trigram' }
+```
+
+At 100,000 posts, a Thai title search went from reading every row (about 250 ms a query) to
+p95 25 ms under 20 concurrent requests. Localized fields get an index per locale.
+
+- **The extension.** The first migration with a trigram index runs
+  `CREATE EXTENSION IF NOT EXISTS pg_trgm`. Since Postgres 13 the database's owner may create it;
+  Neon, Supabase and RDS allow it. Otherwise ask whoever runs the database to run that line once.
+- **The database's LC_CTYPE.** Trigrams come from letters and digits as the database sees them:
+  with `LC_CTYPE` `C` or `POSIX`, Thai letters aren't letters and the index can't find them
+  (results stay right, only slow). Easy CMS warns at start. `C.UTF-8`, `en_US.UTF-8` and
+  `th_TH.UTF-8` are fine, as are the defaults of Docker's Postgres image and of PGlite.
+- **At least 3 characters.** Shorter searches can't use the index.
+- **SQLite** has no such index: the option does nothing there, so a config works on both.
 
 ## Next steps
 

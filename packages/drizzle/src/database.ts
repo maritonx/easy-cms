@@ -80,6 +80,7 @@ export async function connectDatabase(
     })
     if (args.schema === 'push') await migrator.push()
     else if (args.schema === 'verify') await migrator.verify()
+    if (dialect.name === 'postgres' && usesTrigram(args.config)) await checkCtype(connection, args)
     const countCacheMs = (args.config.countCacheSeconds ?? 5) * 1000
     return new DrizzleDatabase(dialect, connection, schema, migrator, prefix, countCacheMs)
   } catch (error) {
@@ -461,5 +462,44 @@ class DrizzleDatabase implements Database {
 
   async destroy(): Promise<void> {
     await this.connection.close()
+  }
+}
+
+/** Whether a field of the config has `index: 'trigram'`, at any depth. */
+function usesTrigram(config: DatabaseInitArgs['config']): boolean {
+  const search = (fields: readonly unknown[]): boolean =>
+    fields.some((field) => {
+      const f = field as {
+        index?: unknown
+        fields?: unknown[]
+        blocks?: { fields: unknown[] }[]
+        tabs?: { fields: unknown[] }[]
+      }
+      return (
+        f.index === 'trigram' ||
+        (f.fields ? search(f.fields) : false) ||
+        (f.blocks ? f.blocks.some((b) => search(b.fields)) : false) ||
+        (f.tabs ? f.tabs.some((t) => search(t.fields)) : false)
+      )
+    })
+  return [...config.collections, ...config.globals].some((c) => search(c.fields))
+}
+
+/**
+ * Trigrams come from letters and digits as the database's LC_CTYPE sees them: under `C` (or
+ * POSIX), Thai and other non-ASCII letters aren't letters, and the index can't find them.
+ */
+async function checkCtype(connection: Connection, args: DatabaseInitArgs): Promise<void> {
+  try {
+    const [row] = await connection.runner.query(
+      'SELECT datctype FROM pg_database WHERE datname = current_database()',
+    )
+    const ctype = String(row?.datctype ?? '')
+    if (ctype === 'C' || ctype === 'POSIX')
+      args.logger.warn(
+        `index: 'trigram' can't help searching Thai or other non-ASCII text in this database: its LC_CTYPE is ${ctype}. Create the database with LC_CTYPE 'C.UTF-8', 'en_US.UTF-8' or 'th_TH.UTF-8'.`,
+      )
+  } catch {
+    // Only a hint: never stop the start for it.
   }
 }

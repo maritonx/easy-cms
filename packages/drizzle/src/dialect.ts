@@ -57,6 +57,8 @@ export interface Dialect {
   ): AnyTable
   index(name: string): { on(...columns: AnyColumn[]): IndexBuilder }
   uniqueIndex(name: string): { on(...columns: AnyColumn[]): IndexBuilder }
+  /** An index for `like` on any substring (`index: 'trigram'`); without it, none is made. */
+  trigramIndex?(name: string): { on(column: AnyColumn): IndexBuilder }
 
   /** Auto-incrementing integer primary key. */
   serial(name: string): ColumnBuilder
