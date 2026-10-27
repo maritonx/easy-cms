@@ -52,8 +52,8 @@ const get = (path: string, auth = false) =>
       auth ? { headers: { authorization: `Bearer ${token}` } } : {},
     ),
   ).then(async (r) => {
-    await r.arrayBuffer()
-    if (r.status >= 400) throw new Error(`${path} → ${r.status}`)
+    const body = await r.text()
+    if (r.status >= 400) throw new Error(`${r.status} ${body.slice(0, 300)}`)
   })
 const send = (method: string, path: string, body: unknown) =>
   handle(
@@ -63,8 +63,8 @@ const send = (method: string, path: string, body: unknown) =>
       body: JSON.stringify(body),
     }),
   ).then(async (r) => {
-    await r.arrayBuffer()
-    if (r.status >= 400) throw new Error(`${method} ${path} → ${r.status}`)
+    const body = await r.text()
+    if (r.status >= 400) throw new Error(`${r.status} ${body.slice(0, 300)}`)
   })
 
 interface Result {
@@ -81,6 +81,8 @@ async function scenario(name: string, request: () => Promise<unknown>): Promise<
   for (let i = 0; i < 20; i++) await request() // warm up
   const times: number[] = []
   let errors = 0
+  // What failed, by message, to show the first few.
+  const failures = new Map<string, number>()
   const until = performance.now() + SECONDS * 1000
   await Promise.all(
     Array.from({ length: CONCURRENCY }, async () => {
@@ -89,8 +91,10 @@ async function scenario(name: string, request: () => Promise<unknown>): Promise<
         try {
           await request()
           times.push(performance.now() - t)
-        } catch {
+        } catch (error) {
           errors++
+          const message = (error as Error).message
+          failures.set(message, (failures.get(message) ?? 0) + 1)
         }
       }
     }),
@@ -108,6 +112,7 @@ async function scenario(name: string, request: () => Promise<unknown>): Promise<
   console.log(
     `${name.padEnd(46)} ${String(result.rps).padStart(6)} req/s   p50 ${result.p50} ms   p95 ${result.p95} ms   p99 ${result.p99} ms${errors ? `   errors ${errors}` : ''}`,
   )
+  for (const [message, count] of [...failures].slice(0, 3)) console.log(`    ${count}× ${message}`)
   return result
 }
 

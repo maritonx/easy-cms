@@ -111,6 +111,8 @@ const pick = () => {
 
 const times = new Map<string, number[]>(KINDS.map((k) => [k.name, []]))
 const errors = new Map<string, number>(KINDS.map((k) => [k.name, 0]))
+/** What failed, by kind and message. */
+const failures = new Map<string, number>()
 const started = performance.now()
 const measureFrom = started + WARMUP * 1000
 const until = measureFrom + SECONDS * 1000
@@ -122,16 +124,23 @@ async function editor(index: number) {
   while (performance.now() < until) {
     const kind = pick()
     const t = performance.now()
-    let ok = false
+    let failure: string | null = null
     try {
       const response = await kind.run(session)
-      await response.arrayBuffer()
+      const body = await response.text()
       // A random id can be missing: that is an answer, not a failure.
-      ok = response.ok || response.status === 404
-    } catch {}
+      if (!response.ok && response.status !== 404)
+        failure = `${response.status} ${body.slice(0, 200)}`
+    } catch (error) {
+      failure = (error as Error).message
+    }
     if (t >= measureFrom) {
-      if (ok) times.get(kind.name)?.push(performance.now() - t)
-      else errors.set(kind.name, (errors.get(kind.name) ?? 0) + 1)
+      if (!failure) times.get(kind.name)?.push(performance.now() - t)
+      else {
+        errors.set(kind.name, (errors.get(kind.name) ?? 0) + 1)
+        const key = `${kind.name}: ${failure}`
+        failures.set(key, (failures.get(key) ?? 0) + 1)
+      }
     }
     await new Promise((r) => setTimeout(r, 1000 + rand(2000)))
   }
@@ -177,3 +186,5 @@ for (const s of results.scenarios)
   console.log(
     `${s.name.padEnd(24)} ${String(s.count).padStart(7)} req  p50 ${s.p50} ms  p95 ${s.p95} ms  p99 ${s.p99} ms${s.errors ? `  errors ${s.errors}` : ''}`,
   )
+for (const [message, count] of [...failures].sort((a, b) => b[1] - a[1]).slice(0, 10))
+  console.log(`  ${count}× ${message}`)
