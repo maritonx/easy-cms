@@ -107,6 +107,48 @@ readinessProbe:
 ให้ liveness เรียก `healthz` ไม่ใช่ `readyz` เพราะเมื่อฐานข้อมูลล่ม ควรเอา instance ออกจาก load balancer ไม่ใช่ restart
 ทุกตัว probe ไม่ถูกเขียนเป็น[บรรทัดของ request ใน log](#logs)
 
+## HTTP caching {#http-caching}
+
+โดยปกติ response ของ API ทุกตัวเป็น `no-store` ทุกการอ่านจึงไปถึงฐานข้อมูล ถ้ามี CDN หรือ proxy ที่ cache ได้อยู่ข้างหน้า
+ให้มันเก็บการอ่านเนื้อหาที่ publish แล้วแบบสาธารณะ:
+
+```ts
+httpCache: {
+  sMaxAge: 60, // CDN ส่งซ้ำได้หนึ่งนาทีโดยไม่ต้องถามใหม่
+  staleWhileRevalidate: 300, // แล้วส่งของเดิมได้อีกห้านาทีระหว่างดึงของใหม่
+  purge: async (tags) => {
+    await fetch('https://api.cloudflare.com/client/v4/zones/<zone>/purge_cache', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${process.env.CF_TOKEN}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ tags }),
+    })
+  },
+},
+```
+
+- **อะไรถูก cache:** `GET` ของ list, เอกสารตาม id และ global ที่อ่านโดยไม่มี login, session cookie หรือ key และไม่ได้ขอ
+  `draft` นอกนั้นยังเป็น `no-store` ทุกอย่าง ของที่ขึ้นกับว่าใครถามจึงไม่ไปอยู่ใน cache ที่ใช้ร่วมกัน browser ได้ `max-age=0`
+  และถามใหม่ด้วย ETag
+- **แยกต่อ collection หรือ global:** `httpCache: { sMaxAge: 5 }` สำหรับเนื้อหาที่เปลี่ยนบ่อย หรือ `httpCache: false`
+  เพื่อไม่ให้ cache เลย
+- **ETag:** การอ่านที่ cache ได้ทุกตัวมี ETag ถ้า request ส่ง `If-None-Match` ที่ตรงกันมา จะได้ `304` โดยไม่มี body
+- **Cache tag:** response มี `Cache-Tag` (Cloudflare, Bunny) และ `Surrogate-Key` (Fastly, Akamai): `ecms`, `ecms:posts`
+  และสำหรับเอกสารเดียว `ecms:posts:42` ส่วน global เป็น `ecms:global:site` ฟังก์ชัน `purge` ได้ tag ของสิ่งที่คนอ่านเห็นเปลี่ยน
+  (บันทึกเอกสารที่ publish แล้ว, เผยแพร่, ยกเลิกเผยแพร่, ลบ แต่ไม่รวม draft)
+- **Next.js:** ติด tag ให้ fetch ของคุณเองด้วย `cacheTags` จาก `@easy-cms/next` แล้ว revalidate ใน `purge`:
+
+  ```ts
+  import { cacheTags } from '@easy-cms/next'
+  import { revalidateTag } from 'next/cache'
+
+  await fetch(`${api}/posts/${id}`, { next: { tags: cacheTags.document('posts', id) } })
+  // ใน config
+  httpCache: { purge: (tags) => tags.forEach((tag) => revalidateTag(tag)) }
+  ```
+- **Nuxt:** ถ้าใช้ cached handler ของ Nitro ที่ใช้ tag เหล่านี้เป็น key ให้ลบรายการที่ตรงกันออกจาก `useStorage('cache')` ใน `purge`
+- **`onRequest`:** CDN แยก cache ตาม URL (รวม host) ถ้า `onRequest` ของคุณเลือก context จากอย่างอื่น เช่น header ให้ใส่
+  header นั้นใน `Vary` ที่ CDN หรือปิด `httpCache` ของ collection เหล่านั้น
+
 ## Checklist {#checklist}
 
 - ตั้งค่า `EASY_CMS_SECRET` ใน environment ของ production (อักขระสุ่มอย่างน้อย 32 ตัว:

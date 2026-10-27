@@ -20,6 +20,8 @@ const config = defineConfig({
   secret: 's'.repeat(32),
   db: postgres({ url, max: POOL, tablePrefix: `load${DOCS}_` }),
   ...schema,
+  // ETags and cache headers on public reads, for the 304 scenario.
+  httpCache: {},
 })
 
 const cwd = mkdtempSync(join(tmpdir(), 'easy-cms-load-'))
@@ -120,6 +122,13 @@ console.log(
   `\n${DOCS.toLocaleString()} posts, ${CONCURRENCY} concurrent requests, pool ${POOL}, ${SECONDS}s each\n`,
 )
 const pages = Math.floor((DOCS * 0.8) / 10)
+// The ETags of the first published posts, as a CDN holding them would send back.
+const etagged: string[] = []
+for (let id = 1; id <= 1000; id++) {
+  const response = await handle(new Request(`http://cms.test/api/cms/posts/${id}?depth=2`))
+  await response.arrayBuffer()
+  etagged.push(response.headers.get('etag') ?? '')
+}
 // Cursors spread through the list, collected by walking it once from the start.
 const cursors: string[] = []
 {
@@ -151,6 +160,16 @@ const results = [
     get(`/posts?limit=10&page=${1 + rand(pages)}&locale=en&count=false`),
   ),
   await scenario('by id (depth 2)', () => get(`/posts/${1 + rand(maxId)}?depth=2`).catch(() => {})),
+  await scenario('by id, unchanged (If-None-Match, 304)', async () => {
+    const id = 1 + rand(etagged.length)
+    const response = await handle(
+      new Request(`http://cms.test/api/cms/posts/${id}?depth=2`, {
+        headers: { 'if-none-match': etagged[id - 1] as string },
+      }),
+    )
+    await response.arrayBuffer()
+    if (response.status !== 304 && response.status !== 404) throw new Error(`${response.status}`)
+  }),
   await scenario('by slug (where slug equals)', () =>
     get(`/posts?where[slug][equals]=post-${rand(DOCS)}&locale=en&limit=1`),
   ),

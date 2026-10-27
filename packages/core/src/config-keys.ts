@@ -11,7 +11,7 @@ const keys = (list: string) => new Set(list.split(/\s+/).filter(Boolean))
 const CONFIG =
   keys(`secret db serverURL cors cronSecret timeZone webhooks events jobs localization routes admin
   upload auth collections globals endpoints cliCommands onRequest fieldTypes apiKeys email backups
-  audit logs countCacheSeconds maxPage plugins`)
+  audit logs countCacheSeconds maxPage httpCache plugins`)
 const ADMIN = keys('path locale brand siteURL nav commands modules pages dashboard switcher')
 const AUTH = keys(`roles rbac tokenExpiration maxLoginAttempts lockWindow trustedOrigins
   resetPasswordExpiration inviteExpiration providers providerSignUp password setupCode members emails`)
@@ -21,8 +21,10 @@ const BACKUPS = keys('frequency at keep dir storage sqlite encryptionKey')
 const AUDIT = keys('keepDays values failedLogins scope')
 const LOGS = keys('format requests')
 const COLLECTION = keys(`slug labels fields useAsTitle drafts versions schedule preview access hooks
-  admin`)
-const GLOBAL = keys('slug label fields drafts versions schedule preview access hooks scope admin')
+  admin httpCache`)
+const GLOBAL = keys(
+  'slug label fields drafts versions schedule preview access hooks scope admin httpCache',
+)
 const CONTAINER_ADMIN = keys('icon order sidebar layout group')
 const COLLECTION_ADMIN = keys(
   'icon order sidebar layout group editIn badge count empty list ownerField confirmDelete',

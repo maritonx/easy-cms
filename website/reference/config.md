@@ -45,6 +45,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `audit` | `boolean \| AuditConfig` | off | The audit log: who changed what, sign-ins, admin actions. See [audit](#audit). |
 | `countCacheSeconds` | `number` | `5` | Seconds a list's total (`totalDocs`, `totalPages`) is reused for the same query; the documents are always current. `0`: count every time. [Counting](/guide/local-api#find-results) |
 | `maxPage` | `number` | no limit | The deepest `page` the REST API serves to API clients (the signed-in admin keeps its pages); deeper requests get `400`, pointing to `cursor`. [Cursors](/guide/local-api#find-results) |
+| `httpCache` | `HttpCacheConfig` | off (`no-store`) | Lets a CDN cache public reads of published content, with cache tags to purge by. See [httpCache](#httpcache). |
 | `logs` | `LogsConfig` | readable lines | `{ format: 'json' }` for one JSON object per line, with request ids. See [logs](#logs). |
 | `plugins` | `Plugin[]` | `[]` | `(config) => config`, run in order before validation; `definePlugin(fn, { name, version, apiVersion? })` names one for the dashboard; `apiVersion` (`PLUGIN_API_VERSION`) stops startup when the plugin is for another plugin API. [Plugins](/guide/plugins) |
 | `fieldTypes` | `FieldTypeDefinition[]` | `[]` | Field types from packages, e.g. `color` from `@easy-cms/fields`. [Custom field types](/guide/field-types) |
@@ -129,6 +130,15 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `values` | `boolean` | `true` | Keep values before and after a change; `false`: only which fields changed. |
 | `failedLogins` | `number` | `20` | Failed sign-ins within an hour that the dashboard warns about. [Audit log](/guide/audit-log) |
 | `scope` | `({ context, user }) => string \| null` | — | The part of the site an entry belongs to, e.g. its tenant (usually set by a plugin). Admins of a part (`scoped`) see its entries; others the chosen part's, or all. |
+
+<!-- api: HttpCacheConfig -->
+## httpCache
+
+| Option | Type | Default | |
+|---|---|---|---|
+| `sMaxAge` | `number` | `60` | Seconds a CDN serves a public read without asking again (`s-maxage`). |
+| `staleWhileRevalidate` | `number` | `300` | Seconds after that it may still serve it while it fetches a fresh one. |
+| `purge` | `(tags) => void \| Promise<void>` | — | Called after public content changes, with its [cache tags](/guide/deployment#http-caching). Not awaited; a failure is logged. |
 
 <!-- api: LogsConfig -->
 ## logs
@@ -260,6 +270,7 @@ Admins see, run and pause them on Settings → Jobs. [Jobs](/guide/jobs)
 | `drafts` | `boolean` | `false` | Adds `status` (`draft` \| `published`). [Drafts](/guide/drafts) |
 | `versions` | `boolean \| VersionsConfig` | `false` | Keep a version of every save. See [versions](#versions). |
 | `schedule` | `boolean` | `false` | Publish and unpublish at a set time (needs `drafts`). |
+| `httpCache` | `false \| { sMaxAge?, staleWhileRevalidate? }` | the config's | This collection's [httpCache](#httpcache) times, or `false` to keep its reads `no-store`. |
 | `preview` | `({ doc, locale }) => string \| null` | — | The page showing a document, for [live preview](/guide/live-preview). |
 | `access` | `{ read?, create?, update?, delete? }` | logged in | [Access control](/guide/access-control) |
 | `hooks` | `CollectionHooks` | — | See [hooks](#hooks). |
@@ -317,6 +328,7 @@ Every hook also gets `user`, `cms` and `slug`.
 | `drafts` | `boolean` | `false` | |
 | `versions` | `boolean \| VersionsConfig` | `false` | |
 | `schedule` | `boolean` | `false` | Needs `drafts`. |
+| `httpCache` | `false \| { sMaxAge?, staleWhileRevalidate? }` | the config's | As for collections. |
 | `preview` | `({ doc, locale }) => string \| null` | — | |
 | `access` | `{ read?, update? }` | logged in | |
 | `scope` | `({ context, user }) => string \| null \| undefined` | — | One value per scope, e.g. per tenant: a string keeps a value of its own, `undefined` the shared one, `null` none (reads give it empty, changes are refused). |

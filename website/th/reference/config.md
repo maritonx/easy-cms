@@ -43,6 +43,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `audit` | `boolean \| AuditConfig` | ปิด | audit log: ใครแก้อะไร การเข้าสู่ระบบ การจัดการระบบ ดู [audit](#audit) |
 | `countCacheSeconds` | `number` | `5` | กี่วินาทีที่ใช้ผลนับของ list (`totalDocs`, `totalPages`) ซ้ำสำหรับ query เดียวกัน ตัวเอกสารเป็นปัจจุบันเสมอ `0`: นับทุกครั้ง [การนับ](/th/guide/local-api#find-results) |
 | `maxPage` | `number` | ไม่จำกัด | `page` ที่ลึกที่สุดที่ REST API ให้ API client (admin ที่ login ยังใช้เลขหน้าได้ทุกหน้า) ลึกกว่านั้นได้ `400` พร้อมแนะนำ `cursor` [Cursor](/th/guide/local-api#find-results) |
+| `httpCache` | `HttpCacheConfig` | ปิด (`no-store`) | ให้ CDN cache การอ่านเนื้อหาที่ publish แล้วแบบสาธารณะ พร้อม cache tag สำหรับ purge ดู [httpCache](#httpcache) |
 | `logs` | `LogsConfig` | บรรทัดที่อ่านง่าย | `{ format: 'json' }` เขียน JSON บรรทัดละหนึ่ง object พร้อม request id ดู [logs](#logs) |
 | `plugins` | `Plugin[]` | `[]` | `(config) => config` ทำงานตามลำดับก่อนตรวจ config `definePlugin(fn, { name, version, apiVersion? })` ตั้งชื่อให้แสดงบนแดชบอร์ด ส่วน `apiVersion` (`PLUGIN_API_VERSION`) หยุดการเริ่มทำงานถ้า plugin เขียนไว้สำหรับ plugin API เวอร์ชันอื่น [Plugins](/th/guide/plugins) |
 | `fieldTypes` | `FieldTypeDefinition[]` | `[]` | ชนิด field จากแพ็กเกจ เช่น `color` จาก `@easy-cms/fields` [ชนิด field เพิ่มเติม](/th/guide/field-types) |
@@ -127,6 +128,15 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `values` | `boolean` | `true` | เก็บค่าก่อนและหลังการแก้ `false`: เก็บแค่ชื่อ field ที่เปลี่ยน |
 | `failedLogins` | `number` | `20` | จำนวน login ไม่สำเร็จในหนึ่งชั่วโมงที่แดชบอร์ดจะเตือน [Audit log](/th/guide/audit-log) |
 | `scope` | `({ context, user }) => string \| null` | — | ส่วนของเว็บที่ entry เป็นของ เช่น tenant (ปกติ plugin เป็นผู้ตั้ง) admin ของส่วนนั้น (`scoped`) เห็นเฉพาะของส่วนตัวเอง คนอื่นเห็นของส่วนที่เลือกหรือทั้งหมด |
+
+<!-- api: HttpCacheConfig -->
+## httpCache {#httpcache}
+
+| ตัวเลือก | Type | ค่าเริ่มต้น | |
+|---|---|---|---|
+| `sMaxAge` | `number` | `60` | กี่วินาทีที่ CDN ส่งการอ่านแบบสาธารณะซ้ำได้โดยไม่ต้องถามใหม่ (`s-maxage`) |
+| `staleWhileRevalidate` | `number` | `300` | กี่วินาทีหลังจากนั้นที่ยังส่งของเดิมได้ระหว่างดึงของใหม่ |
+| `purge` | `(tags) => void \| Promise<void>` | — | ถูกเรียกหลังเนื้อหาสาธารณะเปลี่ยน พร้อม [cache tag](/th/guide/deployment#http-caching) ของสิ่งที่เปลี่ยน ไม่รอผล ถ้าล้มจะ log ไว้ |
 
 <!-- api: LogsConfig -->
 ## logs {#logs}
@@ -257,6 +267,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `drafts` | `boolean` | `false` | เพิ่ม `status` (`draft` \| `published`) [ฉบับร่าง](/th/guide/drafts) |
 | `versions` | `boolean \| VersionsConfig` | `false` | เก็บเวอร์ชันทุกครั้งที่บันทึก ดู [versions](#versions) |
 | `schedule` | `boolean` | `false` | เผยแพร่และยกเลิกตามเวลา (ต้องมี `drafts`) |
+| `httpCache` | `false \| { sMaxAge?, staleWhileRevalidate? }` | ตาม config | เวลา [httpCache](#httpcache) ของ collection นี้ หรือ `false` ให้การอ่านเป็น `no-store` |
 | `preview` | `({ doc, locale }) => string \| null` | — | หน้าที่แสดงเอกสาร สำหรับ[ตัวอย่างสด](/th/guide/live-preview) |
 | `access` | `{ read?, create?, update?, delete? }` | ต้อง login | [การควบคุมสิทธิ์](/th/guide/access-control) |
 | `hooks` | `CollectionHooks` | — | ดู [hooks](#hooks) |
@@ -314,6 +325,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `drafts` | `boolean` | `false` | |
 | `versions` | `boolean \| VersionsConfig` | `false` | |
 | `schedule` | `boolean` | `false` | ต้องมี `drafts` |
+| `httpCache` | `false \| { sMaxAge?, staleWhileRevalidate? }` | ตาม config | เหมือน collection |
 | `preview` | `({ doc, locale }) => string \| null` | — | |
 | `access` | `{ read?, update? }` | ต้อง login | |
 | `scope` | `({ context, user }) => string \| null \| undefined` | — | เก็บค่าแยกตาม scope เช่นต่อ tenant: string ได้ค่าของตัวเอง `undefined` ใช้ค่ากลาง `null` ไม่มี (อ่านได้ค่าว่าง แก้ไม่ได้) |
