@@ -124,7 +124,10 @@ const results = [
   await scenario('list page (limit 10, depth 1, en)', () =>
     get(`/posts?limit=10&page=${1 + rand(pages)}&locale=en`),
   ),
-  await scenario('list first page, no count needed', () => get('/posts?limit=10&locale=en')),
+  await scenario('list first page', () => get('/posts?limit=10&locale=en')),
+  await scenario('list page without totals (count=false)', () =>
+    get(`/posts?limit=10&page=${1 + rand(pages)}&locale=en&count=false`),
+  ),
   await scenario('by id (depth 2)', () => get(`/posts/${1 + rand(maxId)}?depth=2`).catch(() => {})),
   await scenario('by slug (where slug equals)', () =>
     get(`/posts?where[slug][equals]=post-${rand(DOCS)}&locale=en&limit=1`),

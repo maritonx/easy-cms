@@ -7,6 +7,7 @@ import type {
   ID,
   PaginatedDocs,
   RawDocument,
+  UncountedDocs,
   Where,
 } from '@easy-cms/core'
 import { QueryError } from '@easy-cms/core'
@@ -77,7 +78,8 @@ export async function connectDatabase(
     })
     if (args.schema === 'push') await migrator.push()
     else if (args.schema === 'verify') await migrator.verify()
-    return new DrizzleDatabase(dialect, connection, schema, migrator, prefix)
+    const countCacheMs = (args.config.countCacheSeconds ?? 5) * 1000
+    return new DrizzleDatabase(dialect, connection, schema, migrator, prefix, countCacheMs)
   } catch (error) {
     await connection.close().catch(() => {})
     throw error
@@ -86,6 +88,12 @@ export async function connectDatabase(
 
 class DrizzleDatabase implements Database {
   private readonly builders = new Map<string, WhereBuilder>()
+  /**
+   * Totals of recent paginated finds, by collection and query, for `countCacheSeconds`: counting
+   * can't use an index, and many people open the same lists. Writes don't clear them (on a busy
+   * site they would all the time), so a total is up to that old, on every instance alike.
+   */
+  private readonly counts = new Map<string, { total: Promise<number>; until: number }>()
   private readonly db: DrizzleDb
 
   constructor(
@@ -94,6 +102,7 @@ class DrizzleDatabase implements Database {
     private readonly schema: SchemaModel,
     private readonly migrator: Migrator,
     readonly tablePrefix: string,
+    private readonly countCacheMs = 0,
   ) {
     this.db = connection.db
     for (const [slug, model] of schema.collections) {
@@ -127,22 +136,10 @@ class DrizzleDatabase implements Database {
   }
 
   async find(args: FindArgs): Promise<PaginatedDocs<RawDocument>> {
-    const model = this.model(args.collection)
-    const condition = this.where(args.collection, args.where)
-    const orderBy = this.builder(args.collection).orderBy(model.root, args.sort)
-
-    let query = this.db
-      .select()
-      .from(model.root.table)
-      .where(condition)
-      .orderBy(...orderBy)
-      .$dynamic()
-    if (args.limit > 0) query = query.limit(args.limit).offset((args.page - 1) * args.limit)
-    const rows = (await query) as Record<string, unknown>[]
-
+    const { model, rows } = await this.findRows(args, args.limit)
     const totalDocs =
       args.limit > 0 && (args.page > 1 || rows.length === args.limit)
-        ? await this.count({ collection: args.collection, where: args.where })
+        ? await this.cachedCount(args.collection, args.where)
         : (args.page - 1) * args.limit + rows.length
     const totalPages = args.limit > 0 ? Math.max(1, Math.ceil(totalDocs / args.limit)) : 1
 
@@ -155,6 +152,35 @@ class DrizzleDatabase implements Database {
       hasNextPage: args.page < totalPages,
       hasPrevPage: args.page > 1,
     }
+  }
+
+  async findPage(args: FindArgs): Promise<UncountedDocs<RawDocument>> {
+    // One row more says whether there is a next page.
+    const { model, rows } = await this.findRows(args, args.limit + 1)
+    const more = rows.length > args.limit
+    return {
+      docs: await this.load(model, more ? rows.slice(0, args.limit) : rows),
+      totalDocs: null,
+      limit: args.limit,
+      page: args.page,
+      totalPages: null,
+      hasNextPage: more,
+      hasPrevPage: args.page > 1,
+    }
+  }
+
+  private async findRows(args: FindArgs, take: number) {
+    const model = this.model(args.collection)
+    const condition = this.where(args.collection, args.where)
+    const orderBy = this.builder(args.collection).orderBy(model.root, args.sort)
+    let query = this.db
+      .select()
+      .from(model.root.table)
+      .where(condition)
+      .orderBy(...orderBy)
+      .$dynamic()
+    if (args.limit > 0) query = query.limit(take).offset((args.page - 1) * args.limit)
+    return { model, rows: (await query) as Record<string, unknown>[] }
   }
 
   async findById(args: { collection: string; id: ID }): Promise<RawDocument | null> {
@@ -170,6 +196,20 @@ class DrizzleDatabase implements Database {
       .from(model.root.table)
       .where(inArray(model.root.table.id as AnyColumn, [...args.ids]))) as Record<string, unknown>[]
     return this.load(model, rows)
+  }
+
+  /** A paginated find's total, from `counts` while it is fresh. */
+  private cachedCount(collection: string, where: Where | undefined): Promise<number> {
+    if (this.countCacheMs <= 0) return this.count({ collection, where })
+    const key = `${collection}\u0000${JSON.stringify(where ?? null)}`
+    const now = Date.now()
+    const cached = this.counts.get(key)
+    if (cached && cached.until > now) return cached.total
+    // The promise, so requests arriving together share one count.
+    const total = this.count({ collection, where })
+    this.counts.set(key, { total, until: now + this.countCacheMs })
+    total.catch(() => this.counts.delete(key))
+    return total
   }
 
   async count(args: { collection: string; where?: Where | undefined }): Promise<number> {

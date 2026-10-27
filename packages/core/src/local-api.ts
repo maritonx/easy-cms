@@ -38,7 +38,7 @@ import type {
   JobConfig,
   ResolvedConfig,
 } from './config.js'
-import type { Database, PaginatedDocs, RawDocument, SchemaMode } from './database.js'
+import type { Database, PaginatedDocs, RawDocument, SchemaMode, UncountedDocs } from './database.js'
 import {
   applyDefaults,
   fillMissing,
@@ -209,6 +209,11 @@ export interface FindOptions extends ReadOptions {
   readonly limit?: number
   /** 1-based. Default 1. */
   readonly page?: number
+  /**
+   * `false` skips counting the matching documents: `totalDocs` and `totalPages` are `null`, and
+   * `hasNextPage` still says whether there is more. Default `true`.
+   */
+  readonly count?: boolean
 }
 
 export interface CreateEasyCMSOptions {
@@ -404,10 +409,18 @@ export class EasyCMS<C extends Config = Config> {
     }
   }
 
+  find<S extends Slug<C>, L extends string | undefined = undefined>(
+    collection: S,
+    options: FindOptions & { readonly locale?: L; readonly count: false },
+  ): Promise<UncountedDocs<Doc<C, S, L>>>
+  find<S extends Slug<C>, L extends string | undefined = undefined>(
+    collection: S,
+    options?: FindOptions & { readonly locale?: L },
+  ): Promise<PaginatedDocs<Doc<C, S, L>>>
   async find<S extends Slug<C>, L extends string | undefined = undefined>(
     collection: S,
     options: FindOptions & { readonly locale?: L } = {},
-  ): Promise<PaginatedDocs<Doc<C, S, L>>> {
+  ): Promise<PaginatedDocs<Doc<C, S, L>> | UncountedDocs<Doc<C, S, L>>> {
     const config = this.collection(collection)
     const guard = guardOf(options)
     const limit = options.limit ?? 10
@@ -434,10 +447,16 @@ export class EasyCMS<C extends Config = Config> {
             locale === ALL_LOCALES ? (this.config.localization?.defaultLocale ?? locale) : locale,
             this.config.localization?.locales ?? [],
           )
-    const result = await this.db.find({ collection, where, sort, limit, page })
+    const args = { collection, where, sort, limit, page }
+    const count = options.count !== false || limit === 0
+    const result = count
+      ? await this.db.find(args)
+      : this.db.findPage
+        ? await this.db.findPage(args)
+        : { ...(await this.db.find(args)), totalDocs: null, totalPages: null }
     const found = draft ? await this.withDrafts(config, result.docs) : result.docs
-    const docs = await this.output(config, found, guard, { ...options, draft })
-    return { ...result, docs: docs as Doc<C, S, L>[] }
+    const docs = (await this.output(config, found, guard, { ...options, draft })) as Doc<C, S, L>[]
+    return { ...result, docs }
   }
 
   async findById<S extends Slug<C>, L extends string | undefined = undefined>(

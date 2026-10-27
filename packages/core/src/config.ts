@@ -869,6 +869,13 @@ export interface Config {
    * request id. Ignored when `createEasyCMS` is given a `logger`.
    */
   readonly logs?: LogsConfig
+  /**
+   * How long, in seconds, the total of a paginated list (`totalDocs`, `totalPages`) is reused for
+   * the same query. Counting reads every matching document, and many people open the same lists.
+   * The documents themselves are always current; a total can be this old. `0` counts every time.
+   * Default 5.
+   */
+  readonly countCacheSeconds?: number
   readonly plugins?: readonly Plugin[]
 }
 

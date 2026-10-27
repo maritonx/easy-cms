@@ -53,9 +53,16 @@ await cms.upcomingSchedules({ limit: 10 }) // next scheduled publishes across th
 await cms.flushWebhooks() // wait for webhook deliveries (serverless)
 ```
 
+## ผลของ find {#find-results}
+
 `find` คืนค่า `{ docs, totalDocs, limit, page, totalPages, hasNextPage, hasPrevPage }`
 `limit: 0` คืนค่าทุกรายการที่ตรงเงื่อนไข `findById` คืนค่า `null` เมื่อไม่พบ ส่วน `update` และ `delete`
 จะ throw `NotFoundError`
+
+`totalDocs` ต้องนับเอกสารที่ตรงเงื่อนไขทั้งหมด ซึ่งใช้เวลาเมื่อ collection ใหญ่ (หลักแสนเอกสารขึ้นไป) ถ้าต้องการแค่ "หน้าถัดไป"
+เช่น หน้ารวมบทความหรือ infinite scroll ให้ส่ง `count: false` แล้ว `totalDocs` กับ `totalPages` จะเป็น `null` ส่วน `hasNextPage`
+ยังบอกว่ามีต่อหรือไม่ ผลนับจะถูกใช้ซ้ำนาน [`countCacheSeconds`](/th/reference/config) (ค่าเริ่มต้น 5 วินาที) list ที่หลายคนเปิด
+จึงนับแค่ครั้งเดียวในช่วงนั้น เอกสารที่ได้เป็นปัจจุบันเสมอ มีแค่ตัวเลขรวมที่อาจเก่าได้ถึงเท่านี้ รวมถึงทันทีหลังเขียน `0`: นับทุกครั้ง
 
 ## ตัวเลือก {#options}
 
@@ -64,6 +71,7 @@ await cms.flushWebhooks() // wait for webhook deliveries (serverless)
 | `where` | — | ตัวกรอง ดูด้านล่าง |
 | `sort` | `-createdAt` | path ของ field หรือรายการ ใช้ `-` สำหรับเรียงจากมากไปน้อย |
 | `limit`, `page` | `10`, `1` | การแบ่งหน้า |
+| `count` | `true` | เฉพาะ `find`: `false` ข้ามการนับจำนวนที่ตรงเงื่อนไข ดูข้างบน |
 | `depth` | `1` | จำนวนระดับของ relationship ที่จะดึงข้อมูลมาแทน (สูงสุด 3) |
 | `draft` | `false` | รวมฉบับร่าง (draft) ด้วย |
 | `locale` | ภาษาเริ่มต้น | เมื่อใช้ [หลายภาษา](./localization): ภาษาที่จะอ่านหรือเขียน หรือ `'all'` |
