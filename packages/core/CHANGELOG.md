@@ -2,7 +2,9 @@
 
 ## 1.13.0
 
-No changes in this release.
+### Minor Changes
+
+- 162796e: Search adapters: `search: memorySearch()` in the config and `search: { fields }` on a collection index published documents as they change, for relevance-ranked search with `cms.search()`, `GET <api>/search` and the admin's command palette. Thai text without spaces is found by its words. `easy-cms search:reindex` builds the index again; adapters for search engines implement `SearchAdapter`.
 
 ## 1.12.0
 

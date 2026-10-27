@@ -2,7 +2,9 @@
 
 ## 1.13.0
 
-No changes in this release.
+### Minor Changes
+
+- 162796e: The dashboard's System card names the search adapter (`search` in the config), and the command palette lists the search index's best matches first, then documents whose title matches, drafts included.
 
 ## 1.12.0
 
