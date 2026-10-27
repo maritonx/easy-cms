@@ -56,6 +56,9 @@ GET /api/cms/posts?where={"or":[{"featured":{"equals":true}},{"views":{"gt":100}
 [หลายภาษา](./localization) `locale` (`th`, `en`… หรือ `all`) และ `fallbackLocale=false` ใช้ได้กับ
 ทุกการอ่านและเขียน
 
+ถ้าตั้ง [search adapter](./search) ไว้ `GET /api/cms/search?q=…` จะค้นเอกสารที่ publish แล้ว
+ของ collection ที่มี `search` เรียงจากตรงที่สุด
+
 ## การยืนยันตัวตน {#authentication}
 
 | Method | Path | |

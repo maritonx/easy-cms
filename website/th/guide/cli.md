@@ -53,6 +53,7 @@ npx easy-cms <command> [--config <file>] [--cwd <dir>]
 | [`backup:decrypt <file>`](#backup-decrypt) | ถอดรหัส backup ที่ทำด้วย `backups.encryptionKey` |
 | [`copy --from <config>`](#copy) | คัดลอกเนื้อหาทั้งหมดไปอีกฐานข้อมูล เช่น จาก SQLite ไป Postgres |
 | [`jobs:run`](#jobs-run) | รันงานตั้งเวลาที่ถึงกำหนดและส่ง webhook ซ้ำหนึ่งรอบ |
+| [`search:reindex [collection]`](#search-reindex) | สร้าง index ค้นหาใหม่จากฐานข้อมูล |
 | [`serve`](#serve) | รัน CMS เป็น server ของตัวเอง |
 
 ตัวเลือกที่ใช้ได้กับทุกคำสั่ง: `--config <file>` (ค่าเริ่มต้น `easy-cms.config.ts`), `--cwd <dir>`
@@ -153,6 +154,17 @@ npx easy-cms jobs:run
 รัน[การเผยแพร่และยกเลิกที่ตั้งเวลาไว้](./drafts#scheduled-publishing)ที่ถึงกำหนด และส่ง
 [webhook](./webhooks#delivery) ที่ล้มเหลวซ้ำหนึ่งรอบ server ทำเองทุกนาทีอยู่แล้ว
 ใช้คำสั่งนี้จาก cron ในที่ที่ไม่มี process ของ server ทำงานค้างไว้ (serverless)
+
+### search:reindex {#search-reindex}
+
+```bash [pm]
+npx easy-cms search:reindex          # ทุก collection ที่มี search
+npx easy-cms search:reindex posts
+```
+
+สร้าง index [ค้นหา](./search) ใหม่จากเอกสารที่ publish แล้ว ใช้หลังเพิ่ม `search` ให้ collection
+หรือเปลี่ยน field หรือเมื่อ index ไม่สำเร็จ ส่วน index ในหน่วยความจำ (`memorySearch()`)
+เซิร์ฟเวอร์สร้างเองตอนเริ่ม จึงไม่ต้องทำอะไร
 
 ### serve {#serve}
 

@@ -12,6 +12,7 @@ import { ADAPTER_API_VERSION } from './database.js'
 import type { ConfigIssue } from './errors.js'
 import { FIELD_TYPES, type Field, type SelectOption } from './fields.js'
 import { NAV_ID, navGroups, navIds } from './nav.js'
+import { fieldAt, SEARCHABLE_TYPES } from './search.js'
 import { isTimeZone } from './time-of-day.js'
 import { WEBHOOK_EVENTS } from './webhooks.js'
 
@@ -79,6 +80,7 @@ export function validateConfig(config: Config): ConfigIssue[] {
   validateLogs(config, add)
   validateCountCache(config, add)
   validateOutbox(config, add)
+  validateSearch(config, add)
   validateMaxPage(config, add)
   validateHttpCache(config, add)
   validateAuth(config, add)
@@ -840,6 +842,56 @@ function validateMaxPage(config: Config, add: Add) {
 function validateOutbox(config: Config, add: Add) {
   if (config.outbox !== undefined && typeof config.outbox !== 'boolean')
     add('outbox', 'must be true or false')
+}
+
+/** `search` and the collections' `search.fields`. */
+function validateSearch(config: Config, add: Add) {
+  const adapter: unknown = config.search
+  if (adapter !== undefined) {
+    const a = adapter as Record<string, unknown> | null
+    if (
+      typeof a !== 'object' ||
+      a === null ||
+      !['index', 'remove', 'clear', 'search'].every((m) => typeof a[m] === 'function')
+    )
+      add('search', 'must be a search adapter', 'e.g. search: memorySearch()')
+    // `GET <api>/search` would hide the collection's own route.
+    for (const c of config.collections ?? [])
+      if (c?.slug === 'search')
+        add(
+          'collections.search.slug',
+          '"search" is the search route when `search` is set',
+          'choose another slug',
+        )
+  }
+  for (const c of config.collections ?? []) {
+    const search: unknown = c?.search
+    if (search === undefined) continue
+    const path = `collections.${c.slug}.search`
+    if (adapter === undefined) {
+      add(path, 'needs a search adapter in the config', 'e.g. search: memorySearch()')
+      continue
+    }
+    const fields = (search as { fields?: unknown } | null)?.fields
+    if (!Array.isArray(fields) || fields.length === 0) {
+      add(
+        `${path}.fields`,
+        'must list the fields to index',
+        "e.g. search: { fields: ['title', 'body'] }",
+      )
+      continue
+    }
+    for (const name of fields) {
+      const field = typeof name === 'string' ? fieldAt(c.fields ?? [], name) : undefined
+      if (!field) add(`${path}.fields`, `has no field "${String(name)}"`)
+      else if (!SEARCHABLE_TYPES.has(field.type) || field.hidden)
+        add(
+          `${path}.fields`,
+          `can't index "${name}" (${field.hidden ? 'hidden' : field.type})`,
+          'text, textarea, email, slug, select, rich text, array, group and blocks fields hold text',
+        )
+    }
+  }
 }
 
 function validateCountCache(config: Config, add: Add) {
@@ -1756,6 +1808,7 @@ function validateAdapterVersions(config: Config, add: Add) {
     ['upload.privateStorage', config.upload?.privateStorage],
     ['backups.storage', config.backups?.storage],
     ['email', config.email],
+    ['search', config.search],
     ...(config.auth?.providers ?? []).map(
       (p, i) => [`auth.providers[${i}]`, p] as [string, unknown],
     ),

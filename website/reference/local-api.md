@@ -111,6 +111,13 @@ to apply them, as the REST API does.
 | `sendEmail(message)` | — | Queues an email for the config's `email` adapter and sends it in the background. [Email](/guide/email) |
 | `flushEmails()` | — | Waits for emails being sent; call before a serverless function returns. |
 
+### Search
+
+| Method | Returns | |
+|---|---|---|
+| `search(query, { collections?, locale?, limit?, page?, depth?, user?, overrideAccess? })` | `{ hits: { collection, doc }[], total, page, limit, hasNextPage }` | Published documents of collections with `search`, best match first, read with the access options given. `total` counts matches before access rules. [Search](/guide/search) |
+| `reindexSearch(collection?)` | `{ collection, documents }[]` | Builds the search index again from the database, for every searchable collection or one. |
+
 ### Other
 
 | Method | Returns | |

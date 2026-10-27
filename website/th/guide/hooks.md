@@ -70,7 +70,7 @@ export default defineConfig({
 
 - การบันทึกเอกสารจะเขียนรายการ outbox ใน transaction เดียวกัน: บันทึกสำเร็จจะมีรายการเสมอ บันทึกไม่สำเร็จจะไม่มี
 - worker รันรายการทันทีหลังบันทึกแบบเบื้องหลัง: hook `afterChange` และ `afterDelete` แล้ว
-  [webhook](./webhooks) แล้ว `httpCache.purge` โดย response ไม่ต้องรอ
+  [webhook](./webhooks) แล้ว index [ค้นหา](./search) แล้ว `httpCache.purge` โดย response ไม่ต้องรอ
 - ส่วนที่ล้มจะ retry หลัง 1 นาที, 5 นาที, 30 นาที, 2 ชั่วโมง และ 12 ชั่วโมง ไปพร้อมกับ
   [งานตามเวลา](./jobs) (บน serverless ใช้ cron) ขั้นที่สำเร็จแล้วจะไม่รันซ้ำ หลังจากนั้นรายการจะเป็น failed
   และแสดงพร้อม error ใน **ตั้งค่า → งานเบื้องหลัง → Outbox** ซึ่ง admin กดลองใหม่ได้

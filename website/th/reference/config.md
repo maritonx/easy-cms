@@ -44,6 +44,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `countCacheSeconds` | `number` | `5` | กี่วินาทีที่ใช้ผลนับของ list (`totalDocs`, `totalPages`) ซ้ำสำหรับ query เดียวกัน ตัวเอกสารเป็นปัจจุบันเสมอ `0`: นับทุกครั้ง [การนับ](/th/guide/local-api#find-results) |
 | `maxPage` | `number` | ไม่จำกัด | `page` ที่ลึกที่สุดที่ REST API ให้ API client (admin ที่ login ยังใช้เลขหน้าได้ทุกหน้า) ลึกกว่านั้นได้ `400` พร้อมแนะนำ `cursor` [Cursor](/th/guide/local-api#find-results) |
 | `httpCache` | `HttpCacheConfig` | ปิด (`no-store`) | ให้ CDN cache การอ่านเนื้อหาที่ publish แล้วแบบสาธารณะ พร้อม cache tag สำหรับ purge ดู [httpCache](#httpcache) |
+| `search` | `SearchAdapter` | — | ค้นหาแบบเรียงตามความเกี่ยวข้องใน collection ที่มี `search` เช่น `memorySearch()` [ค้นหา](/th/guide/search) |
 | `outbox` | `boolean` | `false` | รัน after hook, webhook และ `httpCache.purge` จาก outbox ที่เขียนใน transaction เดียวกับการบันทึก หลังส่ง response และ retry จนสำเร็จ hook ต้องรันซ้ำได้โดยไม่เสียหาย [Outbox](/th/guide/hooks#outbox) |
 | `logs` | `LogsConfig` | บรรทัดที่อ่านง่าย | `{ format: 'json' }` เขียน JSON บรรทัดละหนึ่ง object พร้อม request id ดู [logs](#logs) |
 | `plugins` | `Plugin[]` | `[]` | `(config) => config` ทำงานตามลำดับก่อนตรวจ config `definePlugin(fn, { name, version, apiVersion? })` ตั้งชื่อให้แสดงบนแดชบอร์ด ส่วน `apiVersion` (`PLUGIN_API_VERSION`) หยุดการเริ่มทำงานถ้า plugin เขียนไว้สำหรับ plugin API เวอร์ชันอื่น [Plugins](/th/guide/plugins) |
@@ -269,6 +270,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `versions` | `boolean \| VersionsConfig` | `false` | เก็บเวอร์ชันทุกครั้งที่บันทึก ดู [versions](#versions) |
 | `schedule` | `boolean` | `false` | เผยแพร่และยกเลิกตามเวลา (ต้องมี `drafts`) |
 | `httpCache` | `false \| { sMaxAge?, staleWhileRevalidate? }` | ตาม config | เวลา [httpCache](#httpcache) ของ collection นี้ หรือ `false` ให้การอ่านเป็น `no-store` |
+| `search` | `{ fields: string[] }` | — | index เอกสารที่ publish แล้วให้ adapter `search` ของ config: field ที่จะ index เรียงจากสำคัญที่สุด [ค้นหา](/th/guide/search) |
 | `preview` | `({ doc, locale }) => string \| null` | — | หน้าที่แสดงเอกสาร สำหรับ[ตัวอย่างสด](/th/guide/live-preview) |
 | `access` | `{ read?, create?, update?, delete? }` | ต้อง login | [การควบคุมสิทธิ์](/th/guide/access-control) |
 | `hooks` | `CollectionHooks` | — | ดู [hooks](#hooks) |

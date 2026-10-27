@@ -56,6 +56,9 @@ matches empty values. `draft=true` only works for logged-in users. With
 [localization](./localization), `locale` (`th`, `en`… or `all`) and `fallbackLocale=false` work on
 every read and write.
 
+With a [search adapter](./search), `GET /api/cms/search?q=…` searches published documents of
+the collections that have `search`, best match first.
+
 ## Authentication
 
 | Method | Path | |

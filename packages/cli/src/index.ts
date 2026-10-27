@@ -70,6 +70,7 @@ Commands:
   admin:create            Create an admin user (also: create-admin)
   serve                   Run the CMS as its own server (admin + REST API)
   jobs:run                Run due scheduled publishes, jobs, webhook and email retries (also: run-scheduled)
+  search:reindex [slug]   Build the search index again from the database
   backup <file>           Copy the database to a SQLite file while the CMS runs
   backup:decrypt <file>   Decrypt a backup made with backups.encryptionKey
   copy --from <config>    Copy all content from another config's database into this one
@@ -136,6 +137,12 @@ Stop writing to the source while copying, or copy from a backup.
 
 Runs due scheduled publishes and unpublishes, and retries failed webhook deliveries, once:
 for a cron job where no server process keeps running. Servers do this every minute on their own.
+`,
+  'search:reindex': `Usage: easy-cms search:reindex [collection] [options]
+
+Builds the search index (\`search\` in the config) again from the published documents of every
+collection with \`search\`, or of one: after adding \`search\` to a collection or changing its
+fields, or when indexing failed. An in-memory index (memorySearch) is built when the server starts.
 `,
   serve: `Usage: easy-cms serve [--port <n>] [--host <host>] [--watch] [--trust-proxy] [options]
 
@@ -286,6 +293,22 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
               `Outbox: ${outbox.ran} ran${outbox.failed ? `, ${outbox.failed} failed (retried later)` : ''}.`,
             )
           return failed ? 1 : 0
+        }
+        case 'search:reindex': {
+          if (!cms.config.search) {
+            io.err('Set `search` in the config first, e.g. search: memorySearch().')
+            return 1
+          }
+          if (cms.config.search.ephemeral) {
+            io.out(
+              'This search index lives in the memory of the server process and is built when it starts: restart the server instead.',
+            )
+            return 0
+          }
+          const slug = rest.join(' ').trim()
+          for (const done of await cms.reindexSearch(slug || undefined))
+            io.out(`Indexed ${done.documents} document(s) of ${done.collection}.`)
+          return 0
         }
         case 'migrate': {
           const applied = await cms.db.migrate()

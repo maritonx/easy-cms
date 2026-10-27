@@ -107,6 +107,7 @@ import { fetchRemoteFile, RemoteFileError } from './remote-file.js'
 import { resolveConfig } from './resolve-config.js'
 import { cacheTags } from './rest/http-cache.js'
 import { Roles } from './roles.js'
+import { SearchIndex } from './search.js'
 import { type DirectUpload, diskStorage, type StorageAdapter } from './storage.js'
 import { dueAt } from './time-of-day.js'
 import {
@@ -233,13 +234,33 @@ export interface FindOptions extends ReadOptions {
   readonly cursor?: string
 }
 
+export interface SearchOptions extends DepthOptions {
+  /** Searchable collections to look in. Default: every collection with `search`. */
+  readonly collections?: readonly string[]
+  /** Default 10, at most 100. */
+  readonly limit?: number
+  /** 1-based. Default 1. */
+  readonly page?: number
+}
+
+/** What `cms.search()` finds: documents, best match first. */
+export interface SearchResults {
+  readonly hits: readonly { readonly collection: string; readonly doc: Record<string, unknown> }[]
+  /** Matches before access rules: a page can hold fewer than `limit`. */
+  readonly total: number
+  readonly page: number
+  readonly limit: number
+  readonly hasNextPage: boolean
+}
+
 export interface CreateEasyCMSOptions {
   /** Project root. Default `process.cwd()`. */
   readonly cwd?: string
   /**
    * Run due scheduled jobs and webhook retries every minute in this process. Default: on when
    * a collection or global has `schedule`, or `webhooks`, `email` or `jobs` is set. Turn it off
-   * where a cron calls `runJobs` (or `GET <api>/jobs/run`) instead.
+   * where a cron calls `runJobs` (or `GET <api>/jobs/run`) instead. Off, an in-memory `search`
+   * index (`memorySearch()`) isn't built at start either: call `reindexSearch()`.
    */
   readonly scheduler?: boolean
   /** Default `verify` when `NODE_ENV=production`, otherwise `push`. */
@@ -283,6 +304,11 @@ export async function createEasyCMS<const C extends Config>(
     ])
   }
   const cms = new EasyCMS<C>(resolved, db, logger, storage, cwd)
+  if (resolved.search?.ephemeral && process.env.NODE_ENV === 'production')
+    logger.warn(
+      `Search: the "${resolved.search.name ?? 'custom'}" index lives in this process's memory: it is built again at each start, and each instance has its own. Use a search engine adapter for large sites or several instances.`,
+    )
+  if (options.scheduler !== false) cms.startSearch()
   const scheduling =
     [...resolved.collections, ...resolved.globals].some((c) => c.schedule) ||
     (resolved.webhooks?.length ?? 0) > 0 ||
@@ -356,6 +382,8 @@ export class EasyCMS<C extends Config = Config> {
   private readonly mailer: Mailer
   /** With `outbox: true`: runs after hooks and events from rows saves write. */
   private readonly outbox: Outbox | undefined
+  /** With `search`: keeps the index in step with published documents. */
+  private readonly searchIndex: SearchIndex | undefined
 
   /** @internal */
   constructor(
@@ -399,6 +427,21 @@ export class EasyCMS<C extends Config = Config> {
     )
     this.outbox = config.collections.some((c) => c.slug === OUTBOX)
       ? new Outbox(db, logger, (entry, done, mark) => this.runOutbox(entry, done, mark))
+      : undefined
+    this.searchIndex = config.search
+      ? new SearchIndex(
+          config.search,
+          config.collections,
+          config.localization ? config.localization.locales : [null],
+          logger,
+          (collection, id, locale) =>
+            this.findById(collection as Slug<C>, id, {
+              draft: false,
+              depth: 0,
+              ...(locale ? { locale } : {}),
+            }) as Promise<Record<string, unknown> | null>,
+          (collection, locale) => this.publishedPages(collection, locale),
+        )
       : undefined
     this.auth = new Auth(this as unknown as EasyCMS)
   }
@@ -2044,6 +2087,91 @@ export class EasyCMS<C extends Config = Config> {
     return this.outbox?.flush() ?? Promise.resolve()
   }
 
+  /**
+   * Searches the collections that have `search` with the config's `search` adapter: published
+   * documents, best match first, read with the access options given (pass `overrideAccess: false`
+   * and `user` to apply access rules). `total` counts matches before access rules, so a page can
+   * hold fewer documents than `limit`.
+   */
+  async search(query: string, options: SearchOptions = {}): Promise<SearchResults> {
+    const index = this.searchIndex
+    if (!index) throw new QueryError('Search needs a `search` adapter in the config')
+    const limit = options.limit ?? 10
+    const page = options.page ?? 1
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100)
+      throw new QueryError('limit must be an integer from 1 to 100')
+    if (!Number.isInteger(page) || page < 1) throw new QueryError('page must be an integer from 1')
+    const collections = options.collections ?? index.searchable
+    for (const slug of collections)
+      if (!index.configOf(slug)) throw new QueryError(`"${slug}" is not searchable`)
+    const localization = this.config.localization
+    const asked = options.locale && options.locale !== ALL_LOCALES ? options.locale : undefined
+    if (asked !== undefined && localization && !localization.locales.includes(asked))
+      throw new QueryError(`Unknown locale "${asked}"`)
+    const locale = localization ? (asked ?? localization.defaultLocale ?? null) : null
+    const text = query.trim().slice(0, 200)
+    const empty = { hits: [], total: 0, page, limit, hasNextPage: false }
+    if (!text || collections.length === 0) return empty
+    const { collections: _, limit: __, page: ___, ...read } = options
+    const { hits, total } = await index.search(
+      { query: text, collections, locale, limit, offset: (page - 1) * limit },
+      async (collection, ids) =>
+        (
+          await this.find(collection as Slug<C>, {
+            ...read,
+            ...(locale ? { locale } : {}),
+            where: { id: { in: ids.map((id) => parseId(id) ?? id) } },
+            limit: ids.length,
+            draft: false,
+          })
+        ).docs as Record<string, unknown>[],
+    )
+    return { hits, total, page, limit, hasNextPage: page * limit < total }
+  }
+
+  /**
+   * Builds the search index again from the database, for every searchable collection or one:
+   * after adding `search` to a collection, changing its fields, or to repair the index
+   * (`easy-cms search:reindex`).
+   */
+  async reindexSearch(collection?: string): Promise<{ collection: string; documents: number }[]> {
+    if (!this.searchIndex) throw new QueryError('Search needs a `search` adapter in the config')
+    return this.searchIndex.reindex(collection)
+  }
+
+  /** @internal Builds an in-memory search index (`ephemeral`) when the CMS starts. */
+  startSearch(): void {
+    this.searchIndex?.start()
+  }
+
+  /** Published documents of a collection in a locale, a page at a time, for the search index. */
+  private async *publishedPages(
+    collection: string,
+    locale: string | null,
+  ): AsyncIterable<Record<string, unknown>[]> {
+    const options = {
+      draft: false,
+      depth: 0,
+      limit: 100,
+      sort: 'id',
+      ...(locale ? { locale } : {}),
+    } as const
+    if (this.db.findAfter) {
+      let cursor = ''
+      for (;;) {
+        const found = await this.find(collection as Slug<C>, { ...options, cursor })
+        yield found.docs as Record<string, unknown>[]
+        if (!found.nextCursor) return
+        cursor = found.nextCursor
+      }
+    }
+    for (let page = 1; ; page++) {
+      const found = await this.find(collection as Slug<C>, { ...options, page, count: false })
+      yield found.docs as Record<string, unknown>[]
+      if (!found.hasNextPage) return
+    }
+  }
+
   /** @internal Puts a failed outbox entry back in line (Settings → Jobs). */
   retryOutbox(id: ID): Promise<boolean> {
     return this.outbox?.retry(id) ?? Promise.resolve(false)
@@ -2053,6 +2181,7 @@ export class EasyCMS<C extends Config = Config> {
     if (this.schedulerTimer) clearInterval(this.schedulerTimer)
     await this.running
     await this.outbox?.flush()
+    await this.searchIndex?.flush()
     await this.webhooks.flush()
     await this.mailer.flush()
     await this.db.destroy()
@@ -3136,6 +3265,11 @@ export class EasyCMS<C extends Config = Config> {
       : cacheTags.document(config.slug, doc.id as ID)
   }
 
+  /** Whether a change may change what the search index holds: a save of the document itself. */
+  private searches(config: CollectionConfig | GlobalConfig, event: WebhookEvent): boolean {
+    return event !== 'draft' && !this.isGlobal(config) && !!this.searchIndex?.configOf(config.slug)
+  }
+
   private isGlobal(config: CollectionConfig | GlobalConfig): config is GlobalConfig {
     return !this.config.collections.includes(config as CollectionConfig)
   }
@@ -3186,6 +3320,7 @@ export class EasyCMS<C extends Config = Config> {
   ) {
     for (const change of this.changeEvents(config, event, doc, before))
       this.webhooks.emit(change.event, change.target, change.body)
+    if (this.searches(config, event)) this.searchIndex?.syncLater(config.slug, doc.id as ID)
     const purge = this.config.httpCache?.purge
     const tags = this.purgeTags(config, event, doc, before)
     if (!purge || !tags) return
@@ -3216,7 +3351,7 @@ export class EasyCMS<C extends Config = Config> {
     const effects =
       (isGlobal || !INTERNAL_COLLECTIONS.has(config.slug)) &&
       ((this.config.webhooks?.length ?? 0) > 0 || this.config.httpCache?.purge !== undefined)
-    if (!hooks?.length && !effects) return undefined
+    if (!hooks?.length && !effects && !this.searches(config, event)) return undefined
     return this.outbox.row({
       event,
       target: config.slug,
@@ -3265,6 +3400,10 @@ export class EasyCMS<C extends Config = Config> {
       for (const change of changes)
         await this.webhooks.emitSaved(change.event, change.target, change.body)
       if (changes.length > 0 && (this.config.webhooks?.length ?? 0) > 0) await mark('webhooks')
+    }
+    if (!done.has('search') && this.searchIndex && this.searches(config, event)) {
+      await this.searchIndex.sync(config.slug, parseId(entry.docId ?? undefined) as ID)
+      await mark('search')
     }
     const purge = this.config.httpCache?.purge
     const tags = this.purgeTags(config, event, doc, entry.before)

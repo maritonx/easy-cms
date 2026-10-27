@@ -1078,6 +1078,21 @@ async function route(
     return { status: 201, body: { ...doc, key } }
   }
 
+  // Search with the config's `search` adapter: `GET <api>/search?q=&collections=&locale=`
+  if (first === 'search' && second === undefined && cms.config.search) {
+    if (method !== 'GET') throw methodNotAllowed(ctx, 'GET')
+    const q = ctx.url.searchParams
+    const collections = q.get('collections')
+    return {
+      body: await cms.search(q.get('q') ?? '', {
+        ...access,
+        ...parseDepth(ctx.url),
+        ...pageQuery(q, 10),
+        ...(collections ? { collections: collections.split(',').filter(Boolean) } : {}),
+      }),
+    }
+  }
+
   // Collections
   const collection = first as string
   if (
