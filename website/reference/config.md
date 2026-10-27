@@ -46,6 +46,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `countCacheSeconds` | `number` | `5` | Seconds a list's total (`totalDocs`, `totalPages`) is reused for the same query; the documents are always current. `0`: count every time. [Counting](/guide/local-api#find-results) |
 | `maxPage` | `number` | no limit | The deepest `page` the REST API serves to API clients (the signed-in admin keeps its pages); deeper requests get `400`, pointing to `cursor`. [Cursors](/guide/local-api#find-results) |
 | `httpCache` | `HttpCacheConfig` | off (`no-store`) | Lets a CDN cache public reads of published content, with cache tags to purge by. See [httpCache](#httpcache). |
+| `outbox` | `boolean` | `false` | Runs after hooks, webhooks and `httpCache.purge` from an outbox written in the save's transaction, after the response, retried until they succeed. Hooks must be safe to run more than once. [Outbox](/guide/hooks#outbox) |
 | `logs` | `LogsConfig` | readable lines | `{ format: 'json' }` for one JSON object per line, with request ids. See [logs](#logs). |
 | `plugins` | `Plugin[]` | `[]` | `(config) => config`, run in order before validation; `definePlugin(fn, { name, version, apiVersion? })` names one for the dashboard; `apiVersion` (`PLUGIN_API_VERSION`) stops startup when the plugin is for another plugin API. [Plugins](/guide/plugins) |
 | `fieldTypes` | `FieldTypeDefinition[]` | `[]` | Field types from packages, e.g. `color` from `@easy-cms/fields`. [Custom field types](/guide/field-types) |

@@ -120,6 +120,28 @@ export class Webhooks {
     }
   }
 
+  /**
+   * `emit` for the outbox: resolves once each delivery is saved in the queue (sent, without a
+   * queue), so the event can count as done. Throws when saving fails; nothing is sent then.
+   */
+  async emitSaved(
+    event: string,
+    target: { collection: string; id: ID } | { global: string },
+    doc: Record<string, unknown>,
+  ): Promise<void> {
+    const payload: WebhookPayload = { event, ...target, doc, timestamp: new Date().toISOString() }
+    for (const hook of this.hooks) {
+      if (!matches(hook, payload)) continue
+      if (!this.queue) {
+        await this.deliver(hook, payload)
+        continue
+      }
+      await new Promise<void>((saved, failed) =>
+        this.track(this.deliver(hook, payload, { saved: () => saved(), failed })),
+      )
+    }
+  }
+
   /** Waits for deliveries in progress, e.g. before a serverless function returns. */
   async flush(): Promise<void> {
     while (this.pending.size > 0) await Promise.allSettled([...this.pending])
@@ -191,7 +213,12 @@ export class Webhooks {
     this.pending.add(tracked)
   }
 
-  private async deliver(hook: WebhookConfig, payload: WebhookPayload): Promise<void> {
+  private async deliver(
+    hook: WebhookConfig,
+    payload: WebhookPayload,
+    /** For `emitSaved`: told once the delivery is saved, or that it couldn't be. */
+    saving?: { saved: () => void; failed: (error: unknown) => void },
+  ): Promise<void> {
     const delivery = randomUUID()
     const body = JSON.stringify(payload)
     const { event } = payload
@@ -216,7 +243,9 @@ export class Webhooks {
     let queued: ID | undefined
     try {
       queued = await saved
+      saving?.saved()
     } catch (error) {
+      if (saving) return saving.failed(error)
       this.logger.error(`Could not save webhook delivery: ${(error as Error).message}`, { error })
     }
     for (let attempt = 0; ; attempt++) {

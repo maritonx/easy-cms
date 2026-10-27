@@ -185,6 +185,7 @@ describe('webhooks (FR-HOOK)', () => {
       webhooks: { sent: 1, failed: 0 },
       emails: { sent: 0, failed: 0 },
       jobs: { ran: 0, failed: 0 },
+      outbox: { ran: 0, failed: 0 },
     })
     expect(to('/down')).toHaveLength(4)
     const [firstTry, , , retry] = to('/down')

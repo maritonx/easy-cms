@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AdminJob, AdminJobs, AdminScheduledJob } from '@easy-cms/core'
+import type { AdminJob, AdminJobs, AdminOutboxEntry, AdminScheduledJob } from '@easy-cms/core'
 import {
   CalendarClock,
   ChevronRight,
@@ -22,7 +22,10 @@ import { useDelayedLoading } from '../lib/loading'
 import { session } from '../lib/session'
 import { notify } from '../lib/toast'
 
-/** Settings → Jobs: the config's jobs with their last run, and the scheduled-publish queue. */
+/**
+ * Settings → Jobs: the config's jobs with their last run, the scheduled-publish queue, and the
+ * outbox's failed entries.
+ */
 const data = ref<AdminJobs | null>(null)
 /** A skeleton while the page loads (only when it is slow). */
 const showSkeleton = useDelayedLoading(() => !data.value)
@@ -65,9 +68,14 @@ async function runNow() {
       webhooks: { sent: number; failed: number }
       emails: { sent: number; failed: number }
       jobs: { ran: number; failed: number }
+      outbox: { ran: number; failed: number }
     }>('POST', '/admin/jobs/run')
     const failed =
-      result.scheduled.failed + result.jobs.failed + result.webhooks.failed + result.emails.failed
+      result.scheduled.failed +
+      result.jobs.failed +
+      result.webhooks.failed +
+      result.emails.failed +
+      result.outbox.failed
     notify(
       failed ? 'error' : 'success',
       t('jobs.ran', {
@@ -101,6 +109,7 @@ const cronDocs = computed(
 /** Where each built-in job's own page is, when this user may open it. */
 function builtInLink(id: string): string | null {
   if (id === 'scheduled') return '/jobs?tab=scheduled'
+  if (id === 'outbox') return '/jobs?tab=outbox'
   if ((id === 'webhooks' || id === 'emails') && views?.deliveries)
     return `/deliveries?kind=${id === 'webhooks' ? 'webhook' : 'email'}`
   if (id === 'backups' && views?.backups) return '/backups'
@@ -133,19 +142,21 @@ const togglePause = (job: AdminJob) =>
     t(job.paused ? 'jobs.resumed' : 'jobs.pausedDone', { name: job.name }),
   )
 
-// Two tabs, Jobs and Scheduled publishing, kept in the address (`?tab=scheduled`) so links (e.g.
-// from the dashboard) open the right one. With only one of them there are no tabs.
-type Tab = 'jobs' | 'scheduled'
+// Tabs: Jobs, Scheduled publishing and Outbox, kept in the address (`?tab=scheduled`) so links
+// (e.g. from the dashboard) open the right one. With only one of them there are no tabs.
+type Tab = 'jobs' | 'scheduled' | 'outbox'
 const route = useRoute()
 const router = useRouter()
 const tabs = computed<Tab[]>(() => {
   if (!data.value) return []
   const list: Tab[] = ['jobs']
   if (data.value.scheduled) list.push('scheduled')
+  if (data.value.outbox) list.push('outbox')
   return list
 })
 const tab = computed<Tab>(() => {
-  const wanted: Tab = route.query.tab === 'scheduled' ? 'scheduled' : 'jobs'
+  const wanted: Tab =
+    route.query.tab === 'scheduled' || route.query.tab === 'outbox' ? route.query.tab : 'jobs'
   return tabs.value.includes(wanted) ? wanted : (tabs.value[0] ?? 'jobs')
 })
 const setTab = (next: Tab) =>
@@ -207,6 +218,34 @@ const kindOf = (job: AdminScheduledJob) => {
 }
 const link = (job: AdminScheduledJob) =>
   job.global ? `/globals/${job.global}` : `/collections/${job.collection}/${job.doc}`
+
+// The outbox: a failed entry can be put back in line (admins of the whole system).
+const retrying = ref<string | null>(null)
+async function retryEntry(entry: AdminOutboxEntry) {
+  retrying.value = String(entry.id)
+  try {
+    data.value = await api<AdminJobs>('POST', `/admin/jobs/outbox/${entry.id}`)
+    notify('success', t('jobs.outbox.retried'))
+  } catch (e) {
+    notify('error', e instanceof ApiError ? e.message : String(e))
+  } finally {
+    retrying.value = null
+  }
+}
+const outboxTarget = (entry: AdminOutboxEntry) => {
+  if (entry.global) {
+    const g = session.schema?.globals.find((x) => x.slug === entry.global)
+    return label(g?.label, entry.global)
+  }
+  const c = session.schema?.collections.find((x) => x.slug === entry.collection)
+  return `${label(c?.labels?.singular, entry.collection ?? '')} #${entry.doc}`
+}
+const outboxLink = (entry: AdminOutboxEntry) =>
+  entry.event === 'delete'
+    ? null
+    : entry.global
+      ? `/globals/${entry.global}`
+      : `/collections/${entry.collection}/${entry.doc}`
 const docs = computed(
   () => `https://easy-cms-website.vercel.app${locale.value === 'th' ? '/th' : ''}/docs/jobs`,
 )
@@ -262,6 +301,11 @@ const docs = computed(
           {{ t('jobs.scheduled') }}
           <span class="count">{{ data.scheduled?.length ?? 0 }}</span>
           <span v-if="failedScheduled" class="failed-count">{{ t('jobs.failedCount', { count: failedScheduled }) }}</span>
+        </button>
+        <button v-if="data.outbox" type="button" :aria-pressed="tab === 'outbox'" @click="setTab('outbox')">
+          {{ t('jobs.outbox') }}
+          <span class="count">{{ data.outbox.waiting }}</span>
+          <span v-if="data.outbox.failed" class="failed-count">{{ t('jobs.failedCount', { count: data.outbox.failed }) }}</span>
         </button>
       </div>
 
@@ -418,6 +462,59 @@ const docs = computed(
                 </tr>
                 <tr v-if="job.error" class="error-row">
                   <td colspan="4"><code>{{ job.error }}</code></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section v-if="tab === 'outbox' && data.outbox" class="card panel" aria-labelledby="outbox-heading">
+        <h2 id="outbox-heading">{{ t('jobs.outbox') }}</h2>
+        <p class="muted small-lead panel-lead">
+          {{ t('jobs.outbox.lead', { waiting: data.outbox.waiting, failed: data.outbox.failed }) }}
+        </p>
+        <p v-if="data.outbox.entries.length === 0" class="empty muted">{{ t('jobs.outbox.none') }}</p>
+        <div v-else class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>{{ t('jobs.outbox.event') }}</th>
+                <th>{{ t('jobs.document') }}</th>
+                <th>{{ t('jobs.outbox.attempts') }}</th>
+                <th>{{ t('jobs.state') }}</th>
+                <th><span class="visually-hidden">{{ t('jobs.outbox.retry') }}</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              <template v-for="entry in data.outbox.entries" :key="String(entry.id)">
+                <tr>
+                  <td>{{ t(`jobs.outbox.event.${entry.event}`) }}</td>
+                  <td>
+                    <RouterLink v-if="outboxLink(entry)" :to="outboxLink(entry) as string">{{ outboxTarget(entry) }}</RouterLink>
+                    <span v-else>{{ outboxTarget(entry) }}</span>
+                  </td>
+                  <td>{{ entry.attempts }}</td>
+                  <td>
+                    <span :class="['status', entry.state]">{{ t(`jobs.state.${entry.state}`) }}</span>
+                    <span v-if="entry.state === 'pending'" class="muted kind">
+                      {{ t('jobs.outbox.next', { at: ago(entry.nextAttemptAt) }) }}
+                    </span>
+                  </td>
+                  <td>
+                    <button
+                      v-if="entry.state === 'failed' && data.canChange"
+                      type="button"
+                      class="btn btn-sm"
+                      :disabled="retrying !== null"
+                      @click="retryEntry(entry)"
+                    >
+                      {{ t('jobs.outbox.retry') }}
+                    </button>
+                  </td>
+                </tr>
+                <tr v-if="entry.error" class="error-row">
+                  <td colspan="5"><code>{{ entry.error }}</code></td>
                 </tr>
               </template>
             </tbody>
@@ -681,6 +778,9 @@ const docs = computed(
   margin: 0 1.1rem 0.75rem;
   font-size: 0.95rem;
   font-weight: 600;
+}
+.panel-lead {
+  margin: -0.4rem 1.1rem 0.85rem;
 }
 .empty {
   margin: 0;

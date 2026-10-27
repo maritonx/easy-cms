@@ -16,6 +16,7 @@ export const JOB_RUNS = 'job-runs'
 export const ROLES = 'user-roles'
 export const USER_IDENTITIES = 'user-identities'
 export const AUDIT_LOGS = 'audit-logs'
+export const OUTBOX = 'outbox'
 
 /** Collections Easy CMS uses internally. Not exposed over REST or in the admin UI. */
 export const INTERNAL_COLLECTIONS: ReadonlySet<string> = new Set([
@@ -30,6 +31,7 @@ export const INTERNAL_COLLECTIONS: ReadonlySet<string> = new Set([
   ROLES,
   USER_IDENTITIES,
   AUDIT_LOGS,
+  OUTBOX,
 ])
 
 export const DEFAULT_ROLES = ['admin', 'editor'] as const
@@ -556,6 +558,36 @@ export const jobRunsCollection: CollectionConfig = {
     { name: 'atOverride', type: 'text' },
     { name: 'changedBy', type: 'text' },
     { name: 'changedAt', type: 'text' },
+  ],
+}
+
+/**
+ * After hooks, webhooks and purges of saves, until they ran; added only with `outbox: true`. Each
+ * row is written in the transaction of its save.
+ */
+export const outboxCollection: CollectionConfig = {
+  slug: OUTBOX,
+  access: { read: nobody, create: nobody, update: nobody, delete: nobody },
+  fields: [
+    // create | update | draft | delete, as the webhook event.
+    { name: 'event', type: 'text', required: true },
+    // The collection's or the global's slug.
+    { name: 'target', type: 'text', required: true },
+    { name: 'global', type: 'boolean' },
+    { name: 'docId', type: 'text' },
+    // The stored status before the save, for publish and unpublish events.
+    { name: 'before', type: 'text' },
+    // JSON: the document as saved (as deleted), the one before, and the user who saved.
+    { name: 'doc', type: 'textarea', required: true },
+    { name: 'previousDoc', type: 'textarea' },
+    { name: 'user', type: 'textarea' },
+    // Steps already done (hooks, webhooks, purge), so a retry runs only the rest.
+    { name: 'done', type: 'text' },
+    { name: 'attempts', type: 'number', required: true },
+    { name: 'nextAttemptAt', type: 'text', required: true, index: true },
+    // pending | running | failed
+    { name: 'state', type: 'text', required: true, index: true },
+    { name: 'error', type: 'text' },
   ],
 }
 

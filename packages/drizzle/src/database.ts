@@ -7,6 +7,7 @@ import type {
   FindArgs,
   ID,
   KeysetPage,
+  OutboxRow,
   PaginatedDocs,
   RawDocument,
   UncountedDocs,
@@ -272,42 +273,65 @@ class DrizzleDatabase implements Database {
     return result
   }
 
-  async create(args: { collection: string; data: Record<string, unknown> }): Promise<RawDocument> {
+  readonly outbox = true
+
+  /** Writes the `outbox` row of a write, in its transaction. */
+  private async writeOutbox(tx: DrizzleDb, outbox: OutboxRow | undefined, id: ID | null) {
+    if (!outbox) return
+    await insertDocument(tx, this.model(outbox.collection).root, outbox.data(id), false)
+  }
+
+  async create(args: {
+    collection: string
+    data: Record<string, unknown>
+    outbox?: OutboxRow | undefined
+  }): Promise<RawDocument> {
     const model = this.model(args.collection)
     const id = await this.write<ID>(() =>
-      this.db.transaction((tx: DrizzleDb) =>
-        insertDocument(tx, model.root, args.data, model.config.drafts === true),
-      ),
+      this.db.transaction(async (tx: DrizzleDb) => {
+        const id = await insertDocument(tx, model.root, args.data, model.config.drafts === true)
+        await this.writeOutbox(tx, args.outbox, id)
+        return id
+      }),
     )
     return (await this.findById({ collection: args.collection, id })) as RawDocument
   }
 
-  update(args: { collection: string; id: ID; data: Record<string, unknown> }): Promise<RawDocument>
+  update(args: {
+    collection: string
+    id: ID
+    data: Record<string, unknown>
+    outbox?: OutboxRow | undefined
+  }): Promise<RawDocument>
   update(args: {
     collection: string
     id: ID
     data: Record<string, unknown>
     where: Where
+    outbox?: OutboxRow | undefined
   }): Promise<RawDocument | null>
   async update(args: {
     collection: string
     id: ID
     data: Record<string, unknown>
     where?: Where
+    outbox?: OutboxRow | undefined
   }): Promise<RawDocument | null> {
     const model = this.model(args.collection)
     const condition = args.where ? this.where(args.collection, args.where) : undefined
     const written = await this.write(() =>
-      this.db.transaction((tx: DrizzleDb) =>
-        replaceDocument(
+      this.db.transaction(async (tx: DrizzleDb) => {
+        const written = await replaceDocument(
           tx,
           model.root,
           args.id,
           args.data,
           model.config.drafts === true,
           condition,
-        ),
-      ),
+        )
+        if (written) await this.writeOutbox(tx, args.outbox, args.id)
+        return written
+      }),
     )
     if (!written) return null
     return (await this.findById({ collection: args.collection, id: args.id })) as RawDocument
@@ -346,10 +370,17 @@ class DrizzleDatabase implements Database {
     return row ? Number(row.value) : null
   }
 
-  async delete(args: { collection: string; id: ID }): Promise<void> {
+  async delete(args: {
+    collection: string
+    id: ID
+    outbox?: OutboxRow | undefined
+  }): Promise<void> {
     const model = this.model(args.collection)
     await this.write(() =>
-      this.db.transaction((tx: DrizzleDb) => deleteDocument(tx, model.root, args.id)),
+      this.db.transaction(async (tx: DrizzleDb) => {
+        await deleteDocument(tx, model.root, args.id)
+        await this.writeOutbox(tx, args.outbox, args.id)
+      }),
     )
   }
 
@@ -370,6 +401,7 @@ class DrizzleDatabase implements Database {
   async updateGlobal(args: {
     slug: string
     data: Record<string, unknown>
+    outbox?: OutboxRow | undefined
   }): Promise<Record<string, unknown>> {
     const { status, updatedAt, ...data } = args.data
     const table = this.schema.globals
@@ -380,10 +412,13 @@ class DrizzleDatabase implements Database {
       updated_at: updatedAt,
     }
     await this.write(() =>
-      this.db
-        .insert(table)
-        .values(values)
-        .onConflictDoUpdate({ target: table.slug as AnyColumn, set: values }),
+      this.db.transaction(async (tx: DrizzleDb) => {
+        await tx
+          .insert(table)
+          .values(values)
+          .onConflictDoUpdate({ target: table.slug as AnyColumn, set: values })
+        await this.writeOutbox(tx, args.outbox, null)
+      }),
     )
     return (await this.findGlobal({ slug: args.slug })) as Record<string, unknown>
   }

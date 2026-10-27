@@ -101,12 +101,13 @@ to apply them, as the REST API does.
 
 | Method | Returns | |
 |---|---|---|
-| `runJobs(now?)` | `{ scheduled, webhooks, emails, jobs }` | Due scheduled jobs, webhook and email retries, and the config's `jobs` (what cron and the timer call). |
+| `runJobs(now?)` | `{ scheduled, webhooks, emails, jobs, outbox }` | Due scheduled jobs, webhook and email retries, the config's `jobs`, and outbox entries that are due (what cron and the timer call). |
 | `emit(event, data, about?)` | — | Sends an event of the config's `events` (e.g. `order.paid`) to the webhooks that list it; `about`: `{ collection, id }`. [Webhooks](/guide/webhooks#your-own-events) |
 | `runScheduled(now?)` | `{ ran, failed }` | Only the due scheduled jobs. |
 | `retryWebhooks(now?)` | `{ sent, failed }` | Only the due webhook retries. |
 | `startScheduler(interval?)` | — | Runs `runJobs` every `interval` ms (default one minute). `createEasyCMS` starts it when something is scheduled or webhooks are set. |
 | `flushWebhooks()` | — | Waits for deliveries in progress; call before a serverless function returns. |
+| `flushOutbox()` | — | With `outbox: true`: waits until the outbox ran what saves left so far; call before a serverless function returns. What fails stays queued for its retry. |
 | `sendEmail(message)` | — | Queues an email for the config's `email` adapter and sends it in the background. [Email](/guide/email) |
 | `flushEmails()` | — | Waits for emails being sent; call before a serverless function returns. |
 

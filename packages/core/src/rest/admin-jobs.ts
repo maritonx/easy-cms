@@ -1,8 +1,15 @@
 import type { ID } from '../access.js'
 import { type AuthUser, isSystemAdmin } from '../access.js'
-import { EMAIL_DELIVERIES, JOB_RUNS, SCHEDULED_JOBS, WEBHOOK_DELIVERIES } from '../builtins.js'
+import {
+  EMAIL_DELIVERIES,
+  JOB_RUNS,
+  OUTBOX,
+  SCHEDULED_JOBS,
+  WEBHOOK_DELIVERIES,
+} from '../builtins.js'
 import type { ResolvedConfig } from '../config.js'
 import type { RawDocument } from '../database.js'
+import { parseId } from '../document.js'
 import { EasyCMSError, ForbiddenError, NotFoundError, QueryError } from '../errors.js'
 import { type EasyCMS, jobSchedule } from '../local-api.js'
 import { nextAt } from '../time-of-day.js'
@@ -45,9 +52,32 @@ export interface AdminScheduledJob {
   doc: ID
 }
 
+/** An outbox entry (`outbox: true`) that failed: being retried, or given up on. */
+export interface AdminOutboxEntry {
+  id: ID
+  event: 'create' | 'update' | 'draft' | 'delete'
+  /** The document's collection, or the global (`global`), and the document's id. */
+  collection?: string
+  global?: string
+  doc: string | null
+  attempts: number
+  /** `pending`: retried at `nextAttemptAt`; `failed`: given up, until someone retries it. */
+  state: 'pending' | 'running' | 'failed'
+  error: string | null
+  nextAttemptAt: string
+}
+
+export interface AdminOutbox {
+  /** Entries waiting to run (new, or to be retried). */
+  waiting: number
+  failed: number
+  /** Entries that failed at least once, latest first (at most 100). */
+  entries: AdminOutboxEntry[]
+}
+
 /** What Settings → Jobs shows (`GET <api>/admin/jobs`). */
 /** Work Easy CMS itself does with every run of the jobs, when it is set up. */
-export type BuiltInJob = 'scheduled' | 'webhooks' | 'emails' | 'backups' | 'audit'
+export type BuiltInJob = 'scheduled' | 'webhooks' | 'emails' | 'outbox' | 'backups' | 'audit'
 
 export interface AdminJobs {
   jobs: AdminJob[]
@@ -61,6 +91,8 @@ export interface AdminJobs {
   canChange: boolean
   /** `null` when nothing uses `schedule`. */
   scheduled: AdminScheduledJob[] | null
+  /** `null` without `outbox: true`. */
+  outbox: AdminOutbox | null
 }
 
 const has = (config: ResolvedConfig, slug: string) =>
@@ -68,7 +100,7 @@ const has = (config: ResolvedConfig, slug: string) =>
 
 /** Whether there is background work to show: the config's `jobs`, or scheduled publishing. */
 export function hasJobsPage(config: ResolvedConfig): boolean {
-  return config.jobs.length > 0 || has(config, SCHEDULED_JOBS)
+  return config.jobs.length > 0 || has(config, SCHEDULED_JOBS) || has(config, OUTBOX)
 }
 
 const text = (value: unknown) => (typeof value === 'string' && value !== '' ? value : null)
@@ -111,6 +143,7 @@ export async function adminJobs(cms: EasyCMS, user: AuthUser): Promise<AdminJobs
     ...(has(config, SCHEDULED_JOBS) ? (['scheduled'] as const) : []),
     ...(has(config, WEBHOOK_DELIVERIES) ? (['webhooks'] as const) : []),
     ...(has(config, EMAIL_DELIVERIES) ? (['emails'] as const) : []),
+    ...(has(config, OUTBOX) ? (['outbox'] as const) : []),
     ...(config.backups?.frequency ? (['backups'] as const) : []),
     ...(config.audit ? (['audit'] as const) : []),
   ]
@@ -120,6 +153,7 @@ export async function adminJobs(cms: EasyCMS, user: AuthUser): Promise<AdminJobs
     builtIn,
     timeZone: config.timeZone ?? null,
     canChange: isSystemAdmin(user),
+    outbox: has(config, OUTBOX) ? await adminOutbox(cms) : null,
   }
   if (!has(config, SCHEDULED_JOBS)) return { ...head, scheduled: null }
   const { docs } = await cms.db.find({
@@ -146,6 +180,47 @@ export async function adminJobs(cms: EasyCMS, user: AuthUser): Promise<AdminJobs
     }
   })
   return { ...head, scheduled }
+}
+
+async function adminOutbox(cms: EasyCMS): Promise<AdminOutbox> {
+  const count = (state: string[]) =>
+    cms.db.count({ collection: OUTBOX, where: { state: { in: state } } })
+  const { docs } = await cms.db.find({
+    collection: OUTBOX,
+    where: { attempts: { gt: 0 } },
+    sort: ['-updatedAt'],
+    limit: 100,
+    page: 1,
+  })
+  return {
+    waiting: await count(['pending', 'running']),
+    failed: await count(['failed']),
+    entries: docs
+      // Running for the first time, not failed.
+      .filter((row) => text(row.error) !== null)
+      .map((row) => ({
+        id: row.id,
+        event: row.event as AdminOutboxEntry['event'],
+        ...(row.global === true
+          ? { global: String(row.target) }
+          : { collection: String(row.target) }),
+        doc: text(row.docId),
+        attempts: Number(row.attempts ?? 0),
+        state: row.state === 'failed' || row.state === 'running' ? row.state : 'pending',
+        error: text(row.error),
+        nextAttemptAt: String(row.nextAttemptAt),
+      })),
+  }
+}
+
+/** Puts a failed outbox entry back in line (`POST <api>/admin/jobs/outbox/:id`). */
+export async function retryOutbox(cms: EasyCMS, user: AuthUser, id: string): Promise<void> {
+  if (!isSystemAdmin(user)) throw new ForbiddenError()
+  if (!has(cms.config, OUTBOX)) throw new NotFoundError(OUTBOX, id)
+  const row = await cms.db.findById({ collection: OUTBOX, id: parseId(id) ?? 0 })
+  if (!row) throw new NotFoundError(OUTBOX, id)
+  if (!(await cms.retryOutbox(row.id)))
+    throw new EasyCMSError('Only failed entries can be retried', 409)
 }
 
 /** What an admin may change on a job (`PATCH <api>/admin/jobs/:name`). */

@@ -36,6 +36,7 @@ const RESERVED_SLUGS = new Set([
   'audit-logs',
   'api-keys',
   'jobs',
+  'outbox',
   'auth',
   'migrations',
   'access',
@@ -77,6 +78,7 @@ export function validateConfig(config: Config): ConfigIssue[] {
   validateAudit(config, add)
   validateLogs(config, add)
   validateCountCache(config, add)
+  validateOutbox(config, add)
   validateMaxPage(config, add)
   validateHttpCache(config, add)
   validateAuth(config, add)
@@ -833,6 +835,11 @@ function validateMaxPage(config: Config, add: Add) {
   const max: unknown = config.maxPage
   if (max !== undefined && !(Number.isInteger(max) && (max as number) >= 1))
     add('maxPage', 'must be a whole number, 1 or more')
+}
+
+function validateOutbox(config: Config, add: Add) {
+  if (config.outbox !== undefined && typeof config.outbox !== 'boolean')
+    add('outbox', 'must be true or false')
 }
 
 function validateCountCache(config: Config, add: Add) {
