@@ -443,4 +443,59 @@ export class WhereBuilder {
     order.push(desc(col(model, 'id')))
     return order
   }
+
+  /**
+   * The columns a cursor goes by, in `orderBy`'s order: the sort's, then `id`. Only plain
+   * columns: a sort on a value inside blocks has nothing to compare a cursor with.
+   */
+  keyset(model: TableModel, sort: readonly string[]): KeyColumn[] {
+    const keys = sort.map((entry) => {
+      const descending = entry.startsWith('-')
+      const path = descending ? entry.slice(1) : entry
+      const target = resolvePath(model, path.split('.'), this.drafts, this.localization)
+      if (target.kind !== 'column')
+        throw new QueryError(
+          `A cursor can't follow a sort by "${path}"; sort by a field of the document, or use page`,
+        )
+      return { column: target.column, descending }
+    })
+    keys.push({ column: col(model, 'id'), descending: true })
+    return keys
+  }
+
+  /**
+   * Rows after `values` (the keys of the last row of the page before) in the keyset's order.
+   * Where nulls go follows the database's default order, as `orderBy` leaves it: last in
+   * ascending order on Postgres, first on SQLite.
+   */
+  after(keys: readonly KeyColumn[], values: readonly unknown[]): SQL {
+    const nullsHigh = this.dialect.name === 'postgres'
+    const equal = (key: KeyColumn, value: unknown) =>
+      value === null ? isNull(key.column) : eq(key.column, value)
+    // Strictly after `value` in this key's order.
+    const later = (key: KeyColumn, value: unknown): SQL => {
+      // Nulls come after every value when they sort high and the order rises, or the reverse.
+      const nullsLater = nullsHigh !== key.descending
+      if (value === null) return nullsLater ? sql`1 = 0` : isNotNull(key.column)
+      const beyond = key.descending ? lt(key.column, value) : gt(key.column, value)
+      return nullsLater ? (or(beyond, isNull(key.column)) as SQL) : beyond
+    }
+    const branches = keys.map((key, i) =>
+      and(...keys.slice(0, i).map((k, j) => equal(k, values[j])), later(key, values[i])),
+    )
+    const rest = or(...branches) as SQL
+    // The same rows, with a bound on the first key an index can use: without it the database
+    // reads every row before the cursor to drop them.
+    const [first] = keys
+    const start = values[0]
+    if (!first || start === null || start === undefined) return rest
+    const from = first.descending ? lte(first.column, start) : gte(first.column, start)
+    const bound = nullsHigh !== first.descending ? (or(from, isNull(first.column)) as SQL) : from
+    return and(bound, rest) as SQL
+  }
+}
+
+export interface KeyColumn {
+  readonly column: AnyColumn
+  readonly descending: boolean
 }

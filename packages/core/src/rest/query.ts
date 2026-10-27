@@ -73,6 +73,8 @@ export interface ListQuery {
   depth?: number
   /** `?count=false`: no totals. */
   count?: false
+  /** `?cursor=`: cursor pagination (`page` is then left out). */
+  cursor?: string
 }
 
 export const MAX_REST_LIMIT = 100
@@ -86,7 +88,7 @@ function integer(name: string, raw: unknown, min: number, max: number): number |
   return n
 }
 
-/** Reads `where`, `sort`, `limit`, `page`, `depth` and `count` from a URL. */
+/** Reads `where`, `sort`, `limit`, `page`, `depth`, `count` and `cursor` from a URL. */
 export function parseListQuery(url: URL): ListQuery {
   const params = parseNested(url.searchParams)
   let where: unknown = params.where
@@ -112,6 +114,11 @@ export function parseListQuery(url: URL): ListQuery {
   if (sort) query.sort = sort
   const depth = integer('depth', params.depth, 0, 3)
   if (depth !== undefined) query.depth = depth
+  if (params.cursor !== undefined) {
+    if (typeof params.cursor !== 'string') throw new QueryError('cursor must be a string')
+    if (params.page !== undefined) throw new QueryError('Use either cursor or page, not both')
+    query.cursor = params.cursor
+  }
   if (params.count !== undefined && params.count !== 'true') {
     if (params.count !== 'false') throw new QueryError('count must be true or false')
     query.count = false

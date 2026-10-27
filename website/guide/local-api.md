@@ -66,6 +66,20 @@ says whether there is more. Totals are reused for [`countCacheSeconds`](/referen
 default), so a list many people open is counted once in that time. The documents are always
 current; only the total can be that old, also right after a write. `0` counts every time.
 
+Deep pages get slower the further in they are: the database steps over every document before
+them. To go through a long list page by page, use a cursor instead of `page`:
+
+```ts
+let page = await cms.find('posts', { limit: 20, cursor: '' }) // the first page
+while (page.nextCursor) {
+  page = await cms.find('posts', { limit: 20, cursor: page.nextCursor })
+}
+```
+
+Each page takes as long as the first. A cursor goes forward only, has no page numbers or totals
+(`page`, `totalDocs` and `totalPages` are `null`), and belongs to its query: keep `where`, `sort`
+and `locale` the same, or it is refused. Sorting by a value inside blocks can't use a cursor.
+
 ## Options
 
 | Option | Default | |
@@ -74,6 +88,7 @@ current; only the total can be that old, also right after a write. `0` counts ev
 | `sort` | `-createdAt` | Field path or list; `-` for descending |
 | `limit`, `page` | `10`, `1` | Pagination |
 | `count` | `true` | `find` only: `false` skips counting the matches, below |
+| `cursor` | — | `find` only: cursor pagination instead of `page`, below |
 | `depth` | `1` | Levels of relationships to populate (max 3) |
 | `draft` | `false` | Include drafts |
 | `locale` | default locale | With [localization](./localization): the locale to read or write, or `'all'` |

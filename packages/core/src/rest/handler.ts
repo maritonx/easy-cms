@@ -1070,10 +1070,21 @@ async function route(
 
   if (second === undefined) {
     if (method === 'GET') {
-      const query = parseListQuery(ctx.url)
+      const { page, ...query } = parseListQuery(ctx.url)
       const filter = await pickerFilter(cms, ctx.url, collection, ctx.user, ctx.context)
       if (filter) query.where = query.where ? { and: [query.where, filter] } : filter
-      return { body: await cms.find(collection, { ...access, ...query, draft }) }
+      // `maxPage` keeps API clients off deep pages, which the database reads row by row; the
+      // admin (signed in with its cookie) keeps its page numbers.
+      const { maxPage } = cms.config
+      if (maxPage !== undefined && ctx.via !== 'cookie' && page > maxPage)
+        throw new QueryError(`page can be at most ${maxPage}: use cursor to go further`)
+      const options = { ...access, ...query, draft }
+      return {
+        body: await cms.find(
+          collection,
+          query.cursor === undefined ? { ...options, page } : options,
+        ),
+      }
     }
     if (method === 'POST') {
       const body = await readJson(ctx.request)
