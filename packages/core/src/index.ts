@@ -163,6 +163,8 @@ export {
   type LivePreview,
   type ReadOptions,
   type ScheduledPublish,
+  type SearchOptions,
+  type SearchResults,
   type SlugOf,
   type UpdateOptions,
 } from './local-api.js'
@@ -230,6 +232,15 @@ export {
   type RolePermissions,
   Roles,
 } from './roles.js'
+export {
+  type CollectionSearch,
+  memorySearch,
+  type SearchAdapter,
+  type SearchEntry,
+  type SearchHits,
+  type SearchQuery,
+  type SearchSetting,
+} from './search.js'
 export {
   type DirectUpload,
   type DiskStorageOptions,

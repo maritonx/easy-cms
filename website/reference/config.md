@@ -47,6 +47,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `maxPage` | `number` | no limit | The deepest `page` the REST API serves to API clients (the signed-in admin keeps its pages); deeper requests get `400`, pointing to `cursor`. [Cursors](/guide/local-api#find-results) |
 | `httpCache` | `HttpCacheConfig` | off (`no-store`) | Lets a CDN cache public reads of published content, with cache tags to purge by. See [httpCache](#httpcache). |
 | `outbox` | `boolean` | `false` | Runs after hooks, webhooks and `httpCache.purge` from an outbox written in the save's transaction, after the response, retried until they succeed. Hooks must be safe to run more than once. [Outbox](/guide/hooks#outbox) |
+| `search` | `SearchAdapter` | — | Relevance-ranked search of the collections that have `search`, e.g. `memorySearch()`. [Search](/guide/search) |
 | `logs` | `LogsConfig` | readable lines | `{ format: 'json' }` for one JSON object per line, with request ids. See [logs](#logs). |
 | `plugins` | `Plugin[]` | `[]` | `(config) => config`, run in order before validation; `definePlugin(fn, { name, version, apiVersion? })` names one for the dashboard; `apiVersion` (`PLUGIN_API_VERSION`) stops startup when the plugin is for another plugin API. [Plugins](/guide/plugins) |
 | `fieldTypes` | `FieldTypeDefinition[]` | `[]` | Field types from packages, e.g. `color` from `@easy-cms/fields`. [Custom field types](/guide/field-types) |
@@ -272,6 +273,7 @@ Admins see, run and pause them on Settings → Jobs. [Jobs](/guide/jobs)
 | `versions` | `boolean \| VersionsConfig` | `false` | Keep a version of every save. See [versions](#versions). |
 | `schedule` | `boolean` | `false` | Publish and unpublish at a set time (needs `drafts`). |
 | `httpCache` | `false \| { sMaxAge?, staleWhileRevalidate? }` | the config's | This collection's [httpCache](#httpcache) times, or `false` to keep its reads `no-store`. |
+| `search` | `{ fields: string[] }` | — | Indexes published documents for the config's `search` adapter: the fields to index, most important first. [Search](/guide/search) |
 | `preview` | `({ doc, locale }) => string \| null` | — | The page showing a document, for [live preview](/guide/live-preview). |
 | `access` | `{ read?, create?, update?, delete? }` | logged in | [Access control](/guide/access-control) |
 | `hooks` | `CollectionHooks` | — | See [hooks](#hooks). |

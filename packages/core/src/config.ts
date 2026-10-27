@@ -16,6 +16,7 @@ import type { FieldTypeDefinition } from './field-types.js'
 import type { AdminComponent, Field, Label } from './fields.js'
 import type { EasyCMS } from './local-api.js'
 import type { LogsConfig } from './logger.js'
+import type { CollectionSearch, SearchAdapter } from './search.js'
 import type { StorageAdapter } from './storage.js'
 import type { WebhookConfig } from './webhooks.js'
 
@@ -216,6 +217,11 @@ export interface CollectionConfig {
    * Overrides the config's `httpCache` for this one; `false` keeps every read `no-store`.
    */
   readonly httpCache?: false | HttpCacheTimes
+  /**
+   * Relevance-ranked search of this collection's published documents with the config's `search`
+   * adapter: `cms.search()` and `GET <api>/search`. The fields to index, most important first.
+   */
+  readonly search?: CollectionSearch
   /** Live preview: the page that shows a document, e.g. `({ doc }) => \`/posts/${doc.slug}\``. */
   readonly preview?: PreviewURL
   readonly access?: CollectionAccess
@@ -922,6 +928,13 @@ export interface Config {
    * Default `false`: hooks run in the request, after the save.
    */
   readonly outbox?: boolean
+  /**
+   * Relevance-ranked search of the collections that have `search`, e.g. `memorySearch()` for
+   * development and small sites, or an adapter for a search engine. Published documents are
+   * indexed as they change; `easy-cms search:reindex` builds the index again. Without it, `like`
+   * (with `index: 'trigram'` on Postgres) still finds text.
+   */
+  readonly search?: SearchAdapter
   readonly plugins?: readonly Plugin[]
 }
 

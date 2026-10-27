@@ -55,6 +55,7 @@ npx easy-cms <command> [--config <file>] [--cwd <dir>]
 | [`backup:decrypt <file>`](#backup-decrypt) | Decrypt a backup made with `backups.encryptionKey`. |
 | [`copy --from <config>`](#copy) | Copy all content into another database, e.g. SQLite to Postgres. |
 | [`jobs:run`](#jobs-run) | Run due scheduled jobs and webhook retries once. |
+| [`search:reindex [collection]`](#search-reindex) | Build the search index again from the database. |
 | [`serve`](#serve) | Run the CMS as its own server. |
 
 Options for every command: `--config <file>` (default `easy-cms.config.ts`), `--cwd <dir>`
@@ -165,6 +166,17 @@ npx easy-cms jobs:run
 Runs due [scheduled publishes and unpublishes](./drafts#scheduled-publishing) and retries
 failed [webhook deliveries](./webhooks#delivery), once. Servers do this every minute on their
 own; use this command from a cron job where no server process keeps running (serverless).
+
+### search:reindex
+
+```bash [pm]
+npx easy-cms search:reindex          # every collection with search
+npx easy-cms search:reindex posts
+```
+
+Builds the [search](./search) index again from the published documents: after adding `search`
+to a collection or changing its fields, or when indexing failed. An in-memory index
+(`memorySearch()`) is built by the server when it starts, so there is nothing to do for it.
 
 ### serve
 

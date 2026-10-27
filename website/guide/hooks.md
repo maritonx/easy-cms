@@ -75,8 +75,8 @@ export default defineConfig({
 - Saving a document also writes an outbox entry, in the same database transaction: a save that
   commits always has one, a save that fails has none.
 - A worker runs the entry right after the save, in the background: `afterChange` and
-  `afterDelete` hooks, then [webhooks](./webhooks), then `httpCache.purge`. The response doesn't
-  wait for them.
+  `afterDelete` hooks, then [webhooks](./webhooks), then the [search](./search) index, then
+  `httpCache.purge`. The response doesn't wait for them.
 - What fails is retried after 1 minute, 5 minutes, 30 minutes, 2 hours and 12 hours, with the
   [scheduled jobs](./jobs) (a cron on serverless hosts). Steps that succeeded aren't run again.
   After that the entry is marked failed; **Settings → Jobs → Outbox** lists it with its error,

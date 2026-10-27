@@ -20,7 +20,7 @@ export interface OutboxEntry {
 }
 
 /** Parts of an entry done before the last, `httpCache.purge`; a retry skips them. */
-export type OutboxStep = 'hooks' | 'webhooks'
+export type OutboxStep = 'hooks' | 'webhooks' | 'search'
 
 /** Runs an entry; `done` holds the steps done before, `mark` records one more. */
 export type OutboxRunner = (

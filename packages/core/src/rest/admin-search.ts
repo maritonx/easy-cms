@@ -55,7 +55,8 @@ export interface SearchHit {
 
 /**
  * Documents whose title (`useAsTitle`) contains `q`, a few per collection the user may read: the
- * command palette's results. Numbers also find documents by id.
+ * command palette's results. Numbers also find documents by id. Collections with `search` (and
+ * the config's `search` adapter) list the search index's best matches first.
  */
 export async function adminSearch(
   cms: EasyCMS,
@@ -71,18 +72,38 @@ export async function adminSearch(
       const conditions: Where[] = []
       if (title) conditions.push({ [title]: { like: query } })
       if (/^\d+$/.test(query)) conditions.push({ id: { equals: Number(query) } })
-      if (conditions.length === 0 || !(await readable(cms, c, who))) return []
+      const indexed = cms.config.search !== undefined && c.search !== undefined
+      if ((conditions.length === 0 && !indexed) || !(await readable(cms, c, who))) return []
       try {
-        const found = await cms.find(c.slug, {
-          ...who,
-          overrideAccess: false,
-          draft: true,
-          depth: 0,
-          limit: perCollection,
-          where: conditions.length === 1 ? (conditions[0] as Where) : { or: conditions },
-          sort: '-updatedAt',
-        })
-        return found.docs.map((doc) => {
+        const ranked = indexed
+          ? (
+              await cms.search(query, {
+                ...who,
+                overrideAccess: false,
+                depth: 0,
+                limit: perCollection,
+                collections: [c.slug],
+              })
+            ).hits.map((hit) => hit.doc)
+          : []
+        // Drafts aren't in the index: titles still find them.
+        const found =
+          conditions.length === 0
+            ? { docs: [] }
+            : await cms.find(c.slug, {
+                ...who,
+                overrideAccess: false,
+                draft: true,
+                depth: 0,
+                limit: perCollection,
+                where: conditions.length === 1 ? (conditions[0] as Where) : { or: conditions },
+                sort: '-updatedAt',
+              })
+        const seen = new Set<unknown>()
+        const docs = [...ranked, ...(found.docs as Record<string, unknown>[])]
+          .filter((doc) => !seen.has(doc.id) && seen.add(doc.id))
+          .slice(0, perCollection)
+        return docs.map((doc) => {
           const d = doc as Record<string, unknown>
           const value = title ? d[title] : undefined
           return {

@@ -40,6 +40,8 @@ export interface AdminStatus {
     storage: string
     /** The email adapter's name, `custom` when it has none, or `null` without email. */
     email: string | null
+    /** The search adapter's name, `custom` when it has none, or `null` without `search`. */
+    search: string | null
     /** The config's plugins, with their name and version when they give them. */
     plugins: { name?: string; version?: string }[]
     /** Field types from packages (`fieldTypes`). */
@@ -127,6 +129,7 @@ export async function adminStatus(cms: EasyCMS): Promise<AdminStatus> {
       database: config.db.name,
       storage: config.upload.storage?.name ?? 'local',
       email: config.email ? (config.email.name ?? 'custom') : null,
+      search: config.search ? (config.search.name ?? 'custom') : null,
       plugins: config.installedPlugins.map((p) => ({ ...p })),
       fieldTypes: config.fieldTypes.map((t) => t.name),
     },

@@ -341,6 +341,13 @@
           }
         },
         {
+          "path": "guide/search",
+          "title": {
+            "en": "Search",
+            "th": "ค้นหา"
+          }
+        },
+        {
           "path": "guide/webhooks",
           "title": {
             "en": "Webhooks",

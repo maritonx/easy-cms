@@ -109,6 +109,13 @@ Local API เชื่อผู้เรียกและข้ามกฎส�
 | `sendEmail(message)` | — | เข้าคิวอีเมลให้ adapter `email` ใน config แล้วส่งเบื้องหลัง [อีเมล](/th/guide/email) |
 | `flushEmails()` | — | รอให้อีเมลที่กำลังส่งเสร็จ เรียกก่อนฟังก์ชัน serverless จะจบ |
 
+### ค้นหา {#search}
+
+| Method | คืนค่า | |
+|---|---|---|
+| `search(query, { collections?, locale?, limit?, page?, depth?, user?, overrideAccess? })` | `{ hits: { collection, doc }[], total, page, limit, hasNextPage }` | เอกสารที่ publish แล้วของ collection ที่มี `search` เรียงจากตรงที่สุด อ่านตามตัวเลือกสิทธิ์ที่ส่งมา `total` นับก่อนกรองสิทธิ์ [ค้นหา](/th/guide/search) |
+| `reindexSearch(collection?)` | `{ collection, documents }[]` | สร้าง index ค้นหาใหม่จากฐานข้อมูล ทุก collection ที่ค้นได้หรือเฉพาะหนึ่ง collection |
+
 ### อื่นๆ {#other}
 
 | Method | คืนค่า | |

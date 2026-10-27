@@ -228,6 +228,8 @@ const system = computed(() => {
           : s.email === 'console'
             ? t('status.emailConsole')
             : s.email,
+    // Older servers don't say.
+    search: s.search === 'memory' ? t('status.searchMemory') : (s.search ?? null),
     plugins: named,
     unnamed: s.plugins.length - named.length,
     fieldTypes: s.fieldTypes,
@@ -464,6 +466,10 @@ const statusOf = (doc: Doc) => (doc.status === 'published' ? 'published' : 'draf
           <dd>{{ system.storage }}</dd>
           <dt>{{ t('status.email') }}</dt>
           <dd>{{ system.email }}</dd>
+          <template v-if="system.search">
+            <dt>{{ t('status.search') }}</dt>
+            <dd>{{ system.search }}</dd>
+          </template>
         </dl>
         <template v-if="system.plugins.length || system.unnamed">
           <h3>{{ t('status.plugins') }}</h3>
