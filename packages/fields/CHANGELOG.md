@@ -1,5 +1,12 @@
 # @easy-cms/fields
 
+## 1.9.0
+
+### Patch Changes
+
+- Updated dependencies [15a201a]
+  - @easy-cms/core@1.9.0
+
 ## 1.8.0
 
 ### Patch Changes
