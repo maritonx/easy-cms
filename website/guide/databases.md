@@ -141,6 +141,38 @@ What that means for your site:
 - More concurrent requests than connections wait for a connection; raise `max` on
   `postgres()` if the database has room.
 
+### At 1,000,000 posts
+
+The nightly Perf workflow runs the same data shape at 1,000,000 posts, on a GitHub runner
+(4 cores) with Postgres 17, 20 concurrent requests from one process. The numbers below are from
+1.10 (2026-10-27):
+
+| Request | Requests/s | p50 | p95 |
+|---|---|---|---|
+| By id or slug | 1,225 | 19 ms | 22 ms |
+| First page of a list | 787 | 25 ms | 28 ms |
+| Next page by cursor, deep in the list | 758 | 26 ms | 29 ms |
+| Filter by `hasMany` value, sort by number | 582 | 27 ms | 33 ms |
+| Thai `like` search, `index: 'trigram'` | 394 | 51 ms | 69 ms |
+| Admin list with drafts | 366 | 54 ms | 61 ms |
+| Save a draft (with a version) | 270 | 72 ms | 89 ms |
+| `like` search for 1 to 3 digits | 42 | 207 ms | 2.7 s |
+| Filter by relationship, sort by date | 36 | 134 ms | 1.4 s |
+| Random page among 100,000 | 6 | 3.2 s | 5.6 s |
+| The same without totals (`count=false`) | 6 | 3.7 s | 5.9 s |
+| Inside blocks (`layout.blockType`) | 5 | 4.5 s | 6.7 s |
+
+- **Lookups, first pages and cursors stay fast** at this size.
+- **Deep pages by number are the cost.** Without totals they are just as slow, so the time goes to
+  skipping rows, not to counting them. Use `cursor` for archives and feeds, and `maxPage` to keep
+  API clients from paging deep.
+- **Trigram indexes need three characters.** A Thai search of a few words uses the index; a
+  search for one or two characters can't, and reads every row.
+- **Keep queries inside blocks off public pages** at this size, and cache what they return.
+- With 200 editors at once and these slow queries in the mix, reads wait for connections (p95
+  17 s): one slow kind of request slows every other. Find it in the access log (`logs`) and move
+  it to a cursor, an index or a cache.
+
 ## Search with like
 
 `like` finds any part of a text, which no ordinary index helps with. On Postgres,
