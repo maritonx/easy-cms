@@ -331,7 +331,14 @@ function markdownTable(node: RichTextNode, options: MarkdownOptions): string {
   const cells = rows.map((row) =>
     (row.content ?? []).map((cell) =>
       (cell.content ?? [])
-        .map((c) => markdownNode(c, options).replace(/\s*\n\s*/g, ' '))
+        .map((c) =>
+          // A cell holds one line: its lines are joined with spaces (no regex over user text).
+          markdownNode(c, options)
+            .split('\n')
+            .map((line) => line.trim())
+            .filter(Boolean)
+            .join(' '),
+        )
         .filter((c) => c.trim() !== '')
         .join('<br>'),
     ),
