@@ -52,7 +52,20 @@ describe('search (#177)', () => {
     const cms = await open(config())
     await cms.create('posts', {
       title: 'ข่าวน้ำท่วมกรุงเทพมหานครวันนี้',
-      body: { type: 'doc', content: [paragraph('ฝนตกหนักทั้งคืน')] },
+      body: {
+        type: 'doc',
+        content: [
+          paragraph('ฝนตกหนักทั้งคืน'),
+          // Text in tables is indexed too.
+          {
+            type: 'table',
+            content: [
+              { type: 'tableRow', content: [{ type: 'tableHeader', content: [paragraph('เขต')] }] },
+              { type: 'tableRow', content: [{ type: 'tableCell', content: [paragraph('บางนา')] }] },
+            ],
+          },
+        ],
+      },
       status: 'published',
     })
     await cms.create('posts', {
@@ -72,6 +85,7 @@ describe('search (#177)', () => {
     // The start of a word finds it: กรุงเทพ in กรุงเทพมหานคร.
     expect(titles(await cms.search('กรุงเทพ'))).toEqual(['ข่าวน้ำท่วมกรุงเทพมหานครวันนี้'])
     expect(titles(await cms.search('ฝนตก'))).toEqual(['ข่าวน้ำท่วมกรุงเทพมหานครวันนี้'])
+    expect(titles(await cms.search('บางนา'))).toEqual(['ข่าวน้ำท่วมกรุงเทพมหานครวันนี้'])
     // Blocks and groups.
     expect(titles(await cms.search('กาแฟ'))).toEqual(['Coffee guide'])
     expect(titles(await cms.search('brewing'))).toEqual(['Coffee guide'])

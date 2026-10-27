@@ -133,10 +133,41 @@ function renderNode(node: RichTextNode, options: RenderOptions): string {
       const title = typeof node.attrs?.title === 'string' ? node.attrs.title : undefined
       return `<img${attributes({ src, alt, title })}>`
     }
+    case 'table':
+      return renderTable(node, options)
+    case 'tableRow':
+      return `<tr>${children}</tr>`
+    case 'tableHeader':
+    case 'tableCell': {
+      const tag = node.type === 'tableHeader' ? 'th' : 'td'
+      const span = (name: string) => {
+        const n = Number(node.attrs?.[name])
+        return Number.isInteger(n) && n > 1 ? String(n) : undefined
+      }
+      return `<${tag}${attributes({ colspan: span('colspan'), rowspan: span('rowspan') })}>${children}</${tag}>`
+    }
     default:
       // Unknown nodes keep their text but no markup.
       return children
   }
+}
+
+/** Rows whose cells are all headers, at the top of a table. */
+function headerRows(rows: readonly RichTextNode[]): number {
+  const header = (row: RichTextNode) =>
+    (row.content ?? []).length > 0 && (row.content ?? []).every((c) => c.type === 'tableHeader')
+  const first = rows.findIndex((row) => !header(row))
+  return first === -1 ? rows.length : first
+}
+
+/** A table, its header rows (all `tableHeader` cells) in `<thead>`. */
+function renderTable(node: RichTextNode, options: RenderOptions): string {
+  const rows = (node.content ?? []).filter((r) => r?.type === 'tableRow')
+  const head = headerRows(rows)
+  const html = (list: readonly RichTextNode[]) => list.map((r) => renderNode(r, options)).join('')
+  const thead = head > 0 ? `<thead>${html(rows.slice(0, head))}</thead>` : ''
+  const tbody = head < rows.length ? `<tbody>${html(rows.slice(head))}</tbody>` : ''
+  return `<table>${thead}${tbody}</table>`
 }
 
 /** Renders a rich text document to HTML. Text is escaped and unsafe URLs are removed. */
@@ -151,7 +182,15 @@ export function renderRichText(
 /** Plain text of a document, e.g. for excerpts or search. Blocks are separated by newlines. */
 export function richTextToPlainText(doc: RichTextInput | null | undefined): string {
   if (!doc) return ''
-  const blocks = new Set(['paragraph', 'heading', 'listItem', 'blockquote', 'codeBlock'])
+  const blocks = new Set([
+    'paragraph',
+    'heading',
+    'listItem',
+    'blockquote',
+    'codeBlock',
+    'tableHeader',
+    'tableCell',
+  ])
   const walk = (node: RichTextNode): string => {
     if (node.type === 'text') return String(node.text ?? '')
     if (node.type === 'hardBreak') return '\n'
@@ -275,10 +314,34 @@ function markdownNode(node: RichTextNode, options: MarkdownOptions): string {
       const alt = typeof node.attrs?.alt === 'string' ? escapeMarkdown(node.attrs.alt) : ''
       return `![${alt}](${src.replace(/[()\s]/g, urlChar)})`
     }
+    case 'table':
+      return markdownTable(node, options)
     default:
       // Unknown nodes keep their content but no markup.
       return content.some((c) => c.type === 'text') ? inline() : blocks()
   }
+}
+
+/**
+ * A GFM table: the first row is its header (an empty one when the table has no header row).
+ * Each cell's paragraphs are joined with `<br>`, the one line break a cell can hold.
+ */
+function markdownTable(node: RichTextNode, options: MarkdownOptions): string {
+  const rows = (node.content ?? []).filter((r) => r?.type === 'tableRow')
+  const cells = rows.map((row) =>
+    (row.content ?? []).map((cell) =>
+      (cell.content ?? [])
+        .map((c) => markdownNode(c, options).replace(/\s*\n\s*/g, ' '))
+        .filter((c) => c.trim() !== '')
+        .join('<br>'),
+    ),
+  )
+  const width = Math.max(0, ...cells.map((r) => r.length))
+  if (width === 0) return ''
+  const line = (r: readonly string[]) =>
+    `| ${Array.from({ length: width }, (_, i) => r[i] ?? '').join(' | ')} |`
+  const [first, ...rest] = headerRows(rows) > 0 ? cells : [[], ...cells]
+  return [line(first ?? []), `|${' --- |'.repeat(width)}`, ...rest.map(line)].join('\n')
 }
 
 /**

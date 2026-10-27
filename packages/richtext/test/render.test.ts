@@ -208,3 +208,58 @@ describe('renderMarkdown', () => {
     expect(renderMarkdown(null)).toBe('')
   })
 })
+
+describe('tables', () => {
+  const cell = (type: 'tableHeader' | 'tableCell', ...paragraphs: string[]): RichTextNode => ({
+    type,
+    attrs: { colspan: 1, rowspan: 1, colwidth: null },
+    content: paragraphs.map((v) => p(text(v))),
+  })
+  const row = (...cells: RichTextNode[]): RichTextNode => ({ type: 'tableRow', content: cells })
+  // As the admin's editor saves one: a header row, then body rows.
+  const table: RichTextNode = {
+    type: 'table',
+    content: [
+      row(cell('tableHeader', 'Request'), cell('tableHeader', 'p95')),
+      row(cell('tableCell', 'By slug'), cell('tableCell', '22 ms')),
+      row(cell('tableCell', 'a | b', 'second'), cell('tableCell', '<b>')),
+    ],
+  }
+
+  it('renders HTML with the header rows in <thead>', () => {
+    expect(renderRichText(doc(table))).toBe(
+      '<table><thead><tr><th><p>Request</p></th><th><p>p95</p></th></tr></thead>' +
+        '<tbody><tr><td><p>By slug</p></td><td><p>22 ms</p></td></tr>' +
+        '<tr><td><p>a | b</p><p>second</p></td><td><p>&lt;b&gt;</p></td></tr></tbody></table>',
+    )
+    const spanned: RichTextNode = {
+      type: 'table',
+      content: [row({ ...cell('tableCell', 'x'), attrs: { colspan: 2, rowspan: 1 } })],
+    }
+    expect(renderRichText(doc(spanned))).toBe(
+      '<table><tbody><tr><td colspan="2"><p>x</p></td></tr></tbody></table>',
+    )
+  })
+
+  it('renders a GFM table in Markdown, with an empty header when there is none', () => {
+    expect(renderMarkdown(doc(p(text('Before')), table))).toBe(
+      [
+        'Before',
+        '',
+        '| Request | p95 |',
+        '| --- | --- |',
+        '| By slug | 22 ms |',
+        '| a \\| b<br>second | \\<b\\> |',
+      ].join('\n'),
+    )
+    const body: RichTextNode = {
+      type: 'table',
+      content: [row(cell('tableCell', 'a'), cell('tableCell', 'b'))],
+    }
+    expect(renderMarkdown(doc(body))).toBe('|  |  |\n| --- | --- |\n| a | b |')
+  })
+
+  it('keeps every cell on a line of its own in plain text', () => {
+    expect(richTextToPlainText(doc(table))).toBe('Request\np95\nBy slug\n22 ms\na | b\nsecond\n<b>')
+  })
+})
