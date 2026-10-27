@@ -32,7 +32,7 @@ to apply them, as the REST API does.
 
 | Method | Returns | |
 |---|---|---|
-| `find(collection, options?)` | a page of documents | List with `where`, `sort`, `limit`, `page`; `count: false` skips the totals (`null`). |
+| `find(collection, options?)` | a page of documents | List with `where`, `sort`, `limit`, `page`; `count: false` skips the totals (`null`); `cursor` pages by cursor (`nextCursor`). |
 | `findById(collection, id, options?)` | document \| `null` | One document. |
 | `count(collection, options?)` | `number` | How many match `where`. |
 | `create(collection, data, options?)` | document | Validates, runs hooks, saves. |

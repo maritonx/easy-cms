@@ -64,6 +64,19 @@ await cms.flushWebhooks() // wait for webhook deliveries (serverless)
 ยังบอกว่ามีต่อหรือไม่ ผลนับจะถูกใช้ซ้ำนาน [`countCacheSeconds`](/th/reference/config) (ค่าเริ่มต้น 5 วินาที) list ที่หลายคนเปิด
 จึงนับแค่ครั้งเดียวในช่วงนั้น เอกสารที่ได้เป็นปัจจุบันเสมอ มีแค่ตัวเลขรวมที่อาจเก่าได้ถึงเท่านี้ รวมถึงทันทีหลังเขียน `0`: นับทุกครั้ง
 
+หน้ายิ่งลึกยิ่งช้า เพราะฐานข้อมูลต้องข้ามเอกสารทุกตัวก่อนหน้านั้น ถ้าจะไล่ list ยาว ๆ ทีละหน้า ให้ใช้ cursor แทน `page`:
+
+```ts
+let page = await cms.find('posts', { limit: 20, cursor: '' }) // หน้าแรก
+while (page.nextCursor) {
+  page = await cms.find('posts', { limit: 20, cursor: page.nextCursor })
+}
+```
+
+ทุกหน้าใช้เวลาเท่าหน้าแรก cursor ไปข้างหน้าได้อย่างเดียว ไม่มีเลขหน้าหรือจำนวนรวม (`page`, `totalDocs` และ `totalPages`
+เป็น `null`) และผูกกับ query ของมัน ต้องใช้ `where`, `sort` และ `locale` เดิม ไม่อย่างนั้นจะถูกปฏิเสธ การเรียงด้วยค่าใน blocks ใช้
+cursor ไม่ได้
+
 ## ตัวเลือก {#options}
 
 | ตัวเลือก | ค่าเริ่มต้น | |
@@ -72,6 +85,7 @@ await cms.flushWebhooks() // wait for webhook deliveries (serverless)
 | `sort` | `-createdAt` | path ของ field หรือรายการ ใช้ `-` สำหรับเรียงจากมากไปน้อย |
 | `limit`, `page` | `10`, `1` | การแบ่งหน้า |
 | `count` | `true` | เฉพาะ `find`: `false` ข้ามการนับจำนวนที่ตรงเงื่อนไข ดูข้างบน |
+| `cursor` | — | เฉพาะ `find`: แบ่งหน้าด้วย cursor แทน `page` ดูข้างบน |
 | `depth` | `1` | จำนวนระดับของ relationship ที่จะดึงข้อมูลมาแทน (สูงสุด 3) |
 | `draft` | `false` | รวมฉบับร่าง (draft) ด้วย |
 | `locale` | ภาษาเริ่มต้น | เมื่อใช้ [หลายภาษา](./localization): ภาษาที่จะอ่านหรือเขียน หรือ `'all'` |

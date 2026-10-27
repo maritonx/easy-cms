@@ -120,11 +120,33 @@ console.log(
   `\n${DOCS.toLocaleString()} posts, ${CONCURRENCY} concurrent requests, pool ${POOL}, ${SECONDS}s each\n`,
 )
 const pages = Math.floor((DOCS * 0.8) / 10)
+// Cursors spread through the list, collected by walking it once from the start.
+const cursors: string[] = []
+{
+  let cursor = ''
+  for (let i = 0; i < 2000 && cursor !== null; i++) {
+    const page = (await (
+      await handle(
+        new Request(
+          `http://cms.test/api/cms/posts?limit=100&locale=en&cursor=${encodeURIComponent(cursor)}`,
+        ),
+      )
+    ).json()) as { nextCursor: string | null }
+    if (!page.nextCursor) break
+    if (i % 20 === 19) cursors.push(page.nextCursor)
+    cursor = page.nextCursor
+  }
+}
 const results = [
   await scenario('list page (limit 10, depth 1, en)', () =>
     get(`/posts?limit=10&page=${1 + rand(pages)}&locale=en`),
   ),
   await scenario('list first page', () => get('/posts?limit=10&locale=en')),
+  await scenario('next page by cursor', async () => {
+    // A page deep in the list, then the page after it by cursor: what an archive or feed does.
+    const cursor = cursors[rand(cursors.length)] as string
+    await get(`/posts?limit=10&locale=en&cursor=${encodeURIComponent(cursor)}`)
+  }),
   await scenario('list page without totals (count=false)', () =>
     get(`/posts?limit=10&page=${1 + rand(pages)}&locale=en&count=false`),
   ),

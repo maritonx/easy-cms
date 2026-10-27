@@ -876,6 +876,11 @@ export interface Config {
    * Default 5.
    */
   readonly countCacheSeconds?: number
+  /**
+   * The deepest `page` the REST API serves to API clients (not to the signed-in admin); deeper
+   * requests get `400`, pointing to `cursor`. Deep pages are read row by row. Default: no limit.
+   */
+  readonly maxPage?: number
   readonly plugins?: readonly Plugin[]
 }
 

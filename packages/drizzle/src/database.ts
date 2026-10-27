@@ -3,8 +3,10 @@ import type {
   Database,
   DatabaseInitArgs,
   DatabaseTransfer,
+  FindAfterArgs,
   FindArgs,
   ID,
+  KeysetPage,
   PaginatedDocs,
   RawDocument,
   UncountedDocs,
@@ -166,6 +168,34 @@ class DrizzleDatabase implements Database {
       totalPages: null,
       hasNextPage: more,
       hasPrevPage: args.page > 1,
+    }
+  }
+
+  async findAfter(args: FindAfterArgs): Promise<KeysetPage> {
+    const model = this.model(args.collection)
+    const builder = this.builder(args.collection)
+    const keys = builder.keyset(model.root, args.sort)
+    const condition = this.where(args.collection, args.where)
+    const after = args.after ? builder.after(keys, args.after) : undefined
+    // The row object's property for each key column, to read the last row's keys back.
+    const columns = Object.entries(getTableColumns(model.root.table as never)) as [
+      string,
+      AnyColumn,
+    ][]
+    const names = keys.map(({ column }) => columns.find(([, c]) => c === column)?.[0] as string)
+    const rows = (await this.db
+      .select()
+      .from(model.root.table)
+      .where(and(condition, after))
+      .orderBy(...builder.orderBy(model.root, args.sort))
+      .limit(args.limit + 1)) as Record<string, unknown>[]
+    const more = rows.length > args.limit
+    const page = more ? rows.slice(0, args.limit) : rows
+    const last = page.at(-1)
+    return {
+      docs: await this.load(model, page),
+      hasNextPage: more,
+      next: last ? names.map((name) => last[name] ?? null) : null,
     }
   }
 

@@ -1,4 +1,4 @@
-import { createHmac, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto'
+import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto'
 import type { AuthUser, ID, RequestContext, Where } from './access.js'
 import {
   andWhere,
@@ -38,7 +38,14 @@ import type {
   JobConfig,
   ResolvedConfig,
 } from './config.js'
-import type { Database, PaginatedDocs, RawDocument, SchemaMode, UncountedDocs } from './database.js'
+import type {
+  CursorDocs,
+  Database,
+  PaginatedDocs,
+  RawDocument,
+  SchemaMode,
+  UncountedDocs,
+} from './database.js'
 import {
   applyDefaults,
   fillMissing,
@@ -214,6 +221,11 @@ export interface FindOptions extends ReadOptions {
    * `hasNextPage` still says whether there is more. Default `true`.
    */
   readonly count?: boolean
+  /**
+   * Cursor pagination instead of `page`: `''` for the first page, then the `nextCursor` of the
+   * page before. Fast on deep pages of large collections; no page numbers or totals.
+   */
+  readonly cursor?: string
 }
 
 export interface CreateEasyCMSOptions {
@@ -411,6 +423,10 @@ export class EasyCMS<C extends Config = Config> {
 
   find<S extends Slug<C>, L extends string | undefined = undefined>(
     collection: S,
+    options: FindOptions & { readonly locale?: L; readonly cursor: string },
+  ): Promise<CursorDocs<Doc<C, S, L>>>
+  find<S extends Slug<C>, L extends string | undefined = undefined>(
+    collection: S,
     options: FindOptions & { readonly locale?: L; readonly count: false },
   ): Promise<UncountedDocs<Doc<C, S, L>>>
   find<S extends Slug<C>, L extends string | undefined = undefined>(
@@ -420,7 +436,7 @@ export class EasyCMS<C extends Config = Config> {
   async find<S extends Slug<C>, L extends string | undefined = undefined>(
     collection: S,
     options: FindOptions & { readonly locale?: L } = {},
-  ): Promise<PaginatedDocs<Doc<C, S, L>> | UncountedDocs<Doc<C, S, L>>> {
+  ): Promise<PaginatedDocs<Doc<C, S, L>> | UncountedDocs<Doc<C, S, L>> | CursorDocs<Doc<C, S, L>>> {
     const config = this.collection(collection)
     const guard = guardOf(options)
     const limit = options.limit ?? 10
@@ -447,6 +463,31 @@ export class EasyCMS<C extends Config = Config> {
             locale === ALL_LOCALES ? (this.config.localization?.defaultLocale ?? locale) : locale,
             this.config.localization?.locales ?? [],
           )
+    if (options.cursor !== undefined) {
+      if (options.page !== undefined) throw new QueryError('Use either cursor or page, not both')
+      if (limit === 0) throw new QueryError('A cursor needs a limit above 0')
+      if (!this.db.findAfter) throw new QueryError('This database adapter has no cursor pagination')
+      // The query a cursor was made for: another one would continue from a meaningless place.
+      const query = cursorQuery(collection, options.where, requested, locale, draft)
+      const after = readCursor(options.cursor, query)
+      const result = await this.db.findAfter({ collection, where, sort, limit, after })
+      const found = draft ? await this.withDrafts(config, result.docs) : result.docs
+      const docs = (await this.output(config, found, guard, { ...options, draft })) as Doc<
+        C,
+        S,
+        L
+      >[]
+      return {
+        docs,
+        limit,
+        nextCursor: result.hasNextPage && result.next ? writeCursor(result.next, query) : null,
+        hasNextPage: result.hasNextPage,
+        hasPrevPage: after !== null,
+        totalDocs: null,
+        totalPages: null,
+        page: null,
+      }
+    }
     const args = { collection, where, sort, limit, page }
     const count = options.count !== false || limit === 0
     const result = count
@@ -3683,4 +3724,38 @@ function durationSeconds(value: number | string): number {
     throw new QueryError(`expiresIn must be seconds or like '30m', '1h', '7d' (got ${value})`)
   if (seconds > MAX_LINK) throw new QueryError('expiresIn can be at most 7 days')
   return Math.floor(seconds)
+}
+
+/** What a cursor belongs to: the collection, filter, sort, locale and drafts it was read with. */
+function cursorQuery(
+  collection: string,
+  where: Where | undefined,
+  sort: readonly string[],
+  locale: string | undefined,
+  draft: boolean,
+): string {
+  const key = JSON.stringify([collection, where ?? null, sort, locale ?? null, draft])
+  return createHash('sha256').update(key).digest('base64url').slice(0, 16)
+}
+
+/** A cursor: the last row's keys and its query, as base64url JSON. Not secret, only a position. */
+function writeCursor(keys: readonly unknown[], query: string): string {
+  return Buffer.from(JSON.stringify({ k: keys, q: query })).toString('base64url')
+}
+
+/** The keys to continue after: `null` for `''`, the first page. */
+function readCursor(cursor: string, query: string): unknown[] | null {
+  if (cursor === '') return null
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'))
+  } catch {
+    throw new QueryError('cursor is not a cursor from this API')
+  }
+  const { k, q } = (parsed ?? {}) as { k?: unknown; q?: unknown }
+  if (!Array.isArray(k) || typeof q !== 'string')
+    throw new QueryError('cursor is not a cursor from this API')
+  if (q !== query)
+    throw new QueryError('cursor was made for another query: keep where, sort and locale the same')
+  return k
 }

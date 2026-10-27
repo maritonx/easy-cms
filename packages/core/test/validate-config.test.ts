@@ -458,6 +458,14 @@ describe('validateConfig', () => {
     expect(audit('yes')).toEqual(['audit'])
   })
 
+  it('checks maxPage', () => {
+    const max = (value: unknown) =>
+      validateConfig(baseConfig({ maxPage: value as never })).map((i) => i.path)
+    expect(max(100)).toEqual([])
+    expect(max(0)).toEqual(['maxPage'])
+    expect(max(2.5)).toEqual(['maxPage'])
+  })
+
   it('checks countCacheSeconds', () => {
     const seconds = (value: unknown) =>
       validateConfig(baseConfig({ countCacheSeconds: value as never })).map((i) => i.path)

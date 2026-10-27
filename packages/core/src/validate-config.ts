@@ -75,6 +75,7 @@ export function validateConfig(config: Config): ConfigIssue[] {
   validateAudit(config, add)
   validateLogs(config, add)
   validateCountCache(config, add)
+  validateMaxPage(config, add)
   validateAuth(config, add)
   validateCors(config.cors, add)
   validateLocalization(config, add)
@@ -804,6 +805,12 @@ const HOST_PATTERN =
   /^(\*|(\*\.)?[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*)$/i
 
 /** `audit`: true, or its settings. */
+function validateMaxPage(config: Config, add: Add) {
+  const max: unknown = config.maxPage
+  if (max !== undefined && !(Number.isInteger(max) && (max as number) >= 1))
+    add('maxPage', 'must be a whole number, 1 or more')
+}
+
 function validateCountCache(config: Config, add: Add) {
   const seconds: unknown = config.countCacheSeconds
   if (

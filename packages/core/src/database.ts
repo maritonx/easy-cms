@@ -15,6 +15,22 @@ export interface PaginatedDocs<T> {
   hasPrevPage: boolean
 }
 
+/**
+ * A page read with a `cursor`: the documents after the cursor, and `nextCursor` for the page after
+ * them (`null` at the end). No page numbers or totals.
+ */
+export interface CursorDocs<T> {
+  docs: T[]
+  limit: number
+  nextCursor: string | null
+  hasNextPage: boolean
+  /** Whether the cursor started after the first document. */
+  hasPrevPage: boolean
+  totalDocs: null
+  totalPages: null
+  page: null
+}
+
 /** A page read with `count: false`: no totals, which saves counting every matching document. */
 export interface UncountedDocs<T> extends Omit<PaginatedDocs<T>, 'totalDocs' | 'totalPages'> {
   totalDocs: null
@@ -49,6 +65,19 @@ export interface FindArgs {
   readonly page: number
 }
 
+/** `Database.findAfter`: a find with no page, from after a row's keys. */
+export interface FindAfterArgs extends Omit<FindArgs, 'page'> {
+  /** The keys `findAfter` returned for the last row of the page before; `null` for the first page. */
+  readonly after: readonly unknown[] | null
+}
+
+export interface KeysetPage {
+  docs: RawDocument[]
+  hasNextPage: boolean
+  /** The keys of the last row (its sort values, then its id), to continue after; `null` when empty. */
+  next: unknown[] | null
+}
+
 export interface MigrationInfo {
   readonly name: string
   readonly applied: boolean
@@ -68,6 +97,11 @@ export interface Database {
    * from one row more. Optional: without it, `find` runs and its totals are dropped.
    */
   findPage?(args: FindArgs): Promise<UncountedDocs<RawDocument>>
+  /**
+   * Keyset pagination, for `find` with a `cursor`: the rows after `after` in the sort's order (with
+   * `id` last). Optional: without it, cursors are refused.
+   */
+  findAfter?(args: FindAfterArgs): Promise<KeysetPage>
   findById(args: { collection: string; id: ID }): Promise<RawDocument | null>
   /** Documents of one collection by id, in any order. Used to populate relationships. */
   findByIds(args: { collection: string; ids: readonly ID[] }): Promise<RawDocument[]>

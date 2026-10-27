@@ -30,7 +30,7 @@ Local API เชื่อผู้เรียกและข้ามกฎส�
 
 | Method | คืนค่า | |
 |---|---|---|
-| `find(collection, options?)` | หน้าหนึ่งของเอกสาร | รายการพร้อม `where`, `sort`, `limit`, `page` ส่ง `count: false` เพื่อข้ามการนับ (ได้ `null`) |
+| `find(collection, options?)` | หน้าหนึ่งของเอกสาร | รายการพร้อม `where`, `sort`, `limit`, `page` ส่ง `count: false` เพื่อข้ามการนับ (ได้ `null`) และ `cursor` เพื่อแบ่งหน้าด้วย cursor (`nextCursor`) |
 | `findById(collection, id, options?)` | เอกสาร \| `null` | เอกสารเดียว |
 | `count(collection, options?)` | `number` | จำนวนที่ตรง `where` |
 | `create(collection, data, options?)` | เอกสาร | ตรวจข้อมูล รัน hook และบันทึก |
