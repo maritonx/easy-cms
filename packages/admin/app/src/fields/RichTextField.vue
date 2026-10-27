@@ -11,11 +11,14 @@ import {
   List,
   ListOrdered,
   Redo2,
+  Table,
   TextQuote,
+  Trash2,
   Underline,
   Undo2,
 } from '@lucide/vue'
 import Image from '@tiptap/extension-image'
+import { TableKit } from '@tiptap/extension-table'
 import StarterKit from '@tiptap/starter-kit'
 import { EditorContent, useEditor } from '@tiptap/vue-3'
 import { type Component, onBeforeUnmount, ref, watch } from 'vue'
@@ -41,6 +44,8 @@ const editor = useEditor({
       link: { openOnClick: false, autolink: true, protocols: ['http', 'https', 'mailto', 'tel'] },
     }),
     Image,
+    // Tables without merged cells: what HTML, Markdown and the API's readers all handle.
+    TableKit.configure({ table: { resizable: false } }),
   ],
   editorProps: {
     attributes: {
@@ -106,8 +111,47 @@ const ICONS: Record<string, Component> = {
   ol: ListOrdered,
   quote: TextQuote,
   img: ImagePlus,
+  table: Table,
+  deleteTable: Trash2,
   undo: Undo2,
   redo: Redo2,
+}
+/** What can be done to the table the cursor is in, shown below the toolbar while it is in one. */
+const tableActions = (): Action[] => {
+  const e = editor.value
+  if (!e?.isActive('table')) return []
+  return [
+    {
+      key: 'rowAfter',
+      label: t('rte.rowAfter'),
+      text: '',
+      run: () => e.chain().focus().addRowAfter().run(),
+    },
+    {
+      key: 'columnAfter',
+      label: t('rte.columnAfter'),
+      text: '',
+      run: () => e.chain().focus().addColumnAfter().run(),
+    },
+    {
+      key: 'deleteRow',
+      label: t('rte.deleteRow'),
+      text: '',
+      run: () => e.chain().focus().deleteRow().run(),
+    },
+    {
+      key: 'deleteColumn',
+      label: t('rte.deleteColumn'),
+      text: '',
+      run: () => e.chain().focus().deleteColumn().run(),
+    },
+    {
+      key: 'deleteTable',
+      label: t('rte.deleteTable'),
+      text: '',
+      run: () => e.chain().focus().deleteTable().run(),
+    },
+  ]
 }
 const actions = (): Action[] => {
   const e = editor.value
@@ -180,6 +224,13 @@ const actions = (): Action[] => {
       active: () => e.isActive('blockquote'),
     },
     { key: 'img', label: t('rte.image'), text: '🖼', run: addImage },
+    {
+      key: 'table',
+      label: t('rte.table'),
+      text: '▦',
+      run: () => e.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
+      active: () => e.isActive('table'),
+    },
     { key: 'undo', label: t('rte.undo'), text: '↶', run: () => e.chain().focus().undo().run() },
     { key: 'redo', label: t('rte.redo'), text: '↷', run: () => e.chain().focus().redo().run() },
   ]
@@ -203,6 +254,24 @@ const actions = (): Action[] => {
       >
         <component :is="ICONS[action.key]" v-if="ICONS[action.key]" :size="16" aria-hidden="true" />
         <template v-else>{{ action.text }}</template>
+      </button>
+    </div>
+    <div
+      v-if="!readOnly && editor && tableActions().length"
+      class="rte-toolbar rte-table-toolbar"
+      role="toolbar"
+      :aria-label="t('rte.table')"
+    >
+      <button
+        v-for="action in tableActions()"
+        :key="action.key"
+        type="button"
+        class="rte-button rte-text-button"
+        @mousedown.prevent
+        @click="action.run"
+      >
+        <component :is="ICONS[action.key]" v-if="ICONS[action.key]" :size="14" aria-hidden="true" />
+        {{ action.label }}
       </button>
     </div>
     <EditorContent v-if="editor" :editor="editor" />
@@ -280,6 +349,39 @@ const actions = (): Action[] => {
   padding-left: 1rem;
   border-left: 3px solid var(--border-strong);
   color: var(--text-muted);
+}
+.rte-table-toolbar {
+  border-radius: 0;
+  background: var(--surface-2);
+}
+.rte-text-button {
+  gap: 0.3rem;
+  font-weight: 500;
+}
+.rte :deep(.rte-content table) {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.75rem 0;
+  table-layout: fixed;
+}
+.rte :deep(.rte-content th),
+.rte :deep(.rte-content td) {
+  border: 1px solid var(--border-strong);
+  padding: 0.35rem 0.5rem;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.rte :deep(.rte-content th) {
+  background: var(--surface-2);
+  font-weight: 600;
+  text-align: left;
+}
+.rte :deep(.rte-content th p),
+.rte :deep(.rte-content td p) {
+  margin: 0;
+}
+.rte :deep(.rte-content .selectedCell) {
+  background: var(--accent-soft);
 }
 .rte :deep(.rte-content code) {
   font-family: var(--mono);

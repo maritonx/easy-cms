@@ -15,7 +15,8 @@ pages with Nuxt, Next.js or any frontend.
 
 In the admin, `richText` fields are edited with [Tiptap](https://tiptap.dev): headings (H2–H4),
 bold, italic, underline, inline code, links, bullet and numbered lists, quotes, images from the
-media library (or a URL), undo and redo. Keyboard shortcuts work as in other editors
+media library (or a URL), tables, undo and redo. A table starts with a header row; while the
+cursor is in one, buttons add and delete rows and columns. Cells can't be merged. Keyboard shortcuts work as in other editors
 (<kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>B</kbd>, <kbd>I</kbd>, <kbd>U</kbd>, <kbd>Z</kbd>).
 
 The value is stored as Tiptap JSON, a tree of nodes, not HTML:
@@ -82,7 +83,7 @@ document.querySelector('#body')!.innerHTML = renderRichText(post.body)
 :::
 
 It renders these nodes: paragraphs, headings, bullet and numbered lists, quotes, code blocks,
-line breaks, horizontal rules and images; and these marks: bold, italic, underline,
+line breaks, horizontal rules, images and tables (header rows in `<thead>`); and these marks: bold, italic, underline,
 strikethrough, code and links. Unknown nodes keep their text without markup, so newer content never
 breaks a page.
 
@@ -104,7 +105,8 @@ const excerpt = richTextToPlainText(post.body).slice(0, 160) // meta description
 
 `renderMarkdown(doc)` turns rich text into Markdown, e.g. for AI assistants
 ([AI search](./ai-search)), emails or exports. Text that looks like Markdown is escaped and
-unsafe URLs are dropped, as with HTML. Pass `nodes` to render your own node types.
+unsafe URLs are dropped, as with HTML. Tables become GFM tables, a cell's paragraphs joined with
+`<br>`. Pass `nodes` to render your own node types.
 
 ```ts
 import { renderMarkdown } from '@easy-cms/richtext'
