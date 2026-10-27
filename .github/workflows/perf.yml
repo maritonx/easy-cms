@@ -56,7 +56,9 @@ jobs:
       - name: Start Postgres
         run: |
           mkdir -p perf-data/pg perf-data/project
-          docker run -d --name pg --user "$(id -u):$(id -g)" -v /etc/passwd:/etc/passwd:ro \
+          # Parallel queries share memory through /dev/shm, 64 MB by default in Docker: at 1M rows
+          # they ran out ("could not resize shared memory segment") and failed with 500s.
+          docker run -d --name pg --shm-size=1g --user "$(id -u):$(id -g)" -v /etc/passwd:/etc/passwd:ro \
             -v "$PWD/perf-data/pg:/var/lib/postgresql/data" -p 5432:5432 \
             -e POSTGRES_USER=easycms -e POSTGRES_PASSWORD=easycms -e POSTGRES_DB=easycms \
             postgres:17 -c shared_buffers=1GB -c effective_cache_size=4GB -c max_connections=200
@@ -99,7 +101,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p earlier
-          for id in $(gh run list --workflow perf.yml --status success --limit 7 --json databaseId --jq '.[].databaseId'); do
+          for id in $(gh run list --workflow perf.yml --branch main --status success --limit 7 --json databaseId --jq '.[].databaseId'); do
             gh run download "$id" --dir "earlier/$id" --pattern 'perf-results-*' || true
           done
       - name: Compare

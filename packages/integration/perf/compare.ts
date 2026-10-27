@@ -1,7 +1,7 @@
 // Compares tonight's results with earlier nights: `node perf/compare.ts <results.json> [dir]`,
-// where dir holds earlier results.json files (one per subfolder or file). A kind of request whose
-// p95 is more than 20% above the median of the last 7 nights fails the run. Writes a Markdown
-// table to stdout (and to GITHUB_STEP_SUMMARY in Actions).
+// where dir holds earlier results.json files (one per subfolder or file). Once there are 3 earlier
+// nights, a kind of request whose p95 is more than 20% above the median of the last 7 fails the
+// run. Writes a Markdown table to stdout (and to GITHUB_STEP_SUMMARY in Actions).
 import { appendFileSync, existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -21,6 +21,8 @@ interface Results {
 }
 
 const LIMIT = 1.2
+// Fewer nights are too noisy on shared runners to fail on: the table is shown, the run passes.
+const MIN_NIGHTS = 3
 const TARGET_MS = 200
 const [current, dir] = process.argv.slice(2)
 if (!current) throw new Error('Pass the results file')
@@ -72,7 +74,11 @@ const table = [
 ].join('\n')
 console.log(table)
 if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${table}\n`)
-if (slower.length) {
+if (slower.length && earlier.length < MIN_NIGHTS) {
+  console.log(
+    `Slower than usual (${slower.join(', ')}), but only ${earlier.length} earlier night(s).`,
+  )
+} else if (slower.length) {
   console.error(
     `More than ${Math.round((LIMIT - 1) * 100)}% slower than usual: ${slower.join(', ')}`,
   )

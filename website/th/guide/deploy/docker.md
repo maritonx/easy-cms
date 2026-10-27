@@ -135,6 +135,7 @@ services:
 
   db:
     image: postgres:17
+    shm_size: 1g
     environment:
       POSTGRES_USER: cms
       POSTGRES_PASSWORD: cms
@@ -173,6 +174,9 @@ volumes:
 ```
 
 :::
+
+`shm_size` เผื่อพื้นที่ให้ Postgres ทำ parallel query: ค่าเริ่มต้นของ Docker คือ 64 MB ซึ่งไม่พอเมื่อตารางใหญ่ และ query
+เหล่านั้นจะล้มด้วย "could not resize shared memory segment"
 
 config อ่านฐานข้อมูลจาก `DATABASE_URL` เช่น `postgres({ url: process.env.DATABASE_URL })` หรือ
 `sqlite({ url: process.env.DATABASE_URL })` ถ้าใช้ SQLite ให้รัน container เดียว เพราะไฟล์ SQLite มี server ได้ตัวเดียว

@@ -140,6 +140,7 @@ services:
 
   db:
     image: postgres:17
+    shm_size: 1g
     environment:
       POSTGRES_USER: cms
       POSTGRES_PASSWORD: cms
@@ -178,6 +179,9 @@ volumes:
 ```
 
 :::
+
+`shm_size` gives Postgres room for parallel queries: Docker's default of 64 MB runs out on large
+tables, and those queries fail with "could not resize shared memory segment".
 
 The config reads the database from `DATABASE_URL`, for example
 `postgres({ url: process.env.DATABASE_URL })` or `sqlite({ url: process.env.DATABASE_URL })`. With
