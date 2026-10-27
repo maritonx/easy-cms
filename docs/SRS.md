@@ -612,6 +612,12 @@ AI assistant ► /api/cms/mcp ──┘                     └──► Webhook
 | NFR-PERF-05 | ฟีเจอร์ที่ไม่ได้เปิด (versions, localization, webhooks, schedule, API keys) ต้องไม่เพิ่มงานต่อ request | SHOULD |
 
 > ผลวัดจริง (M6, `pnpm --filter easy-cms-integration-tests bench`): Postgres 17 ได้ Local API p95 2.7 ms และ REST p95 4.3 ms, PGlite ได้ 3.5 / 4.0 ms, SQLite ได้ 0.4 / 0.4 ms
+>
+> ที่ 1,000,000 เอกสาร (M7, workflow Perf ทุกคืน, 1.10 วันที่ 2026-10-27, GitHub runner 4 core กับ Postgres 17, REST 20 request พร้อมกัน):
+> - ตาม id/slug p95 22 ms, หน้าแรก 28 ms, หน้าถัดไปด้วย cursor 29 ms, ค้นไทยด้วย trigram 69 ms, บันทึก draft 89 ms
+> - ที่ยังไม่ผ่าน NFR-PERF-02 คือหน้าลึกแบบระบุเลขหน้า p95 5.6 s (ไม่นับยอดรวมก็ 5.9 s เพราะเวลาหมดไปกับ OFFSET), ค้นในบล็อก 6.7 s และกรองด้วย relationship เรียงด้วยวันที่ 1.4 s
+> - โหลดผสม 200 editor: อ่าน p95 17 s (รอบแรกก่อน #231, #175, #176 ราว 30 s) และบันทึก p95 30 s เพราะ query ที่ช้าเหล่านี้ใช้ connection หมด
+> - ทางที่มีให้แล้ว: `cursor`, `maxPage`, `index: 'trigram'` และ `httpCache` ส่วนการกรอง relationship กับการค้นในบล็อกยังต้องปรับต่อ
 
 ### 4.2 Security (SEC)
 
