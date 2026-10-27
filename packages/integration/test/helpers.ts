@@ -11,6 +11,7 @@ import {
 import { type PostgresAdapterOptions, postgres } from '@easy-cms/db-postgres'
 import { sqlite } from '@easy-cms/db-sqlite'
 import { PGlite } from '@electric-sql/pglite'
+import { pg_trgm } from '@electric-sql/pglite/contrib/pg_trgm'
 import { createClient } from '@libsql/client'
 import postgresJs from 'postgres'
 import { afterAll, afterEach, expect } from 'vitest'
@@ -92,7 +93,7 @@ export function db(server: Partial<PostgresAdapterOptions> = {}): DatabaseAdapte
       const tablePrefix = prefixFor(args.cwd)
       if (DIALECT === 'sqlite') return sqlite({ url: 'file:./cms.db', tablePrefix }).init(args)
       if (DIALECT === 'pglite') {
-        pglite ??= new PGlite()
+        pglite ??= new PGlite({ extensions: { pg_trgm } })
         return postgres({ pglite, tablePrefix }).init(args)
       }
       return postgres({

@@ -160,6 +160,9 @@ const results = [
   await scenario('filter relationship + sort by date', () =>
     get(`/posts?where[author][equals]=${authors[rand(authors.length)]}&sort=-publishedAt&limit=10`),
   ),
+  await scenario('Thai text search (like)', () =>
+    get(`/posts?where[title][like]=${encodeURIComponent(`ที่ ${rand(DOCS)}`)}&limit=10`),
+  ),
   await scenario('text search (like)', () =>
     get(`/posts?where[title][like]=${rand(1000)}&locale=en&limit=10`),
   ),

@@ -14,7 +14,7 @@ look in the admin and how they are stored, see [Fields](/guide/fields).
 | `required` | `boolean` | Must have a value (not checked while saving a draft). |
 | `unique` | `boolean` | No two documents share the value. Top-level fields only (inside a group, array or block it is ignored, with a warning). |
 | `uniqueWithin` | `string \| string[]` | With `unique` or on a slug: sibling fields (e.g. `parent`, `tenant`); values only differ among documents with the same values there. |
-| `index` | `boolean` | Adds a database index. |
+| `index` | `boolean \| 'trigram'` | `true` adds a database index. `'trigram'` (text, textarea, email): an index for `like` on any part of the text, Thai included; Postgres only, nothing on SQLite. [Search with like](/guide/databases#search-with-like) |
 | `defaultValue` | the field's value | Used when a document is created without it. |
 | `validate` | `(value, { data, operation }) => true \| string` | Custom check; may be async. |
 | `access` | `{ read?, create?, update? }` | Field-level [access](/guide/access-control#field-access). `create`: who may set it when creating a document; default: its `update`. |

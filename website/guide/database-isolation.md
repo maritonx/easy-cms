@@ -69,6 +69,14 @@ connection, so it also works behind poolers that refuse startup parameters.
   The last line covers tables later migrations create. Then refer to them as
   `easy_cms.ecms_posts`, or add the schema to the app role's `search_path`.
 
+With [`index: 'trigram'`](./databases#search-with-like), the role can't create the `pg_trgm`
+extension itself, and finds it only in its own schema. Create it there once, as the database's
+owner:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS pg_trgm SCHEMA easy_cms;
+```
+
 A `schema` option for `postgres()`, independent of `search_path`, and running with a role that
 can only read and write data are planned.
 

@@ -105,8 +105,18 @@ export class Migrator {
     return { ...snapshot, [META]: meta }
   }
 
-  /** SQL statements that turn `prev` into `cur`. Renames become drop + add unless interactive. */
+  /** SQL statements that turn `prev` into `cur`, with the extensions their indexes need. */
   private async diff(prev: Snapshot, cur: Snapshot, interactive: boolean): Promise<string[]> {
+    const statements = await this.changes(prev, cur, interactive)
+    // `index: 'trigram'` on Postgres: pg_trgm is a trusted extension, which the database's owner
+    // can create (Postgres 13 and later).
+    return statements.some((s) => s.includes('gin_trgm_ops'))
+      ? ['CREATE EXTENSION IF NOT EXISTS pg_trgm', ...statements]
+      : statements
+  }
+
+  /** Renames become drop + add unless interactive. */
+  private async changes(prev: Snapshot, cur: Snapshot, interactive: boolean): Promise<string[]> {
     const { dialect } = this.options
     const moves = this.localeMoves(prev, metaOf(prev), metaOf(cur))
     const [from, to] = [withoutMeta(prev), withoutMeta(cur)]
@@ -209,10 +219,16 @@ export class Migrator {
     if (statements.some((s) => DESTRUCTIVE.test(s))) {
       this.options.logger.warn('Schema push drops tables or columns; data in them is lost.')
     }
-    await this.runner.transaction([
-      ...statements.map((sql) => ({ sql })),
-      this.record(DEV_PUSH, this.options.schema.hash, cur, true),
-    ])
+    try {
+      await this.runner.transaction([
+        ...statements.map((sql) => ({ sql })),
+        this.record(DEV_PUSH, this.options.schema.hash, cur, true),
+      ])
+    } catch (error) {
+      const hint = extensionHint(error)
+      if (hint) throw new SchemaError(`${(error as Error).message}${hint}`)
+      throw error
+    }
     if (statements.length > 0)
       this.options.logger.info(`Schema pushed (${statements.length} statements).`)
   }
@@ -287,7 +303,7 @@ export class Migrator {
         ])
       } catch (error) {
         throw new SchemaError(
-          `Migration ${migration.name} failed and was rolled back: ${(error as Error).message}`,
+          `Migration ${migration.name} failed and was rolled back: ${(error as Error).message}${extensionHint(error)}`,
         )
       }
       this.options.logger.info(`Applied ${migration.name}`)
@@ -341,4 +357,16 @@ function timestamp() {
   const d = new Date()
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}${pad(d.getUTCSeconds())}`
+}
+
+/**
+ * A role that doesn't own the database can't create an extension (`index: 'trigram'` needs
+ * pg_trgm): what to ask whoever runs it.
+ */
+function extensionHint(error: unknown): string {
+  const match = /permission denied to create extension "([^"]+)"/.exec(
+    (error as Error)?.message ?? '',
+  )
+  if (!match) return ''
+  return `. Ask the database's owner to run, once: CREATE EXTENSION IF NOT EXISTS ${match[1]} (with SCHEMA <yours> when this role's search_path is a schema of its own).`
 }

@@ -19,7 +19,8 @@ export const schema = {
       versions: true,
       access: { read: () => true },
       fields: [
-        { name: 'title', type: 'text', required: true, localized: true },
+        // like on titles (Thai and English) uses a trigram index on Postgres.
+        { name: 'title', type: 'text', required: true, localized: true, index: 'trigram' },
         { name: 'slug', type: 'slug', from: 'title', localized: true },
         { name: 'excerpt', type: 'textarea', localized: true },
         { name: 'views', type: 'number', index: true },

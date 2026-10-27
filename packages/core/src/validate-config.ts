@@ -44,6 +44,8 @@ const RESERVED_SLUGS = new Set([
 ])
 
 const SYSTEM_FIELD_NAMES = new Set(['id', 'createdAt', 'updatedAt'])
+/** Fields `index: 'trigram'` is for: plain text the `like` operator searches. */
+const TRIGRAM_TYPES: ReadonlySet<string> = new Set(['text', 'textarea', 'email'])
 
 const SLUG_PATTERN = /^[a-z][a-z0-9_-]*$/
 const FIELD_NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/
@@ -1204,6 +1206,15 @@ function validateFields(
     }
     if (names.has(name)) add(`${path}.${name}`, `duplicate field name "${name}"`)
     names.add(name)
+    const index: unknown = (field as { index?: unknown }).index
+    if (index !== undefined && typeof index !== 'boolean' && index !== 'trigram')
+      add(`${path}.${name}.index`, "must be true, false or 'trigram'")
+    else if (index === 'trigram' && !TRIGRAM_TYPES.has(field.type))
+      add(
+        `${path}.${name}.index`,
+        `'trigram' is for text, textarea and email fields, not ${field.type}`,
+        'use index: true',
+      )
     byName.set(name, field)
   })
 

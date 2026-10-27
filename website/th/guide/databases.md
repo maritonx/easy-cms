@@ -123,13 +123,33 @@ Easy CMS สร้างและแก้ไขเฉพาะตาราง�
 - **หน้าเว็บและการดึงตาม id/slug เร็ว** frontend ส่วนใหญ่ดึงตาม id หรือ slug และแสดงรายการหน้าแรกๆ
 - **หน้าลึกๆ ใช้เวลามากขึ้น** ตามระยะ เพราะฐานข้อมูลต้องข้ามแถวก่อนหน้า ให้แบ่งหน้า archive ตามวันที่
   (`where[publishedAt][lt]=…`) แทนการไปหน้าที่ 5,000
-- **`like` อ่านทุกแถว** ถ้าต้องการค้นหาทั้งเว็บ ให้ใช้บริการค้นหา (Meilisearch, Algolia, Typesense) ที่อัปเดตผ่าน
-  [webhooks](./webhooks) หรือเพิ่ม index `pg_trgm` บน Postgres เอง
+- **`like` อ่านทุกแถว** ยกเว้น field ที่ตั้ง `index: 'trigram'` บน Postgres (ดูข้างล่าง) ถ้าต้องการค้นหาทั้งเว็บ ให้ใช้บริการค้นหา
+  (Meilisearch, Algolia, Typesense) ที่อัปเดตผ่าน [webhooks](./webhooks)
 - **การค้นในบล็อก** อ่าน JSON ของทุกเอกสาร บน Postgres ตัวดำเนินการ `equals` และ `in` ใช้ JSON containment
   จึงเร็วกว่าตัวอื่นประมาณหกเท่า ควรใช้กับการกรอง ไม่ใช่ทุกครั้งที่มีคนเปิดหน้า
 - **cache หน้าสาธารณะ** (CDN หรือ cache ของ framework) แล้วสั่ง revalidate จาก webhook
   traffic ส่วนใหญ่จะไม่ต้องมาถึง CMS เลย
 - ถ้ามี request พร้อมกันมากกว่าจำนวน connection จะต้องรอ connection ว่าง เพิ่ม `max` ของ `postgres()` ได้ถ้าฐานข้อมูลรับไหว
+
+## ค้นด้วย like {#search-with-like}
+
+`like` หาข้อความที่ตรงกับส่วนไหนของข้อความก็ได้ ซึ่ง index ปกติช่วยไม่ได้ บน Postgres ตั้ง `index: 'trigram'` เพื่อเพิ่ม index
+ที่ช่วยได้ (GIN กับ extension `pg_trgm`) ใช้ได้ทั้งภาษาไทยและภาษาอังกฤษ:
+
+```ts
+{ name: 'title', type: 'text', localized: true, index: 'trigram' }
+```
+
+ที่ 100,000 บทความ การค้นชื่อบทความภาษาไทยเปลี่ยนจากอ่านทุกแถว (ประมาณ 250 ms ต่อ query) เป็น p95 25 ms ที่ 20 request
+พร้อมกัน field หลายภาษาได้ index แยกทุกภาษา
+
+- **Extension** migration แรกที่มี trigram index จะรัน `CREATE EXTENSION IF NOT EXISTS pg_trgm` ตั้งแต่ Postgres 13 เจ้าของฐานข้อมูล
+  สร้างได้เอง และ Neon, Supabase และ RDS อนุญาต ถ้าไม่ได้ ให้คนดูแลฐานข้อมูลรันบรรทัดนี้หนึ่งครั้ง
+- **LC_CTYPE ของฐานข้อมูล** trigram มาจากตัวอักษรและตัวเลขตามที่ฐานข้อมูลมอง ถ้า `LC_CTYPE` เป็น `C` หรือ `POSIX`
+  ตัวอักษรไทยจะไม่ถูกนับเป็นตัวอักษร และ index หาไม่เจอ (ผลยังถูกต้อง แค่ช้า) Easy CMS จะเตือนตอนเริ่ม `C.UTF-8`,
+  `en_US.UTF-8` และ `th_TH.UTF-8` ใช้ได้ รวมถึงค่าเริ่มต้นของ image Postgres ใน Docker และของ PGlite
+- **อย่างน้อย 3 ตัวอักษร** คำค้นที่สั้นกว่านั้นใช้ index ไม่ได้
+- **SQLite** ไม่มี index แบบนี้ option นี้จึงไม่มีผลบน SQLite และ config เดียวกันใช้ได้ทั้งสองแบบ
 
 ## ขั้นต่อไป {#next-steps}
 

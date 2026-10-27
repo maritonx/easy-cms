@@ -458,6 +458,17 @@ describe('validateConfig', () => {
     expect(audit('yes')).toEqual(['audit'])
   })
 
+  it("checks index, with 'trigram' for text only", () => {
+    expect(withFields([{ name: 't', type: 'text', index: 'trigram' }])).toEqual([])
+    expect(withFields([{ name: 't', type: 'textarea', index: true }])).toEqual([])
+    expect(withFields([{ name: 'n', type: 'number', index: 'trigram' as never }])).toEqual([
+      'collections.posts.fields.n.index',
+    ])
+    expect(withFields([{ name: 't', type: 'text', index: 'gin' as never }])).toEqual([
+      'collections.posts.fields.t.index',
+    ])
+  })
+
   it('checks maxPage', () => {
     const max = (value: unknown) =>
       validateConfig(baseConfig({ maxPage: value as never })).map((i) => i.path)

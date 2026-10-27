@@ -217,7 +217,12 @@ function buildTable(
   const children: ChildModel[] = []
   // `within`: unique together with these columns (`uniqueWithin`).
   // One column as a string, as before several were allowed (the schema's hash stays the same).
-  const indexes: { column: string; unique: boolean; within?: string | readonly string[] }[] = []
+  const indexes: {
+    column: string
+    unique: boolean
+    within?: string | readonly string[]
+    trigram?: boolean
+  }[] = []
 
   const add = (column: string, builderColumn: ColumnBuilder, desc: unknown) => {
     if (Object.hasOwn(columns, column)) {
@@ -352,6 +357,8 @@ function buildTable(
             indexes.push({ column, unique: false })
           } else if (topLevel && kind === 'root' && (field.unique || field.type === 'slug')) {
             indexes.push({ column, unique: true })
+          } else if (field.index === 'trigram') {
+            indexes.push({ column, unique: false, trigram: true })
           } else if (
             field.index ||
             field.unique ||
@@ -368,8 +375,11 @@ function buildTable(
   walk(fields, [], true)
 
   const table = dialect.table(name, columns, (t: Record<string, AnyColumn>) =>
-    indexes.map(({ column, unique, within }) => {
-      const col = t[column]
+    indexes.flatMap(({ column, unique, within, trigram }) => {
+      const col = t[column] as AnyColumn
+      // SQLite has no index for substrings: nothing to make there.
+      if (trigram)
+        return dialect.trigramIndex ? [dialect.trigramIndex(`${name}_${column}_trgm`).on(col)] : []
       if (within) {
         const columns = [within].flat()
         return dialect

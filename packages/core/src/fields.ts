@@ -101,7 +101,12 @@ interface BaseField<TType extends string, TValue> {
    * can both be `team`. Single, unlocalized relationship, select, text or number fields.
    */
   readonly uniqueWithin?: string | readonly string[]
-  readonly index?: boolean
+  /**
+   * `true` for a database index (filters and sorts on this field). `'trigram'`, on text, textarea
+   * and email fields: an index for `like`, which finds any part of the text, in Thai as in other
+   * languages. Postgres only (pg_trgm); nothing on SQLite.
+   */
+  readonly index?: boolean | 'trigram'
   readonly defaultValue?: TValue
   readonly validate?: FieldValidate<TValue>
   readonly access?: FieldAccess
