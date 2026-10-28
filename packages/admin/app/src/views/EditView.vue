@@ -178,12 +178,12 @@ function setField(name: string, value: string) {
   form.value = { ...form.value, [name]: value }
 }
 function undoChanges() {
-  const [values, pw] = JSON.parse(baseline.value) as [Record<string, unknown>, string]
-  form.value = values
-  password.value = pw
+  form.value = JSON.parse(baseline.value) as Record<string, unknown>
+  password.value = ''
   localDraft.clear()
 }
-const dirty = computed(() => snapshot([form.value, password.value]) !== baseline.value)
+// The baseline holds the form only: a password typed in is a change, never part of a snapshot.
+const dirty = computed(() => snapshot(form.value) !== baseline.value || password.value !== '')
 /** Unsaved changes kept in this browser (passwords never are). */
 const localDraft = useLocalDraft(() => `${slug}:${id ?? 'new'}`, form, dirty)
 const layoutRef = ref<InstanceType<typeof FieldLayout>>()
@@ -234,7 +234,7 @@ watch(password, () => {
 function reset(values: Record<string, unknown>) {
   form.value = values
   password.value = ''
-  baseline.value = snapshot([values, ''])
+  baseline.value = snapshot(values)
 }
 
 // Localized fields are edited one content language at a time.
@@ -441,7 +441,8 @@ async function remove(query = '') {
   confirmingDelete.value = false
   try {
     await api('DELETE', `/${slug}/${encodeURIComponent(String(id))}${query}`)
-    baseline.value = snapshot([form.value, password.value])
+    password.value = ''
+    baseline.value = snapshot(form.value)
     await router.push(`/collections/${slug}`)
   } catch (e) {
     message.value = {

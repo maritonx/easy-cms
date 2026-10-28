@@ -9,6 +9,7 @@ import {
 } from './config.js'
 import { checkConfigKeys } from './config-keys.js'
 import { ADAPTER_API_VERSION } from './database.js'
+import { warnDeprecated } from './deprecation.js'
 import type { ConfigIssue } from './errors.js'
 import { FIELD_TYPES, type Field, type SelectOption } from './fields.js'
 import { NAV_ID, navGroups, navIds } from './nav.js'
@@ -1282,6 +1283,15 @@ function validateFields(
       add(`${path}[${i}].name`, `must be a valid identifier (got ${JSON.stringify(name)})`)
       return
     }
+    if (name === '__proto__') {
+      add(`${path}[${i}].name`, '"__proto__" is reserved by JavaScript')
+      return
+    }
+    if (name === 'constructor' || name === 'prototype')
+      warnDeprecated(
+        'EASY_CMS_DEP006',
+        `A field named "${name}" (${path}.${name}) works through 1.x; rename it before 2.0.`,
+      )
     if (reserved.has(name)) {
       add(`${path}.${name}`, `"${name}" is reserved`, 'Easy CMS adds this field automatically')
     }

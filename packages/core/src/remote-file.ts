@@ -55,7 +55,10 @@ for (const [net, prefix] of [
   ['::1', 128],
   ['64:ff9b:1::', 48],
   ['100::', 64],
+  // Teredo and 6to4 tunnel to an IPv4 address the IPv6 one carries: any of them, private too.
+  ['2001::', 32],
   ['2001:db8::', 32],
+  ['2002::', 16],
   ['fc00::', 7],
   ['fe80::', 10],
   ['ff00::', 8],

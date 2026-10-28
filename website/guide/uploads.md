@@ -226,6 +226,9 @@ public, the server refuses:
 
 `allowPrivate: true` lifts the private address rule, e.g. for an intranet image server. Only
 set it if every user who can upload may reach your internal network.
+
+Behind an HTTP proxy (`HTTP_PROXY` with `NODE_USE_ENV_PROXY`), the server looks up only the proxy:
+the proxy must refuse private addresses itself.
 :::
 
 `cms.uploadFromURL()` without a user is your own code (a migration script, say): it doesn't need

@@ -80,6 +80,7 @@ option ของ config เป็นข้อยกเว้นก่อน 1.0:
 | `EASY_CMS_DEP003` | `?fallback-locale=` | `?fallbackLocale=` | 2.0 |
 | `EASY_CMS_DEP004` | `easy-cms create-admin` | `easy-cms admin:create` | 2.0 |
 | `EASY_CMS_DEP005` | `easy-cms run-scheduled` | `easy-cms jobs:run` | 2.0 |
+| `EASY_CMS_DEP006` | field ชื่อ `constructor` หรือ `prototype` | ชื่ออื่น | 2.0 |
 
 ### ใน plugin ของคุณ
 

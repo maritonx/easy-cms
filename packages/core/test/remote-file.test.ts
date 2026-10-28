@@ -134,6 +134,9 @@ describe('helpers', () => {
       '64:ff9b::a9fe:a9fe',
       '64:ff9b::127.0.0.1',
       '::127.0.0.1',
+      // Tunnels to an IPv4 address: 6to4 (here 127.0.0.1) and Teredo.
+      '2002:7f00:1::1',
+      '2001:0:4136:e378:8000:63bf:3fff:fdd2',
     ])
       expect(isPrivateAddress(ip), ip).toBe(true)
     for (const ip of [
