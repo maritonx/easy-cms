@@ -186,7 +186,9 @@ faster or slower from one run to the next, so compare numbers from the same run.
   API clients from paging deep.
 - **Filters on relationships count from the index.** In a collection with drafts, indexed fields
   (relationships, uploads, `index: true`) are indexed together with `status`, which public reads
-  filter on, so their totals read only the index.
+  filter on, so their totals read only the index. On Postgres they also get statistics on the
+  pair, so a value whose documents are all drafts (an author who hasn't published yet) is found
+  empty at once instead of after reading a whole index.
 - **Trigram indexes need three characters.** A Thai search of a few words uses the index; `like`
   with one or two characters would read every row, so it is refused (`400`).
 - **Keep queries inside blocks off public pages** at this size, or copy what you query to a field

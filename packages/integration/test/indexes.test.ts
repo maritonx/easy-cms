@@ -1,6 +1,6 @@
-import { defineConfig } from '@easy-cms/core'
+import { createEasyCMS, defineConfig, silentLogger } from '@easy-cms/core'
 import { describe, expect, it } from 'vitest'
-import { DIALECT, db, open, rawQuery, SECRET, table } from './helpers.js'
+import { DIALECT, db, open, rawQuery, SECRET, table, tempProject } from './helpers.js'
 
 const config = defineConfig({
   secret: SECRET,
@@ -56,4 +56,50 @@ describe('indexes in collections with drafts (#257)', () => {
     expect((await indexes(cms.cwd, 'notes')).author_idx).toEqual(['author'])
     await cms.destroy()
   })
+
+  it.runIf(DIALECT !== 'sqlite')(
+    'adds statistics on each field and status, in migrations and push',
+    async () => {
+      const statistics = async (cwd: string) =>
+        (
+          await rawQuery(
+            cwd,
+            `select s.stxname as name from pg_statistic_ext s join pg_class t on t.oid = s.stxrelid where t.relname = '${table(cwd, 'posts')}' order by 1`,
+          )
+        ).map((r) => String(r.name).replace(`${table(cwd, 'posts')}_`, ''))
+      const expected = ['author_status_stats', 'published_at_status_stats']
+
+      const pushed = await open(config)
+      expect(await statistics(pushed.cwd)).toEqual(expected)
+      await pushed.destroy()
+
+      const cwd = tempProject()
+      const migrate = async (cfg: typeof config, name: string) => {
+        const tool = await createEasyCMS(cfg, {
+          cwd,
+          schema: 'skip',
+          scheduler: false,
+          logger: silentLogger,
+        })
+        const created = await tool.db.createMigration({ name })
+        await tool.db.migrate()
+        await tool.destroy()
+        return created
+      }
+      const first = await migrate(config, 'init')
+      expect(first?.statements.filter((s) => s.startsWith('CREATE STATISTICS'))).toHaveLength(2)
+      expect(await statistics(cwd)).toEqual(expected)
+      expect(await migrate(config, 'again')).toBeNull()
+      // Without the field, its statistics go too.
+      const fewer = defineConfig({
+        ...config,
+        collections: config.collections.map((c) =>
+          c.slug === 'posts' ? { ...c, fields: c.fields.filter((f) => f.name !== 'author') } : c,
+        ),
+      })
+      const second = await migrate(fewer, 'no author')
+      expect(second?.statements[0]).toMatch(/^DROP STATISTICS IF EXISTS .*author_status_stats/)
+      expect(await statistics(cwd)).toEqual(['published_at_status_stats'])
+    },
+  )
 })
