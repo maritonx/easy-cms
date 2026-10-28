@@ -2223,8 +2223,13 @@ export class EasyCMS<C extends Config = Config> {
     }
   }
 
-  /** A Local API call in a span (`easy-cms <operation> <collection>`) with `telemetry`. */
-  private traced<T>(operation: string, target: string, fn: () => Promise<T>): Promise<T> {
+  /**
+   * A Local API call in a span (`easy-cms <operation> <collection>`) with `telemetry`; writes on
+   * the database's connections for writes, when it has some.
+   */
+  private traced<T>(operation: string, target: string, task: () => Promise<T>): Promise<T> {
+    const writing = WRITES.has(operation) ? this.db.writing?.bind(this.db) : undefined
+    const fn = writing ? () => writing(task) : task
     if (!this.telemetry) return fn()
     return this.telemetry.span(
       `easy-cms ${operation}${target ? ` ${target}` : ''}`,
@@ -4038,6 +4043,9 @@ function wherePaths(where: Where | undefined): string[] {
 }
 
 const NO_CONTEXT: RequestContext = Object.freeze({})
+
+/** Operations that run on the database's connections for writes (`Database.writing`). */
+const WRITES = new Set(['create', 'update', 'delete', 'updateGlobal'])
 
 function withoutContext(permissions: ApiKeyPermissions | undefined): ApiKeyPermissions {
   const { context: _context, ...rest } = permissions ?? {}

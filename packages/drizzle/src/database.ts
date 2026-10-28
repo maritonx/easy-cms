@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks'
 import { resolve } from 'node:path'
 import type {
   Database,
@@ -45,6 +46,8 @@ export interface DrizzleAdapterOptions {
 /** A driver connection an adapter opened. */
 export interface Connection {
   readonly db: DrizzleDb
+  /** Connections kept for writes (`Database.writing`), when the adapter opened some. */
+  readonly writeDb?: DrizzleDb | undefined
   readonly runner: SqlRunner
   /**
    * With a single-writer dialect: identifies the database (e.g. the SQLite file), so every
@@ -98,7 +101,8 @@ class DrizzleDatabase implements Database {
    * site they would all the time), so a total is up to that old, on every instance alike.
    */
   private readonly counts = new Map<string, { total: Promise<number>; until: number }>()
-  private readonly db: DrizzleDb
+  /** Set inside `writing`: queries there use the connections for writes. */
+  private readonly writes = new AsyncLocalStorage<true>()
 
   constructor(
     private readonly dialect: Dialect,
@@ -108,13 +112,21 @@ class DrizzleDatabase implements Database {
     readonly tablePrefix: string,
     private readonly countCacheMs = 0,
   ) {
-    this.db = connection.db
     for (const [slug, model] of schema.collections) {
       this.builders.set(
         slug,
-        new WhereBuilder(this.db, dialect, model.config.drafts === true, schema.localization),
+        new WhereBuilder(connection.db, dialect, model.config.drafts === true, schema.localization),
       )
     }
+  }
+
+  private get db(): DrizzleDb {
+    const { writeDb } = this.connection
+    return writeDb && this.writes.getStore() ? writeDb : this.connection.db
+  }
+
+  writing<T>(fn: () => Promise<T>): Promise<T> {
+    return this.connection.writeDb ? this.writes.run(true, fn) : fn()
   }
 
   private model(slug: string): CollectionModel {

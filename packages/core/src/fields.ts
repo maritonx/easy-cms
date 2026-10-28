@@ -104,7 +104,8 @@ interface BaseField<TType extends string, TValue> {
   /**
    * `true` for a database index (filters and sorts on this field). `'trigram'`, on text, textarea
    * and email fields: an index for `like`, which finds any part of the text, in Thai as in other
-   * languages. Postgres only (pg_trgm); nothing on SQLite.
+   * languages. Postgres only (pg_trgm); nothing on SQLite. There, `like` needs at least three
+   * characters, and the admin's searches wait for them.
    */
   readonly index?: boolean | 'trigram'
   readonly defaultValue?: TValue
@@ -303,6 +304,12 @@ export type Field =
   | BlocksField
 
 export type FieldType = Field['type']
+
+/**
+ * The shortest `like` on a field with `index: 'trigram'`: trigrams are three characters, so a
+ * shorter search can't use the index and would read every row.
+ */
+export const TRIGRAM_LIKE_MIN = 3
 
 export const FIELD_TYPES = [
   'text',

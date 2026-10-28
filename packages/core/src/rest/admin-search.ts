@@ -1,6 +1,7 @@
 import type { AuthUser, ID, RequestContext, Where } from '../access.js'
 import { INTERNAL_COLLECTIONS, MEDIA_FOLDERS } from '../builtins.js'
 import type { CollectionConfig } from '../config.js'
+import { TRIGRAM_LIKE_MIN } from '../fields.js'
 import type { EasyCMS } from '../local-api.js'
 
 type Who = { user: AuthUser; context: RequestContext }
@@ -70,7 +71,11 @@ export async function adminSearch(
     listed(cms).map(async (c): Promise<SearchHit[]> => {
       const title = c.useAsTitle ?? (c.fields.some((f) => f.name === 'title') ? 'title' : undefined)
       const conditions: Where[] = []
-      if (title) conditions.push({ [title]: { like: query } })
+      // A title with a trigram index needs three characters (`like` refuses fewer).
+      const short =
+        c.fields.find((f) => f.name === title)?.index === 'trigram' &&
+        [...query].length < TRIGRAM_LIKE_MIN
+      if (title && !short) conditions.push({ [title]: { like: query } })
       if (/^\d+$/.test(query)) conditions.push({ id: { equals: Number(query) } })
       const indexed = cms.config.search !== undefined && c.search !== undefined
       if ((conditions.length === 0 && !indexed) || !(await readable(cms, c, who))) return []

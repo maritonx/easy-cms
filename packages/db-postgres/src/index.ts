@@ -32,6 +32,12 @@ export interface PostgresAdapterOptions extends DrizzleAdapterOptions {
   /** Maximum connections in the pool. Default 10. */
   readonly max?: number
   /**
+   * Connections kept for creates, updates and deletes (with every read they make), on top of
+   * `max`. Default 0: writes share the pool. With slow reads filling the pool, saves wait for
+   * them; a few connections of their own keep saves quick. Not with PGlite, which has one.
+   */
+  readonly writeConnections?: number
+  /**
    * Use prepared statements. Default true. Turn off behind a pooler in transaction mode that
    * can't keep them (PgBouncer before 1.24, or with `max_prepared_statements = 0`, and some
    * hosted poolers): it would run the next query on a server connection without the statement.
@@ -160,18 +166,21 @@ function postgresJsConnection(url: string, options: PostgresAdapterOptions): Con
   const set = <T>(key: string, value: T | undefined) =>
     value === undefined ? {} : { [key]: value }
   const seconds = (ms: number | undefined) => (ms === undefined ? undefined : ms / 1000)
-  const client = postgresJs(url, {
-    max: options.max ?? 10,
-    ...set('prepare', options.prepare),
-    ...set('idle_timeout', seconds(options.idleTimeoutMs)),
-    ...set('connect_timeout', seconds(options.connectTimeoutMs)),
-    connection: {
-      application_name: options.applicationName ?? (process.env.PGAPPNAME || 'easy-cms'),
-      ...set('statement_timeout', options.statementTimeoutMs),
-    },
-    // Keep Easy CMS quiet: Postgres NOTICEs (e.g. "relation already exists, skipping") are expected.
-    onnotice: () => {},
-  })
+  const open = (max: number) =>
+    postgresJs(url, {
+      max,
+      ...set('prepare', options.prepare),
+      ...set('idle_timeout', seconds(options.idleTimeoutMs)),
+      ...set('connect_timeout', seconds(options.connectTimeoutMs)),
+      connection: {
+        application_name: options.applicationName ?? (process.env.PGAPPNAME || 'easy-cms'),
+        ...set('statement_timeout', options.statementTimeoutMs),
+      },
+      // Keep Easy CMS quiet: Postgres NOTICEs (e.g. "relation already exists, skipping") are expected.
+      onnotice: () => {},
+    })
+  const client = open(options.max ?? 10)
+  const writer = options.writeConnections ? open(options.writeConnections) : undefined
   const runner: SqlRunner = {
     async query(text, params = []) {
       return [...(await client.unsafe(text, [...params] as never[]))] as Record<string, unknown>[]
@@ -182,7 +191,14 @@ function postgresJsConnection(url: string, options: PostgresAdapterOptions): Con
       })
     },
   }
-  return { db: drizzlePostgresJs(client), runner, close: () => client.end({ timeout: 5 }) }
+  return {
+    db: drizzlePostgresJs(client),
+    writeDb: writer && drizzlePostgresJs(writer),
+    runner,
+    close: async () => {
+      await Promise.all([client.end({ timeout: 5 }), writer?.end({ timeout: 5 })])
+    },
+  }
 }
 
 async function pgliteConnection(source: string | PGlite, cwd: string): Promise<Connection> {

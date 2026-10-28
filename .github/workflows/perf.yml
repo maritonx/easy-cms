@@ -117,6 +117,11 @@ jobs:
           serve() {
             pkill -f 'easy-cms.js serve' || true; sleep 2
             dir=$(dir_of "$1")
+            # Each side on its own schema (base and head may index differently), migrated as in production.
+            for command in "migrate:create perf-$1" migrate; do
+              node "$dir/packages/cli/bin/easy-cms.js" $command \
+                --config "$dir/packages/integration/perf/easy-cms.config.ts" --cwd "$PERF_CWD"
+            done
             NODE_ENV=production PERF_POOL=20 PERF_SLOWDOWN_QUERIES=$(slow_of "$1") nohup node "$dir/packages/cli/bin/easy-cms.js" serve \
               --port 4000 --config "$dir/packages/integration/perf/easy-cms.config.ts" --cwd "$PERF_CWD" > "serve-$1.log" 2>&1 &
             for i in $(seq 1 60); do curl -sf http://127.0.0.1:4000/readyz && return 0; sleep 2; done
