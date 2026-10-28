@@ -122,5 +122,5 @@ docker compose up -d
 ```
 
 Start your app with `telemetry: true` and the SDK, open a few pages, then look at the traces at
-http://localhost:16686 and query `http_server_request_duration_seconds_count` at
-http://localhost:9090.
+`http://localhost:16686` and query `http_server_request_duration_seconds_count` at
+`http://localhost:9090`.
