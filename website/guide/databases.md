@@ -56,6 +56,7 @@ db: process.env.DATABASE_URL ? postgres({ url: process.env.DATABASE_URL }) : pos
 | `max` | `10` | Connections in the pool, per instance |
 | `writeConnections` | `0` | Connections kept for saves, on top of `max` (see below) |
 | `prepare` | `true` | Prepared statements. Turn off behind a pooler that can't keep them |
+| `customPlans` | `true` | Plans each query for its own values. Not behind PgBouncer (see below) |
 | `statementTimeoutMs` | — | Cancels a statement that runs longer. Not behind PgBouncer (see below) |
 | `idleTimeoutMs` | — | Closes connections left idle this long |
 | `connectTimeoutMs` | `30000` | Gives up opening a connection after this long |
@@ -93,6 +94,11 @@ db: postgres({ url: process.env.DATABASE_POOLER_URL, max: 2, prepare: false })
 - **Settings on the role**, not the connection: PgBouncer refuses startup parameters such as
   `statement_timeout`. Use `ALTER ROLE cms SET statement_timeout = '15s'` instead of
   `statementTimeoutMs`.
+- **`customPlans: false`** behind PgBouncer with prepared statements, and
+  `ALTER ROLE cms SET plan_cache_mode = force_custom_plan` instead. Postgres otherwise moves a
+  prepared statement to one plan for every value after a few runs, and for a filter that plan can
+  read every matching row to sort them: seconds instead of milliseconds at 1M rows. With
+  `prepare: false` each query is planned for its values anyway.
 - **Migrations** run through the pooler too, or over a direct connection if your host offers
   one.
 

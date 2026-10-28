@@ -49,6 +49,16 @@ describe('postgres.js options', () => {
     })
   })
 
+  it('plans each query for its values, unless statements are not prepared', async () => {
+    const plan = async (options: Parameters<typeof postgres>[0]) =>
+      (await optionsFor(options)).connection.plan_cache_mode
+    expect(await plan({ url: 'postgres://db/cms' })).toBe('force_custom_plan')
+    expect(await plan({ url: 'postgres://db/cms', prepare: false })).toBeUndefined()
+    expect(await plan({ url: 'postgres://db/cms?prepare=false' })).toBeUndefined()
+    // Behind PgBouncer with prepared statements: set on the role instead.
+    expect(await plan({ url: 'postgres://db/cms', customPlans: false })).toBeUndefined()
+  })
+
   it('names the connections after PGAPPNAME when it is set', async () => {
     vi.stubEnv('PGAPPNAME', 'cms-worker')
     const options = await optionsFor({ url: 'postgres://db/cms' })
