@@ -3,6 +3,7 @@
 import { defineConfig } from '@easy-cms/core'
 import { postgres } from '@easy-cms/db-postgres'
 import { schema } from './schema.ts'
+import { slowdown } from './slowdown.ts'
 
 const docs = Number(process.env.PERF_DOCS ?? 1_000_000)
 
@@ -14,4 +15,5 @@ export default defineConfig({
     tablePrefix: `load${docs}_`,
   }),
   ...schema,
+  ...slowdown(),
 })

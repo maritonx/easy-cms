@@ -10,7 +10,8 @@
     "test:multi-instance": "vitest run --config multi-instance/vitest.config.ts",
     "perf:seed": "node perf/seed-run.ts",
     "perf:editors": "node perf/editors.ts",
-    "perf:compare": "node perf/compare.ts"
+    "perf:compare": "node perf/compare.ts",
+    "perf:compare-ab": "node perf/compare-ab.ts"
   },
   "devDependencies": {
     "@easy-cms/auth-oauth": "workspace:^",

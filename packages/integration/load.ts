@@ -8,6 +8,7 @@ import { createEasyCMS, createRestHandler, defineConfig, silentLogger } from '@e
 import { postgres } from '@easy-cms/db-postgres'
 import { schema, TAGS } from './perf/schema.ts'
 import { seed } from './perf/seed.ts'
+import { slowdown } from './perf/slowdown.ts'
 
 const url = process.env.POSTGRES_URL
 if (!url) throw new Error('Set POSTGRES_URL')
@@ -22,6 +23,7 @@ const config = defineConfig({
   ...schema,
   // ETags and cache headers on public reads, for the 304 scenario.
   httpCache: {},
+  ...slowdown(),
 })
 
 const cwd = mkdtempSync(join(tmpdir(), 'easy-cms-load-'))
