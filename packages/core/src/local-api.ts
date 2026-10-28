@@ -109,6 +109,7 @@ import { cacheTags } from './rest/http-cache.js'
 import { Roles } from './roles.js'
 import { SearchIndex } from './search.js'
 import { type DirectUpload, diskStorage, type StorageAdapter } from './storage.js'
+import { Telemetry } from './telemetry.js'
 import { dueAt } from './time-of-day.js'
 import {
   collectionParent,
@@ -286,13 +287,16 @@ export async function createEasyCMS<const C extends Config>(
   const storage = resolved.upload.storage ?? diskStorage({ dir: resolved.upload.dir })
   await storage.init?.({ cwd })
   if (resolved.upload.privateStorage) await resolved.upload.privateStorage.init?.({ cwd })
-  const db = await resolved.db.init({
+  // Before connecting: a missing @opentelemetry/api stops startup with nothing to close.
+  const telemetry = await Telemetry.load(resolved.telemetry)
+  const connected = await resolved.db.init({
     config: resolved,
     cwd,
     schema: options.schema ?? (process.env.NODE_ENV === 'production' ? 'verify' : 'push'),
     logger,
     interactive: options.interactive ?? false,
   })
+  const db = telemetry ? telemetry.database(connected, dbSystem(resolved.db.name)) : connected
   if (resolved.outbox && db.outbox !== true) {
     await db.destroy()
     throw new ConfigError([
@@ -304,6 +308,7 @@ export async function createEasyCMS<const C extends Config>(
     ])
   }
   const cms = new EasyCMS<C>(resolved, db, logger, storage, cwd)
+  cms.telemetry = telemetry
   if (resolved.search?.ephemeral && process.env.NODE_ENV === 'production')
     logger.warn(
       `Search: the "${resolved.search.name ?? 'custom'}" index lives in this process's memory: it is built again at each start, and each instance has its own. Use a search engine adapter for large sites or several instances.`,
@@ -326,6 +331,12 @@ export async function createEasyCMS<const C extends Config>(
       'No admin exists yet and no setup code is set: whoever opens the admin first becomes the admin. Set EASY_CMS_SETUP_CODE, or create the admin with `easy-cms admin:create`.',
     )
   return cms
+}
+
+/** `db.system.name` of an adapter, as OpenTelemetry names it (`postgresql`, `sqlite`). */
+function dbSystem(name: string): string {
+  if (name.includes('postgres') || name.includes('pglite')) return 'postgresql'
+  return name.includes('sqlite') ? 'sqlite' : name
 }
 
 /** A scheduled publish or unpublish. */
@@ -384,6 +395,8 @@ export class EasyCMS<C extends Config = Config> {
   private readonly outbox: Outbox | undefined
   /** With `search`: keeps the index in step with published documents. */
   private readonly searchIndex: SearchIndex | undefined
+  /** @internal With `telemetry`: OpenTelemetry spans and metrics (set by `createEasyCMS`). */
+  telemetry: Telemetry | undefined
 
   /** @internal */
   constructor(
@@ -426,7 +439,15 @@ export class EasyCMS<C extends Config = Config> {
       config.collections.some((c) => c.slug === EMAIL_DELIVERIES) ? this.emailQueue() : undefined,
     )
     this.outbox = config.collections.some((c) => c.slug === OUTBOX)
-      ? new Outbox(db, logger, (entry, done, mark) => this.runOutbox(entry, done, mark))
+      ? new Outbox(db, logger, (entry, done, mark) =>
+          this.telemetry
+            ? this.telemetry.span(
+                `easy-cms outbox ${entry.event} ${entry.target}`,
+                { 'easy_cms.event': entry.event, 'easy_cms.collection': entry.target },
+                () => this.runOutbox(entry, done, mark),
+              )
+            : this.runOutbox(entry, done, mark),
+        )
       : undefined
     this.searchIndex = config.search
       ? new SearchIndex(
@@ -501,67 +522,75 @@ export class EasyCMS<C extends Config = Config> {
     collection: S,
     options: FindOptions & { readonly locale?: L } = {},
   ): Promise<PaginatedDocs<Doc<C, S, L>> | UncountedDocs<Doc<C, S, L>> | CursorDocs<Doc<C, S, L>>> {
-    const config = this.collection(collection)
-    const guard = guardOf(options)
-    const limit = options.limit ?? 10
-    const page = options.page ?? 1
-    if (!Number.isInteger(limit) || limit < 0)
-      throw new QueryError('limit must be a non-negative integer')
-    if (!Number.isInteger(page) || page < 1) throw new QueryError('page must be a positive integer')
+    return this.traced('find', String(collection), async () => {
+      const config = this.collection(collection)
+      const guard = guardOf(options)
+      const limit = options.limit ?? 10
+      const page = options.page ?? 1
+      if (!Number.isInteger(limit) || limit < 0)
+        throw new QueryError('limit must be a non-negative integer')
+      if (!Number.isInteger(page) || page < 1)
+        throw new QueryError('page must be a positive integer')
 
-    const draft = readsDrafts(guard, options.draft)
-    const where = this.whereFor(
-      config,
-      draftWhere(config, draft, await this.readWhere(config, guard, options.where)),
-      options,
-    )
-    const requested = options.sort === undefined ? ['-createdAt'] : [options.sort].flat()
-    await this.checkQueryFields(config, guard, undefined, requested)
-    const locale = this.localeOf(options)
-    const sort =
-      locale === undefined
-        ? requested
-        : localizeSort(
-            config.fields,
-            requested,
-            locale === ALL_LOCALES ? (this.config.localization?.defaultLocale ?? locale) : locale,
-            this.config.localization?.locales ?? [],
-          )
-    if (options.cursor !== undefined) {
-      if (options.page !== undefined) throw new QueryError('Use either cursor or page, not both')
-      if (limit === 0) throw new QueryError('A cursor needs a limit above 0')
-      if (!this.db.findAfter) throw new QueryError('This database adapter has no cursor pagination')
-      // The query a cursor was made for: another one would continue from a meaningless place.
-      const query = cursorQuery(collection, options.where, requested, locale, draft)
-      const after = readCursor(options.cursor, query)
-      const result = await this.db.findAfter({ collection, where, sort, limit, after })
+      const draft = readsDrafts(guard, options.draft)
+      const where = this.whereFor(
+        config,
+        draftWhere(config, draft, await this.readWhere(config, guard, options.where)),
+        options,
+      )
+      const requested = options.sort === undefined ? ['-createdAt'] : [options.sort].flat()
+      await this.checkQueryFields(config, guard, undefined, requested)
+      const locale = this.localeOf(options)
+      const sort =
+        locale === undefined
+          ? requested
+          : localizeSort(
+              config.fields,
+              requested,
+              locale === ALL_LOCALES ? (this.config.localization?.defaultLocale ?? locale) : locale,
+              this.config.localization?.locales ?? [],
+            )
+      if (options.cursor !== undefined) {
+        if (options.page !== undefined) throw new QueryError('Use either cursor or page, not both')
+        if (limit === 0) throw new QueryError('A cursor needs a limit above 0')
+        if (!this.db.findAfter)
+          throw new QueryError('This database adapter has no cursor pagination')
+        // The query a cursor was made for: another one would continue from a meaningless place.
+        const query = cursorQuery(collection, options.where, requested, locale, draft)
+        const after = readCursor(options.cursor, query)
+        const result = await this.db.findAfter({ collection, where, sort, limit, after })
+        const found = draft ? await this.withDrafts(config, result.docs) : result.docs
+        const docs = (await this.output(config, found, guard, { ...options, draft })) as Doc<
+          C,
+          S,
+          L
+        >[]
+        return {
+          docs,
+          limit,
+          nextCursor: result.hasNextPage && result.next ? writeCursor(result.next, query) : null,
+          hasNextPage: result.hasNextPage,
+          hasPrevPage: after !== null,
+          totalDocs: null,
+          totalPages: null,
+          page: null,
+        }
+      }
+      const args = { collection, where, sort, limit, page }
+      const count = options.count !== false || limit === 0
+      const result = count
+        ? await this.db.find(args)
+        : this.db.findPage
+          ? await this.db.findPage(args)
+          : { ...(await this.db.find(args)), totalDocs: null, totalPages: null }
       const found = draft ? await this.withDrafts(config, result.docs) : result.docs
       const docs = (await this.output(config, found, guard, { ...options, draft })) as Doc<
         C,
         S,
         L
       >[]
-      return {
-        docs,
-        limit,
-        nextCursor: result.hasNextPage && result.next ? writeCursor(result.next, query) : null,
-        hasNextPage: result.hasNextPage,
-        hasPrevPage: after !== null,
-        totalDocs: null,
-        totalPages: null,
-        page: null,
-      }
-    }
-    const args = { collection, where, sort, limit, page }
-    const count = options.count !== false || limit === 0
-    const result = count
-      ? await this.db.find(args)
-      : this.db.findPage
-        ? await this.db.findPage(args)
-        : { ...(await this.db.find(args)), totalDocs: null, totalPages: null }
-    const found = draft ? await this.withDrafts(config, result.docs) : result.docs
-    const docs = (await this.output(config, found, guard, { ...options, draft })) as Doc<C, S, L>[]
-    return { ...result, docs }
+      return { ...result, docs }
+    })
   }
 
   async findById<S extends Slug<C>, L extends string | undefined = undefined>(
@@ -569,48 +598,55 @@ export class EasyCMS<C extends Config = Config> {
     id: ID,
     options: ReadOptions & { readonly locale?: L } = {},
   ): Promise<Doc<C, S, L> | null> {
-    const config = this.collection(collection)
-    const guard = guardOf(options)
-    const parsed = parseId(id)
-    if (parsed === undefined) return null
-    const draft = readsDrafts(guard, options.draft)
-    const where = this.whereFor(
-      config,
-      draftWhere(config, draft, await this.readWhere(config, guard, undefined)),
-      options,
-    )
-    const doc = where
-      ? (
-          await this.db.find({
-            collection,
-            where: andWhere(where, { id: { equals: parsed } }),
-            sort: [],
-            limit: 1,
-            page: 1,
-          })
-        ).docs[0]
-      : await this.db.findById({ collection, id: parsed })
-    if (!doc) return null
-    const [current] = draft ? await this.withDrafts(config, [doc]) : [doc]
-    const [out] = await this.output(config, [current as RawDocument], guard, { ...options, draft })
-    return (out ?? null) as Doc<C, S, L> | null
+    return this.traced('findById', String(collection), async () => {
+      const config = this.collection(collection)
+      const guard = guardOf(options)
+      const parsed = parseId(id)
+      if (parsed === undefined) return null
+      const draft = readsDrafts(guard, options.draft)
+      const where = this.whereFor(
+        config,
+        draftWhere(config, draft, await this.readWhere(config, guard, undefined)),
+        options,
+      )
+      const doc = where
+        ? (
+            await this.db.find({
+              collection,
+              where: andWhere(where, { id: { equals: parsed } }),
+              sort: [],
+              limit: 1,
+              page: 1,
+            })
+          ).docs[0]
+        : await this.db.findById({ collection, id: parsed })
+      if (!doc) return null
+      const [current] = draft ? await this.withDrafts(config, [doc]) : [doc]
+      const [out] = await this.output(config, [current as RawDocument], guard, {
+        ...options,
+        draft,
+      })
+      return (out ?? null) as Doc<C, S, L> | null
+    })
   }
 
   async count<S extends Slug<C>>(
     collection: S,
     options: { where?: Where; draft?: boolean; locale?: string } & AccessOptions = {},
   ): Promise<number> {
-    const config = this.collection(collection)
-    const where = this.whereFor(
-      config,
-      draftWhere(
+    return this.traced('count', String(collection), async () => {
+      const config = this.collection(collection)
+      const where = this.whereFor(
         config,
-        readsDrafts(guardOf(options), options.draft),
-        await this.readWhere(config, guardOf(options), options.where),
-      ),
-      options,
-    )
-    return this.db.count({ collection, where })
+        draftWhere(
+          config,
+          readsDrafts(guardOf(options), options.draft),
+          await this.readWhere(config, guardOf(options), options.where),
+        ),
+        options,
+      )
+      return this.db.count({ collection, where })
+    })
   }
 
   async create<S extends Slug<C>>(
@@ -618,13 +654,15 @@ export class EasyCMS<C extends Config = Config> {
     data: Create<C, S>,
     options: DepthOptions = {},
   ): Promise<Doc<C, S>> {
-    const config = this.collection(collection)
-    if (config.slug === MEDIA) {
-      throw new ValidationError(MEDIA, [
-        { field: 'file', message: 'upload files with cms.upload() or POST multipart' },
-      ])
-    }
-    return (await this.createDocument(config, asObject(data, collection), options)) as Doc<C, S>
+    return this.traced('create', String(collection), async () => {
+      const config = this.collection(collection)
+      if (config.slug === MEDIA) {
+        throw new ValidationError(MEDIA, [
+          { field: 'file', message: 'upload files with cms.upload() or POST multipart' },
+        ])
+      }
+      return (await this.createDocument(config, asObject(data, collection), options)) as Doc<C, S>
+    })
   }
 
   /**
@@ -1162,10 +1200,14 @@ export class EasyCMS<C extends Config = Config> {
     data: Update<C, S>,
     options: UpdateOptions = {},
   ): Promise<Doc<C, S> | null> {
-    return (await this.updateDocument(collection, id, asObject(data, collection), options)) as Doc<
-      C,
-      S
-    > | null
+    return this.traced('update', String(collection), async () => {
+      return (await this.updateDocument(
+        collection,
+        id,
+        asObject(data, collection),
+        options,
+      )) as Doc<C, S> | null
+    })
   }
 
   /**
@@ -1645,75 +1687,79 @@ export class EasyCMS<C extends Config = Config> {
     id: ID,
     options: AccessOptions & { transferTo?: ID | null } = {},
   ): Promise<Doc<C, S>> {
-    const config = this.collection(collection)
-    const guard = guardOf(options)
-    const parsed = parseId(id)
-    const existing =
-      parsed === undefined ? null : await this.db.findById({ collection, id: parsed })
-    if (!existing || parsed === undefined) throw new NotFoundError(collection, id)
-    await this.checkDocumentAccess(config, 'delete', guard, parsed, undefined)
-    if (config.slug === USERS)
-      await this.guardLastAdmin(parsed, existing, { ...existing, active: false })
-    const base = this.hookArgs(config, guard)
-    for (const hook of config.hooks?.beforeDelete ?? []) await hook({ ...base, id: parsed })
-    if (config.slug === USERS) {
-      const to = options.transferTo
-      if (to !== undefined && to !== null) {
-        const target = parseId(to)
-        const heir =
-          target === undefined ? null : await this.db.findById({ collection: USERS, id: target })
-        if (!heir || String(heir.id) === String(parsed))
-          throw new ValidationError(USERS, [
-            { field: 'transferTo', message: 'must be another existing user' },
-          ])
-        await this.roles.transfer(parsed, heir.id)
-      } else await this.roles.transfer(parsed, null)
-      await this.auth.revokeSessions(parsed)
-      await this.auth.sso.forget(parsed)
-    }
-    // A folder's files and subfolders move up to its parent (as if it were no longer private).
-    if (collection === MEDIA_FOLDERS) {
-      await this.checkMoveLimit(await this.folders.privacyAfter(parsed, { private: false }))
-      await this.folders.release(existing)
-    }
-    const outbox = this.outboxRow(config, 'delete', guard, existing, { docId: parsed })
-    await this.db.delete({ collection, id: parsed, outbox })
-    if (collection === MEDIA_FOLDERS) {
-      this.folders.invalidate()
-      // What moved up may now be public (or private).
-      const parent = (existing.parent as ID | null | undefined) ?? null
-      if (parent !== null) await this.settlePrivacy(parent)
-      else await this.settleTopLevel()
-    }
-    if (versionLimit(config)) await this.versions.deleteAll(collectionParent(collection), parsed)
-    if (config.schedule) {
-      for (const job of await this.pendingJobs(collection, parsed))
-        await this.db.delete({ collection: SCHEDULED_JOBS, id: job.id })
-    }
-    if (outbox) this.outbox?.kick()
-    else {
-      await this.notify(config.hooks?.afterDelete, 'afterDelete', config.slug, {
-        ...base,
-        id: parsed,
-        doc: existing,
-      })
-      this.emitChange(config, 'delete', existing)
-    }
-    await this.audited(config, 'delete', existing, existing, guard)
-    const [out] = await this.output(config, [existing], guard, { depth: 0, draft: true })
-    return out as Doc<C, S>
+    return this.traced('delete', String(collection), async () => {
+      const config = this.collection(collection)
+      const guard = guardOf(options)
+      const parsed = parseId(id)
+      const existing =
+        parsed === undefined ? null : await this.db.findById({ collection, id: parsed })
+      if (!existing || parsed === undefined) throw new NotFoundError(collection, id)
+      await this.checkDocumentAccess(config, 'delete', guard, parsed, undefined)
+      if (config.slug === USERS)
+        await this.guardLastAdmin(parsed, existing, { ...existing, active: false })
+      const base = this.hookArgs(config, guard)
+      for (const hook of config.hooks?.beforeDelete ?? []) await hook({ ...base, id: parsed })
+      if (config.slug === USERS) {
+        const to = options.transferTo
+        if (to !== undefined && to !== null) {
+          const target = parseId(to)
+          const heir =
+            target === undefined ? null : await this.db.findById({ collection: USERS, id: target })
+          if (!heir || String(heir.id) === String(parsed))
+            throw new ValidationError(USERS, [
+              { field: 'transferTo', message: 'must be another existing user' },
+            ])
+          await this.roles.transfer(parsed, heir.id)
+        } else await this.roles.transfer(parsed, null)
+        await this.auth.revokeSessions(parsed)
+        await this.auth.sso.forget(parsed)
+      }
+      // A folder's files and subfolders move up to its parent (as if it were no longer private).
+      if (collection === MEDIA_FOLDERS) {
+        await this.checkMoveLimit(await this.folders.privacyAfter(parsed, { private: false }))
+        await this.folders.release(existing)
+      }
+      const outbox = this.outboxRow(config, 'delete', guard, existing, { docId: parsed })
+      await this.db.delete({ collection, id: parsed, outbox })
+      if (collection === MEDIA_FOLDERS) {
+        this.folders.invalidate()
+        // What moved up may now be public (or private).
+        const parent = (existing.parent as ID | null | undefined) ?? null
+        if (parent !== null) await this.settlePrivacy(parent)
+        else await this.settleTopLevel()
+      }
+      if (versionLimit(config)) await this.versions.deleteAll(collectionParent(collection), parsed)
+      if (config.schedule) {
+        for (const job of await this.pendingJobs(collection, parsed))
+          await this.db.delete({ collection: SCHEDULED_JOBS, id: job.id })
+      }
+      if (outbox) this.outbox?.kick()
+      else {
+        await this.notify(config.hooks?.afterDelete, 'afterDelete', config.slug, {
+          ...base,
+          id: parsed,
+          doc: existing,
+        })
+        this.emitChange(config, 'delete', existing)
+      }
+      await this.audited(config, 'delete', existing, existing, guard)
+      const [out] = await this.output(config, [existing], guard, { depth: 0, draft: true })
+      return out as Doc<C, S>
+    })
   }
 
   async findGlobal<S extends GSlug<C>, L extends string | undefined = undefined>(
     slug: S,
     options: ReadOptions & { readonly locale?: L } = {},
   ): Promise<GDoc<C, S, L>> {
-    const config = this.global(slug)
-    const guard = guardOf(options)
-    await this.checkGlobalAccess(config, 'read', guard)
-    return this.readGlobal(config, this.globalKey(config, guard), guard, options) as Promise<
-      GDoc<C, S, L>
-    >
+    return this.traced('findGlobal', String(slug), async () => {
+      const config = this.global(slug)
+      const guard = guardOf(options)
+      await this.checkGlobalAccess(config, 'read', guard)
+      return this.readGlobal(config, this.globalKey(config, guard), guard, options) as Promise<
+        GDoc<C, S, L>
+      >
+    })
   }
 
   /** A global as stored under `key` (see `globalKey`); empty when there is no key. */
@@ -1769,7 +1815,9 @@ export class EasyCMS<C extends Config = Config> {
     data: GInput<C, S>,
     options: DepthOptions = {},
   ): Promise<GDoc<C, S>> {
-    return this.saveGlobal(slug, asObject(data, slug), options) as Promise<GDoc<C, S>>
+    return this.traced('updateGlobal', String(slug), async () => {
+      return this.saveGlobal(slug, asObject(data, slug), options) as Promise<GDoc<C, S>>
+    })
   }
 
   /** Takes a global off the site (`status: 'draft'`). See `unpublish`. */
@@ -2094,39 +2142,42 @@ export class EasyCMS<C extends Config = Config> {
    * hold fewer documents than `limit`.
    */
   async search(query: string, options: SearchOptions = {}): Promise<SearchResults> {
-    const index = this.searchIndex
-    if (!index) throw new QueryError('Search needs a `search` adapter in the config')
-    const limit = options.limit ?? 10
-    const page = options.page ?? 1
-    if (!Number.isInteger(limit) || limit < 1 || limit > 100)
-      throw new QueryError('limit must be an integer from 1 to 100')
-    if (!Number.isInteger(page) || page < 1) throw new QueryError('page must be an integer from 1')
-    const collections = options.collections ?? index.searchable
-    for (const slug of collections)
-      if (!index.configOf(slug)) throw new QueryError(`"${slug}" is not searchable`)
-    const localization = this.config.localization
-    const asked = options.locale && options.locale !== ALL_LOCALES ? options.locale : undefined
-    if (asked !== undefined && localization && !localization.locales.includes(asked))
-      throw new QueryError(`Unknown locale "${asked}"`)
-    const locale = localization ? (asked ?? localization.defaultLocale ?? null) : null
-    const text = query.trim().slice(0, 200)
-    const empty = { hits: [], total: 0, page, limit, hasNextPage: false }
-    if (!text || collections.length === 0) return empty
-    const { collections: _, limit: __, page: ___, ...read } = options
-    const { hits, total } = await index.search(
-      { query: text, collections, locale, limit, offset: (page - 1) * limit },
-      async (collection, ids) =>
-        (
-          await this.find(collection as Slug<C>, {
-            ...read,
-            ...(locale ? { locale } : {}),
-            where: { id: { in: ids.map((id) => parseId(id) ?? id) } },
-            limit: ids.length,
-            draft: false,
-          })
-        ).docs as Record<string, unknown>[],
-    )
-    return { hits, total, page, limit, hasNextPage: page * limit < total }
+    return this.traced('search', '', async () => {
+      const index = this.searchIndex
+      if (!index) throw new QueryError('Search needs a `search` adapter in the config')
+      const limit = options.limit ?? 10
+      const page = options.page ?? 1
+      if (!Number.isInteger(limit) || limit < 1 || limit > 100)
+        throw new QueryError('limit must be an integer from 1 to 100')
+      if (!Number.isInteger(page) || page < 1)
+        throw new QueryError('page must be an integer from 1')
+      const collections = options.collections ?? index.searchable
+      for (const slug of collections)
+        if (!index.configOf(slug)) throw new QueryError(`"${slug}" is not searchable`)
+      const localization = this.config.localization
+      const asked = options.locale && options.locale !== ALL_LOCALES ? options.locale : undefined
+      if (asked !== undefined && localization && !localization.locales.includes(asked))
+        throw new QueryError(`Unknown locale "${asked}"`)
+      const locale = localization ? (asked ?? localization.defaultLocale ?? null) : null
+      const text = query.trim().slice(0, 200)
+      const empty = { hits: [], total: 0, page, limit, hasNextPage: false }
+      if (!text || collections.length === 0) return empty
+      const { collections: _, limit: __, page: ___, ...read } = options
+      const { hits, total } = await index.search(
+        { query: text, collections, locale, limit, offset: (page - 1) * limit },
+        async (collection, ids) =>
+          (
+            await this.find(collection as Slug<C>, {
+              ...read,
+              ...(locale ? { locale } : {}),
+              where: { id: { in: ids.map((id) => parseId(id) ?? id) } },
+              limit: ids.length,
+              draft: false,
+            })
+          ).docs as Record<string, unknown>[],
+      )
+      return { hits, total, page, limit, hasNextPage: page * limit < total }
+    })
   }
 
   /**
@@ -2170,6 +2221,19 @@ export class EasyCMS<C extends Config = Config> {
       yield found.docs as Record<string, unknown>[]
       if (!found.hasNextPage) return
     }
+  }
+
+  /** A Local API call in a span (`easy-cms <operation> <collection>`) with `telemetry`. */
+  private traced<T>(operation: string, target: string, fn: () => Promise<T>): Promise<T> {
+    if (!this.telemetry) return fn()
+    return this.telemetry.span(
+      `easy-cms ${operation}${target ? ` ${target}` : ''}`,
+      {
+        'easy_cms.operation': operation,
+        ...(target ? { 'easy_cms.collection': target } : {}),
+      },
+      fn,
+    )
   }
 
   /** @internal Puts a failed outbox entry back in line (Settings → Jobs). */
@@ -2218,7 +2282,11 @@ export class EasyCMS<C extends Config = Config> {
   }> {
     // One run at a time in this process: the scheduler and the cron endpoint wait for each other.
     // Other processes are kept apart by claiming each piece of work in the database.
-    const run = this.running.then(() => this.runJobsNow(now))
+    const run = this.running.then(() =>
+      this.telemetry
+        ? this.telemetry.span('easy-cms jobs.run', {}, () => this.runJobsNow(now))
+        : this.runJobsNow(now),
+    )
     this.running = run.catch(() => {})
     return run
   }
@@ -2249,6 +2317,10 @@ export class EasyCMS<C extends Config = Config> {
         jobs: await this.runConfigJobs(now),
         outbox: (await this.outbox?.run(now)) ?? { ran: 0, failed: 0 },
       }
+      if (this.telemetry?.measuresQueues)
+        await this.countQueues(now).catch((error) =>
+          this.logger.error(`Telemetry: ${(error as Error).message}`, { error }),
+        )
       // When jobs last ran, for Settings → Jobs: whether anything runs them at all (a cron on
       // serverless hosts). The real time, not `now`, which tests move.
       const ranAt = new Date().toISOString()
@@ -2338,19 +2410,50 @@ export class EasyCMS<C extends Config = Config> {
       const started = Date.now()
       let error: string | null = null
       try {
-        await job.run({ cms: this as unknown as EasyCMS, now })
+        const work = async () => job.run({ cms: this as unknown as EasyCMS, now })
+        await (this.telemetry
+          ? this.telemetry.span(`easy-cms job ${job.name}`, { 'easy_cms.job': job.name }, work)
+          : work())
         ran++
       } catch (caught) {
         failed++
         error = ((caught as Error).message || String(caught)).slice(0, 500)
         this.logger.error(`Job ${job.name} failed: ${error}`, { error: caught, job: job.name })
       }
+      this.telemetry?.jobRan(job.name, error === null, Date.now() - started)
       // The result, for Settings → Jobs: only this instance runs it at this time.
       await this.recordJobRun(job.name, stamp, error, Date.now() - started).catch((caught) =>
         this.logger.error(`Job ${job.name}: ${(caught as Error).message}`, { error: caught }),
       )
     }
     return { ran, failed }
+  }
+
+  /** Background work waiting and failed, for `telemetry`'s queue gauges. */
+  private async countQueues(now: Date) {
+    const has = (slug: string) => this.config.collections.some((c) => c.slug === slug)
+    const sizes = async (collection: string, pending: string[]) => ({
+      pending: await this.db.count({ collection, where: { state: { in: pending } } }),
+      failed: await this.db.count({ collection, where: { state: { equals: 'failed' } } }),
+    })
+    const queues: Record<string, { pending: number; failed: number }> = {}
+    if (has(OUTBOX)) queues.outbox = await sizes(OUTBOX, ['pending', 'running'])
+    if (has(WEBHOOK_DELIVERIES)) queues.webhooks = await sizes(WEBHOOK_DELIVERIES, ['pending'])
+    if (has(EMAIL_DELIVERIES)) queues.emails = await sizes(EMAIL_DELIVERIES, ['pending'])
+    let late = 0
+    if (has(SCHEDULED_JOBS)) {
+      queues.scheduled = await sizes(SCHEDULED_JOBS, ['pending', 'running'])
+      late = await this.db.count({
+        collection: SCHEDULED_JOBS,
+        where: {
+          and: [
+            { state: { equals: 'pending' } },
+            { runAt: { lt: new Date(now.getTime() - 10 * 60_000).toISOString() } },
+          ],
+        },
+      })
+    }
+    this.telemetry?.queuesCounted(queues, late)
   }
 
   private async recordJobRun(name: string, at: string, error: string | null, ms: number) {

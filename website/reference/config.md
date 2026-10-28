@@ -47,6 +47,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `maxPage` | `number` | no limit | The deepest `page` the REST API serves to API clients (the signed-in admin keeps its pages); deeper requests get `400`, pointing to `cursor`. [Cursors](/guide/local-api#find-results) |
 | `httpCache` | `HttpCacheConfig` | off (`no-store`) | Lets a CDN cache public reads of published content, with cache tags to purge by. See [httpCache](#httpcache). |
 | `outbox` | `boolean` | `false` | Runs after hooks, webhooks and `httpCache.purge` from an outbox written in the save's transaction, after the response, retried until they succeed. Hooks must be safe to run more than once. [Outbox](/guide/hooks#outbox) |
+| `telemetry` | `boolean \| { traces?, metrics? }` | off | OpenTelemetry spans and metrics through `@opentelemetry/api`, sent wherever the app's SDK sends them. [Observability](/guide/observability) |
 | `search` | `SearchAdapter` | — | Relevance-ranked search of the collections that have `search`, e.g. `memorySearch()`. [Search](/guide/search) |
 | `logs` | `LogsConfig` | readable lines | `{ format: 'json' }` for one JSON object per line, with request ids. See [logs](#logs). |
 | `plugins` | `Plugin[]` | `[]` | `(config) => config`, run in order before validation; `definePlugin(fn, { name, version, apiVersion? })` names one for the dashboard; `apiVersion` (`PLUGIN_API_VERSION`) stops startup when the plugin is for another plugin API. [Plugins](/guide/plugins) |

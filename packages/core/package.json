@@ -60,14 +60,19 @@
     "react"
   ],
   "peerDependencies": {
-    "sharp": ">=0.33.0"
+    "sharp": ">=0.33.0",
+    "@opentelemetry/api": ">=1.9.0 <2"
   },
   "peerDependenciesMeta": {
     "sharp": {
       "optional": true
+    },
+    "@opentelemetry/api": {
+      "optional": true
     }
   },
   "devDependencies": {
+    "@opentelemetry/api": "~1.9.1",
     "sharp": "^0.35.5"
   }
 }

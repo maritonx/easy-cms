@@ -81,6 +81,7 @@ export function validateConfig(config: Config): ConfigIssue[] {
   validateCountCache(config, add)
   validateOutbox(config, add)
   validateSearch(config, add)
+  validateTelemetry(config, add)
   validateMaxPage(config, add)
   validateHttpCache(config, add)
   validateAuth(config, add)
@@ -842,6 +843,19 @@ function validateMaxPage(config: Config, add: Add) {
 function validateOutbox(config: Config, add: Add) {
   if (config.outbox !== undefined && typeof config.outbox !== 'boolean')
     add('outbox', 'must be true or false')
+}
+
+function validateTelemetry(config: Config, add: Add) {
+  const value: unknown = config.telemetry
+  if (value === undefined || typeof value === 'boolean') return
+  if (typeof value !== 'object' || value === null) {
+    add('telemetry', 'must be true, false or { traces, metrics }')
+    return
+  }
+  for (const [key, v] of Object.entries(value))
+    if (key !== 'traces' && key !== 'metrics')
+      add(`telemetry.${key}`, 'is not an option', 'traces or metrics')
+    else if (typeof v !== 'boolean') add(`telemetry.${key}`, 'must be true or false')
 }
 
 /** `search` and the collections' `search.fields`. */

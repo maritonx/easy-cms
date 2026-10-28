@@ -42,6 +42,8 @@ export interface AdminStatus {
     email: string | null
     /** The search adapter's name, `custom` when it has none, or `null` without `search`. */
     search: string | null
+    /** `telemetry` is on: OpenTelemetry traces or metrics. */
+    telemetry: boolean
     /** The config's plugins, with their name and version when they give them. */
     plugins: { name?: string; version?: string }[]
     /** Field types from packages (`fieldTypes`). */
@@ -130,6 +132,7 @@ export async function adminStatus(cms: EasyCMS): Promise<AdminStatus> {
       storage: config.upload.storage?.name ?? 'local',
       email: config.email ? (config.email.name ?? 'custom') : null,
       search: config.search ? (config.search.name ?? 'custom') : null,
+      telemetry: !!config.telemetry,
       plugins: config.installedPlugins.map((p) => ({ ...p })),
       fieldTypes: config.fieldTypes.map((t) => t.name),
     },

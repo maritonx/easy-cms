@@ -429,3 +429,4 @@ CI รัน lint, typecheck, build และ test บน Linux, macOS และ
 - [ADR-0054](adr/0054-http-cache-not-redis.md) — cache ด้วย HTTP และ CDN ก่อน ไม่เพิ่ม Redis
 - [ADR-0055](adr/0055-database-isolation.md) — แยกฐานข้อมูลจากแอปได้สี่ระดับ (รวม, schema แยก, database แยก, server แยก)
 - [ADR-0056](adr/0056-search-adapter.md) — search เป็น adapter แบบเลือกใช้ เริ่มด้วย `memorySearch()` ส่วน engine ภายนอกทำทีหลัง
+- [ADR-0057](adr/0057-opentelemetry-api-only.md) — OpenTelemetry ผ่าน `@opentelemetry/api` อย่างเดียว เปิดด้วย `telemetry: true` แอปตั้งค่า SDK เอง

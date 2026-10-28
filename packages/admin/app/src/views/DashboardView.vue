@@ -230,6 +230,7 @@ const system = computed(() => {
             : s.email,
     // Older servers don't say.
     search: s.search === 'memory' ? t('status.searchMemory') : (s.search ?? null),
+    telemetry: s.telemetry === true,
     plugins: named,
     unnamed: s.plugins.length - named.length,
     fieldTypes: s.fieldTypes,
@@ -469,6 +470,10 @@ const statusOf = (doc: Doc) => (doc.status === 'published' ? 'published' : 'draf
           <template v-if="system.search">
             <dt>{{ t('status.search') }}</dt>
             <dd>{{ system.search }}</dd>
+          </template>
+          <template v-if="system.telemetry">
+            <dt>{{ t('status.telemetry') }}</dt>
+            <dd>{{ t('status.telemetryOn') }}</dd>
           </template>
         </dl>
         <template v-if="system.plugins.length || system.unnamed">

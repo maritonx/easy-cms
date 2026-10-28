@@ -50,9 +50,18 @@ function errorFields(error: unknown) {
   return { message: String(error) }
 }
 
+/** The active trace's ids, when `telemetry` traces (set by it). */
+let traceIds: (() => { traceId: string; spanId: string } | undefined) | undefined
+
+/** @internal Lets JSON log lines carry the active span's `traceId` and `spanId`. */
+export function setTraceIds(read: typeof traceIds): void {
+  traceIds = read
+}
+
 /**
  * One JSON object per line: `time`, `level`, `name`, `message`, the request's `requestId` (or
- * the job run's `runId`), `error` with its stack, and any other details.
+ * the job run's `runId`), with `telemetry` the active span's `traceId` and `spanId`, `error`
+ * with its stack, and any other details.
  */
 export function jsonLogger(
   write: (line: string, level: 'info' | 'warn' | 'error') => void = (line, level) =>
@@ -68,6 +77,7 @@ export function jsonLogger(
       message,
       ...(store?.requestId ? { requestId: store.requestId } : {}),
       ...(store?.runId ? { runId: store.runId } : {}),
+      ...traceIds?.(),
       ...rest,
       ...(error === undefined ? {} : { error: errorFields(error) }),
     }

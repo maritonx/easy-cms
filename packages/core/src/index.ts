@@ -248,6 +248,7 @@ export {
   type StorageAdapter,
   type StoredFile,
 } from './storage.js'
+export type { TelemetryConfig } from './telemetry.js'
 export { VERSION } from './version.js'
 export type {
   Version,

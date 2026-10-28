@@ -80,6 +80,8 @@ or set `EASY_CMS_LOG_FORMAT=json` on the host, which wins over the config:
 `easy-cms serve` follows the same setting. With your own `logger` passed to `createEasyCMS`,
 `logs` is ignored: `jsonLogger()` from `@easy-cms/core` writes this format.
 
+Traces and metrics through OpenTelemetry: [Observability](./observability).
+
 ## Health checks
 
 Load balancers, container platforms and Kubernetes ask two questions:

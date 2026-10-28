@@ -25,6 +25,7 @@ import { type HealthCheck, healthResponse } from '../health.js'
 import type { EasyCMS } from '../local-api.js'
 import { isJsonLogger } from '../logger.js'
 import { EXTENSIONS, PRIVATE_KEY, withCharset } from '../media.js'
+import { routeOf } from '../telemetry.js'
 import {
   deleteDelivery,
   deleteFailedDeliveries,
@@ -158,11 +159,30 @@ const HEALTH_CHECKS = new Map<string, HealthCheck>([
 /** An `X-Request-Id` from a proxy is kept when it is plain; else the request gets a new one. */
 const REQUEST_ID = /^[\w.-]{1,128}$/
 
+/** One request; with `telemetry`, in a span (`easy-cms GET /api/cms/:collection`). */
+function respond(
+  cms: EasyCMS,
+  request: Request,
+  url: URL,
+  path: string | null,
+  root: boolean,
+  options: RestHandlerOptions,
+  production: boolean,
+): Promise<Response> {
+  const run = () => respondLogged(cms, request, url, path, root, options, production)
+  // Probes every few seconds would drown the traces too.
+  const probe = !root && (path === '/healthz' || path === '/readyz')
+  if (!cms.telemetry || probe) return run()
+  const route =
+    root || path === null ? routeOf(path, root) : `${cms.config.routes.api}${routeOf(path, root)}`
+  return cms.telemetry.request(request.method, route, run)
+}
+
 /**
  * One request, under its request id: the `X-Request-Id` response header, the `requestId` of every
  * line it logs, and, with a JSON logger, a line when it is done.
  */
-async function respond(
+async function respondLogged(
   cms: EasyCMS,
   request: Request,
   url: URL,
