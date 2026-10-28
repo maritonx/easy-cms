@@ -15,7 +15,19 @@ import type { Localization } from './localization.js'
 
 type Data = Record<string, unknown>
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+/**
+ * `name@host.tld`: no whitespace, one `@`, and a dot inside the part after it. String operations,
+ * not a regex: `/^[^\s@]+@[^\s@]+\.[^\s@]+$/` takes time quadratic in the length.
+ */
+export function isEmail(value: string): boolean {
+  const at = value.indexOf('@')
+  return (
+    at > 0 &&
+    !value.includes('@', at + 1) &&
+    !/\s/.test(value) &&
+    value.slice(at + 2, -1).includes('.')
+  )
+}
 
 const isPlainObject = (value: unknown): value is Data =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -334,8 +346,7 @@ async function normalizeValue(
       return raw
     }
     case 'email': {
-      if (typeof raw !== 'string' || !EMAIL_PATTERN.test(raw))
-        return fail('must be a valid email address')
+      if (typeof raw !== 'string' || !isEmail(raw)) return fail('must be a valid email address')
       return raw.trim().toLowerCase()
     }
     case 'number': {

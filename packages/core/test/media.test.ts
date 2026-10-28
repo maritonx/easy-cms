@@ -30,8 +30,23 @@ describe('sniffMimeType', () => {
     )
     expect(sniffMimeType(text('﻿  <svg width="1">'))).toBe('image/svg+xml')
     expect(sniffMimeType(text('<html><svg></svg></html>'))).toBe('text/plain')
+    expect(
+      sniffMimeType(
+        text('<?XML version="1.0"?>\n<!-- a -->\n<!---->\n<!DOCTYPE svg PUBLIC "x">\n<SVG>'),
+      ),
+    ).toBe('image/svg+xml')
+    expect(sniffMimeType(text('<!-- open <svg>'))).toBe('text/plain')
+    expect(sniffMimeType(text('<!DOCTYPE html><svg>'))).toBe('text/plain')
     expect(sniffMimeType(text('สวัสดี'))).toBe('text/plain')
     expect(sniffMimeType(new Uint8Array([0, 1, 2, 3, 255]))).toBeUndefined()
+  })
+
+  it('reads crafted comments in linear time', () => {
+    // As one regex, each two more comments doubled the time: 200 bytes took seconds.
+    const crafted = text(`<!--${'--><!--'.repeat(600)}`)
+    const start = performance.now()
+    expect(sniffMimeType(crafted)).toBe('text/plain')
+    expect(performance.now() - start).toBeLessThan(500)
   })
 
   it('tells CSV from plain text by the name only', () => {

@@ -4,10 +4,47 @@ import {
   applyDefaults,
   fillMissing,
   generateSlugs,
+  isEmail,
   mergeForUpdate,
   parseId,
   validateFields,
 } from '../src/internal.js'
+
+describe('isEmail', () => {
+  it('accepts what the old pattern did, nothing more', () => {
+    const pattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    for (const value of [
+      'a@b.c',
+      'first.last+tag@sub.example.co.th',
+      'ชา@ร้าน.ไทย',
+      'a@b..c',
+      'a@.b.c',
+      '',
+      'a',
+      '@b.c',
+      'a@',
+      'a@b',
+      'a@.c',
+      'a@b.',
+      'a@@b.c',
+      'a@b@c.d',
+      ' a@b.c',
+      'a@b.c ',
+      'a b@c.d',
+      'a@b\n.c',
+      'a@b.\u00a0c',
+    ])
+      expect(isEmail(value), value).toBe(pattern.test(value))
+  })
+
+  it('takes linear time on a crafted value', () => {
+    // A megabyte (the REST body limit) took minutes with the regex.
+    const crafted = `a@${'.'.repeat(1_000_000)} `
+    const start = performance.now()
+    expect(isEmail(crafted)).toBe(false)
+    expect(performance.now() - start).toBeLessThan(500)
+  })
+})
 
 describe('slugify', () => {
   it.each([

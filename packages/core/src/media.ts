@@ -82,6 +82,30 @@ function zipType(data: Uint8Array): string {
 }
 
 /**
+ * `<svg` after an optional XML declaration, comments and SVG doctype. Read step by step: as one
+ * regex, the repeated comments backtrack exponentially on a crafted file.
+ */
+function isSvg(text: string): boolean {
+  let rest = text
+  if (rest.slice(0, 5).toLowerCase() === '<?xml') {
+    const end = rest.indexOf('>')
+    if (end < 0) return false
+    rest = rest.slice(end + 1).trimStart()
+  }
+  while (rest.startsWith('<!--')) {
+    const end = rest.indexOf('-->', 4)
+    if (end < 0) return false
+    rest = rest.slice(end + 3).trimStart()
+  }
+  if (/^<!DOCTYPE svg/i.test(rest)) {
+    const end = rest.indexOf('>')
+    if (end < 0) return false
+    rest = rest.slice(end + 1).trimStart()
+  }
+  return /^<svg[\s>]/i.test(rest)
+}
+
+/**
  * Detects the MIME type from file contents, ignoring the type the client sent. The name only
  * tells CSV from plain text, which have the same contents.
  */
@@ -117,8 +141,7 @@ export function sniffMimeType(data: Uint8Array, name = ''): string | undefined {
     return undefined
   }
   const trimmed = text.replace(/^﻿/, '').trimStart()
-  if (/^(<\?xml[^>]*>\s*)?(<!--[\s\S]*?-->\s*)*(<!DOCTYPE svg[^>]*>\s*)?<svg[\s>]/i.test(trimmed))
-    return 'image/svg+xml'
+  if (isSvg(trimmed)) return 'image/svg+xml'
   return /\.csv$/i.test(name) ? 'text/csv' : 'text/plain'
 }
 

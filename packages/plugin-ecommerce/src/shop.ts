@@ -11,6 +11,7 @@ import {
   ValidationError,
   type Where,
 } from '@easy-cms/core'
+import { isEmail } from '@easy-cms/core/internal'
 import { CARTS, COUNTERS, ORDERS, PRODUCTS, TRANSACTIONS, VARIANTS } from './collections.js'
 import type { PaymentAdapter, PaymentTransaction } from './payments.js'
 import {
@@ -515,8 +516,6 @@ const orderRef = (order: Data | null) =>
       }
     : null
 
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
 /** The plain values of a context (ids, flags), which can be stored as JSON. */
 function plainContext(context: RequestContext): RequestContext {
   const plain: Record<string, unknown> = {}
@@ -558,7 +557,7 @@ export class Orders {
     const email = (who.user?.email ?? (typeof input.email === 'string' ? input.email.trim() : ''))
       .toString()
       .toLowerCase()
-    if (!EMAIL.test(email)) throw invalid(ORDERS, 'email', 'must be a valid email address')
+    if (!isEmail(email)) throw invalid(ORDERS, 'email', 'must be a valid email address')
     const shippingAddress = await this.address(who, input)
     const view = await this.carts.view(cart, who, shippingAddress ?? undefined)
     if (view.lines.length === 0) throw invalid(CARTS, 'items', 'the cart is empty')

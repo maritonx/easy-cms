@@ -21,6 +21,7 @@ export {
   applyDefaults,
   fillMissing,
   generateSlugs,
+  isEmail,
   mergeForUpdate,
   parseId,
   validateFields,
