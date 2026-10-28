@@ -75,6 +75,8 @@ logs: { format: 'json' }
 `easy-cms serve` ใช้ค่าเดียวกัน ถ้าส่ง `logger` ของคุณเองให้ `createEasyCMS` ค่า `logs` จะไม่มีผล ใช้ `jsonLogger()`
 จาก `@easy-cms/core` ถ้าต้องการรูปแบบนี้
 
+trace และ metric ผ่าน OpenTelemetry: [Observability](./observability)
+
 ## Health check {#health-checks}
 
 load balancer, แพลตฟอร์ม container และ Kubernetes ถามสองคำถาม:

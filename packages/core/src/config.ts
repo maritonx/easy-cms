@@ -18,6 +18,7 @@ import type { EasyCMS } from './local-api.js'
 import type { LogsConfig } from './logger.js'
 import type { CollectionSearch, SearchAdapter } from './search.js'
 import type { StorageAdapter } from './storage.js'
+import type { TelemetryConfig } from './telemetry.js'
 import type { WebhookConfig } from './webhooks.js'
 
 type Data = Record<string, unknown>
@@ -935,6 +936,13 @@ export interface Config {
    * (with `index: 'trigram'` on Postgres) still finds text.
    */
   readonly search?: SearchAdapter
+  /**
+   * OpenTelemetry traces and metrics through `@opentelemetry/api` (install it, and set up the SDK
+   * in your app): spans for API requests, Local API calls, database calls and jobs, and metrics
+   * for request and database durations, job runs and queue sizes. `true` turns both on. Spans
+   * carry names of collections, routes and operations, never query values or documents.
+   */
+  readonly telemetry?: boolean | TelemetryConfig
   readonly plugins?: readonly Plugin[]
 }
 

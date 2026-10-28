@@ -320,6 +320,13 @@
           }
         },
         {
+          "path": "guide/observability",
+          "title": {
+            "en": "Observability",
+            "th": "Observability"
+          }
+        },
+        {
           "path": "guide/jobs",
           "title": {
             "en": "Jobs",

@@ -44,6 +44,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `countCacheSeconds` | `number` | `5` | กี่วินาทีที่ใช้ผลนับของ list (`totalDocs`, `totalPages`) ซ้ำสำหรับ query เดียวกัน ตัวเอกสารเป็นปัจจุบันเสมอ `0`: นับทุกครั้ง [การนับ](/th/guide/local-api#find-results) |
 | `maxPage` | `number` | ไม่จำกัด | `page` ที่ลึกที่สุดที่ REST API ให้ API client (admin ที่ login ยังใช้เลขหน้าได้ทุกหน้า) ลึกกว่านั้นได้ `400` พร้อมแนะนำ `cursor` [Cursor](/th/guide/local-api#find-results) |
 | `httpCache` | `HttpCacheConfig` | ปิด (`no-store`) | ให้ CDN cache การอ่านเนื้อหาที่ publish แล้วแบบสาธารณะ พร้อม cache tag สำหรับ purge ดู [httpCache](#httpcache) |
+| `telemetry` | `boolean \| { traces?, metrics? }` | ปิด | span และ metric ของ OpenTelemetry ผ่าน `@opentelemetry/api` ส่งไปที่ที่ SDK ของแอปกำหนด [Observability](/th/guide/observability) |
 | `search` | `SearchAdapter` | — | ค้นหาแบบเรียงตามความเกี่ยวข้องใน collection ที่มี `search` เช่น `memorySearch()` [ค้นหา](/th/guide/search) |
 | `outbox` | `boolean` | `false` | รัน after hook, webhook และ `httpCache.purge` จาก outbox ที่เขียนใน transaction เดียวกับการบันทึก หลังส่ง response และ retry จนสำเร็จ hook ต้องรันซ้ำได้โดยไม่เสียหาย [Outbox](/th/guide/hooks#outbox) |
 | `logs` | `LogsConfig` | บรรทัดที่อ่านง่าย | `{ format: 'json' }` เขียน JSON บรรทัดละหนึ่ง object พร้อม request id ดู [logs](#logs) |
