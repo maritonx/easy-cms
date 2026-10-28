@@ -1,4 +1,5 @@
 import type { ID } from '../access.js'
+import { isEmail } from '../document.js'
 import type { EmailSetting } from '../email.js'
 import { TooManyRequestsError, ValidationError } from '../errors.js'
 import type { EasyCMS } from '../local-api.js'
@@ -23,7 +24,6 @@ export interface AdminEmail {
  */
 export type EmailCheck = { ok: true; logged?: true } | { ok: false; error: string }
 
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 /** Test emails per admin in `WINDOW`: enough to fix settings, not to send mail with. */
 const LIMIT = 5
 const WINDOW = 10 * 60_000
@@ -89,7 +89,7 @@ export async function sendTestEmail(
   const adapter = cms.config.email
   if (!adapter) return { ok: false, error: 'Email is not set up (`email` in the config)' }
   const address = typeof to === 'string' && to.trim() ? to.trim() : user.email
-  if (!EMAIL.test(address))
+  if (!isEmail(address))
     throw new ValidationError('email', [{ field: 'to', message: 'must be an email address' }])
   const times = sentAt.get(cms) ?? new Map<string, number[]>()
   sentAt.set(cms, times)
