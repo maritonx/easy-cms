@@ -53,6 +53,7 @@ db: process.env.DATABASE_URL ? postgres({ url: process.env.DATABASE_URL }) : pos
 | ตัวเลือก | ค่าเริ่มต้น | |
 |---|---|---|
 | `max` | `10` | จำนวน connection ใน pool ต่อ instance |
+| `writeConnections` | `0` | connection ที่กันไว้ให้การบันทึก เพิ่มจาก `max` (ดูข้างล่าง) |
 | `prepare` | `true` | prepared statement ปิดเมื่ออยู่หลัง pooler ที่เก็บไว้ไม่ได้ |
 | `statementTimeoutMs` | — | ยกเลิก statement ที่รันนานเกินนี้ ใช้หลัง PgBouncer ไม่ได้ (ดูข้างล่าง) |
 | `idleTimeoutMs` | — | ปิด connection ที่ว่างนานเท่านี้ |
@@ -64,6 +65,14 @@ db: process.env.DATABASE_URL ? postgres({ url: process.env.DATABASE_URL }) : pos
 
 **จำนวน connection** ทุก instance เปิดได้ถึง `max` รวมทั้งหมดจึงเป็นจำนวน instance × `max` ควรให้ไม่เกิน 10–20%
 ของ `max_connections` ของ server (`SHOW max_connections`) เผื่อไว้ให้แอปของคุณ migration และเครื่องมือของแอดมิน
+
+**การบันทึกที่ต้องรอ read ที่ช้า** เมื่อ read ที่ช้าถือ connection ไว้หมด การบันทึกต้องรอจนกว่าจะมีว่าง `writeConnections`
+ทำให้การสร้าง แก้ไข และลบ (รวมทุกการอ่านที่มันทำ) ใช้ connection ชุดของตัวเอง editor จึงบันทึกได้แม้เว็บกำลังยุ่ง
+อย่าลืมนับรวมในจำนวน connection ทั้งหมด ใช้กับ PGlite ไม่ได้
+
+```ts
+db: postgres({ url: process.env.DATABASE_URL, max: 10, writeConnections: 2 })
+```
 
 **Serverless และ pooler** function แต่ละตัวบน serverless มี pool ของตัวเอง และ traffic ที่พุ่งขึ้นทีเดียวจะเปิดหลายตัวพร้อมกัน
 ให้ต่อผ่าน pooler (PgBouncer หรือของผู้ให้บริการ เช่น Neon, Supabase, RDS Proxy) และตั้ง `max` น้อย ๆ 1–3
@@ -157,10 +166,14 @@ runner แต่ละเครื่องไม่เท่ากัน reques
   ([`httpCache`](./deployment#http-caching)) ประหยัดการส่งข้อมูล ไม่ได้ลดงาน เพราะ Easy CMS ยังต้องอ่านเอกสารนั้น
 - **หน้าลึกแบบระบุเลขหน้าคือส่วนที่แพง** ไม่นับยอดรวมก็ช้าเท่ากัน แปลว่าเวลาหมดไปกับการข้ามแถว ไม่ใช่การนับ ใช้ `cursor`
   กับหน้า archive และ feed และตั้ง `maxPage` ไม่ให้ API client ไปหน้าลึก
-- **trigram index ต้องมีอย่างน้อยสามตัวอักษร** การค้นภาษาไทยไม่กี่คำใช้ index ได้ แต่การค้นหนึ่งหรือสองตัวอักษรใช้ไม่ได้และต้องอ่านทุกแถว
-- **ไม่ควรค้นในบล็อกบนหน้าสาธารณะ** ที่ขนาดนี้ และให้ cache ผลไว้
+- **กรองด้วย relationship นับจาก index ได้** ใน collection ที่มี drafts field ที่มี index (relationship, upload, `index: true`)
+  จะได้ index คู่กับ `status` ซึ่ง read สาธารณะใช้กรอง การนับยอดรวมจึงอ่านแค่ index
+- **trigram index ต้องมีอย่างน้อยสามตัวอักษร** การค้นภาษาไทยไม่กี่คำใช้ index ได้ แต่ `like` ที่มีหนึ่งหรือสองตัวอักษรจะต้องอ่านทุกแถว
+  จึงถูกปฏิเสธ (`400`)
+- **ไม่ควรค้นในบล็อกบนหน้าสาธารณะ** ที่ขนาดนี้ หรือคัดค่าที่ค้นออกมาเป็น field ของตัวเอง ([Blocks](./fields#queries-inside-blocks-on-large-collections))
 - เมื่อมี editor 200 คนพร้อมกันและมี query ที่ช้าเหล่านี้ปนอยู่ การอ่านต้องรอ connection (p95 18 s, บันทึก 31 s) request ช้าแบบเดียวทำให้
-  ทุกอย่างช้าตาม หาให้เจอจาก access log (`logs`) แล้วเปลี่ยนไปใช้ cursor, index หรือ cache
+  ทุกอย่างช้าตาม หาให้เจอจาก access log (`logs`) แล้วเปลี่ยนไปใช้ cursor, index หรือ cache และให้การบันทึกมี
+  [connection ของตัวเอง](#connections)
 
 #### ตัวเลขเหล่านี้มาจากไหน {#how-these-numbers-are-made}
 
@@ -188,7 +201,8 @@ runner แต่ละเครื่องไม่เท่ากัน reques
 - **LC_CTYPE ของฐานข้อมูล** trigram มาจากตัวอักษรและตัวเลขตามที่ฐานข้อมูลมอง ถ้า `LC_CTYPE` เป็น `C` หรือ `POSIX`
   ตัวอักษรไทยจะไม่ถูกนับเป็นตัวอักษร และ index หาไม่เจอ (ผลยังถูกต้อง แค่ช้า) Easy CMS จะเตือนตอนเริ่ม `C.UTF-8`,
   `en_US.UTF-8` และ `th_TH.UTF-8` ใช้ได้ รวมถึงค่าเริ่มต้นของ image Postgres ใน Docker และของ PGlite
-- **อย่างน้อย 3 ตัวอักษร** คำค้นที่สั้นกว่านั้นใช้ index ไม่ได้
+- **อย่างน้อย 3 ตัวอักษร** คำค้นที่สั้นกว่านั้นใช้ index ไม่ได้ `like` บน field แบบนี้จึงปฏิเสธ (`400`) และช่องค้นหาใน admin
+  จะรอจนพิมพ์ตัวที่สาม
 - **SQLite** ไม่มี index แบบนี้ option นี้จึงไม่มีผลบน SQLite และ config เดียวกันใช้ได้ทั้งสองแบบ
 
 ## ขั้นต่อไป {#next-steps}

@@ -54,6 +54,7 @@ db: process.env.DATABASE_URL ? postgres({ url: process.env.DATABASE_URL }) : pos
 | Option | Default | |
 |---|---|---|
 | `max` | `10` | Connections in the pool, per instance |
+| `writeConnections` | `0` | Connections kept for saves, on top of `max` (see below) |
 | `prepare` | `true` | Prepared statements. Turn off behind a pooler that can't keep them |
 | `statementTimeoutMs` | — | Cancels a statement that runs longer. Not behind PgBouncer (see below) |
 | `idleTimeoutMs` | — | Closes connections left idle this long |
@@ -67,6 +68,14 @@ take a while: `easy-cms migrate` and `easy-cms backup` read the same config, so 
 **How many connections.** Every instance opens up to `max`, so the total is instances ×
 `max`. Keep it under 10–20% of the server's `max_connections` (`SHOW max_connections`), leaving
 room for your app, migrations and admin tools.
+
+**Saves behind slow reads.** When slow reads hold every connection, a save waits for one. With
+`writeConnections`, creates, updates and deletes (and every read they make) use connections of
+their own, so editors can save while the site is busy. Count them in the total. Not with PGlite.
+
+```ts
+db: postgres({ url: process.env.DATABASE_URL, max: 10, writeConnections: 2 })
+```
 
 **Serverless and poolers.** Each serverless function instance has its own pool, and a burst of
 traffic starts many of them: connect through a pooler (PgBouncer, or your host's: Neon,
@@ -114,19 +123,16 @@ Measured with `packages/integration/load.ts` on Postgres 17 (Docker, a 10-core l
 
 | Request | Requests/s | p50 | p95 |
 |---|---|---|---|
-| By id or slug | 990 | 23 ms | 27 ms |
-| By id, unchanged (`If-None-Match`, `304`) | 1,165 | 19 ms | 25 ms |
-| First page of a list | 610 | 32 ms | 36 ms |
-| Next page by cursor, deep in the list | 583 | 34 ms | 37 ms |
-| Filter by `hasMany` value, sort by number | 456 | 34 ms | 43 ms |
-| Thai `like` search, `index: 'trigram'` | 347 | 58 ms | 79 ms |
-| Admin list with drafts | 302 | 66 ms | 73 ms |
-| Save a draft (with a version) | 231 | 84 ms | 104 ms |
-| `like` search for 1 to 3 digits | 37 | 261 ms | 3.4 s |
-| Filter by relationship, sort by date | 35 | 170 ms | 1.8 s |
-| Random page among 100,000 | 5 | 3.9 s | 6.8 s |
-| The same without totals (`count=false`) | 6 | 3.6 s | 7.3 s |
-| Inside blocks (`layout.blockType`) | 4 | 6.0 s | 6.0 s |
+| By id, relationships populated (`depth=2`) | 2,750 | 8 ms | 10 ms |
+| By slug (`where[slug][equals]`) | 2,770 | 8 ms | 10 ms |
+| First page of a list | 1,060 | 18 ms | 23 ms |
+| Filter by relationship, sort by date | 560 | 34 ms | 55 ms |
+| Admin list with drafts | 550 | 35 ms | 49 ms |
+| Save a draft (with a version) | 500 | 38 ms | 52 ms |
+| Random page among 8,000 | 150 | 129 ms | 189 ms |
+| Filter by `hasMany` value, sort by number | 115 | 159 ms | 258 ms |
+| `like` search | 100 | 198 ms | 262 ms |
+| Inside blocks (`layout.blockType`) | 83 | 237 ms | 304 ms |
 
 What that means for your site:
 
@@ -172,12 +178,16 @@ faster or slower from one run to the next, so compare numbers from the same run.
 - **Deep pages by number are the cost.** Without totals they are just as slow, so the time goes to
   skipping rows, not to counting them. Use `cursor` for archives and feeds, and `maxPage` to keep
   API clients from paging deep.
-- **Trigram indexes need three characters.** A Thai search of a few words uses the index; a
-  search for one or two characters can't, and reads every row.
-- **Keep queries inside blocks off public pages** at this size, and cache what they return.
+- **Filters on relationships count from the index.** In a collection with drafts, indexed fields
+  (relationships, uploads, `index: true`) are indexed together with `status`, which public reads
+  filter on, so their totals read only the index.
+- **Trigram indexes need three characters.** A Thai search of a few words uses the index; `like`
+  with one or two characters would read every row, so it is refused (`400`).
+- **Keep queries inside blocks off public pages** at this size, or copy what you query to a field
+  of its own ([Blocks](./fields#queries-inside-blocks-on-large-collections)).
 - With 200 editors at once and these slow queries in the mix, reads wait for connections (p95
   18 s, saves 31 s): one slow kind of request slows every other. Find it in the access log (`logs`) and move
-  it to a cursor, an index or a cache.
+  it to a cursor, an index or a cache, and give saves [connections of their own](#connections).
 
 #### How these numbers are made
 
@@ -209,7 +219,8 @@ p95 25 ms under 20 concurrent requests. Localized fields get an index per locale
   with `LC_CTYPE` `C` or `POSIX`, Thai letters aren't letters and the index can't find them
   (results stay right, only slow). Easy CMS warns at start. `C.UTF-8`, `en_US.UTF-8` and
   `th_TH.UTF-8` are fine, as are the defaults of Docker's Postgres image and of PGlite.
-- **At least 3 characters.** Shorter searches can't use the index.
+- **At least 3 characters.** Shorter searches can't use the index, so `like` on such a field
+  refuses them (`400`), and the admin's searches wait for the third character.
 - **SQLite** has no such index: the option does nothing there, so a config works on both.
 
 ## Next steps

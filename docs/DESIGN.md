@@ -430,3 +430,4 @@ CI รัน lint, typecheck, build และ test บน Linux, macOS และ
 - [ADR-0055](adr/0055-database-isolation.md) — แยกฐานข้อมูลจากแอปได้สี่ระดับ (รวม, schema แยก, database แยก, server แยก)
 - [ADR-0056](adr/0056-search-adapter.md) — search เป็น adapter แบบเลือกใช้ เริ่มด้วย `memorySearch()` ส่วน engine ภายนอกทำทีหลัง
 - [ADR-0057](adr/0057-opentelemetry-api-only.md) — OpenTelemetry ผ่าน `@opentelemetry/api` อย่างเดียว เปิดด้วย `telemetry: true` แอปตั้งค่า SDK เอง
+- [ADR-0058](adr/0058-slow-paths-at-1m.md) — ทางที่ช้าที่ 1M: index คู่กับ `status` ใน collection ที่มี drafts, `like` ขั้นต่ำ 3 ตัวอักษรบน field แบบ trigram, `writeConnections` สำหรับงานเขียน

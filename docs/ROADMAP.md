@@ -153,6 +153,7 @@
 | [#177](https://github.com/maritonx/easy-cms/issues/177) | Search adapter interface | area:plugins | `SearchAdapter` ใน core พร้อม `memorySearch()` ที่ตัดคำไทยด้วย `Intl.Segmenter` ส่วน adapter ของ search engine ภายนอกแยกไปทำทีหลัง ([ADR-0056](adr/0056-search-adapter.md)) |
 | [#178](https://github.com/maritonx/easy-cms/issues/178) | Opt-in outbox for `afterChange` and webhooks | area:core | ตัวเลือกใน config ตาม [ADR-0053](adr/0053-outbox-for-after-hooks.md), เอกสารเรื่อง hook ที่รันซ้ำได้ |
 | [#179](https://github.com/maritonx/easy-cms/issues/179) | OpenTelemetry traces and metrics | area:core | peer dependency แบบเลือกใช้, span ของ request และ query, metrics ของคิวงาน ([ADR-0057](adr/0057-opentelemetry-api-only.md)) |
+| [#257](https://github.com/maritonx/easy-cms/issues/257) | Faster relationship filters, queries inside blocks, and saves under load at 1M | area:core, area:adapters | index คู่กับ `status`, `like` ขั้นต่ำ 3 ตัวอักษรบน field แบบ trigram, `writeConnections`, วิธีค้นในบล็อกในเอกสาร ([ADR-0058](adr/0058-slow-paths-at-1m.md)) |
 
 ---
 

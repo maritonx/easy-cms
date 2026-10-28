@@ -14,7 +14,7 @@
 | `required` | `boolean` | ต้องมีค่า (ไม่ตรวจตอนบันทึกฉบับร่าง) |
 | `unique` | `boolean` | เอกสารสองรายการใช้ค่าซ้ำกันไม่ได้ เฉพาะ field ระดับบนสุด (ใน group, array หรือ block จะไม่มีผล และมีคำเตือน) |
 | `uniqueWithin` | `string \| string[]` | ใช้กับ `unique` หรือ slug: field ข้างเคียง (เช่น `parent`, `tenant`) ค่าห้ามซ้ำเฉพาะเอกสารที่มีค่าใน field เหล่านั้นเหมือนกัน |
-| `index` | `boolean \| 'trigram'` | `true` สร้าง index ในฐานข้อมูล `'trigram'` (text, textarea, email): index สำหรับค้นด้วย `like` ที่ตรงกับส่วนไหนของข้อความก็ได้ รวมถึงภาษาไทย ใช้ได้เฉพาะ Postgres บน SQLite ไม่สร้างอะไร [ค้นด้วย like](/th/guide/databases#search-with-like) |
+| `index` | `boolean \| 'trigram'` | `true` สร้าง index ในฐานข้อมูล `'trigram'` (text, textarea, email): index สำหรับค้นด้วย `like` ที่ตรงกับส่วนไหนของข้อความก็ได้ รวมถึงภาษาไทย ตั้งแต่สามตัวอักษร ใช้ได้เฉพาะ Postgres บน SQLite ไม่สร้างอะไร [ค้นด้วย like](/th/guide/databases#search-with-like) |
 | `defaultValue` | ค่าของ field | ใช้เมื่อสร้างเอกสารโดยไม่มีค่านี้ |
 | `validate` | `(value, { data, operation }) => true \| string` | ตรวจเอง เป็น async ได้ |
 | `access` | `{ read?, create?, update? }` | [สิทธิ์](/th/guide/access-control#field-access)ระดับ field `create` คือใครตั้งค่าได้ตอนสร้างเอกสาร ค่าเริ่มต้นตาม `update` |
