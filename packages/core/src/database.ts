@@ -167,6 +167,12 @@ export interface Database {
    * the same transaction. Required by `outbox: true` in the config.
    */
   readonly outbox?: boolean | undefined
+  /**
+   * Runs `fn`, a create, update or delete with every read it makes, on connections kept for
+   * writes, when the adapter has some (`writeConnections` of `postgres()`): saves then don't wait
+   * behind slow reads that hold the others.
+   */
+  writing?<T>(fn: () => Promise<T>): Promise<T>
 
   /** Writes a migration file for the difference between the config and the latest migration. `null` when nothing changed. */
   createMigration(args: { name: string }): Promise<CreateMigrationResult | null>
