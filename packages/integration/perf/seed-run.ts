@@ -1,6 +1,7 @@
 // Prepares the perf database: `node perf/seed-run.ts`, with POSTGRES_URL, PERF_DOCS, PERF_CWD
 // (the project folder `easy-cms serve` runs in) and PERF_PASSWORD (the editors' password).
-// Migrates as in production, then seeds; resumes a partial seed.
+// Migrates as in production (a migration for any change of the schema), then seeds; resumes a
+// partial seed.
 import { createEasyCMS, silentLogger } from '@easy-cms/core'
 import config from './easy-cms.config.ts'
 import { seed } from './seed.ts'
@@ -16,7 +17,8 @@ const tool = await createEasyCMS(config, {
   logger: silentLogger,
   scheduler: false,
 })
-if ((await tool.db.migrationStatus()).length === 0) await tool.db.createMigration({ name: 'init' })
+// A migration for what changed since the seeded data was saved (e.g. indexes), as in production.
+await tool.db.createMigration({ name: 'schema' })
 await tool.db.migrate()
 await tool.destroy()
 

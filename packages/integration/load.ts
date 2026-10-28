@@ -184,11 +184,16 @@ const results = [
   await scenario('Thai text search (like)', () =>
     get(`/posts?where[title][like]=${encodeURIComponent(`ที่ ${rand(DOCS)}`)}&limit=10`),
   ),
+  // Three digits: on a field with a trigram index, like needs three characters (#257).
   await scenario('text search (like)', () =>
-    get(`/posts?where[title][like]=${rand(1000)}&locale=en&limit=10`),
+    get(`/posts?where[title][like]=${100 + rand(900)}&locale=en&limit=10`),
   ),
+  // No published post has a hero block (they are all drafts): the worst case, every row read.
   await scenario('inside blocks (layout.blockType)', () =>
     get(`/posts?where[layout.blockType][equals]=hero&limit=10&page=${1 + rand(100)}`),
+  ),
+  await scenario('inside blocks, matching most posts', () =>
+    get(`/posts?where[layout.blockType][equals]=text&limit=10&page=${1 + rand(100)}`),
   ),
   await scenario('admin list with drafts (logged in)', () =>
     get(`/posts?limit=20&draft=true&page=${1 + rand(100)}`, true),
