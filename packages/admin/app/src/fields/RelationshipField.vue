@@ -70,7 +70,9 @@ const filterQuery = useFilterQuery(() => props.filterPath)
 
 async function search() {
   const field = target?.useAsTitle
-  const where = query.value && field ? { [field]: { like: query.value } } : undefined
+  // A title with a trigram index needs `searchMin` characters; until then, no filter.
+  const long = [...query.value].length >= (target?.searchMin ?? 1)
+  const where = query.value && field && long ? { [field]: { like: query.value } } : undefined
   const run = ++latest
   searching.value = true
   try {

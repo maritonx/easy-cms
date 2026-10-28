@@ -84,6 +84,10 @@ const titleLabel = computed(() => {
 
 // State lives in the URL so back/forward and reloads keep it.
 const search = ref(typeof route.query.q === 'string' ? route.query.q : '')
+/** Too short to search by: a title with a trigram index needs `searchMin` characters. */
+const searchShort = computed(
+  () => search.value !== '' && [...search.value].length < (collection?.searchMin ?? 1),
+)
 const page = computed(() => Math.max(1, Number(route.query.page) || 1))
 const sort = computed(() =>
   typeof route.query.sort === 'string'
@@ -230,7 +234,8 @@ const activeFilters = computed(
 
 function whereOf() {
   const parts: Record<string, unknown>[] = []
-  if (search.value && titleField) parts.push({ [titleField]: { like: search.value } })
+  if (search.value && titleField && !searchShort.value)
+    parts.push({ [titleField]: { like: search.value } })
   if (statusFilter.value) parts.push({ status: { equals: statusFilter.value } })
   for (const f of filterFields.value) {
     const value = filterValue(f.name)
@@ -877,6 +882,7 @@ async function deleteSelected(query = '') {
         <Search :size="16" class="search-icon" aria-hidden="true" />
         <input v-model="search" class="input" type="search" :placeholder="useFolders && currentFolder !== null ? t('folders.searchIn', { name: here?.name ?? '' }) : t('list.search', { field: titleLabel })" />
       </label>
+      <span v-if="searchShort" class="muted" role="status">{{ t('list.searchMin', { count: collection.searchMin ?? 1 }) }}</span>
       <label v-if="collection.drafts" :class="['filter', { on: statusFilter }]">
         <span class="visually-hidden">{{ t('list.status') }}</span>
         <select

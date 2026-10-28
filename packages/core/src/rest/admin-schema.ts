@@ -26,7 +26,7 @@ import type {
   LayoutNode,
   SidebarPanel,
 } from '../config.js'
-import type { AdminComponent, Field, Label } from '../fields.js'
+import { type AdminComponent, type Field, type Label, TRIGRAM_LIKE_MIN } from '../fields.js'
 import type { EasyCMS } from '../local-api.js'
 import { expandMimeTypes } from '../media.js'
 import {
@@ -140,6 +140,8 @@ export interface AdminCollection {
   labels?: { singular?: Label; plural?: Label }
   icon?: string
   useAsTitle?: string
+  /** Searches by title wait for this many characters (a title with `index: 'trigram'`). */
+  searchMin?: number
   /** Documents open in a panel over the list. */
   editIn?: 'drawer'
   drafts: boolean
@@ -445,6 +447,9 @@ async function collection(
   }
   if (config.labels) result.labels = config.labels
   if (config.useAsTitle) result.useAsTitle = config.useAsTitle
+  const titleField = config.useAsTitle ?? 'title'
+  if (config.fields.some((f) => f.name === titleField && f.index === 'trigram'))
+    result.searchMin = TRIGRAM_LIKE_MIN
   if (config.admin?.icon) result.icon = config.admin.icon
   if (config.admin?.sidebar?.length) result.sidebar = config.admin.sidebar.map(panelRef)
   if (config.admin?.layout?.length) result.layout = layoutOf(config.admin.layout, fields)

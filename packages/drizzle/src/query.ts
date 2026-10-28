@@ -1,6 +1,6 @@
 import type { Field } from '@easy-cms/core'
 import { QueryError, type Where, type WhereOperators } from '@easy-cms/core'
-import { parseId } from '@easy-cms/core/internal'
+import { parseId, TRIGRAM_LIKE_MIN } from '@easy-cms/core/internal'
 import {
   and,
   asc,
@@ -261,6 +261,10 @@ function operatorSQL(
       if (typeof raw !== 'string') throw new QueryError(`"${path}.like" must be a string`)
       if (field && !LIKE_TYPES.has(field.type))
         throw new QueryError(`"like" works on text fields, not "${path}"`)
+      if (field?.index === 'trigram' && dialect.trigramIndex && [...raw].length < TRIGRAM_LIKE_MIN)
+        throw new QueryError(
+          `"${path}.like" needs at least ${TRIGRAM_LIKE_MIN} characters: its trigram index can't find shorter text`,
+        )
       return dialect.like(column, `%${escapeLike(raw)}%`)
     case 'exists':
       return raw === false ? isNull(column) : isNotNull(column)

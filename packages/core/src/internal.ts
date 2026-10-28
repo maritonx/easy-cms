@@ -28,7 +28,14 @@ export {
 } from './document.js'
 export { codeOfStatus } from './errors.js'
 export { FIELD_TYPE_BASES } from './field-types.js'
-export { hasRows, isHasMany, mimeAllowedBy, rowFields, uniqueWithinOf } from './fields.js'
+export {
+  hasRows,
+  isHasMany,
+  mimeAllowedBy,
+  rowFields,
+  TRIGRAM_LIKE_MIN,
+  uniqueWithinOf,
+} from './fields.js'
 export { forwardedClientIp, platformClientIp } from './framework.js'
 export { type HealthCheck, healthResponse } from './health.js'
 export { CONFIG_FILE_NAMES, findConfigFile, importConfig } from './load-config.js'
