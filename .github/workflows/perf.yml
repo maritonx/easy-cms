@@ -23,8 +23,8 @@ on:
       base:
         description: Base to compare with (ref or sha); default the last successful night
         default: ''
-      slowdown_ms:
-        description: Delay finding posts by slug in head by this many ms (checks the comparison)
+      slowdown_queries:
+        description: Extra queries per find by slug in head (checks the comparison)
         default: '0'
 
 permissions:
@@ -113,11 +113,11 @@ jobs:
           docker start pg
           for i in $(seq 1 60); do docker exec pg pg_isready -U easycms -h 127.0.0.1 && break; sleep 2; done
           dir_of() { [ "$1" = base ] && echo "$GITHUB_WORKSPACE/../base" || echo "$GITHUB_WORKSPACE"; }
-          slow_of() { [ "$1" = head ] && echo "${{ inputs.slowdown_ms || '0' }}" || echo 0; }
+          slow_of() { [ "$1" = head ] && echo "${{ inputs.slowdown_queries || '0' }}" || echo 0; }
           serve() {
             pkill -f 'easy-cms.js serve' || true; sleep 2
             dir=$(dir_of "$1")
-            NODE_ENV=production PERF_POOL=20 PERF_SLOWDOWN_MS=$(slow_of "$1") nohup node "$dir/packages/cli/bin/easy-cms.js" serve \
+            NODE_ENV=production PERF_POOL=20 PERF_SLOWDOWN_QUERIES=$(slow_of "$1") nohup node "$dir/packages/cli/bin/easy-cms.js" serve \
               --port 4000 --config "$dir/packages/integration/perf/easy-cms.config.ts" --cwd "$PERF_CWD" > "serve-$1.log" 2>&1 &
             for i in $(seq 1 60); do curl -sf http://127.0.0.1:4000/readyz && return 0; sleep 2; done
             cat "serve-$1.log"; return 1
@@ -132,7 +132,7 @@ jobs:
           n=0
           for side in base head head base; do
             n=$((n + 1))
-            (cd "$(dir_of "$side")/packages/integration" && PERF_SLOWDOWN_MS=$(slow_of "$side") node load.ts "$PERF_DOCS" 10 20) \
+            (cd "$(dir_of "$side")/packages/integration" && PERF_SLOWDOWN_QUERIES=$(slow_of "$side") node load.ts "$PERF_DOCS" 10 20) \
               | tee "perf-results/scenarios-$n-$side.txt"
           done
           # What earlier nights and the guide's medians read: the first head round.
