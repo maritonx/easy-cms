@@ -1847,12 +1847,14 @@ function errorResponse(
     }
     return new Response(JSON.stringify({ errors }), { status: error.status, headers })
   }
-  const message = error instanceof Error ? error.message : String(error)
-  cms.logger.error(`REST request failed: ${message}`, { error })
-  const body = {
-    errors: [
-      { message: production ? 'Internal Server Error' : message, code: 'INTERNAL_SERVER_ERROR' },
-    ],
-  }
+  cms.logger.error(
+    `REST request failed: ${error instanceof Error ? error.message : String(error)}`,
+    {
+      error,
+    },
+  )
+  // Outside production the message helps; anything else thrown stays in the log.
+  const message = !production && error instanceof Error ? error.message : 'Internal Server Error'
+  const body = { errors: [{ message, code: 'INTERNAL_SERVER_ERROR' }] }
   return new Response(JSON.stringify(body), { status: 500, headers })
 }

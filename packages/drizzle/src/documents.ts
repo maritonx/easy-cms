@@ -20,6 +20,8 @@ function getAt(data: Data, path: readonly string[]): unknown {
 }
 
 function setAt(data: Data, path: readonly string[], value: unknown) {
+  // Config validation refuses the name; a key like this would reach `Object.prototype`.
+  if (path.includes('__proto__')) throw new Error(`Invalid field path: ${path.join('.')}`)
   let current = data
   for (const key of path.slice(0, -1)) {
     if (typeof current[key] !== 'object' || current[key] === null) current[key] = {}

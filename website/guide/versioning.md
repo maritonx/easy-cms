@@ -87,6 +87,7 @@ would quietly do nothing.
 | `EASY_CMS_DEP003` | `?fallback-locale=` | `?fallbackLocale=` | 2.0 |
 | `EASY_CMS_DEP004` | `easy-cms create-admin` | `easy-cms admin:create` | 2.0 |
 | `EASY_CMS_DEP005` | `easy-cms run-scheduled` | `easy-cms jobs:run` | 2.0 |
+| `EASY_CMS_DEP006` | a field named `constructor` or `prototype` | another name | 2.0 |
 
 ### In your plugins
 

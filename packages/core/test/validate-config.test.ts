@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { CollectionConfig, Field } from '../src/index.js'
 import { validateConfig } from '../src/internal.js'
 import { baseConfig } from './helpers.js'
@@ -10,6 +10,27 @@ const withFields = (fields: Field[], extra: Partial<CollectionConfig> = {}) =>
   paths([{ slug: 'posts', fields, ...extra }])
 
 describe('validateConfig', () => {
+  it('refuses __proto__ as a field name and warns about constructor and prototype', () => {
+    const emit = vi.spyOn(process, 'emitWarning').mockImplementation(() => {})
+    try {
+      expect(withFields([{ name: '__proto__', type: 'text' }])).toEqual([
+        'collections.posts.fields[0].name',
+      ])
+      expect(
+        withFields([
+          { name: 'constructor', type: 'text' },
+          { name: 'prototype', type: 'text' },
+        ]),
+      ).toEqual([])
+      expect(emit).toHaveBeenCalledWith(
+        expect.stringContaining('"constructor"'),
+        expect.objectContaining({ code: 'EASY_CMS_DEP006' }),
+      )
+    } finally {
+      emit.mockRestore()
+    }
+  })
+
   it('checks job times and the time zone', () => {
     const run = () => {}
     const issues = (config: Parameters<typeof baseConfig>[0]) =>

@@ -68,6 +68,8 @@ function collectSlots(
   slots: Slot[],
 ) {
   for (const field of fields) {
+    // Config validation refuses the name; assigning to it would replace `data`'s prototype.
+    if (field.name === '__proto__') continue
     const value = data[field.name]
     if (value === null || value === undefined) continue
 
