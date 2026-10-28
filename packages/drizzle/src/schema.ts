@@ -222,6 +222,8 @@ function buildTable(
     unique: boolean
     within?: string | readonly string[]
     trigram?: boolean
+    /** Together with `status`: public reads filter by it, and their counts read only the index. */
+    withStatus?: boolean
   }[] = []
 
   const add = (column: string, builderColumn: ColumnBuilder, desc: unknown) => {
@@ -366,7 +368,11 @@ function buildTable(
             field.type === 'relationship' ||
             field.type === 'upload'
           ) {
-            indexes.push({ column, unique: false })
+            indexes.push(
+              kind === 'root' && options.drafts
+                ? { column, unique: false, withStatus: true }
+                : { column, unique: false },
+            )
           }
         }
       }
@@ -375,7 +381,7 @@ function buildTable(
   walk(fields, [], true)
 
   const table = dialect.table(name, columns, (t: Record<string, AnyColumn>) =>
-    indexes.flatMap(({ column, unique, within, trigram }) => {
+    indexes.flatMap(({ column, unique, within, trigram, withStatus }) => {
       const col = t[column] as AnyColumn
       // SQLite has no index for substrings: nothing to make there.
       if (trigram)
@@ -386,6 +392,8 @@ function buildTable(
           .uniqueIndex(`${name}_${columns.join('_')}_${column}_unique`)
           .on(...columns.map((w) => t[w] as AnyColumn), col)
       }
+      if (withStatus)
+        return dialect.index(`${name}_${column}_status_idx`).on(col, t.status as AnyColumn)
       return unique
         ? dialect.uniqueIndex(`${name}_${column}_unique`).on(col)
         : dialect.index(`${name}_${column}_idx`).on(col)
