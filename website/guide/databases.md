@@ -114,16 +114,19 @@ Measured with `packages/integration/load.ts` on Postgres 17 (Docker, a 10-core l
 
 | Request | Requests/s | p50 | p95 |
 |---|---|---|---|
-| By id, relationships populated (`depth=2`) | 2,750 | 8 ms | 10 ms |
-| By slug (`where[slug][equals]`) | 2,770 | 8 ms | 10 ms |
-| First page of a list | 1,060 | 18 ms | 23 ms |
-| Filter by relationship, sort by date | 560 | 34 ms | 55 ms |
-| Admin list with drafts | 550 | 35 ms | 49 ms |
-| Save a draft (with a version) | 500 | 38 ms | 52 ms |
-| Random page among 8,000 | 150 | 129 ms | 189 ms |
-| Filter by `hasMany` value, sort by number | 115 | 159 ms | 258 ms |
-| `like` search | 100 | 198 ms | 262 ms |
-| Inside blocks (`layout.blockType`) | 83 | 237 ms | 304 ms |
+| By id or slug | 990 | 23 ms | 27 ms |
+| By id, unchanged (`If-None-Match`, `304`) | 1,165 | 19 ms | 25 ms |
+| First page of a list | 610 | 32 ms | 36 ms |
+| Next page by cursor, deep in the list | 583 | 34 ms | 37 ms |
+| Filter by `hasMany` value, sort by number | 456 | 34 ms | 43 ms |
+| Thai `like` search, `index: 'trigram'` | 347 | 58 ms | 79 ms |
+| Admin list with drafts | 302 | 66 ms | 73 ms |
+| Save a draft (with a version) | 231 | 84 ms | 104 ms |
+| `like` search for 1 to 3 digits | 37 | 261 ms | 3.4 s |
+| Filter by relationship, sort by date | 35 | 170 ms | 1.8 s |
+| Random page among 100,000 | 5 | 3.9 s | 6.8 s |
+| The same without totals (`count=false`) | 6 | 3.6 s | 7.3 s |
+| Inside blocks (`layout.blockType`) | 4 | 6.0 s | 6.0 s |
 
 What that means for your site:
 
@@ -144,8 +147,9 @@ What that means for your site:
 ### At 1,000,000 posts
 
 The nightly Perf workflow runs the same data shape at 1,000,000 posts, on a GitHub runner
-(4 cores) with Postgres 17, 20 concurrent requests from one process. The numbers below are from
-1.10 (2026-10-27):
+(4 cores) with Postgres 17, 20 concurrent requests from one process. The numbers below are the
+median of three runs on 1.15 (2026-10-28). Runners differ: the same request can be about 40%
+faster or slower from one run to the next, so compare numbers from the same run.
 
 | Request | Requests/s | p50 | p95 |
 |---|---|---|---|
@@ -162,7 +166,8 @@ The nightly Perf workflow runs the same data shape at 1,000,000 posts, on a GitH
 | The same without totals (`count=false`) | 6 | 3.7 s | 5.9 s |
 | Inside blocks (`layout.blockType`) | 5 | 4.5 s | 6.7 s |
 
-- **Lookups, first pages and cursors stay fast** at this size.
+- **Lookups, first pages and cursors stay fast** at this size. A `304` for an unchanged document
+  ([`httpCache`](./deployment#http-caching)) saves the transfer, not the work: Easy CMS still reads it.
 - **Deep pages by number are the cost.** Without totals they are just as slow, so the time goes to
   skipping rows, not to counting them. Use `cursor` for archives and feeds, and `maxPage` to keep
   API clients from paging deep.
@@ -170,7 +175,7 @@ The nightly Perf workflow runs the same data shape at 1,000,000 posts, on a GitH
   search for one or two characters can't, and reads every row.
 - **Keep queries inside blocks off public pages** at this size, and cache what they return.
 - With 200 editors at once and these slow queries in the mix, reads wait for connections (p95
-  17 s): one slow kind of request slows every other. Find it in the access log (`logs`) and move
+  18 s, saves 31 s): one slow kind of request slows every other. Find it in the access log (`logs`) and move
   it to a cursor, an index or a cache.
 
 ## Search with like
