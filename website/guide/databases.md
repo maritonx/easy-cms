@@ -153,18 +153,19 @@ faster or slower from one run to the next, so compare numbers from the same run.
 
 | Request | Requests/s | p50 | p95 |
 |---|---|---|---|
-| By id or slug | 1,225 | 19 ms | 22 ms |
-| First page of a list | 787 | 25 ms | 28 ms |
-| Next page by cursor, deep in the list | 758 | 26 ms | 29 ms |
-| Filter by `hasMany` value, sort by number | 582 | 27 ms | 33 ms |
-| Thai `like` search, `index: 'trigram'` | 394 | 51 ms | 69 ms |
-| Admin list with drafts | 366 | 54 ms | 61 ms |
-| Save a draft (with a version) | 270 | 72 ms | 89 ms |
-| `like` search for 1 to 3 digits | 42 | 207 ms | 2.7 s |
-| Filter by relationship, sort by date | 36 | 134 ms | 1.4 s |
-| Random page among 100,000 | 6 | 3.2 s | 5.6 s |
-| The same without totals (`count=false`) | 6 | 3.7 s | 5.9 s |
-| Inside blocks (`layout.blockType`) | 5 | 4.5 s | 6.7 s |
+| By id or slug | 990 | 23 ms | 27 ms |
+| By id, unchanged (`If-None-Match`, `304`) | 1,165 | 19 ms | 25 ms |
+| First page of a list | 610 | 32 ms | 36 ms |
+| Next page by cursor, deep in the list | 583 | 34 ms | 37 ms |
+| Filter by `hasMany` value, sort by number | 456 | 34 ms | 43 ms |
+| Thai `like` search, `index: 'trigram'` | 347 | 58 ms | 79 ms |
+| Admin list with drafts | 302 | 66 ms | 73 ms |
+| Save a draft (with a version) | 231 | 84 ms | 104 ms |
+| `like` search for 1 to 3 digits | 37 | 261 ms | 3.4 s |
+| Filter by relationship, sort by date | 35 | 170 ms | 1.8 s |
+| Random page among 100,000 | 5 | 3.9 s | 6.8 s |
+| The same without totals (`count=false`) | 6 | 3.6 s | 7.3 s |
+| Inside blocks (`layout.blockType`) | 4 | 6.0 s | 6.0 s |
 
 - **Lookups, first pages and cursors stay fast** at this size. A `304` for an unchanged document
   ([`httpCache`](./deployment#http-caching)) saves the transfer, not the work: Easy CMS still reads it.
@@ -177,6 +178,17 @@ faster or slower from one run to the next, so compare numbers from the same run.
 - With 200 editors at once and these slow queries in the mix, reads wait for connections (p95
   18 s, saves 31 s): one slow kind of request slows every other. Find it in the access log (`logs`) and move
   it to a cursor, an index or a cache.
+
+#### How these numbers are made
+
+Each night the Perf workflow seeds 1,000,000 posts in Postgres, starts `easy-cms serve`, runs the
+200 editors for two minutes, then each kind of request on its own for 10 seconds. To judge a change,
+it builds the commit of the last successful night too and measures both on the same runner, in the
+order base, head, head, base. A kind of request whose p95 is more than 25% slower than base in both
+halves fails the run; in one half, it is a warning. Between runners the same request moves by about
+40%; within one run, the same code mostly stays within 10%. Earlier nights are shown next to each
+run, not judged, and its summary has the median of the last seven, which is where the table above
+comes from.
 
 ## Search with like
 
