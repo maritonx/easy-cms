@@ -376,3 +376,15 @@ jobs:
           cat smoke/.registry/verdaccio.log; exit 1
       - run: node smoke/publish.ts
       - run: node smoke/scaffold.ts ${{ matrix.pm }}
+
+  # The one check the main ruleset requires (with lint). A matrix job that is skipped reports only
+  # its bare name, so "test (ubuntu-latest, 24)" never shows up on "Version Packages": this job
+  # always runs and fails only when a job it needs failed or was cancelled. Skipped ones pass.
+  ci-ok:
+    needs: [scope, lint, test, coverage, postgres, pgbouncer, upgrade, s3, multi-instance, docker,
+      e2e, template, smoke]
+    if: always()
+    runs-on: ubuntu-24.04
+    steps:
+      - if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1
