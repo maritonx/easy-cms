@@ -64,22 +64,57 @@ body คือ `{ event, collection?, id?, doc, timestamp }` โดย `doc` ค
 POST /cms-hook
 content-type: application/json
 x-easy-cms-event: publish
-x-easy-cms-delivery: 2f1c…            (the same on retries)
-x-easy-cms-signature: sha256=9a0b…    (with `secret`)
+x-easy-cms-delivery: 2f1c…               (the same on retries)
+x-easy-cms-timestamp: 1761700000          (with `secret`: this attempt's time, Unix seconds)
+x-easy-cms-signature-v2: v1=5c3e…         (with `secret`)
+x-easy-cms-signature: sha256=9a0b…        (with `secret`, deprecated)
 
 { "event": "publish", "collection": "posts", "id": 12, "doc": { … }, "timestamp": "…" }
 ```
 
-`doc` คือเอกสารที่จัดเก็บไว้ ครบทุกภาษา โดยไม่มี field ที่ซ่อนอยู่ ตรวจสอบลายเซ็นด้วย
-HMAC-SHA256 ของ body ดิบ:
+`doc` คือเอกสารที่จัดเก็บไว้ ครบทุกภาษา โดยไม่มี field ที่ซ่อนอยู่
+
+### ตรวจลายเซ็น {#checking-the-signature}
+
+เมื่อตั้ง `secret` การส่งแต่ละครั้งจะเซ็นด้วย HMAC-SHA256 ของ `<delivery>.<timestamp>.<body>` โดย body
+เป็นแบบดิบตามที่ส่ง timestamp เป็นเวลาของการส่งครั้งนั้น ใครที่ดักจับ request ได้จึงเอาไปส่งซ้ำทีหลังไม่ได้
+ใน Node ใช้ `verifyWebhook()` จาก `@easy-cms/core` ตรวจและได้ payload กลับมา
+
+```ts
+import { verifyWebhook } from '@easy-cms/core'
+
+export async function POST(request: Request) {
+  const body = await request.text() // body ดิบ ก่อน parse
+  let payload
+  try {
+    payload = verifyWebhook(body, request.headers, process.env.CMS_WEBHOOK_SECRET!)
+  } catch {
+    return new Response('Bad signature', { status: 401 })
+  }
+  // …
+}
+```
+
+- **ห้านาที** ปฏิเสธ timestamp ที่ห่างจากตอนนี้เกิน 5 นาที (เปลี่ยนได้ด้วย `{ toleranceSeconds }`) นาฬิกาของปลายทางจึงต้องตรง
+- **ข้ามรายการที่จัดการแล้ว** ภายในห้านาทีนั้น request ที่ส่งซ้ำยังผ่านการตรวจ ให้เก็บ `x-easy-cms-delivery`
+  ที่จัดการแล้วไว้สักพักและข้ามรายการซ้ำ การลองใหม่ใช้ id เดิม
+- **หลาย secret** ส่งเป็น array ระหว่างเปลี่ยน secret ตัวไหนตรงก็ผ่าน
+
+ภาษาอื่น ให้เทียบแบบใช้เวลาคงที่
 
 ```ts
 import { createHmac, timingSafeEqual } from 'node:crypto'
 
-const expected = `sha256=${createHmac('sha256', secret).update(rawBody).digest('hex')}`
+const signed = `${headers['x-easy-cms-delivery']}.${headers['x-easy-cms-timestamp']}.${rawBody}`
+const expected = `v1=${createHmac('sha256', secret).update(signed).digest('hex')}`
+const given = headers['x-easy-cms-signature-v2']
 const valid =
-  expected.length === signature.length && timingSafeEqual(Buffer.from(expected), Buffer.from(signature))
+  expected.length === given.length && timingSafeEqual(Buffer.from(expected), Buffer.from(given))
+// และ |ตอนนี้ − x-easy-cms-timestamp| ≤ 300 วินาที
 ```
+
+`x-easy-cms-signature` (HMAC ของ body อย่างเดียว) ยังส่งอยู่จนถึง 2.0 แต่ request ที่ถูกดักจับเอาไปส่งซ้ำได้
+ให้เปลี่ยนไปใช้ `x-easy-cms-signature-v2`
 
 ## Delivery {#delivery}
 
@@ -96,7 +131,7 @@ webhook จะถูกส่งหลังจากบันทึกการ
 - หลังครั้งสุดท้าย (ประมาณหนึ่งวัน) การส่งจะถูกเก็บไว้เป็น `state: 'failed'` พร้อม error ล่าสุด
   และไม่ลองใหม่อีก admin ดูได้ที่ **ตั้งค่า → การส่ง** และกดส่งซ้ำหรือลบได้ ([ตรวจสุขภาพระบบ](./health-checks#failed-webhooks)) รายการที่ล้มจะถูกลบเมื่อเกิน 30 วัน
 
-ทุกครั้งที่ลองใหม่จะส่ง body, ลายเซ็น และ `x-easy-cms-delivery` เหมือนเดิม ปลายทางจึงข้ามการส่งที่เคยจัดการแล้วได้
+ทุกครั้งที่ลองใหม่จะส่ง body และ `x-easy-cms-delivery` เหมือนเดิม (timestamp และลายเซ็นใหม่) ปลายทางจึงข้ามการส่งที่เคยจัดการแล้วได้
 การเพิ่ม `webhooks` ใน config จะเพิ่มตาราง `webhook-deliveries` ให้สร้าง migration เหมือนการเปลี่ยน config ทั่วไป
 
 บนแพลตฟอร์ม serverless ฟังก์ชันอาจหยุดทำงานก่อนที่ webhook จะถูกส่ง: ให้เรียก

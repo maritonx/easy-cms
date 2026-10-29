@@ -1,7 +1,7 @@
 # Easy CMS — ทบทวนสัญญา `PaymentAdapter` สำหรับ Omise
 
 - **Issue:** [#118](https://github.com/maritonx/easy-cms/issues/118) (milestone `1.0.0-rc`), เตรียมให้
-  [#86](https://github.com/maritonx/easy-cms/issues/86) Omise (milestone `Security, identity & admin`)
+  [#86](https://github.com/maritonx/easy-cms/issues/86) Omise (milestone `Admin lists & shop`)
 - **วันที่:** 2026-10-16 · **เวอร์ชันที่ตรวจ:** 0.68.2
 - **สัญญาที่ตรวจ:** `packages/plugin-ecommerce/src/payments.ts` และการเรียกใช้ใน `shop.ts`
 - **ข้อมูล Omise:** [Charges API](https://docs.omise.co/charges-api),
