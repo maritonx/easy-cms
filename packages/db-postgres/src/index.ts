@@ -44,6 +44,15 @@ export interface PostgresAdapterOptions extends DrizzleAdapterOptions {
    */
   readonly prepare?: boolean
   /**
+   * Plans each query for its own values (`plan_cache_mode = force_custom_plan`, sent when a
+   * connection opens). Default true, unless `prepare` is false (or `?prepare=false`), which plans that way already.
+   * Postgres otherwise switches a prepared statement to one plan for any value after a few
+   * runs, and for a filter that plan may read every matching row to sort them (at 1M posts,
+   * seconds instead of milliseconds). PgBouncer refuses the parameter: set it on the role there
+   * (`ALTER ROLE … SET plan_cache_mode = force_custom_plan`) and this to false.
+   */
+  readonly customPlans?: boolean
+  /**
    * Cancels a statement running longer than this (ms), sent as `statement_timeout` when a
    * connection opens. No default: migrations and backups may take a while. PgBouncer refuses
    * the parameter; set it on the role there (`ALTER ROLE … SET statement_timeout = …`).
@@ -160,6 +169,16 @@ export function postgres(options: PostgresAdapterOptions): DatabaseAdapter {
   }
 }
 
+/** Whether postgres.js uses prepared statements: the option, else `?prepare=` in the URL. */
+function prepares(url: string, options: PostgresAdapterOptions): boolean {
+  if (options.prepare !== undefined) return options.prepare
+  try {
+    return new URL(url).searchParams.get('prepare') !== 'false'
+  } catch {
+    return true
+  }
+}
+
 function postgresJsConnection(url: string, options: PostgresAdapterOptions): Connection {
   // Only what is set: postgres.js lets an option passed here win over the URL (`?prepare=false`)
   // and the PG* environment variables.
@@ -175,6 +194,9 @@ function postgresJsConnection(url: string, options: PostgresAdapterOptions): Con
       connection: {
         application_name: options.applicationName ?? (process.env.PGAPPNAME || 'easy-cms'),
         ...set('statement_timeout', options.statementTimeoutMs),
+        ...((options.customPlans ?? prepares(url, options))
+          ? { plan_cache_mode: 'force_custom_plan' }
+          : {}),
       },
       // Keep Easy CMS quiet: Postgres NOTICEs (e.g. "relation already exists, skipping") are expected.
       onnotice: () => {},

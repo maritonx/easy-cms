@@ -2377,7 +2377,9 @@ export class EasyCMS<C extends Config = Config> {
       }
       let claimed: boolean
       if (row) {
-        if (!due(row.lastRunAt)) continue
+        // Another instance claimed it for this moment before we read the row: a job without
+        // `every` is always due, and a claim from that stamp would succeed and run it twice.
+        if (row.lastRunAt === stamp || !due(row.lastRunAt)) continue
         claimed = await this.claim(
           JOB_RUNS,
           row,

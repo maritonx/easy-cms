@@ -458,7 +458,7 @@ class DrizzleDatabase implements Database {
   }
 
   get transfer(): DatabaseTransfer {
-    const { tables, hash } = this.schema
+    const { tables, configHash } = this.schema
     const table = (name: string): AnyTable => {
       const found = tables[name]
       if (!found) throw new QueryError(`Unknown table "${name}"`)
@@ -470,7 +470,7 @@ class DrizzleDatabase implements Database {
       return (columns.id ?? columns.slug) as AnyColumn
     }
     return {
-      schemaHash: hash,
+      schemaHash: configHash,
       tables: () => Object.keys(tables),
       count: async (name) => {
         const [row] = await this.db.select({ n: count() }).from(table(name))

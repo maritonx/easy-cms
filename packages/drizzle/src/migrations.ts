@@ -2,7 +2,13 @@ import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { type Logger, SchemaError } from '@easy-cms/core'
 import type { Dialect, Snapshot, SqlRunner, Statement } from './dialect.js'
-import { type SchemaLocalization, type SchemaModel, snake, tableModels } from './schema.js'
+import {
+  type SchemaLocalization,
+  type SchemaModel,
+  type SchemaStatistics,
+  snake,
+  tableModels,
+} from './schema.js'
 
 const BREAKPOINT = '--> statement-breakpoint'
 const TABLE_PARTS = [
@@ -44,6 +50,8 @@ const META = 'easyCms'
 
 interface SnapshotMeta {
   readonly localization: SchemaLocalization | null
+  /** Missing in snapshots from before 1.16: none were made then. */
+  readonly statistics?: readonly SchemaStatistics[]
 }
 
 const metaOf = (snapshot: Snapshot): SnapshotMeta | undefined => snapshot[META]
@@ -101,18 +109,48 @@ export class Migrator {
 
   private async snapshotOf(schema: SchemaModel | null): Promise<Snapshot> {
     const snapshot = await this.options.dialect.snapshot(schema ? schema.tables : {})
-    const meta: SnapshotMeta = { localization: schema?.localization ?? null }
+    const meta: SnapshotMeta = {
+      localization: schema?.localization ?? null,
+      statistics: schema?.statistics ?? [],
+    }
     return { ...snapshot, [META]: meta }
   }
 
   /** SQL statements that turn `prev` into `cur`, with the extensions their indexes need. */
   private async diff(prev: Snapshot, cur: Snapshot, interactive: boolean): Promise<string[]> {
-    const statements = await this.changes(prev, cur, interactive)
+    const statements = [
+      ...this.statistics(prev, cur, 'drop'),
+      ...(await this.changes(prev, cur, interactive)),
+      ...this.statistics(prev, cur, 'create'),
+    ]
     // `index: 'trigram'` on Postgres: pg_trgm is a trusted extension, which the database's owner
     // can create (Postgres 13 and later).
     return statements.some((s) => s.includes('gin_trgm_ops'))
       ? ['CREATE EXTENSION IF NOT EXISTS pg_trgm', ...statements]
       : statements
+  }
+
+  /**
+   * Statistics that `cur` adds or `prev` had and `cur` doesn't, on Postgres: dropped before the
+   * tables change, made after, then the tables analyzed so the planner has them at once.
+   */
+  private statistics(prev: Snapshot, cur: Snapshot, step: 'drop' | 'create'): string[] {
+    if (this.options.dialect.name !== 'postgres') return []
+    const before = metaOf(prev)?.statistics ?? []
+    const after = metaOf(cur)?.statistics ?? []
+    const q = (name: string) => this.q(name)
+    if (step === 'drop')
+      return before
+        .filter((s) => !after.some((a) => a.name === s.name))
+        .map((s) => `DROP STATISTICS IF EXISTS ${q(s.name)}`)
+    const added = after.filter((s) => !before.some((b) => b.name === s.name))
+    return [
+      ...added.map(
+        (s) =>
+          `CREATE STATISTICS IF NOT EXISTS ${q(s.name)} (mcv) ON ${s.columns.map(q).join(', ')} FROM ${q(s.table)}`,
+      ),
+      ...[...new Set(added.map((s) => s.table))].map((table) => `ANALYZE ${q(table)}`),
+    ]
   }
 
   /** Renames become drop + add unless interactive. */

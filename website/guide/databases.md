@@ -56,6 +56,7 @@ db: process.env.DATABASE_URL ? postgres({ url: process.env.DATABASE_URL }) : pos
 | `max` | `10` | Connections in the pool, per instance |
 | `writeConnections` | `0` | Connections kept for saves, on top of `max` (see below) |
 | `prepare` | `true` | Prepared statements. Turn off behind a pooler that can't keep them |
+| `customPlans` | `true` | Plans each query for its own values. Not behind PgBouncer (see below) |
 | `statementTimeoutMs` | — | Cancels a statement that runs longer. Not behind PgBouncer (see below) |
 | `idleTimeoutMs` | — | Closes connections left idle this long |
 | `connectTimeoutMs` | `30000` | Gives up opening a connection after this long |
@@ -93,6 +94,11 @@ db: postgres({ url: process.env.DATABASE_POOLER_URL, max: 2, prepare: false })
 - **Settings on the role**, not the connection: PgBouncer refuses startup parameters such as
   `statement_timeout`. Use `ALTER ROLE cms SET statement_timeout = '15s'` instead of
   `statementTimeoutMs`.
+- **`customPlans: false`** behind PgBouncer with prepared statements, and
+  `ALTER ROLE cms SET plan_cache_mode = force_custom_plan` instead. Postgres otherwise moves a
+  prepared statement to one plan for every value after a few runs, and for a filter that plan can
+  read every matching row to sort them: seconds instead of milliseconds at 1M rows. With
+  `prepare: false` each query is planned for its values anyway.
 - **Migrations** run through the pooler too, or over a direct connection if your host offers
   one.
 
@@ -180,7 +186,9 @@ faster or slower from one run to the next, so compare numbers from the same run.
   API clients from paging deep.
 - **Filters on relationships count from the index.** In a collection with drafts, indexed fields
   (relationships, uploads, `index: true`) are indexed together with `status`, which public reads
-  filter on, so their totals read only the index.
+  filter on, so their totals read only the index. On Postgres they also get statistics on the
+  pair, so a value whose documents are all drafts (an author who hasn't published yet) is found
+  empty at once instead of after reading a whole index.
 - **Trigram indexes need three characters.** A Thai search of a few words uses the index; `like`
   with one or two characters would read every row, so it is refused (`400`).
 - **Keep queries inside blocks off public pages** at this size, or copy what you query to a field

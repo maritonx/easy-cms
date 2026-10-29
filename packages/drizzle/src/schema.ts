@@ -50,8 +50,23 @@ export interface SchemaModel {
   readonly tables: Readonly<Record<string, AnyTable>>
   /** Changes whenever the generated schema changes. Used to detect missing migrations. */
   readonly hash: string
+  /** The same for the same config on every database (`hash` adds what only one has): for copies. */
+  readonly configHash: string
   /** Locales of localized fields, recorded with snapshots so a new default locale keeps data. */
   readonly localization: SchemaLocalization | null
+  /** Statistics on columns that depend on each other (Postgres), recorded with snapshots. */
+  readonly statistics: readonly SchemaStatistics[]
+}
+
+/**
+ * Which values of the columns go together (`CREATE STATISTICS … (mcv)`): a field indexed with
+ * `status`. Without them Postgres takes the two as independent, and for a value whose documents
+ * are all drafts it expects published ones and reads a whole index looking for them.
+ */
+export interface SchemaStatistics {
+  readonly name: string
+  readonly table: string
+  readonly columns: readonly string[]
 }
 
 export interface SchemaLocalization {
@@ -109,6 +124,7 @@ interface Builder {
   readonly prefix: string
   readonly tableNames: Set<string>
   readonly description: unknown[]
+  readonly statistics: SchemaStatistics[]
 }
 
 /** Builds Drizzle tables for every collection and global in the config. */
@@ -120,6 +136,7 @@ export function buildSchema(config: ResolvedConfig, prefix: string, dialect: Dia
     // The hash covers the logical schema only, so it stays stable across releases for the same config.
     description: [],
     localization: config.localization,
+    statistics: [],
   }
   const collections = new Map<string, CollectionModel>()
   const tables: Record<string, AnyTable> = {}
@@ -151,15 +168,26 @@ export function buildSchema(config: ResolvedConfig, prefix: string, dialect: Dia
   )
   tables[globalsName] = globals
   builder.description.push(['globals', globalsName])
-
-  const hash = createHash('sha256')
-    .update(JSON.stringify(builder.description))
-    .digest('hex')
-    .slice(0, 16)
+  const hashOf = (description: unknown[]) =>
+    createHash('sha256').update(JSON.stringify(description)).digest('hex').slice(0, 16)
+  const configHash = hashOf(builder.description)
+  // Statistics (Postgres only) count only when there are some: a config without keeps its hash.
+  const hash =
+    builder.statistics.length > 0
+      ? hashOf([...builder.description, ['statistics', builder.statistics.map((s) => s.name)]])
+      : configHash
   const localization = config.localization
     ? { defaultLocale: config.localization.defaultLocale, locales: config.localization.locales }
     : null
-  return { collections, globals, tables, hash, localization }
+  return {
+    collections,
+    globals,
+    tables,
+    hash,
+    configHash,
+    localization,
+    statistics: builder.statistics,
+  }
 }
 
 function collectTables(model: TableModel, into: Record<string, AnyTable>) {
@@ -401,6 +429,14 @@ function buildTable(
   )
 
   builder.description.push([name, kind, described, indexes])
+  // Postgres only: SQLite has no such statistics, and its schema (and hash) stay as they were.
+  for (const { column, withStatus } of indexes)
+    if (withStatus && dialect.name === 'postgres')
+      builder.statistics.push({
+        name: `${name}_${column}_status_stats`,
+        table: name,
+        columns: [column, 'status'],
+      })
   const model: TableModel = { name, kind, table, fields, columns: columnModels, children }
   return options.valueField ? { ...model, valueField: options.valueField } : model
 }

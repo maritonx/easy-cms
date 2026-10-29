@@ -55,6 +55,7 @@ db: process.env.DATABASE_URL ? postgres({ url: process.env.DATABASE_URL }) : pos
 | `max` | `10` | จำนวน connection ใน pool ต่อ instance |
 | `writeConnections` | `0` | connection ที่กันไว้ให้การบันทึก เพิ่มจาก `max` (ดูข้างล่าง) |
 | `prepare` | `true` | prepared statement ปิดเมื่ออยู่หลัง pooler ที่เก็บไว้ไม่ได้ |
+| `customPlans` | `true` | วางแผนแต่ละ query ตามค่าของมันเอง ใช้หลัง PgBouncer ไม่ได้ (ดูข้างล่าง) |
 | `statementTimeoutMs` | — | ยกเลิก statement ที่รันนานเกินนี้ ใช้หลัง PgBouncer ไม่ได้ (ดูข้างล่าง) |
 | `idleTimeoutMs` | — | ปิด connection ที่ว่างนานเท่านี้ |
 | `connectTimeoutMs` | `30000` | เลิกรอเปิด connection หลังจากนี้ |
@@ -87,6 +88,10 @@ db: postgres({ url: process.env.DATABASE_POOLER_URL, max: 2, prepare: false })
   (`max_prepared_statements` ค่าเริ่มต้น 200) ไม่อย่างนั้น query จะล้มด้วย "prepared statement … does not exist"
 - **ตั้งค่าที่ role** ไม่ใช่ที่ connection เพราะ PgBouncer ปฏิเสธ startup parameter อย่าง `statement_timeout`
   ใช้ `ALTER ROLE cms SET statement_timeout = '15s'` แทน `statementTimeoutMs`
+- **`customPlans: false`** เมื่ออยู่หลัง PgBouncer ที่ใช้ prepared statement แล้วใช้
+  `ALTER ROLE cms SET plan_cache_mode = force_custom_plan` แทน ไม่อย่างนั้นหลังรันไปไม่กี่ครั้ง Postgres จะเปลี่ยน prepared statement
+  ไปใช้แผนเดียวกับทุกค่า และสำหรับการกรอง แผนนั้นอาจอ่านทุกแถวที่ตรงเพื่อเรียง ที่ 1M แถวจึงใช้เป็นวินาทีแทนมิลลิวินาที ถ้าใช้
+  `prepare: false` แต่ละ query จะถูกวางแผนตามค่าของมันอยู่แล้ว
 - **Migration** รันผ่าน pooler ได้ หรือต่อตรงก็ได้ถ้าผู้ให้บริการมีให้
 
 ## ตัวเลือกทั่วไป {#common-options}
@@ -167,7 +172,8 @@ runner แต่ละเครื่องไม่เท่ากัน reques
 - **หน้าลึกแบบระบุเลขหน้าคือส่วนที่แพง** ไม่นับยอดรวมก็ช้าเท่ากัน แปลว่าเวลาหมดไปกับการข้ามแถว ไม่ใช่การนับ ใช้ `cursor`
   กับหน้า archive และ feed และตั้ง `maxPage` ไม่ให้ API client ไปหน้าลึก
 - **กรองด้วย relationship นับจาก index ได้** ใน collection ที่มี drafts field ที่มี index (relationship, upload, `index: true`)
-  จะได้ index คู่กับ `status` ซึ่ง read สาธารณะใช้กรอง การนับยอดรวมจึงอ่านแค่ index
+  จะได้ index คู่กับ `status` ซึ่ง read สาธารณะใช้กรอง การนับยอดรวมจึงอ่านแค่ index บน Postgres ยังได้สถิติของคู่นี้ด้วย
+  ค่าที่เอกสารเป็น draft ทั้งหมด (เช่น author ที่ยังไม่เคย publish) จึงรู้ทันทีว่าไม่มีผล ไม่ต้องอ่านทั้ง index ก่อน
 - **trigram index ต้องมีอย่างน้อยสามตัวอักษร** การค้นภาษาไทยไม่กี่คำใช้ index ได้ แต่ `like` ที่มีหนึ่งหรือสองตัวอักษรจะต้องอ่านทุกแถว
   จึงถูกปฏิเสธ (`400`)
 - **ไม่ควรค้นในบล็อกบนหน้าสาธารณะ** ที่ขนาดนี้ หรือคัดค่าที่ค้นออกมาเป็น field ของตัวเอง ([Blocks](./fields#queries-inside-blocks-on-large-collections))
