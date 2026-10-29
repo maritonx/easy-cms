@@ -1,5 +1,14 @@
 # @easy-cms/plugin-form-builder
 
+## 1.18.0
+
+### Patch Changes
+
+- f1be781: Rotate `EASY_CMS_SECRET` without logging everyone out (#167). `previousSecrets` lists secrets used before `secret`: sessions, CSRF tokens, password and invitation links, preview tokens, links to private files, single sign-on, form tokens and audit log entries signed with them still verify, while everything new is signed with `secret`. `easy-cms audit:resign` signs the audit log entries made with an old secret with the current one, and reports entries no secret verifies. New projects read `EASY_CMS_PREVIOUS_SECRETS` (comma-separated). The Security guide has the steps.
+- Updated dependencies [f1be781]
+  - @easy-cms/core@1.18.0
+  - @easy-cms/richtext@1.18.0
+
 ## 1.17.0
 
 ### Patch Changes
