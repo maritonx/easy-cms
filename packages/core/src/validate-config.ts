@@ -65,6 +65,7 @@ export function validateConfig(config: Config): ConfigIssue[] {
   }
 
   validateSecret(config.secret, add)
+  validatePreviousSecrets(config.previousSecrets, config.secret, add)
   validateCronSecret(config.cronSecret, (issue) => issues.push(issue))
   checkConfigKeys(config, (issue) => issues.push(issue))
   validateAdapterVersions(config, add)
@@ -165,6 +166,24 @@ function validateSecret(secret: unknown, add: Add) {
     add('secret', `must be at least ${MIN_SECRET_LENGTH} characters (got ${secret.length})`, hint)
   } else if (process.env.NODE_ENV === 'production' && guessable(secret)) {
     add('secret', 'looks like an example or a repeated pattern, not a random string', hint)
+  }
+}
+
+/** `previousSecrets`: as long as `secret`, and not `secret` itself. */
+function validatePreviousSecrets(value: unknown, secret: unknown, add: Add) {
+  if (value === undefined) return
+  if (!Array.isArray(value)) {
+    add('previousSecrets', 'must be an array of strings', 'e.g. previousSecrets: [oldSecret]')
+    return
+  }
+  for (const [i, previous] of value.entries()) {
+    if (typeof previous !== 'string' || previous.length < MIN_SECRET_LENGTH)
+      add(
+        `previousSecrets[${i}]`,
+        `must be a string of at least ${MIN_SECRET_LENGTH} characters, like secret`,
+      )
+    else if (previous === secret)
+      add(`previousSecrets[${i}]`, 'is the same as secret', 'list only secrets used before it')
   }
 }
 

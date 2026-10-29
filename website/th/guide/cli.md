@@ -54,6 +54,7 @@ npx easy-cms <command> [--config <file>] [--cwd <dir>]
 | [`copy --from <config>`](#copy) | คัดลอกเนื้อหาทั้งหมดไปอีกฐานข้อมูล เช่น จาก SQLite ไป Postgres |
 | [`jobs:run`](#jobs-run) | รันงานตั้งเวลาที่ถึงกำหนดและส่ง webhook ซ้ำหนึ่งรอบ |
 | [`search:reindex [collection]`](#search-reindex) | สร้าง index ค้นหาใหม่จากฐานข้อมูล |
+| [`audit:resign`](#audit-resign) | หลังเปลี่ยน secret: เซ็น audit log ด้วยตัวใหม่ |
 | [`serve`](#serve) | รัน CMS เป็น server ของตัวเอง |
 
 ตัวเลือกที่ใช้ได้กับทุกคำสั่ง: `--config <file>` (ค่าเริ่มต้น `easy-cms.config.ts`), `--cwd <dir>`
@@ -165,6 +166,16 @@ npx easy-cms search:reindex posts
 สร้าง index [ค้นหา](./search) ใหม่จากเอกสารที่ publish แล้ว ใช้หลังเพิ่ม `search` ให้ collection
 หรือเปลี่ยน field หรือเมื่อ index ไม่สำเร็จ ส่วน index ในหน่วยความจำ (`memorySearch()`)
 เซิร์ฟเวอร์สร้างเองตอนเริ่ม จึงไม่ต้องทำอะไร
+
+### audit:resign {#audit-resign}
+
+```bash [pm]
+npx easy-cms audit:resign
+```
+
+ใช้หลัง[หมุน secret](./security#rotating-the-secret) เซ็นรายการใน [audit log](./audit-log) ที่เซ็นด้วย secret ตัวใดใน
+`previousSecrets` ใหม่ด้วย `secret` ปัจจุบัน รายการจึงยังตรวจผ่านหลังเอา secret เก่าออก รายการที่ไม่มี secret ไหนตรวจผ่าน
+แปลว่าถูกแก้ในฐานข้อมูล จะไม่ถูกแตะ คำสั่งจะแสดงรายการเหล่านั้นและจบด้วย `1` การรันแต่ละครั้งถูกบันทึกใน audit log
 
 ### serve {#serve}
 

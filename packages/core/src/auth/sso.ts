@@ -6,7 +6,7 @@ import { ForbiddenError, NotFoundError, QueryError, ValidationError } from '../e
 import type { EasyCMS } from '../local-api.js'
 import type { Session } from './auth.js'
 import type { AuthProvider, AuthProviderProfile } from './providers.js'
-import { safeEqual } from './tokens.js'
+import { type Secrets, safeEqual, secretsOf } from './tokens.js'
 
 /** The cookie that carries a sign-in through the provider and back. */
 export const SSO_COOKIE = 'ecms-sso'
@@ -83,12 +83,13 @@ function seal(secret: string, pending: Pending): string {
   return `${payload}.${sign(secret, payload)}`
 }
 
-function unseal(secret: string, value: string | undefined): Pending | null {
+function unseal(secrets: Secrets, value: string | undefined): Pending | null {
   if (!value) return null
   const dot = value.lastIndexOf('.')
   if (dot <= 0) return null
   const payload = value.slice(0, dot)
-  if (!safeEqual(value.slice(dot + 1), sign(secret, payload))) return null
+  const signature = value.slice(dot + 1)
+  if (![secrets].flat().some((secret) => safeEqual(signature, sign(secret, payload)))) return null
   try {
     const pending = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as Pending
     return typeof pending.e === 'number' && pending.e > Date.now() ? pending : null
@@ -168,7 +169,7 @@ export class SingleSignOn {
     options: { url: URL; cookie: string | undefined; origin?: string; user: AuthUser | null },
   ): Promise<{ redirect: string; session?: Session }> {
     const admin = this.config.admin.path.replace(/\/+$/, '')
-    const pending = unseal(this.config.secret, options.cookie)
+    const pending = unseal(secretsOf(this.config), options.cookie)
     let email: string | null = null
     const back = async (page: 'login' | 'account', outcome: SsoOutcome) => {
       await this.cms.audit.record({

@@ -59,7 +59,8 @@ too, as **code (system)**, or as the `user` you pass.
 
 Entries can't be changed or deleted through Easy CMS: only those older than `keepDays` days (default
 365; `0` keeps them all) are deleted, oldest first. Each entry is **signed** with your
-`EASY_CMS_SECRET`. **Check integrity** (and a daily check from [scheduled jobs](./drafts#scheduled-publishing))
+`EASY_CMS_SECRET` (after [rotating it](./security#rotating-the-secret), sign them again with
+`easy-cms audit:resign`). **Check integrity** (and a daily check from [scheduled jobs](./drafts#scheduled-publishing))
 finds entries edited in the database, and missing ones between others. With the
 [multi-tenant plugin](./multi-tenant), only admins of all tenants run it.
 

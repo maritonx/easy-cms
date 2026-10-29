@@ -1491,9 +1491,8 @@ function checkCsrf(cms: EasyCMS, ctx: Context) {
     throw new ForbiddenError('CSRF check failed: cross-site request')
 
   if (ctx.via === 'cookie' && ctx.token) {
-    const expected = cms.auth.csrfFor(ctx.token)
     const given = ctx.request.headers.get(CSRF_HEADER)
-    if (!expected || !given || !safeEqual(given, expected)) {
+    if (!given || !cms.auth.csrfMatches(ctx.token, given)) {
       throw new ForbiddenError(
         `CSRF check failed: send the ${CSRF_HEADER} header from GET /auth/me`,
       )

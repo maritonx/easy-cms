@@ -818,6 +818,13 @@ export interface BackupsConfig {
 export interface Config {
   /** Signs sessions. At least 32 characters; read it from `process.env.EASY_CMS_SECRET`. */
   readonly secret: string
+  /**
+   * Secrets used before `secret`, while it is replaced: what they signed (sessions, links,
+   * tokens, the audit log) still verifies; new values are signed with `secret` only. Keep one
+   * until sessions and links made with it have expired (7 days by default), and run
+   * `easy-cms audit:resign` before removing it. At least 32 characters each, like `secret`.
+   */
+  readonly previousSecrets?: readonly string[]
   readonly db: DatabaseAdapter
   /**
    * Public origin of the app, e.g. `https://example.com`. When set, media URLs are absolute

@@ -60,7 +60,7 @@ Easy CMS ป้องกันอะไรให้บ้าง อะไรย�
 ## สิ่งที่ยังเป็นหน้าที่ของคุณ {#what-stays-your-job}
 
 - **เก็บ `EASY_CMS_SECRET` เป็นความลับและให้ยาว** (สุ่ม 32 ตัวอักษรขึ้นไป เช่น `openssl rand -hex 32`)
-  ถ้าเปลี่ยนค่านี้ ทุกคนจะถูก logout
+  เปลี่ยนโดยไม่ให้ทุกคนหลุด login ได้ด้วย[การหมุน secret](#rotating-the-secret)
 - **เขียนกฎสิทธิ์อย่างตั้งใจ** โดยเฉพาะ `read` collection จะเป็นสาธารณะเมื่อคุณกำหนดเท่านั้น
   เช่น `read: () => true` หรือ "เฉพาะที่เผยแพร่แล้ว"
 - **ให้บทบาทเท่าที่จำเป็น**: ผู้แก้เนื้อหาใช้ `editor` ไม่ใช่ `admin` มีแต่ admin ที่จัดการผู้ใช้ได้
@@ -68,6 +68,35 @@ Easy CMS ป้องกันอะไรให้บ้าง อะไรย�
   ของมันทำงานด้วยสิทธิ์ของผู้ที่ login อยู่
 - **review migration** ก่อน deploy และอัปเดต dependency สม่ำเสมอ
 - **สำรองข้อมูล** ทั้งฐานข้อมูลและไฟล์อัปโหลด ดู [Backup](./backups)
+
+## หมุน secret {#rotating-the-secret}
+
+เปลี่ยน `EASY_CMS_SECRET` เมื่ออาจรั่ว หรือเปลี่ยนตามรอบ โดยไม่ทำให้ทุกคนหลุด login `previousSecrets`
+คือรายการ secret ที่เคยใช้ สิ่งที่มันเซ็นไว้ยังตรวจผ่าน ส่วนของใหม่ทั้งหมดเซ็นด้วย `secret`
+
+```ts
+export default defineConfig({
+  secret: process.env.EASY_CMS_SECRET ?? '',
+  previousSecrets: (process.env.EASY_CMS_PREVIOUS_SECRETS ?? '').split(',').filter(Boolean),
+  // ...
+})
+```
+
+โปรเจกต์ที่สร้างด้วย `create-easy-cms` 1.18 ขึ้นไปมีบรรทัดนี้แล้ว โปรเจกต์เก่าให้เพิ่มเอง
+
+1. **deploy พร้อมกันทั้งสองตัว** สร้าง secret ใหม่ (`openssl rand -hex 32`) ตั้งเป็น `EASY_CMS_SECRET` และย้ายตัวเก่าไปที่
+   `EASY_CMS_PREVIOUS_SECRETS` session, ลิงก์รหัสผ่านและคำเชิญ, preview token, ลิงก์ไฟล์ส่วนตัว และฟอร์มที่เปิดค้างไว้
+   ยังใช้ได้
+2. **เซ็น audit log ใหม่** `npx easy-cms audit:resign` เซ็นรายการที่เซ็นด้วย secret เก่าใหม่ด้วย secret ใหม่ รายการที่ไม่มี
+   secret ไหนตรวจผ่าน แปลว่าถูกแก้ในฐานข้อมูล จะไม่ถูกแตะและถูกแสดงรายการไว้
+3. **เอา secret เก่าออก** เมื่อสิ่งที่มันเซ็นหมดอายุแล้ว คือ session (`auth.tokenExpiration` ค่าเริ่มต้น 7 วัน) และลิงก์คำเชิญ
+   (`auth.inviteExpiration` 7 วัน) session ที่ยังใช้ secret เก่าอยู่จะหมดอายุตอนนั้น
+
+ถ้า secret เก่ารั่ว ไม่ต้องรอ ให้เอาออกทันที แล้วทุกคน login ใหม่
+
+- **rate limit** ของฟอร์มสาธารณะจะเริ่มนับใหม่ เพราะ key สร้างจาก secret
+- **ไม่เกี่ยวข้อง:** `backups.encryptionKey` เป็น key แยกต่างหาก backup ที่ทำด้วย key เก่าต้องใช้ key นั้นเปิด ส่วน API key
+  ไม่ขึ้นกับ secret
 
 ## เช็กลิสต์ก่อนขึ้นระบบจริง {#checklist-before-going-live}
 

@@ -9,7 +9,7 @@ type Data = Record<string, unknown>
 const keys = (list: string) => new Set(list.split(/\s+/).filter(Boolean))
 
 const CONFIG =
-  keys(`secret db serverURL cors cronSecret timeZone webhooks events jobs localization routes admin
+  keys(`secret previousSecrets db serverURL cors cronSecret timeZone webhooks events jobs localization routes admin
   upload auth collections globals endpoints cliCommands onRequest fieldTypes apiKeys email backups
   audit logs countCacheSeconds maxPage httpCache outbox search telemetry plugins`)
 const ADMIN = keys('path locale brand siteURL nav commands modules pages dashboard switcher')

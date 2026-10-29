@@ -67,7 +67,7 @@ What Easy CMS protects for you, what stays your job, and a checklist before goin
 ## What stays your job
 
 - **Keep `EASY_CMS_SECRET` secret and long** (32+ random characters, e.g. `openssl rand -hex 32`).
-  Changing it logs everyone out.
+  [Rotate it](#rotating-the-secret) to change it without logging everyone out.
 - **Write access rules on purpose**, especially `read`: a collection is public only when you
   say so, e.g. `read: () => true` or "published only".
 - **Give people the smallest role they need**: editors get `editor`, not `admin`. Only admins
@@ -76,6 +76,38 @@ What Easy CMS protects for you, what stays your job, and a checklist before goin
   the rights of whoever is logged in.
 - **Review migrations** before deploying and keep dependencies updated.
 - **Back up** the database and uploads. See [Backups](./backups).
+
+## Rotating the secret
+
+Replace `EASY_CMS_SECRET` when it may have leaked, or on a schedule, without logging everyone out.
+`previousSecrets` lists the secrets used before: what they signed still verifies, and everything
+new is signed with `secret`.
+
+```ts
+export default defineConfig({
+  secret: process.env.EASY_CMS_SECRET ?? '',
+  previousSecrets: (process.env.EASY_CMS_PREVIOUS_SECRETS ?? '').split(',').filter(Boolean),
+  // ...
+})
+```
+
+Projects made with `create-easy-cms` 1.18 or later have that line; add it to older ones.
+
+1. **Deploy with both.** Make a new secret (`openssl rand -hex 32`), set it as `EASY_CMS_SECRET`
+   and the old one as `EASY_CMS_PREVIOUS_SECRETS`. Sessions, password and invitation links,
+   preview tokens, links to private files and forms that were open keep working.
+2. **Sign the audit log again.** `npx easy-cms audit:resign` signs the entries signed with the old
+   secret with the new one. Entries no secret verifies were changed in the database: they are
+   left as they are and listed.
+3. **Remove the old secret** once what it signed has expired: sessions (`auth.tokenExpiration`,
+   7 days by default) and invitation links (`auth.inviteExpiration`, 7 days). Sessions still
+   using it then end.
+
+If the old secret leaked, skip the waiting: remove it at once, and everyone signs in again.
+
+- **Rate limits** of public forms start counting again: their keys come from the secret.
+- **Not covered:** `backups.encryptionKey` is a key of its own; backups made with an old key need
+  that key to be read. API keys don't depend on the secret.
 
 ## Checklist before going live
 

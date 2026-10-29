@@ -22,7 +22,7 @@ export function formToken(secret: string, purpose: string, now = Date.now()): st
  * seconds; bots don't) and less than a day ago.
  */
 export function checkFormToken(
-  secret: string,
+  secrets: string | readonly string[],
   purpose: string,
   token: unknown,
   minTime: number,
@@ -32,9 +32,12 @@ export function checkFormToken(
   const [time, signature] = token.split('.')
   const issued = Number(time)
   if (!Number.isFinite(issued) || !signature) return 'invalid'
-  const expected = Buffer.from(sign(secret, `${purpose}:${issued}`))
   const given = Buffer.from(signature)
-  if (expected.length !== given.length || !timingSafeEqual(expected, given)) return 'invalid'
+  const genuine = [secrets].flat().some((secret) => {
+    const expected = Buffer.from(sign(secret, `${purpose}:${issued}`))
+    return expected.length === given.length && timingSafeEqual(expected, given)
+  })
+  if (!genuine) return 'invalid'
   if (now - issued < minTime) return 'too-fast'
   if (now - issued > MAX_AGE) return 'expired'
   return 'ok'

@@ -2,6 +2,7 @@ import {
   checkFormToken,
   formToken as coreFormToken,
   rateKeys as coreRateKeys,
+  type Secrets,
 } from '@easy-cms/core/internal'
 
 // The form builder's own names in tokens and keys: tokens of pages loaded before an upgrade
@@ -13,12 +14,12 @@ export const formToken = (secret: string, slug: string, now = Date.now()): strin
 
 /** See `checkFormToken` in the core. */
 export const checkToken = (
-  secret: string,
+  secrets: Secrets,
   slug: string,
   token: unknown,
   minTime: number,
   now = Date.now(),
-) => checkFormToken(secret, `easy-form:${slug}`, token, minTime, now)
+) => checkFormToken(secrets, `easy-form:${slug}`, token, minTime, now)
 
 /** The rate-limit keys for an IP address and form in the current and previous window. */
 export const rateKeys = (

@@ -131,7 +131,7 @@
 | [#164](https://github.com/maritonx/easy-cms/issues/164) | Map identity-provider groups to roles | area:security | claim กลุ่มจาก OIDC แมปเป็นบทบาท อัปเดตทุกครั้งที่ login, ทดสอบกับ Entra ID |
 | [#165](https://github.com/maritonx/easy-cms/issues/165) | TOTP two-factor sign-in for password accounts | area:security | ตั้งและบังคับ TOTP ได้, มีรหัสกู้คืน, admin รีเซ็ตให้คนอื่นได้ และบันทึกใน audit log |
 | [#166](https://github.com/maritonx/easy-cms/issues/166) | Sign webhook timestamps to stop replays | area:core, area:security | ลายเซ็นครอบ timestamp, เอกสารบอกวิธีตรวจและช่วงเวลาที่ยอมรับ ([ADR-0060](adr/0060-webhook-signature-v2.md)) |
-| [#167](https://github.com/maritonx/easy-cms/issues/167) | Rotate `EASY_CMS_SECRET` without logging everyone out | area:security | รับ secret เก่าและใหม่พร้อมกันช่วงหนึ่ง, เอกสารขั้นตอนหมุน |
+| [#167](https://github.com/maritonx/easy-cms/issues/167) | Rotate `EASY_CMS_SECRET` without logging everyone out | area:security | รับ secret เก่าและใหม่พร้อมกันช่วงหนึ่ง, เอกสารขั้นตอนหมุน ([ADR-0061](adr/0061-secret-rotation.md)) |
 | [#172](https://github.com/maritonx/easy-cms/issues/172) | `schema` option for `@easy-cms/db-postgres` | area:core | ตารางทั้งหมดใช้ `pgSchema()`, คำสั่ง CLI ย้ายตารางของระบบที่ติดตั้งแล้วไป schema ใหม่ พร้อมเทสต์อัปเกรด |
 | [#173](https://github.com/maritonx/easy-cms/issues/173) | Run with a database role that can only read and write data | area:core, area:security | `verify()` ไม่ใช้ DDL, เอกสารให้ `easy-cms migrate` ใช้ role เจ้าของ schema, CI รัน runtime ด้วย role ที่มีแค่ DML |
 | [#168](https://github.com/maritonx/easy-cms/issues/168) | Rate limit the API | area:core, area:security | จำกัดต่อ IP และต่อ API key ได้ เก็บในฐานข้อมูลเพื่อใช้ได้หลาย instance |
