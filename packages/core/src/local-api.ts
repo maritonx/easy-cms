@@ -103,6 +103,7 @@ import {
 import { MediaFolders, PUBLIC_FILES } from './media-folders.js'
 import { Outbox, type OutboxEntry, type OutboxStep } from './outbox.js'
 import { DEFAULT_DEPTH, type Loader, MAX_DEPTH, populate } from './populate.js'
+import { RateLimiter } from './rate-limit.js'
 import { fetchRemoteFile, RemoteFileError } from './remote-file.js'
 import { resolveConfig } from './resolve-config.js'
 import { cacheTags } from './rest/http-cache.js'
@@ -393,6 +394,8 @@ export class EasyCMS<C extends Config = Config> {
   private readonly mailer: Mailer
   /** With `outbox: true`: runs after hooks and events from rows saves write. */
   private readonly outbox: Outbox | undefined
+  /** @internal Requests per client (`rateLimit`), for the REST API. */
+  readonly rateLimiter: RateLimiter | undefined
   /** With `search`: keeps the index in step with published documents. */
   private readonly searchIndex: SearchIndex | undefined
   /** @internal With `telemetry`: OpenTelemetry spans and metrics (set by `createEasyCMS`). */
@@ -448,6 +451,9 @@ export class EasyCMS<C extends Config = Config> {
               )
             : this.runOutbox(entry, done, mark),
         )
+      : undefined
+    this.rateLimiter = config.rateLimit
+      ? new RateLimiter(db, config.secret, logger, config.rateLimit)
       : undefined
     this.searchIndex = config.search
       ? new SearchIndex(
@@ -2309,6 +2315,9 @@ export class EasyCMS<C extends Config = Config> {
       await this.audit
         .upkeep(now)
         .catch((error) => this.logger.error(`Audit log: ${(error as Error).message}`, { error }))
+      await this.rateLimiter
+        ?.clear(now)
+        .catch((error) => this.logger.error(`Rate limits: ${(error as Error).message}`, { error }))
       const result = {
         scheduled,
         webhooks: await this.retryWebhooks(now),

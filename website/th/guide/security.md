@@ -34,6 +34,8 @@ Easy CMS ป้องกันอะไรให้บ้าง อะไรย�
 - **CORS** ปิดเป็นค่าเริ่มต้น `cors` ระบุ origin ที่โค้ดใน browser เรียก API ได้ และมีเฉพาะ
   `auth.trustedOrigins` ที่ส่ง cookie ได้ origin ใน `cors` เขียนข้อมูลได้ด้วยถ้า**ไม่มี** session cookie
   (เช่น [ฟอร์ม](./forms)สาธารณะ) เพราะไม่มี session ให้ปลอม และกฎสิทธิ์ของ collection ยังเป็นตัวตัดสิน
+- **rate limit** (`rateLimit`) เมื่อเปิด: แต่ละ IP ของผู้เข้าชม ผู้ใช้ที่ login และ API key ส่ง request ได้ไม่เกินจำนวนที่กำหนดต่อนาที
+  นับรวมทุก instance ถ้าเกิน API ตอบ `429` พร้อม `Retry-After` ดู[ข้างล่าง](#rate-limits)
 - **ขนาด body** จำกัดที่ 1 MB (JSON) และ `upload.maxFileSize` (ไฟล์ ค่าเริ่มต้น 10 MB)
 - **HSTS**: บน production (`NODE_ENV=production`) REST API และหน้า admin ส่ง
   `Strict-Transport-Security: max-age=31536000` (ไม่มี `includeSubDomains`) browser จึงใช้แต่ HTTPS เป็นเวลา 1 ปี
@@ -68,6 +70,38 @@ Easy CMS ป้องกันอะไรให้บ้าง อะไรย�
   ของมันทำงานด้วยสิทธิ์ของผู้ที่ login อยู่
 - **review migration** ก่อน deploy และอัปเดต dependency สม่ำเสมอ
 - **สำรองข้อมูล** ทั้งฐานข้อมูลและไฟล์อัปโหลด ดู [Backup](./backups)
+
+## Rate limit {#rate-limits}
+
+`rateLimit` จำกัดจำนวน request ที่ client หนึ่งส่งเข้า API ได้ต่อนาที กันฐานข้อมูลจาก script หรือผู้เข้าชมที่ยิงมากกว่าการใช้งานปกติมาก
+และใช้ได้แม้รันหลาย instance
+
+```ts
+export default defineConfig({
+  rateLimit: {}, // ใช้ค่าเริ่มต้นข้างล่าง
+  // rateLimit: { window: 60, anonymous: 300, users: 1200, apiKeys: 1200 },
+})
+```
+
+| ใคร | นับตาม | ค่าเริ่มต้นต่อนาที |
+|---|---|---|
+| ผู้เข้าชมที่ไม่ได้ login | IP | 300 |
+| ผู้ใช้ที่ login (รวม admin) | ผู้ใช้ | 1,200 |
+| API key | key | 1,200 |
+
+ตั้งกลุ่มไหนเป็น `false` เพื่อไม่จำกัดกลุ่มนั้น เมื่อเกิน API ตอบ `429 Too Many Requests` พร้อม `Retry-After` คือจำนวนวินาทีจนหมดช่วงเวลา
+health check (`/healthz`, `/readyz`) และ `jobs/run` ไม่ถูกนับ ใช้กับทุกอย่างใต้ route ของ API รวม endpoint ของ plugin แต่ไม่รวม Local API
+หรือหน้าที่แอปของคุณ render ฝั่ง server
+
+- **เปิดแล้วต้องสร้าง migration** สำหรับตาราง `rate-limits` (`easy-cms migrate:create`) โปรเจกต์ที่สร้างด้วย `create-easy-cms` 1.19 ขึ้นไปเปิดไว้แล้ว
+- **ยอดนับรวมกันผ่านฐานข้อมูลทุกไม่กี่วินาที** ไม่ใช่ทุก request API จึงไม่ต้องเขียนฐานข้อมูลทุกครั้งที่อ่าน ระหว่างรอบ client อาจเกินไปเล็กน้อย
+  ตามจำนวนที่ instance อื่นนับไปในช่วงนั้น
+- **IP ต้องเป็นของผู้เข้าชมจริง** Vercel และ Netlify รู้เอง ถ้าอยู่หลัง proxy ของคุณเองให้ตั้ง `trustProxy` ถ้าไม่รู้ IP ผู้เข้าชมที่ไม่ได้ login
+  จะไม่ถูกจำกัด (ถ้านับรวมเป็นคนเดียว ทุกคนจะโดนตัดพร้อมกัน) และ log ของ server จะเตือนหนึ่งครั้ง
+- **ไม่เก็บ IP** ตารางเก็บแค่ HMAC ของ IP ที่สร้างจาก secret
+- **build แบบ static** ดึงหลายหน้าพร้อมกัน ให้ build ด้วย API key ที่เกณฑ์สูงกว่า (หรือตั้ง `apiKeys: false`) หรือใช้ Local API
+
+login การสมัครสมาชิก และการส่งฟอร์ม ยังมีการจำกัดของตัวเองที่ต่ำกว่า
 
 ## หมุน secret {#rotating-the-secret}
 
