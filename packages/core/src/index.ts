@@ -255,6 +255,11 @@ export type {
   VersionSummary,
 } from './versions.js'
 export {
+  signWebhook,
+  type VerifyWebhookOptions,
+  verifyWebhook,
+} from './webhook-signature.js'
+export {
   WEBHOOK_EVENTS,
   type WebhookConfig,
   type WebhookEvent,

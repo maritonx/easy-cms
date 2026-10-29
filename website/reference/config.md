@@ -240,7 +240,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `events` | `string[]` | all | `create`, `update`, `delete`, `publish`, `unpublish`, `draft`. |
 | `collections` | `string[]` | all but `users` | Collections to send events for; `[]` for none. List `users` to get user accounts. |
 | `globals` | `string[]` | all | Globals to send events for; `[]` for none. |
-| `secret` | `string` | — | Signs bodies: `x-easy-cms-signature: sha256=<hex>`. |
+| `secret` | `string` | — | Signs each attempt: `x-easy-cms-timestamp` and `x-easy-cms-signature-v2` ([checking it](/guide/webhooks#checking-the-signature)). |
 | `headers` | `Record<string, string>` | — | Extra request headers. |
 
 `events` also takes the config's own `events` (e.g. `order.paid`): those are sent only to webhooks

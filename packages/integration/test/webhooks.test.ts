@@ -1,7 +1,7 @@
 import { createHmac } from 'node:crypto'
 import { createServer, type IncomingHttpHeaders, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
-import { defineConfig, type WebhookPayload } from '@easy-cms/core'
+import { defineConfig, UnauthorizedError, verifyWebhook, type WebhookPayload } from '@easy-cms/core'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { db, open, rawQuery, SECRET, table, tempProject } from './helpers.js'
 
@@ -105,6 +105,34 @@ describe('webhooks (FR-HOOK)', () => {
       .update(first?.body ?? '')
       .digest('hex')
     expect(first?.headers['x-easy-cms-signature']).toBe(`sha256=${signature}`)
+    // The signature over the delivery, this attempt's time and the body (#166).
+    const sent = { body: first?.body ?? '', headers: first?.headers ?? {} }
+    expect(verifyWebhook(sent.body, sent.headers, 'hook-secret')).toEqual(first?.payload)
+    expect(verifyWebhook(sent.body, sent.headers, ['old-secret', 'hook-secret'])).toEqual(
+      first?.payload,
+    )
+    for (const refused of [
+      () => verifyWebhook(sent.body, sent.headers, 'other-secret'),
+      () => verifyWebhook(sent.body.replace('Draft', 'Drafts'), sent.headers, 'hook-secret'),
+      () =>
+        verifyWebhook(
+          sent.body,
+          { ...sent.headers, 'x-easy-cms-delivery': 'another-delivery' },
+          'hook-secret',
+        ),
+      // Replayed later than the tolerance.
+      () =>
+        verifyWebhook(sent.body, sent.headers, 'hook-secret', {
+          now: new Date(Date.now() + 6 * 60_000),
+        }),
+      () =>
+        verifyWebhook(
+          sent.body,
+          { ...sent.headers, 'x-easy-cms-signature-v2': undefined },
+          'hook-secret',
+        ),
+    ])
+      expect(refused).toThrow(UnauthorizedError)
     expect(all.find((r) => r.payload.global)?.payload).toMatchObject({
       event: 'update',
       global: 'site',
@@ -193,6 +221,10 @@ describe('webhooks (FR-HOOK)', () => {
     expect(retry?.payload).toMatchObject({ event: 'create', id: note.id })
     expect(retry?.headers['x-easy-cms-delivery']).toBe(firstTry?.headers['x-easy-cms-delivery'])
     expect(retry?.headers['x-easy-cms-signature']).toBe(firstTry?.headers['x-easy-cms-signature'])
+    // Each attempt has its own time, so a retry a day later still verifies.
+    expect(Number(retry?.headers['x-easy-cms-timestamp'])).toBeGreaterThan(
+      Number(firstTry?.headers['x-easy-cms-timestamp']),
+    )
     expect(await deliveries()).toEqual([])
     await second.destroy()
   })

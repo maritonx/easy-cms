@@ -2,6 +2,7 @@ import { createHmac, randomUUID } from 'node:crypto'
 import type { ID } from './access.js'
 import { USERS } from './builtins.js'
 import type { Logger } from './logger.js'
+import { signWebhook } from './webhook-signature.js'
 
 export const WEBHOOK_EVENTS = [
   'create',
@@ -30,7 +31,12 @@ export interface WebhookConfig {
   readonly collections?: readonly string[]
   /** Globals to send events for. Default: all; `[]` for none. */
   readonly globals?: readonly string[]
-  /** Signs each body: `x-easy-cms-signature: sha256=<hex HMAC-SHA256 of the body>`. */
+  /**
+   * Signs each attempt: `x-easy-cms-timestamp` and `x-easy-cms-signature-v2` (`v1=<hex HMAC-SHA256
+   * of "<delivery>.<timestamp>.<body>">`, checked by `verifyWebhook()`). Also, until 2.0, the
+   * deprecated `x-easy-cms-signature: sha256=<hex HMAC-SHA256 of the body>`, which a captured
+   * request can be replayed with.
+   */
   readonly secret?: string
   /** Extra request headers, e.g. a token the receiver checks. */
   readonly headers?: Readonly<Record<string, string>>
@@ -284,6 +290,10 @@ export class Webhooks {
       ...hook.headers,
     }
     if (hook.secret) {
+      // This attempt's time: retries get a new one, so receivers can refuse old requests.
+      const timestamp = Math.floor(Date.now() / 1000)
+      headers['x-easy-cms-timestamp'] = String(timestamp)
+      headers['x-easy-cms-signature-v2'] = signWebhook(hook.secret, delivery, timestamp, body)
       headers['x-easy-cms-signature'] =
         `sha256=${createHmac('sha256', hook.secret).update(body).digest('hex')}`
     }

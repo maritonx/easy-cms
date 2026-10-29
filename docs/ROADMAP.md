@@ -44,8 +44,9 @@
 | [`1.0.0-rc`](https://github.com/maritonx/easy-cms/milestone/3) | 2026-12-01 | RC, เอกสารเริ่มต้นและอัปเกรด, รับเฉพาะการแก้บั๊ก |
 | [`1.0.0`](https://github.com/maritonx/easy-cms/milestone/4) | 2026-12-15 | ออก 1.0 และประกาศ |
 | [`Multi-instance & operations`](https://github.com/maritonx/easy-cms/milestone/5) | — | Hardening: หลาย instance ปลอดภัย, ดูแลระบบได้, เครื่องมือความปลอดภัย |
-| [`Security, identity & admin`](https://github.com/maritonx/easy-cms/milestone/6) | — | ความปลอดภัยและ identity, ฟีเจอร์ admin |
-| [`Scale (1M documents)`](https://github.com/maritonx/easy-cms/milestone/7) | — | performance ที่ 1M เอกสาร |
+| [`Security & identity`](https://github.com/maritonx/easy-cms/milestone/6) | — | ความปลอดภัยและ identity |
+| [`Scale (1M documents)`](https://github.com/maritonx/easy-cms/milestone/7) | — | performance ที่ 1M เอกสาร (ปิดแล้ว 2026-10-29) |
+| [`Admin lists & shop`](https://github.com/maritonx/easy-cms/milestone/8) | — | รายการใน admin (saved views, ตัวกรอง, CSV) และ Omise |
 
 ### Labels
 
@@ -122,24 +123,20 @@
 | [#161](https://github.com/maritonx/easy-cms/issues/161) | Load test at 1M documents | area:release | `load.ts` seed ได้ถึง 1M เอกสาร, workflow รายคืนเก็บผลและเตือนเมื่อ p95 ช้าลงเกิน 20%; ตัวเลขแรกบันทึกใน SRS |
 | [#162](https://github.com/maritonx/easy-cms/issues/162) | Truthful `SECURITY.md`, Dependabot and CodeQL | area:security | `SECURITY.md` ตรงกับ 1.x, มี Dependabot และ CodeQL ใน `.github/`, เปิด secret scanning ใน Settings |
 
-### M6 — `Security, identity & admin` (ไม่กำหนดวัน) {#m6}
+### M6 — `Security & identity` (ไม่กำหนดวัน) {#m6}
 
 | # | Issue | Labels | เสร็จเมื่อ |
 |---|---|---|---|
 | [#163](https://github.com/maritonx/easy-cms/issues/163) | Require single sign-on for everyone (turn off password login) | area:security | ตัวเลือกปิด login ด้วยรหัสผ่านทุกคน ยกเว้นบัญชีฉุกเฉินที่ระบุ |
 | [#164](https://github.com/maritonx/easy-cms/issues/164) | Map identity-provider groups to roles | area:security | claim กลุ่มจาก OIDC แมปเป็นบทบาท อัปเดตทุกครั้งที่ login, ทดสอบกับ Entra ID |
 | [#165](https://github.com/maritonx/easy-cms/issues/165) | TOTP two-factor sign-in for password accounts | area:security | ตั้งและบังคับ TOTP ได้, มีรหัสกู้คืน, admin รีเซ็ตให้คนอื่นได้ และบันทึกใน audit log |
-| [#166](https://github.com/maritonx/easy-cms/issues/166) | Sign webhook timestamps to stop replays | area:core, area:security | ลายเซ็นครอบ timestamp, เอกสารบอกวิธีตรวจและช่วงเวลาที่ยอมรับ |
+| [#166](https://github.com/maritonx/easy-cms/issues/166) | Sign webhook timestamps to stop replays | area:core, area:security | ลายเซ็นครอบ timestamp, เอกสารบอกวิธีตรวจและช่วงเวลาที่ยอมรับ ([ADR-0060](adr/0060-webhook-signature-v2.md)) |
 | [#167](https://github.com/maritonx/easy-cms/issues/167) | Rotate `EASY_CMS_SECRET` without logging everyone out | area:security | รับ secret เก่าและใหม่พร้อมกันช่วงหนึ่ง, เอกสารขั้นตอนหมุน |
 | [#172](https://github.com/maritonx/easy-cms/issues/172) | `schema` option for `@easy-cms/db-postgres` | area:core | ตารางทั้งหมดใช้ `pgSchema()`, คำสั่ง CLI ย้ายตารางของระบบที่ติดตั้งแล้วไป schema ใหม่ พร้อมเทสต์อัปเกรด |
 | [#173](https://github.com/maritonx/easy-cms/issues/173) | Run with a database role that can only read and write data | area:core, area:security | `verify()` ไม่ใช้ DDL, เอกสารให้ `easy-cms migrate` ใช้ role เจ้าของ schema, CI รัน runtime ด้วย role ที่มีแค่ DML |
 | [#168](https://github.com/maritonx/easy-cms/issues/168) | Rate limit the API | area:core, area:security | จำกัดต่อ IP และต่อ API key ได้ เก็บในฐานข้อมูลเพื่อใช้ได้หลาย instance |
 | [#169](https://github.com/maritonx/easy-cms/issues/169) | OpenSSF Scorecard | area:security | workflow และ badge ใน README |
 | [#170](https://github.com/maritonx/easy-cms/issues/170) | Security self-review against OWASP ASVS level 2 | area:security | ไล่ ASVS 4.0.3 L2 ทีละข้อ อ้างเลขข้อจากเอกสารจริง, ผลใน `docs/security/` แทนฉบับ L1 |
-| [#86](https://github.com/maritonx/easy-cms/issues/86) | Omise payments for the shop: PromptPay, cards, mobile banking | area:plugins | |
-| [#87](https://github.com/maritonx/easy-cms/issues/87) | Saved list views in the admin | area:admin | |
-| [#88](https://github.com/maritonx/easy-cms/issues/88) | List filters with several conditions | area:admin | |
-| [#89](https://github.com/maritonx/easy-cms/issues/89) | Export a list to CSV | area:admin | |
 
 ### M7 — `Scale (1M documents)` (ไม่กำหนดวัน) {#m7}
 
@@ -154,6 +151,17 @@
 | [#178](https://github.com/maritonx/easy-cms/issues/178) | Opt-in outbox for `afterChange` and webhooks | area:core | ตัวเลือกใน config ตาม [ADR-0053](adr/0053-outbox-for-after-hooks.md), เอกสารเรื่อง hook ที่รันซ้ำได้ |
 | [#179](https://github.com/maritonx/easy-cms/issues/179) | OpenTelemetry traces and metrics | area:core | peer dependency แบบเลือกใช้, span ของ request และ query, metrics ของคิวงาน ([ADR-0057](adr/0057-opentelemetry-api-only.md)) |
 | [#257](https://github.com/maritonx/easy-cms/issues/257) | Faster relationship filters, queries inside blocks, and saves under load at 1M | area:core, area:adapters | index คู่กับ `status`, `like` ขั้นต่ำ 3 ตัวอักษรบน field แบบ trigram, `writeConnections`, วิธีค้นในบล็อกในเอกสาร ([ADR-0058](adr/0058-slow-paths-at-1m.md)) |
+
+### M8 — `Admin lists & shop` (ไม่กำหนดวัน) {#m8}
+
+ย้ายออกจาก M6 (2026-10-29) ให้ M6 เหลือแต่ความปลอดภัย งานรายการใน admin ออกแบบพร้อมกัน
+
+| # | Issue | Labels | เสร็จเมื่อ |
+|---|---|---|---|
+| [#86](https://github.com/maritonx/easy-cms/issues/86) | Omise payments for the shop: PromptPay, cards, mobile banking | area:plugins | |
+| [#87](https://github.com/maritonx/easy-cms/issues/87) | Saved list views in the admin | area:admin | |
+| [#88](https://github.com/maritonx/easy-cms/issues/88) | List filters with several conditions | area:admin | |
+| [#89](https://github.com/maritonx/easy-cms/issues/89) | Export a list to CSV | area:admin | |
 
 ---
 

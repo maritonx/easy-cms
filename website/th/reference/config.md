@@ -238,7 +238,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `events` | `string[]` | ทั้งหมด | `create`, `update`, `delete`, `publish`, `unpublish`, `draft` |
 | `collections` | `string[]` | ทั้งหมดยกเว้น `users` | collection ที่ส่ง event ใช้ `[]` เพื่อไม่ส่งเลย ระบุ `users` ถ้าต้องการ event ของบัญชีผู้ใช้ |
 | `globals` | `string[]` | ทั้งหมด | global ที่ส่ง event ใช้ `[]` เพื่อไม่ส่งเลย |
-| `secret` | `string` | — | เซ็น body: `x-easy-cms-signature: sha256=<hex>` |
+| `secret` | `string` | — | เซ็นการส่งแต่ละครั้ง: `x-easy-cms-timestamp` และ `x-easy-cms-signature-v2` ([วิธีตรวจ](/th/guide/webhooks#checking-the-signature)) |
 | `headers` | `Record<string, string>` | — | header เพิ่มเติม |
 
 `events` รับ `events` ของ config ด้วย (เช่น `order.paid`) event เหล่านี้ส่งไปเฉพาะ webhook ที่ระบุไว้
