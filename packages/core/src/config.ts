@@ -618,6 +618,21 @@ export interface AuthConfig {
   }
 }
 
+export interface RateLimitConfig {
+  /** Seconds each count lasts. Default 60. */
+  readonly window?: number
+  /**
+   * Requests per window from one IP without signing in. Default 300; `false`: no limit. Needs the
+   * client's IP: behind a proxy, set `trustProxy` on the adapter (without it, visitors aren't
+   * limited, and the log says so once).
+   */
+  readonly anonymous?: number | false
+  /** Requests per window from one signed-in user (the admin included). Default 1200; `false`: no limit. */
+  readonly users?: number | false
+  /** Requests per window with one API key. Default 1200; `false`: no limit. */
+  readonly apiKeys?: number | false
+}
+
 /** What `onRequest` receives. */
 export interface OnRequestArgs {
   readonly headers: Headers
@@ -936,6 +951,13 @@ export interface Config {
    * Default `false`: hooks run in the request, after the save.
    */
   readonly outbox?: boolean
+  /**
+   * Limits requests to the API per client and minute, counted across instances: each visitor's
+   * IP, each signed-in user and each API key. Over the limit, the API answers `429` with
+   * `Retry-After`. `{}` uses the defaults. Needs a migration for the `rate-limits` table. Default
+   * off.
+   */
+  readonly rateLimit?: RateLimitConfig
   /**
    * Relevance-ranked search of the collections that have `search`, e.g. `memorySearch()` for
    * development and small sites, or an adapter for a search engine. Published documents are

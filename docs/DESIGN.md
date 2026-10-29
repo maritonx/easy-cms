@@ -434,3 +434,4 @@ CI รัน lint, typecheck, build และ test บน Linux, macOS และ
 - [ADR-0059](adr/0059-custom-plans-and-statistics.md) — Postgres วางแผน query ตามค่าจริง (`customPlans`) และสถิติของ field คู่กับ `status`
 - [ADR-0060](adr/0060-webhook-signature-v2.md) — ลายเซ็น webhook ครอบ delivery และ timestamp ของการส่งแต่ละครั้ง, `verifyWebhook()`
 - [ADR-0061](adr/0061-secret-rotation.md) — หมุน secret ด้วย `previousSecrets` และ `easy-cms audit:resign`
+- [ADR-0062](adr/0062-rate-limit.md) — rate limit ของ API นับในหน่วยความจำ แล้วรวมกันผ่านฐานข้อมูลทุก 5 วินาที

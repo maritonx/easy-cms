@@ -83,6 +83,8 @@ export default defineConfig({
   // Secrets used before EASY_CMS_SECRET while it is replaced, comma-separated: what they signed
   // still verifies.
   previousSecrets: (env('EASY_CMS_PREVIOUS_SECRETS') ?? '').split(',').filter(Boolean),
+  // Requests per minute: 300 per visitor's IP, 1200 per signed-in user and per API key.
+  rateLimit: {},
   db: databaseURL ? postgres({ url: databaseURL }) : postgres({ pglite: '.pglite' }),
   // Folders in the media library; admins choose which roles use each.
   upload: {

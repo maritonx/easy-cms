@@ -17,6 +17,7 @@ export const ROLES = 'user-roles'
 export const USER_IDENTITIES = 'user-identities'
 export const AUDIT_LOGS = 'audit-logs'
 export const OUTBOX = 'outbox'
+export const RATE_LIMITS = 'rate-limits'
 
 /** Collections Easy CMS uses internally. Not exposed over REST or in the admin UI. */
 export const INTERNAL_COLLECTIONS: ReadonlySet<string> = new Set([
@@ -32,6 +33,7 @@ export const INTERNAL_COLLECTIONS: ReadonlySet<string> = new Set([
   USER_IDENTITIES,
   AUDIT_LOGS,
   OUTBOX,
+  RATE_LIMITS,
 ])
 
 export const DEFAULT_ROLES = ['admin', 'editor'] as const
@@ -588,6 +590,22 @@ export const outboxCollection: CollectionConfig = {
     // pending | running | failed
     { name: 'state', type: 'text', required: true, index: true },
     { name: 'error', type: 'text' },
+  ],
+}
+
+/**
+ * Requests counted per client and window, across instances; added only with `rateLimit`. Each
+ * instance adds what it counted every few seconds (see RateLimiter).
+ */
+export const rateLimitsCollection: CollectionConfig = {
+  slug: RATE_LIMITS,
+  access: { read: nobody, create: nobody, update: nobody, delete: nobody },
+  fields: [
+    // `<anonymous|user|apiKey>:<id or HMAC of the IP>:<window number>`
+    { name: 'key', type: 'text', required: true, unique: true },
+    { name: 'count', type: 'number', required: true },
+    // When the window is over, for clearing old rows.
+    { name: 'expiresAt', type: 'text', required: true, index: true },
   ],
 }
 

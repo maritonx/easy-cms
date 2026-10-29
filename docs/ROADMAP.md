@@ -134,7 +134,7 @@
 | [#167](https://github.com/maritonx/easy-cms/issues/167) | Rotate `EASY_CMS_SECRET` without logging everyone out | area:security | รับ secret เก่าและใหม่พร้อมกันช่วงหนึ่ง, เอกสารขั้นตอนหมุน ([ADR-0061](adr/0061-secret-rotation.md)) |
 | [#172](https://github.com/maritonx/easy-cms/issues/172) | `schema` option for `@easy-cms/db-postgres` | area:core | ตารางทั้งหมดใช้ `pgSchema()`, คำสั่ง CLI ย้ายตารางของระบบที่ติดตั้งแล้วไป schema ใหม่ พร้อมเทสต์อัปเกรด |
 | [#173](https://github.com/maritonx/easy-cms/issues/173) | Run with a database role that can only read and write data | area:core, area:security | `verify()` ไม่ใช้ DDL, เอกสารให้ `easy-cms migrate` ใช้ role เจ้าของ schema, CI รัน runtime ด้วย role ที่มีแค่ DML |
-| [#168](https://github.com/maritonx/easy-cms/issues/168) | Rate limit the API | area:core, area:security | จำกัดต่อ IP และต่อ API key ได้ เก็บในฐานข้อมูลเพื่อใช้ได้หลาย instance |
+| [#168](https://github.com/maritonx/easy-cms/issues/168) | Rate limit the API | area:core, area:security | จำกัดต่อ IP และต่อ API key ได้ เก็บในฐานข้อมูลเพื่อใช้ได้หลาย instance ([ADR-0062](adr/0062-rate-limit.md)) |
 | [#169](https://github.com/maritonx/easy-cms/issues/169) | OpenSSF Scorecard | area:security | workflow และ badge ใน README |
 | [#170](https://github.com/maritonx/easy-cms/issues/170) | Security self-review against OWASP ASVS level 2 | area:security | ไล่ ASVS 4.0.3 L2 ทีละข้อ อ้างเลขข้อจากเอกสารจริง, ผลใน `docs/security/` แทนฉบับ L1 |
 

@@ -106,7 +106,7 @@ origin เหล่านั้น ส่วน origin อื่นจะไม�
 | `METHOD_NOT_ALLOWED` | 405 | route นี้รับ method อื่น (ดูใน `Allow`) |
 | `PAYLOAD_TOO_LARGE` | 413 | body หรือไฟล์เกินขนาด |
 | `UNSUPPORTED_MEDIA_TYPE` | 415 | ไม่ใช่ JSON (หรือ multipart สำหรับอัปโหลด) |
-| `TOO_MANY_REQUESTS` | 429 | ลองบ่อยเกินไป `Retry-After` บอกว่าต้องรอกี่วินาที |
+| `TOO_MANY_REQUESTS` | 429 | ลองหรือส่ง request บ่อยเกินไป ([`rateLimit`](./security#rate-limits)) `Retry-After` บอกว่าต้องรอกี่วินาที |
 | `CONFIG_ERROR`, `INTERNAL_SERVER_ERROR` | 500 | server มีปัญหา บน production ไม่มีรายละเอียด |
 
 อาจมีรหัสใหม่เพิ่มขึ้น แต่รหัสเหล่านี้คงความหมายเดิม ฝั่ง server error ทุกตัวของ Easy CMS มี `code` เดียวกัน (`error.code` คู่กับ `error.status`)

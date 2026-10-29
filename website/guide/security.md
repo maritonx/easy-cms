@@ -39,6 +39,9 @@ What Easy CMS protects for you, what stays your job, and a checklist before goin
   only `auth.trustedOrigins` may send cookies. Origins in `cors` may also write **without** a
   session cookie (e.g. a public [form](./forms)): there is no session to forge, and the
   collection's access rules still decide.
+- **Rate limits** (`rateLimit`), when turned on: each visitor's IP, signed-in user and API key may
+  send so many requests a minute, counted across instances. Over that, the API answers `429` with
+  `Retry-After`. See [below](#rate-limits).
 - **Request bodies** are limited to 1 MB (JSON) and `upload.maxFileSize` (files, 10 MB).
 - **HSTS**: in production (`NODE_ENV=production`) the REST API and the admin send
   `Strict-Transport-Security: max-age=31536000` (without `includeSubDomains`), so browsers use
@@ -76,6 +79,43 @@ What Easy CMS protects for you, what stays your job, and a checklist before goin
   the rights of whoever is logged in.
 - **Review migrations** before deploying and keep dependencies updated.
 - **Back up** the database and uploads. See [Backups](./backups).
+
+## Rate limits
+
+`rateLimit` limits how many requests one client sends to the API in a minute. It protects the
+database from a script or a visitor sending far more than people do, and it holds across instances.
+
+```ts
+export default defineConfig({
+  rateLimit: {}, // the defaults below
+  // rateLimit: { window: 60, anonymous: 300, users: 1200, apiKeys: 1200 },
+})
+```
+
+| Who | Counted by | Default per minute |
+|---|---|---|
+| Visitors who are not signed in | IP address | 300 |
+| Signed-in users (the admin included) | user | 1,200 |
+| API keys | key | 1,200 |
+
+`false` for one of them lifts its limit. Over the limit, the API answers `429 Too Many Requests` with
+`Retry-After`, the seconds until the window ends. Health checks (`/healthz`, `/readyz`) and
+`jobs/run` aren't counted. It covers everything under the API route, plugin endpoints included,
+not the Local API or pages your app renders on the server.
+
+- **Turning it on needs a migration**, for the `rate-limits` table (`easy-cms migrate:create`).
+  Projects made with `create-easy-cms` 1.19 or later have it on.
+- **Counts are shared through the database every few seconds**, not on every request, so the API
+  doesn't write for each read. Between syncs, a client can go a little over, by what the other
+  instances counted meanwhile.
+- **The IP must be the visitor's.** Vercel and Netlify are recognized; behind your own proxy, set
+  `trustProxy`. Without an IP, visitors who are not signed in aren't limited (counting them all as
+  one would block everyone at once), and the server log says so once.
+- **No IP is stored**: the table keeps an HMAC of it, made with the secret.
+- **Static builds** fetch many pages at once: build with an API key, whose limit is higher (or
+  `apiKeys: false`), or from the Local API.
+
+Logins, sign-ups and form submissions keep their own, lower limits.
 
 ## Rotating the secret
 

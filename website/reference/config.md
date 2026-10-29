@@ -21,6 +21,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | Option | Type | Default | |
 |---|---|---|---|
 | `secret` | `string` | — | **Required**, 32+ characters. Signs sessions and preview tokens. |
+| `rateLimit` | `object` | — | Requests per minute per IP, user and API key: `{ window, anonymous, users, apiKeys }`, `{}` for the defaults ([rate limits](/guide/security#rate-limits)). |
 | `previousSecrets` | `string[]` | — | Secrets used before `secret`: what they signed still verifies ([rotating the secret](/guide/security#rotating-the-secret)). |
 | `db` | `DatabaseAdapter` | — | **Required**. `sqlite()` or `postgres()`. [Databases](/guide/databases) |
 | `serverURL` | `string` | — | Public origin (`https://example.com`); makes media URLs absolute. |

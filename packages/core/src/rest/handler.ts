@@ -274,6 +274,11 @@ async function respondNow(
     }
 
     const method = request.method.toUpperCase()
+    // Requests per client (`rateLimit`); a cron running jobs isn't counted.
+    const isJobsRun = !root && segments[0] === 'jobs' && segments[1] === 'run'
+    const wait = isJobsRun ? undefined : cms.rateLimiter?.hit(user, options.getClientIp?.(request))
+    if (wait !== undefined)
+      throw new TooManyRequestsError('Too many requests: try again later', wait)
     if (method !== 'GET' && method !== 'HEAD') checkCsrf(cms, ctx)
 
     // Who and from where, for the audit log of whatever this request changes.

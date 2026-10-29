@@ -19,6 +19,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | ตัวเลือก | Type | ค่าเริ่มต้น | |
 |---|---|---|---|
 | `secret` | `string` | — | **จำเป็น** อย่างน้อย 32 ตัวอักษร ใช้เซ็น session และ preview token |
+| `rateLimit` | `object` | — | request ต่อนาทีต่อ IP ผู้ใช้ และ API key: `{ window, anonymous, users, apiKeys }` ใช้ `{}` เพื่อใช้ค่าเริ่มต้น ([rate limit](/th/guide/security#rate-limits)) |
 | `previousSecrets` | `string[]` | — | secret ที่เคยใช้ก่อน `secret` สิ่งที่มันเซ็นไว้ยังตรวจผ่าน ([หมุน secret](/th/guide/security#rotating-the-secret)) |
 | `db` | `DatabaseAdapter` | — | **จำเป็น** `sqlite()` หรือ `postgres()` [ฐานข้อมูล](/th/guide/databases) |
 | `serverURL` | `string` | — | origin สาธารณะ (`https://example.com`) ทำให้ URL ของ media เป็น URL เต็ม |

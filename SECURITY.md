@@ -47,7 +47,8 @@ Out of scope:
 - the example apps in `examples/`, which are demos
 - vulnerabilities in dependencies with no path to exploit them through Easy CMS (still welcome
   as a regular issue)
-- denial of service through very large volumes of requests; put a rate limiter or CDN in front
+- denial of service through very large volumes of requests: turn on `rateLimit`, and put a CDN or
+  a rate limiter at the edge in front for floods it can't absorb
 
 ## Hardening
 

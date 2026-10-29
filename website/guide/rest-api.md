@@ -107,7 +107,7 @@ those origins; other origins get no CORS headers, so the browser blocks the resp
 | `METHOD_NOT_ALLOWED` | 405 | The route takes other methods (listed in `Allow`). |
 | `PAYLOAD_TOO_LARGE` | 413 | The body or the file is over the limit. |
 | `UNSUPPORTED_MEDIA_TYPE` | 415 | Not JSON (or multipart for uploads). |
-| `TOO_MANY_REQUESTS` | 429 | Too many attempts; `Retry-After` says how many seconds to wait. |
+| `TOO_MANY_REQUESTS` | 429 | Too many attempts or requests ([`rateLimit`](./security#rate-limits)); `Retry-After` says how many seconds to wait. |
 | `CONFIG_ERROR`, `INTERNAL_SERVER_ERROR` | 500 | Something went wrong on the server; in production without details. |
 
 New codes may be added; these keep their meaning. On the server, every Easy CMS error has the same
