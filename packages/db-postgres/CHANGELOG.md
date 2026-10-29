@@ -1,5 +1,28 @@
 # @easy-cms/db-postgres
 
+## 1.16.0
+
+### Minor Changes
+
+- 30185cc: Filters on Postgres stay fast for every value (#257):
+  
+  - **`customPlans`** (on unless `prepare` is false) sends `plan_cache_mode = force_custom_plan`, so each query is planned for its own values. After a few runs Postgres otherwise moves a prepared statement to one plan for every value; at 1M posts a filter by author then took up to 40 s. Behind PgBouncer with prepared statements, which refuses the parameter, set `customPlans: false` and `ALTER ROLE … SET plan_cache_mode = force_custom_plan`.
+  - **Statistics on each field indexed with `status`** (`CREATE STATISTICS … (mcv)`), so Postgres knows a value whose documents are all drafts, such as an author who hasn't published yet, has nothing to show, instead of reading a whole index for it (at 1M posts, about 1.6 s → under 1 ms). Postgres projects with drafts collections need a migration (`easy-cms migrate:create`); SQLite's schema doesn't change.
+- ac40820: Faster at 1,000,000 documents (#257):
+  
+  - **Relationship filters count from the index.** In collections with drafts, fields with an automatic index (relationships, uploads, `index: true`) are indexed together with `status`, which public reads filter on, so totals read only the index (at 1M posts, a filter by author: about 1 s → 3 ms). The indexes change: run `easy-cms migrate:create` after upgrading.
+  - **`like` needs three characters on a field with `index: 'trigram'`** on Postgres: shorter searches can't use the index and read every row, so they are refused with a `400`. The admin's list and relationship searches wait for the third character, and the command palette still finds documents by id. SQLite is unchanged.
+  - **`writeConnections` on `postgres()`:** connections kept for creates, updates and deletes, with every read they make, on top of `max`, so saves don't wait behind slow reads. Off by default.
+  - The Blocks guide shows how to query inside blocks on large collections: copy what you filter by to an indexed field with a hook.
+
+### Patch Changes
+
+- Updated dependencies [30185cc]
+- Updated dependencies [2ce3b98]
+- Updated dependencies [ac40820]
+  - @easy-cms/drizzle@1.16.0
+  - @easy-cms/core@1.16.0
+
 ## 1.15.1
 
 ### Patch Changes

@@ -1,5 +1,14 @@
 # @easy-cms/next
 
+## 1.16.0
+
+### Patch Changes
+
+- Updated dependencies [2ce3b98]
+- Updated dependencies [ac40820]
+  - @easy-cms/core@1.16.0
+  - @easy-cms/admin@1.16.0
+
 ## 1.15.1
 
 ### Patch Changes
