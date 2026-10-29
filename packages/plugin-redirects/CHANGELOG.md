@@ -1,5 +1,12 @@
 # @easy-cms/plugin-redirects
 
+## 1.17.0
+
+### Patch Changes
+
+- Updated dependencies [c52bb47]
+  - @easy-cms/core@1.17.0
+
 ## 1.16.0
 
 ### Patch Changes
