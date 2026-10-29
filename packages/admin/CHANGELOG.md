@@ -1,5 +1,9 @@
 # @easy-cms/admin
 
+## 1.19.0
+
+No changes in this release.
+
 ## 1.18.0
 
 ### Patch Changes

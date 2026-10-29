@@ -1,5 +1,12 @@
 # @easy-cms/email-smtp
 
+## 1.19.0
+
+### Patch Changes
+
+- Updated dependencies [abeb6ff]
+  - @easy-cms/core@1.19.0
+
 ## 1.18.0
 
 ### Patch Changes
