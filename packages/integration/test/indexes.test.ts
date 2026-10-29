@@ -1,4 +1,4 @@
-import { createEasyCMS, defineConfig, silentLogger } from '@easy-cms/core'
+import { type Config, createEasyCMS, defineConfig, silentLogger } from '@easy-cms/core'
 import { describe, expect, it } from 'vitest'
 import { DIALECT, db, open, rawQuery, SECRET, table, tempProject } from './helpers.js'
 
@@ -74,7 +74,7 @@ describe('indexes in collections with drafts (#257)', () => {
       await pushed.destroy()
 
       const cwd = tempProject()
-      const migrate = async (cfg: typeof config, name: string) => {
+      const migrate = async (cfg: Config, name: string) => {
         const tool = await createEasyCMS(cfg, {
           cwd,
           schema: 'skip',
