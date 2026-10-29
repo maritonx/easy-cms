@@ -40,6 +40,7 @@ export const AUDIT_ACTIONS = [
   'jobs.resume',
   'jobs.schedule',
   'audit.verify',
+  'audit.resign',
 ] as const
 
 export function actionLabel(action: string): string {

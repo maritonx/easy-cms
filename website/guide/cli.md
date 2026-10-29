@@ -56,6 +56,7 @@ npx easy-cms <command> [--config <file>] [--cwd <dir>]
 | [`copy --from <config>`](#copy) | Copy all content into another database, e.g. SQLite to Postgres. |
 | [`jobs:run`](#jobs-run) | Run due scheduled jobs and webhook retries once. |
 | [`search:reindex [collection]`](#search-reindex) | Build the search index again from the database. |
+| [`audit:resign`](#audit-resign) | After a new secret: sign the audit log with it. |
 | [`serve`](#serve) | Run the CMS as its own server. |
 
 Options for every command: `--config <file>` (default `easy-cms.config.ts`), `--cwd <dir>`
@@ -177,6 +178,17 @@ npx easy-cms search:reindex posts
 Builds the [search](./search) index again from the published documents: after adding `search`
 to a collection or changing its fields, or when indexing failed. An in-memory index
 (`memorySearch()`) is built by the server when it starts, so there is nothing to do for it.
+
+### audit:resign
+
+```bash [pm]
+npx easy-cms audit:resign
+```
+
+After [rotating the secret](./security#rotating-the-secret): signs the [audit log](./audit-log)
+entries signed with one of `previousSecrets` with the current `secret`, so they still verify once
+the old one is removed. Entries no secret verifies were changed in the database; they are left as
+they are, listed, and the command exits with `1`. The run is recorded as an audit entry.
 
 ### serve
 

@@ -14,22 +14,46 @@ function hmac(secret: string, value: string): string {
   return createHmac('sha256', secret).update(value).digest('base64url')
 }
 
+/**
+ * Secrets that verify: the current one first, then `previousSecrets` while one is replaced. New
+ * values are always signed with the current one.
+ */
+export type Secrets = string | readonly string[]
+
+/** The secrets of a config, the current one first. */
+export function secretsOf(config: {
+  readonly secret: string
+  readonly previousSecrets?: readonly string[] | undefined
+}): readonly string[] {
+  return [config.secret, ...(config.previousSecrets ?? [])]
+}
+
+/** Whether `signature` is the HMAC of `value` with one of the secrets. */
+export function signedWith(secrets: Secrets, value: string, signature: string): boolean {
+  return [secrets].flat().some((secret) => safeEqual(signature, hmac(secret, value)))
+}
+
 /** Cookie value: `<token>.<signature>`, so forged cookies are rejected without a database lookup. */
 export function signToken(secret: string, token: string): string {
   return `${token}.${hmac(secret, `session:${token}`)}`
 }
 
 /** Returns the token if the signature is valid. */
-export function unsignToken(secret: string, value: string): string | undefined {
+export function unsignToken(secrets: Secrets, value: string): string | undefined {
   const dot = value.lastIndexOf('.')
   if (dot <= 0) return undefined
   const token = value.slice(0, dot)
-  return safeEqual(value.slice(dot + 1), hmac(secret, `session:${token}`)) ? token : undefined
+  return signedWith(secrets, `session:${token}`, value.slice(dot + 1)) ? token : undefined
 }
 
 /** CSRF token bound to the session: the client echoes it in a header. */
 export function csrfToken(secret: string, token: string): string {
   return hmac(secret, `csrf:${token}`)
+}
+
+/** Whether `given` is the session's CSRF token with one of the secrets. */
+export function csrfMatches(secrets: Secrets, token: string, given: string): boolean {
+  return signedWith(secrets, `csrf:${token}`, given)
 }
 
 export function safeEqual(a: string, b: string): boolean {
@@ -66,14 +90,14 @@ export function signPreviewToken(
 
 /** The target of a valid, unexpired preview token, or `null`. */
 export function verifyPreviewToken(
-  secret: string,
+  secrets: Secrets,
   token: string,
   now = Date.now(),
 ): (PreviewTarget & { expiresAt: number; user?: string }) | null {
   const dot = token.lastIndexOf('.')
   if (dot <= 0) return null
   const payload = token.slice(0, dot)
-  if (!safeEqual(token.slice(dot + 1), hmac(secret, `preview:${payload}`))) return null
+  if (!signedWith(secrets, `preview:${payload}`, token.slice(dot + 1))) return null
   try {
     const data = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'))
     if (typeof data.e !== 'number' || data.e <= now) return null
@@ -133,9 +157,13 @@ export function readPasswordToken(
 }
 
 /** Whether the token's signature matches the user's current password (and the secret). */
-export function passwordTokenMatches(secret: string, token: string, fingerprint: string): boolean {
+export function passwordTokenMatches(
+  secrets: Secrets,
+  token: string,
+  fingerprint: string,
+): boolean {
   const dot = token.lastIndexOf('.')
   if (dot <= 0) return false
   const payload = token.slice(0, dot)
-  return safeEqual(token.slice(dot + 1), hmac(secret, `password:${payload}:${fingerprint}`))
+  return signedWith(secrets, `password:${payload}:${fingerprint}`, token.slice(dot + 1))
 }

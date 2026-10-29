@@ -17,6 +17,9 @@ ${database}
 
 export default defineConfig({
   secret: process.env.EASY_CMS_SECRET ?? '',
+  // Secrets used before EASY_CMS_SECRET while it is replaced, comma-separated: what they signed
+  // still verifies.
+  previousSecrets: (process.env.EASY_CMS_PREVIOUS_SECRETS ?? '').split(',').filter(Boolean),
 ${adapter}
   admin: { locale: 'en' },${
     options.standalone

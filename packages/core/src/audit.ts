@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { createHmac } from 'node:crypto'
 import type { AuthUser, ID, RequestContext, Where } from './access.js'
+import { secretsOf } from './auth/tokens.js'
 import { AUDIT_LOGS, INTERNAL_COLLECTIONS } from './builtins.js'
 import type { CollectionConfig, GlobalConfig } from './config.js'
 import type { PaginatedDocs, RawDocument } from './database.js'
@@ -390,7 +391,7 @@ export class AuditLog {
       })
       for (const row of result.docs) {
         checked++
-        if (row.signature !== this.sign(row)) invalid.push(row.id)
+        if (!this.signer(row)) invalid.push(row.id)
         const id = Number(row.id)
         if (previous !== undefined && Number.isInteger(id) && id > previous + 1)
           gaps += id - previous - 1
@@ -408,6 +409,52 @@ export class AuditLog {
       `Audit log checked: ${checked} entries, last #${previous ?? '-'}; ${invalid.length} changed, ${gaps} missing`,
     )
     return verification
+  }
+
+  /** The secret an entry was signed with: the current one, a previous one, or none (changed). */
+  private signer(row: Record<string, unknown>): string | undefined {
+    return secretsOf(this.cms.config).find((secret) => row.signature === this.sign(row, secret))
+  }
+
+  /**
+   * After `secret` changed: signs again, with the current secret, the entries signed with one of
+   * `previousSecrets`, so they still verify once it is removed. Entries no secret verifies were
+   * changed: they are left as they are, and reported. Records `audit.resign`.
+   */
+  async resign(): Promise<{ checked: number; resigned: number; invalid: ID[] }> {
+    const invalid: ID[] = []
+    let checked = 0
+    let resigned = 0
+    for (let page = 1; ; page++) {
+      const result = await this.cms.db.find({
+        collection: AUDIT_LOGS,
+        sort: ['id'],
+        limit: 500,
+        page,
+      })
+      for (const row of result.docs) {
+        checked++
+        const secret = this.signer(row)
+        if (secret === undefined) invalid.push(row.id)
+        else if (secret !== this.cms.config.secret) {
+          // The whole row: an update replaces the stored document.
+          const { id, ...data } = row
+          await this.cms.db.update({
+            collection: AUDIT_LOGS,
+            id,
+            data: { ...data, signature: this.sign(row) },
+          })
+          resigned++
+        }
+      }
+      if (page >= result.totalPages) break
+    }
+    await this.record({
+      action: 'audit.resign',
+      target: 'audit',
+      detail: { checked, resigned, invalid: invalid.length },
+    })
+    return { checked, resigned, invalid }
   }
 
   /**
@@ -472,14 +519,12 @@ export class AuditLog {
     return (scope && context ? scope({ context, user }) : null) ?? null
   }
 
-  private sign(row: Record<string, unknown>): string {
+  private sign(row: Record<string, unknown>, secret = this.cms.config.secret): string {
     // The scope is signed only when there is one, so entries from before scopes stay valid.
     const values: unknown[] = SIGNED.map((key) => row[key] ?? null)
     if (typeof row.scope === 'string' && row.scope) values.push(row.scope)
     const payload = stable(values)
-    return createHmac('sha256', this.cms.config.secret)
-      .update(`audit:${payload}`)
-      .digest('base64url')
+    return createHmac('sha256', secret).update(`audit:${payload}`).digest('base64url')
   }
 
   private async lastVerification(): Promise<{ at: string; invalid: number } | null> {

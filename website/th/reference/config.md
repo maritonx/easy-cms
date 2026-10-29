@@ -19,6 +19,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | ตัวเลือก | Type | ค่าเริ่มต้น | |
 |---|---|---|---|
 | `secret` | `string` | — | **จำเป็น** อย่างน้อย 32 ตัวอักษร ใช้เซ็น session และ preview token |
+| `previousSecrets` | `string[]` | — | secret ที่เคยใช้ก่อน `secret` สิ่งที่มันเซ็นไว้ยังตรวจผ่าน ([หมุน secret](/th/guide/security#rotating-the-secret)) |
 | `db` | `DatabaseAdapter` | — | **จำเป็น** `sqlite()` หรือ `postgres()` [ฐานข้อมูล](/th/guide/databases) |
 | `serverURL` | `string` | — | origin สาธารณะ (`https://example.com`) ทำให้ URL ของ media เป็น URL เต็ม |
 | `cors` | `string[] \| '*'` | `[]` | origin ที่โค้ดใน browser เรียก API ได้ [ความปลอดภัย](/th/guide/security) |

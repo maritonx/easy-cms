@@ -80,6 +80,9 @@ const privateUploads = privateStorage()
 
 export default defineConfig({
   secret: secret(),
+  // Secrets used before EASY_CMS_SECRET while it is replaced, comma-separated: what they signed
+  // still verifies.
+  previousSecrets: (env('EASY_CMS_PREVIOUS_SECRETS') ?? '').split(',').filter(Boolean),
   db: databaseURL ? postgres({ url: databaseURL }) : postgres({ pglite: '.pglite' }),
   // Folders in the media library; admins choose which roles use each.
   upload: {

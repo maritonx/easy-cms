@@ -1,4 +1,4 @@
-import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto'
+import { createHash, createHmac, randomBytes, randomUUID } from 'node:crypto'
 import type { AuthUser, ID, RequestContext, Where } from './access.js'
 import {
   andWhere,
@@ -18,7 +18,7 @@ import { AuditLog, auditContext } from './audit.js'
 import { Auth, asMember } from './auth/auth.js'
 import { COMMON_PASSWORDS } from './auth/common-passwords.js'
 import { hashPassword, MIN_PASSWORD_LENGTH, verifyPassword } from './auth/password.js'
-import { signPreviewToken, verifyPreviewToken } from './auth/tokens.js'
+import { secretsOf, signedWith, signPreviewToken, verifyPreviewToken } from './auth/tokens.js'
 import { runDueBackups } from './backups.js'
 import {
   EMAIL_DELIVERIES,
@@ -887,11 +887,7 @@ export class EasyCMS<C extends Config = Config> {
   private verify<T>(purpose: string, token: string): T | undefined {
     const [payload, signature] = String(token).split('.')
     if (!payload || !signature) return undefined
-    const expected = Buffer.from(
-      createHmac('sha256', this.config.secret).update(`${purpose}:${payload}`).digest('base64url'),
-    )
-    const given = Buffer.from(signature)
-    if (expected.length !== given.length || !timingSafeEqual(expected, given)) return undefined
+    if (!signedWith(secretsOf(this.config), `${purpose}:${payload}`, signature)) return undefined
     try {
       return JSON.parse(Buffer.from(payload, 'base64url').toString()) as T
     } catch {
@@ -1037,9 +1033,7 @@ export class EasyCMS<C extends Config = Config> {
   verifyMediaSignature(key: string, expires: string | null, signature: string | null): boolean {
     const at = Number(expires)
     if (!signature || !Number.isInteger(at) || at < Date.now() / 1000) return false
-    const expected = Buffer.from(this.mediaSignature(key, at))
-    const given = Buffer.from(signature)
-    return expected.length === given.length && timingSafeEqual(expected, given)
+    return signedWith(secretsOf(this.config), `media:${key}:${at}`, signature)
   }
 
   private mediaSignature(key: string, expires: number): string {
@@ -1415,7 +1409,7 @@ export class EasyCMS<C extends Config = Config> {
 
   /** What a preview token opens, or `null` when it is invalid or expired. */
   verifyPreviewToken(token: string | null | undefined) {
-    return token ? verifyPreviewToken(this.config.secret, token) : null
+    return token ? verifyPreviewToken(secretsOf(this.config), token) : null
   }
 
   /** Live preview of a global. See `preview`. */

@@ -9,7 +9,7 @@ import {
   type RequestContext,
   type TypedPlugin,
 } from '@easy-cms/core'
-import { checkRenamedOptions, resolveAdminModule } from '@easy-cms/core/internal'
+import { checkRenamedOptions, resolveAdminModule, secretsOf } from '@easy-cms/core/internal'
 import { renderRichText } from '@easy-cms/richtext'
 import { buildEmails } from './emails.js'
 import { fieldBlocks } from './fields.js'
@@ -420,7 +420,7 @@ export function formBuilderPlugin<
         const data = typeof body.data === 'object' && body.data !== null ? (body.data as Row) : {}
         const { values, errors } = validateSubmission(rowsOf(form), data, locale)
         if (errors.length > 0) return fail(400, errors)
-        const token = checkToken(secret, slug, body.token, minTime)
+        const token = checkToken(secretsOf(config), slug, body.token, minTime)
         if (token === 'too-fast') return { confirmation }
         if (token !== 'ok') return fail(400, [{ message: reload }])
         if (

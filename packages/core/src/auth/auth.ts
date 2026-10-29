@@ -25,6 +25,7 @@ import { DEFAULT_PASSWORD_EMAILS } from './emails.js'
 import { fakeVerify, verifyPassword } from './password.js'
 import { SingleSignOn } from './sso.js'
 import {
+  csrfMatches,
   csrfToken,
   hashToken,
   newToken,
@@ -33,6 +34,7 @@ import {
   passwordTokenMatches,
   readPasswordToken,
   safeEqual,
+  secretsOf,
   signPasswordToken,
   signToken,
   unsignToken,
@@ -262,7 +264,7 @@ export class Auth {
       await this.recordFailure(key)
       throw refuse('form', 'could not be sent')
     }
-    const checked = checkFormToken(this.config.secret, SIGNUP_FORM, args.token, SIGNUP_MIN_TIME)
+    const checked = checkFormToken(this.secrets, SIGNUP_FORM, args.token, SIGNUP_MIN_TIME)
     if (checked !== 'ok')
       throw refuse(
         'form',
@@ -338,7 +340,7 @@ export class Auth {
       user.active === false ||
       // A link confirms once: it doesn't sign in again afterwards.
       user.emailVerified !== false ||
-      !passwordTokenMatches(this.config.secret, token, passwordFingerprint(user.passwordHash))
+      !passwordTokenMatches(this.secrets, token, passwordFingerprint(user.passwordHash))
     ) {
       await this.recordFailure(key)
       throw new ValidationError(USERS, [
@@ -422,7 +424,7 @@ export class Auth {
 
   /** Ends the session for a signed token. Unknown tokens are ignored. */
   async logout(signedToken: string): Promise<void> {
-    const token = unsignToken(this.config.secret, signedToken)
+    const token = unsignToken(this.secrets, signedToken)
     if (!token) return
     const session = await this.findSession(token)
     if (!session) return
@@ -456,7 +458,7 @@ export class Auth {
   async verify(signedToken: string | undefined | null): Promise<AuthUser | null> {
     if (!signedToken) return null
     if (isApiKey(signedToken)) return this.verifyApiKey(signedToken)
-    const token = unsignToken(this.config.secret, signedToken)
+    const token = unsignToken(this.secrets, signedToken)
     if (!token) return null
     const session = await this.findSession(token)
     if (!session) return null
@@ -478,8 +480,22 @@ export class Auth {
 
   /** The CSRF token clients must echo for a signed session token. @internal */
   csrfFor(signedToken: string): string | undefined {
-    const token = unsignToken(this.config.secret, signedToken)
+    const token = unsignToken(this.secrets, signedToken)
     return token ? csrfToken(this.config.secret, token) : undefined
+  }
+
+  /**
+   * Whether `given` is the session's CSRF token, made with the current secret or a previous one
+   * (a client that fetched it before the secret changed). @internal
+   */
+  csrfMatches(signedToken: string, given: string): boolean {
+    const token = unsignToken(this.secrets, signedToken)
+    return token !== undefined && csrfMatches(this.secrets, token, given)
+  }
+
+  /** The current secret and `previousSecrets`, which still verify. */
+  private get secrets(): readonly string[] {
+    return secretsOf(this.config)
   }
 
   /** Starts a new session for a user, e.g. after they changed their own password. */
@@ -629,7 +645,7 @@ export class Auth {
     if (!user || user.active === false || !this.sso.passwordAllowed(user)) return null
     // The link is bound to the password it replaces: once that changes, the link is spent.
     const fingerprint = passwordFingerprint(user.passwordHash)
-    if (!passwordTokenMatches(this.config.secret, token, fingerprint)) return null
+    if (!passwordTokenMatches(this.secrets, token, fingerprint)) return null
     return { user, purpose: claims.purpose }
   }
 

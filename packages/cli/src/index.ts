@@ -71,6 +71,7 @@ Commands:
   serve                   Run the CMS as its own server (admin + REST API)
   jobs:run                Run due scheduled publishes, jobs, webhook and email retries (also: run-scheduled)
   search:reindex [slug]   Build the search index again from the database
+  audit:resign            After a new secret: sign the audit log with it
   backup <file>           Copy the database to a SQLite file while the CMS runs
   backup:decrypt <file>   Decrypt a backup made with backups.encryptionKey
   copy --from <config>    Copy all content from another config's database into this one
@@ -293,6 +294,15 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
               `Outbox: ${outbox.ran} ran${outbox.failed ? `, ${outbox.failed} failed (retried later)` : ''}.`,
             )
           return failed ? 1 : 0
+        }
+        case 'audit:resign': {
+          const { checked, resigned, invalid } = await cms.audit.resign()
+          io.out(`Checked ${checked} audit entries: ${resigned} signed with the current secret.`)
+          if (invalid.length === 0) return 0
+          io.err(
+            `${invalid.length} entries match no secret (changed after they were written), left as they are: #${invalid.slice(0, 20).join(', #')}${invalid.length > 20 ? ', …' : ''}`,
+          )
+          return 1
         }
         case 'search:reindex': {
           if (!cms.config.search) {
