@@ -640,8 +640,14 @@ test.describe('logged in as admin', () => {
     await expect(panel.getByRole('textbox', { name: 'Value', exact: true }).first()).toBeFocused()
     await panel.getByRole('textbox', { name: 'Value', exact: true }).first().fill('note')
     await panel.getByRole('button', { name: 'Add condition' }).click()
-    await panel.getByRole('combobox', { name: 'Field', exact: true }).nth(1).selectOption('createdAt')
-    await panel.getByRole('combobox', { name: 'Condition', exact: true }).nth(1).selectOption('after')
+    await panel
+      .getByRole('combobox', { name: 'Field', exact: true })
+      .nth(1)
+      .selectOption('createdAt')
+    await panel
+      .getByRole('combobox', { name: 'Condition', exact: true })
+      .nth(1)
+      .selectOption('after')
     await panel.getByRole('button', { name: 'Last 7 days' }).click()
     await panel.getByRole('button', { name: 'Apply filters' }).click()
     await expect(panel).toBeHidden()
