@@ -273,6 +273,12 @@ jobs:
         with:
           name: packages-dist
           path: packages
+      # The old releases' tarballs, so every run doesn't download them from npm again.
+      - uses: actions/cache@v6
+        with:
+          path: ~/.npm
+          key: upgrade-npm-${{ runner.os }}-${{ hashFiles('upgrade/run.ts') }}
+          restore-keys: upgrade-npm-${{ runner.os }}-
       - run: node upgrade/run.ts ${{ matrix.db }}
 
   s3:
