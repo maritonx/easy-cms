@@ -5,6 +5,7 @@ import { computed, onMounted, ref } from 'vue'
 import LoadingStatus from '../components/LoadingStatus.vue'
 import PluginElement from '../components/PluginElement.vue'
 import Skeleton from '../components/Skeleton.vue'
+import ZoneNote from '../components/ZoneNote.vue'
 import { api, type Doc, type Paginated, toQuery } from '../lib/api'
 import { counts, refreshCounts } from '../lib/counts'
 import { titleOf } from '../lib/fields'
@@ -15,6 +16,7 @@ import { listed, menuOrder } from '../lib/menu'
 import { inSettings } from '../lib/nav'
 import { session } from '../lib/session'
 import { settings } from '../lib/settings'
+import { adminTimeZone } from '../lib/time-zone'
 
 const collections = menuOrder(
   (session.schema?.collections ?? []).filter((c) => c.permissions.read && listed(c)),
@@ -287,17 +289,20 @@ const showScheduled = computed(() => scheduled.value !== null && scheduled.value
 /** Without scheduled jobs or plugin panels, the main column takes the whole width. */
 const sideEmpty = computed(() => !showScheduled.value && sideWidgets.length === 0 && !system.value)
 const day = (value: string) =>
-  new Intl.DateTimeFormat(locale.value === 'th' ? 'th-TH' : 'en-GB', { day: 'numeric' }).format(
-    new Date(value),
-  )
+  new Intl.DateTimeFormat(locale.value === 'th' ? 'th-TH' : 'en-GB', {
+    day: 'numeric',
+    timeZone: adminTimeZone.value,
+  }).format(new Date(value))
 const month = (value: string) =>
-  new Intl.DateTimeFormat(locale.value === 'th' ? 'th-TH' : 'en-GB', { month: 'short' }).format(
-    new Date(value),
-  )
+  new Intl.DateTimeFormat(locale.value === 'th' ? 'th-TH' : 'en-GB', {
+    month: 'short',
+    timeZone: adminTimeZone.value,
+  }).format(new Date(value))
 const time = (value: string) =>
-  new Intl.DateTimeFormat(locale.value === 'th' ? 'th-TH' : 'en-GB', { timeStyle: 'short' }).format(
-    new Date(value),
-  )
+  new Intl.DateTimeFormat(locale.value === 'th' ? 'th-TH' : 'en-GB', {
+    timeStyle: 'short',
+    timeZone: adminTimeZone.value,
+  }).format(new Date(value))
 const statusOf = (doc: Doc) => (doc.status === 'published' ? 'published' : 'draft')
 </script>
 
@@ -439,6 +444,7 @@ const statusOf = (doc: Doc) => (doc.status === 'published' ? 'published' : 'draf
           {{ t('dashboard.scheduled') }}
           <CalendarClock :size="16" class="faint" aria-hidden="true" />
         </h2>
+        <ZoneNote />
         <ul class="entries compact">
           <li v-for="job in scheduled ?? []" :key="String(job.id)" class="row">
             <span class="date-chip" aria-hidden="true">

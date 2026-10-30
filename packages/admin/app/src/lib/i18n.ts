@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import { settings } from './settings'
+import { adminTimeZone } from './time-zone'
 
 export type Locale = 'en' | 'th'
 
@@ -446,6 +447,7 @@ const en = {
   'filter.last7': 'Last 7 days',
   'filter.last30': 'Last 30 days',
   'filter.needValue': 'Enter a value, or remove this condition.',
+  'time.zone': 'Time zone: {zone}',
   'filter.op.contains': 'contains',
   'filter.op.equals': 'is',
   'filter.op.notEquals': 'is not',
@@ -1357,6 +1359,7 @@ const th: Record<MessageKey, string> = {
   'filter.last7': '7 วันล่าสุด',
   'filter.last30': '30 วันล่าสุด',
   'filter.needValue': 'ใส่ค่า หรือลบเงื่อนไขนี้',
+  'time.zone': 'เขตเวลา: {zone}',
   'filter.op.contains': 'มีคำว่า',
   'filter.op.equals': 'เท่ากับ',
   'filter.op.notEquals': 'ไม่เท่ากับ',
@@ -1877,6 +1880,7 @@ export function formatDate(value: unknown): string {
   return new Intl.DateTimeFormat(locale.value === 'th' ? 'th-TH' : 'en-GB', {
     dateStyle: 'medium',
     timeStyle: 'short',
+    timeZone: adminTimeZone.value,
   }).format(date)
 }
 

@@ -17,6 +17,7 @@ import {
 } from '../lib/list-filters'
 import { loadRelationTitles, relationTitle } from '../lib/relation-titles'
 import { findCollection } from '../lib/session'
+import ZoneNote from './ZoneNote.vue'
 
 /**
  * The list's "Filter" button and its panel: conditions on the collection's fields, one per row,
@@ -255,6 +256,7 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocumentClick))
               </label>
             </template>
           </div>
+          <ZoneNote v-if="kindAt(row.path) === 'date'" />
           <div v-if="kindAt(row.path) === 'date'" class="presets" role="group" :aria-label="t('filter.presets')">
             <button type="button" class="btn btn-ghost btn-sm" @click="preset(row, 0); incomplete.delete(row)">{{ t('filter.today') }}</button>
             <button type="button" class="btn btn-ghost btn-sm" @click="preset(row, 7); incomplete.delete(row)">{{ t('filter.last7') }}</button>

@@ -3,6 +3,7 @@ import { reactive } from 'vue'
 import type { Router } from 'vue-router'
 import { api } from './api'
 import { loadModules } from './plugins'
+import { adminTimeZone } from './time-zone'
 
 export interface User {
   id: number | string
@@ -68,6 +69,7 @@ export async function loadSession(): Promise<void> {
   session.passwordAllowed = me.password !== false
   if (session.user) {
     session.schema = await api<AdminSchema>('GET', '/admin/ui/schema')
+    adminTimeZone.value = session.schema.timeZone
     // Components from admin modules; views wait for the ones they show.
     void loadModules(session.schema.modules ?? [])
   } else {
