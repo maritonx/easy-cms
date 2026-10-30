@@ -1,5 +1,11 @@
 # @easy-cms/plugin-multi-tenant
 
+## 1.23.1
+
+### Patch Changes
+
+- @easy-cms/core@1.23.1
+
 ## 1.23.0
 
 ### Patch Changes

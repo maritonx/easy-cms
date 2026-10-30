@@ -1,5 +1,13 @@
 # @easy-cms/admin
 
+## 1.23.1
+
+### Patch Changes
+
+- f786615: The website moved to **easycms.dev**. The admin's help links (dashboard, jobs, backups, deliveries,
+  email, SSO) and the package READMEs point there. The old `easy-cms-website.vercel.app` links
+  redirect, so nothing breaks either way.
+
 ## 1.23.0
 
 ### Minor Changes
