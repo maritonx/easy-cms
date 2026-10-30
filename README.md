@@ -13,6 +13,7 @@ your repository, the admin and APIs come with it, and there is no extra server t
 [![Downloads](https://img.shields.io/npm/dm/@easy-cms/core?label=downloads&color=2f6f5e)](https://www.npmjs.com/package/@easy-cms/core)
 [![CI](https://github.com/maritonx/easy-cms/actions/workflows/ci.yml/badge.svg)](https://github.com/maritonx/easy-cms/actions/workflows/ci.yml)
 [![Coverage](https://codecov.io/gh/maritonx/easy-cms/graph/badge.svg)](https://codecov.io/gh/maritonx/easy-cms)
+[![Commit activity](https://img.shields.io/github/commit-activity/m/maritonx/easy-cms?color=555)](https://github.com/maritonx/easy-cms/commits/main)
 [![Docs](https://img.shields.io/badge/docs-EN%20%7C%20TH-2f6f5e)](https://easy-cms-website.vercel.app/docs)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522.12-555)](https://nodejs.org)
 [![License: MIT](https://img.shields.io/badge/license-MIT-555)](LICENSE)
