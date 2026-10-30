@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import BulkTasks from './components/BulkTasks.vue'
 import NavProgress from './components/NavProgress.vue'
 import ToastHost from './components/ToastHost.vue'
 </script>
@@ -7,4 +8,5 @@ import ToastHost from './components/ToastHost.vue'
   <NavProgress />
   <RouterView />
   <ToastHost />
+  <BulkTasks />
 </template>

@@ -207,6 +207,14 @@ admin: { sidebar: [{ tag: 'ecms-order-actions', position: 'top' }] }
   links stop there and **Next** keeps going (sort the other way to reach the oldest).
 - **Next** and **Previous** go by cursor, so they stay fast however deep the list goes. A page link
   or **Go to page** far into a large list is slower: the database steps over the rows before it.
+- Selected documents can be published, unpublished, moved to a folder (media) or deleted in one
+  go. Documents the user may not change are skipped, and the message says how many.
+- With the whole page selected, **Select all N matching** takes every document the filters match,
+  up to 10,000 (filter more past that; not in a tree, nor for users with roles). The work runs on
+  the server, 100 documents at a time, with its progress in the corner of every admin page and a
+  summary at the end (what was skipped and why). Closing the page doesn't stop it; **Cancel**
+  stops it after the current 100.
+- Deleting more than 100 documents asks for their number to be typed first.
 - `admin.empty` says what a collection is for before it has documents:
 
 ```ts
