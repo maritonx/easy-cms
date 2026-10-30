@@ -694,19 +694,26 @@ test.describe('logged in as admin', () => {
     await expect(page).toHaveURL(/calendar=month/)
     await expect(page.getByText(/^Time zone: /)).toBeVisible()
 
-    // A day of May 2030: a new post starting then, in a drawer.
+    // Pick 15 May 2030 (its number, by keyboard too): the side card shows that day, empty; a new
+    // post starting then, in a drawer.
     await page.goto('/admin/collections/posts?calendar=month&date=2030-05-01')
     await expect(page.getByRole('heading', { name: 'May 2030' })).toBeVisible()
-    await page.locator('.fc-daygrid-day[data-date="2030-05-15"] .fc-daygrid-day-frame').click()
+    await page.getByRole('button', { name: /^Wednesday,? 15 May 2030$/ }).focus()
+    await page.keyboard.press('Enter')
+    await expect(page).toHaveURL(/day=2030-05-15/)
+    const day = page.getByRole('region', { name: 'Wednesday 15 May' })
+    await expect(day.getByText('Nothing on this day.')).toBeVisible()
+    await day.getByRole('button', { name: 'New on this day' }).click()
     const drawer = page.getByRole('dialog', { name: 'Create Post' })
     await expect(drawer.getByLabel('Published at')).toHaveValue('2030-05-15T00:00')
     await drawer.getByRole('textbox', { name: 'Title', exact: true }).fill('Calendar post')
     await drawer.getByRole('button', { name: 'Save', exact: true }).click()
     await expect(drawer).toBeHidden()
 
-    // On its day, named in full for screen readers; a click opens it.
+    // On its day, named in full for screen readers, and in the day's card; a click opens it.
     const event = page.getByRole('link', { name: /^Calendar post, Wednesday,? 15 May 2030/ })
     await expect(event).toBeVisible()
+    await expect(day.getByRole('link', { name: /Calendar post/ })).toContainText('All day')
     await page.getByRole('button', { name: 'Week', exact: true }).click()
     await expect(page).toHaveURL(/calendar=week/)
     await page.getByRole('button', { name: 'Month', exact: true }).click()

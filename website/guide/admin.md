@@ -244,8 +244,10 @@ admin: {
   view and the day shown are in the address, so a link opens the same calendar.
 - The list's filters and search apply. A range with more than 500 documents shows the first 500
   and asks to filter more.
-- Click a document to open it. Click a day, or select time in the week or day view, to create one
-  starting then (with `drafts`, as a draft).
+- Click a document to open it. Click a day (or its number, from the keyboard) to see it in the card
+  beside the calendar: its documents by time, whole days first, with their status. **New on this
+  day** there creates one starting then, as does selecting time in the week or day view (with
+  `drafts`, as a draft). The day picked is in the address too (`&day=`).
 - A document starting at midnight with no end (or ending at midnight) fills whole days. Without
   `end`, the others take an hour.
 - `color` gives each value of a select or relationship field its own colour.
@@ -256,8 +258,8 @@ The calendar loads only when someone opens it.
 
 When a collection has `admin.calendar` or `schedule`, the menu gets **Calendar**, right after
 Content. It shows every such collection's documents, each in its own colour, and what is scheduled
-to publish or unpublish (outlined), across the site. Each person can hide some of them; the page
-remembers it in their browser. Clicking opens the document; to create one from a date, use the
+to publish or unpublish (outlined), across the site. The **Show** card beside it hides some of
+them (remembered in each person's browser); the day card lists the day picked, today at first. Clicking opens the document; to create one from a date, use the
 collection's own Calendar mode.
 
 Everyone signed in sees it, with only what they may read (scheduled publishes: what they may
