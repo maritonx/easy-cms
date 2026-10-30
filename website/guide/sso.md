@@ -74,6 +74,33 @@ Then only **admins** can still use a password, as a way in when the provider is 
 page folds the password form away for them. Invitations tell people to sign in with the provider
 instead of setting a password, and "forgot password" works only for admins.
 
+### Single sign-on for everyone
+
+Organisations that require MFA at their identity provider want no account to get around it with a
+password, admins included. List the accounts that may still use one instead, kept for when the
+provider is down:
+
+```ts
+auth: {
+  providers: [microsoft()],
+  password: { breakGlass: ['emergency@example.com'] },
+},
+```
+
+- **Everyone else signs in with the provider**, admins too. Their passwords are refused at sign-in
+  and by the API, they can't set one (the admin hides the field), and invitations and "forgot
+  password" work as with `false`.
+- **The change takes effect at start.** When `auth.password` differs from the last start, the
+  sessions of accounts that may no longer use a password end, and the
+  [audit log](./audit-log) records the change (`auth.password.policy`). People sign in once more
+  with the provider.
+- **Each break-glass sign-in is recorded** as `login.breakGlass`, and the dashboard shows it for a
+  day ([health checks](./health-checks#break-glass-sign-ins)).
+- **Keep one that works.** Create the account with `easy-cms admin:create`, keep its password in
+  your vault, and test it now and then. The server log warns when none of the listed accounts exists
+  with a password.
+- **Not affected:** API keys, which never used a password.
+
 ## Linking accounts
 
 On their **Account** page, people see the outside accounts they sign in with, can link another

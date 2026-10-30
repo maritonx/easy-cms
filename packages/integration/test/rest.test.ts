@@ -101,6 +101,7 @@ describe('first admin', () => {
       passwordReset: false,
       providers: [],
       password: true,
+      passwordFor: 'everyone',
       setupCode: false,
     })
     const first = await call('/auth/first-register', {
@@ -115,6 +116,7 @@ describe('first admin', () => {
       passwordReset: false,
       providers: [],
       password: true,
+      passwordFor: 'everyone',
       setupCode: false,
     })
 

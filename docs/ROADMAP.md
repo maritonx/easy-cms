@@ -127,7 +127,7 @@
 
 | # | Issue | Labels | เสร็จเมื่อ |
 |---|---|---|---|
-| [#163](https://github.com/maritonx/easy-cms/issues/163) | Require single sign-on for everyone (turn off password login) | area:security | ตัวเลือกปิด login ด้วยรหัสผ่านทุกคน ยกเว้นบัญชีฉุกเฉินที่ระบุ |
+| [#163](https://github.com/maritonx/easy-cms/issues/163) | Require single sign-on for everyone (turn off password login) | area:security | ตัวเลือกปิด login ด้วยรหัสผ่านทุกคน ยกเว้นบัญชีฉุกเฉินที่ระบุ ([ADR-0063](adr/0063-break-glass-passwords.md)) |
 | [#164](https://github.com/maritonx/easy-cms/issues/164) | Map identity-provider groups to roles | area:security | claim กลุ่มจาก OIDC แมปเป็นบทบาท อัปเดตทุกครั้งที่ login, ทดสอบกับ Entra ID |
 | [#165](https://github.com/maritonx/easy-cms/issues/165) | TOTP two-factor sign-in for password accounts | area:security | ตั้งและบังคับ TOTP ได้, มีรหัสกู้คืน, admin รีเซ็ตให้คนอื่นได้ และบันทึกใน audit log |
 | [#166](https://github.com/maritonx/easy-cms/issues/166) | Sign webhook timestamps to stop replays | area:core, area:security | ลายเซ็นครอบ timestamp, เอกสารบอกวิธีตรวจและช่วงเวลาที่ยอมรับ ([ADR-0060](adr/0060-webhook-signature-v2.md)) |

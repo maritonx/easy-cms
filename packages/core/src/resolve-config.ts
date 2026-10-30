@@ -125,7 +125,10 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
       rbac: config.auth?.rbac === true,
       providers: config.auth?.providers ?? [],
       providerSignUp: config.auth?.providerSignUp ?? { domains: [] },
-      password: config.auth?.password !== false,
+      password:
+        typeof config.auth?.password === 'object'
+          ? { breakGlass: config.auth.password.breakGlass.map((email) => email.toLowerCase()) }
+          : config.auth?.password !== false,
       setupCode: config.auth?.setupCode ?? process.env.EASY_CMS_SETUP_CODE ?? '',
       tokenExpiration: config.auth?.tokenExpiration ?? DEFAULT_TOKEN_EXPIRATION,
       maxLoginAttempts: config.auth?.maxLoginAttempts ?? 5,

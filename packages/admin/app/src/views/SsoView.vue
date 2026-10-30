@@ -99,7 +99,7 @@ const docs = computed(
         <h2 id="who-heading">{{ t('sso.who') }}</h2>
         <dl>
           <dt>{{ t('sso.passwords') }}</dt>
-          <dd>{{ sso.password === 'everyone' ? t('sso.passwordEveryone') : t('sso.passwordAdminsOnly') }}</dd>
+          <dd>{{ sso.password === 'everyone' ? t('sso.passwordEveryone') : sso.password === 'breakGlass' ? t('sso.passwordBreakGlassOnly', { emails: (sso.breakGlass ?? []).join(', ') }) : t('sso.passwordAdminsOnly') }}</dd>
           <dt>{{ t('sso.newPeople') }}</dt>
           <dd>
             <template v-if="sso.signUp">

@@ -595,10 +595,13 @@ export interface AuthConfig {
    */
   readonly providerSignUp?: { readonly domains: readonly string[]; readonly role?: string }
   /**
-   * `false`: only admins may sign in with a password (a way in when the provider is down);
-   * everyone else signs in with `providers`. Default `true`.
+   * Who may sign in with a password; everyone else signs in with `providers`. Default `true`:
+   * everyone. `false`: only admins (a way in when the provider is down). `{ breakGlass: [emails] }`:
+   * only those accounts, for organisations that require single sign-on (and its MFA) for every
+   * other account, admins included. A change ends the sessions of accounts that may no longer use a
+   * password, and is recorded in the audit log, as is each sign-in of a break-glass account.
    */
-  readonly password?: boolean
+  readonly password?: boolean | PasswordPolicy
   /**
    * A code the first admin must enter to create their account, so nobody else can claim a
    * freshly deployed site. Default: the `EASY_CMS_SETUP_CODE` environment variable; without it,
@@ -616,6 +619,12 @@ export interface AuthConfig {
     readonly invite?: PasswordEmailFn
     readonly passwordChanged?: PasswordEmailFn
   }
+}
+
+/** `auth.password` with break-glass accounts: the only ones that sign in with a password. */
+export interface PasswordPolicy {
+  /** Emails of the accounts that may still use a password, e.g. one kept for when the provider is down. */
+  readonly breakGlass: readonly string[]
 }
 
 export interface RateLimitConfig {

@@ -31,6 +31,7 @@ import {
   findCollection,
   isSystemAdmin,
   loadSession,
+  mayHavePassword,
   session,
   setFlash,
   takeFlash,
@@ -45,6 +46,8 @@ const slug = String(route.params.slug)
 const id = route.params.id === undefined ? undefined : String(route.params.id)
 const collection = findCollection(slug)
 const isUsers = slug === 'users'
+/** A password field: users, unless their account signs in with single sign-on only. */
+const passwordField = computed(() => isUsers && canSave.value && mayHavePassword(form.value.email))
 const isMedia = slug === 'media'
 const published = computed(() => doc.value?.status === 'published')
 // With versions and drafts, a draft of a published document is saved separately and the
@@ -366,8 +369,9 @@ async function save(status?: 'draft' | 'published') {
   errors.value = {}
   message.value = null
   const wasPublished = published.value
-  // Without email, a new user needs a password: there is no invitation to set one.
-  if (isUsers && !id && !password.value && !canSendLink.value) {
+  // Without email, a new user needs a password: there is no invitation to set one. Accounts that
+  // sign in with single sign-on only (break-glass accounts aside) have none.
+  if (isUsers && !id && !password.value && !canSendLink.value && passwordField.value) {
     errors.value = { password: [t('users.passwordRequired')] }
     saving.value = false
     return
@@ -617,7 +621,7 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
           :storage-key="slug"
         />
         <FieldList v-else v-model="form" :fields="mainFields" :errors="errors" :read-only="readOnly" />
-        <label v-if="isUsers && canSave" class="field">
+        <label v-if="passwordField" class="field">
           <span class="field-label">
             {{ id ? t('edit.newPassword') : t('edit.password') }}<span v-if="!id && !canSendLink" class="field-required" aria-hidden="true">*</span>
           </span>

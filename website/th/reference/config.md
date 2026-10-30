@@ -160,7 +160,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `rbac` | `boolean` | `false` | กำหนด role และสิทธิ์จากหน้า admin (Settings → Roles) ซ้อนบนกฎ access [บทบาทและสิทธิ์](/th/guide/roles) |
 | `providers` | `AuthProvider[]` | `[]` | เข้าสู่ระบบหน้า admin ด้วยบัญชีภายนอก เช่น `[google()]` จาก `@easy-cms/auth-oauth` [Single sign-on](/th/guide/sso) |
 | `providerSignUp` | `{ domains, role? }` | — | เมื่อมี `providers`: คนจากโดเมนอีเมลเหล่านี้ได้บัญชีตอนเข้าสู่ระบบครั้งแรก เป็น `role` (ห้ามเป็น `admin`) |
-| `password` | `boolean` | `true` | `false`: เฉพาะ admin ที่ใช้รหัสผ่านได้ คนอื่นใช้ `providers` |
+| `password` | `boolean \| { breakGlass }` | `true` | `false`: เฉพาะ admin ที่ใช้รหัสผ่านได้ `{ breakGlass: [emails] }`: เฉพาะบัญชีเหล่านั้น ([single sign-on สำหรับทุกคน](/th/guide/sso#single-sign-on-for-everyone)) คนอื่นใช้ `providers` |
 | `setupCode` | `string` | `EASY_CMS_SETUP_CODE` | รหัสที่ admin คนแรกต้องกรอกที่ `/admin` กันคนอื่นแย่งเว็บที่เพิ่ง deploy ถ้าไม่ตั้งจะไม่ถาม และบน production server จะเตือนตราบใดที่ยังไม่มี admin [Deploy ด้วยคลิกเดียว](/th/guide/one-click-deploy) |
 | `tokenExpiration` | `number` | `604800` (7 วัน) | อายุของ session เป็นวินาที |
 | `maxLoginAttempts` | `number` | `5` | จำนวนครั้งที่ login ผิดได้ต่อ email (และ IP) ภายใน `lockWindow` |

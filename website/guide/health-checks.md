@@ -91,6 +91,12 @@ than `audit.failedLogins` (default 20). Someone may be guessing passwords. Open 
 filtered by sign-ins to see which emails and IP addresses; deactivate accounts under attack, or
 block the addresses at your host. Each email and IP is also locked after `auth.maxLoginAttempts`.
 
+## Break-glass sign-ins
+
+**Shown when** a break-glass account (`auth.password: { breakGlass }`) signed in with a password in
+the last day. It bypasses single sign-on and its MFA. Check with whoever used it that it was meant
+to (the [audit log](./audit-log) shows when and from where), then change its password.
+
 ## Audit log
 
 **Shown when** audit log entries could not be written (the change went through; see the server log

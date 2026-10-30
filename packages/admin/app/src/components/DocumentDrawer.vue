@@ -8,7 +8,7 @@ import { initialValues, snapshot, titleOf, toFormValues } from '../lib/fields'
 import { label, singularize, t } from '../lib/i18n'
 import { useDelayedLoading } from '../lib/loading'
 import { FORM, setPath } from '../lib/plugins'
-import { findCollection, session } from '../lib/session'
+import { findCollection, mayHavePassword, session } from '../lib/session'
 import { notify } from '../lib/toast'
 import { missingLocales } from '../lib/translation'
 import DeleteDialog from './DeleteDialog.vue'
@@ -237,7 +237,7 @@ onMounted(() => {
           <p v-if="!canSave" class="notice notice-warning">{{ t('edit.readOnly') }}</p>
           <FieldList v-model="form" :fields="collection.fields" :errors="errors" :read-only="!canSave" />
           <PluginElement v-for="(panel, i) in collection.sidebar ?? []" :key="`${i}-${panel.tag}`" :component="panel" :read-only="!canSave" />
-          <label v-if="isUsers && canSave" class="field">
+          <label v-if="isUsers && canSave && mayHavePassword(form.email)" class="field">
             <span class="field-label">
               {{ id ? t('edit.newPassword') : t('edit.password') }}<span v-if="!id" class="field-required" aria-hidden="true">*</span>
             </span>

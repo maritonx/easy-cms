@@ -64,7 +64,7 @@ async function submit() {
       <ProviderButtons />
       <p v-if="showPassword" class="or"><span>{{ t('sso.or') }}</span></p>
       <button v-else type="button" class="btn btn-ghost btn-sm admins" @click="showPassword = true">
-        {{ t('sso.passwordAdmins') }}
+        {{ t(session.passwordFor === 'breakGlass' ? 'sso.passwordBreakGlass' : 'sso.passwordAdmins') }}
       </button>
     </template>
     <form v-if="showPassword" class="form" @submit.prevent="submit">

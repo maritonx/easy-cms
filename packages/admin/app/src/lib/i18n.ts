@@ -809,6 +809,12 @@ const en = {
   'audit.action.audit.resign': 'Log signed with the new secret',
   'status.failedLogins': '{count} failed sign-ins in the last hour',
   'status.failedLoginsDetail': 'Someone may be guessing passwords. See who in the audit log.',
+  'status.breakGlass':
+    'A break-glass account signed in with a password ({count}× in the last day: {emails})',
+  'status.breakGlassDetail':
+    'It bypasses single sign-on and its MFA. Check it was meant to, and change its password afterwards.',
+  'audit.action.login.breakGlass': 'Signed in with a break-glass account',
+  'audit.action.auth.password.policy': 'Password sign-in policy changed',
   'status.auditFailures': '{count} audit log entries could not be written',
   'status.auditFailuresDetail': 'Changes were saved, but not all were logged. See the server log.',
   'status.auditTampered': '{count} audit log entries were changed',
@@ -819,6 +825,7 @@ const en = {
   'sso.or': 'or with a password',
   'sso.orProvider': 'or instead',
   'sso.passwordAdmins': 'Admins: sign in with a password',
+  'sso.passwordBreakGlass': 'Emergency access: sign in with a password',
   'sso.useProvider': 'Your account signs in with single sign-on: use the button above.',
   'sso.error.no-account': 'There is no account for that email here. Ask an admin to add you.',
   'sso.error.link-first':
@@ -865,6 +872,7 @@ const en = {
   'sso.passwords': 'Passwords',
   'sso.passwordEveryone': 'Everyone can also sign in with a password',
   'sso.passwordAdminsOnly': 'Only admins (a way in if the provider is down)',
+  'sso.passwordBreakGlassOnly': 'Only the break-glass accounts: {emails}',
   'sso.newPeople': 'New people',
   'sso.signUpDomains': 'From {domains}: an account is made on first sign-in, as {role}',
   'sso.signUpNone':
@@ -1665,6 +1673,10 @@ const th: Record<MessageKey, string> = {
   'audit.action.audit.resign': 'เซ็น log ด้วย secret ใหม่',
   'status.failedLogins': 'เข้าสู่ระบบไม่สำเร็จ {count} ครั้งในชั่วโมงที่ผ่านมา',
   'status.failedLoginsDetail': 'อาจมีคนพยายามเดารหัสผ่าน ดูว่าใครใน audit log',
+  'status.breakGlass': 'มีการเข้าสู่ระบบด้วยบัญชีฉุกเฉิน ({count} ครั้งใน 24 ชั่วโมง: {emails})',
+  'status.breakGlassDetail': 'บัญชีนี้ข้าม single sign-on และ MFA ตรวจว่าตั้งใจใช้จริง และเปลี่ยนรหัสผ่านหลังใช้',
+  'audit.action.login.breakGlass': 'เข้าสู่ระบบด้วยบัญชีฉุกเฉิน',
+  'audit.action.auth.password.policy': 'นโยบายการเข้าสู่ระบบด้วยรหัสผ่านเปลี่ยน',
   'status.auditFailures': 'บันทึก audit log ไม่สำเร็จ {count} รายการ',
   'status.auditFailuresDetail': 'การแก้ไขถูกบันทึกแล้ว แต่ log ไม่ครบ ดูที่ log ของ server',
   'status.auditTampered': 'audit log ถูกแก้ {count} รายการ',
@@ -1675,6 +1687,7 @@ const th: Record<MessageKey, string> = {
   'sso.or': 'หรือใช้รหัสผ่าน',
   'sso.orProvider': 'หรือแทนการตั้งรหัสผ่าน',
   'sso.passwordAdmins': 'ผู้ดูแลระบบ: เข้าสู่ระบบด้วยรหัสผ่าน',
+  'sso.passwordBreakGlass': 'บัญชีฉุกเฉิน: เข้าสู่ระบบด้วยรหัสผ่าน',
   'sso.useProvider': 'บัญชีของคุณเข้าสู่ระบบด้วย single sign-on ให้ใช้ปุ่มด้านบน',
   'sso.error.no-account': 'ยังไม่มีบัญชีสำหรับอีเมลนี้ ติดต่อผู้ดูแลระบบให้เพิ่มคุณ',
   'sso.error.link-first': 'คุณมีบัญชีอยู่แล้ว เข้าสู่ระบบด้วยรหัสผ่าน แล้วเชื่อมผู้ให้บริการนี้ที่หน้าบัญชีของคุณ',
@@ -1718,6 +1731,7 @@ const th: Record<MessageKey, string> = {
   'sso.passwords': 'รหัสผ่าน',
   'sso.passwordEveryone': 'ทุกคนใช้รหัสผ่านได้ด้วย',
   'sso.passwordAdminsOnly': 'เฉพาะผู้ดูแลระบบ (ทางเข้าสำรองเมื่อผู้ให้บริการล่ม)',
+  'sso.passwordBreakGlassOnly': 'เฉพาะบัญชีฉุกเฉิน: {emails}',
   'sso.newPeople': 'คนใหม่',
   'sso.signUpDomains': 'จาก {domains}: สร้างบัญชีให้ตอนเข้าสู่ระบบครั้งแรก เป็น {role}',
   'sso.signUpNone':

@@ -1,6 +1,7 @@
 import { createHmac, randomBytes } from 'node:crypto'
 import { type AuthUser, type ID, isSystemAdmin } from '../access.js'
 import { USER_IDENTITIES, USERS } from '../builtins.js'
+import type { PasswordPolicy } from '../config.js'
 import type { RawDocument } from '../database.js'
 import { ForbiddenError, NotFoundError, QueryError, ValidationError } from '../errors.js'
 import type { EasyCMS } from '../local-api.js'
@@ -27,8 +28,10 @@ export interface AdminSso {
     callbackURL: string | null
     details: Record<string, string>
   })[]
-  /** Who may sign in with a password: everyone, or only admins. */
-  password: 'everyone' | 'admins'
+  /** Who may sign in with a password: everyone, only admins, or only break-glass accounts. */
+  password: 'everyone' | 'admins' | 'breakGlass'
+  /** The accounts that may still use a password (`auth.password: { breakGlass }`). */
+  breakGlass?: string[]
   /** Email domains whose people get an account when they first sign in. */
   signUp: { domains: string[]; role: string } | null
   /** Without `serverURL`, sign-in only works in development. */
@@ -98,6 +101,13 @@ function unseal(secrets: Secrets, value: string | undefined): Pending | null {
   }
 }
 
+/** Who signs in with a password, for the admin: `everyone`, `admins` or `breakGlass` accounts. */
+export function passwordFor(
+  policy: boolean | PasswordPolicy,
+): 'everyone' | 'admins' | 'breakGlass' {
+  return policy === true ? 'everyone' : policy === false ? 'admins' : 'breakGlass'
+}
+
 /** Single sign-on with `auth.providers`. Available as `cms.auth.sso`. */
 export class SingleSignOn {
   constructor(private readonly cms: EasyCMS) {}
@@ -118,9 +128,20 @@ export class SingleSignOn {
     }))
   }
 
-  /** Whether a user may sign in with a password (`auth.password: false` leaves only admins). */
+  /**
+   * Whether a user may sign in with a password: everyone, only admins (`auth.password: false`), or
+   * only break-glass accounts (`{ breakGlass }`).
+   */
   passwordAllowed(user: { readonly [key: string]: unknown }): boolean {
-    return this.config.auth.password || user.role === 'admin'
+    const policy = this.config.auth.password
+    if (policy === true) return true
+    if (policy === false) return user.role === 'admin'
+    return typeof user.email === 'string' && policy.breakGlass.includes(user.email.toLowerCase())
+  }
+
+  /** Whether a user signs in with a password only as a break-glass account. */
+  isBreakGlass(user: { readonly [key: string]: unknown }): boolean {
+    return typeof this.config.auth.password === 'object' && this.passwordAllowed(user)
   }
 
   /** `<serverURL><api>/auth/<id>/callback`, or `null` without `serverURL` in production. */
@@ -336,7 +357,10 @@ export class SingleSignOn {
         callbackURL: this.callbackURL(p.id, origin),
         details: { ...(p.describe?.() ?? {}) },
       })),
-      password: this.config.auth.password ? 'everyone' : 'admins',
+      password: passwordFor(this.config.auth.password),
+      ...(typeof this.config.auth.password === 'object'
+        ? { breakGlass: [...this.config.auth.password.breakGlass] }
+        : {}),
       signUp:
         providerSignUp.domains.length > 0
           ? {

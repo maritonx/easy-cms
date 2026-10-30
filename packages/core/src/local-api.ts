@@ -322,6 +322,13 @@ export async function createEasyCMS<const C extends Config>(
     resolved.jobs.length > 0 ||
     resolved.outbox === true
   if (scheduling && options.scheduler !== false) cms.startScheduler()
+  // A new `auth.password` takes effect now: recorded, and sessions that may no longer exist end.
+  if (options.schema !== 'skip')
+    await cms.auth
+      .applyPasswordPolicy()
+      .catch((error) =>
+        logger.error(`Password sign-in policy: ${(error as Error).message}`, { error }),
+      )
   // Until the first admin exists, whoever opens the admin first becomes it.
   if (
     process.env.NODE_ENV === 'production' &&
@@ -1609,7 +1616,10 @@ export class EasyCMS<C extends Config = Config> {
     }
 
     if (config.slug === USERS) await this.guardLastAdmin(parsed, existing, prepared)
-    if (password !== undefined) prepared.passwordHash = await hashPassword(password)
+    if (password !== undefined) {
+      await this.guardPassword({ ...existing, ...prepared })
+      prepared.passwordHash = await hashPassword(password)
+    }
     if (collection === MEDIA_FOLDERS) {
       await this.validateFolder(prepared, parsed)
       if (
@@ -3262,7 +3272,10 @@ export class EasyCMS<C extends Config = Config> {
       { ...base, operation: 'create' },
       prepared,
     )
-    if (password !== undefined) prepared.passwordHash = await hashPassword(password)
+    if (password !== undefined) {
+      await this.guardPassword(prepared)
+      prepared.passwordHash = await hashPassword(password)
+    }
     if (collection === MEDIA_FOLDERS) await this.validateFolder(prepared, undefined)
 
     const now = new Date().toISOString()
@@ -3743,6 +3756,21 @@ export class EasyCMS<C extends Config = Config> {
   }
 
   /** Refuses changes that would leave no active admin (and lock everyone out). */
+  /**
+   * With break-glass accounts (`auth.password: { breakGlass }`), other accounts get no password:
+   * they couldn't use it. The first account, made before anyone can sign in with a provider, may.
+   */
+  private async guardPassword(user: Data) {
+    if (typeof this.config.auth.password !== 'object' || this.auth.sso.passwordAllowed(user)) return
+    if (!(await this.auth.hasUsers())) return
+    throw new ValidationError(USERS, [
+      {
+        field: 'password',
+        message: 'passwords are off: this account signs in with single sign-on',
+      },
+    ])
+  }
+
   private async guardLastAdmin(id: ID, before: Data, after: Data) {
     const wasAdmin = before.role === 'admin' && before.active !== false
     const staysAdmin = after.role === 'admin' && after.active !== false

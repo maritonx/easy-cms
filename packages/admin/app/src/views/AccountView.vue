@@ -57,7 +57,7 @@ async function save() {
       <input v-model="name" class="input" autocomplete="name" :aria-invalid="!!errors.name" />
       <span v-for="m in errors.name" :key="m" class="field-error">{{ m }}</span>
     </label>
-    <label class="field">
+    <label v-if="session.passwordAllowed" class="field">
       <span class="field-label">{{ t('account.changePassword') }}</span>
       <input
         v-model="password"

@@ -41,6 +41,8 @@ export const AUDIT_ACTIONS = [
   'jobs.schedule',
   'audit.verify',
   'audit.resign',
+  'login.breakGlass',
+  'auth.password.policy',
 ] as const
 
 export function actionLabel(action: string): string {
