@@ -200,6 +200,13 @@ admin: { sidebar: [{ tag: 'ecms-order-actions', position: 'top' }] }
 ## Lists
 
 - Going back from a document returns to the list as it was: search, filters, page and scroll.
+- **Rows per page** (20, 50 or 100) is remembered in the browser. The page links show the first
+  page, the ones around the current page and the last, and **Go to page** takes a number; the
+  page is in the address (`?page=`).
+- The rows show first and the total after them. Past 10,000 matches it reads **10,000+**: the page
+  links stop there and **Next** keeps going (sort the other way to reach the oldest).
+- **Next** and **Previous** go by cursor, so they stay fast however deep the list goes. A page link
+  or **Go to page** far into a large list is slower: the database steps over the rows before it.
 - `admin.empty` says what a collection is for before it has documents:
 
 ```ts

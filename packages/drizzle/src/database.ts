@@ -256,12 +256,25 @@ class DrizzleDatabase implements Database {
     return total
   }
 
-  async count(args: { collection: string; where?: Where | undefined }): Promise<number> {
+  async count(args: {
+    collection: string
+    where?: Where | undefined
+    max?: number | undefined
+  }): Promise<number> {
     const model = this.model(args.collection)
-    const [row] = await this.db
-      .select({ total: count() })
-      .from(model.root.table)
-      .where(this.where(args.collection, args.where))
+    const where = this.where(args.collection, args.where)
+    if (args.max !== undefined) {
+      // Counts the rows of a subquery that stops after max + 1 of them.
+      const matches = this.db
+        .select({ id: model.root.table.id as AnyColumn })
+        .from(model.root.table)
+        .where(where)
+        .limit(args.max + 1)
+        .as('matches')
+      const [row] = await this.db.select({ total: count() }).from(matches)
+      return Number(row?.total ?? 0)
+    }
+    const [row] = await this.db.select({ total: count() }).from(model.root.table).where(where)
     return Number(row?.total ?? 0)
   }
 

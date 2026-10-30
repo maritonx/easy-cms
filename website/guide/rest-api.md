@@ -41,7 +41,7 @@ Globals have the same version routes under `/globals/:slug/…` (`versions`, `ve
 `versions/:version/restore`, `unpublish`, `discard-draft`, `preview`, `schedule`). Version and preview routes need update access.
 
 What the admin UI alone uses lives under `/admin/ui/…` (`schema`, `counts`, `search`, `modules`,
-`scheduled`, `access`, `media-usage`, `owned`, `sso`). Those routes are internal, not part of the
+`scheduled`, `access`, `total`, `media-usage`, `owned`, `sso`). Those routes are internal, not part of the
 public API, and may change in any release; build on the routes above instead.
 
 `where` uses brackets or JSON:

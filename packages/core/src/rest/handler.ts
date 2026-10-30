@@ -45,6 +45,8 @@ import { parseDepth, parseListQuery } from './query.js'
 
 /** At most this many scheduled publishes in a calendar's range (#272). */
 const SCHEDULED_RANGE_LIMIT = 500
+/** How far the admin's list totals count: past this they read "10,000+" (#279). */
+export const LIST_TOTAL_MAX = 10_000
 
 export { SESSION_COOKIE }
 export const CSRF_COOKIE = 'ecms-csrf'
@@ -341,6 +343,7 @@ const ADMIN_UI_ROUTES = new Set([
   'modules',
   'scheduled',
   'access',
+  'total',
   'media-usage',
   'owned',
   'sso',
@@ -1017,6 +1020,26 @@ async function route(
           ...(docs !== undefined ? { docs } : {}),
           ...(ranged ? { limit: SCHEDULED_RANGE_LIMIT } : {}),
         }),
+      }
+    }
+    // /admin/ui/total/:collection?where…&draft= → a list's total, counted up to LIST_TOTAL_MAX,
+    // loaded after its rows (#279)
+    if (second === 'total' && third !== undefined && segments.length === 3) {
+      if (
+        INTERNAL_COLLECTIONS.has(third) ||
+        !cms.config.collections.some((c) => c.slug === third)
+      ) {
+        throw new HttpError(`Unknown collection "${third}"`, 404)
+      }
+      const { where } = parseListQuery(ctx.url)
+      const total = await cms.count(third, {
+        ...access,
+        ...(where ? { where } : {}),
+        draft,
+        max: LIST_TOTAL_MAX,
+      })
+      return {
+        body: { total: Math.min(total, LIST_TOTAL_MAX), more: total > LIST_TOTAL_MAX },
       }
     }
     // /admin/ui/access/:collection/:id → what the user may do with that document

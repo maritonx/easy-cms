@@ -106,3 +106,35 @@ describe('pagination without counting (#231)', () => {
     await cms.destroy()
   })
 })
+
+describe('totals with a ceiling (#279)', () => {
+  it('stops counting after max + 1', async () => {
+    const cms = await seeded(5)
+    expect(await cms.count('notes', { max: 3 })).toBe(4)
+    expect(await cms.count('notes', { max: 5 })).toBe(5)
+    expect(await cms.count('notes', { max: 100 })).toBe(5)
+    expect(await cms.count('notes', { max: 0 })).toBe(1)
+    expect(await cms.count('notes', { max: 1, where: { n: { gte: 4 } } })).toBe(1)
+    await expect(cms.count('notes', { max: -1 })).rejects.toThrow(/max/)
+    await expect(cms.count('notes', { max: 1.5 })).rejects.toThrow(/max/)
+    await cms.destroy()
+  })
+
+  it("answers the admin's list total, up to 10,000, for signed-in users only", async () => {
+    const cms = await seeded(3)
+    await cms.create('users', { email: 'admin@x.co', password: 'password123', role: 'admin' })
+    const { token } = await cms.auth.login({ email: 'admin@x.co', password: 'password123' })
+    const handle = createRestHandler(cms)
+    const get = (q: string, auth = true) =>
+      handle(
+        new Request(`http://cms.test/api/cms/admin/ui/total/${q}`, {
+          headers: auth ? { authorization: `Bearer ${token}` } : {},
+        }),
+      )
+    expect(await (await get('notes')).json()).toEqual({ total: 3, more: false })
+    expect(await (await get('notes?where[n][gte]=1')).json()).toEqual({ total: 2, more: false })
+    expect((await get('notes', false)).status).toBe(401)
+    expect((await get('nope')).status).toBe(404)
+    await cms.destroy()
+  })
+})
