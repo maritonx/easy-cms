@@ -1,5 +1,24 @@
 # @easy-cms/admin
 
+## 1.25.0
+
+### Minor Changes
+
+- 71eeb54: Bulk actions in the admin run on the server (#280). Publishing, unpublishing, moving or deleting the
+  selected documents is one request instead of one per document, and goes on past documents the
+  user may not change (the message says how many were skipped). With the whole page selected,
+  **Select all N matching** takes every document the list's filters match, up to 10,000: the work
+  runs in the background with its progress in the corner of every admin page, **Cancel**, and a
+  summary of what was skipped and why. Deleting more than 100 documents asks for their number to be
+  typed first. A list's total is counted again after a change.
+- e1c0a5d: The admin menu is now two columns. The first is a rail with an icon and name for each group of the
+  menu: **Home** (the dashboard, items in no group such as Calendar and Media, and pinned items)
+  first, **Settings** at the foot. The second is a panel with the items of the group picked in the
+  rail. Clicking an icon shows its group without leaving the page, and the panel follows the page you
+  open. Groups inside a group are headings. A group with more than 8 items gets a filter. **[** or the
+  panel's button folds the panel away, and clicking an icon brings it back. Search, theme, interface
+  language, account and logging out are at the foot of the rail, behind the avatar.
+
 ## 1.24.0
 
 ### Minor Changes

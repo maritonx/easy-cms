@@ -1,5 +1,12 @@
 # @easy-cms/plugin-mcp
 
+## 1.25.0
+
+### Patch Changes
+
+- Updated dependencies [72b1b40]
+  - @easy-cms/core@1.25.0
+
 ## 1.24.0
 
 ### Patch Changes
