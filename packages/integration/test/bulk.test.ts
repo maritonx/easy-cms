@@ -1,6 +1,6 @@
 import { createRestHandler, defineConfig, type RestHandler } from '@easy-cms/core'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { db, open, SECRET } from './helpers.js'
+import { db, open, rawQuery, SECRET, table } from './helpers.js'
 
 const config = defineConfig({
   secret: SECRET,
@@ -149,21 +149,17 @@ describe('bulk actions on every match, in the background (#280)', () => {
   })
 
   it('refuses more than 10,000 matches', async () => {
-    for (let n = 0; n < 10_001; n++)
-      await cms.db.create({
-        collection: 'posts',
-        data: {
-          n,
-          locked: false,
-          status: 'draft',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-      })
+    // Inserted in one statement: one by one is minutes on a slow runner.
+    const now = new Date().toISOString()
+    const rows = Array.from({ length: 10_001 }, (_, n) => `(${n}, 'draft', '${now}', '${now}')`)
+    await rawQuery(
+      cms.cwd,
+      `INSERT INTO ${table(cms.cwd, 'posts')} (n, status, created_at, updated_at) VALUES ${rows.join(',')}`,
+    )
     const response = await call('/posts/bulk', 'admin', 'POST', { action: 'publish' })
     expect(response.status).toBe(400)
     expect(await response.text()).toMatch(/More than 10,000 documents match/)
-  }, 120_000)
+  })
 
   it('stops after the step running when cancelled', async () => {
     await seed(300)
