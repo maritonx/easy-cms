@@ -1,4 +1,5 @@
 import type { AdminCollection, AdminField } from '@easy-cms/core'
+import { adminTimeZone, fromZoned, toZoned } from './time-zone'
 
 type Data = Record<string, unknown>
 
@@ -55,20 +56,16 @@ export function toFormValues(fields: readonly AdminField[], doc: Data): Data {
   return data
 }
 
-/** ISO string → value for <input type="datetime-local"> in local time. */
+/** ISO string → value for <input type="datetime-local">, in the admin's time zone. */
 export function toLocalInput(iso: unknown): string {
   if (typeof iso !== 'string' || iso === '') return ''
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return ''
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
-  return local.toISOString().slice(0, 16)
+  return toZoned(iso, adminTimeZone.value)
 }
 
-/** <input type="datetime-local"> value → ISO string (or null when empty). */
+/** <input type="datetime-local"> value, read in the admin's time zone → ISO string (or null when empty). */
 export function fromLocalInput(value: string): string | null {
   if (!value) return null
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? null : date.toISOString()
+  return fromZoned(value, adminTimeZone.value)
 }
 
 /** The text shown for a document in lists and pickers. */

@@ -2,10 +2,12 @@
 import type { AdminField } from '@easy-cms/core'
 import { computed, defineAsyncComponent, ref } from 'vue'
 import PluginElement from '../components/PluginElement.vue'
+import ZoneNote from '../components/ZoneNote.vue'
 import { contentLocale } from '../lib/content-locale'
 import { fromLocalInput, toLocalInput } from '../lib/fields'
 import { label, t } from '../lib/i18n'
 import { findCollection } from '../lib/session'
+import { zoneDiffers } from '../lib/time-zone'
 import ApiKeyPermissions from './ApiKeyPermissions.vue'
 import ArrayField from './ArrayField.vue'
 import BlocksField from './BlocksField.vue'
@@ -217,9 +219,10 @@ function onNumber(value: string) {
       :disabled="readOnly"
       :aria-required="field.required ? 'true' : undefined"
       :aria-invalid="invalid"
-      :aria-describedby="invalid ? errorId : undefined"
+      :aria-describedby="[invalid ? errorId : '', zoneDiffers ? `${id}-zone` : ''].join(' ').trim() || undefined"
       @input="set(fromLocalInput(($event.target as HTMLInputElement).value))"
     />
+    <ZoneNote v-if="field.type === 'date'" :id="`${id}-zone`" />
     <select
       v-else-if="field.type === 'select'"
       :id="id"

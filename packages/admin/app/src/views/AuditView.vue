@@ -12,6 +12,7 @@ import {
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import PanelSkeleton from '../components/PanelSkeleton.vue'
+import ZoneNote from '../components/ZoneNote.vue'
 import { ApiError, api } from '../lib/api'
 import {
   AUDIT_ACTIONS,
@@ -27,6 +28,7 @@ import { formatDate, label, t } from '../lib/i18n'
 import { useDelayedLoading } from '../lib/loading'
 import { isSystemAdmin, session } from '../lib/session'
 import { settings } from '../lib/settings'
+import { adminTimeZone, dayStart, nextDay } from '../lib/time-zone'
 import { notify } from '../lib/toast'
 
 /** Settings → Audit log (`audit`): who did what and when, filtered, with each change's fields. */
@@ -55,8 +57,13 @@ function query(extra: Record<string, string> = {}) {
   for (const key of KEYS) {
     const v = value(key)
     if (!v) continue
-    if (key === 'from') params.set(key, new Date(`${v}T00:00:00`).toISOString())
-    else if (key === 'to') params.set(key, new Date(`${v}T23:59:59.999`).toISOString())
+    // Whole days in the admin's time zone.
+    if (key === 'from') params.set(key, dayStart(v, adminTimeZone.value))
+    else if (key === 'to')
+      params.set(
+        key,
+        new Date(Date.parse(dayStart(nextDay(v), adminTimeZone.value)) - 1).toISOString(),
+      )
     else params.set(key, v)
   }
   for (const [k, v] of Object.entries(extra)) params.set(k, v)
@@ -191,6 +198,7 @@ async function verify() {
         <span class="small muted">{{ t('audit.to') }}</span>
         <input class="input" type="date" :value="value('to')" @change="set('to', ($event.target as HTMLInputElement).value)" />
       </label>
+      <ZoneNote class="filter" />
       <button v-if="filtered" type="button" class="btn btn-ghost btn-sm" @click="clear">
         <X :size="14" aria-hidden="true" />
         {{ t('list.clearFilters') }}

@@ -230,6 +230,14 @@ as a chip: click it to change the conditions, × to remove it.
   `admin: { filter: false }` on it.
 - On a large collection, give a field people filter by often an index (`index: true`).
 
+## Time zone
+
+With `timeZone` in the config (see [Configuration](../reference/config)), the admin shows every date
+and time in it, and date inputs, scheduled publishing and the list's day filters read what people
+type in it too. A post scheduled for 09:00 is 09:00 for everyone, wherever their browser is. Someone
+in another zone sees it named next to date inputs ("Time zone: Indochina Time (GMT+7)"). Without
+`timeZone`, the admin uses each browser's zone.
+
 ## Next steps
 
 - [Plugins](./plugins): give a plugin's collections and pages their own group.

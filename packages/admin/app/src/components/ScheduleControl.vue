@@ -2,8 +2,10 @@
 import type { ScheduledPublish } from '@easy-cms/core'
 import { ref, watch } from 'vue'
 import { api } from '../lib/api'
-import { fromLocalInput, toLocalInput } from '../lib/fields'
+import { fromLocalInput } from '../lib/fields'
 import { formatDate, t } from '../lib/i18n'
+import { adminTimeZone, today } from '../lib/time-zone'
+import ZoneNote from './ZoneNote.vue'
 
 const props = defineProps<{
   /** The document's API path, e.g. `/posts/3` or `/globals/site`. */
@@ -29,11 +31,8 @@ async function load() {
 
 function open() {
   error.value = ''
-  // Default: tomorrow at 9:00 local time.
-  const next = new Date()
-  next.setDate(next.getDate() + 1)
-  next.setHours(9, 0, 0, 0)
-  at.value = toLocalInput(next.toISOString())
+  // Default: tomorrow at 9:00 in the admin's time zone.
+  at.value = `${today(adminTimeZone.value, 1)}T09:00`
   dialog.value?.showModal()
 }
 
@@ -83,7 +82,8 @@ defineExpose({ open })
       </label>
       <label class="field">
         <span class="field-label">{{ t('schedule.at') }}</span>
-        <input v-model="at" class="input" type="datetime-local" required />
+        <input v-model="at" class="input" type="datetime-local" required aria-describedby="schedule-zone" />
+        <ZoneNote id="schedule-zone" />
       </label>
       <p v-if="error" class="field-error">{{ error }}</p>
       <div class="actions">

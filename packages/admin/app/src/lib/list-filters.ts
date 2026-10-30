@@ -1,4 +1,5 @@
 import type { AdminField } from '@easy-cms/core'
+import { dayOf, dayStart, nextDay } from './time-zone'
 
 /**
  * The list's filters: conditions joined with AND, kept in the URL the way the REST API reads a
@@ -107,65 +108,9 @@ export function valuesOf(op: FilterOp): 0 | 1 | 2 | 'list' {
   return 1
 }
 
-// --- Time zones -------------------------------------------------------------------------------
+// --- Time zones: see ./time-zone -----------------------------------------------------------
 
-/** Minutes `timeZone` is ahead of UTC at `ms` (the browser's zone when none). */
-function offsetAt(ms: number, timeZone: string | undefined): number {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone,
-    hourCycle: 'h23',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  }).formatToParts(new Date(ms))
-  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value)
-  const asUTC = Date.UTC(
-    get('year'),
-    get('month') - 1,
-    get('day'),
-    get('hour'),
-    get('minute'),
-    get('second'),
-  )
-  return Math.round((asUTC - Math.floor(ms / 1000) * 1000) / 60_000)
-}
-
-/** The moment a day (`YYYY-MM-DD`) starts in `timeZone`, as an ISO string. */
-export function dayStart(day: string, timeZone?: string): string {
-  const [y, m, d] = day.split('-').map(Number) as [number, number, number]
-  const midnight = Date.UTC(y, m - 1, d)
-  let ms = midnight - offsetAt(midnight, timeZone) * 60_000
-  // Across a change of offset (daylight saving), once more with the offset of that moment.
-  const second = offsetAt(ms, timeZone)
-  ms = midnight - second * 60_000
-  return new Date(ms).toISOString()
-}
-
-/** The day (`YYYY-MM-DD`) a moment falls on in `timeZone`. */
-export function dayOf(iso: string, timeZone?: string): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date(iso))
-}
-
-/** The day after (`YYYY-MM-DD`), on the calendar. */
-export function nextDay(day: string): string {
-  const [y, m, d] = day.split('-').map(Number) as [number, number, number]
-  return new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10)
-}
-
-/** Today, `days` days from it (negative: before), as `YYYY-MM-DD` in `timeZone`. */
-export function today(timeZone?: string, days = 0, now = new Date()): string {
-  const day = dayOf(now.toISOString(), timeZone)
-  const [y, m, d] = day.split('-').map(Number) as [number, number, number]
-  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10)
-}
+export { dayOf, dayStart, nextDay, today } from './time-zone'
 
 // --- Conditions -------------------------------------------------------------------------------
 
