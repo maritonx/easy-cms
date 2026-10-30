@@ -105,7 +105,13 @@ export default defineConfig({
       // Live preview in the admin: the page that shows a post.
       preview: ({ doc }) => (doc.slug ? `/posts/${doc.slug}` : null),
       // Roles limited to their own posts (Settings → Roles) go by the author.
-      admin: { order: 1, icon: 'newspaper', ownerField: 'author' },
+      admin: {
+        order: 1,
+        icon: 'newspaper',
+        ownerField: 'author',
+        // An editorial calendar: posts by publish date, coloured by category.
+        calendar: { start: 'publishedAt', color: 'category' },
+      },
       useAsTitle: 'title',
       access: {
         // Visitors see published posts; logged-in editors see drafts too.

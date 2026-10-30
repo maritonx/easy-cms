@@ -35,6 +35,18 @@ your repository, the admin and APIs come with it, and there is no extra server t
   <img src="website/public/screenshots/dashboard-en-light.webp" alt="The Easy CMS admin dashboard: content at a glance, recently edited pages and drafts to review">
 </picture>
 
+<details>
+<summary>More screenshots</summary>
+
+| | |
+|---|---|
+| <img src="website/public/screenshots/edit-en-light.webp" alt="Editing a post: fields in tabs, with its status, category and tags in the side panel"> | <img src="website/public/screenshots/preview-en-light.webp" alt="Live preview: the real page beside the form, updated as you type"> |
+| Editing, with a side panel | Live preview of unsaved changes |
+| <img src="website/public/screenshots/calendar-en-light.webp" alt="Posts on a month calendar, coloured by category, with today's posts in the card beside it"> | <img src="website/public/screenshots/roles-en-light.webp" alt="A role's permissions, ticked per collection and action"> |
+| A calendar of posts by publish date | Roles, set from the admin |
+
+</details>
+
 ## Why Easy CMS
 
 - **Runs inside your app.** A Nuxt module or Next.js route handlers add the admin at `/admin` and
@@ -45,7 +57,8 @@ your repository, the admin and APIs come with it, and there is no extra server t
   as a [standalone server](https://easycms.dev/docs/standalone) and use its REST
   API.
 - **An admin editors like**, in English and Thai: drafts, version history, live preview,
-  scheduled publishing, blocks, translations, a media library and a light and dark theme.
+  scheduled publishing, a calendar, blocks, translations, a media library and a light and dark
+  theme.
 - **Secure by default:** [self-reviewed](docs/security/asvs-l1.md) against OWASP ASVS level 1.
   Common passwords are refused, cookies are `__Host-` and HSTS is on in production, unreadable
   documents answer 404, and the audit log is signed against tampering.
@@ -53,11 +66,21 @@ your repository, the admin and APIs come with it, and there is no extra server t
   one CMS (multi-tenant) and AI assistants (MCP).
 
 > [!NOTE]
-> **Easy CMS 1.0 is out** (2026-10-17), the first version meant for production use. From 1.0,
-> breaking changes come only in a major release, with an upgrade guide; renamed APIs keep working
-> until the next major, with a warning. [Versions and deprecations](https://easycms.dev/docs/versioning)
-> says what is covered (the shop, GraphQL and MCP plugins are still experimental). Upgrading from
-> 0.x: [From 0.x to 1.0](https://easycms.dev/docs/upgrading#to-1-0).
+> **Stable since 1.0.** Breaking changes come only in a major release, with an upgrade guide;
+> renamed APIs keep working until the next major, with a warning.
+> [Versions and deprecations](https://easycms.dev/docs/versioning) says what is covered (the shop,
+> GraphQL and MCP plugins are still experimental), and the
+> [changelog](https://easycms.dev/changelog) what each release added.
+
+## When to use it
+
+**A good fit** if you build sites with Nuxt or Next.js, or want a CMS on your own server for
+another frontend; if you want the content model in code, reviewed and deployed like the rest of
+the app; and if one deployment and one database is what you want to run.
+
+**Look elsewhere** if you want a hosted service with nothing to deploy, if people who don't write
+code should design the content model, or if you need a large marketplace of third-party plugins:
+so far there are the official ones.
 
 ## Quick start
 
@@ -136,7 +159,10 @@ cd my-cms && npm run dev       # http://localhost:4000/admin
 - Lists with search, filters, columns, bulk actions and tree views; edit forms with tabs, sections,
   rows, fields shown on conditions, and a side panel
 - Live preview of unsaved changes on your real pages
-- Scheduled publish and unpublish
+- Scheduled publish and unpublish in the admin's time zone, and statuses that say what is
+  pending: **Scheduled · date**, **Unpublished changes**
+- A calendar for documents with dates (posts by publish date, events): month, week and day views,
+  a card with the day's documents, and drag or **Move to…** another day, with Undo
 - A media library with folders (and who may use each), many files uploaded at once with their
   progress, icons by file type, a grid view, and previews: images, audio and video players, PDFs,
   text and CSV
@@ -190,7 +216,8 @@ after 1.0, until they are declared stable.
 
 Plugins are functions over your config: write your own with fields, endpoints, admin components,
 admin pages, dashboard panels and CLI commands. See
-[Plugins](https://easycms.dev/docs/plugins). Packages can also add field types, such as `color` from [`@easy-cms/fields`](packages/fields): see
+[Plugins](https://easycms.dev/docs/plugins). Packages can also add field types, such as `color`
+from [`@easy-cms/fields`](packages/fields): see
 [Custom field types](https://easycms.dev/docs/field-types).
 
 ## Packages
@@ -247,8 +274,8 @@ Please report security issues privately, as described in [SECURITY.md](SECURITY.
 ## Sponsors
 
 Easy CMS is built in spare time. If it saves you or your team time, consider
-[sponsoring its development](https://github.com/sponsors/maritonx): sponsorship pays for the work
-toward 1.0, docs (in English and Thai) and faster fixes. Sponsors at $5 a month or more are
+[sponsoring its development](https://github.com/sponsors/maritonx): sponsorship pays for new
+features, docs in English and Thai, and faster fixes. Sponsors at $5 a month or more are
 listed here, and company sponsors also get their logo on
 [the website](https://easycms.dev).
 
@@ -257,7 +284,7 @@ listed here, and company sponsors also get their logo on
 ### Founding sponsors
 
 The first 10 sponsors, at any tier, are listed here permanently, even if they stop sponsoring
-later. Spots left: 10 of 10.
+later.
 
 ## License
 
