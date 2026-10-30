@@ -67,7 +67,15 @@ export interface CalendarEvent {
   allDay: boolean
   url: string
   classNames: string[]
-  extendedProps: { to: string }
+  extendedProps: {
+    to: string
+    /** The collection it comes from. */
+    collection?: string
+    /** A document's `status` (with drafts). */
+    status?: string
+    /** A scheduled publish's action. */
+    action?: 'publish' | 'unpublish'
+  }
 }
 
 /** What a calendar shows for a range, and whether there was more than it could. */
@@ -105,7 +113,11 @@ export function eventOf(
     allDay,
     url: link.href,
     classNames: classNames ?? (color === undefined ? [] : [`cal-c${color}`]),
-    extendedProps: { to: link.to },
+    extendedProps: {
+      to: link.to,
+      collection: collection.slug,
+      ...(typeof doc.status === 'string' ? { status: doc.status } : {}),
+    },
   }
 }
 
@@ -161,8 +173,19 @@ export function jobEvent(
     allDay: false,
     url: link.href,
     classNames: ['cal-scheduled', ...classNames],
-    extendedProps: { to: link.to },
+    extendedProps: {
+      to: link.to,
+      ...(job.collection ? { collection: job.collection } : {}),
+      action: job.action,
+    },
   }
+}
+
+/** A day's events for a list: whole days first, then by start. */
+export function dayAgenda(events: readonly CalendarEvent[]): CalendarEvent[] {
+  return [...events].sort(
+    (a, b) => Number(b.allDay) - Number(a.allDay) || a.start.localeCompare(b.start),
+  )
 }
 
 /**

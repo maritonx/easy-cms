@@ -722,6 +722,12 @@ const calendarNew = ref<Record<string, string> | null>(null)
 function setMode(calendar: boolean) {
   setQuery({ calendar: calendar ? 'month' : undefined, date: undefined, page: undefined })
 }
+const calendarDay = computed(() =>
+  typeof route.query.day === 'string' ? route.query.day : undefined,
+)
+function onCalendarDay(day: string) {
+  void router.replace({ query: { ...route.query, day } })
+}
 function onCalendarView(view: string, date: string) {
   if (view === calendarView.value && date === calendarDate.value) return
   void router.replace({ query: { ...route.query, calendar: view, date } })
@@ -1103,15 +1109,16 @@ async function deleteSelected(query = '') {
     <CalendarView
       v-if="calendarMode && collection.calendar"
       ref="calendarRef"
-      class="card calendar-card"
       :load="loadCalendar"
       :reload-key="JSON.stringify(whereOf() ?? null)"
       :selectable="collection.permissions.create"
       :view="calendarView"
       :date="calendarDate"
+      :day="calendarDay"
       @open="(to: string) => router.push(to)"
       @select="onCalendarSelect"
       @update:view="onCalendarView"
+      @update:day="onCalendarDay"
     />
     <div v-else :class="['card', 'table-wrap', { 'grid-wrap': grid, reloading }]" :aria-busy="loading">
       <div v-if="reloading" class="progress-line table-progress" aria-hidden="true"><span /></div>
@@ -1493,9 +1500,6 @@ async function deleteSelected(query = '') {
 </template>
 
 <style scoped>
-.calendar-card {
-  padding: 1rem;
-}
 .view-switch {
   display: flex;
   gap: 0.15rem;
