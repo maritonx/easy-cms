@@ -41,6 +41,25 @@ async function login(page: Page, user: { email: string; password: string }) {
  * Opens the app's public site: the example blog for Nuxt and Next, and for the standalone server
  * its frontend example on another origin, which reads the API from the browser (CORS).
  */
+/** Opens a page from the menu: its group's icon in the rail, then the item in the panel. */
+async function fromMenu(page: Page, group: string, name: string, exact = false) {
+  const menu = page.getByRole('navigation', { name: 'Main menu' })
+  await menu.getByRole('button', { name: group, exact: true }).click()
+  await menu.getByRole('link', { name, exact }).click()
+}
+
+/** Opens the Account page from the account menu, at the foot of the rail. */
+async function openAccount(page: Page) {
+  await page.getByRole('button', { name: 'Account', exact: true }).click()
+  await page.getByRole('link', { name: 'Account', exact: true }).click()
+}
+
+/** Logs out from the account menu, at the foot of the rail. */
+async function logOut(page: Page) {
+  await page.getByRole('button', { name: 'Account', exact: true }).click()
+  await page.getByRole('button', { name: 'Log out' }).click()
+}
+
 async function publicSite(page: Page) {
   if (standalone()) {
     const api = new URL('/api/cms', test.info().project.use.baseURL).href
@@ -126,7 +145,7 @@ test.describe('logged in as admin', () => {
   test('redirects to login after logout and rejects a wrong password (FR-ADM-01)', async ({
     page,
   }) => {
-    await page.getByRole('button', { name: 'Log out' }).click()
+    await logOut(page)
     await expect(page).toHaveURL(/\/admin\/login$/)
     await page.goto('/admin/collections/posts')
     await expect(page).toHaveURL(/\/admin\/login\?redirect=/)
@@ -149,7 +168,7 @@ test.describe('logged in as admin', () => {
     await page.getByRole('textbox', { name: 'Title', exact: true }).fill('Not saved yet')
     // Cancel: still on the page, still logged in, the text still there.
     page.once('dialog', (dialog) => void dialog.dismiss())
-    await page.getByRole('button', { name: 'Log out' }).click()
+    await logOut(page)
     await expect(page).toHaveURL(/\/collections\/posts\/new$/)
     await expect(page.getByRole('textbox', { name: 'Title', exact: true })).toHaveValue(
       'Not saved yet',
@@ -157,15 +176,23 @@ test.describe('logged in as admin', () => {
     expect(await signedIn()).toBe(true)
     // Leave: logged out, on the login page.
     page.once('dialog', (dialog) => void dialog.accept())
-    await page.getByRole('button', { name: 'Log out' }).click()
+    await logOut(page)
     await expect(page).toHaveURL(/\/admin\/login$/)
     expect(await signedIn()).toBe(false)
   })
 
   test('shows collections and globals in the sidebar (FR-ADM-03)', async ({ page }) => {
     const nav = page.getByRole('navigation', { name: 'Main' })
-    for (const name of ['Users', 'Media', 'Categories', 'Posts', 'Site']) {
-      await expect(nav.getByRole('link', { name, exact: true })).toBeVisible()
+    const groups = {
+      Home: ['Media'],
+      Content: ['Categories', 'Posts'],
+      Settings: ['Users', 'Site'],
+    }
+    for (const [group, names] of Object.entries(groups)) {
+      await nav.getByRole('button', { name: group, exact: true }).click()
+      for (const name of names) {
+        await expect(nav.getByRole('link', { name, exact: true })).toBeVisible()
+      }
     }
   })
 
@@ -257,10 +284,7 @@ test.describe('logged in as admin', () => {
   test('uploads to the media library and uses a file as a cover (FR-UPL, FR-ADM-09)', async ({
     page,
   }) => {
-    await page
-      .getByRole('navigation', { name: 'Main' })
-      .getByRole('link', { name: 'Media' })
-      .click()
+    await fromMenu(page, 'Home', 'Media')
     await page.getByLabel('Upload files').setInputFiles(PHOTO)
     await expect(page.getByText('Uploaded 1 file(s)')).toBeVisible()
     // The library is a grid of cards.
@@ -807,10 +831,7 @@ test.describe('logged in as admin', () => {
     )
 
     // The Calendar page: in the menu right after Content, every source, each one hideable.
-    await page
-      .getByRole('navigation', { name: 'Main menu' })
-      .getByRole('link', { name: 'Calendar' })
-      .click()
+    await fromMenu(page, 'Home', 'Calendar')
     await expect(page.getByRole('heading', { name: 'Calendar', level: 1 })).toBeVisible()
     await page.goto('/admin/calendar?view=month&date=2030-05-01')
     const onPage = page.getByRole('link', { name: /^Calendar post, Wednesday,? 15 May 2030/ })
@@ -848,7 +869,7 @@ test.describe('logged in as admin', () => {
   })
 
   test('edits a global', async ({ page }) => {
-    await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Site' }).click()
+    await fromMenu(page, 'Settings', 'Site')
     await page.getByLabel('Tagline').fill('Tested end to end')
     await page.getByRole('button', { name: 'Save' }).click()
     await expect(page.getByRole('status')).toHaveText('Saved')
@@ -856,29 +877,43 @@ test.describe('logged in as admin', () => {
     await expect(page.getByText('Tested end to end')).toBeVisible()
   })
 
-  test('folds menu groups, remembers them, and opens the group of the page', async ({ page }) => {
+  test('shows one group at a time, follows the page, and folds the panel away', async ({
+    page,
+  }) => {
     await page.goto('/admin/')
     const menu = page.getByRole('navigation', { name: 'Main menu' })
-    const settings = menu.getByRole('button', { name: 'Settings' })
-    await expect(settings).toHaveAttribute('aria-expanded', 'true')
+    const home = menu.getByRole('button', { name: 'Home', exact: true })
+    const settings = menu.getByRole('button', { name: 'Settings', exact: true })
+    const users = menu.getByRole('link', { name: 'Users', exact: true })
+    // The dashboard is in Home.
+    await expect(home).toHaveAttribute('aria-pressed', 'true')
+    await expect(users).toHaveCount(0)
+    // An icon shows its group in the panel, without leaving the page.
     await settings.click()
-    await expect(settings).toHaveAttribute('aria-expanded', 'false')
-    await expect(menu.getByRole('link', { name: 'Users', exact: true })).toBeHidden()
-    await page.reload()
-    await expect(menu.getByRole('button', { name: 'Settings' })).toHaveAttribute(
-      'aria-expanded',
-      'false',
+    await expect(settings).toHaveAttribute('aria-pressed', 'true')
+    await expect(users).toBeVisible()
+    await expect(page).toHaveURL(/\/admin\/$/)
+    // The panel follows the page to its group.
+    await page.goto('/admin/collections/posts')
+    await expect(menu.getByRole('button', { name: 'Content', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
     )
-    // A page in a folded group opens it.
+    // Folded away, remembered, and back with an icon.
+    const posts = menu.getByRole('link', { name: 'Posts', exact: true })
+    await menu.getByRole('button', { name: 'Collapse menu' }).click()
+    await expect(posts).toBeHidden()
+    await page.reload()
+    await expect(posts).toBeHidden()
+    await settings.click()
+    await expect(users).toBeVisible()
+    // Pinned: in Home.
     await page.goto('/admin/collections/users')
-    await expect(menu.getByRole('link', { name: 'Users', exact: true })).toBeVisible()
-    // Pinned: at the top of the menu.
     await page.getByRole('button', { name: 'Pin to the menu' }).click()
+    await home.click()
     await expect(menu.getByRole('heading', { name: 'Pinned' })).toBeVisible()
     await page.getByRole('button', { name: 'Unpin from the menu' }).click()
     await expect(menu.getByRole('heading', { name: 'Pinned' })).toHaveCount(0)
-    await page.goto('/admin/')
-    await menu.getByRole('button', { name: 'Settings' }).click()
   })
 
   test('finds documents and runs commands with ⌘K, and lists the shortcuts', async ({ page }) => {
@@ -1044,10 +1079,7 @@ test.describe('logged in as admin', () => {
   })
 
   test('creates an API key that scripts can use (apiKeys)', async ({ page }) => {
-    await page
-      .getByRole('navigation', { name: 'Main' })
-      .getByRole('link', { name: 'API keys', exact: true })
-      .click()
+    await fromMenu(page, 'Settings', 'API keys', true)
     await page.getByRole('link', { name: 'Create the first one' }).click()
     await page.getByRole('textbox', { name: 'Name', exact: true }).fill('E2E importer')
     // Creating posts needs reading them: ticking Create ticks Read too.
@@ -1114,7 +1146,7 @@ test.describe('logged in as admin', () => {
   })
 
   test('lists your own API keys on Account, to revoke them', async ({ page }) => {
-    await page.getByRole('link', { name: /Account/ }).click()
+    await openAccount(page)
     const panel = page.getByRole('region', { name: 'Your API keys' })
     await expect(panel.getByText('E2E importer')).toBeVisible()
     await panel.getByRole('button', { name: 'Revoke', exact: true }).click()
@@ -1127,10 +1159,7 @@ test.describe('logged in as admin', () => {
   test('redirects old addresses, and renamed posts (redirects plugin)', async ({ page }) => {
     // Under Settings in the menu, edited in a drawer.
     await page.goto('/admin/')
-    await page
-      .getByRole('navigation', { name: 'Main' })
-      .getByRole('link', { name: 'Redirects', exact: true })
-      .click()
+    await fromMenu(page, 'Settings', 'Redirects', true)
     await page.getByRole('link', { name: 'Create new' }).click()
     const drawer = page.getByRole('dialog', { name: 'Create Redirect' })
     await drawer.getByRole('textbox', { name: 'From', exact: true }).fill('/old-page/')
@@ -1377,10 +1406,7 @@ test.describe('logged in as admin', () => {
     await expect(system).toContainText('color')
 
     // Settings → Backups: back up now, then download it.
-    await page
-      .getByRole('navigation', { name: 'Main' })
-      .getByRole('link', { name: 'Backups' })
-      .click()
+    await fromMenu(page, 'Settings', 'Backups')
     await expect(page.getByRole('heading', { level: 1, name: 'Backups' })).toBeVisible()
     await page.getByRole('button', { name: 'Back up now' }).click()
     const latest = page.getByRole('region', { name: 'Backups' }).getByRole('listitem').first()
@@ -1393,10 +1419,7 @@ test.describe('logged in as admin', () => {
     expect([...(await file.body()).subarray(0, 2)]).toEqual([0x1f, 0x8b])
 
     // Settings → Email: the adapter in use (console in the examples) and a test email.
-    await page
-      .getByRole('navigation', { name: 'Main' })
-      .getByRole('link', { name: 'Email', exact: true })
-      .click()
+    await fromMenu(page, 'Settings', 'Email', true)
     await expect(page.getByRole('heading', { level: 1, name: 'Email' })).toBeVisible()
     await expect(page.getByRole('region', { name: 'Settings in use' })).toContainText('console')
     // The examples print emails to the log: the admin warns that nothing is sent.
@@ -1409,10 +1432,7 @@ test.describe('logged in as admin', () => {
     ).toBeVisible()
 
     // Saved emails and webhook deliveries, under Settings (email is set up in the examples).
-    await page
-      .getByRole('navigation', { name: 'Main' })
-      .getByRole('link', { name: 'Deliveries' })
-      .click()
+    await fromMenu(page, 'Settings', 'Deliveries')
     await expect(page.getByRole('heading', { level: 1, name: 'Deliveries' })).toBeVisible()
     await expect(page.getByRole('button', { name: /^Failed \(\d+\)$/ })).toHaveAttribute(
       'aria-pressed',
@@ -1512,10 +1532,7 @@ test.describe('logged in as admin', () => {
   })
 
   test('gives roles permissions without code in Settings → Roles (auth.rbac)', async ({ page }) => {
-    await page
-      .getByRole('navigation', { name: 'Main' })
-      .getByRole('link', { name: 'Roles' })
-      .click()
+    await fromMenu(page, 'Settings', 'Roles')
     await expect(page.getByRole('heading', { level: 1, name: 'Roles' })).toBeVisible()
     const list = page.getByRole('list', { name: 'Roles' })
     await expect(list.getByRole('button', { name: /Admin/ })).toBeVisible()
@@ -1624,10 +1641,7 @@ test.describe('logged in as admin', () => {
   })
 
   test('keeps an audit log of changes, sign-ins and admin actions (audit)', async ({ page }) => {
-    await page
-      .getByRole('navigation', { name: 'Main' })
-      .getByRole('link', { name: 'Audit log' })
-      .click()
+    await fromMenu(page, 'Settings', 'Audit log')
     await expect(page.getByRole('heading', { level: 1, name: 'Audit log' })).toBeVisible()
     const list = page.getByRole('region', { name: 'Audit log' })
     // The user deleted in the test before, and who did it.
@@ -1706,7 +1720,7 @@ test.describe('logged in as editor', () => {
 
   test('hides actions the editor may not take (FR-ACL-06)', async ({ page }) => {
     await page.goto('/admin/collections/users')
-    await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Users', exact: true })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Create new' })).toHaveCount(0)
 
     await page.getByRole('link', { name: ADMIN.email }).click()
@@ -1733,7 +1747,7 @@ test.describe('logged in as editor', () => {
   })
 
   test('changes their own password (FR-ADM-13)', async ({ page }) => {
-    await page.getByRole('link', { name: /Account/ }).click()
+    await openAccount(page)
     await page.getByLabel('Change password').fill('a-brand-new-password')
     // Not without the current one.
     await page.getByRole('button', { name: 'Save changes' }).click()
@@ -1744,7 +1758,7 @@ test.describe('logged in as editor', () => {
     // Still logged in with the new cookie.
     await page.reload()
     await expect(page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible()
-    await page.getByRole('button', { name: 'Log out' }).click()
+    await logOut(page)
     await login(page, { email: EDITOR.email, password: 'a-brand-new-password' })
   })
 })
@@ -1771,7 +1785,7 @@ test.describe('single sign-on', () => {
     await expect(page.getByRole('alert')).toContainText('You already have an account here')
 
     await login(page, { email: EDITOR.email, password: 'a-brand-new-password' })
-    await page.getByRole('link', { name: /Account/ }).click()
+    await openAccount(page)
     const accounts = page.getByRole('region', { name: 'Sign-in accounts' })
     await accounts.getByRole('button', { name: 'Link SSO' }).click()
     await page.getByLabel('Email').fill(EDITOR.email)
@@ -1781,7 +1795,7 @@ test.describe('single sign-on', () => {
     await expect(accounts).toContainText(EDITOR.email)
 
     // Now the provider signs them in, back where they were going.
-    await page.getByRole('button', { name: 'Log out' }).click()
+    await logOut(page)
     await page.goto('/admin/collections/posts')
     await ssoAs(EDITOR.email)
     await expect(page).toHaveURL(/\/admin\/collections\/posts$/)
@@ -1800,10 +1814,7 @@ test.describe('single sign-on', () => {
 
   test('shows admins the callback URL to give the provider', async ({ page }) => {
     await login(page, ADMIN)
-    await page
-      .getByRole('navigation', { name: 'Main' })
-      .getByRole('link', { name: 'Single sign-on' })
-      .click()
+    await fromMenu(page, 'Settings', 'Single sign-on')
     const origin = new URL(page.url()).origin
     await expect(page.getByRole('region', { name: /SSO/ })).toContainText(
       `${origin}/api/cms/auth/sso/callback`,

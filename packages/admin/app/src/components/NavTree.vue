@@ -1,39 +1,21 @@
 <script setup lang="ts">
 import type { AdminNavGroup, AdminNavNode } from '@easy-cms/core'
-import { ChevronDown, ChevronRight, Plus } from '@lucide/vue'
+import { Plus } from '@lucide/vue'
 import { computed } from 'vue'
-import { useRoute } from 'vue-router'
 import { badges, counts } from '../lib/counts'
 import { label, t } from '../lib/i18n'
-import { collectionIcon } from '../lib/icons'
-import { entryOf, isFolded, itemForPath, keyOf, setFolded } from '../lib/nav'
+import { entryOf, keyOf } from '../lib/nav'
 import { session } from '../lib/session'
 
 /**
- * The menu's groups and items, two levels deep: a group folds, a group inside it is a heading
- * that folds too. Items show their count, or (`admin.badge`) what needs attention.
+ * A group's items in the panel; a group inside it is a heading over its own items. Items show
+ * their count, or (`admin.badge`) what needs attention.
  */
 const props = defineProps<{ nodes: readonly AdminNavNode[]; depth?: number }>()
 const depth = computed(() => props.depth ?? 0)
-const route = useRoute()
-
-/** Groups holding the page that is open: always unfolded. */
-const current = computed(() => new Set(itemForPath(route.path)?.parents.map((g) => g.id) ?? []))
-const open = (group: AdminNavGroup) => current.value.has(group.id) || !isFolded(group.id)
-function toggle(group: AdminNavGroup) {
-  setFolded(group.id, open(group))
-}
 
 const collection = (slug: string | undefined) =>
   slug ? session.schema?.collections.find((c) => c.slug === slug) : undefined
-
-/** What needs attention in a folded group: the sum of its badges. */
-function badgeSum(group: AdminNavGroup): number {
-  return group.items.reduce((sum, node) => {
-    if (node.kind === 'group') return sum + badgeSum(node)
-    return node.kind === 'collection' ? sum + (badges[node.slug] ?? 0) : sum
-  }, 0)
-}
 
 const rows = computed(() =>
   props.nodes.map((node) => {
@@ -61,47 +43,13 @@ const id = (group: AdminNavGroup) => `nav-${group.id.replace(/[^a-z0-9-]/gi, '_'
 <template>
   <ul class="nav-list" :class="`depth-${depth}`" role="list">
     <li v-for="row in rows" :key="row.group ? `g:${row.group.id}` : row.key">
-      <template v-if="row.group">
-        <button
-          type="button"
-          :class="depth === 0 ? 'nav-group' : 'nav-subgroup'"
-          :aria-expanded="open(row.group)"
-          :aria-controls="id(row.group)"
-          data-nav
-          @click="toggle(row.group)"
-        >
-          <component
-            :is="collectionIcon(row.group.icon)"
-            v-if="depth === 0"
-            :size="18"
-            aria-hidden="true"
-          />
-          <span class="nav-text">{{ label(row.group.label, row.group.id) }}</span>
-          <span
-            v-if="!open(row.group) && badgeSum(row.group) > 0"
-            class="nav-badge"
-            :aria-label="t('nav.attention', { n: badgeSum(row.group) })"
-          >{{ badgeSum(row.group) }}</span>
-          <component
-            :is="open(row.group) ? ChevronDown : ChevronRight"
-            :size="16"
-            class="chev"
-            aria-hidden="true"
-          />
-        </button>
-        <div v-show="open(row.group)" :id="id(row.group)">
-          <NavTree :nodes="row.group.items" :depth="depth + 1" />
-        </div>
-      </template>
+      <section v-if="row.group" class="nav-section" :aria-labelledby="id(row.group)">
+        <h3 :id="id(row.group)" class="nav-heading">{{ label(row.group.label, row.group.id) }}</h3>
+        <NavTree :nodes="row.group.items" :depth="depth + 1" />
+      </section>
       <div v-else-if="row.entry" class="nav-row">
-        <RouterLink
-          :to="row.entry.to"
-          class="nav-link"
-          :class="{ nested: depth > 0 }"
-          active-class="active"
-          data-nav
-        >
-          <component :is="row.entry.icon" v-if="depth === 0" :size="18" aria-hidden="true" />
+        <RouterLink :to="row.entry.to" class="nav-link" active-class="active" data-nav>
+          <component :is="row.entry.icon" :size="18" aria-hidden="true" />
           <span class="nav-text">{{ row.entry.label }}</span>
           <span
             v-if="row.badge > 0"
@@ -134,44 +82,17 @@ const id = (group: AdminNavGroup) => `nav-${group.id.replace(/[^a-z0-9-]/gi, '_'
   flex-direction: column;
   gap: 0.125rem;
 }
-.nav-group,
-.nav-subgroup {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-  width: 100%;
-  min-height: 2.35rem;
+.nav-section {
+  margin-top: 0.6rem;
+}
+.nav-heading {
+  margin: 0 0 0.25rem;
   padding: 0 0.65rem;
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: none;
-  color: var(--text);
-  font: inherit;
+  font-size: 0.72rem;
   font-weight: 600;
-  text-align: left;
-  cursor: pointer;
-}
-.nav-subgroup {
-  min-height: 2rem;
-  padding-left: 2.35rem;
-  color: var(--text-muted);
-  font-size: 0.8rem;
-  letter-spacing: 0.02em;
-}
-.depth-2 .nav-link.nested {
-  padding-left: 2.35rem;
-}
-.nav-group:hover,
-.nav-subgroup:hover {
-  background: var(--surface-2);
-}
-.chev {
-  margin-left: auto;
-  flex-shrink: 0;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--faint);
-}
-.nav-badge + .chev {
-  margin-left: 0.35rem;
 }
 .nav-row {
   position: relative;
@@ -190,9 +111,6 @@ const id = (group: AdminNavGroup) => `nav-${group.id.replace(/[^a-z0-9-]/gi, '_'
   color: var(--text-muted);
   font-weight: 500;
   text-decoration: none;
-}
-.nav-link.nested {
-  padding-left: 2.35rem;
 }
 .nav-text {
   overflow: hidden;

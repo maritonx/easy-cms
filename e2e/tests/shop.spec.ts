@@ -81,6 +81,11 @@ test('a guest buys by bank transfer', async ({ page }) => {
 
 test('staff mark the payment received, and the stock is taken', async ({ page }) => {
   await login(page)
+  // In the Shop group of the menu: its icon in the rail opens it.
+  await page
+    .getByRole('navigation', { name: 'Main menu' })
+    .getByRole('button', { name: 'Shop', exact: true })
+    .click()
   await page.getByRole('link', { name: 'Orders', exact: true }).click()
   await page.getByRole('link', { name: '1001' }).click()
   const actions = page.locator('ecms-order-actions')
@@ -204,7 +209,9 @@ test("Settings → Jobs shows the shop's jobs; an admin runs, pauses and resumes
   page,
 }) => {
   await login(page)
-  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Jobs' }).click()
+  const menu = page.getByRole('navigation', { name: 'Main menu' })
+  await menu.getByRole('button', { name: 'Settings', exact: true }).click()
+  await menu.getByRole('link', { name: 'Jobs' }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'Jobs' })).toBeVisible()
   const payments = page.locator('li.job').filter({ hasText: 'shop:payments' })
   await expect(payments).toContainText('Every 5 min')

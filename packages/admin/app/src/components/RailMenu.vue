@@ -1,149 +1,196 @@
 <script setup lang="ts">
-import type { AdminNavGroup, AdminNavNode } from '@easy-cms/core'
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { PanelLeftOpen, Search } from '@lucide/vue'
+import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { badges } from '../lib/counts'
-import { label, t } from '../lib/i18n'
-import { collectionIcon } from '../lib/icons'
-import { entryOf, itemForPath } from '../lib/nav'
-import NavTree from './NavTree.vue'
+import { t } from '../lib/i18n'
+import { badgeSum, groupForPath, type RailGroup, railGroups, shownGroup } from '../lib/nav'
+import { settings } from '../lib/settings'
+import { modKey, openPalette } from '../lib/shortcuts'
+import { brandName } from '../lib/theme'
+import AccountMenu from './AccountMenu.vue'
 
 /**
- * The menu as icons only (wide screens): a group opens its items in a panel beside it; names show
- * as tooltips and to screen readers.
+ * The menu's first column: an icon for each group. Clicking one shows its items in the panel
+ * beside it, without leaving the page. Settings sits at the foot, with search and the account.
  */
-const props = defineProps<{ nodes: readonly AdminNavNode[] }>()
+const props = defineProps<{ collapsed: boolean }>()
+const emit = defineEmits<{ pick: [id: string]; expand: [] }>()
 const route = useRoute()
-const openGroup = ref<string | null>(null)
-const panelTop = ref(0)
-const root = ref<HTMLElement>()
 
-const current = computed(() => new Set(itemForPath(route.path)?.parents.map((g) => g.id) ?? []))
+/** The group of the page that is open: marked, wherever the panel is. */
+const current = computed(() => groupForPath(route.path))
+const top = computed(() => railGroups.value.filter((g) => g.id !== 'settings'))
+const foot = computed(() => railGroups.value.filter((g) => g.id === 'settings'))
 
-function badgeSum(group: AdminNavGroup): number {
-  return group.items.reduce((sum, node) => {
-    if (node.kind === 'group') return sum + badgeSum(node)
-    return node.kind === 'collection' ? sum + (badges[node.slug] ?? 0) : sum
-  }, 0)
+const shown = (g: RailGroup) => !props.collapsed && g.id === shownGroup.value
+function name(g: RailGroup) {
+  const sum = badgeSum(g.nodes)
+  return sum ? `${g.label}, ${t('nav.attention', { n: sum })}` : g.label
 }
-
-function toggle(group: AdminNavGroup, event: MouseEvent) {
-  if (openGroup.value === group.id) {
-    openGroup.value = null
-    return
-  }
-  const button = event.currentTarget as HTMLElement
-  panelTop.value = button.offsetTop
-  openGroup.value = group.id
-}
-const opened = computed(
-  () =>
-    props.nodes.find((n): n is AdminNavGroup => n.kind === 'group' && n.id === openGroup.value) ??
-    null,
-)
-
-function close() {
-  openGroup.value = null
-}
-function onDocument(event: Event) {
-  if (root.value && !root.value.contains(event.target as Node)) close()
-}
-function onKey(event: KeyboardEvent) {
-  if (event.key === 'Escape' && openGroup.value) {
-    const id = openGroup.value
-    close()
-    root.value?.querySelector<HTMLElement>(`[data-group="${id}"]`)?.focus()
-  }
-}
-watch(openGroup, (value) => {
-  if (value) {
-    document.addEventListener('pointerdown', onDocument)
-    document.addEventListener('keydown', onKey)
-  } else {
-    document.removeEventListener('pointerdown', onDocument)
-    document.removeEventListener('keydown', onKey)
-  }
-})
-watch(() => route.fullPath, close)
-onBeforeUnmount(close)
 </script>
 
 <template>
-  <div ref="root" class="rail">
-    <template v-for="node in nodes" :key="node.kind === 'group' ? `g:${node.id}` : JSON.stringify(node)">
+  <div class="rail">
+    <RouterLink to="/" class="brand" :aria-label="brandName()" :title="brandName()">
+      <img v-if="settings.brand.logo" :src="settings.brand.logo" alt="" class="logo-img" />
+      <span v-else class="logo" aria-hidden="true">{{ brandName().slice(0, 1) }}</span>
+    </RouterLink>
+    <div class="groups">
+      <template v-for="(list, i) in [top, foot]" :key="i">
+        <div v-if="i === 1" class="spacer" />
+        <button
+          v-for="g in list"
+          :key="g.id"
+          type="button"
+          class="rail-btn"
+          :class="{ shown: shown(g), current: g.id === current }"
+          :aria-label="name(g)"
+          :aria-pressed="shown(g)"
+          aria-controls="nav-panel"
+          data-nav
+          @click="emit('pick', g.id)"
+        >
+          <span class="rail-icon"><component :is="g.icon" :size="20" aria-hidden="true" /></span>
+          <span class="rail-label" aria-hidden="true">{{ g.label }}</span>
+          <span v-if="badgeSum(g.nodes)" class="dot" aria-hidden="true">{{ badgeSum(g.nodes) }}</span>
+        </button>
+      </template>
+    </div>
+    <div class="foot">
       <button
-        v-if="node.kind === 'group'"
+        v-if="collapsed"
         type="button"
-        class="rail-btn"
-        :class="{ current: current.has(node.id) }"
-        :aria-label="badgeSum(node) ? `${label(node.label, node.id)}, ${t('nav.attention', { n: badgeSum(node) })}` : label(node.label, node.id)"
-        :title="label(node.label, node.id)"
-        :aria-expanded="openGroup === node.id"
-        :data-group="node.id"
-        data-nav
-        @click="toggle(node, $event)"
+        class="icon-btn"
+        :aria-label="t('nav.expand')"
+        :title="`${t('nav.expand')} ( [ )`"
+        @click="emit('expand')"
       >
-        <component :is="collectionIcon(node.icon)" :size="20" aria-hidden="true" />
-        <span v-if="badgeSum(node)" class="dot" aria-hidden="true">{{ badgeSum(node) }}</span>
+        <PanelLeftOpen :size="18" aria-hidden="true" />
       </button>
-      <RouterLink
-        v-else-if="entryOf(node)"
-        :to="entryOf(node)!.to"
-        class="rail-btn"
-        active-class="current"
-        :aria-label="entryOf(node)!.label"
-        :title="entryOf(node)!.label"
-        data-nav
+      <button
+        type="button"
+        class="icon-btn"
+        :aria-label="t('palette.title')"
+        :title="`${t('palette.title')} (${modKey()} K)`"
+        @click="openPalette"
       >
-        <component :is="entryOf(node)!.icon" :size="20" aria-hidden="true" />
-      </RouterLink>
-    </template>
-    <div
-      v-if="opened"
-      class="flyout"
-      role="group"
-      :aria-label="label(opened.label, opened.id)"
-      :style="{ top: `${panelTop}px` }"
-    >
-      <strong class="flyout-title">{{ label(opened.label, opened.id) }}</strong>
-      <NavTree :nodes="opened.items" :depth="1" />
+        <Search :size="19" aria-hidden="true" />
+      </button>
+      <AccountMenu />
     </div>
   </div>
 </template>
 
 <style scoped>
 .rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 4.5rem;
+  height: 100%;
+  padding: 0.75rem 0;
+  background: var(--surface-2);
+  border-right: 1px solid var(--border);
+}
+.brand {
+  display: inline-flex;
+  margin-bottom: 0.75rem;
+}
+.logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 700;
+  font-size: 1rem;
+}
+.logo-img {
+  width: 2.5rem;
+  height: 2.5rem;
+  object-fit: contain;
+}
+.groups {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.125rem;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  padding: 0 0.35rem;
+  overflow-y: auto;
+}
+.spacer {
+  flex: 1;
+}
+.rail-btn {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.35rem;
-}
-.rail-btn {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.75rem;
-  height: 2.75rem;
+  gap: 0.15rem;
+  width: 100%;
+  padding: 0.4rem 0.1rem 0.35rem;
   border: 0;
   border-radius: 10px;
   background: none;
   color: var(--text-muted);
+  font: inherit;
   cursor: pointer;
 }
+.rail-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 1.9rem;
+  border-radius: 8px;
+}
+/* Group names are the site's own, often Thai: two lines at most. */
+.rail-label {
+  max-width: 100%;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  font-size: 0.68rem;
+  line-height: 1.2;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
 .rail-btn:hover {
-  background: var(--surface-2);
   color: var(--text);
 }
-.rail-btn.current {
-  background: var(--accent-soft);
+.rail-btn:hover .rail-icon {
+  background: var(--border);
+}
+.rail-btn.shown {
   color: var(--accent-ink);
+  font-weight: 600;
+}
+.rail-btn.shown .rail-icon {
+  background: var(--accent-soft);
+}
+/* The page's group, when the panel shows another. */
+.rail-btn.current::before {
+  content: "";
+  position: absolute;
+  left: -0.35rem;
+  top: 0.65rem;
+  width: 3px;
+  height: 1.25rem;
+  border-radius: 0 3px 3px 0;
+  background: var(--accent);
 }
 .dot {
   position: absolute;
-  top: 0.3rem;
-  right: 0.3rem;
+  top: 0.15rem;
+  right: 0.45rem;
   min-width: 1rem;
   height: 1rem;
   padding: 0 0.25rem;
@@ -156,27 +203,32 @@ onBeforeUnmount(close)
   color: var(--accent-text);
   font-size: 0.65rem;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
-.flyout {
-  position: absolute;
-  left: calc(100% + 0.75rem);
-  z-index: 50;
-  width: 15.5rem;
-  max-height: 70vh;
-  overflow-y: auto;
-  padding: 0.5rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  box-shadow: var(--shadow);
+.foot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  width: 3.25rem;
+  margin-top: 0.5rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border);
 }
-.flyout-title {
-  display: block;
-  padding: 0.35rem 0.65rem 0.5rem;
-  font-size: 0.9rem;
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
 }
-.flyout :deep(.nav-link.nested),
-.flyout :deep(.nav-subgroup) {
-  padding-left: 0.65rem;
+.icon-btn:hover {
+  background: var(--border);
+  color: var(--text);
 }
 </style>
