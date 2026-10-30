@@ -101,20 +101,22 @@ jobs:
 
   test:
     needs: build
-    name: test (${{ matrix.os }}, ${{ matrix.node }}${{ matrix.integration && format(', {0}', matrix.integration) || '' }})
+    name: test (${{ matrix.os }}, ${{ matrix.node }}${{ matrix.integration && format(', {0}', matrix.integration) || '' }}${{ matrix.shard && format(' {0}', matrix.shard) || '' }})
     strategy:
       fail-fast: false
       matrix:
         # Other jobs (and releases) stay on ubuntu-24.04; `ubuntu-latest` here shows first what a
         # new Ubuntu image breaks (it moves to Ubuntu 26 from 2026-10-19). Node 22 doesn't differ
-        # by OS: Ubuntu checks it. On Windows, the slowest, the integration suite's SQLite and
-        # PGlite halves run side by side. Ubuntu with Node 24 measures coverage as it tests.
+        # by OS: Ubuntu checks it. On Windows, the slowest, the integration suite runs in three
+        # jobs side by side: SQLite (about 11 minutes there) in two halves, and PGlite with the
+        # other packages' tests. Ubuntu with Node 24 measures coverage as it tests.
         include:
           - { os: ubuntu-latest, node: 24, coverage: true }
           - { os: ubuntu-latest, node: 22 }
           - { os: macos-latest, node: 24 }
-          - { os: windows-latest, node: 24, integration: sqlite }
-          - { os: windows-latest, node: 24, integration: pglite }
+          - { os: windows-latest, node: 24, integration: sqlite, shard: 1/2 }
+          - { os: windows-latest, node: 24, integration: sqlite, shard: 2/2 }
+          - { os: windows-latest, node: 24, integration: pglite, packages: true }
     runs-on: ${{ matrix.os }}
     env:
       # Missing on forks' pull requests: the report is made, not uploaded.
@@ -149,11 +151,11 @@ jobs:
       # afterwards: run alongside every other package on a 3-core macOS runner, PGlite starved for
       # minutes. A package whose test worker crashed in libsql's Windows teardown runs once more
       # (#132).
-      - if: ${{ !matrix.coverage && matrix.integration != 'pglite' }}
+      - if: ${{ !matrix.coverage && (!matrix.integration || matrix.packages) }}
         run: node .github/scripts/test-retry-crashes.mjs test-output.log --only --continue '--filter=!easy-cms-integration-tests'
         shell: bash
       - if: ${{ !matrix.coverage && (success() || failure()) }}
-        run: node .github/scripts/test-retry-crashes.mjs test-output.log --only --filter=easy-cms-integration-tests ${{ matrix.integration && format('-- --project {0}', matrix.integration) || '' }}
+        run: node .github/scripts/test-retry-crashes.mjs test-output.log --only --filter=easy-cms-integration-tests ${{ matrix.integration && format('-- --project {0}', matrix.integration) || '' }} ${{ matrix.shard && format('--shard={0}', matrix.shard) || '' }}
         shell: bash
       - if: failure()
         run: node .github/scripts/annotate-failures.mjs test-output.log "Tests failed (${{ matrix.os }}, Node ${{ matrix.node }})"
