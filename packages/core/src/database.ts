@@ -117,7 +117,15 @@ export interface Database {
   findById(args: { collection: string; id: ID }): Promise<RawDocument | null>
   /** Documents of one collection by id, in any order. Used to populate relationships. */
   findByIds(args: { collection: string; ids: readonly ID[] }): Promise<RawDocument[]>
-  count(args: { collection: string; where?: Where | undefined }): Promise<number>
+  /**
+   * With `max`, stops after `max + 1` matches (a result above `max` means "more than `max`"), so a
+   * count on a large collection doesn't read every row.
+   */
+  count(args: {
+    collection: string
+    where?: Where | undefined
+    max?: number | undefined
+  }): Promise<number>
   /** `data` holds every field, `createdAt` and `updatedAt`. Runs in one transaction. */
   create(args: {
     collection: string

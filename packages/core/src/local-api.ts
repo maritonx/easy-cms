@@ -643,9 +643,13 @@ export class EasyCMS<C extends Config = Config> {
     })
   }
 
+  /**
+   * The documents matching `where` that the user may read. With `max`, counting stops after
+   * `max + 1`: a result above `max` means "more than `max`", without reading every row.
+   */
   async count<S extends Slug<C>>(
     collection: S,
-    options: { where?: Where; draft?: boolean; locale?: string } & AccessOptions = {},
+    options: { where?: Where; draft?: boolean; locale?: string; max?: number } & AccessOptions = {},
   ): Promise<number> {
     return this.traced('count', String(collection), async () => {
       const config = this.collection(collection)
@@ -658,7 +662,9 @@ export class EasyCMS<C extends Config = Config> {
         ),
         options,
       )
-      return this.db.count({ collection, where })
+      if (options.max !== undefined && (!Number.isInteger(options.max) || options.max < 0))
+        throw new QueryError('max must be a whole number of 0 or more')
+      return this.db.count({ collection, where, max: options.max })
     })
   }
 

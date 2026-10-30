@@ -41,7 +41,7 @@ global มี route ของเวอร์ชันชุดเดียวก
 `versions/:version/restore`, `unpublish`, `discard-draft`, `preview`, `schedule`) route ของเวอร์ชันและตัวอย่างต้องมีสิทธิ์แก้ไข
 
 สิ่งที่หน้า admin ใช้เองอยู่ใต้ `/admin/ui/…` (`schema`, `counts`, `search`, `modules`,
-`scheduled`, `access`, `media-usage`, `owned`, `sso`) route เหล่านี้ใช้ภายใน ไม่นับเป็น API สาธารณะ
+`scheduled`, `access`, `total`, `media-usage`, `owned`, `sso`) route เหล่านี้ใช้ภายใน ไม่นับเป็น API สาธารณะ
 และอาจเปลี่ยนได้ในทุกรุ่น ให้ใช้ route ด้านบนแทน
 
 `where` ใช้รูปแบบวงเล็บเหลี่ยมหรือ JSON:

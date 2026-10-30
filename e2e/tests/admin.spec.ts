@@ -697,6 +697,61 @@ test.describe('logged in as admin', () => {
     expect(box && box.x >= 0 && box.x + box.width <= 375).toBe(true)
   })
 
+  test('pages through a list: links, Next by cursor, go to page, rows per page (#279)', async ({
+    page,
+  }) => {
+    await page.goto('/admin/')
+    const me = (await (await page.request.get('/api/cms/auth/me')).json()) as { csrfToken: string }
+    const headers = { 'x-csrf-token': me.csrfToken, origin: new URL(page.url()).origin }
+    const ids: number[] = []
+    for (let n = 1; n <= 45; n++) {
+      const created = await page.request.post('/api/cms/posts?depth=0', {
+        headers,
+        data: { title: `Pager ${String(n).padStart(2, '0')}` },
+      })
+      expect(created.status()).toBe(201)
+      ids.push(((await created.json()) as { id: number }).id)
+    }
+
+    await page.goto('/admin/collections/posts?q=Pager&sort=title')
+    const footer = page.locator('.table-footer')
+    const pager = page.getByRole('navigation', { name: 'Pagination' })
+    // The rows, then the total, loaded after them.
+    await expect(footer.getByText('1–20 of 45')).toBeVisible()
+    await expect(pager.getByRole('button', { name: 'Page 3' })).toBeVisible()
+    await expect(pager.getByRole('button', { name: 'Page 1' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
+
+    // Next goes by cursor; Previous comes back the same way.
+    const byCursor = page.waitForRequest((r) => /\/api\/cms\/posts\?.*cursor=[^&]+/.test(r.url()))
+    await pager.getByRole('button', { name: 'Next' }).click()
+    await byCursor
+    await expect(page).toHaveURL(/page=2/)
+    await expect(page.getByRole('link', { name: 'Pager 21', exact: true })).toBeVisible()
+    await expect(footer.getByText('21–40 of 45')).toBeVisible()
+    await pager.getByRole('button', { name: 'Previous' }).click()
+    await expect(page.getByRole('link', { name: 'Pager 01', exact: true })).toBeVisible()
+
+    // Go to a page past the last: the last.
+    await pager.getByLabel('Go to page').fill('9')
+    await pager.getByLabel('Go to page').press('Enter')
+    await expect(page).toHaveURL(/page=3/)
+    await expect(footer.getByText('41–45 of 45')).toBeVisible()
+
+    // 50 rows per page, remembered: one page, no page links.
+    await footer.getByLabel('Rows per page').selectOption('50')
+    await expect(footer.getByText('1–45 of 45')).toBeVisible()
+    await expect(pager).toBeHidden()
+    await page.reload()
+    await expect(footer.getByText('1–45 of 45')).toBeVisible()
+
+    // The other tests expect the posts list as it was.
+    for (const id of ids)
+      expect((await page.request.delete(`/api/cms/posts/${id}`, { headers })).status()).toBe(200)
+  })
+
   test('shows posts on a calendar, and creates one from a day (#272)', async ({ page }) => {
     // The standalone app's posts: admin.calendar by publishedAt, coloured by category.
     test.skip(test.info().project.name !== 'standalone', 'admin.calendar is set in standalone')

@@ -66,6 +66,10 @@ says whether there is more. Totals are reused for [`countCacheSeconds`](/referen
 default), so a list many people open is counted once in that time. The documents are always
 current; only the total can be that old, also right after a write. `0` counts every time.
 
+To show "10,000+" instead of an exact total, `count` takes `max` and stops after `max + 1`
+matches, without reading the rest: `await cms.count('posts', { where, max: 10_000 })` returns
+10,001 when there are more.
+
 Deep pages get slower the further in they are: the database steps over every document before
 them. To go through a long list page by page, use a cursor instead of `page`:
 

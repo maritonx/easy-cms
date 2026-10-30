@@ -75,6 +75,15 @@ import {
   writeConditions,
 } from '../lib/list-filters'
 import { leaveList, scrollFor } from '../lib/list-memory'
+import {
+  knownPages,
+  type ListTotal,
+  PAGE_SIZES,
+  PageCursors,
+  pageLinks,
+  storedPageSize,
+  storePageSize,
+} from '../lib/list-pages'
 import { useDelayedLoading } from '../lib/loading'
 import { crumbsFor, isPinned, togglePin } from '../lib/nav'
 import { findCollection, session } from '../lib/session'
@@ -94,7 +103,6 @@ const route = useRoute()
 const router = useRouter()
 const slug = String(route.params.slug)
 const collection = findCollection(slug)
-const PAGE_SIZE = 20
 const isMedia = slug === 'media'
 
 const titleField = collection?.useAsTitle
@@ -606,7 +614,14 @@ async function toggleNode(doc: Doc) {
 
 // --- Loading ----------------------------------------------------------------------------------
 
-const result = ref<Paginated<Doc> | null>(null)
+/** A page of the list. Totals load separately (`total`), after the rows (#279). */
+interface ListPage {
+  docs: Doc[]
+  page: number
+  hasNextPage: boolean
+  hasPrevPage: boolean
+}
+const result = ref<ListPage | null>(null)
 const loading = ref(false)
 /** The first page: skeleton rows. Later loads (page, sort, search) dim the rows shown. */
 const firstLoad = useDelayedLoading(() => loading.value && result.value === null)
@@ -627,11 +642,23 @@ const schedules = ref<Map<string, Job[]>>(new Map())
 const confirming = ref(false)
 const busy = ref(false)
 
-/** One page of documents in the default language, noting translations and live versions. */
-async function fetchDocs(where: unknown, limit: number, pageNumber = 1): Promise<Paginated<Doc>> {
-  const found = await api<Paginated<Doc>>(
+/**
+ * One page of documents in the default language, noting translations and live versions: by number,
+ * or after a `cursor` (`''` for the first page). Without totals, which `loadTotal` reads.
+ */
+async function fetchDocs(
+  where: unknown,
+  limit: number,
+  pageNumber = 1,
+  cursor?: string,
+): Promise<ListPage & { nextCursor: string | null }> {
+  const at =
+    cursor === undefined
+      ? `&page=${pageNumber}&count=false`
+      : `&cursor=${encodeURIComponent(cursor)}`
+  const found = await api<Omit<ListPage, 'page'> & { nextCursor?: string | null }>(
     'GET',
-    `/${slug}${toQuery({ where, sort: sort.value, limit, page: pageNumber, depth: 0, draft: true })}${localized ? '&locale=all' : ''}`,
+    `/${slug}${toQuery({ where, sort: sort.value, limit, depth: 0, draft: true })}${at}${localized ? '&locale=all' : ''}`,
   )
   let docs = found.docs
   if (localized && localization && collection) {
@@ -653,7 +680,69 @@ async function fetchDocs(where: unknown, limit: number, pageNumber = 1): Promise
   ])
   if (live.size) liveIds.value = new Set([...liveIds.value, ...live])
   if (jobs.size) schedules.value = new Map([...schedules.value, ...jobs])
-  return { ...found, docs }
+  return { ...found, docs, page: pageNumber, nextCursor: found.nextCursor ?? null }
+}
+
+// --- Pages (#279): size, cursors behind Next and Previous, the total loaded after the rows ------
+
+const pageSize = ref(storedPageSize())
+const cursors = new PageCursors()
+const total = ref<ListTotal | null>(null)
+/** The query the total and the cursors belong to. */
+let totalKey = ''
+
+function setPageSize(size: number) {
+  storePageSize(size)
+  pageSize.value = size
+  if (page.value === 1) void load()
+  else setQuery({ page: undefined })
+}
+
+/** The list's total, counted up to 10,000 (`more` past that), while its rows already show. */
+async function loadTotal(key: string, where: unknown) {
+  try {
+    const found = await api<ListTotal>(
+      'GET',
+      `/admin/ui/total/${slug}${toQuery({ where, draft: true })}`,
+    )
+    if (key === totalKey) total.value = found
+  } catch {
+    // Without a total the pages still work: Next while there are more.
+  }
+}
+
+/** A page by its cursor when Next or Previous led there, else by number. */
+async function fetchPage(where: unknown, pageNumber: number) {
+  const cursor = cursors.get(pageNumber)
+  if (cursor !== undefined) {
+    try {
+      return await fetchDocs(where, pageSize.value, pageNumber, cursor)
+    } catch (e) {
+      // A sort the database can't page by cursor: by number from now on.
+      if (!(e instanceof ApiError && e.status === 400)) throw e
+      cursors.disable()
+    }
+  }
+  return fetchDocs(where, pageSize.value, pageNumber)
+}
+
+const lastPage = computed(() =>
+  total.value && !total.value.more ? knownPages(total.value, pageSize.value) : null,
+)
+const links = computed(() =>
+  result.value ? pageLinks(page.value, lastPage.value, result.value.hasNextPage) : [],
+)
+/** A total as people read it: "10,000+" past the count's ceiling. */
+const totalText = computed(() =>
+  total.value ? `${total.value.total.toLocaleString()}${total.value.more ? '+' : ''}` : null,
+)
+const goTo = ref('')
+function goToPage() {
+  const n = Math.floor(Number(goTo.value))
+  goTo.value = ''
+  if (!Number.isFinite(n) || n < 1) return
+  const target = lastPage.value ? Math.min(n, lastPage.value) : n
+  setQuery({ page: target === 1 ? undefined : String(target) })
 }
 
 /** Counts loads: a slower, older one (e.g. before a filter changed) doesn't overwrite a newer one. */
@@ -669,8 +758,16 @@ async function load() {
     schedules.value = new Map()
     const tree = treeMode.value && treeField
     const where = tree ? { [treeField]: { exists: false } } : await listWhere()
-    const found = await fetchDocs(where, PAGE_SIZE, page.value)
+    const key = JSON.stringify([where, sort.value, pageSize.value])
+    cursors.use(key)
+    if (key !== totalKey) {
+      totalKey = key
+      total.value = null
+      if (!tree) void loadTotal(key, where)
+    }
+    const found = await fetchPage(where, page.value)
     if (current !== loads) return
+    cursors.set(found.page, found.nextCursor)
     children.value = new Map()
     if (tree) {
       await loadChildren(found.docs.map((d) => d.id))
@@ -860,9 +957,9 @@ function sortState(field: string): 'ascending' | 'descending' | 'none' {
 
 const range = computed(() => {
   const r = result.value
-  if (!r || r.totalDocs === 0) return null
-  const from = (r.page - 1) * PAGE_SIZE + 1
-  return { from, to: from + r.docs.length - 1, total: r.totalDocs }
+  if (!r || r.docs.length === 0) return null
+  const from = (r.page - 1) * pageSize.value + 1
+  return { from, to: from + r.docs.length - 1 }
 })
 
 // --- Selection and bulk actions ---------------------------------------------------------------
@@ -968,7 +1065,8 @@ async function deleteSelected(query = '') {
         >
           <component :is="isPinned(`collection:${slug}`) ? PinOff : Pin" :size="16" aria-hidden="true" />
         </button>
-        <span v-if="result" class="count">{{ t((treeTotal ?? result.totalDocs) === 1 ? 'list.countOne' : 'list.count', { count: treeTotal ?? result.totalDocs }) }}</span>
+        <span v-if="treeTotal !== null" class="count">{{ t(treeTotal === 1 ? 'list.countOne' : 'list.count', { count: treeTotal.toLocaleString() }) }}</span>
+        <span v-else-if="total" class="count">{{ t(total.total === 1 && !total.more ? 'list.countOne' : 'list.count', { count: totalText ?? '' }) }}</span>
       </div>
       <div class="toolbar-actions">
         <button v-if="useFolders && canAddFolder" type="button" class="btn" @click="namingError = ''; naming = { mode: 'new' }">
@@ -1410,16 +1508,37 @@ async function deleteSelected(query = '') {
         </RouterLink>
       </div>
       <div v-if="range" class="table-footer">
-        <span>{{ t('list.showing', { from: range.from, to: range.to, total: range.total }) }}</span>
-        <nav v-if="result && result.totalPages > 1" class="pagination" :aria-label="humanize('pagination')">
-          <button type="button" class="btn btn-sm btn-icon" :disabled="!result.hasPrevPage" :aria-label="t('list.previous')" @click="setQuery({ page: String(page - 1) })">
+        <span>{{ t('list.showing', { from: range.from.toLocaleString(), to: range.to.toLocaleString(), total: totalText ?? '…' }) }}</span>
+        <nav v-if="result && (page > 1 || result.hasNextPage)" class="pagination" :aria-label="humanize('pagination')">
+          <button type="button" class="btn btn-sm btn-icon" :disabled="page <= 1" :aria-label="t('list.previous')" :title="t('list.previous')" @click="setQuery({ page: page - 1 === 1 ? undefined : String(page - 1) })">
             <ChevronLeft :size="16" aria-hidden="true" />
           </button>
-          <span>{{ t('list.page', { page: result.page, pages: result.totalPages }) }}</span>
-          <button type="button" class="btn btn-sm btn-icon" :disabled="!result.hasNextPage" :aria-label="t('list.next')" @click="setQuery({ page: String(page + 1) })">
+          <template v-for="(link, i) in links" :key="i">
+            <span v-if="link === 'gap'" class="page-gap" aria-hidden="true">…</span>
+            <button
+              v-else
+              type="button"
+              class="btn btn-sm page-link"
+              :class="{ current: link === page }"
+              :aria-current="link === page ? 'page' : undefined"
+              :aria-label="t('list.pageNumber', { page: link.toLocaleString() })"
+              @click="setQuery({ page: link === 1 ? undefined : String(link) })"
+            >{{ link.toLocaleString() }}</button>
+          </template>
+          <button type="button" class="btn btn-sm btn-icon" :disabled="!result.hasNextPage" :aria-label="t('list.next')" :title="t('list.next')" @click="setQuery({ page: String(page + 1) })">
             <ChevronRight :size="16" aria-hidden="true" />
           </button>
+          <form class="page-go" @submit.prevent="goToPage">
+            <label :for="`go-to-${slug}`">{{ t('list.goTo') }}</label>
+            <input :id="`go-to-${slug}`" v-model="goTo" class="input" type="number" min="1" inputmode="numeric" />
+          </form>
         </nav>
+        <label class="page-size">
+          <span>{{ t('list.perPage') }}</span>
+          <select class="input" :value="pageSize" @change="setPageSize(Number(($event.target as HTMLSelectElement).value))">
+            <option v-for="size in PAGE_SIZES" :key="size" :value="size">{{ size }}</option>
+          </select>
+        </label>
       </div>
     </div>
     </div>
@@ -2121,8 +2240,45 @@ button.tree-toggle:hover {
 }
 .pagination {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.35rem;
+}
+.page-link {
+  min-width: 2rem;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
+.page-link.current {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+.page-gap {
+  padding-inline: 0.25rem;
+  color: var(--faint);
+}
+.page-go,
+.page-size {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+}
+.page-go {
+  margin-left: 0.5rem;
+}
+.page-go input,
+.page-size select {
+  height: 2rem;
+  padding-block: 0;
+  font-size: 0.85rem;
+}
+.page-go input {
+  width: 4.5rem;
+}
+.page-size select {
+  width: auto;
 }
 
 /* Selected rows: actions float at the bottom of the screen. */
