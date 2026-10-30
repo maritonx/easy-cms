@@ -31,7 +31,7 @@ const COLLECTION_ADMIN = keys(
   'icon order sidebar layout group editIn badge count empty list ownerField confirmDelete',
 )
 const FIELD_ADMIN = keys(
-  'description width condition component after cell column allowCreate initialValue position',
+  'description width condition component after cell column allowCreate initialValue position filter',
 )
 const BASE_FIELD = `type name label required unique uniqueWithin index defaultValue validate access
   hidden localized admin customType`

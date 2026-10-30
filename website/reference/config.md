@@ -30,7 +30,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `webhooks` | `WebhookConfig[]` | `[]` | See [webhooks](#webhooks). |
 | `events` | `string[]` | `[]` | Events of the app or its plugins besides content changes (`<area>.<what>`, e.g. `order.paid`), sent with `cms.emit()` to webhooks that list them. [Webhooks](/guide/webhooks#your-own-events) |
 | `jobs` | `JobConfig[]` | `[]` | Work run with the scheduled jobs, e.g. a plugin's clean-up. See [jobs](#jobs). |
-| `timeZone` | `string` | the server's | IANA time zone of times of day in the config (`jobs[].at`, `backups.at`), e.g. `Asia/Bangkok`. [Jobs](/guide/jobs) |
+| `timeZone` | `string` | the server's | IANA time zone of times of day in the config (`jobs[].at`, `backups.at`) and the days of the admin's list filters, e.g. `Asia/Bangkok`. [Jobs](/guide/jobs) |
 | `localization` | `LocalizationConfig \| false` | — | See [localization](#localization). |
 | `routes` | `RoutesConfig` | | See [routes](#routes). |
 | `admin` | `AdminConfig` | | See [admin](#admin). |
