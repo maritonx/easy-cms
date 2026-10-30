@@ -35,6 +35,7 @@ look in the admin and how they are stored, see [Fields](/guide/fields).
 | `width` | `'1/4' \| '1/3' \| '1/2' \| '2/3' \| '3/4' \| 'full'` | Its share of a row (`admin.layout`). Default: an equal share. |
 | `condition` | `FieldCondition` | Shown only when sibling fields match, e.g. `{ field: 'linkType', equals: 'external' }`; also `not_equals`, `in`, `not_in`, `exists`, `and`, `or`, `not`. A hidden field isn't required. [The admin](/guide/admin#conditions) |
 | `column` | `boolean \| ({ user, context }) => boolean` | A column of the list at first (each user can change it). |
+| `filter` | `boolean` | `false`: the list's filters don't offer it. [The admin](/guide/admin#filters) |
 | `allowCreate` | `boolean` | Relationships: offer to create the related document in place. Default `true`. |
 | `initialValue` | `({ user, context }) => unknown` | The value a new document's form starts with, per user, e.g. from the request's context. The field's `defaultValue` still applies on the server. |
 | `position` | `'sidebar'` | Shown in the edit page's side column (top-level fields). |

@@ -35,6 +35,7 @@
 | `width` | `'1/4' \| '1/3' \| '1/2' \| '2/3' \| '3/4' \| 'full'` | สัดส่วนในแถว (`admin.layout`) ค่าเริ่มต้น: แบ่งเท่ากัน |
 | `condition` | `FieldCondition` | แสดงเฉพาะเมื่อ field ข้างเคียงตรงเงื่อนไข เช่น `{ field: 'linkType', equals: 'external' }` มี `not_equals`, `in`, `not_in`, `exists`, `and`, `or`, `not` ด้วย field ที่ถูกซ่อนไม่ถูกบังคับกรอก [ระบบจัดการ](/th/guide/admin#conditions) |
 | `column` | `boolean \| ({ user, context }) => boolean` | แสดงเป็นคอลัมน์ของหน้ารายการตั้งแต่แรก (ผู้ใช้เปลี่ยนเองได้) |
+| `filter` | `boolean` | `false`: ตัวกรองของหน้ารายการไม่มี field นี้ให้เลือก [ระบบจัดการ](/th/guide/admin#filters) |
 | `allowCreate` | `boolean` | relationship: ให้สร้างเอกสารที่เชื่อมได้ทันที ค่าเริ่มต้น `true` |
 | `initialValue` | `({ user, context }) => unknown` | ค่าเริ่มต้นของฟอร์มเอกสารใหม่ต่อผู้ใช้ เช่น จาก context ของ request ส่วน `defaultValue` ของ field ยังใช้ฝั่ง server ตามเดิม |
 | `position` | `'sidebar'` | แสดงในแถบข้างของหน้าแก้ไข (field ระดับบนสุด) |

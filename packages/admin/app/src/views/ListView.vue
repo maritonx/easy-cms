@@ -33,6 +33,8 @@ import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import DeleteDialog from '../components/DeleteDialog.vue'
 import DocumentDrawer from '../components/DocumentDrawer.vue'
+import FilterChips from '../components/FilterChips.vue'
+import FilterPanel from '../components/FilterPanel.vue'
 import FolderMoveDialog from '../components/FolderMoveDialog.vue'
 import FolderNameDialog from '../components/FolderNameDialog.vue'
 import FolderPermissionsDialog from '../components/FolderPermissionsDialog.vue'
@@ -62,6 +64,13 @@ import {
   within,
 } from '../lib/folders'
 import { formatBytes, formatDate, humanize, label, t } from '../lib/i18n'
+import {
+  type Condition,
+  whereOf as conditionsWhere,
+  filterFields as filterableFields,
+  readConditions,
+  writeConditions,
+} from '../lib/list-filters'
 import { leaveList, scrollFor } from '../lib/list-memory'
 import { useDelayedLoading } from '../lib/loading'
 import { crumbsFor, isPinned, togglePin } from '../lib/nav'
@@ -94,9 +103,11 @@ const sort = computed(() =>
     ? route.query.sort
     : (collection?.defaultSort ?? (collection?.tree && titleField ? titleField : '-updatedAt')),
 )
-const statusFilter = computed(() =>
-  route.query.status === 'published' || route.query.status === 'draft' ? route.query.status : '',
-)
+/** The status menu: a condition on `status` (also from older `?status=` links). */
+const statusFilter = computed(() => {
+  const value = conditions.value.find((c) => c.field === 'status')?.ops.equals
+  return value === 'published' || value === 'draft' ? value : ''
+})
 
 // --- Columns ----------------------------------------------------------------------------------
 
@@ -215,37 +226,43 @@ function cell(field: AdminField, value: unknown): string {
 /** With roles (`auth.rbac`): the field naming a document's owner, for "Mine". */
 const owner = collection?.owner
 
-/** Select fields become filter menus (up to three). */
-const filterFields = computed(
+/**
+ * The list's conditions (#88), kept in the URL as the REST API reads a `where`; the status menu,
+ * "Mine" and the select menus add to them, and older `?status=` / `?f_<field>=` links still work.
+ */
+const conditions = computed(() => readConditions(route.query))
+const filterFields = computed(() => filterableFields(collection?.fields ?? []))
+const timeZone = computed(() => session.schema?.timeZone)
+const filterPanel = ref<InstanceType<typeof FilterPanel>>()
+const activeFilters = computed(() => conditions.value.length)
+function setConditions(next: Condition[]) {
+  setQuery({ ...writeConditions(next, route.query), page: undefined })
+}
+/** The condition on one field, as a menu sets it; `null` removes it. */
+function setQuick(field: string, ops: Record<string, unknown> | null) {
+  const rest = conditions.value.filter((c) => c.field !== field)
+  setConditions(ops ? [...rest, { field, ops }] : rest)
+}
+/** Select fields also get a menu of their own (up to three): one value, as "is any of". */
+const quickFields = computed(
   () =>
     collection?.fields.filter((f) => f.type === 'select' && f.options?.length).slice(0, 3) ?? [],
 )
-const filterValue = (name: string) => {
-  const value = route.query[`f_${name}`]
-  return typeof value === 'string' ? value : ''
+function quickValue(field: string): string {
+  const ops = conditions.value.find((c) => c.field === field)?.ops
+  const values = ops?.in ?? ops?.equals
+  const list = Array.isArray(values) ? values : values === undefined ? [] : [values]
+  return list.length === 1 ? String(list[0]) : ''
 }
-const activeFilters = computed(
-  () =>
-    (collection?.fields ?? []).filter(
-      (f) =>
-        (f.type === 'select' || (f.type === 'relationship' && !f.hasMany)) && filterValue(f.name),
-    ).length + (statusFilter.value ? 1 : 0),
+const mine = computed(
+  () => !!owner && !!session.user && quickValue(owner) === String(session.user.id),
 )
 
 function whereOf() {
   const parts: Record<string, unknown>[] = []
   if (search.value && titleField && !searchShort.value)
     parts.push({ [titleField]: { like: search.value } })
-  if (statusFilter.value) parts.push({ status: { equals: statusFilter.value } })
-  for (const f of filterFields.value) {
-    const value = filterValue(f.name)
-    if (value) parts.push({ [f.name]: { equals: value } })
-  }
-  // Links can narrow the list to one related document, e.g. a form's submissions (?f_form=3).
-  for (const f of collection?.fields ?? []) {
-    const value = f.type === 'relationship' && !f.hasMany ? filterValue(f.name) : ''
-    if (value) parts.push({ [f.name]: { equals: value } })
-  }
+  parts.push(...conditionsWhere(conditions.value))
   // The open folder; a search also looks in its subfolders.
   if (useFolders) {
     const inFolder = folderWhere(tree.value, currentFolder.value, !!search.value)
@@ -603,8 +620,11 @@ async function fetchDocs(where: unknown, limit: number, pageNumber = 1): Promise
   return { ...found, docs }
 }
 
+/** Counts loads: a slower, older one (e.g. before a filter changed) doesn't overwrite a newer one. */
+let loads = 0
 async function load() {
   if (!collection) return
+  const current = ++loads
   loading.value = true
   error.value = ''
   try {
@@ -613,6 +633,7 @@ async function load() {
     const tree = treeMode.value && treeField
     const where = tree ? { [treeField]: { exists: false } } : whereOf()
     const found = await fetchDocs(where, PAGE_SIZE, page.value)
+    if (current !== loads) return
     children.value = new Map()
     if (tree) {
       await loadChildren(found.docs.map((d) => d.id))
@@ -620,6 +641,7 @@ async function load() {
         'GET',
         `/${slug}${toQuery({ limit: 1, depth: 0, draft: true })}`,
       )
+      if (current !== loads) return
       treeTotal.value = all.totalDocs
     } else {
       treeTotal.value = null
@@ -631,12 +653,13 @@ async function load() {
     const scroll = scrollFor(slug, route.fullPath)
     if (scroll !== null) requestAnimationFrame(() => window.scrollTo(0, scroll))
   } catch (e) {
+    if (current !== loads) return
     error.value =
       e instanceof ApiError && e.status === 403
         ? t('common.forbidden')
         : String((e as Error).message)
   } finally {
-    loading.value = false
+    if (current === loads) loading.value = false
   }
 }
 
@@ -661,9 +684,7 @@ function setQuery(patch: Record<string, string | undefined>) {
   void router.replace({ query })
 }
 function clearFilters() {
-  const patch: Record<string, undefined> = { status: undefined, page: undefined }
-  for (const f of filterFields.value) patch[`f_${f.name}`] = undefined
-  setQuery(patch)
+  setConditions([])
 }
 
 let debounce: ReturnType<typeof setTimeout> | undefined
@@ -887,7 +908,7 @@ async function deleteSelected(query = '') {
         <span class="visually-hidden">{{ t('list.status') }}</span>
         <select
           :value="statusFilter"
-          @change="setQuery({ status: ($event.target as HTMLSelectElement).value || undefined, page: undefined })"
+          @change="setQuick('status', ($event.target as HTMLSelectElement).value ? { equals: ($event.target as HTMLSelectElement).value } : null)"
         >
           <option value="">{{ t('list.statusAll') }}</option>
           <option value="published">{{ t('list.statusIs', { status: t('status.published') }) }}</option>
@@ -897,19 +918,19 @@ async function deleteSelected(query = '') {
       <button
         v-if="owner && session.user"
         type="button"
-        :class="['btn', 'btn-sm', 'mine', { on: filterValue(owner) === String(session.user.id) }]"
-        :aria-pressed="filterValue(owner) === String(session.user.id)"
+        :class="['btn', 'btn-sm', 'mine', { on: mine }]"
+        :aria-pressed="mine"
         :title="t('list.mineHint')"
-        @click="setQuery({ [`f_${owner}`]: filterValue(owner) ? undefined : String(session.user.id), page: undefined })"
+        @click="setQuick(owner, mine ? null : { equals: String(session.user.id) })"
       >
         <UserRound :size="14" aria-hidden="true" />
         {{ t('list.mine') }}
       </button>
-      <label v-for="f in filterFields" :key="f.name" :class="['filter', { on: filterValue(f.name) }]">
+      <label v-for="f in quickFields" :key="f.name" :class="['filter', { on: quickValue(f.name) }]">
         <span class="visually-hidden">{{ label(f.label, f.name) }}</span>
         <select
-          :value="filterValue(f.name)"
-          @change="setQuery({ [`f_${f.name}`]: ($event.target as HTMLSelectElement).value, page: undefined })"
+          :value="quickValue(f.name)"
+          @change="setQuick(f.name, ($event.target as HTMLSelectElement).value ? { in: [($event.target as HTMLSelectElement).value] } : null)"
         >
           <option value="">{{ t('list.filterAll', { field: label(f.label, humanize(f.name)) }) }}</option>
           <option v-for="o in f.options" :key="o.value" :value="o.value">
@@ -917,6 +938,14 @@ async function deleteSelected(query = '') {
           </option>
         </select>
       </label>
+      <FilterPanel
+        v-if="filterFields.length"
+        ref="filterPanel"
+        :fields="filterFields"
+        :conditions="conditions"
+        :time-zone="timeZone"
+        @apply="setConditions"
+      />
       <button v-if="activeFilters" type="button" class="btn btn-ghost btn-sm" @click="clearFilters">
         <X :size="14" aria-hidden="true" />
         {{ t('list.clearFilters') }}
@@ -943,6 +972,16 @@ async function deleteSelected(query = '') {
         </div>
       </div>
     </div>
+    <FilterChips
+      :conditions="conditions"
+      :fields="filterFields"
+      :all-fields="collection.fields"
+      :owner="owner"
+      :user-id="session.user ? String(session.user.id) : undefined"
+      :time-zone="timeZone"
+      @remove="(i) => setConditions(conditions.filter((_, j) => j !== i))"
+      @edit="filterPanel?.show()"
+    />
 
     <ul v-if="useFolders && !search && subfolders.length" class="folders">
       <li
@@ -1671,6 +1710,7 @@ button.menu-item {
   pointer-events: none;
 }
 .search .input {
+  height: 2.5rem;
   padding-left: 2.3rem;
 }
 .segmented {
@@ -1696,8 +1736,14 @@ button.menu-item {
   color: var(--text);
   box-shadow: var(--shadow-sm);
 }
+/* One height for the toolbar: the search's. */
+.filters > .btn,
+.filters :deep(.filter-wrap > .btn),
+.columns > .btn {
+  min-height: 2.5rem;
+}
 .filter select {
-  min-height: 2.25rem;
+  min-height: 2.5rem;
   padding: 0 2.25rem 0 0.75rem;
   border: 1px dashed var(--border-strong);
   border-radius: var(--radius-sm);

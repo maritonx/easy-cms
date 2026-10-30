@@ -629,6 +629,57 @@ test.describe('logged in as admin', () => {
     await expect(page.getByRole('row').nth(1)).toContainText('Gamma note')
   })
 
+  test('filters a list by several conditions, kept in the URL (#88)', async ({ page }) => {
+    await page.goto('/admin/collections/posts')
+    await page.getByRole('button', { name: /^Filter/ }).click()
+    const panel = page.getByRole('dialog', { name: 'Show documents where' })
+    await panel.getByRole('combobox', { name: 'Field', exact: true }).first().selectOption('title')
+    // A condition without a value says so, rather than being dropped.
+    await panel.getByRole('button', { name: 'Apply filters' }).click()
+    await expect(panel.getByRole('alert')).toHaveText('Enter a value, or remove this condition.')
+    await expect(panel.getByRole('textbox', { name: 'Value', exact: true }).first()).toBeFocused()
+    await panel.getByRole('textbox', { name: 'Value', exact: true }).first().fill('note')
+    await panel.getByRole('button', { name: 'Add condition' }).click()
+    await panel.getByRole('combobox', { name: 'Field', exact: true }).nth(1).selectOption('createdAt')
+    await panel.getByRole('combobox', { name: 'Condition', exact: true }).nth(1).selectOption('after')
+    await panel.getByRole('button', { name: 'Last 7 days' }).click()
+    await panel.getByRole('button', { name: 'Apply filters' }).click()
+    await expect(panel).toBeHidden()
+
+    await expect(page.getByRole('row')).toHaveCount(2)
+    await expect(page.getByRole('row').nth(1)).toContainText('Gamma note')
+    const url = () => decodeURIComponent(page.url())
+    expect(url()).toContain('where[and][0][title][like]=note')
+    expect(url()).toMatch(/where\[and\]\[1\]\[createdAt\]\[gte\]=\d{4}-/)
+    const chips = page.getByRole('list', { name: 'Filters' })
+    await expect(chips.getByRole('listitem')).toHaveCount(2)
+    await expect(page.getByRole('button', { name: /^Filter\s*2$/ })).toBeVisible()
+
+    // The link keeps the list: shared or reloaded, it filters the same.
+    await page.reload()
+    await expect(page.getByRole('row')).toHaveCount(2)
+
+    await page.getByRole('button', { name: 'Remove filter: Title contains “note”' }).click()
+    await expect(chips.getByRole('listitem')).toHaveCount(1)
+    expect(url()).not.toContain('[title]')
+    await page.getByRole('button', { name: 'Clear filters' }).click()
+    await expect(chips).toBeHidden()
+
+    // Older links still work, and a chip opens the panel to change them.
+    await page.goto('/admin/collections/posts?status=draft')
+    await expect(chips.getByRole('listitem')).toHaveText(['Status: Draft'])
+    await chips.getByRole('button', { name: 'Status: Draft', exact: true }).click()
+    await expect(panel).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(panel).toBeHidden()
+
+    // On a phone the panel fits the screen.
+    await page.setViewportSize({ width: 375, height: 800 })
+    await page.getByRole('button', { name: /^Filter/ }).click()
+    const box = await panel.boundingBox()
+    expect(box && box.x >= 0 && box.x + box.width <= 375).toBe(true)
+  })
+
   test('deletes from the edit page and warns about unsaved changes (FR-ADM-08)', async ({
     page,
   }) => {

@@ -125,6 +125,8 @@ export interface AdminField {
   column?: boolean
   /** A relationship that offers no "Create" in place (`admin.allowCreate: false`). */
   noCreate?: boolean
+  /** Not offered by the list's filters (`admin.filter: false`). */
+  noFilter?: boolean
   /** A field of an added type (`fieldTypes`), e.g. `color`; `type` is the base it's stored as. */
   customType?: string
   /** Help below its label (`admin.description`). */
@@ -212,6 +214,8 @@ export interface AdminWidgetRef {
 
 export interface AdminSchema {
   locale: AdminLocale
+  /** The site's time zone (`timeZone`), for dates the admin shows and filters by; none: the browser's. */
+  timeZone?: string
   /** A choice for the whole admin, e.g. the tenant (`admin.switcher`). */
   switcher: AdminSwitcher | null
   /** Admins can email users links to set their password (needs `email` and `serverURL`). */
@@ -308,6 +312,7 @@ async function serializeFields(
     const column = field.admin?.column
     if (column === true || (typeof column === 'function' && (await column(who)))) f.column = true
     if (field.admin?.allowCreate === false) f.noCreate = true
+    if (field.admin?.filter === false) f.noFilter = true
     if (!(await update.allows(field))) f.readOnly = true
     if (field.localized && localized) f.localized = true
     if (field.admin?.position === 'sidebar') f.position = 'sidebar'
@@ -544,6 +549,7 @@ export async function adminSchema(
   const adminPages = await pages(cms, user)
   return {
     locale: cms.config.admin.locale,
+    ...(cms.config.timeZone ? { timeZone: cms.config.timeZone } : {}),
     switcher: cms.config.admin.switcher || null,
     passwordLinks: cms.auth.canSendPasswordLinks(origin),
     passwordFor: passwordFor(cms.config.auth.password),

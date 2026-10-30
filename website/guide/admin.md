@@ -211,6 +211,25 @@ admin: {
 }
 ```
 
+### Filters
+
+**Filter** opens a panel of conditions, all of which a document must meet: a title that contains a
+word, a number between two values, a day before, after, on or between dates, a select option or a
+related document that is any of several, a field that is empty. Each condition shows above the list
+as a chip: click it to change the conditions, × to remove it.
+
+- Days are whole days in `timeZone` (see [Configuration](../reference/config)), wherever the
+  admin is opened. **Today**, **Last 7 days** and **Last 30 days** fill in the day when chosen.
+- The conditions are in the address, in the form the [REST API](./rest-api) reads, so a link
+  shows the same list to anyone who opens it:
+  `/admin/collections/posts?where[and][0][category][in]=3&where[and][1][publishedAt][gte]=…`.
+  Older links (`?status=draft`, `?f_form=3`) still work.
+- The status menu, **Mine** and the menus of up to three select fields add their condition to the
+  others.
+- Fields in an array or blocks, rich text and JSON aren't offered. To leave out another field, set
+  `admin: { filter: false }` on it.
+- On a large collection, give a field people filter by often an index (`index: true`).
+
 ## Next steps
 
 - [Plugins](./plugins): give a plugin's collections and pages their own group.

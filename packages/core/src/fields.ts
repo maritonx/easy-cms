@@ -57,6 +57,8 @@ export interface FieldAdmin {
   readonly initialValue?: (args: AdminFieldArgs) => unknown
   /** `sidebar`: shown in the edit page's side panel instead of the main form (top-level fields). */
   readonly position?: 'sidebar'
+  /** `false`: the list's filters don't offer it. Default: every field the user may read. */
+  readonly filter?: boolean
 }
 
 /** What per-request admin options of a field receive. */
