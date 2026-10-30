@@ -132,6 +132,17 @@ function onView(next: string, day: string) {
   if (next === view.value && day === date.value) return
   void router.replace({ query: { ...route.query, view: next, date: day } })
 }
+const day = computed(() => (typeof route.query.day === 'string' ? route.query.day : undefined))
+function onDay(next: string) {
+  void router.replace({ query: { ...route.query, day: next } })
+}
+/** A collection's name, for the day card. */
+const sourceOf = (slug: string) => {
+  const c = collections.value.find((x) => x.slug === slug)
+  return c ? label(c.labels?.singular, slug) : slug
+}
+/** The sources card starts open where there is room for it. */
+const wide = typeof matchMedia === 'function' ? matchMedia('(min-width: 641px)').matches : true
 </script>
 
 <template>
@@ -142,38 +153,53 @@ function onView(next: string, day: string) {
         <p class="muted">{{ t('calendar.lead') }}</p>
       </div>
     </header>
-    <fieldset class="sources">
-      <legend class="visually-hidden">{{ t('calendar.sources') }}</legend>
-      <label v-for="c in withCalendar" :key="c.slug" class="source">
-        <input type="checkbox" :checked="!hidden.has(c.slug)" @change="toggle(c.slug, ($event.target as HTMLInputElement).checked)" />
-        <span :class="['swatch', ...colorOf(c.slug)]" aria-hidden="true" />
-        {{ label(c.labels?.plural, c.slug) }}
-      </label>
-      <label v-if="anyScheduled" class="source">
-        <input type="checkbox" :checked="!hidden.has(SCHEDULED)" @change="toggle(SCHEDULED, ($event.target as HTMLInputElement).checked)" />
-        <span class="swatch dashed" aria-hidden="true" />
-        {{ t('calendar.scheduled') }}
-      </label>
-    </fieldset>
     <CalendarView
-      class="card calendar-card"
       :load="load"
       :reload-key="[...hidden].sort().join(',')"
       :selectable="false"
       :view="view"
       :date="date"
+      :day="day"
+      :source-of="sourceOf"
       @open="(to: string) => router.push(to)"
       @update:view="onView"
-    />
+      @update:day="onDay"
+    >
+      <template #side>
+        <!-- Open on wide screens; on a phone it folds, so the day comes first. -->
+        <details class="card sources-card" :open="wide">
+          <summary>{{ t('calendar.sources') }}</summary>
+          <fieldset class="sources">
+            <legend class="visually-hidden">{{ t('calendar.sources') }}</legend>
+            <label v-for="c in withCalendar" :key="c.slug" class="source">
+              <input type="checkbox" :checked="!hidden.has(c.slug)" @change="toggle(c.slug, ($event.target as HTMLInputElement).checked)" />
+              <span :class="['swatch', ...colorOf(c.slug)]" aria-hidden="true" />
+              {{ label(c.labels?.plural, c.slug) }}
+            </label>
+            <label v-if="anyScheduled" class="source">
+              <input type="checkbox" :checked="!hidden.has(SCHEDULED)" @change="toggle(SCHEDULED, ($event.target as HTMLInputElement).checked)" />
+              <span class="swatch dashed" aria-hidden="true" />
+              {{ t('calendar.scheduled') }}
+            </label>
+          </fieldset>
+        </details>
+      </template>
+    </CalendarView>
   </div>
 </template>
 
 <style scoped>
+.sources-card {
+  padding: 0.75rem 1rem;
+}
+.sources-card summary {
+  font-weight: 600;
+  cursor: pointer;
+}
 .sources {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 1rem;
-  margin: 0 0 0.9rem;
+  display: grid;
+  gap: 0.25rem;
+  margin: 0.5rem 0 0;
   padding: 0;
   border: 0;
 }
@@ -194,8 +220,5 @@ function onView(next: string, day: string) {
 .swatch.dashed {
   border: 1.5px dashed var(--text-muted);
   background: transparent;
-}
-.calendar-card {
-  padding: 1rem;
 }
 </style>

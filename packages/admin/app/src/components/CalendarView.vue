@@ -15,7 +15,8 @@ import timeGridPlugin from '@fullcalendar/timegrid'
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { type CalendarEvent, type CalendarRange, momentOf, RANGE_LIMIT } from '../lib/calendar'
 import { locale, t } from '../lib/i18n'
-import { adminTimeZone, toZoned, zoneName } from '../lib/time-zone'
+import { adminTimeZone, today, toZoned, zoneName } from '../lib/time-zone'
+import CalendarDay from './CalendarDay.vue'
 
 /**
  * A calendar (#272): month, week, day and agenda, in the admin's time zone. What it shows comes
@@ -32,6 +33,10 @@ const props = defineProps<{
   /** `month`, `week`, `day` or `agenda`, and the day shown (`YYYY-MM-DD`). */
   view: string
   date: string | undefined
+  /** The day in the side card (`YYYY-MM-DD`); today without one. */
+  day: string | undefined
+  /** The collection an event comes from, named in the side card (several sources). */
+  sourceOf?: ((slug: string) => string) | undefined
 }>()
 const emit = defineEmits<{
   /** An event was clicked: the route to open. */
@@ -39,6 +44,7 @@ const emit = defineEmits<{
   /** An empty day or slot was selected, as FullCalendar's wall-clock dates. */
   select: [slot: { start: Date; end: Date; allDay: boolean }]
   'update:view': [view: string, date: string]
+  'update:day': [day: string]
 }>()
 
 const VIEWS: Record<string, string> = {
@@ -54,6 +60,13 @@ const tooMany = ref(false)
 const error = ref('')
 const busy = ref(false)
 let calendar: Calendar | undefined
+/** Bumped by `refetch`, so the side card loads again too (e.g. after a save). */
+const saved = ref(0)
+
+const zoneDay = () => props.day ?? today(adminTimeZone.value)
+/** A FullCalendar wall-clock date as `YYYY-MM-DD`. */
+const ymd = (wall: Date) => wall.toISOString().slice(0, 10)
+const selectedClass = (date: Date) => (ymd(date) === zoneDay() ? ['is-selected'] : [])
 
 const zone = () => adminTimeZone.value
 const fullDate = (wall: Date, withTime: boolean) =>
@@ -109,6 +122,11 @@ onMounted(() => {
     slotLabelFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
     selectable: props.selectable,
     selectMirror: true,
+    // A click picks the day for the side card; dragging across slots selects time to create.
+    selectMinDistance: 5,
+    dateClick: (info) => emit('update:day', ymd(info.date)),
+    navLinkDayClick: (date) => emit('update:day', ymd(date)),
+    dayCellClassNames: (arg) => selectedClass(arg.date),
     events: (info, success) => {
       void events(info).then(success)
     },
@@ -132,7 +150,10 @@ onMounted(() => {
     // Names for screen readers: the whole date of a day, and an event's date and time.
     dayCellDidMount: (arg) => {
       const link = arg.el.querySelector('.fc-daygrid-day-number')
-      if (link) link.setAttribute('aria-label', fullDate(arg.date, false))
+      if (!link) return
+      link.setAttribute('aria-label', fullDate(arg.date, false))
+      // It picks the day for the side card (an `<a>` without href is no link to screen readers).
+      link.setAttribute('role', 'button')
     },
     eventDidMount: (arg) => {
       const start = arg.event.start
@@ -150,20 +171,72 @@ watch(
   () => props.reloadKey,
   () => calendar?.refetchEvents(),
 )
+/** Another day picked: move the highlight (a new function makes FullCalendar redraw it). */
+watch(
+  () => props.day,
+  () => calendar?.setOption('dayCellClassNames', (arg) => selectedClass(arg.date)),
+)
 
-defineExpose({ refetch: () => calendar?.refetchEvents() })
+/** "New on this day": the whole day, as a selection would give it. */
+function createOnDay() {
+  const start = new Date(`${zoneDay()}T00:00:00Z`)
+  emit('select', { start, end: new Date(start.getTime() + 86_400_000), allDay: true })
+}
+
+defineExpose({
+  refetch: () => {
+    saved.value++
+    calendar?.refetchEvents()
+  },
+})
 </script>
 
 <template>
-  <div class="calendar-mode" :aria-busy="busy">
-    <p class="zone">{{ t('time.zone', { zone: zoneName(locale === 'th' ? 'th-TH' : 'en-GB') }) }}</p>
-    <p v-if="tooMany" class="notice" role="status">{{ t('calendar.tooMany', { count: RANGE_LIMIT }) }}</p>
-    <p v-if="error" class="error" role="alert">{{ error }}</p>
-    <div ref="el" class="calendar" />
+  <div class="calendar-layout">
+    <div class="card calendar-mode" :aria-busy="busy">
+      <p class="zone">{{ t('time.zone', { zone: zoneName(locale === 'th' ? 'th-TH' : 'en-GB') }) }}</p>
+      <p v-if="tooMany" class="notice" role="status">{{ t('calendar.tooMany', { count: RANGE_LIMIT }) }}</p>
+      <p v-if="error" class="error" role="alert">{{ error }}</p>
+      <div ref="el" class="calendar" />
+    </div>
+    <aside class="calendar-side" :aria-label="t('calendar.side')">
+      <slot name="side" />
+      <CalendarDay
+        :day="zoneDay()"
+        :load="load"
+        :reload-key="`${reloadKey}|${saved}`"
+        :source-of="sourceOf"
+        :can-create="selectable"
+        @open="(to: string) => emit('open', to)"
+        @create="createOnDay"
+      />
+    </aside>
   </div>
 </template>
 
 <style scoped>
+.calendar-layout {
+  display: grid;
+  gap: 1rem;
+  align-items: start;
+}
+/* A column on the right when there is room; below the calendar otherwise. */
+@media (min-width: 1024px) {
+  .calendar-layout {
+    grid-template-columns: minmax(0, 1fr) 18.75rem;
+  }
+}
+.calendar-mode {
+  min-width: 0;
+  padding: 1rem;
+}
+.calendar-side {
+  display: grid;
+  gap: 1rem;
+}
+.calendar :deep(.is-selected) {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
 .zone {
   margin: 0 0 0.5rem;
   color: var(--text-muted);

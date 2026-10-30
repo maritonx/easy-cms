@@ -2,6 +2,7 @@ import type { AdminCollection } from '@easy-cms/core'
 import { describe, expect, it } from 'vitest'
 import {
   colorOf,
+  dayAgenda,
   eventOf,
   initialFor,
   jobEvent,
@@ -63,7 +64,7 @@ describe('calendar mode (#272)', () => {
       allDay: false,
       url: '/admin/collections/events/7',
       classNames: ['cal-c1'],
-      extendedProps: { to: '/collections/events/7' },
+      extendedProps: { to: '/collections/events/7', collection: 'events' },
     })
     // Midnight to midnight in the zone: whole days.
     const days = eventOf(
@@ -106,9 +107,20 @@ describe('calendar mode (#272)', () => {
         allDay: false,
         url: '/h',
         classNames: ['cal-scheduled', 'cal-c2'],
-        extendedProps: { to: '/t' },
+        extendedProps: { to: '/t', collection: 'posts', action: 'publish' },
       },
     )
+  })
+
+  it("lists a day's events: whole days first, then by time", () => {
+    const at = (id: string, start: string, allDay = false) =>
+      ({ id, start, allDay }) as Parameters<typeof dayAgenda>[0][number]
+    const day = dayAgenda([
+      at('b', '2026-10-30T09:00'),
+      at('c', '2026-10-30', true),
+      at('a', '2026-10-30T08:00'),
+    ])
+    expect(day.map((e) => e.id)).toEqual(['c', 'a', 'b'])
   })
 
   it('colours by select option, else by a hash of the value', () => {
