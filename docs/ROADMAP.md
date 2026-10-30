@@ -154,12 +154,18 @@
 
 ### M8 — `Admin lists & shop` (ไม่กำหนดวัน) {#m8}
 
-ย้ายออกจาก M6 (2026-10-29) ให้ M6 เหลือแต่ความปลอดภัย งานรายการใน admin ออกแบบพร้อมกัน ทำตามลำดับ: #88 → #87 → #271 → #272 → #89
+ย้ายออกจาก M6 (2026-10-29) ให้ M6 เหลือแต่ความปลอดภัย งานรายการใน admin ออกแบบพร้อมกัน ทำตามลำดับ: #88 → #279 → #280 → #281 → #282 → #283 → #87 → #271 → #272 → #89
 (ปฏิทินใช้ตัวกรองและ saved views ร่วมกับหน้ารายการ และต้องให้ admin แสดงเวลาตาม `config.timeZone` ก่อน)
+#279–#283 ทำให้หน้ารายการ ช่องเลือก และตัวเลขในเมนูรับข้อมูล 1 ล้านเอกสารต่อ collection ได้ (2026-10-30) ทำก่อน #87 เพราะ saved views เก็บจำนวนต่อหน้าและความหนาแน่นของแถวด้วย
 
 | # | Issue | Labels | เสร็จเมื่อ |
 |---|---|---|---|
 | [#86](https://github.com/maritonx/easy-cms/issues/86) | Omise payments for the shop: PromptPay, cards, mobile banking | area:plugins | |
+| [#279](https://github.com/maritonx/easy-cms/issues/279) | List pages and totals that hold up at 1M documents | area:admin, area:core | collection 1M แสดงหน้าแรกโดยไม่รอการนับ, จำนวนเกิน 10,000 แสดง "10,000+", เลือกจำนวนต่อหน้าและไปหน้าที่ต้องการได้ |
+| [#280](https://github.com/maritonx/easy-cms/issues/280) | Bulk actions on every matching document, run on the server | area:admin, area:core | เลือกทุกรายการที่ตรงเงื่อนไข ทำเป็นงานเบื้องหลังพร้อมความคืบหน้าและสรุป ข้ามเอกสารที่ไม่มีสิทธิ์ ลบเกิน 100 ต้องพิมพ์จำนวน |
+| [#281](https://github.com/maritonx/easy-cms/issues/281) | List table: sticky header, compact rows and retry | area:admin | |
+| [#282](https://github.com/maritonx/easy-cms/issues/282) | Relationship picker and media library for large collections | area:admin | |
+| [#283](https://github.com/maritonx/easy-cms/issues/283) | Sidebar counts and ⌘K at scale | area:admin, area:core | |
 | [#87](https://github.com/maritonx/easy-cms/issues/87) | Saved list views in the admin | area:admin | |
 | [#88](https://github.com/maritonx/easy-cms/issues/88) | List filters with several conditions | area:admin | |
 | [#271](https://github.com/maritonx/easy-cms/issues/271) | Show admin dates in config.timeZone | area:admin | ทุกวันที่และช่องกรอกวันที่ใน admin ใช้ `config.timeZone` เมื่อตั้งไว้ |
