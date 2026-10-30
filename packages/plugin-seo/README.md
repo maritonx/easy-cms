@@ -36,6 +36,6 @@ return seoMeta(post, { config, url: `/posts/${post.slug}` }).next // Next.js gen
 
 ## Links
 
-[SEO](https://easy-cms-website.vercel.app/docs/seo) · [Documentation](https://easy-cms-website.vercel.app/docs) ([ภาษาไทย](https://easy-cms-website.vercel.app/th/docs)) · [GitHub](https://github.com/maritonx/easy-cms)
+[SEO](https://easycms.dev/docs/seo) · [Documentation](https://easycms.dev/docs) ([ภาษาไทย](https://easycms.dev/th/docs)) · [GitHub](https://github.com/maritonx/easy-cms)
 
 MIT License

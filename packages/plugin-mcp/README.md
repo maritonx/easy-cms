@@ -3,7 +3,7 @@
 An MCP server for Easy CMS: AI assistants such as Claude, Cursor or VS Code read and draft your content with an API key, only where the key allows. Collections with drafts are always saved as drafts; publishing is a separate tool. Part of [Easy CMS](https://github.com/maritonx/easy-cms), the embedded, code-first headless CMS for Nuxt and Next.js.
 
 > [!WARNING]
-> **Experimental.** This package has the same version number as the rest of Easy CMS, but its options, endpoints and data may still change in a minor release, after 1.0 too: it is not covered by the [stability promise](https://easy-cms-website.vercel.app/docs/versioning).
+> **Experimental.** This package has the same version number as the rest of Easy CMS, but its options, endpoints and data may still change in a minor release, after 1.0 too: it is not covered by the [stability promise](https://easycms.dev/docs/versioning).
 
 ## Install
 
@@ -32,6 +32,6 @@ claude mcp add --transport http easy-cms https://example.com/api/cms/mcp \
 
 ## Links
 
-[MCP](https://easy-cms-website.vercel.app/docs/mcp) · [Documentation](https://easy-cms-website.vercel.app/docs) ([ภาษาไทย](https://easy-cms-website.vercel.app/th/docs)) · [GitHub](https://github.com/maritonx/easy-cms)
+[MCP](https://easycms.dev/docs/mcp) · [Documentation](https://easycms.dev/docs) ([ภาษาไทย](https://easycms.dev/th/docs)) · [GitHub](https://github.com/maritonx/easy-cms)
 
 MIT License

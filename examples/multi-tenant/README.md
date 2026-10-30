@@ -24,4 +24,4 @@ curl 'http://localhost:4000/api/cms/globals/site?tenant=brand-b'
 
 or by domain: a request whose host is in a tenant's **Domains** reads that tenant.
 
-See the [Multi-tenant guide](https://easy-cms-website.vercel.app/docs/multi-tenant).
+See the [Multi-tenant guide](https://easycms.dev/docs/multi-tenant).

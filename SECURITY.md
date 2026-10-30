@@ -33,7 +33,7 @@ versions of every `@easy-cms/*` package, which share one version number.
 
 Fixes go to the latest minor release. Once 2.0 is out, the latest 1.x minor keeps getting them
 for six months. See
-[versions and deprecations](https://easy-cms-website.vercel.app/docs/versioning).
+[versions and deprecations](https://easycms.dev/docs/versioning).
 
 ## Scope
 
@@ -52,7 +52,7 @@ Out of scope:
 
 ## Hardening
 
-The [security guide](https://easy-cms-website.vercel.app/docs/security) lists what Easy CMS does
+The [security guide](https://easycms.dev/docs/security) lists what Easy CMS does
 (password hashing, login rate limiting, CSRF and origin checks, upload sandboxing) and what to set
 up in production.
 

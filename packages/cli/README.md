@@ -33,6 +33,6 @@ command loads `.env` from the project root and takes `--config <file>`, `--cwd <
 
 ## Links
 
-[CLI](https://easy-cms-website.vercel.app/docs/cli) · [Documentation](https://easy-cms-website.vercel.app/docs) ([ภาษาไทย](https://easy-cms-website.vercel.app/th/docs)) · [GitHub](https://github.com/maritonx/easy-cms)
+[CLI](https://easycms.dev/docs/cli) · [Documentation](https://easycms.dev/docs) ([ภาษาไทย](https://easycms.dev/th/docs)) · [GitHub](https://github.com/maritonx/easy-cms)
 
 MIT License

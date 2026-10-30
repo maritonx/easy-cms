@@ -118,7 +118,7 @@ const pretty = (body: string) => {
 }
 const docs = computed(
   () =>
-    `https://easy-cms-website.vercel.app${locale.value === 'th' ? '/th' : ''}/docs/health-checks#${kind.value === 'webhook' ? 'failed-webhooks' : 'emails-not-sent'}`,
+    `https://easycms.dev${locale.value === 'th' ? '/th' : ''}/docs/health-checks#${kind.value === 'webhook' ? 'failed-webhooks' : 'emails-not-sent'}`,
 )
 </script>
 

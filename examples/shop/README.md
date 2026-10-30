@@ -20,4 +20,4 @@ With Stripe keys in `.env`, checkout also offers card and PromptPay. Point a Str
 `/api/cms/shop/payments/stripe/webhook` (`payment_intent.succeeded`, `payment_intent.payment_failed`)
 so orders are made even when a customer closes the page.
 
-See the [Shop guide](https://easy-cms-website.vercel.app/docs/ecommerce).
+See the [Shop guide](https://easycms.dev/docs/ecommerce).

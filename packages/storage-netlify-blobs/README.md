@@ -27,6 +27,6 @@ Outside Netlify's runtime (a script, another host), pass `siteID` and a personal
 
 ## Links
 
-[Uploads](https://easy-cms-website.vercel.app/docs/uploads) · [One-click deploy](https://easy-cms-website.vercel.app/docs/one-click-deploy) · [Documentation](https://easy-cms-website.vercel.app/docs) ([ภาษาไทย](https://easy-cms-website.vercel.app/th/docs)) · [GitHub](https://github.com/maritonx/easy-cms)
+[Uploads](https://easycms.dev/docs/uploads) · [One-click deploy](https://easycms.dev/docs/one-click-deploy) · [Documentation](https://easycms.dev/docs) ([ภาษาไทย](https://easycms.dev/th/docs)) · [GitHub](https://github.com/maritonx/easy-cms)
 
 MIT License

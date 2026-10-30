@@ -26,6 +26,6 @@ CMS API (private bucket) unless you set `publicURL`.
 
 ## Links
 
-[Uploads & media](https://easy-cms-website.vercel.app/docs/uploads#s3-cloudflare-r2-and-minio) · [Documentation](https://easy-cms-website.vercel.app/docs) ([ภาษาไทย](https://easy-cms-website.vercel.app/th/docs)) · [GitHub](https://github.com/maritonx/easy-cms)
+[Uploads & media](https://easycms.dev/docs/uploads#s3-cloudflare-r2-and-minio) · [Documentation](https://easycms.dev/docs) ([ภาษาไทย](https://easycms.dev/th/docs)) · [GitHub](https://github.com/maritonx/easy-cms)
 
 MIT License

@@ -50,6 +50,6 @@ With `easy-cms.config.ts` in the project root you get:
 
 ## Links
 
-[Nuxt](https://easy-cms-website.vercel.app/docs/nuxt) · [Documentation](https://easy-cms-website.vercel.app/docs) ([ภาษาไทย](https://easy-cms-website.vercel.app/th/docs)) · [GitHub](https://github.com/maritonx/easy-cms)
+[Nuxt](https://easycms.dev/docs/nuxt) · [Documentation](https://easycms.dev/docs) ([ภาษาไทย](https://easycms.dev/th/docs)) · [GitHub](https://github.com/maritonx/easy-cms)
 
 MIT License

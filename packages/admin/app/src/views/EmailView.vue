@@ -91,9 +91,7 @@ const logsOnly = computed(
   () => !!email.value?.settings.some((s) => s.key === 'delivery' && s.value === 'log'),
 )
 
-const docs = computed(
-  () => `https://easy-cms-website.vercel.app${locale.value === 'th' ? '/th' : ''}/docs/email`,
-)
+const docs = computed(() => `https://easycms.dev${locale.value === 'th' ? '/th' : ''}/docs/email`)
 </script>
 
 <template>
