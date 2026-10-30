@@ -154,13 +154,16 @@
 
 ### M8 — `Admin lists & shop` (ไม่กำหนดวัน) {#m8}
 
-ย้ายออกจาก M6 (2026-10-29) ให้ M6 เหลือแต่ความปลอดภัย งานรายการใน admin ออกแบบพร้อมกัน
+ย้ายออกจาก M6 (2026-10-29) ให้ M6 เหลือแต่ความปลอดภัย งานรายการใน admin ออกแบบพร้อมกัน ทำตามลำดับ: #88 → #87 → #271 → #272 → #89
+(ปฏิทินใช้ตัวกรองและ saved views ร่วมกับหน้ารายการ และต้องให้ admin แสดงเวลาตาม `config.timeZone` ก่อน)
 
 | # | Issue | Labels | เสร็จเมื่อ |
 |---|---|---|---|
 | [#86](https://github.com/maritonx/easy-cms/issues/86) | Omise payments for the shop: PromptPay, cards, mobile banking | area:plugins | |
 | [#87](https://github.com/maritonx/easy-cms/issues/87) | Saved list views in the admin | area:admin | |
 | [#88](https://github.com/maritonx/easy-cms/issues/88) | List filters with several conditions | area:admin | |
+| [#271](https://github.com/maritonx/easy-cms/issues/271) | Show admin dates in config.timeZone | area:admin | ทุกวันที่และช่องกรอกวันที่ใน admin ใช้ `config.timeZone` เมื่อตั้งไว้ |
+| [#272](https://github.com/maritonx/easy-cms/issues/272) | Calendar view for collections and scheduled publishing | area:admin | โหมดปฏิทินในหน้ารายการ (`admin.calendar`) และหน้า Content calendar: เดือน/สัปดาห์/วัน/agenda, ลากเปลี่ยนวันพร้อมทางเลือกด้วยคีย์บอร์ด, สร้างจากช่องว่าง |
 | [#89](https://github.com/maritonx/easy-cms/issues/89) | Export a list to CSV | area:admin | |
 
 ---
