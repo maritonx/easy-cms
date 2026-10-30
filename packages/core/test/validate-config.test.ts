@@ -428,6 +428,35 @@ describe('validateConfig', () => {
     ])
   })
 
+  it('checks the Calendar mode (admin.calendar, #272)', () => {
+    const fields: Field[] = [
+      { name: 'title', type: 'text' },
+      { name: 'startsAt', type: 'date' },
+      { name: 'endsAt', type: 'date' },
+      { name: 'kind', type: 'select', options: ['talk', 'workshop'] },
+      { name: 'tags', type: 'select', hasMany: true, options: ['a'] },
+    ]
+    const calendar = (value: unknown) =>
+      paths([{ slug: 'events', admin: { calendar: value as never }, fields }])
+    expect(calendar({ start: 'startsAt', end: 'endsAt', color: 'kind' })).toEqual([])
+    expect(calendar({ start: 'startsAt' })).toEqual([])
+    expect(calendar({ start: 'title' })).toEqual(['collections.events.admin.calendar.start'])
+    expect(calendar({})).toEqual(['collections.events.admin.calendar.start'])
+    expect(calendar({ start: 'startsAt', end: 'nope' })).toEqual([
+      'collections.events.admin.calendar.end',
+    ])
+    expect(calendar({ start: 'startsAt', end: 'startsAt' })).toEqual([
+      'collections.events.admin.calendar.end',
+    ])
+    expect(calendar({ start: 'startsAt', color: 'tags' })).toEqual([
+      'collections.events.admin.calendar.color',
+    ])
+    expect(calendar({ start: 'startsAt', colour: 'kind' })).toEqual([
+      'collections.events.admin.calendar.colour',
+    ])
+    expect(calendar('startsAt')).toEqual(['collections.events.admin.calendar'])
+  })
+
   it('checks sign-in providers, sign-up and passwords', () => {
     const provider = (id: string) => ({
       id,

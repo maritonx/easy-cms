@@ -320,6 +320,7 @@ Every hook also gets `user`, `cms` and `slug`.
 | `count` | `boolean` | The number of documents beside its menu item. Default `true`. |
 | `empty` | `{ description?, link? }` | What the list says before it has documents, and a link (`{ label, href }`). |
 | `list` | `{ tree?, sort? }` | The list page: `tree` names a relationship to the same collection to show a tree (top-level documents first, children open below); `sort` is the default order, e.g. `'title'`. |
+| `calendar` | `{ start, end?, color? }` | A Calendar mode beside the list: `start` and `end` are top-level date fields, `color` a select or relationship field (not hasMany) that colours documents. [The admin](/guide/admin#calendar) |
 | `ownerField` | `string` | With `auth.rbac`: a relationship field to `users` naming the owner, e.g. `'author'`, for roles given "own documents only". Default: who created it (`createdBy`). [Roles](/guide/roles#own-documents-only) |
 | `confirmDelete` | `{ typeTitle?, impact? }` | Deleting asks more: `typeTitle` has the user type the title; `impact` is a path under the API, called with `?id=`, returning `{ message }` about what goes too. No deleting from a selection. |
 

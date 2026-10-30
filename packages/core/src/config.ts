@@ -172,6 +172,8 @@ export interface CollectionAdmin extends ContainerAdmin {
     readonly link?: { readonly label: Label; readonly href: string }
   }
   readonly list?: CollectionListAdmin
+  /** A Calendar mode beside the list, placing documents by date. See `CollectionCalendarAdmin`. */
+  readonly calendar?: CollectionCalendarAdmin
   /**
    * With `auth.rbac`: the relationship field to `users` that names a document's owner, e.g.
    * `author`, for roles given "own documents only". Default: who created it (`createdBy`).
@@ -184,6 +186,19 @@ export interface CollectionAdmin extends ContainerAdmin {
    * Documents are then deleted one at a time, not from a selection.
    */
   readonly confirmDelete?: { readonly typeTitle?: boolean; readonly impact?: string }
+}
+
+/**
+ * Where a document sits in the list's Calendar mode: top-level date fields, and optionally a field
+ * that colours it. E.g. `{ start: 'startsAt', end: 'endsAt', color: 'category' }`.
+ */
+export interface CollectionCalendarAdmin {
+  /** A top-level date field: when it starts. */
+  readonly start: string
+  /** A top-level date field: when it ends. Without it, a document takes one hour (or the day). */
+  readonly end?: string
+  /** A top-level select or relationship field (not hasMany): one colour per value. */
+  readonly color?: string
 }
 
 export interface CollectionListAdmin {

@@ -3,6 +3,7 @@ import type { AdminField } from '@easy-cms/core'
 import {
   ArrowDown,
   ArrowUp,
+  CalendarDays,
   ChevronLeft,
   ChevronRight,
   Columns3,
@@ -28,7 +29,7 @@ import {
   UserRound,
   X,
 } from '@lucide/vue'
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import DeleteDialog from '../components/DeleteDialog.vue'
@@ -623,7 +624,7 @@ async function fetchDocs(where: unknown, limit: number, pageNumber = 1): Promise
 /** Counts loads: a slower, older one (e.g. before a filter changed) doesn't overwrite a newer one. */
 let loads = 0
 async function load() {
-  if (!collection) return
+  if (!collection || calendarMode.value) return
   const current = ++loads
   loading.value = true
   error.value = ''
@@ -701,6 +702,32 @@ const listQuery = computed(() =>
   ),
 )
 watch(listQuery, load)
+
+// --- Calendar mode (`admin.calendar`, #272): `?calendar=<view>&date=<day>` --------------------
+
+const CalendarView = defineAsyncComponent(() => import('../components/CalendarView.vue'))
+const calendarConfig = collection?.calendar
+const calendarMode = computed(() => !!calendarConfig && route.query.calendar !== undefined)
+const calendarView = computed(() =>
+  typeof route.query.calendar === 'string' && route.query.calendar ? route.query.calendar : 'month',
+)
+const calendarDate = computed(() =>
+  typeof route.query.date === 'string' ? route.query.date : undefined,
+)
+const calendarRef = ref<{ refetch: () => void }>()
+/** A new document from an empty slot: its starting values. */
+const calendarNew = ref<Record<string, string> | null>(null)
+function setMode(calendar: boolean) {
+  setQuery({ calendar: calendar ? 'month' : undefined, date: undefined, page: undefined })
+}
+function onCalendarView(view: string, date: string) {
+  if (view === calendarView.value && date === calendarDate.value) return
+  void router.replace({ query: { ...route.query, calendar: view, date } })
+}
+function onCalendarSaved() {
+  calendarNew.value = null
+  calendarRef.value?.refetch()
+}
 
 // --- Drawer (`editIn: 'drawer'`): `?edit=<id>` or `?new` ----------------------------------------
 
@@ -958,7 +985,17 @@ async function deleteSelected(query = '') {
           <ListIcon :size="15" aria-hidden="true" />
         </button>
       </div>
-      <div v-if="columnFields.length && !grid" ref="columnsMenu" class="columns">
+      <div v-if="calendarConfig" class="view-switch" role="group" :aria-label="t('calendar.mode')">
+        <button type="button" :class="['btn', 'btn-sm', { on: !calendarMode }]" :aria-pressed="!calendarMode" @click="setMode(false)">
+          <ListIcon :size="15" aria-hidden="true" />
+          {{ t('calendar.list') }}
+        </button>
+        <button type="button" :class="['btn', 'btn-sm', { on: calendarMode }]" :aria-pressed="calendarMode" @click="setMode(true)">
+          <CalendarDays :size="15" aria-hidden="true" />
+          {{ t('calendar.calendar') }}
+        </button>
+      </div>
+      <div v-if="columnFields.length && !grid && !calendarMode" ref="columnsMenu" class="columns">
         <button type="button" class="btn btn-sm" :aria-expanded="columnsOpen" aria-haspopup="true" @click="columnsOpen = !columnsOpen">
           <Columns3 :size="15" aria-hidden="true" />
           {{ t('list.columns') }}
@@ -1043,7 +1080,20 @@ async function deleteSelected(query = '') {
 
     <p v-if="error" class="notice notice-error" role="alert">{{ error }}</p>
 
-    <div :class="['card', 'table-wrap', { 'grid-wrap': grid, reloading }]" :aria-busy="loading">
+    <CalendarView
+      v-if="calendarMode && collection.calendar"
+      ref="calendarRef"
+      class="card calendar-card"
+      :collection="collection"
+      :where="whereOf()"
+      :view="calendarView"
+      :date="calendarDate"
+      :href-of="(id: string) => router.resolve(docLink(id)).href"
+      @open="(id: string) => router.push(docLink(id))"
+      @create="(initial: Record<string, string>) => (calendarNew = initial)"
+      @update:view="onCalendarView"
+    />
+    <div v-else :class="['card', 'table-wrap', { 'grid-wrap': grid, reloading }]" :aria-busy="loading">
       <div v-if="reloading" class="progress-line table-progress" aria-hidden="true"><span /></div>
       <LoadingStatus v-if="firstLoad || reloading" />
       <template v-if="grid">
@@ -1370,6 +1420,14 @@ async function deleteSelected(query = '') {
       />
     </template>
     <DocumentDrawer
+      v-if="calendarNew"
+      :slug="slug"
+      :id="null"
+      :initial="calendarNew"
+      @saved="onCalendarSaved"
+      @close="calendarNew = null"
+    />
+    <DocumentDrawer
       v-if="drawerId !== undefined"
       :key="String(drawerId)"
       :slug="slug"
@@ -1415,6 +1473,9 @@ async function deleteSelected(query = '') {
 </template>
 
 <style scoped>
+.calendar-card {
+  padding: 1rem;
+}
 .view-switch {
   display: flex;
   gap: 0.15rem;

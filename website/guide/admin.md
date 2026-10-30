@@ -230,6 +230,28 @@ as a chip: click it to change the conditions, × to remove it.
   `admin: { filter: false }` on it.
 - On a large collection, give a field people filter by often an index (`index: true`).
 
+### Calendar
+
+A collection with `admin.calendar` gets a **List | Calendar** switch above its list:
+
+```ts
+admin: {
+  calendar: { start: 'startsAt', end: 'endsAt', color: 'category' },
+}
+```
+
+- Month, week, day and agenda views, in the admin's time zone (named above the calendar). The
+  view and the day shown are in the address, so a link opens the same calendar.
+- The list's filters and search apply. A range with more than 500 documents shows the first 500
+  and asks to filter more.
+- Click a document to open it. Click a day, or select time in the week or day view, to create one
+  starting then (with `drafts`, as a draft).
+- A document starting at midnight with no end (or ending at midnight) fills whole days. Without
+  `end`, the others take an hour.
+- `color` gives each value of a select or relationship field its own colour.
+
+The calendar loads only when someone opens it.
+
 ## Time zone
 
 With `timeZone` in the config (see [Configuration](../reference/config)), the admin shows every date

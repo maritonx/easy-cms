@@ -68,6 +68,7 @@ export type {
   BeforeValidateHook,
   CliCommand,
   CollectionAdmin,
+  CollectionCalendarAdmin,
   CollectionConfig,
   CollectionHooks,
   CollectionListAdmin,

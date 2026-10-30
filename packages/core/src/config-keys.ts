@@ -28,7 +28,7 @@ const GLOBAL = keys(
 )
 const CONTAINER_ADMIN = keys('icon order sidebar layout group')
 const COLLECTION_ADMIN = keys(
-  'icon order sidebar layout group editIn badge count empty list ownerField confirmDelete',
+  'icon order sidebar layout group editIn badge count empty list calendar ownerField confirmDelete',
 )
 const FIELD_ADMIN = keys(
   'description width condition component after cell column allowCreate initialValue position filter',
@@ -174,6 +174,8 @@ export function checkConfigKeys(config: Config, add: Add) {
         collection ? COLLECTION_ADMIN : CONTAINER_ADMIN,
         add,
       )
+      if (collection && isObject(item.admin) && isObject(item.admin.calendar))
+        check(item.admin.calendar, `${at}.admin.calendar`, 'calendar', keys('start end color'), add)
       if (isObject(item.versions))
         check(item.versions, `${at}.versions`, 'versions', keys('keep'), add)
       checkFields(item.fields, `${at}.fields`, add)
