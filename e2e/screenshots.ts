@@ -97,6 +97,12 @@ async function main() {
         await page.getByRole('row').nth(3).waitFor()
         await shot('posts')
 
+        // The same posts on a calendar (admin.calendar), with today's in the card beside it.
+        await page.goto(`${ORIGIN}/admin/collections/posts?calendar=month`)
+        await page.locator('.fc-event').first().waitFor()
+        await page.locator('.day-item').first().waitFor()
+        await shot('calendar')
+
         await page.goto(`${ORIGIN}/admin/collections/posts/${ids.featured}`)
         await page.locator('.rte-content').waitFor()
         await shot('edit')
@@ -220,7 +226,7 @@ async function main() {
         await page.locator('.changes').waitFor()
         await shot('audit')
 
-        await page.goto(`${ORIGIN}/admin/ui/sso`)
+        await page.goto(`${ORIGIN}/admin/sso`)
         await page.locator('#who-heading').waitFor()
         await shot('sso')
 
@@ -364,8 +370,8 @@ async function seed() {
   const call = await client()
   const me = (await call('GET', '/auth/me')) as unknown as { user: { id: number } }
   const guides = await call('POST', '/categories', { name: 'คู่มือ', color: '#2f6f5e' })
-  await call('POST', '/categories', { name: 'ข่าว', color: '#2563eb' })
-  await call('POST', '/categories', { name: 'เบื้องหลัง', color: '#e8a33d' })
+  const news = await call('POST', '/categories', { name: 'ข่าว', color: '#2563eb' })
+  const behind = await call('POST', '/categories', { name: 'เบื้องหลัง', color: '#e8a33d' })
   const covers = [
     await cover(162, 'getting-started', 'ภาพปก: เริ่มต้นใช้งาน', call),
     await cover(210, 'content-model', 'ภาพปก: content model', call),
@@ -448,6 +454,7 @@ async function seed() {
         excerpt: 'When to use groups, arrays and blocks, so editors never have to ask a developer.',
       },
       cover: covers[1]?.id,
+      category: behind.id,
       tags: ['cms'],
       status: 'published',
       daysAgo: 4,
@@ -462,6 +469,7 @@ async function seed() {
         excerpt: 'Length meters, a search preview and Generate buttons in the editor.',
       },
       cover: covers[2]?.id,
+      category: news.id,
       tags: ['cms'],
       status: 'draft',
       daysAgo: 0,
@@ -473,6 +481,7 @@ async function seed() {
         excerpt: 'Thai URLs people can read when they share them.',
       },
       cover: covers[3]?.id,
+      category: news.id,
       tags: ['thai'],
       status: 'published',
       daysAgo: 9,
@@ -490,14 +499,47 @@ async function seed() {
       status: 'draft',
       daysAgo: 0,
     },
+    // Planned: drafts dated ahead, for the calendar.
+    {
+      th: { title: 'สรุปงานเดือนนี้', excerpt: 'อะไรเปลี่ยนไปบ้างในเดือนนี้' },
+      en: { title: 'This month in review', excerpt: 'What changed this month.' },
+      category: news.id,
+      tags: ['cms'],
+      status: 'draft',
+      daysAgo: -3,
+    },
+    {
+      th: { title: 'เบื้องหลัง: ทดสอบกับข้อมูลล้านแถว', excerpt: 'หน้าไหนช้า และแก้อย่างไร' },
+      en: {
+        title: 'Behind the scenes: a million rows',
+        excerpt: 'Which pages got slow, and the fixes.',
+      },
+      category: behind.id,
+      tags: ['cms'],
+      status: 'draft',
+      daysAgo: -6,
+    },
+    {
+      th: { title: 'ทำเว็บ Nuxt ภาษาไทยใน 10 นาที', excerpt: 'จากโปรเจกต์ว่างถึงหน้าแรก' },
+      en: {
+        title: 'A Thai Nuxt site in 10 minutes',
+        excerpt: 'From an empty project to a first page.',
+      },
+      tags: ['nuxt', 'thai'],
+      status: 'draft',
+      daysAgo: -11,
+    },
   ]
 
   let featured = 0
-  for (const post of posts) {
-    const publishedAt = new Date(Date.now() - post.daysAgo * 86_400_000).toISOString()
+  for (const [i, post] of posts.entries()) {
+    // At different hours, so the calendar reads like a real schedule.
+    const date = new Date(Date.now() - post.daysAgo * 86_400_000)
+    date.setHours(9 + ((i * 3) % 9), i % 2 ? 30 : 0, 0, 0)
+    const publishedAt = date.toISOString()
     const created = await call('POST', '/posts?locale=th', {
       ...post.th,
-      category: guides.id,
+      category: post.category ?? guides.id,
       tags: post.tags,
       author: me.user.id,
       publishedAt,

@@ -232,7 +232,10 @@ as a chip: click it to change the conditions, × to remove it.
 
 ### Calendar
 
+<Screenshot name="calendar" alt="Posts on a month calendar, coloured by category, with today's posts and their status in the card beside it" />
+
 A collection with `admin.calendar` gets a **List | Calendar** switch above its list:
+
 
 ```ts
 admin: {
