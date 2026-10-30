@@ -31,6 +31,7 @@ import {
   USERS,
   WEBHOOK_DELIVERIES,
 } from './builtins.js'
+import { runBulkOperations } from './bulk.js'
 import type {
   CollectionConfig,
   Config,
@@ -2300,6 +2301,8 @@ export class EasyCMS<C extends Config = Config> {
     jobs: { ran: number; failed: number }
     /** Outbox entries (`outbox: true`) run, and those that failed (to be retried). */
     outbox: { ran: number; failed: number }
+    /** Steps of bulk actions on a list's matches (100 documents each). */
+    bulk: { steps: number }
   }> {
     // One run at a time in this process: the scheduler and the cron endpoint wait for each other.
     // Other processes are kept apart by claiming each piece of work in the database.
@@ -2340,6 +2343,10 @@ export class EasyCMS<C extends Config = Config> {
         emails: await this.mailer.retry(now),
         jobs: await this.runConfigJobs(now),
         outbox: (await this.outbox?.run(now)) ?? { ran: 0, failed: 0 },
+        bulk: await runBulkOperations(this as unknown as EasyCMS, now).catch((error) => {
+          this.logger.error(`Bulk actions: ${(error as Error).message}`, { error })
+          return { steps: 0 }
+        }),
       }
       if (this.telemetry?.measuresQueues)
         await this.countQueues(now).catch((error) =>

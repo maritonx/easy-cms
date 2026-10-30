@@ -46,6 +46,7 @@ describe('resolveConfig', () => {
       'sessions',
       'login-attempts',
       'database-backups',
+      'bulk-operations',
     ])
     expect(config.routes).toEqual({ api: '/api/cms' })
     expect(config.globals).toEqual([])

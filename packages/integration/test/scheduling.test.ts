@@ -215,6 +215,7 @@ describe('scheduled publishing (FR-SCH)', () => {
       emails: { sent: 0, failed: 0 },
       jobs: { ran: 0, failed: 0 },
       outbox: { ran: 0, failed: 0 },
+      bulk: { steps: 0 },
     })
     expect((await call('POST', '/jobs/run')).json).toMatchObject({
       scheduled: { ran: 0, failed: 0 },

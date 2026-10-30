@@ -17,6 +17,7 @@ HTTP API ที่ `/api/cms`: endpoint, การ query, การยืนย�
 | GET | `/:collection/:id` | เอกสารหนึ่งรายการ Query: `depth`, `draft`, `preview` ([preview token](./live-preview#preview-tokens): ฉบับร่างปัจจุบันโดยไม่ต้องเข้าสู่ระบบ) |
 | PATCH | `/:collection/:id` | อัปเดต field ที่ระบุ |
 | DELETE | `/:collection/:id` | ลบ |
+| POST | `/:collection/bulk` | ต้อง login: `{ action, ids }` (ไม่เกิน 100) ทำ `publish`, `unpublish`, `delete` หรือ `move` (media พร้อม `folder`) กับแต่ละเอกสารทันทีตามสิทธิ์ของผู้ใช้ แล้วตอบ `{ done, skipped, failed }` (`skipped`: `forbidden` หรือ `not-found`) ส่วน `{ action, where }` ทำกับทุกเอกสารที่ตรงเงื่อนไข ไม่เกิน 10,000 เป็นงานเบื้องหลัง: ตอบ `202` พร้อม operation, `GET /:collection/bulk/:id` บอกความคืบหน้า (และเดินงานต่อ), `POST /:collection/bulk/:id/cancel` หยุดหลังชุด 100 ตัวปัจจุบัน |
 | GET / PATCH | `/globals/:slug` | อ่าน / อัปเดต global (ใช้ `POST` ก็ได้) |
 | POST | `/media` | อัปโหลด (`multipart/form-data`, field `file`) หรือ JSON `{ url }` เพื่อดาวน์โหลด ([จากลิงก์](/th/guide/uploads#from-a-link)) |
 | GET | `/media/file/:name` | ไฟล์ที่จัดเก็บไว้ (สาธารณะ) |
@@ -41,7 +42,7 @@ global มี route ของเวอร์ชันชุดเดียวก
 `versions/:version/restore`, `unpublish`, `discard-draft`, `preview`, `schedule`) route ของเวอร์ชันและตัวอย่างต้องมีสิทธิ์แก้ไข
 
 สิ่งที่หน้า admin ใช้เองอยู่ใต้ `/admin/ui/…` (`schema`, `counts`, `search`, `modules`,
-`scheduled`, `access`, `total`, `media-usage`, `owned`, `sso`) route เหล่านี้ใช้ภายใน ไม่นับเป็น API สาธารณะ
+`scheduled`, `access`, `bulk`, `total`, `media-usage`, `owned`, `sso`) route เหล่านี้ใช้ภายใน ไม่นับเป็น API สาธารณะ
 และอาจเปลี่ยนได้ในทุกรุ่น ให้ใช้ route ด้านบนแทน
 
 `where` ใช้รูปแบบวงเล็บเหลี่ยมหรือ JSON:

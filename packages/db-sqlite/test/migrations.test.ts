@@ -36,6 +36,7 @@ describe('development push (FR-DAT-02)', () => {
     )
     await cms.destroy()
     expect(await tables(cms.cwd)).toEqual([
+      'ecms_bulk_operations',
       'ecms_database_backups',
       'ecms_globals',
       'ecms_login_attempts',
@@ -106,6 +107,7 @@ describe('development push (FR-DAT-02)', () => {
     await (await open(withPosts([{ name: 'other', type: 'text' }]), cwd)).destroy()
 
     expect(await tables(cwd)).toEqual([
+      'ecms_bulk_operations',
       'ecms_database_backups',
       'ecms_globals',
       'ecms_login_attempts',
@@ -129,6 +131,7 @@ describe('development push (FR-DAT-02)', () => {
     })
     await cms.destroy()
     expect(await tables(cms.cwd)).toEqual([
+      'cms_bulk_operations',
       'cms_database_backups',
       'cms_globals',
       'cms_login_attempts',
