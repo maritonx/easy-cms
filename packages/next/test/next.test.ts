@@ -153,6 +153,10 @@ describe('withEasyCMS', () => {
       expect(result.outputFileTracingIncludes['/**']).toEqual(
         expect.arrayContaining([expect.stringMatching(/admin\/package\.json$/)]),
       )
+      // Also through the package's folder in node_modules (a pnpm link), where Node finds it.
+      expect(result.outputFileTracingIncludes['/**']).toContain(
+        'node_modules/@easy-cms/admin/package.json',
+      )
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

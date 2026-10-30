@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs'
+import { existsSync, realpathSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import {
@@ -82,6 +82,32 @@ export function withEasyCMS<T extends object = NextConfigLike>(
   }
 }
 
+/**
+ * An admin module given by package export, as paths through the package's folder in node_modules:
+ * its package.json and the module file. The runtime finds the module by that folder, which pnpm
+ * makes a link to `.pnpm`; tracing the file only at its real path deploys it where Node never
+ * looks, and the admin says the module's components are missing (Vercel deploys traced files
+ * only). Empty for a path in the project.
+ */
+function packageLink(specifier: string, file: string, root: string): string[] {
+  if (specifier.startsWith('.') || isAbsolute(specifier)) return []
+  const name = specifier
+    .split('/')
+    .slice(0, specifier.startsWith('@') ? 2 : 1)
+    .join('/')
+  for (let dir = root; ; dir = dirname(dir)) {
+    const folder = join(dir, 'node_modules', name)
+    if (existsSync(join(folder, 'package.json'))) {
+      const inside = relative(realpathSync(folder), file)
+      return [
+        join(folder, 'package.json'),
+        ...(inside.startsWith('..') ? [] : [join(folder, inside)]),
+      ]
+    }
+    if (dirname(dir) === dir) return []
+  }
+}
+
 /** Files the standalone output needs that static tracing cannot see, as globs relative to the project. */
 async function tracedFiles(root: string, configPath: string | undefined): Promise<string[]> {
   const toGlob = (path: string) => relative(root, path).replace(/\\/g, '/')
@@ -111,7 +137,7 @@ async function tracedFiles(root: string, configPath: string | undefined): Promis
       const withPlugins = config ? await applyPlugins(config).catch(() => config) : undefined
       for (const specifier of withPlugins?.admin?.modules ?? []) {
         const module = resolveAdminModule(specifier, root)
-        if (module) files.push(toGlob(module))
+        if (module) files.push(toGlob(module), ...packageLink(specifier, module, root).map(toGlob))
         else console.warn(`[easy-cms] Admin module "${specifier}" not found from ${root}.`)
       }
     } catch (error) {
