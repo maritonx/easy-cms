@@ -48,11 +48,11 @@ The Nuxt and Next.js adapters (or `easy-cms serve`) serve the admin and REST API
 `useEasyCMS()` / `getEasyCMS(config)` give you the Local API, typed from it.
 
 > From 1.0, breaking changes come only in a major release, with an upgrade guide. See
-> [Versions and deprecations](https://easy-cms-website.vercel.app/docs/versioning) and the
+> [Versions and deprecations](https://easycms.dev/docs/versioning) and the
 > [changelog](https://github.com/maritonx/easy-cms/blob/main/packages/core/CHANGELOG.md).
 
 ## Links
 
-[Configuration](https://easy-cms-website.vercel.app/docs/configuration) · [Local API](https://easy-cms-website.vercel.app/docs/local-api) · [Documentation](https://easy-cms-website.vercel.app/docs) ([ภาษาไทย](https://easy-cms-website.vercel.app/th/docs)) · [GitHub](https://github.com/maritonx/easy-cms)
+[Configuration](https://easycms.dev/docs/configuration) · [Local API](https://easycms.dev/docs/local-api) · [Documentation](https://easycms.dev/docs) ([ภาษาไทย](https://easycms.dev/th/docs)) · [GitHub](https://github.com/maritonx/easy-cms)
 
 MIT License

@@ -103,8 +103,7 @@ const stale = computed(
     (!data.value.lastRanAt || Date.now() - Date.parse(data.value.lastRanAt) > STALE),
 )
 const cronDocs = computed(
-  () =>
-    `https://easy-cms-website.vercel.app${locale.value === 'th' ? '/th' : ''}/docs/drafts#scheduled-publishing`,
+  () => `https://easycms.dev${locale.value === 'th' ? '/th' : ''}/docs/drafts#scheduled-publishing`,
 )
 /** Where each built-in job's own page is, when this user may open it. */
 function builtInLink(id: string): string | null {
@@ -246,9 +245,7 @@ const outboxLink = (entry: AdminOutboxEntry) =>
     : entry.global
       ? `/globals/${entry.global}`
       : `/collections/${entry.collection}/${entry.doc}`
-const docs = computed(
-  () => `https://easy-cms-website.vercel.app${locale.value === 'th' ? '/th' : ''}/docs/jobs`,
-)
+const docs = computed(() => `https://easycms.dev${locale.value === 'th' ? '/th' : ''}/docs/jobs`)
 </script>
 
 <template>

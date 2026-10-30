@@ -76,8 +76,7 @@ const schedule = computed(() => {
 })
 const local = computed(() => data.value?.settings.storage === 'local')
 const docs = computed(
-  () =>
-    `https://easy-cms-website.vercel.app${locale.value === 'th' ? '/th' : ''}/docs/backups#from-the-admin`,
+  () => `https://easycms.dev${locale.value === 'th' ? '/th' : ''}/docs/backups#from-the-admin`,
 )
 const STATES = {
   pending: 'backups.pending',

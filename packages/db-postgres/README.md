@@ -41,6 +41,6 @@ Text sorting follows the database collation (server defaults like `en_US.UTF-8` 
 
 ## Links
 
-[Databases](https://easy-cms-website.vercel.app/docs/databases) (connections, poolers, serverless) · [Documentation](https://easy-cms-website.vercel.app/docs) ([ภาษาไทย](https://easy-cms-website.vercel.app/th/docs)) · [GitHub](https://github.com/maritonx/easy-cms)
+[Databases](https://easycms.dev/docs/databases) (connections, poolers, serverless) · [Documentation](https://easycms.dev/docs) ([ภาษาไทย](https://easycms.dev/th/docs)) · [GitHub](https://github.com/maritonx/easy-cms)
 
 MIT License

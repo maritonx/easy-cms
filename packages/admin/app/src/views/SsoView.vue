@@ -40,9 +40,7 @@ const DETAILS: Record<string, Parameters<typeof t>[0]> = {
   clientId: 'sso.clientId',
   server: 'sso.server',
 }
-const docs = computed(
-  () => `https://easy-cms-website.vercel.app${locale.value === 'th' ? '/th' : ''}/docs/sso`,
-)
+const docs = computed(() => `https://easycms.dev${locale.value === 'th' ? '/th' : ''}/docs/sso`)
 </script>
 
 <template>

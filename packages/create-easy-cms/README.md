@@ -26,6 +26,6 @@ packages. Running it again is safe.
 
 ## Links
 
-[Getting started](https://easy-cms-website.vercel.app/docs/getting-started) · [Documentation](https://easy-cms-website.vercel.app/docs) ([ภาษาไทย](https://easy-cms-website.vercel.app/th/docs)) · [GitHub](https://github.com/maritonx/easy-cms)
+[Getting started](https://easycms.dev/docs/getting-started) · [Documentation](https://easycms.dev/docs) ([ภาษาไทย](https://easycms.dev/th/docs)) · [GitHub](https://github.com/maritonx/easy-cms)
 
 MIT License

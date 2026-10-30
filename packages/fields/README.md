@@ -35,6 +35,6 @@ Values are stored as text, so queries and the REST API treat them like `text` fi
 
 ## Links
 
-[Custom field types](https://easy-cms-website.vercel.app/docs/field-types) · [Documentation](https://easy-cms-website.vercel.app/docs) ([ภาษาไทย](https://easy-cms-website.vercel.app/th/docs)) · [GitHub](https://github.com/maritonx/easy-cms)
+[Custom field types](https://easycms.dev/docs/field-types) · [Documentation](https://easycms.dev/docs) ([ภาษาไทย](https://easycms.dev/th/docs)) · [GitHub](https://github.com/maritonx/easy-cms)
 
 MIT License

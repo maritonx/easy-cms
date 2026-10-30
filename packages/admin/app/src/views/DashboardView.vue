@@ -146,7 +146,7 @@ async function loadStatus() {
   }
 }
 
-const DOCS = 'https://easy-cms-website.vercel.app'
+const DOCS = 'https://easycms.dev'
 const ANCHORS: Record<AdminAttention['id'], string> = {
   webhooks: 'failed-webhooks',
   emails: 'emails-not-sent',

@@ -863,9 +863,9 @@ v0.1 ผ่านการตรวจรับเมื่อครบทุก
 **ออกแล้ว:** `1.0.0-rc.0` บน dist-tag `rc` และ `1.0.0` บน `latest` วันที่ 2026-10-17 (เร็วกว่าแผน 2026-12-15
 หลัง canary บน Ubuntu 26.04 ผ่าน, [#70](https://github.com/maritonx/easy-cms/issues/70); [ROADMAP](ROADMAP.md)) 1.0 คือเวอร์ชันแรกที่พร้อมใช้งานจริง ไม่ใช่เวอร์ชันที่ฟีเจอร์ครบ
 
-**สัญญาความเสถียร** (รายละเอียดใน[หน้า Versions and deprecations](https://easy-cms-website.vercel.app/th/docs/versioning)):
+**สัญญาความเสถียร** (รายละเอียดใน[หน้า Versions and deprecations](https://easycms.dev/th/docs/versioning)):
 
-- breaking change มีเฉพาะใน major (1.x → 2.0) พร้อม[คู่มืออัปเกรด](https://easy-cms-website.vercel.app/th/docs/upgrading)
+- breaking change มีเฉพาะใน major (1.x → 2.0) พร้อม[คู่มืออัปเกรด](https://easycms.dev/th/docs/upgrading)
   minor เพิ่มความสามารถ patch แก้บั๊ก ทุกแพ็กเกจใช้เลขเวอร์ชันเดียวกัน (changesets fixed group)
 - **ครอบคลุม:** สิ่งที่ `@easy-cms/core` และ `@easy-cms/core/plugin` export, option ของ config, Local API, route และ
   `code` ของ REST, คำสั่ง CLI, adapter และ option, ข้อมูลของผู้ใช้ (อัปเกรดแล้ว migrate ไปข้างหน้า)

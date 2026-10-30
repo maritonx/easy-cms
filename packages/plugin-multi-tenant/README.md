@@ -27,6 +27,6 @@ curl -H 'x-easy-cms-tenant: brand-a' https://cms.example.com/api/cms/posts
 
 ## Links
 
-[Multi-tenant](https://easy-cms-website.vercel.app/docs/multi-tenant) · [Documentation](https://easy-cms-website.vercel.app/docs) ([ภาษาไทย](https://easy-cms-website.vercel.app/th/docs)) · [GitHub](https://github.com/maritonx/easy-cms)
+[Multi-tenant](https://easycms.dev/docs/multi-tenant) · [Documentation](https://easycms.dev/docs) ([ภาษาไทย](https://easycms.dev/th/docs)) · [GitHub](https://github.com/maritonx/easy-cms)
 
 MIT License

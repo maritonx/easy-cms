@@ -203,7 +203,7 @@
 - **Redirects:** export เป็น `_redirects`/`vercel.json`, นำเข้าจาก CSV, pattern/wildcard
 - **SSO:** SAML (เปิดให้ทำเป็น plugin ของ community), SCIM, WebAuthn/passkey
 - **Audit log:** ส่งออกแบบ real-time (syslog, SIEM)
-- **Deploy คลิกเดียว:** template สำหรับ Nuxt, ปุ่มบน[เว็บไซต์](https://easy-cms-website.vercel.app)
+- **Deploy คลิกเดียว:** template สำหรับ Nuxt, ปุ่มบน[เว็บไซต์](https://easycms.dev)
 - **บทบาท:** สิทธิ์ของ field ย่อยใน group/array/blocks, กำหนดเจ้าของทีละหลายเอกสาร, ผู้ใช้หลายบทบาท
 - **ความปลอดภัย:** pentest โดยภายนอก
 - **Scale:** outbox เป็นค่าปริยายใน 2.0, cache ใน Redis แบบเลือกใช้ถ้า load test บอกว่าจำเป็น, read replica, multi-region
