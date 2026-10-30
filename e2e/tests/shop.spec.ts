@@ -81,6 +81,11 @@ test('a guest buys by bank transfer', async ({ page }) => {
 
 test('staff mark the payment received, and the stock is taken', async ({ page }) => {
   await login(page)
+  // In the Shop group of the menu: its icon in the rail opens it.
+  await page
+    .getByRole('navigation', { name: 'Main menu' })
+    .getByRole('button', { name: 'Shop', exact: true })
+    .click()
   await page.getByRole('link', { name: 'Orders', exact: true }).click()
   await page.getByRole('link', { name: '1001' }).click()
   const actions = page.locator('ecms-order-actions')

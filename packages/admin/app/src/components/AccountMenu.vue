@@ -49,6 +49,12 @@ watch(
 onBeforeUnmount(() => {
   open.value = false
 })
+
+/** Closed first: staying (unsaved changes, cancelled) leaves the menu as it was before. */
+function logOut() {
+  open.value = false
+  return logOutAndLeave(router)
+}
 </script>
 
 <template>
@@ -98,7 +104,7 @@ onBeforeUnmount(() => {
         <UserRound :size="17" aria-hidden="true" />
         {{ t('nav.account') }}
       </RouterLink>
-      <button type="button" class="pop-item" @click="logOutAndLeave(router)">
+      <button type="button" class="pop-item" @click="logOut">
         <LogOut :size="17" aria-hidden="true" />
         {{ t('nav.logout') }}
       </button>
