@@ -47,6 +47,7 @@
 | [`Security & identity`](https://github.com/maritonx/easy-cms/milestone/6) | — | ความปลอดภัยและ identity |
 | [`Scale (1M documents)`](https://github.com/maritonx/easy-cms/milestone/7) | — | performance ที่ 1M เอกสาร (ปิดแล้ว 2026-10-29) |
 | [`Admin lists & shop`](https://github.com/maritonx/easy-cms/milestone/8) | — | รายการใน admin (saved views, ตัวกรอง, CSV) และ Omise |
+| [`Integrations & social`](https://github.com/maritonx/easy-cms/milestone/9) | — | หน้า Integrations ให้ plugin เชื่อมกับผู้ให้บริการภายนอก และโพสไปหลายช่องทาง |
 
 ### Labels
 
@@ -172,6 +173,22 @@
 | [#271](https://github.com/maritonx/easy-cms/issues/271) | Show admin dates in config.timeZone | area:admin | ทุกวันที่และช่องกรอกวันที่ใน admin ใช้ `config.timeZone` เมื่อตั้งไว้ |
 | [#272](https://github.com/maritonx/easy-cms/issues/272) | Calendar view for collections and scheduled publishing | area:admin | โหมดปฏิทินในหน้ารายการ (`admin.calendar`) และหน้า Content calendar: เดือน/สัปดาห์/วัน/agenda, ลากเปลี่ยนวันพร้อมทางเลือกด้วยคีย์บอร์ด, สร้างจากช่องว่าง ([ADR-0064](adr/0064-calendar-view.md)) |
 | [#89](https://github.com/maritonx/easy-cms/issues/89) | Export a list to CSV | area:admin | |
+
+### M9 — `Integrations & social` (ไม่กำหนดวัน) {#m9}
+
+จากการคุยเรื่องโพสไปหลายช่องทาง (2026-10-30) ทำหลัง M8 ตามลำดับ: #311 → #312 → #313 → #314
+- หน้า admin ติดตั้ง plugin ไม่ได้ (ต้องแก้โค้ดและ deploy) แต่เชื่อมบัญชีของ plugin ที่ติดตั้งแล้วได้ ทั้งแบบ OAuth และแบบวาง token
+- secret ที่เชื่อมผ่าน admin เข้ารหัส AES-256-GCM ในฐานข้อมูลด้วย key จาก `EASY_CMS_SECRET` ถ้าตั้ง env ไว้ env ชนะ
+- social post เป็น collection แยก โพสด้วยมือหรือตั้งเวลา (ยังไม่โพสอัตโนมัติ) สถานะแยกต่อช่องทาง
+- ช่องทางแรก: webhook (Make/n8n ซึ่งใช้ต่อ X ได้โดยไม่ต้องจ่ายค่า X API), Facebook Page และ LINE OA (การ์ด)
+- ใช้กับ easycms.dev ก่อนเปิดให้คนอื่นใช้ plugin นี้จึงเป็น experimental
+
+| # | Issue | Labels | เสร็จเมื่อ |
+|---|---|---|---|
+| [#311](https://github.com/maritonx/easy-cms/issues/311) | Integrations page: plugins connect to outside providers | area:core, area:admin, area:security | plugin ประกาศการเชื่อมต่อแบบ OAuth และแบบช่องกรอกได้, admin เชื่อมและทดสอบได้, secret เข้ารหัสและอยู่รอดเมื่อเปลี่ยน secret, role ที่ไม่มี `integrations` มองไม่เห็น |
+| [#312](https://github.com/maritonx/easy-cms/issues/312) | Social plugin: post to several channels from the admin | area:plugins, area:admin | โพสทันทีและตั้งเวลาไปสองช่องทาง webhook ได้, ช่องหนึ่งล้มอีกช่องยังไป, ลองใหม่เฉพาะช่องที่ล้ม, Share เติมข้อมูลจากเอกสาร |
+| [#313](https://github.com/maritonx/easy-cms/issues/313) | Social plugin: Facebook Page and LINE OA channels | area:plugins | โพสไป Page และ LINE OA ทดสอบได้, ความผิดพลาดบอกเหตุผลจากผู้ให้บริการ, คู่มือสร้าง Meta app และ LINE channel |
+| [#314](https://github.com/maritonx/easy-cms/issues/314) | Post easycms.dev articles with the social plugin, and document it | area:docs, area:plugins | บทความบน easycms.dev โพสไป Facebook, LINE และ X จาก admin, คู่มือ EN/TH ครบทุกขั้น |
 
 ---
 
