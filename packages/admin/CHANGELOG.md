@@ -1,5 +1,21 @@
 # @easy-cms/admin
 
+## 1.22.0
+
+### Minor Changes
+
+- ff94e96: The admin shows and takes dates in `config.timeZone` (#271). With it set, every date and time (lists,
+  edit pages, dashboard, audit log, jobs, backups) is in that zone, and date inputs, scheduled
+  publishing and the audit log's day filters read what people type in it, so a publish at 09:00 is
+  09:00 for everyone. Someone whose browser is in another zone sees the zone named next to date
+  inputs. Without `timeZone`, the admin uses the browser's zone as before.
+- c3447d9: A Calendar mode for collection lists (#272). `admin.calendar: { start, end?, color? }` names a
+  collection's date fields (and a select or relationship field to colour by); its list then gets a
+  **List | Calendar** switch with month, week, day and agenda views in the admin's time zone, using
+  the list's filters and search. Click a document to open it, or a day or time slot to create one
+  starting then. The calendar (FullCalendar) loads only when it is opened. Dragging, "Move to…" and
+  the site-wide Content calendar follow.
+
 ## 1.21.0
 
 ### Minor Changes
