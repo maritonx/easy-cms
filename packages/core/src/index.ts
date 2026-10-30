@@ -70,6 +70,7 @@ export type {
   CollectionAdmin,
   CollectionConfig,
   CollectionHooks,
+  CollectionCalendarAdmin,
   CollectionListAdmin,
   ContainerAdmin,
   DashboardWidget,

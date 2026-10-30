@@ -167,6 +167,8 @@ export interface AdminCollection {
   tree?: string
   /** The list's default order (`admin.list.sort`). */
   defaultSort?: string
+  /** The list's Calendar mode (`admin.calendar`): the fields placing and colouring documents. */
+  calendar?: { start: string; end?: string; color?: string }
   permissions: {
     read: boolean
     create: boolean
@@ -471,6 +473,7 @@ async function collection(
   if (config.admin?.empty) result.empty = JSON.parse(JSON.stringify(config.admin.empty))
   if (config.admin?.list?.tree) result.tree = config.admin.list.tree
   if (config.admin?.list?.sort) result.defaultSort = config.admin.list.sort
+  if (config.admin?.calendar) result.calendar = { ...config.admin.calendar }
   if (config.admin?.confirmDelete) result.confirmDelete = { ...config.admin.confirmDelete }
   const owner = cms.roles.ownerOf(config.slug)
   if (owner && fields.some((f) => f.name === owner)) result.owner = owner

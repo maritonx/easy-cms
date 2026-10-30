@@ -27,6 +27,11 @@
   "devDependencies": {
     "@easy-cms/core": "workspace:^",
     "@fontsource-variable/anuphan": "^5.3.0",
+    "@fullcalendar/core": "^6.1.22",
+    "@fullcalendar/daygrid": "^6.1.22",
+    "@fullcalendar/interaction": "^6.1.22",
+    "@fullcalendar/list": "^6.1.22",
+    "@fullcalendar/timegrid": "^6.1.22",
     "@lucide/vue": "^1.48.0",
     "@tiptap/extension-image": "^3.31.3",
     "@tiptap/pm": "^3.31.3",

@@ -1289,6 +1289,9 @@ function validateContainer(
         validateCollectionAdmin(admin as Record<string, unknown>, `${path}.admin`, add)
       const list: unknown = (admin as { list?: unknown }).list
       if (list !== undefined) validateList(list, container, `${path}.admin.list`, add)
+      const calendar: unknown = (admin as { calendar?: unknown }).calendar
+      if (collection && calendar !== undefined)
+        validateCalendar(calendar, container, `${path}.admin.calendar`, add)
       const owner: unknown = (admin as { ownerField?: unknown }).ownerField
       if (owner !== undefined) {
         const field = container.fields.find((f) => f.name === owner)
@@ -1376,6 +1379,45 @@ function validateFields(
     }
     validateField(field, fieldPath, byName, collectionSlugs, add)
   }
+}
+
+function validateCalendar(
+  calendar: unknown,
+  container: CollectionConfig | GlobalConfig,
+  path: string,
+  add: Add,
+) {
+  if (typeof calendar !== 'object' || calendar === null) {
+    add(path, 'must be an object', "e.g. calendar: { start: 'startsAt', end: 'endsAt' }")
+    return
+  }
+  const { start, end, color } = calendar as { start?: unknown; end?: unknown; color?: unknown }
+  const fieldNamed = (name: unknown) =>
+    typeof name === 'string' ? container.fields.find((f) => f.name === name) : undefined
+  for (const [key, value, required] of [
+    ['start', start, true],
+    ['end', end, false],
+  ] as const) {
+    if (value === undefined && !required) continue
+    if (fieldNamed(value)?.type !== 'date')
+      add(
+        `${path}.${key}`,
+        'must name a top-level date field',
+        `e.g. { name: '${key}sAt', type: 'date' }`,
+      )
+  }
+  if (start !== undefined && start === end) add(`${path}.end`, 'must differ from start')
+  if (color === undefined) return
+  const field = fieldNamed(color)
+  if (
+    (field?.type !== 'select' && field?.type !== 'relationship') ||
+    ('hasMany' in field && field.hasMany)
+  )
+    add(
+      `${path}.color`,
+      'must name a top-level select or relationship field (not hasMany)',
+      "e.g. color: 'category'",
+    )
 }
 
 function validateList(
