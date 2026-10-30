@@ -1,10 +1,11 @@
-import type { AdminCollection } from '@easy-cms/core'
-import type { Doc } from './api'
+import type { AdminCollection, ScheduledPublish } from '@easy-cms/core'
+import { api, type Doc, type Paginated, toQuery } from './api'
 import { titleOf } from './fields'
 import { fromZoned, toZoned } from './time-zone'
 
 /**
- * The list's Calendar mode (#272): which documents a range shows, and how they become events.
+ * Calendars (#272), in a collection's list and on the Calendar page: which documents a range
+ * shows, and how they and scheduled publishes become events.
  *
  * FullCalendar is given wall-clock times of the admin's time zone and told they are UTC, so it
  * needs no time zone plugin: `toZoned` on the way in, `fromZoned` on the way out (as the date
@@ -52,6 +53,12 @@ export function colorOf(collection: AdminCollection, doc: Doc): number | undefin
   return hash % COLORS
 }
 
+/** Where an event leads: the link's `href`, and the route the admin opens on a click. */
+export interface EventLink {
+  href: string
+  to: string
+}
+
 export interface CalendarEvent {
   id: string
   title: string
@@ -60,6 +67,13 @@ export interface CalendarEvent {
   allDay: boolean
   url: string
   classNames: string[]
+  extendedProps: { to: string }
+}
+
+/** What a calendar shows for a range, and whether there was more than it could. */
+export interface CalendarRange {
+  events: CalendarEvent[]
+  tooMany: boolean
 }
 
 /**
@@ -69,8 +83,9 @@ export interface CalendarEvent {
 export function eventOf(
   collection: AdminCollection,
   doc: Doc,
-  href: string,
+  link: EventLink,
   timeZone?: string,
+  classNames?: string[],
 ): CalendarEvent | null {
   const calendar = collection.calendar
   if (!calendar) return null
@@ -88,8 +103,65 @@ export function eventOf(
     start: allDay ? start.slice(0, 10) : start,
     ...(end ? { end: allDay ? end.slice(0, 10) : end } : {}),
     allDay,
-    url: href,
-    classNames: color === undefined ? [] : [`cal-c${color}`],
+    url: link.href,
+    classNames: classNames ?? (color === undefined ? [] : [`cal-c${color}`]),
+    extendedProps: { to: link.to },
+  }
+}
+
+/** The REST API's largest page. */
+const PAGE = 100
+
+/**
+ * A collection's documents in `[from, to)` that also match `where`, as events: pages of 100 (the
+ * first, then the rest at once), at most RANGE_LIMIT.
+ */
+export async function loadRange(
+  collection: AdminCollection,
+  where: Record<string, unknown> | undefined,
+  from: string,
+  to: string,
+  linkOf: (id: string) => EventLink,
+  timeZone?: string,
+  classNames?: string[],
+): Promise<CalendarRange> {
+  const calendar = collection.calendar
+  if (!calendar) return { events: [], tooMany: false }
+  const range = rangeWhere(calendar, from, to)
+  const all = where ? { and: [where, range] } : range
+  const page = (n: number) =>
+    api<Paginated<Doc>>(
+      'GET',
+      `/${collection.slug}${toQuery({ where: all, limit: PAGE, page: n, depth: 0, draft: true, sort: calendar.start })}`,
+    )
+  const first = await page(1)
+  const pages = Math.min(first.totalPages, RANGE_LIMIT / PAGE)
+  const rest = await Promise.all(Array.from({ length: pages - 1 }, (_, i) => page(i + 2)))
+  return {
+    events: [first, ...rest]
+      .flatMap((found) => found.docs)
+      .map((doc) => eventOf(collection, doc, linkOf(String(doc.id)), timeZone, classNames))
+      .filter((e): e is CalendarEvent => e !== null),
+    tooMany: first.totalDocs > RANGE_LIMIT,
+  }
+}
+
+/** A scheduled publish or unpublish, at its moment, e.g. "Publish: Launch". */
+export function jobEvent(
+  job: ScheduledPublish & { collection?: string; doc: Doc['id'] },
+  title: string,
+  link: EventLink,
+  timeZone?: string,
+  classNames: string[] = [],
+): CalendarEvent {
+  return {
+    id: `job:${job.id}`,
+    title,
+    start: toZoned(job.runAt, timeZone),
+    allDay: false,
+    url: link.href,
+    classNames: ['cal-scheduled', ...classNames],
+    extendedProps: { to: link.to },
   }
 }
 

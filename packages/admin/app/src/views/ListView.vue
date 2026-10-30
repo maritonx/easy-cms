@@ -47,6 +47,7 @@ import Skeleton from '../components/Skeleton.vue'
 import TransferDialog from '../components/TransferDialog.vue'
 import UploadDropzone from '../components/UploadDropzone.vue'
 import { ApiError, api, type Doc, type Id, type Paginated, toQuery } from '../lib/api'
+import { initialFor, loadRange } from '../lib/calendar'
 import { localeName } from '../lib/content-locale'
 import { titleOf } from '../lib/fields'
 import { extensionOf } from '../lib/filetypes'
@@ -76,6 +77,7 @@ import { leaveList, scrollFor } from '../lib/list-memory'
 import { useDelayedLoading } from '../lib/loading'
 import { crumbsFor, isPinned, togglePin } from '../lib/nav'
 import { findCollection, session } from '../lib/session'
+import { adminTimeZone } from '../lib/time-zone'
 import { notify } from '../lib/toast'
 import { inLocale, missingLocales } from '../lib/translation'
 
@@ -724,6 +726,24 @@ function onCalendarView(view: string, date: string) {
   if (view === calendarView.value && date === calendarDate.value) return
   void router.replace({ query: { ...route.query, calendar: view, date } })
 }
+/** The list's documents in a range, with its filters and search. */
+const loadCalendar = (from: string, to: string) =>
+  collection
+    ? loadRange(
+        collection,
+        whereOf(),
+        from,
+        to,
+        (id) => {
+          const target = docLink(id)
+          return { href: router.resolve(target).href, to: router.resolve(target).fullPath }
+        },
+        adminTimeZone.value,
+      )
+    : Promise.resolve({ events: [], tooMany: false })
+function onCalendarSelect(slot: { start: Date; end: Date; allDay: boolean }) {
+  if (calendarConfig) calendarNew.value = initialFor(calendarConfig, slot, adminTimeZone.value)
+}
 function onCalendarSaved() {
   calendarNew.value = null
   calendarRef.value?.refetch()
@@ -1084,13 +1104,13 @@ async function deleteSelected(query = '') {
       v-if="calendarMode && collection.calendar"
       ref="calendarRef"
       class="card calendar-card"
-      :collection="collection"
-      :where="whereOf()"
+      :load="loadCalendar"
+      :reload-key="JSON.stringify(whereOf() ?? null)"
+      :selectable="collection.permissions.create"
       :view="calendarView"
       :date="calendarDate"
-      :href-of="(id: string) => router.resolve(docLink(id)).href"
-      @open="(id: string) => router.push(docLink(id))"
-      @create="(initial: Record<string, string>) => (calendarNew = initial)"
+      @open="(to: string) => router.push(to)"
+      @select="onCalendarSelect"
       @update:view="onCalendarView"
     />
     <div v-else :class="['card', 'table-wrap', { 'grid-wrap': grid, reloading }]" :aria-busy="loading">

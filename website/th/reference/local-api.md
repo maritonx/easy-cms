@@ -93,7 +93,7 @@ Local API เชื่อผู้เรียกและข้ามกฎส�
 | `scheduleGlobal(slug, { action, at }, options?)` | งาน | แบบเดียวกันสำหรับ global |
 | `findGlobalSchedule(slug, options?)` | รายการงาน | |
 | `cancelGlobalSchedule(slug, jobId, options?)` | — | |
-| `upcomingSchedules({ limit?, user?, overrideAccess? })` | รายการงาน | งานถัดไปจากทุก collection และ global |
+| `upcomingSchedules({ limit?, from?, to?, user?, overrideAccess? })` | รายการงาน | งานถัดไปจากทุก collection และ global, `from`/`to` (ISO) เอาเฉพาะที่ถึงเวลาในช่วงนั้น |
 
 ### งานและ webhook {#jobs-and-webhooks}
 

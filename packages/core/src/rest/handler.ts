@@ -43,6 +43,9 @@ import { pickerFilter } from './filter-options.js'
 import { cacheableResponse, cacheTags, cacheTimes } from './http-cache.js'
 import { parseDepth, parseListQuery } from './query.js'
 
+/** At most this many scheduled publishes in a calendar's range (#272). */
+const SCHEDULED_RANGE_LIMIT = 500
+
 export { SESSION_COOKIE }
 export const CSRF_COOKIE = 'ecms-csrf'
 export const CSRF_HEADER = 'x-csrf-token'
@@ -984,15 +987,29 @@ async function route(
       if (!(await cms.roles.canView(ctx.user, 'status'))) throw new ForbiddenError()
       return { body: await adminStatus(cms) }
     }
-    // /admin/ui/scheduled → the next scheduled publishes the user may manage (dashboard)
-    if (second === 'scheduled' && third === undefined)
+    // /admin/ui/scheduled → the next scheduled publishes the user may manage (dashboard);
+    // with ?from=&to= (ISO moments), those in that range, for the Calendar page (#272)
+    if (second === 'scheduled' && third === undefined) {
+      const moment = (name: string) => {
+        const value = ctx.url.searchParams.get(name)
+        if (value === null) return undefined
+        if (Number.isNaN(Date.parse(value)))
+          throw new HttpError(`${name} must be an ISO date and time`, 400)
+        return new Date(value).toISOString()
+      }
+      const from = moment('from')
+      const to = moment('to')
       return {
         body: await cms.upcomingSchedules({
           user: ctx.user,
           context: ctx.context,
           overrideAccess: false,
+          ...(from !== undefined ? { from } : {}),
+          ...(to !== undefined ? { to } : {}),
+          ...(from !== undefined || to !== undefined ? { limit: SCHEDULED_RANGE_LIMIT } : {}),
         }),
       }
+    }
     // /admin/ui/access/:collection/:id → what the user may do with that document
     const [, , collection, id, extra] = segments
     if (second === 'access' && collection && id && extra === undefined) {

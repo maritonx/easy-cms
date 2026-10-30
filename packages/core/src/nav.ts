@@ -19,6 +19,8 @@ export const BUILTIN_NAV: readonly NavGroup[] = [
 
 /** Where the media library sits among the groups. */
 export const MEDIA_ORDER = 10
+/** The Calendar page: right after Content, before the media library. */
+export const CALENDAR_ORDER = 5
 /** Groups made from a label (`admin.group: 'Shop'`) come after declared ones. */
 const LABEL_ORDER = 500
 

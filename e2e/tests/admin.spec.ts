@@ -715,6 +715,22 @@ test.describe('logged in as admin', () => {
     await expect(page.getByRole('textbox', { name: 'Title', exact: true })).toHaveValue(
       'Calendar post',
     )
+
+    // The Calendar page: in the menu right after Content, every source, each one hideable.
+    await page
+      .getByRole('navigation', { name: 'Main menu' })
+      .getByRole('link', { name: 'Calendar' })
+      .click()
+    await expect(page.getByRole('heading', { name: 'Calendar', level: 1 })).toBeVisible()
+    await page.goto('/admin/calendar?view=month&date=2030-05-01')
+    const onPage = page.getByRole('link', { name: /^Calendar post, Wednesday,? 15 May 2030/ })
+    await expect(onPage).toBeVisible()
+    await page.getByRole('checkbox', { name: 'Posts' }).uncheck()
+    await expect(onPage).toBeHidden()
+    await page.reload()
+    await expect(page.getByRole('checkbox', { name: 'Posts' })).not.toBeChecked()
+    await page.getByRole('checkbox', { name: 'Posts' }).check()
+    await expect(onPage).toBeVisible()
   })
 
   test('deletes from the edit page and warns about unsaved changes (FR-ADM-08)', async ({

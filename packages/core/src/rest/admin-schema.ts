@@ -30,6 +30,7 @@ import { type AdminComponent, type Field, type Label, TRIGRAM_LIKE_MIN } from '.
 import type { EasyCMS } from '../local-api.js'
 import { expandMimeTypes } from '../media.js'
 import {
+  CALENDAR_ORDER,
   groupOf,
   LABEL_ORDER,
   MEDIA_ORDER,
@@ -38,7 +39,7 @@ import {
   type ResolvedNavGroup,
 } from '../nav.js'
 import type { RoleOperation } from '../roles.js'
-import { hasJobsPage } from './admin-jobs.js'
+import { hasCalendarPage, hasJobsPage } from './admin-jobs.js'
 import { adminModuleUrls } from './admin-modules.js'
 
 /** Built-in collections listed under Settings › Users & access in the menu. */
@@ -72,7 +73,7 @@ export type AdminNavItem =
   | { kind: 'page'; path: string }
   | {
       kind: 'view'
-      view: 'roles' | 'sso' | 'backups' | 'email' | 'deliveries' | 'jobs' | 'audit'
+      view: 'roles' | 'sso' | 'backups' | 'email' | 'deliveries' | 'jobs' | 'audit' | 'calendar'
     }
 
 /** A group of the admin menu (`admin.nav`), with what this user may open in it. */
@@ -260,6 +261,8 @@ export interface AdminSchema {
     roles: boolean
     sso: boolean
     audit: boolean
+    /** The Calendar page (#272): documents with `admin.calendar` and scheduled publishing. */
+    calendar: boolean
   }
   /** Roles from the admin are on (`auth.rbac`): documents have owners. */
   rbac: boolean
@@ -541,6 +544,7 @@ export async function adminSchema(
     roles: admin && cms.roles.enabled,
     sso: admin && cms.auth.sso.enabled,
     audit: cms.audit.enabled && (await cms.roles.canView(user, 'audit')),
+    calendar: hasCalendarPage(cms.config) && (await cms.roles.canView(user, 'calendar')),
   }
   const roles = await cms.roles.options()
   const adminCollections = await Promise.all(
@@ -798,6 +802,7 @@ function buildNav(
     if (own.length)
       root.push({ order: LABEL_ORDER + i++, node: { kind: 'group', id, label, items: own } })
   }
+  if (views.calendar) root.push({ order: CALENDAR_ORDER, node: { kind: 'view', view: 'calendar' } })
   if (media) root.push({ order: MEDIA_ORDER, node: { kind: 'collection', slug: MEDIA } })
   return root.sort((a, b) => a.order - b.order).map((r) => r.node)
 }
