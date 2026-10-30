@@ -17,6 +17,7 @@ Served at `routes.api` (default `/api/cms`). All responses are JSON; access rule
 | GET | `/:collection/:id` | One document. Query: `depth`, `draft`, `preview` (a [preview token](./live-preview#preview-tokens): the current draft, no login) |
 | PATCH | `/:collection/:id` | Update the given fields |
 | DELETE | `/:collection/:id` | Delete |
+| POST | `/:collection/bulk` | Signed in: `{ action, ids }` (at most 100) runs `publish`, `unpublish`, `delete` or `move` (media, with `folder`) on each document now, with the user's access, and answers `{ done, skipped, failed }` (`skipped`: `forbidden` or `not-found`). `{ action, where }` does it to every match, at most 10,000, in the background: `202` with the operation; `GET /:collection/bulk/:id` says how far it got (and moves it on), `POST /:collection/bulk/:id/cancel` stops it after the current 100 |
 | GET / PATCH | `/globals/:slug` | Read / update a global (`POST` works too) |
 | POST | `/media` | Upload (`multipart/form-data`, field `file`), or JSON `{ url }` to download it ([from a link](/guide/uploads#from-a-link)) |
 | GET | `/media/file/:name` | A stored file (public) |
@@ -41,7 +42,7 @@ Globals have the same version routes under `/globals/:slug/…` (`versions`, `ve
 `versions/:version/restore`, `unpublish`, `discard-draft`, `preview`, `schedule`). Version and preview routes need update access.
 
 What the admin UI alone uses lives under `/admin/ui/…` (`schema`, `counts`, `search`, `modules`,
-`scheduled`, `access`, `total`, `media-usage`, `owned`, `sso`). Those routes are internal, not part of the
+`scheduled`, `access`, `bulk`, `total`, `media-usage`, `owned`, `sso`). Those routes are internal, not part of the
 public API, and may change in any release; build on the routes above instead.
 
 `where` uses brackets or JSON:

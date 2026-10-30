@@ -1,5 +1,11 @@
 import { randomUUID } from 'node:crypto'
-import { type AuthUser, type ID, isSystemAdmin, type RequestContext } from '../access.js'
+import {
+  type AuthUser,
+  type ID,
+  isSystemAdmin,
+  type RequestContext,
+  type Where,
+} from '../access.js'
 import { API_KEYS, type ApiKeyPermissions } from '../api-keys.js'
 import { auditContext } from '../audit.js'
 import { type Session, SIGNUP_HONEYPOT } from '../auth/auth.js'
@@ -8,6 +14,7 @@ import { passwordFor, SSO_COOKIE } from '../auth/sso.js'
 import { safeEqual } from '../auth/tokens.js'
 import { deleteBackup, downloadBackup, listBackups, startBackup } from '../backups.js'
 import { INTERNAL_COLLECTIONS, MEDIA, USERS } from '../builtins.js'
+import { bulkIds, bulkOperations, bulkProgress, cancelBulk, startBulk } from '../bulk.js'
 import type { CollectionConfig, Config, GlobalConfig } from '../config.js'
 import { warnDeprecated } from '../deprecation.js'
 import { parseId } from '../document.js'
@@ -343,6 +350,7 @@ const ADMIN_UI_ROUTES = new Set([
   'modules',
   'scheduled',
   'access',
+  'bulk',
   'total',
   'media-usage',
   'owned',
@@ -1042,6 +1050,9 @@ async function route(
         body: { total: Math.min(total, LIST_TOTAL_MAX), more: total > LIST_TOTAL_MAX },
       }
     }
+    // /admin/ui/bulk → the user's bulk actions, running and recent (#280)
+    if (second === 'bulk' && third === undefined)
+      return { body: { docs: await bulkOperations(cms, ctx.user) } }
     // /admin/ui/access/:collection/:id → what the user may do with that document
     const [, , collection, id, extra] = segments
     if (second === 'access' && collection && id && extra === undefined) {
@@ -1184,6 +1195,9 @@ async function route(
   ) {
     throw new HttpError(`Unknown collection "${collection}"`, 404)
   }
+  // Bulk actions (#280): POST /:collection/bulk { action, ids | where, folder?, transferTo? };
+  // GET /:collection/bulk/:id (progress), POST /:collection/bulk/:id/cancel
+  if (second === 'bulk') return bulkRoute(cms, ctx, method, collection, segments.slice(2), access)
   if (second !== undefined && third !== undefined) {
     return documentAction(cms, ctx, method, collection, second, segments.slice(2))
   }
@@ -1353,6 +1367,54 @@ async function documentAction(
           ? await cms.unpublish(collection, id, options)
           : await cms.discardDraft(collection, id, options),
     }
+  }
+  throw new HttpError('Not found', 404)
+}
+
+/** `/:collection/bulk…`: an action on named documents now, or on a list's matches in the background. */
+async function bulkRoute(
+  cms: EasyCMS,
+  ctx: Context,
+  method: string,
+  collection: string,
+  path: string[],
+  access: { context?: RequestContext },
+) {
+  const user = ctx.user
+  if (!user) throw new UnauthorizedError()
+  const [raw, action, extra] = path
+  if (raw === undefined) {
+    if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
+    const body = (await readJson(ctx.request)) as Record<string, unknown>
+    const options = {
+      user,
+      ...(access.context ? { context: access.context } : {}),
+      ...(body.folder !== undefined ? { folder: body.folder as ID | null } : {}),
+      ...(body.transferTo !== undefined ? { transferTo: body.transferTo as ID | null } : {}),
+    }
+    const name = String(body.action ?? '')
+    if (Array.isArray(body.ids))
+      return { body: await bulkIds(cms, collection, name, body.ids as ID[], options) }
+    const where = body.where
+    if (
+      where !== undefined &&
+      (typeof where !== 'object' || where === null || Array.isArray(where))
+    )
+      throw new QueryError('where must be an object')
+    return {
+      status: 202,
+      body: await startBulk(cms, collection, name, where as Where | undefined, options),
+    }
+  }
+  const id = parseId(raw)
+  if (id === undefined) throw new HttpError('Not found', 404)
+  if (action === undefined) {
+    if (method !== 'GET') throw methodNotAllowed(ctx, 'GET')
+    return { body: await bulkProgress(cms, id, user) }
+  }
+  if (action === 'cancel' && extra === undefined) {
+    if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
+    return { body: await cancelBulk(cms, id, user) }
   }
   throw new HttpError('Not found', 404)
 }

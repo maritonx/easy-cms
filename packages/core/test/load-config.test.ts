@@ -18,6 +18,7 @@ describe('loadConfig (FR-CFG-01)', () => {
       'sessions',
       'login-attempts',
       'database-backups',
+      'bulk-operations',
     ])
     expect(typeof config.collections[2]?.access?.update).toBe('function')
   })
@@ -29,7 +30,7 @@ describe('loadConfig (FR-CFG-01)', () => {
 
   it('accepts an explicit file', async () => {
     const config = await loadConfig({ cwd: fixture('.'), configFile: 'ts/easy-cms.config.ts' })
-    expect(config.collections).toHaveLength(6)
+    expect(config.collections).toHaveLength(7)
   })
 
   it('explains how to create a config when none exists', async () => {

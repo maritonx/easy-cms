@@ -2,6 +2,7 @@ import { apiKeysCollection } from './api-keys.js'
 import { type AuditConfig, DEFAULT_AUDIT_KEEP, DEFAULT_FAILED_LOGINS } from './audit.js'
 import {
   auditLogsCollection,
+  bulkOperationsCollection,
   DEFAULT_ROLES,
   databaseBackupsCollection,
   emailDeliveriesCollection,
@@ -153,6 +154,7 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
       ...(config.outbox ? [outboxCollection] : []),
       ...(config.rateLimit ? [rateLimitsCollection] : []),
       databaseBackupsCollection,
+      bulkOperationsCollection,
       ...(config.auth?.rbac ? [rolesCollection] : []),
       ...((config.auth?.providers?.length ?? 0) > 0 ? [userIdentitiesCollection] : []),
       ...(config.audit ? [auditLogsCollection] : []),

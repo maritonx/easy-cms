@@ -18,6 +18,7 @@ export const USER_IDENTITIES = 'user-identities'
 export const AUDIT_LOGS = 'audit-logs'
 export const OUTBOX = 'outbox'
 export const RATE_LIMITS = 'rate-limits'
+export const BULK_OPERATIONS = 'bulk-operations'
 
 /** Collections Easy CMS uses internally. Not exposed over REST or in the admin UI. */
 export const INTERNAL_COLLECTIONS: ReadonlySet<string> = new Set([
@@ -34,6 +35,7 @@ export const INTERNAL_COLLECTIONS: ReadonlySet<string> = new Set([
   AUDIT_LOGS,
   OUTBOX,
   RATE_LIMITS,
+  BULK_OPERATIONS,
 ])
 
 export const DEFAULT_ROLES = ['admin', 'editor'] as const
@@ -457,6 +459,40 @@ export const scheduledJobsCollection: CollectionConfig = {
     { name: 'state', type: 'text', required: true, index: true },
     { name: 'error', type: 'text' },
     { name: 'author', type: 'number' },
+  ],
+}
+
+/**
+ * Bulk actions on every document matching a list's filters (#280), run in steps of 100 by
+ * whichever process gets there first: the one that started it, the admin asking for progress, or
+ * the jobs.
+ */
+export const bulkOperationsCollection: CollectionConfig = {
+  slug: BULK_OPERATIONS,
+  access: { read: nobody, create: nobody, update: nobody, delete: nobody },
+  fields: [
+    { name: 'collection', type: 'text', required: true },
+    // publish | unpublish | delete | move
+    { name: 'action', type: 'text', required: true },
+    // The list's `where`, and for `move` the folder (`null`: the top).
+    { name: 'query', type: 'json' },
+    { name: 'folder', type: 'text' },
+    { name: 'transferTo', type: 'text' },
+    { name: 'user', type: 'text', required: true, index: true },
+    // pending | running | cancelling | done | cancelled | failed
+    { name: 'state', type: 'text', required: true, index: true },
+    { name: 'total', type: 'number', required: true },
+    { name: 'done', type: 'number', required: true },
+    { name: 'skipped', type: 'number', required: true },
+    { name: 'failed', type: 'number', required: true },
+    // The last id handled: the next step continues after it, in id order.
+    { name: 'after', type: 'json' },
+    // The first documents skipped or failed, with why: `{ id, reason, message? }`.
+    { name: 'problems', type: 'json' },
+    { name: 'error', type: 'text' },
+    // A step holds the operation until then; a process that stopped lets it go.
+    { name: 'leaseUntil', type: 'text' },
+    { name: 'finishedAt', type: 'text' },
   ],
 }
 
