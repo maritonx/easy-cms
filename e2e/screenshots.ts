@@ -115,7 +115,8 @@ async function main() {
 
         // ⌘K: search and commands.
         await page.waitForLoadState('networkidle')
-        await page.getByRole('button', { name: new RegExp(t.paletteButton) }).click()
+        // The menu's search button, named like the palette it opens.
+        await page.getByRole('button', { name: t.palette, exact: true }).click()
         await page.getByRole('combobox', { name: t.palette }).fill(t.paletteQuery)
         await page.getByRole('option').nth(1).waitFor()
         await shot('command-palette')
@@ -249,7 +250,6 @@ const EN = {
   contentTab: 'Content',
   palette: 'Search and commands',
   paletteQuery: 'post',
-  paletteButton: 'Search or go to',
   same: 'English',
   other: 'Thai',
   showPreview: 'Preview',
@@ -270,7 +270,6 @@ const TH = {
   contentTab: 'เนื้อหา',
   palette: 'ค้นหาและคำสั่ง',
   paletteQuery: 'บทความ',
-  paletteButton: 'ค้นหาหรือไปที่',
   same: 'ไทย',
   other: 'อังกฤษ',
   showPreview: 'ดูตัวอย่าง',
