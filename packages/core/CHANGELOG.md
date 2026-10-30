@@ -1,5 +1,20 @@
 # @easy-cms/core
 
+## 1.23.0
+
+### Minor Changes
+
+- bc56e54: A **Calendar** page in the admin menu, right after Content (#272): every collection with
+  `admin.calendar`, each in its own colour, and what is scheduled to publish or unpublish, across the
+  site. Sources can be hidden (remembered per browser). It shows when a collection has
+  `admin.calendar` or `schedule`; with `auth.rbac`, roles are given it as `calendar`.
+  `GET /admin/ui/scheduled` and `cms.upcomingSchedules()` take `from` and `to`.
+- 5e7e8ab: Statuses say what is pending (#303). Wherever the admin shows a status (the edit page, lists, the
+  calendar's day card, the dashboard), a draft waiting to go live reads **Scheduled · date**, and a
+  published document can add **Unpublished changes**, **Publishes · date** or **Unpublishes · date**.
+  On the edit page the date opens the schedule dialog; a list's status menu has **Scheduled**.
+  `GET /admin/ui/scheduled` and `cms.upcomingSchedules()` take `collection` and `docs`.
+
 ## 1.22.0
 
 ### Minor Changes

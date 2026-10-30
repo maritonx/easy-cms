@@ -1,5 +1,36 @@
 # @easy-cms/admin
 
+## 1.23.0
+
+### Minor Changes
+
+- 485b932: Move things on calendars (#272): drag a document to another day or time (or its end, in the week and
+  day views), or use **Move to…** in the day card from the keyboard. Scheduled publishes on the
+  Calendar page move too. A message offers **Undo** for 8 seconds; a refused save puts it back with the
+  reason. Moves save like the edit page: a document with a pending draft moves in that draft, and the
+  message says the site changes when it is published. Toasts can now carry an action button.
+- bc56e54: A **Calendar** page in the admin menu, right after Content (#272): every collection with
+  `admin.calendar`, each in its own colour, and what is scheduled to publish or unpublish, across the
+  site. Sources can be hidden (remembered per browser). It shows when a collection has
+  `admin.calendar` or `schedule`; with `auth.rbac`, roles are given it as `calendar`.
+  `GET /admin/ui/scheduled` and `cms.upcomingSchedules()` take `from` and `to`.
+- c2d9453: Calendars get a side column (#272): a card with the picked day's documents (today at first) by
+  time, whole days first, with their status, and on the Calendar page a **Show** card with the
+  sources and their colours. Clicking a day, or its number from the keyboard, picks it (`&day=` in
+  the address); in a list's Calendar mode, **New on this day** creates a document starting then.
+  Wider than 1024px the column is on the right, below the calendar otherwise.
+- 5e7e8ab: Statuses say what is pending (#303). Wherever the admin shows a status (the edit page, lists, the
+  calendar's day card, the dashboard), a draft waiting to go live reads **Scheduled · date**, and a
+  published document can add **Unpublished changes**, **Publishes · date** or **Unpublishes · date**.
+  On the edit page the date opens the schedule dialog; a list's status menu has **Scheduled**.
+  `GET /admin/ui/scheduled` and `cms.upcomingSchedules()` take `collection` and `docs`.
+
+### Patch Changes
+
+- 9ae9cf5: The live preview panel names the site it opens, and says so when the page hasn't answered after
+  ten seconds (the site may be down, `preview` may point elsewhere, or the site has no live preview
+  yet), instead of staying silently empty.
+
 ## 1.22.0
 
 ### Minor Changes
