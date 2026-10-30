@@ -103,6 +103,14 @@ export function hasJobsPage(config: ResolvedConfig): boolean {
   return config.jobs.length > 0 || has(config, SCHEDULED_JOBS) || has(config, OUTBOX)
 }
 
+/**
+ * Whether the Calendar page has anything to show (#272): a collection with `admin.calendar`, or
+ * one whose publishing can be scheduled.
+ */
+export function hasCalendarPage(config: ResolvedConfig): boolean {
+  return config.collections.some((c) => c.admin?.calendar !== undefined || c.schedule === true)
+}
+
 const text = (value: unknown) => (typeof value === 'string' && value !== '' ? value : null)
 
 export async function adminJobs(cms: EasyCMS, user: AuthUser): Promise<AdminJobs> {

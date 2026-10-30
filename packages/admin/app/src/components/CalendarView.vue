@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import type { AdminCollection } from '@easy-cms/core'
 import {
   Calendar,
   type DateSelectArg,
@@ -14,40 +13,33 @@ import interactionPlugin from '@fullcalendar/interaction'
 import listPlugin from '@fullcalendar/list'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { api, type Doc, type Paginated, toQuery } from '../lib/api'
-import {
-  type CalendarEvent,
-  eventOf,
-  initialFor,
-  momentOf,
-  RANGE_LIMIT,
-  rangeWhere,
-} from '../lib/calendar'
+import { type CalendarEvent, type CalendarRange, momentOf, RANGE_LIMIT } from '../lib/calendar'
 import { locale, t } from '../lib/i18n'
 import { adminTimeZone, toZoned, zoneName } from '../lib/time-zone'
 
 /**
- * A collection's documents on a calendar (#272): month, week, day and agenda, in the admin's
- * time zone, with the list's filters. Loaded only when the list is in Calendar mode.
+ * A calendar (#272): month, week, day and agenda, in the admin's time zone. What it shows comes
+ * from `load`: a collection's documents (its list's Calendar mode) or several collections' and
+ * scheduled publishes (the Calendar page). FullCalendar loads only with it.
  */
 const props = defineProps<{
-  collection: AdminCollection
-  /** The list's own conditions (filters, search), as a `where`. */
-  where: Record<string, unknown> | undefined
+  /** The events in `[from, to)` (ISO moments). */
+  load: (from: string, to: string) => Promise<CalendarRange>
+  /** When it changes (filters, sources shown), the range loads again. */
+  reloadKey: string
+  /** Empty days and slots can be selected, to create a document there. */
+  selectable: boolean
   /** `month`, `week`, `day` or `agenda`, and the day shown (`YYYY-MM-DD`). */
   view: string
   date: string | undefined
-  /** An edit link for a document. */
-  hrefOf: (id: string) => string
 }>()
 const emit = defineEmits<{
-  open: [id: string]
-  create: [initial: Record<string, string>]
+  /** An event was clicked: the route to open. */
+  open: [to: string]
+  /** An empty day or slot was selected, as FullCalendar's wall-clock dates. */
+  select: [slot: { start: Date; end: Date; allDay: boolean }]
   'update:view': [view: string, date: string]
 }>()
-
-/** The REST API's largest page. */
-const PAGE = 100
 
 const VIEWS: Record<string, string> = {
   month: 'dayGridMonth',
@@ -72,35 +64,11 @@ const fullDate = (wall: Date, withTime: boolean) =>
   }).format(wall)
 
 async function events(info: EventSourceFuncArg): Promise<CalendarEvent[]> {
-  const range = rangeWhere(
-    props.collection.calendar as NonNullable<AdminCollection['calendar']>,
-    momentOf(info.start, zone()),
-    momentOf(info.end, zone()),
-  )
-  const where = props.where ? { and: [props.where, range] } : range
   error.value = ''
   try {
-    // The REST API gives at most PAGE per request: the first page, then the rest at once.
-    const page = (n: number) =>
-      api<Paginated<Doc>>(
-        'GET',
-        `/${props.collection.slug}${toQuery({
-          where,
-          limit: PAGE,
-          page: n,
-          depth: 0,
-          draft: true,
-          sort: props.collection.calendar?.start,
-        })}`,
-      )
-    const first = await page(1)
-    const pages = Math.min(first.totalPages, RANGE_LIMIT / PAGE)
-    const rest = await Promise.all(Array.from({ length: pages - 1 }, (_, i) => page(i + 2)))
-    tooMany.value = first.totalDocs > RANGE_LIMIT
-    return [first, ...rest]
-      .flatMap((found) => found.docs)
-      .map((doc) => eventOf(props.collection, doc, props.hrefOf(String(doc.id)), zone()))
-      .filter((e): e is CalendarEvent => e !== null)
+    const range = await props.load(momentOf(info.start, zone()), momentOf(info.end, zone()))
+    tooMany.value = range.tooMany
+    return range.events
   } catch (e) {
     error.value = (e as Error).message
     return []
@@ -139,7 +107,7 @@ onMounted(() => {
     dayMaxEvents: 4,
     eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
     slotLabelFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
-    selectable: props.collection.permissions.create,
+    selectable: props.selectable,
     selectMirror: true,
     events: (info, success) => {
       void events(info).then(success)
@@ -155,13 +123,11 @@ onMounted(() => {
       // A normal click opens it here; a middle or modified click opens the link as usual.
       if (info.jsEvent.metaKey || info.jsEvent.ctrlKey || info.jsEvent.shiftKey) return
       info.jsEvent.preventDefault()
-      emit('open', info.event.id)
+      emit('open', String(info.event.extendedProps.to))
     },
     select: (info: DateSelectArg) => {
-      const calendarConfig = props.collection.calendar
-      if (!calendarConfig) return
       calendar?.unselect()
-      emit('create', initialFor(calendarConfig, info, zone()))
+      emit('select', { start: info.start, end: info.end, allDay: info.allDay })
     },
     // Names for screen readers: the whole date of a day, and an event's date and time.
     dayCellDidMount: (arg) => {
@@ -179,9 +145,9 @@ onMounted(() => {
 
 onBeforeUnmount(() => calendar?.destroy())
 
-/** Filters or search changed: the same range, again. */
+/** Filters, search or the sources shown changed: the same range, again. */
 watch(
-  () => JSON.stringify(props.where),
+  () => props.reloadKey,
   () => calendar?.refetchEvents(),
 )
 
@@ -264,15 +230,7 @@ defineExpose({ refetch: () => calendar?.refetchEvents() })
     font-size: 1rem;
   }
 }
-/* One colour per value of `admin.calendar.color`, readable in light and dark. */
-.calendar :deep(.cal-c0) { --c: #2563eb; }
-.calendar :deep(.cal-c1) { --c: #059669; }
-.calendar :deep(.cal-c2) { --c: #d97706; }
-.calendar :deep(.cal-c3) { --c: #db2777; }
-.calendar :deep(.cal-c4) { --c: #7c3aed; }
-.calendar :deep(.cal-c5) { --c: #0891b2; }
-.calendar :deep(.cal-c6) { --c: #65a30d; }
-.calendar :deep(.cal-c7) { --c: #dc2626; }
+/* Colours: `.cal-c0` … `.cal-c7` set `--c` (styles.css). */
 .calendar :deep([class*='cal-c'].fc-event) {
   border-color: var(--c);
   background: var(--c);
@@ -281,6 +239,9 @@ defineExpose({ refetch: () => calendar?.refetchEvents() })
 .calendar :deep([class*='cal-c'] .fc-daygrid-event-dot),
 .calendar :deep([class*='cal-c'] .fc-list-event-dot) {
   border-color: var(--c);
+}
+.calendar :deep(.cal-scheduled.fc-event) {
+  border-style: dashed;
 }
 .calendar :deep(.fc-daygrid-dot-event[class*='cal-c']) {
   background: transparent;

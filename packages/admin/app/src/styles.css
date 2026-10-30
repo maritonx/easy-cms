@@ -486,3 +486,29 @@ fieldset {
     opacity: 0.6;
   }
 }
+
+/* Calendar colours (#272): one per value of `admin.calendar.color`, or per collection. */
+.cal-c0 {
+  --c: #2563eb;
+}
+.cal-c1 {
+  --c: #059669;
+}
+.cal-c2 {
+  --c: #d97706;
+}
+.cal-c3 {
+  --c: #db2777;
+}
+.cal-c4 {
+  --c: #7c3aed;
+}
+.cal-c5 {
+  --c: #0891b2;
+}
+.cal-c6 {
+  --c: #65a30d;
+}
+.cal-c7 {
+  --c: #dc2626;
+}

@@ -1,5 +1,6 @@
 import type { AdminNavGroup, AdminNavItem, AdminNavNode } from '@easy-cms/core'
 import {
+  CalendarDays,
   DatabaseBackup,
   KeyRound,
   ListChecks,
@@ -35,6 +36,7 @@ const VIEWS: Record<
   deliveries: { to: '/deliveries', key: 'deliveries.title', icon: Send },
   jobs: { to: '/jobs', key: 'jobs.title', icon: ListChecks },
   audit: { to: '/audit', key: 'audit.title', icon: ScrollText },
+  calendar: { to: '/calendar', key: 'calendar.title', icon: CalendarDays },
 }
 
 export const keyOf = (item: AdminNavItem): string => {
