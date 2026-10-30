@@ -90,6 +90,11 @@ Things to know:
 `schedule` lets editors publish or unpublish at a set time (the admin gets a **Schedule**
 button). With versions, a scheduled publish puts the pending draft live.
 
+The admin shows what is pending wherever a status shows (the edit page, lists, the calendar, the
+dashboard): **Scheduled · 1 Nov, 09:00** for a draft waiting to go live, and beside **Published**,
+**Unpublished changes**, **Publishes · …** or **Unpublishes · …**. On the edit page the date opens
+the schedule to change or cancel it; a list's status menu has **Scheduled**.
+
 ```ts
 await cms.schedule('posts', id, { action: 'publish', at: '2026-10-01T09:00:00+07:00' })
 await cms.findSchedule('posts', id) // pending jobs, soonest first

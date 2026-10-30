@@ -44,6 +44,7 @@ import LoadingStatus from '../components/LoadingStatus.vue'
 import MediaThumb from '../components/MediaThumb.vue'
 import PluginElement from '../components/PluginElement.vue'
 import Skeleton from '../components/Skeleton.vue'
+import StatusBadges from '../components/StatusBadges.vue'
 import TransferDialog from '../components/TransferDialog.vue'
 import UploadDropzone from '../components/UploadDropzone.vue'
 import { ApiError, api, type Doc, type Id, type Paginated, toQuery } from '../lib/api'
@@ -77,6 +78,14 @@ import { leaveList, scrollFor } from '../lib/list-memory'
 import { useDelayedLoading } from '../lib/loading'
 import { crumbsFor, isPinned, togglePin } from '../lib/nav'
 import { findCollection, session } from '../lib/session'
+import {
+  type Job,
+  liveIdsOf,
+  loadSchedules,
+  type ShownStatus,
+  scheduledIds,
+  shownStatus,
+} from '../lib/status'
 import { adminTimeZone } from '../lib/time-zone'
 import { notify } from '../lib/toast'
 import { inLocale, missingLocales } from '../lib/translation'
@@ -106,11 +115,26 @@ const sort = computed(() =>
     ? route.query.sort
     : (collection?.defaultSort ?? (collection?.tree && titleField ? titleField : '-updatedAt')),
 )
-/** The status menu: a condition on `status` (also from older `?status=` links). */
+/**
+ * The status menu: a condition on `status` (also from older `?status=` links), or Scheduled
+ * (`?scheduled=1`: drafts waiting to be published, #303).
+ */
+const scheduledOnly = computed(() => route.query.scheduled === '1')
 const statusFilter = computed(() => {
+  if (scheduledOnly.value) return 'scheduled'
   const value = conditions.value.find((c) => c.field === 'status')?.ops.equals
   return value === 'published' || value === 'draft' ? value : ''
 })
+function setStatusFilter(value: string) {
+  const rest = conditions.value.filter((c) => c.field !== 'status')
+  const next =
+    value && value !== 'scheduled' ? [...rest, { field: 'status', ops: { equals: value } }] : rest
+  setQuery({
+    ...writeConditions(next, route.query),
+    scheduled: value === 'scheduled' ? '1' : undefined,
+    page: undefined,
+  })
+}
 
 // --- Columns ----------------------------------------------------------------------------------
 
@@ -237,7 +261,7 @@ const conditions = computed(() => readConditions(route.query))
 const filterFields = computed(() => filterableFields(collection?.fields ?? []))
 const timeZone = computed(() => session.schema?.timeZone)
 const filterPanel = ref<InstanceType<typeof FilterPanel>>()
-const activeFilters = computed(() => conditions.value.length)
+const activeFilters = computed(() => conditions.value.length + (scheduledOnly.value ? 1 : 0))
 function setConditions(next: Condition[]) {
   setQuery({ ...writeConditions(next, route.query), page: undefined })
 }
@@ -598,6 +622,8 @@ const localized = !!localization && (collection?.fields.some((f) => f.localized)
 /** Locales each listed document still needs, by id. */
 const missing = ref<Map<string, string[]>>(new Map())
 const liveIds = ref<Set<string>>(new Set())
+/** The pending scheduled publishes and unpublishes of the documents listed, by id (#303). */
+const schedules = ref<Map<string, Job[]>>(new Map())
 const confirming = ref(false)
 const busy = ref(false)
 
@@ -616,10 +642,17 @@ async function fetchDocs(where: unknown, limit: number, pageNumber = 1): Promise
     missing.value = next
     docs = docs.map((d) => inLocale(collection.fields, d, defaultLocale, locales) as Doc)
   }
-  if (separateDrafts) {
-    const live = await loadLive(docs)
-    if (live.size) liveIds.value = new Set([...liveIds.value, ...live])
-  }
+  const [live, jobs] = await Promise.all([
+    separateDrafts ? loadLive(docs) : Promise.resolve(new Set<string>()),
+    collection?.schedule
+      ? loadSchedules(
+          slug,
+          docs.map((d) => d.id),
+        )
+      : Promise.resolve(new Map()),
+  ])
+  if (live.size) liveIds.value = new Set([...liveIds.value, ...live])
+  if (jobs.size) schedules.value = new Map([...schedules.value, ...jobs])
   return { ...found, docs }
 }
 
@@ -633,8 +666,9 @@ async function load() {
   try {
     missing.value = new Map()
     liveIds.value = new Set()
+    schedules.value = new Map()
     const tree = treeMode.value && treeField
-    const where = tree ? { [treeField]: { exists: false } } : whereOf()
+    const where = tree ? { [treeField]: { exists: false } } : await listWhere()
     const found = await fetchDocs(where, PAGE_SIZE, page.value)
     if (current !== loads) return
     children.value = new Map()
@@ -666,14 +700,16 @@ async function load() {
   }
 }
 
-async function loadLive(docs: Doc[]): Promise<Set<string>> {
-  const drafts = docs.filter((d) => d.status === 'draft').map((d) => d.id)
-  if (drafts.length === 0) return new Set()
-  const live = await api<Paginated<Doc>>(
-    'GET',
-    `/${slug}${toQuery({ where: { id: { in: drafts.join(',') } }, limit: drafts.length, depth: 0 })}`,
+const loadLive = (docs: Doc[]) => liveIdsOf(slug, docs)
+
+/** A document's status as people read it: published or not, pending changes, scheduled jobs. */
+function shownOf(doc: Doc): ShownStatus {
+  const id = String(doc.id)
+  return shownStatus(
+    doc.status === 'published' || liveIds.value.has(id),
+    liveIds.value.has(id),
+    schedules.value.get(id),
   )
-  return new Set(live.docs.map((d) => String(d.id)))
 }
 
 function statusOf(doc: Doc): 'published' | 'draft' {
@@ -686,8 +722,17 @@ function setQuery(patch: Record<string, string | undefined>) {
     if (query[key] === undefined || query[key] === '') delete query[key]
   void router.replace({ query })
 }
+/** The list's `where`, with the Scheduled filter's documents (at most 500 pending publishes). */
+async function listWhere() {
+  const where = whereOf()
+  if (!scheduledOnly.value) return where
+  const ids = await scheduledIds(slug)
+  const scheduled = { id: { in: ids.length ? ids.join(',') : '0' } }
+  return where ? { and: [where, scheduled] } : scheduled
+}
+
 function clearFilters() {
-  setConditions([])
+  setQuery({ ...writeConditions([], route.query), scheduled: undefined, page: undefined })
 }
 
 let debounce: ReturnType<typeof setTimeout> | undefined
@@ -961,11 +1006,12 @@ async function deleteSelected(query = '') {
         <span class="visually-hidden">{{ t('list.status') }}</span>
         <select
           :value="statusFilter"
-          @change="setQuick('status', ($event.target as HTMLSelectElement).value ? { equals: ($event.target as HTMLSelectElement).value } : null)"
+          @change="setStatusFilter(($event.target as HTMLSelectElement).value)"
         >
           <option value="">{{ t('list.statusAll') }}</option>
           <option value="published">{{ t('list.statusIs', { status: t('status.published') }) }}</option>
           <option value="draft">{{ t('list.statusIs', { status: t('status.draft') }) }}</option>
+          <option v-if="collection.schedule" value="scheduled">{{ t('list.statusScheduled') }}</option>
         </select>
       </label>
       <button
@@ -1305,8 +1351,7 @@ async function deleteSelected(query = '') {
               </span>
             </td>
             <td v-if="collection.drafts" class="status-cell">
-              <span :class="['badge', `badge-${statusOf(doc)}`]">{{ t(statusOf(doc) === 'published' ? 'status.published' : 'status.draft') }}</span>
-              <span v-if="liveIds.has(String(doc.id))" class="badge badge-changed">{{ t('status.changed') }}</span>
+              <StatusBadges :status="shownOf(doc)" />
             </td>
             <td class="date muted">{{ formatDate(doc.updatedAt) }}</td>
             <td class="more">

@@ -140,6 +140,16 @@ describe('scheduled publishing (FR-SCH)', () => {
     ])
     expect((await get('from=soon')).status).toBe(400)
 
+    // A list page's jobs (#303): by collection, and by its ids.
+    const other = await cms.create('posts', { title: 'Other', summary: 's' })
+    await cms.schedule('posts', other.id, { action: 'publish', at: future() })
+    const ofPosts = await cms.upcomingSchedules({ collection: 'posts' })
+    expect(ofPosts.map((j) => j.doc).sort()).toEqual([post.id, other.id].sort())
+    const page = await get(`collection=posts&docs=${other.id}`)
+    expect(((await page.json()) as { doc: number }[]).map((j) => j.doc)).toEqual([other.id])
+    const tooMany = Array.from({ length: 501 }, (_, i) => i + 1).join(',')
+    expect((await get(`collection=posts&docs=${tooMany}`)).status).toBe(400)
+
     // The Calendar page is in the menu, right after Content.
     const schema = (await (
       await handle(

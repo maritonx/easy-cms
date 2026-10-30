@@ -5,6 +5,7 @@ import { computed, onMounted, ref } from 'vue'
 import LoadingStatus from '../components/LoadingStatus.vue'
 import PluginElement from '../components/PluginElement.vue'
 import Skeleton from '../components/Skeleton.vue'
+import StatusBadges from '../components/StatusBadges.vue'
 import ZoneNote from '../components/ZoneNote.vue'
 import { api, type Doc, type Paginated, toQuery } from '../lib/api'
 import { counts, refreshCounts } from '../lib/counts'
@@ -16,6 +17,7 @@ import { listed, menuOrder } from '../lib/menu'
 import { inSettings } from '../lib/nav'
 import { session } from '../lib/session'
 import { settings } from '../lib/settings'
+import { liveIdsOf, loadSchedules, type ShownStatus, shownStatus } from '../lib/status'
 import { adminTimeZone } from '../lib/time-zone'
 
 const collections = menuOrder(
@@ -44,6 +46,8 @@ const creatable =
 interface Entry {
   collection: AdminCollection
   doc: Doc
+  /** Its status as people read it (#303). */
+  shown?: ShownStatus
 }
 const recent = ref<Entry[] | null>(null)
 const drafts = ref<Entry[] | null>(null)
@@ -75,9 +79,29 @@ async function latest(collection: AdminCollection, where?: unknown): Promise<Lat
       'GET',
       `/${collection.slug}${toQuery({ where, sort: '-updatedAt', limit: 6, depth: 0, draft: true })}`,
     )
+    // Status as people read it: a pending draft of a published document, scheduled jobs.
+    const [live, jobs] = await Promise.all([
+      collection.drafts && collection.versions
+        ? liveIdsOf(collection.slug, result.docs).catch(() => new Set<string>())
+        : Promise.resolve(new Set<string>()),
+      collection.schedule
+        ? loadSchedules(
+            collection.slug,
+            result.docs.map((d) => d.id),
+          )
+        : Promise.resolve(new Map()),
+    ])
     return {
       collection,
-      entries: result.docs.map((doc) => ({ collection, doc })),
+      entries: result.docs.map((doc) => {
+        const id = String(doc.id)
+        const shown = shownStatus(
+          doc.status === 'published' || live.has(id),
+          live.has(id),
+          jobs.get(id),
+        )
+        return { collection, doc, shown }
+      }),
       total: result.totalDocs,
     }
   } catch {
@@ -303,7 +327,6 @@ const time = (value: string) =>
     timeStyle: 'short',
     timeZone: adminTimeZone.value,
   }).format(new Date(value))
-const statusOf = (doc: Doc) => (doc.status === 'published' ? 'published' : 'draft')
 </script>
 
 <template>
@@ -429,9 +452,7 @@ const statusOf = (doc: Doc) => (doc.status === 'published' ? 'published' : 'draf
                   {{ t('dashboard.editedAt', { label: label(entry.collection.labels?.singular, entry.collection.slug), date: formatDate(entry.doc.updatedAt) }) }}
                 </span>
               </span>
-              <span v-if="entry.collection.drafts" :class="['badge', `badge-${statusOf(entry.doc)}`]">
-                {{ t(statusOf(entry.doc) === 'published' ? 'status.published' : 'status.draft') }}
-              </span>
+              <StatusBadges v-if="entry.collection.drafts && entry.shown" :status="entry.shown" />
             </RouterLink>
           </li>
         </ul>

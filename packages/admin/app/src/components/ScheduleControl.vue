@@ -13,6 +13,8 @@ const props = defineProps<{
   /** Changes after every save, so the list reloads. */
   reloadKey: number
 }>()
+/** The pending jobs, after each load: the page's status shows them (#303). */
+const emit = defineEmits<{ change: [jobs: ScheduledPublish[]] }>()
 
 const jobs = ref<ScheduledPublish[]>([])
 const action = ref<'publish' | 'unpublish'>('publish')
@@ -24,6 +26,7 @@ const dialog = ref<HTMLDialogElement>()
 async function load() {
   try {
     jobs.value = await api<ScheduledPublish[]>('GET', `${props.path}/schedule`)
+    emit('change', jobs.value)
   } catch (e) {
     error.value = (e as Error).message
   }

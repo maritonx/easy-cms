@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { ScheduledPublish } from '@easy-cms/core'
 import { CalendarClock, ChevronDown, ChevronLeft, Eye, EyeOff, Link2, Trash2 } from '@lucide/vue'
 import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
@@ -14,6 +15,7 @@ import LocaleSwitcher from '../components/LocaleSwitcher.vue'
 import MediaPreview from '../components/MediaPreview.vue'
 import PluginElement from '../components/PluginElement.vue'
 import ScheduleControl from '../components/ScheduleControl.vue'
+import StatusBadges from '../components/StatusBadges.vue'
 import TransferDialog from '../components/TransferDialog.vue'
 import VersionHistory from '../components/VersionHistory.vue'
 import FieldLayout from '../fields/FieldLayout.vue'
@@ -37,6 +39,7 @@ import {
   takeFlash,
 } from '../lib/session'
 import { PUBLISH_EVENT, SAVE_EVENT } from '../lib/shortcuts'
+import { type Job, shownStatus } from '../lib/status'
 import { notify, showMessages } from '../lib/toast'
 import { missingLocales } from '../lib/translation'
 
@@ -63,6 +66,11 @@ const historyKey = ref(0)
 const confirmingDiscard = ref(false)
 const previewing = ref(false)
 const scheduler = ref<InstanceType<typeof ScheduleControl>>()
+/** Its pending scheduled publishes and unpublishes, for the status (#303). */
+const jobs = ref<ScheduledPublish[]>([])
+const shown = computed(() =>
+  shownStatus(liveStatus.value === 'published', pendingChanges.value, jobs.value as Job[]),
+)
 // Side panel: live preview when open, otherwise history (both need edit rights).
 const side = computed(() =>
   !collection || !canSave.value
@@ -504,10 +512,13 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
           <span class="crumb">{{ label(collection.labels?.plural, collection.slug) }}</span>
           <div class="title-row">
             <h1>{{ heading }}</h1>
-            <span v-if="doc && collection.drafts" :class="['badge', `badge-${liveStatus}`]">
-              {{ t(liveStatus === 'published' ? 'status.published' : 'status.draft') }}
-            </span>
-            <span v-if="pendingChanges" class="badge badge-changed">{{ t('status.changed') }}</span>
+            <!-- A scheduled date opens the schedule dialog, to change or cancel it (#303). -->
+            <StatusBadges
+              v-if="doc && collection.drafts"
+              :status="shown"
+              :editable="!!scheduler"
+              @schedule="scheduler?.open()"
+            />
           </div>
         </div>
       </div>
@@ -665,9 +676,7 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
             <div v-if="collection.drafts">
               <dt>{{ t('edit.onSite') }}</dt>
               <dd>
-                <span :class="['badge', `badge-${liveStatus}`]">
-                  {{ t(liveStatus === 'published' ? 'status.published' : 'status.draft') }}
-                </span>
+                <StatusBadges :status="shown" />
               </dd>
             </div>
             <div>
@@ -680,6 +689,7 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
             ref="scheduler"
             :path="`/${slug}/${encodeURIComponent(id)}`"
             :reload-key="historyKey"
+            @change="(next) => (jobs = next)"
           />
           <div v-if="canSave || canDelete" class="side-actions">
             <button v-if="collection.schedule && id && canSave && canPublish" type="button" class="btn btn-sm" @click="scheduler?.open()">
