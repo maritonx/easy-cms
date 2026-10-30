@@ -1,5 +1,13 @@
 # @easy-cms/nuxt
 
+## 1.23.1
+
+### Patch Changes
+
+- Updated dependencies [f786615]
+  - @easy-cms/admin@1.23.1
+  - @easy-cms/core@1.23.1
+
 ## 1.23.0
 
 ### Patch Changes
