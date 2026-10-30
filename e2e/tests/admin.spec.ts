@@ -752,6 +752,51 @@ test.describe('logged in as admin', () => {
       expect((await page.request.delete(`/api/cms/posts/${id}`, { headers })).status()).toBe(200)
   })
 
+  test('publishes and deletes every match in the background (#280)', async ({ page }) => {
+    await page.goto('/admin/')
+    const me = (await (await page.request.get('/api/cms/auth/me')).json()) as { csrfToken: string }
+    const headers = { 'x-csrf-token': me.csrfToken, origin: new URL(page.url()).origin }
+    for (let n = 1; n <= 105; n++) {
+      const created = await page.request.post('/api/cms/posts?depth=0', {
+        headers,
+        data: { title: `Bulk ${String(n).padStart(3, '0')}` },
+      })
+      expect(created.status()).toBe(201)
+    }
+
+    await page.goto('/admin/collections/posts?q=Bulk')
+    await expect(page.locator('.table-footer').getByText('1–20 of 105')).toBeVisible()
+    await page.getByRole('checkbox', { name: 'Select all on this page' }).check()
+    await expect(page.getByText('All 20 on this page are selected.')).toBeVisible()
+    await page.getByRole('button', { name: 'Select all 105 matching' }).click()
+    const bar = page.getByRole('toolbar', { name: 'Actions for selected documents' })
+    await expect(bar.getByText('105 selected')).toBeVisible()
+
+    // Publish every match: the work runs on the server, its progress in the corner.
+    await bar.getByRole('button', { name: 'Publish', exact: true }).click()
+    const tasks = page.getByRole('region', { name: 'Background tasks' })
+    await expect(tasks.getByText('Published Posts')).toBeVisible({ timeout: 30_000 })
+    await expect(tasks.getByText('105 done · 0 skipped · 0 failed')).toBeVisible()
+    expect(
+      (await (
+        await page.request.get('/api/cms/posts?where[title][like]=Bulk&limit=1&depth=0')
+      ).json()) as { totalDocs: number },
+    ).toMatchObject({ totalDocs: 105 })
+    await tasks.getByRole('button', { name: 'Dismiss' }).click()
+
+    // Deleting more than 100 asks for the number first.
+    await page.getByRole('checkbox', { name: 'Select all on this page' }).check()
+    await page.getByRole('button', { name: 'Select all 105 matching' }).click()
+    await bar.getByRole('button', { name: 'Delete selected' }).click()
+    const dialog = page.getByRole('dialog').filter({ hasText: 'Delete 105 documents?' })
+    const confirm = dialog.getByRole('button', { name: 'Delete', exact: true })
+    await expect(confirm).toBeDisabled()
+    await dialog.getByLabel('Type 105 to confirm').fill('105')
+    await confirm.click()
+    await expect(tasks.getByText('Deleted Posts')).toBeVisible({ timeout: 30_000 })
+    await expect(page.getByText('No results')).toBeVisible()
+  })
+
   test('shows posts on a calendar, and creates one from a day (#272)', async ({ page }) => {
     // The standalone app's posts: admin.calendar by publishedAt, coloured by category.
     test.skip(test.info().project.name !== 'standalone', 'admin.calendar is set in standalone')

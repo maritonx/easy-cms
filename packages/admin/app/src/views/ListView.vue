@@ -48,6 +48,15 @@ import StatusBadges from '../components/StatusBadges.vue'
 import TransferDialog from '../components/TransferDialog.vue'
 import UploadDropzone from '../components/UploadDropzone.vue'
 import { ApiError, api, type Doc, type Id, type Paginated, toQuery } from '../lib/api'
+import {
+  BULK_DONE,
+  BULK_MAX,
+  type BulkAction,
+  type BulkOperation,
+  type BulkResult,
+  TYPE_TO_DELETE,
+  trackBulk,
+} from '../lib/bulk-tasks'
 import { initialFor, loadRange } from '../lib/calendar'
 import { localeName } from '../lib/content-locale'
 import { titleOf } from '../lib/fields'
@@ -333,7 +342,7 @@ const fileMeta = (doc: Doc) =>
 
 /** After uploading: the list again, with the new files selected to move or edit next. */
 async function onUploaded(docs: Doc[]) {
-  await load()
+  await reload()
   selected.value = new Set(docs.map((d) => d.id))
 }
 
@@ -422,21 +431,8 @@ const movingExclude = computed(() =>
 )
 async function moveFiles(ids: Id[], to: Id | null) {
   if (ids.length === 0) return
-  busy.value = true
-  let count = 0
-  try {
-    for (const id of ids) {
-      await api('PATCH', `/media/${id}?depth=0`, { folder: to })
-      count++
-    }
-    const name = to === null ? t('folders.top') : (tree.value.byId.get(String(to))?.name ?? '')
-    notify('success', t('folders.movedFiles', { count, name }))
-  } catch (e) {
-    notify('error', errorText(e))
-  } finally {
-    busy.value = false
-  }
-  await load()
+  const name = to === null ? t('folders.top') : (tree.value.byId.get(String(to))?.name ?? '')
+  await bulk('move', (count) => t('folders.movedFiles', { count, name }), { folder: to }, ids)
 }
 /**
  * Moving files to or from a private folder moves them to the other storage and changes their
@@ -444,6 +440,8 @@ async function moveFiles(ids: Id[], to: Id | null) {
  */
 const confirmMove = ref<{ message: string; run: () => Promise<void> } | null>(null)
 async function guardedMoveFiles(ids: Id[], to: Id | null) {
+  // Every match: each file's storage moves on the server as it does for one.
+  if (allMatching.value) return moveFiles(ids, to)
   const toPrivate = privateAt(tree.value, to)
   const changing = (result.value?.docs ?? []).filter(
     (d) => ids.some((id) => String(id) === String(d.id)) && (d.private === true) !== toPrivate,
@@ -537,7 +535,7 @@ async function deleteFolder() {
     if (currentFolder.value !== null && within(tree.value, folder.id).includes(currentFolder.value))
       openFolder(folder.parent)
     await loadTree()
-    await load()
+    await reload()
   } catch (e) {
     notify('error', errorText(e))
   }
@@ -696,6 +694,12 @@ function setPageSize(size: number) {
   pageSize.value = size
   if (page.value === 1) void load()
   else setQuery({ page: undefined })
+}
+
+/** After a change (saved, deleted, uploaded): the rows and a fresh total. */
+function reload() {
+  totalKey = ''
+  return load()
 }
 
 /** The list's total, counted up to 10,000 (`more` past that), while its rows already show. */
@@ -922,12 +926,12 @@ function closeDrawer() {
   else void router.replace({ query: listOnly() })
 }
 function onDrawerSaved(doc: Doc, created: boolean) {
-  void load()
+  void reload()
   if (created) void router.replace({ query: { ...listOnly(), edit: String(doc.id) } })
 }
 function onDrawerDeleted() {
   closeDrawer()
-  void load()
+  void reload()
 }
 onMounted(async () => {
   document.addEventListener('click', onDocumentClick)
@@ -981,16 +985,61 @@ const canPublish = computed(
     !!collection?.drafts && !!collection?.permissions.update && !!collection.permissions.publish,
 )
 
-async function bulk(run: (id: Doc['id']) => Promise<unknown>, done: (count: number) => string) {
-  const ids = [...selected.value]
+/**
+ * Every document matching the list, not only the page's (#280): offered once the whole page is
+ * selected and more match. Not in a tree, and not for users with roles (each delete asks who
+ * gets their documents).
+ */
+const allMatching = ref(false)
+watch(selected, () => {
+  allMatching.value = false
+})
+const moreMatch = computed(
+  () =>
+    !treeMode.value &&
+    !transfers &&
+    allSelected.value &&
+    !!total.value &&
+    (total.value.more || total.value.total > rows.value.length),
+)
+const tooManyMatch = computed(
+  () => !!total.value && (total.value.more || total.value.total > BULK_MAX),
+)
+const selectedCount = computed(() =>
+  allMatching.value && total.value ? total.value.total : selected.value.size,
+)
+
+/**
+ * Runs an action on the selected documents in one request, or on every match in the background
+ * (its progress in the corner). Documents it may not change are skipped, not a stop.
+ */
+async function bulk(
+  action: BulkAction,
+  done: (count: number) => string,
+  extra: Record<string, unknown> = {},
+  ids: Id[] = [...selected.value],
+) {
   busy.value = true
-  let count = 0
   try {
-    for (const id of ids) {
-      await run(id)
-      count++
+    if (allMatching.value) {
+      const where = await listWhere()
+      trackBulk(await api<BulkOperation>('POST', `/${slug}/bulk`, { action, where, ...extra }))
+      notify('success', t('list.bulkStarted'))
+      selected.value = new Set()
+      return
     }
-    notify('success', done(count))
+    const result = await api<BulkResult>('POST', `/${slug}/bulk`, { action, ids, ...extra })
+    if (result.skipped.length === 0 && result.failed.length === 0)
+      notify('success', done(result.done))
+    else
+      notify(
+        'error',
+        t('bulk.summary', {
+          done: result.done,
+          skipped: result.skipped.length,
+          failed: result.failed.length,
+        }),
+      )
   } catch (e) {
     notify(
       'error',
@@ -999,19 +1048,17 @@ async function bulk(run: (id: Doc['id']) => Promise<unknown>, done: (count: numb
   } finally {
     busy.value = false
   }
-  await load()
+  await reload()
 }
+// A background operation on this collection finished: show what it changed.
+function onBulkDone(event: Event) {
+  if ((event as CustomEvent<BulkOperation>).detail.collection === slug) void reload()
+}
+onMounted(() => window.addEventListener(BULK_DONE, onBulkDone))
+onBeforeUnmount(() => window.removeEventListener(BULK_DONE, onBulkDone))
 
-const publishSelected = () =>
-  bulk(
-    (id) => api('PATCH', `/${slug}/${id}?depth=0`, { status: 'published' }),
-    (count) => t('list.publishedCount', { count }),
-  )
-const unpublishSelected = () =>
-  bulk(
-    (id) => api('POST', `/${slug}/${id}/unpublish?depth=0`),
-    (count) => t('list.unpublishedCount', { count }),
-  )
+const publishSelected = () => bulk('publish', (count) => t('list.publishedCount', { count }))
+const unpublishSelected = () => bulk('unpublish', (count) => t('list.unpublishedCount', { count }))
 /** A single document deleted from its row menu. */
 const deleting = ref<Doc | null>(null)
 /** Deleting users with roles (`auth.rbac`) asks who gets the documents they own. */
@@ -1029,14 +1076,17 @@ async function deleteOne(query = '') {
       e instanceof ApiError && e.status === 403 ? t('common.forbidden') : (e as Error).message,
     )
   }
-  await load()
+  await reload()
 }
 
 async function deleteSelected(query = '') {
   confirming.value = false
+  // From the transfer dialog: `?transferTo=<id>`, or `none` for no owner.
+  const to = new URLSearchParams(query.replace(/^\?/, '')).get('transferTo')
   await bulk(
-    (id) => api('DELETE', `/${slug}/${id}${query}`),
+    'delete',
     (count) => t('list.deletedCount', { count }),
+    to === null ? {} : { transferTo: to === 'none' ? null : to },
   )
 }
 </script>
@@ -1268,6 +1318,15 @@ async function deleteSelected(query = '') {
     <div v-else :class="['card', 'table-wrap', { 'grid-wrap': grid, reloading }]" :aria-busy="loading">
       <div v-if="reloading" class="progress-line table-progress" aria-hidden="true"><span /></div>
       <LoadingStatus v-if="firstLoad || reloading" />
+      <p v-if="allMatching && total" class="select-matching" role="status">
+        {{ t('list.allMatchingSelected', { count: total.total.toLocaleString() }) }}
+        <button type="button" class="link-btn" @click="selected = new Set()">{{ t('list.clearSelection') }}</button>
+      </p>
+      <p v-else-if="moreMatch" class="select-matching" role="status">
+        {{ t('list.pageSelected', { count: rows.length.toLocaleString() }) }}
+        <span v-if="tooManyMatch">{{ t('list.tooManyToSelect') }}</span>
+        <button v-else-if="total" type="button" class="link-btn" @click="allMatching = true">{{ t('list.selectAllMatching', { count: total.total.toLocaleString() }) }}</button>
+      </p>
       <template v-if="grid">
         <label v-if="rows.length" class="grid-all">
           <input type="checkbox" :checked="allSelected" @change="toggleAll" />
@@ -1546,7 +1605,7 @@ async function deleteSelected(query = '') {
 
     <Transition name="bulk">
       <div v-if="selected.size" class="bulk" role="toolbar" :aria-label="t('list.bulkActions')">
-        <span class="bulk-count">{{ t('list.selected', { count: selected.size }) }}</span>
+        <span class="bulk-count">{{ t('list.selected', { count: selectedCount.toLocaleString() }) }}</span>
         <button v-if="canPublish" type="button" class="bulk-btn" :disabled="busy" @click="publishSelected">
           <Send :size="15" aria-hidden="true" />
           {{ t('list.publishSelected') }}
@@ -1655,7 +1714,8 @@ async function deleteSelected(query = '') {
       />
       <ConfirmDialog
         :open="confirming"
-        :message="t('list.confirmDelete', { count: selected.size })"
+        :message="t('list.confirmDelete', { count: selectedCount.toLocaleString() })"
+        :type-to-confirm="selectedCount > TYPE_TO_DELETE ? selectedCount : undefined"
         :confirm-label="t('edit.delete')"
         @confirm="deleteSelected()"
         @cancel="confirming = false"
@@ -2237,6 +2297,26 @@ button.tree-toggle:hover {
   padding: 0.6rem 0.9rem;
   color: var(--faint);
   font-size: 0.85rem;
+}
+.select-matching {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.75rem;
+  margin: 0;
+  padding: 0.55rem 0.9rem;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  font-size: 0.85rem;
+}
+.link-btn {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
 }
 .pagination {
   display: flex;
