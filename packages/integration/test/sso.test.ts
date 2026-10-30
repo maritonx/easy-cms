@@ -6,6 +6,7 @@ import {
   defineConfig,
   type RestHandler,
   type UserIdentity,
+  ValidationError,
 } from '@easy-cms/core'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
@@ -24,7 +25,7 @@ const mail = consoleEmail()
 const ORIGIN = 'http://cms.test'
 const API = `${ORIGIN}/api/cms`
 
-const config = (password = true) =>
+const config = (password: boolean | { breakGlass: string[] } = true) =>
   defineConfig({
     secret: SECRET,
     db: db(),
@@ -326,5 +327,99 @@ describe('without passwords (auth.password: false)', () => {
     } finally {
       await strict.destroy()
     }
+  })
+})
+
+describe('break-glass accounts only (#163)', () => {
+  const audited = (password: boolean | { breakGlass: string[] }) => ({
+    ...config(password),
+    audit: {},
+  })
+  const actions = async (cms: Awaited<ReturnType<typeof open>>, action: string) =>
+    (
+      await cms.db.find({
+        collection: 'audit-logs',
+        where: { action: { equals: action } },
+        sort: ['id'],
+        limit: 0,
+        page: 1,
+      })
+    ).docs
+
+  it('ends other sessions, refuses their passwords, and records the change and each use', async () => {
+    const cwd = tempProject()
+    const open1 = await open(audited(true), cwd)
+    for (const [email, role] of [
+      ['admin@x.co', 'admin'],
+      ['ed@x.co', 'editor'],
+      ['ops@x.co', 'admin'],
+    ] as const)
+      await open1.create('users', { email, password: 'password123', role })
+    const tokens: Record<string, string> = {}
+    for (const email of ['admin@x.co', 'ed@x.co', 'ops@x.co'])
+      tokens[email] = (await open1.auth.login({ email, password: 'password123' })).token
+    await open1.destroy()
+
+    // Single sign-on for everyone but the break-glass account (listed in any case).
+    const strict = await open(audited({ breakGlass: ['OPS@x.co'] }), cwd)
+    try {
+      expect(await strict.auth.verify(tokens['admin@x.co'])).toBeNull()
+      expect(await strict.auth.verify(tokens['ed@x.co'])).toBeNull()
+      expect((await strict.auth.verify(tokens['ops@x.co']))?.email).toBe('ops@x.co')
+      expect((await actions(strict, 'auth.password.policy')).map((r) => r.detail)).toEqual([
+        { from: 'everyone', to: 'breakGlass:ops@x.co', sessionsEnded: 2 },
+      ])
+
+      // Admins too sign in with the provider now.
+      await expect(
+        strict.auth.login({ email: 'admin@x.co', password: 'password123' }),
+      ).rejects.toThrow(/Sign in with Acme/)
+      const session = await strict.auth.login({ email: 'ops@x.co', password: 'password123' })
+      expect((await actions(strict, 'login.breakGlass')).map((r) => r.actorEmail)).toEqual([
+        'ops@x.co',
+      ])
+      expect(await strict.audit.attention()).toContainEqual({
+        id: 'break-glass',
+        count: 1,
+        emails: ['ops@x.co'],
+      })
+
+      // Nobody else gets a password; the break-glass account may change its own.
+      const editor = (await strict.find('users', { where: { email: { equals: 'ed@x.co' } } }))
+        .docs[0]
+      await expect(
+        strict.update('users', editor?.id as number, { password: 'another-password' }),
+      ).rejects.toThrow(ValidationError)
+      await expect(
+        strict.create('users', { email: 'new@x.co', password: 'password123', role: 'editor' }),
+      ).rejects.toThrow(/single sign-on/)
+      await strict.update('users', session.user.id, { password: 'a-new-password' })
+      // A new password ends the account's sessions: sign in again with it.
+      const renewed = await strict.auth.login({ email: 'ops@x.co', password: 'a-new-password' })
+
+      // The admin learns who may: the login page folds the form away for emergencies.
+      const strictHandle = createRestHandler(strict)
+      const init = await (await strictHandle(new Request(`${API}/auth/init`))).json()
+      expect(init).toMatchObject({ password: false, passwordFor: 'breakGlass' })
+      const me = await (
+        await strictHandle(
+          new Request(`${API}/auth/me`, {
+            headers: { authorization: `Bearer ${renewed.token}` },
+          }),
+        )
+      ).json()
+      expect(me).toMatchObject({ password: true })
+    } finally {
+      await strict.destroy()
+    }
+
+    // The same policy again: nothing to record.
+    const again = await open(audited({ breakGlass: ['ops@x.co'] }), cwd)
+    expect(await actions(again, 'auth.password.policy')).toHaveLength(1)
+    await again.destroy()
+  })
+
+  it('refuses a break-glass list without emails', async () => {
+    await expect(open(config({ breakGlass: [] }))).rejects.toThrow(/breakGlass/)
   })
 })

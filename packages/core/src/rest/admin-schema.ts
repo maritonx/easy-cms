@@ -7,7 +7,7 @@ import {
 } from '../access.js'
 import { evaluateAccess, FieldAccessChecker } from '../access-control.js'
 import { API_KEYS } from '../api-keys.js'
-import type { SsoProviderRef } from '../auth/sso.js'
+import { passwordFor, type SsoProviderRef } from '../auth/sso.js'
 import {
   EMAIL_DELIVERIES,
   INTERNAL_COLLECTIONS,
@@ -216,6 +216,12 @@ export interface AdminSchema {
   switcher: AdminSwitcher | null
   /** Admins can email users links to set their password (needs `email` and `serverURL`). */
   passwordLinks: boolean
+  /**
+   * Who may have a password (`auth.password`); with `breakGlass`, the accounts, for admins of the
+   * whole system: others get no password field.
+   */
+  passwordFor: 'everyone' | 'admins' | 'breakGlass'
+  breakGlass?: string[]
   /** The menu: groups and what this user may open in them, in order. */
   nav: AdminNavNode[]
   /** More entries of the command palette (`admin.commands`). */
@@ -540,6 +546,10 @@ export async function adminSchema(
     locale: cms.config.admin.locale,
     switcher: cms.config.admin.switcher || null,
     passwordLinks: cms.auth.canSendPasswordLinks(origin),
+    passwordFor: passwordFor(cms.config.auth.password),
+    ...(typeof cms.config.auth.password === 'object' && isSystemAdmin(user)
+      ? { breakGlass: [...cms.config.auth.password.breakGlass] }
+      : {}),
     nav: buildNav(cms, adminCollections, adminGlobals, adminPages, views),
     commands: cms.config.admin.commands.map((c) => JSON.parse(JSON.stringify(c))),
     localization: localization

@@ -129,6 +129,7 @@ const ANCHORS: Record<AdminAttention['id'], string> = {
   'no-server-url': 'no-serverurl',
   backups: 'backups',
   'failed-logins': 'failed-logins',
+  'break-glass': 'break-glass-sign-ins',
   'audit-failures': 'audit-log',
   'audit-tampered': 'audit-log',
   jobs: 'failed-jobs',
@@ -179,6 +180,13 @@ function describe(item: AdminAttention) {
         detail: t('status.failedLoginsDetail'),
         href,
         ...(views?.audit ? { to: '/audit?action=login' } : {}),
+      }
+    case 'break-glass':
+      return {
+        title: t('status.breakGlass', { count: item.count, emails: item.emails.join(', ') }),
+        detail: t('status.breakGlassDetail'),
+        href,
+        ...(views?.audit ? { to: '/audit?action=login.breakGlass' } : {}),
       }
     case 'audit-failures':
       return {

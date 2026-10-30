@@ -16,6 +16,16 @@ export interface User {
 /** An admin of the whole system, not of a part (`scoped`). */
 export const isSystemAdmin = (user: User | null) => user?.role === 'admin' && user.scoped !== true
 
+/**
+ * Whether an account with this email may have a password: with break-glass accounts
+ * (`auth.password: { breakGlass }`), only those; everyone else signs in with single sign-on.
+ */
+export function mayHavePassword(email: unknown): boolean {
+  const schema = session.schema
+  if (schema?.passwordFor !== 'breakGlass') return true
+  return typeof email === 'string' && (schema.breakGlass ?? []).includes(email.toLowerCase())
+}
+
 interface SessionState {
   loaded: boolean
   user: User | null
@@ -24,8 +34,11 @@ interface SessionState {
   passwordReset: boolean
   /** Outside accounts to sign in with (`auth.providers`). */
   providers: SsoProviderRef[]
-  /** `false`: only admins sign in with a password (`auth.password: false`). */
+  /** `false`: only some sign in with a password (`auth.password`): `passwordFor` says who. */
   password: boolean
+  passwordFor: 'everyone' | 'admins' | 'breakGlass'
+  /** The signed-in user may set and use a password. */
+  passwordAllowed: boolean
   /** Creating the first admin needs the setup code (`EASY_CMS_SETUP_CODE`). */
   setupCode: boolean
   schema: AdminSchema | null
@@ -38,15 +51,21 @@ export const session = reactive<SessionState>({
   passwordReset: false,
   providers: [],
   password: true,
+  passwordFor: 'everyone',
+  passwordAllowed: true,
   setupCode: false,
   schema: null,
 })
 
 /** Loads the current user and, when logged in, the admin schema. */
 export async function loadSession(): Promise<void> {
-  const me = await api<{ user: (User & { member?: boolean }) | null }>('GET', '/auth/me')
+  const me = await api<{ user: (User & { member?: boolean }) | null; password?: boolean }>(
+    'GET',
+    '/auth/me',
+  )
   // Site members (e.g. customers) are signed in on the site, not here.
   session.user = me.user?.member ? null : me.user
+  session.passwordAllowed = me.password !== false
   if (session.user) {
     session.schema = await api<AdminSchema>('GET', '/admin/ui/schema')
     // Components from admin modules; views wait for the ones they show.
@@ -58,12 +77,14 @@ export async function loadSession(): Promise<void> {
       passwordReset?: boolean
       providers?: SsoProviderRef[]
       password?: boolean
+      passwordFor?: 'everyone' | 'admins' | 'breakGlass'
       setupCode?: boolean
     }>('GET', '/auth/init')
     session.hasUsers = init.hasUsers
     session.passwordReset = init.passwordReset === true
     session.providers = init.providers ?? []
     session.password = init.password !== false
+    session.passwordFor = init.passwordFor ?? (session.password ? 'everyone' : 'admins')
     session.setupCode = init.setupCode === true
   }
   session.loaded = true

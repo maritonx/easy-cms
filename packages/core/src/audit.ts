@@ -484,12 +484,16 @@ export class AuditLog {
     await auditContext.run({ via: 'scheduler', user: null }, () => this.verify())
   }
 
-  /** What the dashboard warns about: many failed logins, entries not written, a failed check. */
+  /**
+   * What the dashboard warns about: many failed logins, sign-ins of break-glass accounts in the
+   * last day, entries not written, a failed check.
+   */
   async attention(
     now: Date = new Date(),
   ): Promise<
     (
       | { id: 'failed-logins'; count: number }
+      | { id: 'break-glass'; count: number; emails: string[] }
       | { id: 'audit-failures'; count: number }
       | { id: 'audit-tampered'; invalid: number; at: string }
     )[]
@@ -504,6 +508,20 @@ export class AuditLog {
       },
     })
     if (failed >= this.settings.failedLogins) out.push({ id: 'failed-logins', count: failed })
+    const day = new Date(now.getTime() - 86_400_000).toISOString()
+    const breakGlass = await this.cms.db.find({
+      collection: AUDIT_LOGS,
+      where: { and: [{ action: { equals: 'login.breakGlass' } }, { createdAt: { gte: day } }] },
+      sort: ['-id'],
+      limit: 0,
+      page: 1,
+    })
+    if (breakGlass.docs.length > 0)
+      out.push({
+        id: 'break-glass',
+        count: breakGlass.docs.length,
+        emails: [...new Set(breakGlass.docs.map((row) => String(row.actorEmail ?? '')))],
+      })
     if (this.failures > 0) out.push({ id: 'audit-failures', count: this.failures })
     const last = await this.lastVerification()
     if (last && last.invalid > 0)

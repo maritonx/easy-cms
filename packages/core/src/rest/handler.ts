@@ -4,7 +4,7 @@ import { API_KEYS, type ApiKeyPermissions } from '../api-keys.js'
 import { auditContext } from '../audit.js'
 import { type Session, SIGNUP_HONEYPOT } from '../auth/auth.js'
 import { cookieValue, hostCookie, SESSION_COOKIE } from '../auth/cookie.js'
-import { SSO_COOKIE } from '../auth/sso.js'
+import { passwordFor, SSO_COOKIE } from '../auth/sso.js'
 import { safeEqual } from '../auth/tokens.js'
 import { deleteBackup, downloadBackup, listBackups, startBackup } from '../backups.js'
 import { INTERNAL_COLLECTIONS, MEDIA, USERS } from '../builtins.js'
@@ -549,7 +549,14 @@ async function route(
           ctx.via === 'cookie' && ctx.token ? cms.auth.csrfFor(ctx.token) : undefined
         if (csrfToken)
           ctx.headers.append('set-cookie', cookie(ctx, CSRF_COOKIE, csrfToken, { httpOnly: false }))
-        return { body: { user: ctx.user, ...(csrfToken ? { csrfToken } : {}) } }
+        return {
+          body: {
+            user: ctx.user,
+            // Whether this user may set and use a password (`auth.password`).
+            ...(ctx.user ? { password: cms.auth.sso.passwordAllowed(ctx.user) } : {}),
+            ...(csrfToken ? { csrfToken } : {}),
+          },
+        }
       }
       case 'GET init':
         return {
@@ -557,9 +564,11 @@ async function route(
             hasUsers: await cms.auth.hasUsers(),
             // The login page offers "Forgot password?" only when the email can be sent.
             passwordReset: cms.auth.canSendPasswordLinks(ctx.url.origin),
-            // Buttons to sign in with outside accounts; `password: false`: only admins use one.
+            // Buttons to sign in with outside accounts; `password: false`: only some use one
+            // (`passwordFor`: admins, or break-glass accounts), behind a folded form.
             providers: cms.auth.sso.providers(),
-            password: cms.config.auth.password,
+            password: cms.config.auth.password === true,
+            passwordFor: passwordFor(cms.config.auth.password),
             // The first admin needs the setup code (`EASY_CMS_SETUP_CODE`).
             setupCode: cms.config.auth.setupCode !== '',
           },

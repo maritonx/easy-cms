@@ -20,6 +20,8 @@ export type AdminAttention =
   | { id: 'backups'; failed: boolean; lastDone: string | null }
   /** Many failed logins in the last hour (`audit.failedLogins`): someone may be guessing. */
   | { id: 'failed-logins'; count: number }
+  /** Break-glass accounts signed in with a password in the last day (`auth.password`). */
+  | { id: 'break-glass'; count: number; emails: string[] }
   /** Audit log entries that could not be written since the server started. */
   | { id: 'audit-failures'; count: number }
   /** The last check of the audit log found entries changed in the database. */

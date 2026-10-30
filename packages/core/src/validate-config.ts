@@ -451,8 +451,20 @@ function validateAuth(config: Config, add: Add) {
   if (auth === undefined) return
   if (auth.rbac !== undefined && typeof auth.rbac !== 'boolean')
     add('auth.rbac', 'must be true or false')
-  if (auth.password !== undefined && typeof auth.password !== 'boolean')
-    add('auth.password', 'must be true or false')
+  if (typeof auth.password === 'object' && auth.password !== null) {
+    const { breakGlass } = auth.password as { breakGlass?: unknown }
+    if (
+      !Array.isArray(breakGlass) ||
+      breakGlass.length === 0 ||
+      breakGlass.some((email) => typeof email !== 'string' || !email.includes('@'))
+    )
+      add(
+        'auth.password.breakGlass',
+        'must list the emails of the accounts that may still use a password',
+        "e.g. { breakGlass: ['emergency@example.com'] }",
+      )
+  } else if (auth.password !== undefined && typeof auth.password !== 'boolean')
+    add('auth.password', 'must be true, false or { breakGlass: [emails] }')
   if (auth.setupCode !== undefined && typeof auth.setupCode !== 'string')
     add('auth.setupCode', 'must be a string')
   const providers: unknown = auth.providers
@@ -517,8 +529,16 @@ function validateAuth(config: Config, add: Add) {
     if (!Array.isArray(providers) || providers.length === 0)
       add('auth.providerSignUp', 'needs auth.providers')
   }
-  if (auth.password === false && (!Array.isArray(providers) || providers.length === 0))
-    add('auth.password', 'false needs auth.providers', 'otherwise only admins could sign in')
+  if (
+    auth.password !== undefined &&
+    auth.password !== true &&
+    (!Array.isArray(providers) || providers.length === 0)
+  )
+    add(
+      'auth.password',
+      'turning passwords off needs auth.providers',
+      'otherwise nobody else could sign in',
+    )
   if (auth.roles !== undefined) {
     const roles: unknown = auth.roles
     if (!Array.isArray(roles) || roles.some((r) => typeof r !== 'string' || r === '')) {

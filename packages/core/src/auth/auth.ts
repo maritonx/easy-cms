@@ -9,6 +9,7 @@ import {
   secretMatches,
 } from '../api-keys.js'
 import { LOGIN_ATTEMPTS, SESSIONS, USERS } from '../builtins.js'
+import type { PasswordPolicy } from '../config.js'
 import type { RawDocument } from '../database.js'
 import {
   ForbiddenError,
@@ -177,7 +178,8 @@ export class Auth {
       })
       throw new UnauthorizedError('Confirm your email first: follow the link we sent you')
     }
-    // With `auth.password: false`, only admins sign in with a password.
+    // With `auth.password: false`, only admins sign in with a password; with `{ breakGlass }`,
+    // only those accounts.
     if (!this.sso.passwordAllowed(user)) {
       await this.cms.audit.record({
         action: 'login.failed',
@@ -192,7 +194,13 @@ export class Auth {
     }
     await this.deleteExpiredSessions(user.id)
     const session = await this.startSession(user)
-    await this.cms.audit.record({ action: 'login', target: 'auth', user: session.user })
+    // A break-glass account bypasses single sign-on and its MFA: recorded as such, for the
+    // dashboard and whoever reviews the log.
+    await this.cms.audit.record({
+      action: this.sso.isBreakGlass(user) ? 'login.breakGlass' : 'login',
+      target: 'auth',
+      user: session.user,
+    })
     return session
   }
 
@@ -402,6 +410,62 @@ export class Auth {
       target ??
       `${this.config.admin.path}/${page === 'verifyEmail' ? 'verify-email' : 'reset-password'}`
     return `${base}${path.startsWith('/') ? '' : '/'}${path}${path.includes('?') ? '&' : '?'}${query}`
+  }
+
+  /**
+   * At start: when `auth.password` differs from the last start, records the change and ends the
+   * sessions of accounts that may no longer use a password (single sign-on users sign in once
+   * more). With break-glass accounts, warns when none of them can sign in with a password.
+   * @internal
+   */
+  async applyPasswordPolicy(): Promise<void> {
+    const policy = passwordPolicyName(this.config.auth.password)
+    const stored = (await this.db.findGlobal({ slug: PASSWORD_POLICY })) as {
+      policy?: unknown
+    } | null
+    // Before this was kept, passwords were open to everyone unless set otherwise.
+    const before = typeof stored?.policy === 'string' ? stored.policy : 'everyone'
+    if (before !== policy) {
+      let ended = 0
+      if (policy !== 'everyone') {
+        const users = new Map<string, RawDocument | null>()
+        const { docs } = await this.db.find({ collection: SESSIONS, sort: [], limit: 0, page: 1 })
+        for (const session of docs) {
+          const id = String(session.user)
+          if (!users.has(id))
+            users.set(id, await this.db.findById({ collection: USERS, id: session.user as ID }))
+          const user = users.get(id)
+          if (user && this.sso.passwordAllowed(user)) continue
+          await this.db.delete({ collection: SESSIONS, id: session.id })
+          ended++
+        }
+      }
+      const at = new Date().toISOString()
+      await this.db.updateGlobal({ slug: PASSWORD_POLICY, data: { policy, updatedAt: at } })
+      await this.cms.audit.record({
+        action: 'auth.password.policy',
+        target: 'auth',
+        user: null,
+        detail: { from: before, to: policy, sessionsEnded: ended },
+      })
+      this.cms.logger.info(
+        `Password sign-in: ${before} → ${policy}${ended ? `; ${ended} session(s) ended` : ''}.`,
+      )
+    }
+    const password = this.config.auth.password
+    if (typeof password === 'object' && (await this.hasUsers())) {
+      const { docs } = await this.db.find({
+        collection: USERS,
+        where: { email: { in: [...password.breakGlass] } },
+        sort: [],
+        limit: 0,
+        page: 1,
+      })
+      if (!docs.some((user) => user.passwordHash && user.active !== false))
+        this.cms.logger.warn(
+          'auth.password.breakGlass: none of these accounts exists with a password, so nobody can sign in if the provider is down. Create one with `easy-cms admin:create`.',
+        )
+    }
   }
 
   async hasUsers(): Promise<boolean> {
@@ -841,4 +905,14 @@ export class Auth {
     for (const attempt of attempts.docs)
       await this.db.delete({ collection: LOGIN_ATTEMPTS, id: attempt.id })
   }
+}
+
+/** Where the last start's `auth.password` is kept, to see it change. */
+const PASSWORD_POLICY = 'easy-cms:password-policy'
+
+/** `auth.password` as text: `everyone`, `admins` or `breakGlass:<emails>`. */
+function passwordPolicyName(policy: boolean | PasswordPolicy): string {
+  if (policy === true) return 'everyone'
+  if (policy === false) return 'admins'
+  return `breakGlass:${[...policy.breakGlass].sort().join(',')}`
 }
