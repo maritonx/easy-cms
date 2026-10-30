@@ -442,7 +442,9 @@ describe('validateConfig', () => {
     expect(calendar({ start: 'startsAt' })).toEqual([])
     expect(calendar({ start: 'title' })).toEqual(['collections.events.admin.calendar.start'])
     expect(calendar({})).toEqual(['collections.events.admin.calendar.start'])
-    expect(calendar({ start: 'startsAt', end: 'nope' })).toEqual(['collections.events.admin.calendar.end'])
+    expect(calendar({ start: 'startsAt', end: 'nope' })).toEqual([
+      'collections.events.admin.calendar.end',
+    ])
     expect(calendar({ start: 'startsAt', end: 'startsAt' })).toEqual([
       'collections.events.admin.calendar.end',
     ])

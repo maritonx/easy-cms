@@ -436,3 +436,4 @@ CI รัน lint, typecheck, build และ test บน Linux, macOS และ
 - [ADR-0061](adr/0061-secret-rotation.md) — หมุน secret ด้วย `previousSecrets` และ `easy-cms audit:resign`
 - [ADR-0062](adr/0062-rate-limit.md) — rate limit ของ API นับในหน่วยความจำ แล้วรวมกันผ่านฐานข้อมูลทุก 5 วินาที
 - [ADR-0063](adr/0063-break-glass-passwords.md) — บังคับ SSO ด้วย `auth.password: { breakGlass }` ใน config, มีผลและบันทึกตอนเริ่มเซิร์ฟเวอร์
+- [ADR-0064](adr/0064-calendar-view.md) — ปฏิทินเป็นโหมดของหน้ารายการด้วย `admin.calendar` ผ่าน REST API เดิม, FullCalendar 6 โหลดเมื่อใช้, เขตเวลาโดยไม่ใช้ plugin

@@ -686,6 +686,37 @@ test.describe('logged in as admin', () => {
     expect(box && box.x >= 0 && box.x + box.width <= 375).toBe(true)
   })
 
+  test('shows posts on a calendar, and creates one from a day (#272)', async ({ page }) => {
+    // The standalone app's posts: admin.calendar by publishedAt, coloured by category.
+    test.skip(test.info().project.name !== 'standalone', 'admin.calendar is set in standalone')
+    await page.goto('/admin/collections/posts')
+    await page.getByRole('button', { name: 'Calendar', exact: true }).click()
+    await expect(page).toHaveURL(/calendar=month/)
+    await expect(page.getByText(/^Time zone: /)).toBeVisible()
+
+    // A day of May 2030: a new post starting then, in a drawer.
+    await page.goto('/admin/collections/posts?calendar=month&date=2030-05-01')
+    await expect(page.getByRole('heading', { name: 'May 2030' })).toBeVisible()
+    await page.locator('.fc-daygrid-day[data-date="2030-05-15"] .fc-daygrid-day-frame').click()
+    const drawer = page.getByRole('dialog', { name: 'Create Post' })
+    await expect(drawer.getByLabel('Published at')).toHaveValue('2030-05-15T00:00')
+    await drawer.getByRole('textbox', { name: 'Title', exact: true }).fill('Calendar post')
+    await drawer.getByRole('button', { name: 'Save', exact: true }).click()
+    await expect(drawer).toBeHidden()
+
+    // On its day, named in full for screen readers; a click opens it.
+    const event = page.getByRole('link', { name: /^Calendar post, Wednesday,? 15 May 2030/ })
+    await expect(event).toBeVisible()
+    await page.getByRole('button', { name: 'Week', exact: true }).click()
+    await expect(page).toHaveURL(/calendar=week/)
+    await page.getByRole('button', { name: 'Month', exact: true }).click()
+    await event.click()
+    await expect(page).toHaveURL(/\/admin\/collections\/posts\/\d+$/)
+    await expect(page.getByRole('textbox', { name: 'Title', exact: true })).toHaveValue(
+      'Calendar post',
+    )
+  })
+
   test('deletes from the edit page and warns about unsaved changes (FR-ADM-08)', async ({
     page,
   }) => {

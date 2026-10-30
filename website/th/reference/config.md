@@ -317,6 +317,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `count` | `boolean` | จำนวนเอกสารข้างรายการในเมนู ค่าเริ่มต้น `true` |
 | `empty` | `{ description?, link? }` | ข้อความในหน้ารายการเมื่อยังไม่มีเอกสาร และลิงก์ (`{ label, href }`) |
 | `list` | `{ tree?, sort? }` | หน้ารายการ: `tree` คือชื่อ relationship ไปหา collection เดียวกัน เพื่อแสดงเป็นต้นไม้ (เอกสารระดับบนก่อน เอกสารลูกเปิดอยู่ข้างใต้) ส่วน `sort` คือลำดับเริ่มต้น เช่น `'title'` |
+| `calendar` | `{ start, end?, color? }` | โหมดปฏิทินข้างหน้ารายการ: `start` และ `end` เป็น field วันที่ระดับบนสุด `color` เป็น field select หรือ relationship (ไม่ใช่ hasMany) ที่ใช้แยกสีเอกสาร [ระบบจัดการ](/th/guide/admin#calendar) |
 | `ownerField` | `string` | เมื่อเปิด `auth.rbac`: relationship ไปที่ `users` ที่บอกเจ้าของ เช่น `'author'` สำหรับบทบาทที่ได้ "เฉพาะเอกสารของตัวเอง" ค่าเริ่มต้น: ผู้สร้าง (`createdBy`) [บทบาทและสิทธิ์](/th/guide/roles#own-documents-only) |
 | `confirmDelete` | `{ typeTitle?, impact? }` | ถามมากขึ้นก่อนลบ: `typeTitle` ให้พิมพ์ชื่อ `impact` คือ path ใต้ API ที่เรียกพร้อม `?id=` แล้วคืน `{ message }` บอกสิ่งที่จะหายไปด้วย ลบจากการเลือกหลายรายการไม่ได้ |
 
