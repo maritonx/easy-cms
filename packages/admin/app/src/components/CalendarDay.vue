@@ -1,7 +1,12 @@
 <script setup lang="ts">
-import { Plus } from '@lucide/vue'
+import { CalendarClock, Plus } from '@lucide/vue'
 import { ref, watch } from 'vue'
-import { type CalendarEvent, type CalendarRange, dayAgenda } from '../lib/calendar'
+import {
+  type CalendarEvent,
+  type CalendarMove,
+  type CalendarRange,
+  dayAgenda,
+} from '../lib/calendar'
 import { locale, t } from '../lib/i18n'
 import { adminTimeZone, dayStart, nextDay } from '../lib/time-zone'
 
@@ -20,7 +25,7 @@ const props = defineProps<{
   /** A button to create a document on this day. */
   canCreate: boolean
 }>()
-const emit = defineEmits<{ open: [to: string]; create: [] }>()
+const emit = defineEmits<{ open: [to: string]; create: []; move: [change: CalendarMove] }>()
 
 const events = ref<CalendarEvent[]>([])
 const loading = ref(true)
@@ -59,6 +64,32 @@ function when(event: CalendarEvent): string {
   return end ? `${time(event.start)}–${time(end)}` : time(event.start)
 }
 
+// --- "Move to…": the keyboard's way to move an event (instead of dragging) -------------------
+
+const dialog = ref<HTMLDialogElement>()
+const moving = ref<CalendarEvent | null>(null)
+const at = ref('')
+/** A wall-clock time of the calendar (`YYYY-MM-DD` or `YYYY-MM-DDTHH:mm`) as its "UTC" date. */
+const wallDate = (wall: string) => new Date(`${wall.length === 10 ? `${wall}T00:00` : wall}:00Z`)
+
+function startMove(event: CalendarEvent) {
+  moving.value = event
+  at.value = event.start.length === 10 ? `${event.start}T00:00` : event.start
+  dialog.value?.showModal()
+}
+
+function confirmMove() {
+  const event = moving.value
+  if (!event || !at.value) return
+  const oldStart = wallDate(event.start)
+  const oldEnd = event.end ? wallDate(event.end) : null
+  const start = wallDate(at.value)
+  // The same length as before.
+  const end = oldEnd ? new Date(start.getTime() + (oldEnd.getTime() - oldStart.getTime())) : null
+  dialog.value?.close()
+  emit('move', { extendedProps: event.extendedProps, start, end, oldStart, oldEnd })
+}
+
 function open(event: CalendarEvent, e: MouseEvent) {
   if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return
   e.preventDefault()
@@ -71,7 +102,7 @@ function open(event: CalendarEvent, e: MouseEvent) {
     <h2 id="calendar-day-heading" class="day-heading">{{ heading() }}</h2>
     <p v-if="error" class="error" role="alert">{{ error }}</p>
     <ul v-else-if="events.length" class="day-list">
-      <li v-for="event in events" :key="event.id">
+      <li v-for="event in events" :key="event.id" class="day-row">
         <a :href="event.url" :class="['day-item', ...event.classNames]" @click="open(event, $event)">
           <span class="dot" aria-hidden="true" />
           <span class="time">{{ when(event) }}</span>
@@ -85,6 +116,16 @@ function open(event: CalendarEvent, e: MouseEvent) {
             </span>
           </span>
         </a>
+        <button
+          v-if="event.startEditable"
+          type="button"
+          class="btn btn-ghost btn-sm btn-icon move"
+          :aria-label="`${t('calendar.moveTo')} ${event.title}`"
+          :title="t('calendar.moveTo')"
+          @click="startMove(event)"
+        >
+          <CalendarClock :size="15" aria-hidden="true" />
+        </button>
       </li>
     </ul>
     <p v-else-if="!loading" class="empty">{{ t('calendar.nothing') }}</p>
@@ -92,6 +133,19 @@ function open(event: CalendarEvent, e: MouseEvent) {
       <Plus :size="15" aria-hidden="true" />
       {{ t('calendar.newOnDay') }}
     </button>
+    <dialog ref="dialog" class="move-dialog" aria-labelledby="calendar-move-heading" @close="moving = null">
+      <form method="dialog" @submit.prevent="confirmMove">
+        <h2 id="calendar-move-heading">{{ t('calendar.moveTitle', { title: moving?.title ?? '' }) }}</h2>
+        <label class="field">
+          <span class="field-label">{{ t('calendar.moveAt') }}</span>
+          <input v-model="at" class="input" type="datetime-local" required />
+        </label>
+        <div class="actions">
+          <button type="button" class="btn" @click="dialog?.close()">{{ t('common.cancel') }}</button>
+          <button type="submit" class="btn btn-primary">{{ t('calendar.move') }}</button>
+        </div>
+      </form>
+    </dialog>
   </section>
 </template>
 
@@ -109,6 +163,31 @@ function open(event: CalendarEvent, e: MouseEvent) {
   margin: 0 0 0.75rem;
   padding: 0;
   list-style: none;
+}
+.day-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+.day-row .day-item {
+  flex: 1;
+  min-width: 0;
+}
+.move {
+  flex: none;
+}
+.move-dialog form {
+  display: grid;
+  gap: 0.75rem;
+}
+.move-dialog h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+.move-dialog .actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
 }
 .day-item {
   display: grid;

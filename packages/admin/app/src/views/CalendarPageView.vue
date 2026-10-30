@@ -93,8 +93,15 @@ async function scheduledIn(from: string, to: string): Promise<CalendarEvent[]> {
       job,
       t(job.action === 'publish' ? 'calendar.publish' : 'calendar.unpublish', { title }),
       linkTo(to),
-      adminTimeZone.value,
-      job.collection ? colorOf(job.collection) : [],
+      {
+        timeZone: adminTimeZone.value,
+        classNames: job.collection ? colorOf(job.collection) : [],
+        // Moving a scheduled publish schedules it again: the publish permission.
+        canMove: global
+          ? global.permissions.publish
+          : (collections.value.find((c) => c.slug === job.collection)?.permissions.publish ??
+            false),
+      },
     )
   })
 }
@@ -110,8 +117,11 @@ async function load(from: string, to: string): Promise<CalendarRange> {
           from,
           to,
           (id) => linkTo(`/collections/${c.slug}/${encodeURIComponent(id)}`),
-          adminTimeZone.value,
-          colorOf(c.slug),
+          {
+            timeZone: adminTimeZone.value,
+            classNames: colorOf(c.slug),
+            canMove: c.permissions.update,
+          },
         ),
       ),
   )
@@ -154,6 +164,7 @@ const wide = typeof matchMedia === 'function' ? matchMedia('(min-width: 641px)')
       </div>
     </header>
     <CalendarView
+      :config-of="(slug: string) => collections.find((c) => c.slug === slug)?.calendar"
       :load="load"
       :reload-key="[...hidden].sort().join(',')"
       :selectable="false"

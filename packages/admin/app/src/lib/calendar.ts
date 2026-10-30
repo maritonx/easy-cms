@@ -67,10 +67,16 @@ export interface CalendarEvent {
   allDay: boolean
   url: string
   classNames: string[]
+  /** It may be dragged to another time (permission); its end may be dragged too (an `end` field). */
+  startEditable: boolean
+  durationEditable: boolean
   extendedProps: {
     to: string
-    /** The collection it comes from. */
+    /** The collection it comes from, and the document's id there. */
     collection?: string
+    docId?: string
+    /** A scheduled publish of a global. */
+    global?: string
     /** A document's `status` (with drafts). */
     status?: string
     /** A scheduled publish's action. */
@@ -84,6 +90,14 @@ export interface CalendarRange {
   tooMany: boolean
 }
 
+/** How events are shown and whether they move: the admin's time zone, colours, permission. */
+export interface EventOptions {
+  timeZone?: string | undefined
+  classNames?: string[] | undefined
+  /** The user may move it: update (documents) or publish (scheduled publishes). */
+  canMove?: boolean | undefined
+}
+
 /**
  * A document as an event, `null` without a start. A start at midnight with no end (or an end at
  * midnight too) is a whole day; otherwise without an end it takes an hour.
@@ -92,9 +106,9 @@ export function eventOf(
   collection: AdminCollection,
   doc: Doc,
   link: EventLink,
-  timeZone?: string,
-  classNames?: string[],
+  options: EventOptions = {},
 ): CalendarEvent | null {
+  const { timeZone, classNames, canMove = false } = options
   const calendar = collection.calendar
   if (!calendar) return null
   const startIso = doc[calendar.start]
@@ -106,16 +120,20 @@ export function eventOf(
   const allDay = midnight(start) && (!end || midnight(end))
   const color = colorOf(collection, doc)
   return {
-    id: String(doc.id),
+    // Unique across collections, for the Calendar page.
+    id: `${collection.slug}:${doc.id}`,
     title: titleOf(collection, doc) || `#${doc.id}`,
     start: allDay ? start.slice(0, 10) : start,
     ...(end ? { end: allDay ? end.slice(0, 10) : end } : {}),
     allDay,
     url: link.href,
     classNames: classNames ?? (color === undefined ? [] : [`cal-c${color}`]),
+    startEditable: canMove,
+    durationEditable: canMove && calendar.end !== undefined,
     extendedProps: {
       to: link.to,
       collection: collection.slug,
+      docId: String(doc.id),
       ...(typeof doc.status === 'string' ? { status: doc.status } : {}),
     },
   }
@@ -134,8 +152,7 @@ export async function loadRange(
   from: string,
   to: string,
   linkOf: (id: string) => EventLink,
-  timeZone?: string,
-  classNames?: string[],
+  options: EventOptions = {},
 ): Promise<CalendarRange> {
   const calendar = collection.calendar
   if (!calendar) return { events: [], tooMany: false }
@@ -149,10 +166,19 @@ export async function loadRange(
   const first = await page(1)
   const pages = Math.min(first.totalPages, RANGE_LIMIT / PAGE)
   const rest = await Promise.all(Array.from({ length: pages - 1 }, (_, i) => page(i + 2)))
+  // With `draft=true` the API matches `where` on the live document but returns a pending draft;
+  // keep only what overlaps the range as shown, so a draft's new date isn't put on the old day.
+  const overlaps = (doc: Doc) => {
+    const start = doc[calendar.start]
+    if (typeof start !== 'string' || start >= to) return false
+    const end = calendar.end ? doc[calendar.end] : undefined
+    return (typeof end === 'string' && end ? end : start) >= from
+  }
   return {
     events: [first, ...rest]
       .flatMap((found) => found.docs)
-      .map((doc) => eventOf(collection, doc, linkOf(String(doc.id)), timeZone, classNames))
+      .filter(overlaps)
+      .map((doc) => eventOf(collection, doc, linkOf(String(doc.id)), options))
       .filter((e): e is CalendarEvent => e !== null),
     tooMany: first.totalDocs > RANGE_LIMIT,
   }
@@ -160,12 +186,12 @@ export async function loadRange(
 
 /** A scheduled publish or unpublish, at its moment, e.g. "Publish: Launch". */
 export function jobEvent(
-  job: ScheduledPublish & { collection?: string; doc: Doc['id'] },
+  job: ScheduledPublish & { collection?: string; global?: string; doc: Doc['id'] },
   title: string,
   link: EventLink,
-  timeZone?: string,
-  classNames: string[] = [],
+  options: EventOptions = {},
 ): CalendarEvent {
+  const { timeZone, classNames = [], canMove = false } = options
   return {
     id: `job:${job.id}`,
     title,
@@ -173,12 +199,59 @@ export function jobEvent(
     allDay: false,
     url: link.href,
     classNames: ['cal-scheduled', ...classNames],
+    startEditable: canMove,
+    durationEditable: false,
     extendedProps: {
       to: link.to,
-      ...(job.collection ? { collection: job.collection } : {}),
+      ...(job.collection ? { collection: job.collection, docId: String(job.doc) } : {}),
+      ...(job.global ? { global: job.global } : {}),
       action: job.action,
     },
   }
+}
+
+/** An event moved to new wall-clock times (FullCalendar's "UTC" dates), and where it was. */
+export interface CalendarMove {
+  extendedProps: CalendarEvent['extendedProps']
+  start: Date
+  end: Date | null
+  oldStart: Date
+  oldEnd: Date | null
+}
+
+/**
+ * Saves a move: a document through an ordinary save (with separate drafts, into its pending draft
+ * when there is one, as the edit page does), a scheduled publish by scheduling it again (which
+ * replaces it). Returns how to put it back, and whether the change went to a pending draft.
+ */
+export async function applyMove(
+  move: CalendarMove,
+  configOf: (slug: string) => CalendarConfig | undefined,
+  timeZone?: string,
+): Promise<{ draft: boolean; undo: () => Promise<unknown> }> {
+  const props = move.extendedProps
+  const save = async (start: Date, end: Date | null): Promise<boolean> => {
+    if (props.action) {
+      const path = props.global
+        ? `/globals/${props.global}/schedule`
+        : `/${props.collection}/${encodeURIComponent(props.docId ?? '')}/schedule`
+      await api('POST', path, { action: props.action, at: momentOf(start, timeZone) })
+      return false
+    }
+    const calendar = props.collection ? configOf(props.collection) : undefined
+    if (!calendar || !props.docId) throw new Error('Not on a calendar')
+    const body: Record<string, string> = { [calendar.start]: momentOf(start, timeZone) }
+    if (calendar.end && end) body[calendar.end] = momentOf(end, timeZone)
+    const path = `/${props.collection}/${encodeURIComponent(props.docId)}`
+    const saved = await api<Doc>('PATCH', `${path}?depth=0`, body)
+    if (saved.status !== 'draft') return false
+    // A draft: of a document that is also live (a pending draft), or never published? The
+    // calendar reads drafts, so its own status can't say; the live version can.
+    const live = await api<Doc>('GET', `${path}?depth=0`).catch(() => null)
+    return live?.status === 'published'
+  }
+  const draft = await save(move.start, move.end)
+  return { draft, undo: () => save(move.oldStart, move.oldEnd) }
 }
 
 /** A day's events for a list: whole days first, then by start. */

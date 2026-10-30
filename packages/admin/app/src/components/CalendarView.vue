@@ -13,9 +13,19 @@ import interactionPlugin from '@fullcalendar/interaction'
 import listPlugin from '@fullcalendar/list'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { type CalendarEvent, type CalendarRange, momentOf, RANGE_LIMIT } from '../lib/calendar'
+import { ApiError } from '../lib/api'
+import {
+  applyMove,
+  type CalendarConfig,
+  type CalendarEvent,
+  type CalendarMove,
+  type CalendarRange,
+  momentOf,
+  RANGE_LIMIT,
+} from '../lib/calendar'
 import { locale, t } from '../lib/i18n'
 import { adminTimeZone, today, toZoned, zoneName } from '../lib/time-zone'
+import { notify } from '../lib/toast'
 import CalendarDay from './CalendarDay.vue'
 
 /**
@@ -37,6 +47,8 @@ const props = defineProps<{
   day: string | undefined
   /** The collection an event comes from, named in the side card (several sources). */
   sourceOf?: ((slug: string) => string) | undefined
+  /** A collection's `admin.calendar`, to save a moved document's dates. */
+  configOf: (slug: string) => CalendarConfig | undefined
 }>()
 const emit = defineEmits<{
   /** An event was clicked: the route to open. */
@@ -137,6 +149,10 @@ onMounted(() => {
       const day = toZoned(info.view.currentStart.toISOString(), 'UTC').slice(0, 10)
       emit('update:view', NAMES[info.view.type] ?? 'month', day)
     },
+    // Drag to another time, or the end in week and day views; events say whether they may.
+    editable: true,
+    eventDrop: (info) => void move(info),
+    eventResize: (info) => void move(info),
     eventClick: (info: EventClickArg) => {
       // A normal click opens it here; a middle or modified click opens the link as usual.
       if (info.jsEvent.metaKey || info.jsEvent.ctrlKey || info.jsEvent.shiftKey) return
@@ -178,6 +194,61 @@ watch(
 )
 
 /** "New on this day": the whole day, as a selection would give it. */
+/** After a move or its undo: the calendar and the day card again. */
+function reload() {
+  saved.value++
+  calendar?.refetchEvents()
+}
+
+/**
+ * Saves a move, from a drag or "Move to…": a message with Undo (8 s), or, when the save is refused
+ * (validation, access), the event back where it was with the reason.
+ */
+async function save(change: CalendarMove, revert?: () => void) {
+  try {
+    const { draft, undo } = await applyMove(change, props.configOf, zone())
+    reload()
+    notify('success', t(draft ? 'calendar.movedDraft' : 'calendar.moved'), {
+      ms: 8000,
+      action: {
+        label: t('calendar.undo'),
+        run: () =>
+          void undo()
+            .then(() => {
+              reload()
+              notify('success', t('calendar.undone'))
+            })
+            .catch((e) => notify('error', reason(e))),
+      },
+    })
+  } catch (e) {
+    revert?.()
+    notify('error', reason(e))
+  }
+}
+const reason = (e: unknown) =>
+  e instanceof ApiError ? (e.errors[0]?.message ?? e.message) : (e as Error).message
+
+/** A drag (or the end of one) in FullCalendar. */
+function move(info: {
+  event: { start: Date | null; end: Date | null; extendedProps: Record<string, unknown> }
+  oldEvent: { start: Date | null; end: Date | null }
+  revert: () => void
+}) {
+  const { event, oldEvent } = info
+  if (!event.start || !oldEvent.start) return info.revert()
+  void save(
+    {
+      extendedProps: event.extendedProps as CalendarEvent['extendedProps'],
+      start: event.start,
+      end: event.end,
+      oldStart: oldEvent.start,
+      oldEnd: oldEvent.end,
+    },
+    info.revert,
+  )
+}
+
 function createOnDay() {
   const start = new Date(`${zoneDay()}T00:00:00Z`)
   emit('select', { start, end: new Date(start.getTime() + 86_400_000), allDay: true })
@@ -209,6 +280,7 @@ defineExpose({
         :can-create="selectable"
         @open="(to: string) => emit('open', to)"
         @create="createOnDay"
+        @move="(change: CalendarMove) => save(change)"
       />
     </aside>
   </div>

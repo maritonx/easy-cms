@@ -714,6 +714,23 @@ test.describe('logged in as admin', () => {
     const event = page.getByRole('link', { name: /^Calendar post, Wednesday,? 15 May 2030/ })
     await expect(event).toBeVisible()
     await expect(day.getByRole('link', { name: /Calendar post/ })).toContainText('All day')
+
+    // Move it without dragging (the keyboard way): to the next day at 09:00, then undo.
+    await day.getByRole('button', { name: 'Move to… Calendar post' }).click()
+    const moveDialog = page.getByRole('dialog', { name: 'Move “Calendar post”' })
+    await expect(moveDialog.getByLabel('Starts')).toHaveValue('2030-05-15T00:00')
+    await moveDialog.getByLabel('Starts').fill('2030-05-16T09:00')
+    await moveDialog.getByRole('button', { name: 'Move', exact: true }).click()
+    await expect(page.getByRole('status').filter({ hasText: 'Moved.' })).toBeVisible()
+    const moved = page.getByRole('link', {
+      name: /^Calendar post, Thursday,? 16 May 2030 at 09:00/,
+    })
+    await expect(moved).toBeVisible()
+    await page.getByRole('button', { name: 'Undo' }).click()
+    await expect(page.getByRole('status').filter({ hasText: 'Moved back.' })).toBeVisible()
+    await expect(event).toBeVisible()
+    await expect(moved).toBeHidden()
+
     await page.getByRole('button', { name: 'Week', exact: true }).click()
     await expect(page).toHaveURL(/calendar=week/)
     await page.getByRole('button', { name: 'Month', exact: true }).click()

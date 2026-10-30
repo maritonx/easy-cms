@@ -6,6 +6,11 @@ import { t } from '../lib/i18n'
 import { clearToast, toast } from '../lib/toast'
 
 const route = useRoute()
+
+function act(run: () => void) {
+  clearToast()
+  run()
+}
 // An error belongs to the page it happened on.
 watch(
   () => route.path,
@@ -22,6 +27,7 @@ watch(
       <div v-if="toast" :key="toast.id" :class="['toast', toast.kind]" role="status">
         <component :is="toast.kind === 'success' ? CircleCheck : CircleAlert" :size="18" aria-hidden="true" class="icon" />
         <span class="text">{{ toast.text }}</span>
+        <button v-if="toast.action" type="button" class="action" @click="act(toast.action.run)">{{ toast.action.label }}</button>
         <button type="button" class="close" :aria-label="t('toast.dismiss')" @click="clearToast">
           <X :size="14" aria-hidden="true" />
         </button>
@@ -54,6 +60,18 @@ watch(
   box-shadow: var(--shadow);
   font-size: 0.9rem;
   pointer-events: auto;
+}
+.action {
+  flex: none;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--accent-ink);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
 }
 .toast.success .icon {
   color: var(--ok);
