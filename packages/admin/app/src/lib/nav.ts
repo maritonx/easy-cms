@@ -2,6 +2,7 @@ import type { AdminNavGroup, AdminNavItem, AdminNavNode } from '@easy-cms/core'
 import {
   CalendarDays,
   DatabaseBackup,
+  House,
   KeyRound,
   ListChecks,
   Mail,
@@ -9,7 +10,8 @@ import {
   Send,
   ShieldCheck,
 } from '@lucide/vue'
-import { type Component, computed, reactive, watch } from 'vue'
+import { type Component, computed, reactive, ref, watch } from 'vue'
+import { badges } from './counts'
 import { label, t } from './i18n'
 import { collectionIcon, globalIcon } from './icons'
 import { session } from './session'
@@ -128,14 +130,82 @@ export function crumbsFor(path: string): string[] {
   return itemForPath(path)?.parents.map((g) => label(g.label, g.id)) ?? []
 }
 
+// --- The two columns: groups in the rail, the open group's items in the panel ---------------
+
+/** The rail's first icon: the dashboard, the items in no group (Calendar, Media…) and pins. */
+export const HOME = ':home'
+
+/** An icon of the rail: a group of the menu, or Home. */
+export interface RailGroup {
+  id: string
+  label: string
+  icon: Component
+  /** What the panel lists: the group's items, and its groups as headings. */
+  nodes: readonly AdminNavNode[]
+}
+
+export const railGroups = computed<RailGroup[]>(() => {
+  const nav = session.schema?.nav ?? []
+  return [
+    { id: HOME, label: t('nav.home'), icon: House, nodes: nav.filter((n) => n.kind !== 'group') },
+    ...nav
+      .filter((n): n is AdminNavGroup => n.kind === 'group')
+      .map((g) => ({
+        id: g.id,
+        label: label(g.label, g.id),
+        icon: collectionIcon(g.icon),
+        nodes: g.items,
+      })),
+  ]
+})
+
+/** The group the panel shows: the page's, until another icon of the rail is clicked. */
+export const shownGroup = ref(HOME)
+
+/** The rail group a page is in; `null` for pages not in the menu (account, not found). */
+export function groupForPath(path: string): string | null {
+  if (path === '/') return HOME
+  const found = itemForPath(path)
+  if (!found) return null
+  return found.parents[0]?.id ?? HOME
+}
+
+/** What needs attention among these items, their groups' included. */
+export function badgeSum(nodes: readonly AdminNavNode[]): number {
+  return nodes.reduce((sum, node) => {
+    if (node.kind === 'group') return sum + badgeSum(node.items)
+    return node.kind === 'collection' ? sum + (badges[node.slug] ?? 0) : sum
+  }, 0)
+}
+
+/** Items, groups' included: past a few, the panel offers to filter them. */
+export function itemCount(nodes: readonly AdminNavNode[]): number {
+  return nodes.reduce((n, node) => n + (node.kind === 'group' ? itemCount(node.items) : 1), 0)
+}
+
+/** Whether a name has the filter's text in it. */
+export const matches = (name: string, query: string) =>
+  name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())
+
+/** The items whose name has `query` in it, in the groups that still hold some. */
+export function filterNav(nodes: readonly AdminNavNode[], query: string): AdminNavNode[] {
+  if (!query.trim()) return [...nodes]
+  return nodes.flatMap((node): AdminNavNode[] => {
+    if (node.kind === 'group') {
+      const items = filterNav(node.items, query)
+      return items.length ? [{ ...node, items }] : []
+    }
+    const entry = entryOf(node)
+    return entry && matches(entry.label, query) ? [node] : []
+  })
+}
+
 // --- What each person changes in the menu (kept in this browser) ---------------------------
 
 interface NavState {
-  /** Groups folded away, by id. */
-  folded: string[]
-  /** Items pinned to the top, by key, in order. */
+  /** Items pinned to Home, by key, in order. */
   pinned: string[]
-  /** Only icons (wide screens). */
+  /** Only the rail: the panel folded away (wide screens). */
   rail: boolean
 }
 
@@ -145,12 +215,11 @@ function load(): NavState {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE) ?? '{}') as Partial<NavState>
     return {
-      folded: Array.isArray(saved.folded) ? saved.folded : [],
       pinned: Array.isArray(saved.pinned) ? saved.pinned : [],
       rail: saved.rail === true,
     }
   } catch {
-    return { folded: [], pinned: [], rail: false }
+    return { pinned: [], rail: false }
   }
 }
 
@@ -162,12 +231,6 @@ watch(navState, (value) => {
     // Private mode: the menu forgets on reload.
   }
 })
-
-export const isFolded = (id: string) => navState.folded.includes(id)
-export function setFolded(id: string, folded: boolean) {
-  const rest = navState.folded.filter((x) => x !== id)
-  navState.folded = folded ? [...rest, id] : rest
-}
 
 export const isPinned = (key: string) => navState.pinned.includes(key)
 export function togglePin(key: string) {

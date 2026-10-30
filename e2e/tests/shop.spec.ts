@@ -204,7 +204,9 @@ test("Settings → Jobs shows the shop's jobs; an admin runs, pauses and resumes
   page,
 }) => {
   await login(page)
-  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Jobs' }).click()
+  const menu = page.getByRole('navigation', { name: 'Main menu' })
+  await menu.getByRole('button', { name: 'Settings', exact: true }).click()
+  await menu.getByRole('link', { name: 'Jobs' }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'Jobs' })).toBeVisible()
   const payments = page.locator('li.job').filter({ hasText: 'shop:payments' })
   await expect(payments).toContainText('Every 5 min')
