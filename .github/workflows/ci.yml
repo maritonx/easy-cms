@@ -12,23 +12,62 @@ concurrency:
 
 jobs:
   # The "Version Packages" pull request and its merge only change versions and changelogs: the
-  # same code already passed on the commit before. They get lint only, not the full suite.
+  # same code already passed on the commit before. A pull request that changes only docs (docs/,
+  # website/, Markdown, changesets) runs no code either; the Docs workflow builds the site. They
+  # get lint only, not the full suite. Pushes to main always run it all.
   scope:
     runs-on: ubuntu-24.04
     outputs:
       full: ${{ steps.check.outputs.full }}
+      smoke: ${{ steps.check.outputs.smoke }}
     steps:
       - id: check
         env:
           HEAD_REF: ${{ github.head_ref }}
           MESSAGE: ${{ github.event.head_commit.message }}
+          PR: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
         run: |
+          full=true
           if [[ "$HEAD_REF" == "changeset-release/main" || "$MESSAGE" == *"/changeset-release/main"* || "$MESSAGE" == "Version Packages"* ]]; then
-            echo "full=false" >> "$GITHUB_OUTPUT"
+            full=false
             echo "Version Packages: lint only."
-          else
-            echo "full=true" >> "$GITHUB_OUTPUT"
+          elif [[ -n "$PR" ]]; then
+            code=$(gh api "repos/$REPO/pulls/$PR/files" --paginate --jq '.[].filename' |
+              grep -Ev '^(docs/|website/|\.changeset/)|\.md$' || true)
+            if [[ -z "$code" ]]; then
+              full=false
+              echo "Docs only: lint only."
+            fi
           fi
+          echo "full=$full" >> "$GITHUB_OUTPUT"
+          # Every package manager on main; on pull requests, one on each OS.
+          all='[{"os":"ubuntu-24.04","pm":"npm"},{"os":"ubuntu-24.04","pm":"pnpm"},{"os":"ubuntu-24.04","pm":"yarn","yarn":"stable"},{"os":"ubuntu-24.04","pm":"yarn","yarn":"1.22.22"},{"os":"ubuntu-24.04","pm":"bun"},{"os":"windows-latest","pm":"npm"},{"os":"windows-latest","pm":"pnpm"}]'
+          some='[{"os":"ubuntu-24.04","pm":"pnpm"},{"os":"windows-latest","pm":"npm"}]'
+          echo "smoke=$([[ -n "$PR" ]] && echo "$some" || echo "$all")" >> "$GITHUB_OUTPUT"
+
+  # The packages, built once (JavaScript only, the same on every OS) for the jobs that test them.
+  # Not the examples (e2e builds the ones it starts) or the site (the Docs workflow).
+  build:
+    needs: scope
+    if: needs.scope.outputs.full == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo run build --filter="./packages/*"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: packages-dist
+          path: packages/*/dist
+          if-no-files-found: error
+          retention-days: 1
 
   lint:
     runs-on: ubuntu-24.04
@@ -42,48 +81,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm biome ci .
 
-  test:
-    needs: scope
-    if: needs.scope.outputs.full == 'true'
-    strategy:
-      fail-fast: false
-      matrix:
-        # Other jobs (and releases) stay on ubuntu-24.04; `ubuntu-latest` here shows first what a
-        # new Ubuntu image breaks (it moves to Ubuntu 26 from 2026-10-19).
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        node: [22, 24]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
-        with:
-          node-version: ${{ matrix.node }}
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build
-      - run: pnpm typecheck
-      # --continue: report failures in every package, not just the first. The output is kept so
-      # the next step can annotate failures: annotations are public, job logs need a login.
-      # The integration suite (SQLite and PGlite, ~70 files) runs on its own afterwards: run
-      # alongside every other package on a 3-core macOS runner, PGlite starved for minutes.
-      # A package whose test worker crashed in libsql's Windows teardown runs once more (#132).
-      - run: node .github/scripts/test-retry-crashes.mjs test-output.log --continue '--filter=!easy-cms-integration-tests'
-        shell: bash
-      - if: success() || failure()
-        run: node .github/scripts/test-retry-crashes.mjs test-output.log --filter=easy-cms-integration-tests
-        shell: bash
-      - if: failure()
-        run: node .github/scripts/annotate-failures.mjs test-output.log "Tests failed (${{ matrix.os }}, Node ${{ matrix.node }})"
-
-  # Line coverage of the server packages, reported to Codecov: not a check that fails.
-  coverage:
-    needs: scope
-    if: needs.scope.outputs.full == 'true'
+  # Types don't depend on the OS: checked once, against the built packages.
+  typecheck:
+    needs: build
     runs-on: ubuntu-24.04
-    env:
-      # Missing on forks' pull requests: the report is made, not uploaded.
-      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -92,17 +93,73 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm coverage
-      - if: env.CODECOV_TOKEN != ''
+      - uses: actions/download-artifact@v8
+        with:
+          name: packages-dist
+          path: packages
+      - run: pnpm turbo run typecheck --only
+
+  test:
+    needs: build
+    name: test (${{ matrix.os }}, ${{ matrix.node }}${{ matrix.integration && format(', {0}', matrix.integration) || '' }})
+    strategy:
+      fail-fast: false
+      matrix:
+        # Other jobs (and releases) stay on ubuntu-24.04; `ubuntu-latest` here shows first what a
+        # new Ubuntu image breaks (it moves to Ubuntu 26 from 2026-10-19). Node 22 doesn't differ
+        # by OS: Ubuntu checks it. On Windows, the slowest, the integration suite's SQLite and
+        # PGlite halves run side by side. Ubuntu with Node 24 measures coverage as it tests.
+        include:
+          - { os: ubuntu-latest, node: 24, coverage: true }
+          - { os: ubuntu-latest, node: 22 }
+          - { os: macos-latest, node: 24 }
+          - { os: windows-latest, node: 24, integration: sqlite }
+          - { os: windows-latest, node: 24, integration: pglite }
+    runs-on: ${{ matrix.os }}
+    env:
+      # Missing on forks' pull requests: the report is made, not uploaded.
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Coverage builds the packages again, with source maps; the others use the build job's.
+      - if: ${{ !matrix.coverage }}
+        uses: actions/download-artifact@v8
+        with:
+          name: packages-dist
+          path: packages
+      - if: matrix.coverage
+        run: pnpm coverage
+      - if: matrix.coverage
+        run: pnpm turbo run test --only --filter=@easy-cms/admin
+      - if: matrix.coverage && env.CODECOV_TOKEN != ''
         uses: codecov/codecov-action@v7
         with:
           files: coverage/lcov.info
           token: ${{ env.CODECOV_TOKEN }}
           disable_search: true
+      # --only: the packages are built already. --continue: report failures in every package, not
+      # just the first. The output is kept so the next step can annotate failures: annotations are
+      # public, job logs need a login. The integration suite (~70 files) runs on its own
+      # afterwards: run alongside every other package on a 3-core macOS runner, PGlite starved for
+      # minutes. A package whose test worker crashed in libsql's Windows teardown runs once more
+      # (#132).
+      - if: ${{ !matrix.coverage && matrix.integration != 'pglite' }}
+        run: node .github/scripts/test-retry-crashes.mjs test-output.log --only --continue '--filter=!easy-cms-integration-tests'
+        shell: bash
+      - if: ${{ !matrix.coverage && (success() || failure()) }}
+        run: node .github/scripts/test-retry-crashes.mjs test-output.log --only --filter=easy-cms-integration-tests ${{ matrix.integration && format('-- --project {0}', matrix.integration) || '' }}
+        shell: bash
+      - if: failure()
+        run: node .github/scripts/annotate-failures.mjs test-output.log "Tests failed (${{ matrix.os }}, Node ${{ matrix.node }})"
 
   postgres:
-    needs: scope
-    if: needs.scope.outputs.full == 'true'
+    needs: build
     # The shared integration suites against a real Postgres server (SQLite and PGlite run in "test").
     runs-on: ubuntu-24.04
     services:
@@ -125,12 +182,14 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm build
+      - uses: actions/download-artifact@v8
+        with:
+          name: packages-dist
+          path: packages
       - run: pnpm --filter easy-cms-integration-tests exec vitest run --project postgres
 
   pgbouncer:
-    needs: scope
-    if: needs.scope.outputs.full == 'true'
+    needs: build
     # The same suites through PgBouncer in transaction mode, as serverless hosts' poolers run:
     # any server connection per transaction, no prepared statements. They connect as a role
     # whose search_path is its own schema (database isolation L1), set up as the docs show.
@@ -173,12 +232,14 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm build
+      - uses: actions/download-artifact@v8
+        with:
+          name: packages-dist
+          path: packages
       - run: pnpm --filter easy-cms-integration-tests exec vitest run --project postgres
 
   upgrade:
-    needs: scope
-    if: needs.scope.outputs.full == 'true'
+    needs: build
     # Databases made by older releases (and the latest), migrated and read by this commit.
     name: upgrade (${{ matrix.db }})
     runs-on: ubuntu-24.04
@@ -206,12 +267,14 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm build
+      - uses: actions/download-artifact@v8
+        with:
+          name: packages-dist
+          path: packages
       - run: node upgrade/run.ts ${{ matrix.db }}
 
   s3:
-    needs: scope
-    if: needs.scope.outputs.full == 'true'
+    needs: build
     runs-on: ubuntu-24.04
     services:
       # S3-compatible server that verifies SigV4 signatures (MinIO no longer publishes images).
@@ -233,14 +296,16 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm build
+      - uses: actions/download-artifact@v8
+        with:
+          name: packages-dist
+          path: packages
       - name: Wait for the S3 server
         run: for i in $(seq 1 30); do curl -s -o /dev/null localhost:9000 && exit 0; sleep 1; done; exit 1
       - run: pnpm --filter @easy-cms/storage-s3 test
 
   multi-instance:
-    needs: scope
-    if: needs.scope.outputs.full == 'true'
+    needs: build
     # Two `easy-cms serve` instances on one Postgres and one S3 bucket, behind a round-robin
     # proxy (ADR-0051): REST, sessions and CSRF, login rate limits, uploads and jobs.
     runs-on: ubuntu-24.04
@@ -273,7 +338,10 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm build
+      - uses: actions/download-artifact@v8
+        with:
+          name: packages-dist
+          path: packages
       - name: Wait for the S3 server
         run: for i in $(seq 1 30); do curl -s -o /dev/null localhost:9000 && exit 0; sleep 1; done; exit 1
       - run: pnpm --filter easy-cms-integration-tests test:multi-instance
@@ -290,8 +358,7 @@ jobs:
       - run: docker/test.sh easy-cms:test
 
   e2e:
-    needs: scope
-    if: needs.scope.outputs.full == 'true'
+    needs: build
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -301,7 +368,10 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm build
+      - uses: actions/download-artifact@v8
+        with:
+          name: packages-dist
+          path: packages
       - run: pnpm --filter easy-cms-e2e exec playwright install --with-deps chromium
       - run: pnpm test:e2e
       - uses: actions/upload-artifact@v7
@@ -314,8 +384,7 @@ jobs:
   # The packages come from this commit, published to a local registry (Verdaccio).
   template:
     # templates/next-starter (the one-click deploy) with this commit's packages: build, start, pages.
-    needs: scope
-    if: needs.scope.outputs.full == 'true'
+    needs: build
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -325,24 +394,20 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm turbo run build --filter="./packages/*"
+      - uses: actions/download-artifact@v8
+        with:
+          name: packages-dist
+          path: packages
       - run: node scripts/check-template.mjs
 
   smoke:
-    needs: scope
-    if: needs.scope.outputs.full == 'true'
+    needs: [scope, build]
     name: smoke (${{ matrix.pm }}${{ matrix.yarn && format(' {0}', matrix.yarn) || '' }}, ${{ matrix.os }})
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - { os: ubuntu-24.04, pm: npm }
-          - { os: ubuntu-24.04, pm: pnpm }
-          - { os: ubuntu-24.04, pm: yarn, yarn: stable }
-          - { os: ubuntu-24.04, pm: yarn, yarn: '1.22.22' }
-          - { os: ubuntu-24.04, pm: bun }
-          - { os: windows-latest, pm: npm }
-          - { os: windows-latest, pm: pnpm }
+        # Every package manager on main, a few on pull requests (the scope job's list).
+        include: ${{ fromJSON(needs.scope.outputs.smoke) }}
     runs-on: ${{ matrix.os }}
     env:
       COREPACK_ENABLE_DOWNLOAD_PROMPT: '0'
@@ -354,7 +419,10 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm turbo run build --filter="./packages/*"
+      - uses: actions/download-artifact@v8
+        with:
+          name: packages-dist
+          path: packages
       - if: matrix.pm == 'bun'
         uses: oven-sh/setup-bun@v2
       # Corepack's yarn in its own directory, ahead of the runner's preinstalled Yarn 1.
@@ -381,8 +449,8 @@ jobs:
   # its bare name, so "test (ubuntu-latest, 24)" never shows up on "Version Packages": this job
   # always runs and fails only when a job it needs failed or was cancelled. Skipped ones pass.
   ci-ok:
-    needs: [scope, lint, test, coverage, postgres, pgbouncer, upgrade, s3, multi-instance, docker,
-      e2e, template, smoke]
+    needs: [scope, lint, build, typecheck, test, postgres, pgbouncer, upgrade, s3, multi-instance,
+      docker, e2e, template, smoke]
     if: always()
     runs-on: ubuntu-24.04
     steps:
