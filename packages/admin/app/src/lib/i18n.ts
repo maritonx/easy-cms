@@ -539,6 +539,8 @@ const en = {
   'preview.reload': 'Reload',
   'preview.open': 'Open in new tab',
   'preview.none': 'This document has no page to preview.',
+  'preview.quiet':
+    'No answer from {site} yet. If the panel stays empty, check the site is running and the `preview` URL in the config. If the page shows but doesn’t follow your edits, add live preview to the site.',
   'media.upload': 'Upload files',
   'media.drop': 'Drop files here or choose files to upload',
   'media.uploading': 'Uploading {name}…',
@@ -1466,6 +1468,8 @@ const th: Record<MessageKey, string> = {
   'preview.reload': 'โหลดใหม่',
   'preview.open': 'เปิดในแท็บใหม่',
   'preview.none': 'เอกสารนี้ไม่มีหน้าให้ดูตัวอย่าง',
+  'preview.quiet':
+    'ยังไม่ได้รับการตอบจาก {site} ถ้าแผงยังว่าง ตรวจว่าเว็บรันอยู่ และ URL ของ `preview` ใน config ถูกต้อง ถ้าหน้าเว็บแสดงแล้วแต่ไม่เปลี่ยนตามที่แก้ ให้เพิ่ม live preview ในเว็บ',
   'media.upload': 'อัปโหลดไฟล์',
   'media.drop': 'ลากไฟล์มาวางที่นี่ หรือเลือกไฟล์เพื่ออัปโหลด',
   'media.uploading': 'กำลังอัปโหลด {name}…',

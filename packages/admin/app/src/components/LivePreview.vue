@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { api } from '../lib/api'
 import { t } from '../lib/i18n'
 
@@ -21,6 +21,29 @@ const error = ref('')
 let latest: Record<string, unknown> | null = null
 let timer: ReturnType<typeof setTimeout> | undefined
 let request = 0
+
+/** The page's site, named in the header (e.g. `localhost:5173`). */
+const site = computed(() => (src.value ? new URL(src.value).host : ''))
+/**
+ * The page said it is ready (live preview on the site). Without it after a while, a hint: the
+ * browser doesn't tell the admin whether a page of another site loaded, so the site may be down
+ * (an empty panel) or up without live preview (a page that doesn't follow the form).
+ */
+const ready = ref(false)
+const quiet = ref(false)
+const QUIET_AFTER = 10_000
+let quietTimer: ReturnType<typeof setTimeout> | undefined
+function listen() {
+  ready.value = false
+  quiet.value = false
+  clearTimeout(quietTimer)
+  quietTimer = setTimeout(() => {
+    if (!ready.value) quiet.value = true
+  }, QUIET_AFTER)
+}
+watch(src, (value) => {
+  if (value) listen()
+})
 
 /** Sends the current document to the page (after it said it is ready, or on every change). */
 function send() {
@@ -56,12 +79,21 @@ async function refresh() {
 }
 
 function onMessage(event: MessageEvent) {
-  if (event.source === frame.value?.contentWindow && event.data?.type === 'easy-cms:preview-ready')
+  if (
+    event.source === frame.value?.contentWindow &&
+    event.data?.type === 'easy-cms:preview-ready'
+  ) {
+    ready.value = true
+    quiet.value = false
     send()
+  }
 }
 
 function reload() {
-  if (frame.value && src.value) frame.value.src = src.value
+  if (frame.value && src.value) {
+    frame.value.src = src.value
+    listen()
+  }
 }
 
 // Another content locale: load that locale's page (its URL may differ).
@@ -87,13 +119,17 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener('message', onMessage)
   clearTimeout(timer)
+  clearTimeout(quietTimer)
 })
 </script>
 
 <template>
   <section class="card preview" :aria-label="t('preview.title')">
     <header>
-      <h2>{{ t('preview.title') }}</h2>
+      <h2>
+        {{ t('preview.title') }}
+        <span v-if="site" class="site">{{ site }}</span>
+      </h2>
       <div v-if="src" class="tools">
         <button type="button" class="btn btn-small" @click="reload">{{ t('preview.reload') }}</button>
         <a :href="src" target="_blank" rel="noopener" class="btn btn-small">{{ t('preview.open') }}</a>
@@ -101,6 +137,7 @@ onBeforeUnmount(() => {
     </header>
     <p v-if="error" class="field-error">{{ error }}</p>
     <p v-else-if="noPage" class="muted">{{ t('preview.none') }}</p>
+    <p v-if="quiet && src && !error" class="quiet" role="status">{{ t('preview.quiet', { site }) }}</p>
     <iframe v-else-if="src" ref="frame" :src="src" :title="t('preview.title')" />
     <p v-else class="muted loading-line" aria-live="polite"><span class="spinner" aria-hidden="true" />{{ t('common.loading') }}</p>
   </section>
@@ -124,8 +161,28 @@ header {
   border-bottom: 1px solid var(--border);
 }
 h2 {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  min-width: 0;
   margin: 0;
   font-size: 0.95rem;
+}
+.site {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.quiet {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-size: 0.8125rem;
 }
 .tools {
   display: flex;
