@@ -124,7 +124,8 @@ async function upgradeFrom(version: string) {
     cpSync(join(import.meta.dirname, 'project'), project, { recursive: true })
     if (db === 'postgres') await resetPostgres()
 
-    // The old release: install, create the schema with its migrations, fill it.
+    // The old release: install, create the schema with its migrations, fill it. CI caches
+    // ~/.npm, so the fixed old releases come from it; the latest may be newer than the cache.
     run(
       'npm',
       [
@@ -132,6 +133,7 @@ async function upgradeFrom(version: string) {
         '--no-audit',
         '--no-fund',
         '--no-package-lock',
+        ...(OLD_VERSIONS.includes(version) ? ['--prefer-offline'] : []),
         `@easy-cms/core@${version}`,
         `@easy-cms/db-sqlite@${version}`,
         `@easy-cms/db-postgres@${version}`,
