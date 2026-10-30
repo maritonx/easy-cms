@@ -40,6 +40,12 @@ if (failed.length === 0) process.exit(first.code)
 console.log(
   `::warning title=Test worker crashed (libsql-js#231)::Running the tests of ${failed.join(', ')} again`,
 )
-const kept = args.filter((a) => !a.startsWith('--filter'))
-const again = await turbo([...kept, ...failed.map((name) => `--filter=${name}`)])
+// The filters go to turbo, before `--` and what follows it (vitest's own arguments).
+const end = args.includes('--') ? args.indexOf('--') : args.length
+const kept = args.slice(0, end).filter((a) => !a.startsWith('--filter'))
+const again = await turbo([
+  ...kept,
+  ...failed.map((name) => `--filter=${name}`),
+  ...args.slice(end),
+])
 process.exit(again.code)
