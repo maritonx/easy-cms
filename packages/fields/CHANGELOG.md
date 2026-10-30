@@ -1,5 +1,12 @@
 # @easy-cms/fields
 
+## 1.24.0
+
+### Patch Changes
+
+- Updated dependencies [4871aef]
+  - @easy-cms/core@1.24.0
+
 ## 1.23.1
 
 ### Patch Changes
