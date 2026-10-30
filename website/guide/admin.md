@@ -252,6 +252,17 @@ admin: {
 
 The calendar loads only when someone opens it.
 
+### The Calendar page
+
+When a collection has `admin.calendar` or `schedule`, the menu gets **Calendar**, right after
+Content. It shows every such collection's documents, each in its own colour, and what is scheduled
+to publish or unpublish (outlined), across the site. Each person can hide some of them; the page
+remembers it in their browser. Clicking opens the document; to create one from a date, use the
+collection's own Calendar mode.
+
+Everyone signed in sees it, with only what they may read (scheduled publishes: what they may
+edit). With `auth.rbac`, roles get it in Settings → Roles (`calendar`); admins always do.
+
 ## Time zone
 
 With `timeZone` in the config (see [Configuration](../reference/config)), the admin shows every date

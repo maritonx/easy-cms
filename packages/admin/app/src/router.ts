@@ -58,6 +58,12 @@ export const router = createRouter({
         { path: 'backups', name: 'backups', component: () => import('./views/BackupsView.vue') },
         // Settings → Email (admins).
         { path: 'email', name: 'email', component: () => import('./views/EmailView.vue') },
+        // The Calendar page: documents with `admin.calendar` and scheduled publishing (#272).
+        {
+          path: 'calendar',
+          name: 'calendar',
+          component: () => import('./views/CalendarPageView.vue'),
+        },
         // Settings → Jobs (admins, roles given it).
         { path: 'jobs', name: 'jobs', component: () => import('./views/JobsView.vue') },
         // Saved webhook deliveries and emails (admins, roles given them).

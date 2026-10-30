@@ -13,7 +13,7 @@ import type { CollectionConfig, ResolvedConfig } from './config.js'
 import type { Database, RawDocument } from './database.js'
 import { EasyCMSError, NotFoundError, ValidationError } from './errors.js'
 import type { Field, Label } from './fields.js'
-import { hasJobsPage } from './rest/admin-jobs.js'
+import { hasCalendarPage, hasJobsPage } from './rest/admin-jobs.js'
 import { VersionStore } from './versions.js'
 
 /** What a role may do with a collection or global, ticked in Settings → Roles. */
@@ -229,7 +229,9 @@ export class Roles {
       typeof this.config.audit.scope === 'function'
     )
       return true
-    if (!this.enabled) return id.startsWith('page:') || id.startsWith('widget:')
+    // Without roles, the Calendar is everybody's, like plugin pages; it lists only what they may read.
+    if (!this.enabled)
+      return id === 'calendar' || id.startsWith('page:') || id.startsWith('widget:')
     return (await this.permissionsOf(user.role)).admin?.includes(id) ?? false
   }
 
@@ -553,6 +555,7 @@ export class Roles {
         ? [{ id: 'deliveries' }]
         : []),
       ...(hasJobsPage(this.config) ? [{ id: 'jobs' }] : []),
+      ...(hasCalendarPage(this.config) ? [{ id: 'calendar' }] : []),
       ...this.config.admin.pages.map((page) => ({ id: viewId.page(page.path), label: page.label })),
       ...this.config.admin.dashboard.map((widget) => ({
         id: viewId.widget(widget.id ?? tagOf(widget.component)),

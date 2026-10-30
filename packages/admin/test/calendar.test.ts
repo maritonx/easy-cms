@@ -1,6 +1,13 @@
 import type { AdminCollection } from '@easy-cms/core'
 import { describe, expect, it } from 'vitest'
-import { colorOf, eventOf, initialFor, momentOf, rangeWhere } from '../app/src/lib/calendar'
+import {
+  colorOf,
+  eventOf,
+  initialFor,
+  jobEvent,
+  momentOf,
+  rangeWhere,
+} from '../app/src/lib/calendar'
 
 // The browser's zone in these tests: UTC, wherever they run.
 process.env.TZ = 'UTC'
@@ -47,7 +54,8 @@ describe('calendar mode (#272)', () => {
       endsAt: '2026-10-30T19:00:00.000Z',
       kind: 'workshop',
     }
-    expect(eventOf(events, doc, '/admin/collections/events/7', bangkok)).toEqual({
+    const link = { href: '/admin/collections/events/7', to: '/collections/events/7' }
+    expect(eventOf(events, doc, link, bangkok)).toEqual({
       id: '7',
       title: 'Launch',
       start: '2026-10-31T00:30',
@@ -55,6 +63,7 @@ describe('calendar mode (#272)', () => {
       allDay: false,
       url: '/admin/collections/events/7',
       classNames: ['cal-c1'],
+      extendedProps: { to: '/collections/events/7' },
     })
     // Midnight to midnight in the zone: whole days.
     const days = eventOf(
@@ -65,7 +74,7 @@ describe('calendar mode (#272)', () => {
         startsAt: '2026-11-04T17:00:00.000Z',
         endsAt: '2026-11-06T17:00:00.000Z',
       },
-      '',
+      { href: '', to: '' },
       bangkok,
     )
     expect(days).toMatchObject({
@@ -75,10 +84,31 @@ describe('calendar mode (#272)', () => {
       classNames: [],
     })
     // Without a start, not on the calendar; without a title, its id.
-    expect(eventOf(events, { id: 9 }, '', bangkok)).toBeNull()
+    expect(eventOf(events, { id: 9 }, { href: '', to: '' }, bangkok)).toBeNull()
     expect(
       eventOf(events, { id: 10, startsAt: '2026-11-01T03:00:00.000Z' }, '', bangkok)?.title,
     ).toBe('#10')
+  })
+
+  it('shows a scheduled publish at its moment, outlined in its collection colour', () => {
+    const job = {
+      id: 3,
+      action: 'publish',
+      runAt: '2026-10-30T17:30:00.000Z',
+      collection: 'posts',
+      doc: 5,
+    } as never
+    expect(jobEvent(job, 'Publish: Launch', { href: '/h', to: '/t' }, bangkok, ['cal-c2'])).toEqual(
+      {
+        id: 'job:3',
+        title: 'Publish: Launch',
+        start: '2026-10-31T00:30',
+        allDay: false,
+        url: '/h',
+        classNames: ['cal-scheduled', 'cal-c2'],
+        extendedProps: { to: '/t' },
+      },
+    )
   })
 
   it('colours by select option, else by a hash of the value', () => {

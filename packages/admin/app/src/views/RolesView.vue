@@ -247,6 +247,7 @@ const views = computed(() =>
     if (view.id === 'deliveries') return { id: view.id, name: t('deliveries.title'), kind: '' }
     if (view.id === 'jobs') return { id: view.id, name: t('roles.viewJobs'), kind: '' }
     if (view.id === 'audit') return { id: view.id, name: t('audit.title'), kind: '' }
+    if (view.id === 'calendar') return { id: view.id, name: t('calendar.title'), kind: '' }
     const page = view.id.startsWith('page:')
     const fallback = view.id.slice(view.id.indexOf(':') + 1)
     return {

@@ -95,7 +95,7 @@ to apply them, as the REST API does.
 | `scheduleGlobal(slug, { action, at }, options?)` | job | The same for a global. |
 | `findGlobalSchedule(slug, options?)` | jobs | |
 | `cancelGlobalSchedule(slug, jobId, options?)` | — | |
-| `upcomingSchedules({ limit?, user?, overrideAccess? })` | jobs | The next pending jobs across everything. |
+| `upcomingSchedules({ limit?, from?, to?, user?, overrideAccess? })` | jobs | The next pending jobs across everything; `from`/`to` (ISO) keep those due in that range. |
 
 ### Jobs and webhooks
 

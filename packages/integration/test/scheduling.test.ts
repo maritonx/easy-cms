@@ -121,6 +121,39 @@ describe('scheduled publishing (FR-SCH)', () => {
     )
     const jobs = (await res.json()) as { action: string }[]
     expect(jobs.map((j) => j.action)).toEqual(['publish', 'publish'])
+
+    // A range, for the Calendar page (#272): the banner in a minute, not the post in an hour.
+    const at = (ms: number) => new Date(Date.now() + ms).toISOString()
+    const ranged = await cms.upcomingSchedules({ from: at(30_000), to: at(120_000) })
+    expect(ranged.map((j) => j.global ?? j.collection)).toEqual(['banner'])
+    const get = (query: string) =>
+      handle(
+        new Request(`http://cms.test/api/cms/admin/ui/scheduled?${query}`, {
+          headers: { authorization: `Bearer ${token}` },
+        }),
+      )
+    const inRange = await get(
+      `from=${encodeURIComponent(at(1_800_000))}&to=${encodeURIComponent(at(7_200_000))}`,
+    )
+    expect(((await inRange.json()) as { collection?: string }[]).map((j) => j.collection)).toEqual([
+      'posts',
+    ])
+    expect((await get('from=soon')).status).toBe(400)
+
+    // The Calendar page is in the menu, right after Content.
+    const schema = (await (
+      await handle(
+        new Request('http://cms.test/api/cms/admin/ui/schema', {
+          headers: { authorization: `Bearer ${token}` },
+        }),
+      )
+    ).json()) as {
+      views: { calendar: boolean }
+      nav: { kind: string; id?: string; view?: string }[]
+    }
+    expect(schema.views.calendar).toBe(true)
+    const top = schema.nav.map((n) => n.id ?? n.view)
+    expect(top.indexOf('calendar')).toBe(top.indexOf('content') + 1)
     await cms.destroy()
   })
 
