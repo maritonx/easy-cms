@@ -988,7 +988,8 @@ async function route(
       return { body: await adminStatus(cms) }
     }
     // /admin/ui/scheduled → the next scheduled publishes the user may manage (dashboard);
-    // with ?from=&to= (ISO moments), those in that range, for the Calendar page (#272)
+    // with ?from=&to= (ISO moments), those in that range, for the Calendar page (#272);
+    // with ?collection=(&docs=), those of a list page or its Scheduled filter (#303)
     if (second === 'scheduled' && third === undefined) {
       const moment = (name: string) => {
         const value = ctx.url.searchParams.get(name)
@@ -999,6 +1000,12 @@ async function route(
       }
       const from = moment('from')
       const to = moment('to')
+      // ?collection=posts&docs=1,2,3 → the jobs of a list page (#303)
+      const collection = ctx.url.searchParams.get('collection') ?? undefined
+      const docs = ctx.url.searchParams.get('docs')?.split(',').filter(Boolean)
+      if (docs && docs.length > SCHEDULED_RANGE_LIMIT)
+        throw new HttpError(`docs: at most ${SCHEDULED_RANGE_LIMIT}`, 400)
+      const ranged = from !== undefined || to !== undefined || collection !== undefined
       return {
         body: await cms.upcomingSchedules({
           user: ctx.user,
@@ -1006,7 +1013,9 @@ async function route(
           overrideAccess: false,
           ...(from !== undefined ? { from } : {}),
           ...(to !== undefined ? { to } : {}),
-          ...(from !== undefined || to !== undefined ? { limit: SCHEDULED_RANGE_LIMIT } : {}),
+          ...(collection !== undefined ? { collection } : {}),
+          ...(docs !== undefined ? { docs } : {}),
+          ...(ranged ? { limit: SCHEDULED_RANGE_LIMIT } : {}),
         }),
       }
     }

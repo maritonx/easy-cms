@@ -596,6 +596,17 @@ test.describe('logged in as admin', () => {
     const notice = page.getByText(/^Publishes on /)
     await expect(notice).toBeVisible()
     await shot(page, '12-scheduled')
+    // The status says so (#303): in the header, a button back to the dialog; in the list, with
+    // its own filter.
+    const chip = page.getByRole('button', { name: /^Scheduled · / })
+    await expect(chip).toBeVisible()
+    await chip.click()
+    await expect(dialog).toBeVisible()
+    await page.keyboard.press('Escape')
+    await page.goto('/admin/collections/posts?scheduled=1')
+    await expect(page.getByRole('row')).toHaveCount(2)
+    await expect(page.getByRole('row').nth(1)).toContainText(/Secret draft.*Scheduled · /s)
+    await page.getByRole('link', { name: 'Secret draft' }).click()
     await page.getByRole('button', { name: 'Cancel' }).click()
     await expect(notice).toHaveCount(0)
   })

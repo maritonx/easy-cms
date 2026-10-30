@@ -2789,10 +2789,16 @@ export class EasyCMS<C extends Config = Config> {
   /**
    * The next pending jobs across all collections and globals, soonest first; with access
    * enforced, only those the user may update. `from` and `to` (ISO) keep those due in that
-   * range, e.g. for a calendar.
+   * range, e.g. for a calendar; `collection` (and `docs`, its ids) those of a list page.
    */
   async upcomingSchedules(
-    options: AccessOptions & { limit?: number; from?: string; to?: string } = {},
+    options: AccessOptions & {
+      limit?: number
+      from?: string
+      to?: string
+      collection?: string
+      docs?: readonly ID[]
+    } = {},
   ): Promise<(ScheduledPublish & { collection?: string; global?: string; doc: ID })[]> {
     if (!this.config.collections.some((c) => c.slug === SCHEDULED_JOBS)) return []
     const guard = guardOf(options)
@@ -2807,6 +2813,9 @@ export class EasyCMS<C extends Config = Config> {
         and: [
           { state: { equals: 'pending' } },
           ...(Object.keys(due).length ? [{ runAt: due }] : []),
+          ...(options.collection !== undefined ? [{ parent: { equals: options.collection } }] : []),
+          // Jobs keep the document's id as a number (`doc`).
+          ...(options.docs !== undefined ? [{ doc: { in: options.docs.map(Number) } }] : []),
         ],
       },
       sort: ['runAt'],

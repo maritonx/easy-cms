@@ -8,7 +8,9 @@ import {
   dayAgenda,
 } from '../lib/calendar'
 import { locale, t } from '../lib/i18n'
+import { liveIdsOf, loadSchedules, type ShownStatus, shownStatus } from '../lib/status'
 import { adminTimeZone, dayStart, nextDay } from '../lib/time-zone'
+import StatusBadges from './StatusBadges.vue'
 import ZoneNote from './ZoneNote.vue'
 
 /**
@@ -32,6 +34,43 @@ const events = ref<CalendarEvent[]>([])
 const loading = ref(true)
 const error = ref('')
 
+/** Each document's status as people read it (#303): live or not, pending changes, scheduled jobs. */
+const statuses = ref(new Map<string, ShownStatus>())
+async function statusesOf(list: readonly CalendarEvent[]): Promise<Map<string, ShownStatus>> {
+  const out = new Map<string, ShownStatus>()
+  const bySlug = new Map<string, CalendarEvent[]>()
+  for (const e of list)
+    if (e.extendedProps.collection && e.extendedProps.docId && e.extendedProps.status)
+      bySlug.set(e.extendedProps.collection, [...(bySlug.get(e.extendedProps.collection) ?? []), e])
+  await Promise.all(
+    [...bySlug].map(async ([slug, items]) => {
+      const docs = items.map((e) => ({
+        id: e.extendedProps.docId as string,
+        status: e.extendedProps.status,
+      }))
+      const [live, jobs] = await Promise.all([
+        liveIdsOf(slug, docs).catch(() => new Set<string>()),
+        loadSchedules(
+          slug,
+          docs.map((d) => d.id),
+        ),
+      ])
+      for (const e of items) {
+        const id = e.extendedProps.docId as string
+        out.set(
+          e.id,
+          shownStatus(
+            e.extendedProps.status === 'published' || live.has(id),
+            live.has(id),
+            jobs.get(id),
+          ),
+        )
+      }
+    }),
+  )
+  return out
+}
+
 async function fetchDay() {
   loading.value = true
   error.value = ''
@@ -40,6 +79,7 @@ async function fetchDay() {
     const range = await props.load(dayStart(props.day, zone), dayStart(nextDay(props.day), zone))
     // A document that started before the day and goes on through it counts too.
     events.value = dayAgenda(range.events)
+    statuses.value = await statusesOf(events.value)
   } catch (e) {
     error.value = (e as Error).message
     events.value = []
@@ -111,9 +151,7 @@ function open(event: CalendarEvent, e: MouseEvent) {
             <span class="title">{{ event.title }}</span>
             <span class="meta">
               <template v-if="sourceOf && event.extendedProps.collection">{{ sourceOf(event.extendedProps.collection) }}</template>
-              <span v-if="event.extendedProps.status" :class="['badge', `badge-${event.extendedProps.status}`]">
-                {{ t(event.extendedProps.status === 'published' ? 'status.published' : 'status.draft') }}
-              </span>
+              <StatusBadges v-if="statuses.get(event.id)" :status="statuses.get(event.id) as ShownStatus" />
             </span>
           </span>
         </a>
