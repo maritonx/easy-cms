@@ -48,6 +48,12 @@ async function fromMenu(page: Page, group: string, name: string, exact = false) 
   await menu.getByRole('link', { name, exact }).click()
 }
 
+/** Opens the Account page from the account menu, at the foot of the rail. */
+async function openAccount(page: Page) {
+  await page.getByRole('button', { name: 'Account', exact: true }).click()
+  await page.getByRole('link', { name: 'Account', exact: true }).click()
+}
+
 /** Logs out from the account menu, at the foot of the rail. */
 async function logOut(page: Page) {
   await page.getByRole('button', { name: 'Account', exact: true }).click()
@@ -1140,7 +1146,7 @@ test.describe('logged in as admin', () => {
   })
 
   test('lists your own API keys on Account, to revoke them', async ({ page }) => {
-    await page.getByRole('link', { name: /Account/ }).click()
+    await openAccount(page)
     const panel = page.getByRole('region', { name: 'Your API keys' })
     await expect(panel.getByText('E2E importer')).toBeVisible()
     await panel.getByRole('button', { name: 'Revoke', exact: true }).click()
@@ -1714,7 +1720,7 @@ test.describe('logged in as editor', () => {
 
   test('hides actions the editor may not take (FR-ACL-06)', async ({ page }) => {
     await page.goto('/admin/collections/users')
-    await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Users', exact: true })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Create new' })).toHaveCount(0)
 
     await page.getByRole('link', { name: ADMIN.email }).click()
@@ -1741,7 +1747,7 @@ test.describe('logged in as editor', () => {
   })
 
   test('changes their own password (FR-ADM-13)', async ({ page }) => {
-    await page.getByRole('link', { name: /Account/ }).click()
+    await openAccount(page)
     await page.getByLabel('Change password').fill('a-brand-new-password')
     // Not without the current one.
     await page.getByRole('button', { name: 'Save changes' }).click()
@@ -1779,7 +1785,7 @@ test.describe('single sign-on', () => {
     await expect(page.getByRole('alert')).toContainText('You already have an account here')
 
     await login(page, { email: EDITOR.email, password: 'a-brand-new-password' })
-    await page.getByRole('link', { name: /Account/ }).click()
+    await openAccount(page)
     const accounts = page.getByRole('region', { name: 'Sign-in accounts' })
     await accounts.getByRole('button', { name: 'Link SSO' }).click()
     await page.getByLabel('Email').fill(EDITOR.email)
