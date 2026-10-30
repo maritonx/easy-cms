@@ -251,6 +251,11 @@ admin: {
 - A document starting at midnight with no end (or ending at midnight) fills whole days. Without
   `end`, the others take an hour.
 - `color` gives each value of a select or relationship field its own colour.
+- Drag a document to another day or time, or the end of one in the week and day views (with
+  `end`). **Move to…** in the day card does the same from the keyboard, keeping its length. A
+  message offers **Undo** for 8 seconds; a save the server refuses puts it back with the reason.
+  It saves like the edit page: with drafts and versions, a document that has a pending draft moves
+  in that draft, and the site changes when it is published. Moving needs permission to update.
 
 The calendar loads only when someone opens it.
 
@@ -259,7 +264,9 @@ The calendar loads only when someone opens it.
 When a collection has `admin.calendar` or `schedule`, the menu gets **Calendar**, right after
 Content. It shows every such collection's documents, each in its own colour, and what is scheduled
 to publish or unpublish (outlined), across the site. The **Show** card beside it hides some of
-them (remembered in each person's browser); the day card lists the day picked, today at first. Clicking opens the document; to create one from a date, use the
+them (remembered in each person's browser); the day card lists the day picked, today at first.
+Dragging a scheduled publish (or **Move to…**) schedules it again for the new time, for those
+who may publish. Clicking opens the document; to create one from a date, use the
 collection's own Calendar mode.
 
 Everyone signed in sees it, with only what they may read (scheduled publishes: what they may

@@ -56,15 +56,18 @@ describe('calendar mode (#272)', () => {
       kind: 'workshop',
     }
     const link = { href: '/admin/collections/events/7', to: '/collections/events/7' }
-    expect(eventOf(events, doc, link, bangkok)).toEqual({
-      id: '7',
+    expect(eventOf(events, doc, link, { timeZone: bangkok, canMove: true })).toEqual({
+      id: 'events:7',
       title: 'Launch',
       start: '2026-10-31T00:30',
       end: '2026-10-31T02:00',
       allDay: false,
       url: '/admin/collections/events/7',
       classNames: ['cal-c1'],
-      extendedProps: { to: '/collections/events/7', collection: 'events' },
+      // It moves, and with an `end` field its end does too.
+      startEditable: true,
+      durationEditable: true,
+      extendedProps: { to: '/collections/events/7', collection: 'events', docId: '7' },
     })
     // Midnight to midnight in the zone: whole days.
     const days = eventOf(
@@ -76,18 +79,25 @@ describe('calendar mode (#272)', () => {
         endsAt: '2026-11-06T17:00:00.000Z',
       },
       { href: '', to: '' },
-      bangkok,
+      { timeZone: bangkok },
     )
     expect(days).toMatchObject({
       start: '2026-11-05',
       end: '2026-11-07',
       allDay: true,
       classNames: [],
+      // Without permission, it stays put.
+      startEditable: false,
     })
     // Without a start, not on the calendar; without a title, its id.
-    expect(eventOf(events, { id: 9 }, { href: '', to: '' }, bangkok)).toBeNull()
+    expect(eventOf(events, { id: 9 }, { href: '', to: '' }, { timeZone: bangkok })).toBeNull()
     expect(
-      eventOf(events, { id: 10, startsAt: '2026-11-01T03:00:00.000Z' }, '', bangkok)?.title,
+      eventOf(
+        events,
+        { id: 10, startsAt: '2026-11-01T03:00:00.000Z' },
+        { href: '', to: '' },
+        { timeZone: bangkok },
+      )?.title,
     ).toBe('#10')
   })
 
@@ -99,17 +109,19 @@ describe('calendar mode (#272)', () => {
       collection: 'posts',
       doc: 5,
     } as never
-    expect(jobEvent(job, 'Publish: Launch', { href: '/h', to: '/t' }, bangkok, ['cal-c2'])).toEqual(
-      {
-        id: 'job:3',
-        title: 'Publish: Launch',
-        start: '2026-10-31T00:30',
-        allDay: false,
-        url: '/h',
-        classNames: ['cal-scheduled', 'cal-c2'],
-        extendedProps: { to: '/t', collection: 'posts', action: 'publish' },
-      },
-    )
+    const link = { href: '/h', to: '/t' }
+    const options = { timeZone: bangkok, classNames: ['cal-c2'], canMove: true }
+    expect(jobEvent(job, 'Publish: Launch', link, options)).toEqual({
+      id: 'job:3',
+      title: 'Publish: Launch',
+      start: '2026-10-31T00:30',
+      allDay: false,
+      url: '/h',
+      classNames: ['cal-scheduled', 'cal-c2'],
+      startEditable: true,
+      durationEditable: false,
+      extendedProps: { to: '/t', collection: 'posts', docId: '5', action: 'publish' },
+    })
   })
 
   it("lists a day's events: whole days first, then by time", () => {

@@ -744,7 +744,7 @@ const loadCalendar = (from: string, to: string) =>
           const target = docLink(id)
           return { href: router.resolve(target).href, to: router.resolve(target).fullPath }
         },
-        adminTimeZone.value,
+        { timeZone: adminTimeZone.value, canMove: collection.permissions.update },
       )
     : Promise.resolve({ events: [], tooMany: false })
 function onCalendarSelect(slot: { start: Date; end: Date; allDay: boolean }) {
@@ -1109,6 +1109,7 @@ async function deleteSelected(query = '') {
     <CalendarView
       v-if="calendarMode && collection.calendar"
       ref="calendarRef"
+      :config-of="() => calendarConfig"
       :load="loadCalendar"
       :reload-key="JSON.stringify(whereOf() ?? null)"
       :selectable="collection.permissions.create"
