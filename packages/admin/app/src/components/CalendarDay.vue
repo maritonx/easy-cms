@@ -9,6 +9,7 @@ import {
 } from '../lib/calendar'
 import { locale, t } from '../lib/i18n'
 import { adminTimeZone, dayStart, nextDay } from '../lib/time-zone'
+import ZoneNote from './ZoneNote.vue'
 
 /**
  * The selected day's events beside a calendar (#272): whole days first, then by time. Its own
@@ -133,16 +134,24 @@ function open(event: CalendarEvent, e: MouseEvent) {
       <Plus :size="15" aria-hidden="true" />
       {{ t('calendar.newOnDay') }}
     </button>
-    <dialog ref="dialog" class="move-dialog" aria-labelledby="calendar-move-heading" @close="moving = null">
+    <!-- As the admin's other dialogs (Schedule): a card over a dimmed page. -->
+    <dialog
+      ref="dialog"
+      class="dialog card move-dialog"
+      aria-labelledby="calendar-move-heading"
+      @cancel.prevent="dialog?.close()"
+      @close="moving = null"
+    >
       <form method="dialog" @submit.prevent="confirmMove">
         <h2 id="calendar-move-heading">{{ t('calendar.moveTitle', { title: moving?.title ?? '' }) }}</h2>
         <label class="field">
           <span class="field-label">{{ t('calendar.moveAt') }}</span>
-          <input v-model="at" class="input" type="datetime-local" required />
+          <input v-model="at" class="input" type="datetime-local" required aria-describedby="calendar-move-zone" />
+          <ZoneNote id="calendar-move-zone" />
         </label>
         <div class="actions">
           <button type="button" class="btn" @click="dialog?.close()">{{ t('common.cancel') }}</button>
-          <button type="submit" class="btn btn-primary">{{ t('calendar.move') }}</button>
+          <button type="submit" class="btn btn-primary" :disabled="!at">{{ t('calendar.move') }}</button>
         </div>
       </form>
     </dialog>
@@ -176,18 +185,30 @@ function open(event: CalendarEvent, e: MouseEvent) {
 .move {
   flex: none;
 }
-.move-dialog form {
-  display: grid;
-  gap: 0.75rem;
+.dialog {
+  width: min(24rem, calc(100vw - 2rem));
+  padding: 1.25rem;
+  color: var(--text);
+  box-shadow: var(--shadow);
 }
-.move-dialog h2 {
+.dialog::backdrop {
+  background: rgb(0 0 0 / 35%);
+}
+.dialog form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.dialog h2 {
   margin: 0;
   font-size: 1rem;
+  /* A long title wraps instead of widening the dialog. */
+  overflow-wrap: anywhere;
 }
-.move-dialog .actions {
+.dialog .actions {
   display: flex;
-  gap: 0.5rem;
   justify-content: flex-end;
+  gap: 0.5rem;
 }
 .day-item {
   display: grid;
