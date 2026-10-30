@@ -1,5 +1,11 @@
 # @easy-cms/admin
 
+## 1.25.1
+
+### Patch Changes
+
+- 9da03cc: The screenshots in the docs, the README and on the website show the two-column menu.
+
 ## 1.25.0
 
 ### Minor Changes
