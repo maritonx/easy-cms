@@ -1,6 +1,6 @@
 {
   "name": "@easy-cms/core",
-  "version": "1.19.0",
+  "version": "1.20.0",
   "description": "Embedded, code-first headless CMS for Nuxt and Next.js",
   "license": "MIT",
   "type": "module",
