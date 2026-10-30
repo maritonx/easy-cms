@@ -9,6 +9,10 @@ pnpm dev                      # http://localhost:4000/admin, reloads on config c
 npx serve -l 5173 frontend    # a page on another origin that reads the API (CORS)
 ```
 
+The admin's live preview opens that page; run both for it to show anything. Elsewhere, set
+`CMS_URL` and `FRONTEND_URL` (e.g. `http://localhost:4020`, `http://localhost:4021`); CORS follows
+`FRONTEND_URL` unless `CORS_ORIGINS` is set.
+
 Production:
 
 ```bash

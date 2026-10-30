@@ -24,7 +24,7 @@ export default defineConfig({
   // Posts and the site name in Thai and English; the slug and other fields are shared.
   localization: { locales: ['th', 'en'], defaultLocale: 'th' },
   // A frontend on another origin (Vite, a static site…) reads the API from the browser.
-  cors: (process.env.CORS_ORIGINS ?? 'http://localhost:5173').split(','),
+  cors: (process.env.CORS_ORIGINS ?? frontendURL).split(','),
   upload: {
     // Resized copies need `sharp` installed; without it only the original is kept.
     imageSizes: [

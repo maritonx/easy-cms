@@ -107,6 +107,10 @@ not read are left out, and their links stop working when the user is deactivated
 - A preview token only opens the document it was made for, expires after an hour, and is refused
   when tampered with. Treat preview URLs like a temporary share link.
 - Only users who may update a document (or create one, for new documents) can preview it.
+- The panel names the site it opens. When the page hasn't said it is ready after ten seconds, the
+  panel says so: an empty panel means the site isn't running or `preview` points elsewhere; a page
+  that doesn't follow your edits needs live preview added (see above). A draft that was never
+  published previews like any other document.
 
 ## Next steps
 
