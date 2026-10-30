@@ -1,5 +1,14 @@
 # @easy-cms/plugin-seo
 
+## 1.23.0
+
+### Patch Changes
+
+- Updated dependencies [bc56e54]
+- Updated dependencies [5e7e8ab]
+  - @easy-cms/core@1.23.0
+  - @easy-cms/richtext@1.23.0
+
 ## 1.22.0
 
 ### Patch Changes
