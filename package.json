@@ -30,6 +30,13 @@
     "vitest": "^5.0.1"
   },
   "pnpm": {
+    "overrides": {
+      "@esbuild-kit/core-utils>esbuild": "^0.25.0",
+      "@vercel/cli-config>zod": "^4.6.6",
+      "glob@>=9 <14.0.2": "^14.0.2",
+      "minimatch@<11.0.1": "^11.0.1",
+      "vitepress>vite": "^6.4.4"
+    },
     "onlyBuiltDependencies": [
       "esbuild",
       "sharp"
