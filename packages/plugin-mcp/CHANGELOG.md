@@ -1,5 +1,13 @@
 # @easy-cms/plugin-mcp
 
+## 1.29.0
+
+### Patch Changes
+
+- 644078b: Relationships to several collections: `{ name: 'link', type: 'relationship', to: ['posts', 'pages'] }` stores `{ relationTo, value }` (a list with `hasMany`), populates each value from its own collection with its access, and types it as a union told apart by `relationTo`. Filter with `'link.pages': { in: [3] }`, `link.relationTo` or `link.value`. In the admin, the picker switches collections beside the search, chips and columns show "Page · About", and the filter panel offers each collection. `filterOptions` gets `relationTo`. A relationship that gets more collections keeps its links: the migration assigns them to the first collection in `to` (#327).
+- Updated dependencies [644078b]
+  - @easy-cms/core@1.29.0
+
 ## 1.28.0
 
 ### Patch Changes

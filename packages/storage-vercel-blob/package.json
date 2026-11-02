@@ -1,6 +1,6 @@
 {
   "name": "@easy-cms/storage-vercel-blob",
-  "version": "1.28.0",
+  "version": "1.29.0",
   "description": "Vercel Blob upload storage for Easy CMS",
   "license": "MIT",
   "type": "module",
