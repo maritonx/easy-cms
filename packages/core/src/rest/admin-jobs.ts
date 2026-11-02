@@ -231,6 +231,18 @@ export async function retryOutbox(cms: EasyCMS, user: AuthUser, id: string): Pro
     throw new EasyCMSError('Only failed entries can be retried', 409)
 }
 
+/** Puts a failed scheduled publish back in the queue and runs it (admins of the whole system). */
+export async function retryScheduled(cms: EasyCMS, user: AuthUser, id: string): Promise<void> {
+  if (!isSystemAdmin(user)) throw new ForbiddenError()
+  if (!has(cms.config, SCHEDULED_JOBS)) throw new NotFoundError(SCHEDULED_JOBS, id)
+  const parsed = parseId(id)
+  const row =
+    parsed === undefined ? null : await cms.db.findById({ collection: SCHEDULED_JOBS, id: parsed })
+  if (!row) throw new NotFoundError(SCHEDULED_JOBS, id)
+  if (!(await cms.retryScheduled(row.id)))
+    throw new EasyCMSError('Only failed jobs can be retried', 409)
+}
+
 /** What an admin may change on a job (`PATCH <api>/admin/jobs/:name`). */
 export interface AdminJobUpdate {
   paused?: boolean
