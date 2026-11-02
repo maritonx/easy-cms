@@ -157,7 +157,8 @@ type Params = Record<string, string | number | boolean | null | undefined>
 export function createClient<C extends ClientSchema = Record<never, never>>(
   options: ClientOptions,
 ): EasyCMSClient<C> {
-  const base = options.url.replace(/\/+$/, '')
+  let base = options.url
+  while (base.endsWith('/')) base = base.slice(0, -1)
   const doFetch = options.fetch ?? ((input, init) => fetch(input, init))
 
   async function get(path: string, params: Params, init: FetchOptions | undefined) {
