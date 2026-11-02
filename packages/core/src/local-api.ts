@@ -62,8 +62,10 @@ import { type EmailMessage, type EmailQueue, Mailer, type QueuedEmail } from './
 import {
   ConfigError,
   EasyCMSError,
+  errorText,
   type FieldError,
   ForbiddenError,
+  isPassingError,
   NotFoundError,
   PayloadTooLargeError,
   QueryError,
@@ -2639,7 +2641,7 @@ export class EasyCMS<C extends Config = Config> {
       if (!claimed) continue
       const parent = String(row.parent)
       const action = row.action as ScheduledPublish['action']
-      try {
+      const run = async () => {
         if (parent.startsWith('global:')) {
           const { slug, scope } = splitGlobalKey(parent.slice('global:'.length))
           if (action === 'publish')
@@ -2656,6 +2658,22 @@ export class EasyCMS<C extends Config = Config> {
             'unpublish',
           )
         }
+      }
+      try {
+        // An error that passes (the database didn't answer) is tried again, seconds apart (#333).
+        for (let attempt = 0; ; attempt++) {
+          try {
+            await run()
+            break
+          } catch (error) {
+            const wait = SCHEDULED_RETRY_DELAYS[attempt]
+            if (wait === undefined || !isPassingError(error)) throw error
+            this.logger.warn(
+              `Scheduled ${action} of ${parent} ${row.doc}: ${errorText(error)}; trying again`,
+            )
+            await new Promise((resolve) => setTimeout(resolve, wait))
+          }
+        }
         await this.db.update({
           collection: SCHEDULED_JOBS,
           id: row.id,
@@ -2664,7 +2682,8 @@ export class EasyCMS<C extends Config = Config> {
         ran++
       } catch (error) {
         failed++
-        const message = (error as Error).message
+        // With its causes: a driver's own error is often only there.
+        const message = errorText(error)
         this.logger.error(`Scheduled ${action} of ${parent} ${row.doc} failed: ${message}`, {
           error,
         })
@@ -2674,13 +2693,30 @@ export class EasyCMS<C extends Config = Config> {
           data: {
             ...row,
             state: 'failed',
-            error: message.slice(0, 500),
+            error: message,
             updatedAt: new Date().toISOString(),
           },
         })
       }
     }
     return { ran, failed }
+  }
+
+  /**
+   * Puts a failed scheduled publish or unpublish back in the queue and runs what is due (#333).
+   * Returns `false` when the job isn't a failed one.
+   */
+  async retryScheduled(id: ID): Promise<boolean> {
+    const row = await this.db.findById({ collection: SCHEDULED_JOBS, id })
+    if (!row || row.state !== 'failed') return false
+    const claimed = await this.claim(
+      SCHEDULED_JOBS,
+      row,
+      { state: 'pending', error: null, updatedAt: new Date().toISOString() },
+      { state: { equals: 'failed' } },
+    )
+    if (claimed) await this.runScheduled()
+    return claimed
   }
 
   /** Schedules a publish or unpublish, replacing a pending job with the same action. */
@@ -4259,6 +4295,8 @@ const JOBS_RAN = 'easy-cms:jobs-ran'
 const LEGACY_JOB_RUNS = 'easy-cms:jobs'
 /** A scheduled job claimed this long ago by a process that never finished it goes back to the queue. */
 const JOB_LEASE = 10 * 60_000
+/** Waits before trying a scheduled job again after an error that passes (#333). */
+const SCHEDULED_RETRY_DELAYS = [1_000, 3_000]
 
 /** `3600`, `'30m'`, `'1h'`, `'7d'` as seconds; at most 7 days. */
 function durationSeconds(value: number | string): number {

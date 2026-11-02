@@ -155,3 +155,45 @@ export class PayloadTooLargeError extends EasyCMSError {
     this.name = 'PayloadTooLargeError'
   }
 }
+
+/**
+ * An error's message with the messages of its causes, e.g. `Failed query: … — fetch failed`: a
+ * database driver's own error is often only in `cause`. At most `max` characters.
+ */
+export function errorText(error: unknown, max = 500): string {
+  const parts: string[] = []
+  let current: unknown = error
+  for (let depth = 0; current && depth < 5; depth++) {
+    const message =
+      current instanceof Error ? current.message : typeof current === 'string' ? current : ''
+    const code = (current as { code?: unknown }).code
+    const text = [message, typeof code === 'string' && !message.includes(code) ? code : '']
+      .filter(Boolean)
+      .join(' ')
+    if (text && !parts.some((p) => p.includes(text))) parts.push(text)
+    current = (current as { cause?: unknown }).cause
+  }
+  const text = parts.join(' — ') || String(error)
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text
+}
+
+const PASSING =
+  /ECONNRESET|ECONNREFUSED|ETIMEDOUT|EPIPE|EAI_AGAIN|ENOTFOUND|fetch failed|socket hang up|network|timed? ?out|SQLITE_BUSY|database is locked|too many (clients|connections)|connection (terminated|closed|reset|refused)|server closed|stream (expired|not found)|\b50[234]\b/i
+
+/**
+ * Whether an error is one that passes (the database or the network didn't answer), so trying
+ * again a moment later may work: not a validation or access error.
+ */
+export function isPassingError(error: unknown): boolean {
+  if (error instanceof EasyCMSError) return false
+  let current: unknown = error
+  for (let depth = 0; current && depth < 5; depth++) {
+    const message = current instanceof Error ? current.message : String(current)
+    const code = (current as { code?: unknown }).code
+    // A driver's "Failed query: <SQL> params: …" holds the data, not the reason: its cause does.
+    const checked = message.startsWith('Failed query') ? '' : message
+    if (PASSING.test(checked) || (typeof code === 'string' && PASSING.test(code))) return true
+    current = (current as { cause?: unknown }).cause
+  }
+  return false
+}

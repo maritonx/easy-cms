@@ -231,6 +231,18 @@ async function retryEntry(entry: AdminOutboxEntry) {
     retrying.value = null
   }
 }
+// A failed scheduled publish: back in the queue, run now (admins of the whole system).
+async function retryJob(job: AdminScheduledJob) {
+  retrying.value = `scheduled:${job.id}`
+  try {
+    data.value = await api<AdminJobs>('POST', `/admin/jobs/scheduled/${job.id}`)
+    notify('success', t('jobs.scheduled.retried'))
+  } catch (e) {
+    notify('error', e instanceof ApiError ? e.message : String(e))
+  } finally {
+    retrying.value = null
+  }
+}
 const outboxTarget = (entry: AdminOutboxEntry) => {
   if (entry.global) {
     const g = session.schema?.globals.find((x) => x.slug === entry.global)
@@ -444,6 +456,7 @@ const docs = computed(() => `https://easycms.dev${locale.value === 'th' ? '/th' 
                 <th>{{ t('jobs.action') }}</th>
                 <th>{{ t('jobs.document') }}</th>
                 <th>{{ t('jobs.state') }}</th>
+                <th><span class="visually-hidden">{{ t('jobs.outbox.retry') }}</span></th>
               </tr>
             </thead>
             <tbody>
@@ -456,9 +469,20 @@ const docs = computed(() => `https://easycms.dev${locale.value === 'th' ? '/th' 
                     <span class="muted kind">{{ kindOf(job) }}</span>
                   </td>
                   <td><span :class="['status', job.state]">{{ t(`jobs.state.${job.state}`) }}</span></td>
+                  <td>
+                    <button
+                      v-if="job.state === 'failed' && data.canChange"
+                      type="button"
+                      class="btn btn-sm"
+                      :disabled="retrying !== null"
+                      @click="retryJob(job)"
+                    >
+                      {{ t('jobs.outbox.retry') }}
+                    </button>
+                  </td>
                 </tr>
                 <tr v-if="job.error" class="error-row">
-                  <td colspan="4"><code>{{ job.error }}</code></td>
+                  <td colspan="5"><code>{{ job.error }}</code></td>
                 </tr>
               </template>
             </tbody>

@@ -104,6 +104,7 @@ to apply them, as the REST API does.
 | `runJobs(now?)` | `{ scheduled, webhooks, emails, jobs, outbox }` | Due scheduled jobs, webhook and email retries, the config's `jobs`, and outbox entries that are due (what cron and the timer call). |
 | `emit(event, data, about?)` | — | Sends an event of the config's `events` (e.g. `order.paid`) to the webhooks that list it; `about`: `{ collection, id }`. [Webhooks](/guide/webhooks#your-own-events) |
 | `runScheduled(now?)` | `{ ran, failed }` | Only the due scheduled jobs. |
+| `retryScheduled(id)` | `boolean` | Puts a failed scheduled job back in the queue and runs what is due; `false` when it isn't a failed one. |
 | `retryWebhooks(now?)` | `{ sent, failed }` | Only the due webhook retries. |
 | `startScheduler(interval?)` | — | Runs `runJobs` every `interval` ms (default one minute). `createEasyCMS` starts it when something is scheduled or webhooks are set. |
 | `flushWebhooks()` | — | Waits for deliveries in progress; call before a serverless function returns. |
