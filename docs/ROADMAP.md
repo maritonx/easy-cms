@@ -48,6 +48,7 @@
 | [`Scale (1M documents)`](https://github.com/maritonx/easy-cms/milestone/7) | — | performance ที่ 1M เอกสาร (ปิดแล้ว 2026-10-29) |
 | [`Admin lists & shop`](https://github.com/maritonx/easy-cms/milestone/8) | — | รายการใน admin (saved views, ตัวกรอง, CSV) และ Omise |
 | [`Fields & editor`](https://github.com/maritonx/easy-cms/milestone/10) | — | ui field, ลิงก์และ block ใน rich text, relationship ไปหลาย collection (ทำก่อนส่วนที่เหลือของ M8 และ M9) |
+| [`Edge reads`](https://github.com/maritonx/easy-cms/milestone/11) | — | อ่านเนื้อหาจาก edge runtime ด้วย `@easy-cms/core/client` ตัว CMS ยังอยู่บน Node.js |
 | [`Integrations & social`](https://github.com/maritonx/easy-cms/milestone/9) | — | หน้า Integrations ให้ plugin เชื่อมกับผู้ให้บริการภายนอก และโพสไปหลายช่องทาง |
 
 ### Labels
@@ -189,6 +190,17 @@
 | [#326](https://github.com/maritonx/easy-cms/issues/326) | Rich text: links to documents, kept by id | area:core, area:admin | ลิงก์ไปบทความและหน้า เปลี่ยน slug แล้ว HTML ตาม เอกสารที่ถูกลบแสดงเป็นข้อความ |
 | [#327](https://github.com/maritonx/easy-cms/issues/327) | Relationships to several collections | area:core, area:admin, area:adapters | `to: ['posts', 'pages']` กรองด้วย `relationTo` ได้ populate และสิทธิ์แยกตาม collection type เป็น union |
 | [#328](https://github.com/maritonx/easy-cms/issues/328) | Rich text: blocks between paragraphs | area:core, area:admin | การ์ดเอกสารและ callout ในเนื้อหา validate และ populate ได้ แสดงด้วย renderer ของผู้ใช้ |
+
+### M11 — `Edge reads` (ไม่กำหนดวัน) {#m11}
+
+จากการคุยเรื่อง Edge Runtime (2026-11-02): รองรับทั้ง Vercel และ Cloudflare เฉพาะ**การอ่านเนื้อหา**
+- ตัว CMS (แอดมิน, API, การบันทึก) อยู่บน Node.js เพราะใช้ scrypt (รหัสผ่าน), sharp (ขนาดรูป), driver แบบ TCP, SMTP และ disk ซึ่ง Edge ไม่มี และ Edge ที่อยู่ไกลฐานข้อมูลทำให้ query ช้าลงอยู่แล้ว
+- client เป็น subpath ของ core ไม่ใช่แพ็กเกจใหม่ core ติดตั้งแค่ `jiti` (`sharp` เป็น optional peer) และ subpath นี้มี entry ของตัวเอง ไม่มี code splitting และมีเทสต์ว่าไฟล์ที่ build ไม่มี `node:`
+- อ่านอย่างเดียวก่อน การเขียนค่อยเพิ่มเมื่อมีคนขอ cache ใช้ของแพลตฟอร์ม (ส่ง option ของ `fetch` ต่อให้) ไม่ทำ cache เอง
+
+| # | Issue | Labels | เสร็จเมื่อ |
+|---|---|---|---|
+| [#336](https://github.com/maritonx/easy-cms/issues/336) | Read content on the edge: @easy-cms/core/client | area:core | อ่านบทความ global และฉบับร่างด้วย preview token ได้ใน `edge-runtime` และ `workerd` ใน CI, ไฟล์ที่ build ไม่มี `node:`, หน้า edge ในตัวอย่าง Next แสดงเนื้อหาได้ |
 
 ### M9 — `Integrations & social` (ไม่กำหนดวัน) {#m9}
 
