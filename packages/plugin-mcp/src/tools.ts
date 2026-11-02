@@ -1,11 +1,11 @@
-import {
-  type AuthUser,
-  type CollectionConfig,
-  type EasyCMS,
-  type GlobalConfig,
-  type ID,
-  type RequestContext,
-  type Where,
+import type {
+  AuthUser,
+  CollectionConfig,
+  EasyCMS,
+  GlobalConfig,
+  ID,
+  RequestContext,
+  Where,
 } from '@easy-cms/core'
 import { INTERNAL_COLLECTIONS, keyAllows } from '@easy-cms/core/internal'
 import { type JsonSchema, objectSchema, prepareInput } from './schema.js'

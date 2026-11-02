@@ -7,6 +7,8 @@ type Data = Record<string, unknown>
 export function initialValues(fields: readonly AdminField[]): Data {
   const data: Data = {}
   for (const field of fields) {
+    // A ui field stores nothing.
+    if (field.type === 'ui') continue
     if (field.type === 'group') data[field.name] = initialValues(field.fields ?? [])
     else if (field.type === 'array' || field.type === 'blocks') data[field.name] = []
     else if (field.defaultValue !== undefined)
@@ -28,6 +30,7 @@ export function initialValues(fields: readonly AdminField[]): Data {
 export function toFormValues(fields: readonly AdminField[], doc: Data): Data {
   const data: Data = {}
   for (const field of fields) {
+    if (field.type === 'ui') continue
     const value = doc[field.name]
     if (field.type === 'group') {
       data[field.name] = toFormValues(field.fields ?? [], (value as Data) ?? {})

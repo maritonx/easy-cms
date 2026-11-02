@@ -40,6 +40,7 @@ field ทุกประเภท ตัวเลือก หน้าตาใ
 | `array` | รายการของแถว แต่ละแถวมี `id` และ field ย่อย | `fields`, `minRows`, `maxRows` |
 | `group` | object ซ้อน | `fields` |
 | `blocks` | รายการของแถวที่มีหลายชนิด แต่ละแถวมี `id` และ `blockType` | `blocks`, `minRows`, `maxRows` |
+| `ui` | ไม่มี: component ในฟอร์มแก้ไข | `admin.component` (จำเป็น) ดู [ui](#ui) |
 
 ### select {#select}
 
@@ -182,6 +183,19 @@ publish เลย Postgres อาจยังเดาว่ามีเยอ�
 UPDATE ecms_posts SET has_hero = layout @> '[{"blockType":"hero"}]';
 CREATE STATISTICS ecms_posts_has_hero_status (mcv) ON has_hero, status FROM ecms_posts;
 ```
+
+### ui {#ui}
+
+field ที่ไม่เก็บค่าอะไร เป็น component ในฟอร์มแก้ไข เช่น ตัวคำนวณ ตัวอย่าง หรือปุ่ม
+
+```ts
+{ name: 'readingTime', type: 'ui', label: 'เวลาอ่าน', admin: { component: 'acme-reading-time', position: 'sidebar' } }
+```
+
+ไม่มีคอลัมน์ในฐานข้อมูล ไม่อยู่ใน API และ type ที่สร้างให้ และไม่ถูก validate วางได้ทุกที่ที่ field อื่นวางได้: ใน `admin.layout`,
+ใน group, ในแถวของ array หรือ block, ในแผงด้านข้าง และใช้กับ `admin.condition` ได้ [component](/th/guide/plugins#admin-components)
+ได้รับสถานะของหน้าแก้ไข (เอกสารขณะที่กำลังพิมพ์) และตั้งค่า field อื่นได้ ถ้าไม่มี `label` จะแสดงแค่ component
+ตัวเลือกเกี่ยวกับค่า (`required`, `defaultValue`, `access`…) ใช้ไม่ได้ และ group หรือ array ต้องมี field ที่เก็บค่าอยู่ด้วย
 
 ## วิธีจัดเก็บ field {#how-fields-are-stored}
 

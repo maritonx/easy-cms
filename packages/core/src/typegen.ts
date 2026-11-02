@@ -95,13 +95,16 @@ function fieldType(field: Field, n: Names, indent: string): string {
       )
       return `(${kinds.join(' | ')})[]`
     }
+    // Stores nothing (and is gone from a resolved config).
+    case 'ui':
+      return 'never'
   }
 }
 
 function fieldLines(fields: readonly Field[], n: Names, indent: string): string[] {
   const lines: string[] = []
   for (const field of fields) {
-    if (field.hidden) continue
+    if (field.hidden || field.type === 'ui') continue
     const type = fieldType(field, n, indent)
     // Arrays and hasMany values are always arrays (possibly empty); groups are always objects.
     const alwaysPresent =

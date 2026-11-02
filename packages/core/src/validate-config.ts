@@ -1577,12 +1577,38 @@ function validateField(
         }
       }
       break
+    case 'ui': {
+      // A component in the form, storing nothing: no value options.
+      if (!field.admin?.component)
+        add(
+          `${path}.admin.component`,
+          'is required on a ui field',
+          "e.g. { name: 'estimate', type: 'ui', admin: { component: 'acme-estimate' } }",
+        )
+      const stored = [
+        'required',
+        'unique',
+        'uniqueWithin',
+        'index',
+        'defaultValue',
+        'validate',
+        'access',
+        'hidden',
+        'localized',
+      ] as const
+      for (const option of stored)
+        if ((field as unknown as Record<string, unknown>)[option] !== undefined)
+          add(`${path}.${option}`, 'has no effect on a ui field, which stores nothing')
+      break
+    }
     case 'array':
     case 'group':
       if (!Array.isArray(field.fields) || field.fields.length === 0) {
         add(`${path}.fields`, 'must contain at least one field')
         break
       }
+      if (field.fields.every((f) => f?.type === 'ui'))
+        add(`${path}.fields`, 'must contain a field that stores a value, not only ui fields')
       if (field.type === 'array')
         checkRange(field.minRows, field.maxRows, 'minRows', 'maxRows', path, add)
       validateFields(field.fields, `${path}.fields`, new Set(['id']), collectionSlugs, add)
