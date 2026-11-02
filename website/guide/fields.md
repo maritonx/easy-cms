@@ -67,6 +67,10 @@ field, e.g. pages under the same parent (as the [nested pages](./nested-docs) pl
 { name: 'related', type: 'relationship', to: 'posts', hasMany: true }
 ```
 
+In the admin the field searches the other collection as you type, 10 results at a time with
+**Show more** for the next 10; with nothing typed, the documents you picked recently in that
+collection come first (kept in the browser; not for fields with `filterOptions`).
+
 Ids are checked to exist when saving. Reads populate related documents to `depth` levels
 (default 1, max 3); at depth 0 you get ids. Deleted or unreadable documents become `null`, or
 are dropped from `hasMany` lists.
