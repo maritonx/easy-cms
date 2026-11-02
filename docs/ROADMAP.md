@@ -47,6 +47,7 @@
 | [`Security & identity`](https://github.com/maritonx/easy-cms/milestone/6) | — | ความปลอดภัยและ identity |
 | [`Scale (1M documents)`](https://github.com/maritonx/easy-cms/milestone/7) | — | performance ที่ 1M เอกสาร (ปิดแล้ว 2026-10-29) |
 | [`Admin lists & shop`](https://github.com/maritonx/easy-cms/milestone/8) | — | รายการใน admin (saved views, ตัวกรอง, CSV) และ Omise |
+| [`Fields & editor`](https://github.com/maritonx/easy-cms/milestone/10) | — | ui field, ลิงก์และ block ใน rich text, relationship ไปหลาย collection (ทำก่อนส่วนที่เหลือของ M8 และ M9) |
 | [`Integrations & social`](https://github.com/maritonx/easy-cms/milestone/9) | — | หน้า Integrations ให้ plugin เชื่อมกับผู้ให้บริการภายนอก และโพสไปหลายช่องทาง |
 
 ### Labels
@@ -173,6 +174,21 @@
 | [#271](https://github.com/maritonx/easy-cms/issues/271) | Show admin dates in config.timeZone | area:admin | ทุกวันที่และช่องกรอกวันที่ใน admin ใช้ `config.timeZone` เมื่อตั้งไว้ |
 | [#272](https://github.com/maritonx/easy-cms/issues/272) | Calendar view for collections and scheduled publishing | area:admin | โหมดปฏิทินในหน้ารายการ (`admin.calendar`) และหน้า Content calendar: เดือน/สัปดาห์/วัน/agenda, ลากเปลี่ยนวันพร้อมทางเลือกด้วยคีย์บอร์ด, สร้างจากช่องว่าง ([ADR-0064](adr/0064-calendar-view.md)) |
 | [#89](https://github.com/maritonx/easy-cms/issues/89) | Export a list to CSV | area:admin | |
+
+### M10 — `Fields & editor` (ไม่กำหนดวัน) {#m10}
+
+จากการคุยเรื่องฟิลด์ (2026-11-02) ทำ**ก่อน** #283, #87, #89 ของ M8 และก่อน M9 ตามลำดับ: #325 → #326 → #327 → #328
+- มีอยู่แล้วจึงไม่ทำซ้ำ: `admin.condition` (แบบประกาศ ใช้ทั้ง admin และ server), `group` / `array` / `blocks`, `admin.layout` (tab, row, collapsible) และ GraphQL เป็น plugin
+- เงื่อนไขยังเป็นแบบประกาศ ไม่รับฟังก์ชัน เพราะ config ไม่ถูกส่งไปเบราว์เซอร์ และ server ต้องตรวจเงื่อนไขเดียวกันได้ ตรรกะที่ซับซ้อนกว่านั้นใช้ ui field
+- rich text ยังเป็น Tiptap (เทียบกับ Lexical แล้ว: แอดมินเป็น Vue ส่วน Lexical มี binding ทางการแค่ React และยังเป็น 0.x) block ใน rich text อยู่ในรูปแบบ JSON ของ Tiptap จึงไม่ต้อง migrate
+- relationship ไปหลาย collection ทำก่อน block ใน rich text เพราะการ์ดเอกสารใช้มัน
+
+| # | Issue | Labels | เสร็จเมื่อ |
+|---|---|---|---|
+| [#325](https://github.com/maritonx/easy-cms/issues/325) | A ui field: a component in the edit form that stores nothing | area:core, area:admin | แสดง component ได้ทุกที่ในฟอร์ม ไม่เพิ่มคอลัมน์ ไม่อยู่ใน REST, GraphQL, MCP และ typegen |
+| [#326](https://github.com/maritonx/easy-cms/issues/326) | Rich text: links to documents, kept by id | area:core, area:admin | ลิงก์ไปบทความและหน้า เปลี่ยน slug แล้ว HTML ตาม เอกสารที่ถูกลบแสดงเป็นข้อความ |
+| [#327](https://github.com/maritonx/easy-cms/issues/327) | Relationships to several collections | area:core, area:admin, area:adapters | `to: ['posts', 'pages']` กรองด้วย `relationTo` ได้ populate และสิทธิ์แยกตาม collection type เป็น union |
+| [#328](https://github.com/maritonx/easy-cms/issues/328) | Rich text: blocks between paragraphs | area:core, area:admin | การ์ดเอกสารและ callout ในเนื้อหา validate และ populate ได้ แสดงด้วย renderer ของผู้ใช้ |
 
 ### M9 — `Integrations & social` (ไม่กำหนดวัน) {#m9}
 
