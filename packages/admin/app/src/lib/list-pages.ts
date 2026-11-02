@@ -21,6 +21,26 @@ export function storePageSize(size: number) {
   }
 }
 
+export type Density = 'comfortable' | 'compact'
+const DENSITY_KEY = 'easy-cms-density'
+
+/** How tall list rows are in this browser (#281): comfortable until compact is chosen. */
+export function storedDensity(): Density {
+  try {
+    return localStorage.getItem(DENSITY_KEY) === 'compact' ? 'compact' : 'comfortable'
+  } catch {
+    return 'comfortable'
+  }
+}
+
+export function storeDensity(density: Density) {
+  try {
+    localStorage.setItem(DENSITY_KEY, density)
+  } catch {
+    // private mode: for this page only
+  }
+}
+
 /** A list's total from `/admin/ui/total`: exact up to 10,000, then `more`. */
 export interface ListTotal {
   total: number
