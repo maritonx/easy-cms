@@ -17,8 +17,9 @@ const frontendURL = process.env.FRONTEND_URL ?? 'http://localhost:5173'
 export default defineConfig({
   secret: process.env.EASY_CMS_SECRET ?? '',
   db: sqlite({ url: process.env.DATABASE_URL ?? 'file:./cms.db' }),
-  // The admin menu: posts first; users are listed under Settings.
-  admin: { locale: 'th' },
+  // The admin menu: posts first; users are listed under Settings. `modules`: the admin's own
+  // components, here the reading time beside a post.
+  admin: { locale: 'th', modules: ['./admin/reading-time.js'] },
   // API keys for scripts and AI assistants, managed under Settings → API keys.
   apiKeys: true,
   // Posts and the site name in Thai and English; the slug and other fields are shared.
@@ -128,6 +129,13 @@ export default defineConfig({
           mimeTypes: ['image/*'],
         },
         { name: 'body', type: 'richText', label: { en: 'Body', th: 'เนื้อหา' }, localized: true },
+        // Stores nothing: how long the body takes to read, as it is typed (admin/reading-time.js).
+        {
+          name: 'readingTime',
+          type: 'ui',
+          label: { en: 'Reading time', th: 'เวลาอ่าน' },
+          admin: { component: 'ecms-reading-time', position: 'sidebar' },
+        },
         // Several images in the order editors arrange them, shown under the post.
         {
           name: 'gallery',

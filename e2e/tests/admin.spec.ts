@@ -882,6 +882,29 @@ test.describe('logged in as admin', () => {
     for (const id of ids) await page.request.delete(`/api/cms/posts/${id}`, { headers })
   })
 
+  test('shows a ui field: a component that stores nothing (#325)', async ({ page }) => {
+    // The standalone app's posts have readingTime, worked out by admin/reading-time.js.
+    test.skip(standalone() === false, 'the ui field is in the standalone example')
+    await page.goto('/admin/collections/posts/new')
+    await expect(page.getByText('Reading time', { exact: true })).toBeVisible()
+    await expect(page.locator('ecms-reading-time')).toHaveText('About 1 min read')
+    await page.locator('.rte-content').click()
+    await page.keyboard.type('word '.repeat(500))
+    await expect(page.locator('ecms-reading-time')).toHaveText('About 2 min read')
+    // Saved without it: nothing stored, nothing in the API.
+    await page.getByRole('textbox', { name: 'Title', exact: true }).fill('Reading time test')
+    const saved = page.waitForResponse(
+      (r) => r.url().includes('/api/cms/posts') && r.request().method() === 'POST',
+    )
+    await page.getByRole('button', { name: 'Save draft' }).click()
+    const doc = (await (await saved).json()) as Record<string, unknown>
+    expect(doc).not.toHaveProperty('readingTime')
+    const me = (await (await page.request.get('/api/cms/auth/me')).json()) as { csrfToken: string }
+    await page.request.delete(`/api/cms/posts/${doc.id}`, {
+      headers: { 'x-csrf-token': me.csrfToken, origin: new URL(page.url()).origin },
+    })
+  })
+
   test('shows posts on a calendar, and creates one from a day (#272)', async ({ page }) => {
     // The standalone app's posts: admin.calendar by publishedAt, coloured by category.
     test.skip(test.info().project.name !== 'standalone', 'admin.calendar is set in standalone')

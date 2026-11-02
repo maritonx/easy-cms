@@ -21,6 +21,7 @@ import {
 import { type Config, PLUGIN_API_VERSION, type ResolvedConfig } from './config.js'
 import { ConfigError } from './errors.js'
 import { applyFieldTypes, fieldTypeModules } from './field-types.js'
+import type { Field } from './fields.js'
 import { rolesCollection } from './roles.js'
 import { validateConfig } from './validate-config.js'
 
@@ -170,8 +171,74 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
     ),
     fieldTypes: config.fieldTypes ?? [],
   }
-  resolved.add(result)
-  return result
+  const final = withoutUiFields(result)
+  resolved.add(final)
+  return final
+}
+
+/** A container's fields as the admin shows them: `ui` fields included (see `withoutUiFields`). */
+export const ADMIN_FIELDS = Symbol('easy-cms.adminFields')
+
+type WithAdminFields = { [ADMIN_FIELDS]?: readonly Field[] }
+
+/** The fields the admin shows: the stored ones and `ui` fields, in their order. */
+export function adminFieldsOf(container: { readonly fields: readonly Field[] }): readonly Field[] {
+  return (container as WithAdminFields)[ADMIN_FIELDS] ?? container.fields
+}
+
+/**
+ * Takes `ui` fields (which store nothing) out of every collection, global, group, array and block,
+ * so the database, queries, validation and the API never see them. The admin's schema reads
+ * them back with `adminFieldsOf`.
+ */
+function withoutUiFields(config: ResolvedConfig): ResolvedConfig {
+  const strip = (fields: readonly Field[]): { data: Field[]; admin: Field[]; changed: boolean } => {
+    let changed = false
+    const admin: Field[] = []
+    const data: Field[] = []
+    for (const field of fields) {
+      if (field.type === 'ui') {
+        changed = true
+        admin.push(field)
+        continue
+      }
+      let next: Field = field
+      if (field.type === 'group' || field.type === 'array') {
+        const inner = strip(field.fields)
+        if (inner.changed) {
+          changed = true
+          next = { ...field, fields: inner.data, [ADMIN_FIELDS]: inner.admin } as unknown as Field
+        }
+      } else if (field.type === 'blocks') {
+        let blocksChanged = false
+        const blocks = field.blocks.map((block) => {
+          const inner = strip(block.fields)
+          if (!inner.changed) return block
+          blocksChanged = true
+          return { ...block, fields: inner.data, [ADMIN_FIELDS]: inner.admin }
+        })
+        if (blocksChanged) {
+          changed = true
+          next = { ...field, blocks } as Field
+        }
+      }
+      admin.push(next)
+      data.push(next)
+    }
+    return { data, admin, changed }
+  }
+  // Copies: the config given may be resolved again (e.g. by a second instance).
+  const apply = <T extends { readonly fields: readonly Field[] }>(container: T): T => {
+    const inner = strip(container.fields)
+    return inner.changed
+      ? ({ ...container, fields: inner.data, [ADMIN_FIELDS]: inner.admin } as T)
+      : container
+  }
+  return {
+    ...config,
+    collections: config.collections.map(apply),
+    globals: config.globals.map(apply),
+  }
 }
 
 function usesVersions(config: Config): boolean {
