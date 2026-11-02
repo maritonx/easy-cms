@@ -1,6 +1,6 @@
 import type { AuthUser, ID, RequestContext, Where } from '../access.js'
 import { QueryError } from '../errors.js'
-import type { Field } from '../fields.js'
+import { type Field, relationTargets } from '../fields.js'
 import type { EasyCMS } from '../local-api.js'
 
 /** The field at a form path (`parent`, `links.0.page`, `meta.author`); row indexes are skipped. */
@@ -39,13 +39,16 @@ export async function pickerFilter(
       ? cms.config.collections.find((c) => c.slug === slug)
       : cms.config.globals.find((g) => g.slug === slug)
   const field = owner ? fieldAt(owner.fields, spec.slice(dot + 1)) : undefined
-  const to = field?.type === 'upload' ? 'media' : field?.type === 'relationship' ? field.to : null
-  if (!field || (field.type !== 'relationship' && field.type !== 'upload') || to !== target)
+  if (
+    !field ||
+    (field.type !== 'relationship' && field.type !== 'upload') ||
+    !relationTargets(field).includes(target)
+  )
     throw new QueryError(`filterFor: no relationship to "${target}" at "${spec}"`)
   if (!field.filterOptions) return undefined
   const rawId = url.searchParams.get('filterId')
   const id: ID | undefined =
     rawId === null || rawId === '' ? undefined : /^\d+$/.test(rawId) ? Number(rawId) : rawId
-  const where = await field.filterOptions({ id, user, cms, context })
+  const where = await field.filterOptions({ id, relationTo: target, user, cms, context })
   return where === true ? undefined : where
 }

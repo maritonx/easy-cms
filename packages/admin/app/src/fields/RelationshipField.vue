@@ -10,10 +10,16 @@ import { FORM } from '../lib/plugins'
 import { findCollection } from '../lib/session'
 
 type Id = number | string
+/** A chosen document: its collection and id. */
+interface Chosen {
+  relationTo: string
+  id: Id
+}
 
 const props = defineProps<{
   id: string
-  to: string
+  /** Several collections (#327): values are `{ relationTo, value }`. */
+  to: string | string[]
   hasMany: boolean
   /** The field's path, when its `filterOptions` limit the choices. */
   filterPath?: string | undefined
@@ -25,34 +31,66 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ 'update:modelValue': [unknown] }>()
 
-const target = findCollection(props.to)
-/** The user's role can't read the collection (Settings → Roles): the value is kept as it is. */
-const noAccess = computed(() => !!target && !target.permissions.read)
-const selectedIds = computed<Id[]>(() => {
-  if (props.hasMany) return Array.isArray(props.modelValue) ? (props.modelValue as Id[]) : []
-  return props.modelValue === null || props.modelValue === undefined ? [] : [props.modelValue as Id]
+const polymorphic = Array.isArray(props.to)
+const targets = polymorphic ? (props.to as string[]) : [props.to as string]
+/** The user's role can read the collection (Settings → Roles); otherwise values are kept. */
+const readable = (slug: string) => {
+  const collection = findCollection(slug)
+  return !collection || collection.permissions.read
+}
+/** The collections the picker searches: one, or the one chosen beside the search. */
+const searchable = targets.filter(readable)
+const current = ref(searchable[0] ?? targets[0] ?? '')
+const target = computed(() => findCollection(current.value))
+const noAccess = searchable.length === 0
+const collectionLabel = (slug: string) =>
+  label(findCollection(slug)?.labels?.singular, singularize(slug))
+
+const selected = computed<Chosen[]>(() => {
+  const raw = props.hasMany
+    ? Array.isArray(props.modelValue)
+      ? (props.modelValue as unknown[])
+      : []
+    : props.modelValue === null || props.modelValue === undefined
+      ? []
+      : [props.modelValue]
+  return raw.flatMap((item): Chosen[] => {
+    if (!polymorphic) return [{ relationTo: targets[0] as string, id: item as Id }]
+    const pair = item as { relationTo?: unknown; value?: unknown } | null
+    if (!pair || typeof pair.relationTo !== 'string') return []
+    const value = pair.value
+    const id = value && typeof value === 'object' ? (value as Doc).id : (value as Id)
+    return [{ relationTo: pair.relationTo, id }]
+  })
 })
+const keyOf = (pick: Chosen) => `${pick.relationTo}:${pick.id}`
+const selectedKeys = computed(() => new Set(selected.value.map(keyOf)))
+const storedValue = (pick: Chosen) =>
+  polymorphic ? { relationTo: pick.relationTo, value: pick.id } : pick.id
 
 // Titles of selected documents, fetched once and cached.
 const titles = ref<Record<string, string>>({})
-async function loadTitles(ids: Id[]) {
-  const missing = ids.filter((id) => !(String(id) in titles.value))
-  if (!missing.length) return
-  try {
-    const result = await api<Paginated<Doc>>(
-      'GET',
-      `/${props.to}${toQuery({ where: { id: { in: missing } }, limit: 100, depth: 0, draft: true })}`,
-    )
-    for (const doc of result.docs) titles.value[String(doc.id)] = titleOf(target, doc)
-  } catch {
-    // no read access: show ids
+async function loadTitles(picks: Chosen[]) {
+  const missing = picks.filter((pick) => !(keyOf(pick) in titles.value))
+  for (const slug of new Set(missing.map((pick) => pick.relationTo))) {
+    const ids = missing.filter((pick) => pick.relationTo === slug).map((pick) => pick.id)
+    try {
+      const result = await api<Paginated<Doc>>(
+        'GET',
+        `/${slug}${toQuery({ where: { id: { in: ids } }, limit: 100, depth: 0, draft: true })}`,
+      )
+      for (const doc of result.docs)
+        titles.value[`${slug}:${doc.id}`] = titleOf(findCollection(slug), doc)
+    } catch {
+      // no read access: show ids
+    }
   }
-  for (const id of missing) titles.value[String(id)] ??= `#${id}`
+  for (const pick of missing) titles.value[keyOf(pick)] ??= `#${pick.id}`
 }
 /** A chip's text: the title, or "Loading…" until it arrives (`#id` when it can't be read). */
-const chipTitle = (id: Id) => titles.value[String(id)] ?? t('common.loading')
-onMounted(() => loadTitles(selectedIds.value))
-watch(selectedIds, loadTitles)
+const chipTitle = (pick: Chosen) => titles.value[keyOf(pick)] ?? t('common.loading')
+onMounted(() => loadTitles(selected.value))
+watch(selected, loadTitles)
 
 const query = ref('')
 const open = ref(false)
@@ -63,14 +101,14 @@ const hasMore = ref(false)
 
 // What this browser picked last in this collection, offered first while the search is empty.
 const RECENT_MAX = 5
-const recentKey = `easy-cms-recent:${props.to}`
+const recentKey = () => `easy-cms-recent:${current.value}`
 interface Recent {
   id: Id
   title: string
 }
 function readRecent(): Recent[] {
   try {
-    const list = JSON.parse(localStorage.getItem(recentKey) ?? '[]')
+    const list = JSON.parse(localStorage.getItem(recentKey()) ?? '[]')
     return Array.isArray(list) ? (list as Recent[]).slice(0, RECENT_MAX) : []
   } catch {
     return []
@@ -80,7 +118,7 @@ const recent = ref<Recent[]>(readRecent())
 function remember(id: Id, title: string) {
   recent.value = [{ id, title }, ...recent.value.filter((r) => r.id !== id)].slice(0, RECENT_MAX)
   try {
-    localStorage.setItem(recentKey, JSON.stringify(recent.value))
+    localStorage.setItem(recentKey(), JSON.stringify(recent.value))
   } catch {
     // private mode: for this page only
   }
@@ -94,11 +132,12 @@ interface Item {
   title: string
   recent: boolean
 }
+const isSelected = (id: Id) => selectedKeys.value.has(`${current.value}:${id}`)
 const recentShown = computed<Item[]>(() =>
   query.value || props.filterPath
     ? []
     : recent.value
-        .filter((r) => !selectedIds.value.includes(r.id))
+        .filter((r) => !isSelected(r.id))
         .map((r) => ({ id: r.id, title: r.title, recent: true })),
 )
 const items = computed<Item[]>(() => {
@@ -107,7 +146,7 @@ const items = computed<Item[]>(() => {
     ...recentShown.value,
     ...options.value
       .filter((d) => !picked.has(String(d.id)))
-      .map((d) => ({ id: d.id, title: titleOf(target, d), recent: false })),
+      .map((d) => ({ id: d.id, title: titleOf(target.value, d), recent: false })),
   ]
 })
 /** The keyboard's place: an item, or `items.length` for "Show more". */
@@ -124,9 +163,10 @@ const form = inject(FORM, null)
 const filterQuery = useFilterQuery(() => props.filterPath)
 
 async function search(more = false) {
-  const field = target?.useAsTitle
+  const slug = current.value
+  const field = target.value?.useAsTitle
   // A title with a trigram index needs `searchMin` characters; until then, no filter.
-  const long = [...query.value].length >= (target?.searchMin ?? 1)
+  const long = [...query.value].length >= (target.value?.searchMin ?? 1)
   const where = query.value && field && long ? { [field]: { like: query.value } } : undefined
   const run = ++latest
   const next = more ? page.value + 1 : 1
@@ -134,14 +174,15 @@ async function search(more = false) {
   try {
     const result = await api<Paginated<Doc>>(
       'GET',
-      `/${props.to}${toQuery({ where, limit: 10, page: next, depth: 0, draft: true, sort: field ?? '-updatedAt' })}&count=false${filterQuery()}`,
+      `/${slug}${toQuery({ where, limit: 10, page: next, depth: 0, draft: true, sort: field ?? '-updatedAt' })}&count=false${filterQuery()}`,
     )
     if (run !== latest) return
-    const found = result.docs.filter((d) => !selectedIds.value.includes(d.id))
+    const found = result.docs.filter((d) => !isSelected(d.id))
     options.value = more ? [...options.value, ...found] : found
     page.value = next
     hasMore.value = result.hasNextPage
-    for (const doc of result.docs) titles.value[String(doc.id)] = titleOf(target, doc)
+    for (const doc of result.docs)
+      titles.value[`${slug}:${doc.id}`] = titleOf(findCollection(slug), doc)
   } catch {
     if (run !== latest) return
     if (!more) options.value = []
@@ -149,6 +190,12 @@ async function search(more = false) {
   }
   searching.value = false
   if (!more) active.value = 0
+}
+/** Another collection beside the search: its recent picks and results. */
+function switchCollection() {
+  recent.value = readRecent()
+  options.value = []
+  void search()
 }
 /** The next 10 results, under the ones shown. */
 function showMore() {
@@ -166,15 +213,22 @@ function onFocus() {
 }
 
 function choose(item: { id: Id; title: string }) {
-  titles.value[String(item.id)] = item.title
+  const pick = { relationTo: current.value, id: item.id }
+  titles.value[keyOf(pick)] = item.title
   remember(item.id, item.title)
-  emit('update:modelValue', props.hasMany ? [...selectedIds.value, item.id] : item.id)
+  emit(
+    'update:modelValue',
+    props.hasMany ? [...selected.value.map(storedValue), storedValue(pick)] : storedValue(pick),
+  )
   query.value = ''
   open.value = props.hasMany
   if (props.hasMany) void search()
 }
-function removeId(id: Id) {
-  emit('update:modelValue', props.hasMany ? selectedIds.value.filter((v) => v !== id) : null)
+function remove(pick: Chosen) {
+  emit(
+    'update:modelValue',
+    props.hasMany ? selected.value.filter((p) => keyOf(p) !== keyOf(pick)).map(storedValue) : null,
+  )
 }
 function onKeydown(event: KeyboardEvent) {
   if (!open.value || !lastIndex.value) return
@@ -192,42 +246,55 @@ function onKeydown(event: KeyboardEvent) {
 const listId = computed(() => `${props.id}-options`)
 
 // Creating what the field should point to without leaving the page: for small collections.
-const canCreate = computed(
-  () =>
-    !!target?.permissions.create &&
-    !target.drafts &&
-    !target.versions &&
-    !target.preview &&
+// With several collections, in the one chosen beside the search.
+const canCreate = computed(() => {
+  const collection = target.value
+  return (
+    !!collection?.permissions.create &&
+    !collection.drafts &&
+    !collection.versions &&
+    !collection.preview &&
     // Files are uploaded, and folders made, in the media library.
-    target.slug !== 'media' &&
-    target.slug !== 'media-folders' &&
-    !props.noCreate,
-)
+    collection.slug !== 'media' &&
+    collection.slug !== 'media-folders' &&
+    !props.noCreate
+  )
+})
 const creating = ref(false)
 /** The search text becomes the new document's title. */
 const createInitial = computed(() =>
-  query.value && target?.useAsTitle ? { [target.useAsTitle]: query.value } : undefined,
+  query.value && target.value?.useAsTitle ? { [target.value.useAsTitle]: query.value } : undefined,
 )
 function created(doc: Doc) {
   creating.value = false
-  choose({ id: doc.id, title: titleOf(target, doc) })
+  choose({ id: doc.id, title: titleOf(target.value, doc) })
   open.value = false
 }
 </script>
 
 <template>
   <div class="relationship">
-    <ul v-if="selectedIds.length" class="chips">
-      <li v-for="id in selectedIds" :key="String(id)" class="chip">
-        <span v-if="noAccess">#{{ id }}</span>
-        <RouterLink v-else :to="`/collections/${to}/${id}`">{{ chipTitle(id) }}</RouterLink>
-        <button v-if="!readOnly && !noAccess" type="button" class="chip-remove" :aria-label="t('field.remove', { title: chipTitle(id) })" @click="removeId(id)"><X :size="13" aria-hidden="true" /></button>
+    <ul v-if="selected.length" class="chips">
+      <li v-for="pick in selected" :key="keyOf(pick)" class="chip">
+        <span v-if="polymorphic" class="chip-collection">{{ `${collectionLabel(pick.relationTo)} · ` }}</span>
+        <span v-if="!readable(pick.relationTo)">#{{ pick.id }}</span>
+        <RouterLink v-else :to="`/collections/${pick.relationTo}/${pick.id}`">{{ chipTitle(pick) }}</RouterLink>
+        <button v-if="!readOnly && readable(pick.relationTo)" type="button" class="chip-remove" :aria-label="t('field.remove', { title: chipTitle(pick) })" @click="remove(pick)"><X :size="13" aria-hidden="true" /></button>
       </li>
     </ul>
     <p v-if="noAccess" class="field-hint">
-      {{ t('field.noAccess', { label: label(target?.labels?.plural, to) }) }}
+      {{ t('field.noAccess', { label: label(target?.labels?.plural, current) }) }}
     </p>
-    <div v-else-if="!readOnly && (hasMany || !selectedIds.length)" class="combo">
+    <div v-else-if="!readOnly && (hasMany || !selected.length)" class="combo" :class="{ several: searchable.length > 1 }">
+      <select
+        v-if="searchable.length > 1"
+        v-model="current"
+        class="input collection"
+        :aria-label="t('field.collection')"
+        @change="switchCollection"
+      >
+        <option v-for="slug in searchable" :key="slug" :value="slug">{{ collectionLabel(slug) }}</option>
+      </select>
       <input
         :id="id"
         v-model="query"
@@ -272,13 +339,13 @@ function created(doc: Doc) {
         <li v-else-if="!items.length" class="muted empty">{{ t('field.noMatches') }}</li>
       </ul>
     </div>
-    <button v-if="!readOnly && !noAccess && canCreate && (hasMany || !selectedIds.length)" type="button" class="btn btn-ghost btn-sm create" @click="creating = true">
+    <button v-if="!readOnly && !noAccess && canCreate && (hasMany || !selected.length)" type="button" class="btn btn-ghost btn-sm create" @click="creating = true">
       <Plus :size="15" aria-hidden="true" />
-      {{ t('edit.create', { label: label(target?.labels?.singular, singularize(to)) }) }}
+      {{ t('edit.create', { label: collectionLabel(current) }) }}
     </button>
     <DocumentDrawer
       v-if="creating"
-      :slug="to"
+      :slug="current"
       :id="null"
       :initial="createInitial"
       @saved="(doc) => created(doc)"
@@ -332,6 +399,23 @@ function created(doc: Doc) {
 }
 .combo {
   position: relative;
+}
+.combo.several {
+  display: flex;
+  gap: 0.4rem;
+}
+.combo.several .collection {
+  flex: 0 0 auto;
+  width: auto;
+  max-width: 40%;
+}
+.combo.several input {
+  flex: 1;
+  min-width: 0;
+}
+.chip-collection {
+  color: var(--text-muted);
+  font-size: 0.85em;
 }
 .options {
   position: absolute;

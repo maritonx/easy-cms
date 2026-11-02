@@ -1,6 +1,6 @@
 import type { Field } from '@easy-cms/core'
 import { QueryError, type Where, type WhereOperators } from '@easy-cms/core'
-import { parseId, TRIGRAM_LIKE_MIN } from '@easy-cms/core/internal'
+import { isPolymorphic, parseId, TRIGRAM_LIKE_MIN } from '@easy-cms/core/internal'
 import {
   and,
   asc,
@@ -56,11 +56,37 @@ interface BlockValue {
 }
 
 type Target =
-  | { kind: 'column'; column: AnyColumn; field: Field | undefined }
+  | {
+      kind: 'column'
+      column: AnyColumn
+      field: Field | undefined
+      /** A relationship to several collections named without `.relationTo` or `.value`. */
+      bare?: readonly string[]
+      /** `link.<collection>` (#327): the value column, for documents of that collection. */
+      collection?: { slug: string; column: AnyColumn }
+    }
   | { kind: 'child'; child: ChildModel; rest: string[]; locale?: string | undefined }
   | { kind: 'blocks'; column: AnyColumn; value: BlockValue }
 
 const col = (model: TableModel, name: string) => model.table[name] as AnyColumn
+
+const PARTS = new Set(['relationTo', 'value'])
+
+/**
+ * `link.relationTo`, `link.value` or `link.<collection>` (that collection's documents, by id) of
+ * a relationship to several collections (#327).
+ */
+function polymorphicPart(
+  segment: string | undefined,
+  shown: string,
+  to: readonly string[],
+): 'relationTo' | 'value' | { collection: string } {
+  if (segment !== undefined && PARTS.has(segment)) return segment as 'relationTo' | 'value'
+  if (segment !== undefined && to.includes(segment)) return { collection: segment }
+  throw new QueryError(
+    `"${shown}" links to several collections: query "${shown}.relationTo" and "${shown}.value", or "${shown}.<collection>" (${to.map((t) => `"${shown}.${t}"`).join(', ')})`,
+  )
+}
 
 const ID_FIELD: Field = { name: 'id', type: 'relationship', to: '' }
 const LIKE_TYPES = new Set(['text', 'textarea', 'email', 'slug', 'select'])
@@ -110,6 +136,22 @@ function resolveJsonValue(
     }
     const inner = rest.slice(next)
     const shownHere = [shown, ...rest.slice(0, next)].join('.')
+    if (isPolymorphic(field)) {
+      // Stored as `{ relationTo, value }` (#327), one or a list of them.
+      if (inner.length > 1) throw new QueryError(`Cannot query inside "${shownHere}"`)
+      const part = polymorphicPart(inner[0], shownHere, field.to)
+      if (typeof part === 'object')
+        throw new QueryError(
+          `Inside blocks, query "${shownHere}.relationTo" and "${shownHere}.value"`,
+        )
+      const value =
+        part === 'value'
+          ? { type: 'integer' as const, field }
+          : { type: 'text' as const, field: undefined }
+      return field.hasMany
+        ? { lists: [path], path: [part], ...value }
+        : { lists: [], path: [...path, part], ...value }
+    }
     if ('hasMany' in field && field.hasMany === true) {
       if (inner.length > 0) throw new QueryError(`Cannot query inside "${shownHere}"`)
       return { lists: [path], path: [], type: JSON_TYPES[field.type] ?? 'text', field }
@@ -194,6 +236,37 @@ function resolvePath(
       const rows = field.blocks.flatMap((block) => block.fields)
       const value = resolveJsonValue(rows, rest, shown, localization, true)
       return { kind: 'blocks', column: col(model, column.column), value }
+    }
+    if (isPolymorphic(field)) {
+      // `link.relationTo`, `link.value` (#327); `link` alone only with `exists`.
+      if (last + 1 < segments.length - 1)
+        throw new QueryError(`Cannot query inside "${segments.slice(0, last + 2).join('.')}"`)
+      const shownField = segments.slice(0, last + 1).join('.')
+      const named = segments[last + 1]
+      const part = named === undefined ? 'value' : polymorphicPart(named, shownField, field.to)
+      const columnOfPart = (wanted: 'relationTo' | 'value') => {
+        const found = model.columns.find(
+          (c) =>
+            same(c) &&
+            c.part === wanted &&
+            (!field.localized || (locale === undefined ? c.defaultLocale : c.locale === locale)),
+        )
+        if (!found) throw new QueryError(`Unknown locale "${locale}" for "${shown}"`)
+        return col(model, found.column)
+      }
+      if (typeof part === 'object')
+        return {
+          kind: 'column',
+          column: columnOfPart('value'),
+          field,
+          collection: { slug: part.collection, column: columnOfPart('relationTo') },
+        }
+      return {
+        kind: 'column',
+        column: columnOfPart(part),
+        field: part === 'value' ? field : undefined,
+        ...(named === undefined ? { bare: field.to } : {}),
+      }
     }
     if (last < segments.length - 1) {
       throw new QueryError(`Cannot query inside "${shown}" (${field.type} field)`)
@@ -317,8 +390,33 @@ export class WhereBuilder {
 
     const parts = entries.map(([op, value]) => {
       if (!OPERATORS.has(op)) throw new QueryError(`Unknown operator "${op}" on "${path}"`)
-      if (target.kind === 'column')
+      if (target.kind === 'column') {
+        if (target.bare && op !== 'exists') polymorphicPart(undefined, path, target.bare)
+        if (target.collection) {
+          // `link.pages`: links to pages (by id).
+          const { slug, column } = target.collection
+          const is = eq(column, slug)
+          if (op === 'exists')
+            return value === false ? (or(isNull(column), ne(column, slug)) as SQL) : is
+          if (op === 'not_equals' || op === 'not_in') {
+            const positive = op === 'not_equals' ? 'equals' : 'in'
+            const match = operatorSQL(
+              this.dialect,
+              target.column,
+              target.field,
+              positive,
+              value,
+              path,
+            )
+            return or(isNull(column), not(and(is, match) as SQL)) as SQL
+          }
+          return and(
+            is,
+            operatorSQL(this.dialect, target.column, target.field, op, value, path),
+          ) as SQL
+        }
         return operatorSQL(this.dialect, target.column, target.field, op, value, path)
+      }
       if (target.kind === 'blocks') return this.blocks(target, op, value, path)
       return this.child(model, target.child, target.rest, op, value, path, target.locale)
     })
@@ -405,18 +503,31 @@ export class WhereBuilder {
       )
 
     if (child.kind === 'values') {
-      if (rest.length > 0) throw new QueryError(`Cannot query inside "${path}"`)
-      const valueColumn = col(table, 'value')
-      if (op === 'exists') return value === false ? not(subquery(undefined)) : subquery(undefined)
-      if (op === 'not_equals')
-        return not(
-          subquery(operatorSQL(this.dialect, valueColumn, table.valueField, 'equals', value, path)),
+      let valueColumn = col(table, 'value')
+      let valueField = table.valueField
+      /** `links.pages` (#327): only values of that collection. */
+      let only: SQL | undefined
+      if (valueField && isPolymorphic(valueField)) {
+        // Several collections: `links.relationTo`, `links.value` or `links.<collection>`.
+        if (rest.length > 1) throw new QueryError(`Cannot query inside "${path}"`)
+        const shown = rest.length === 1 ? path.split('.').slice(0, -1).join('.') : path
+        const part =
+          rest.length === 0 && op === 'exists'
+            ? 'value'
+            : polymorphicPart(rest[0], shown, valueField.to)
+        if (part === 'relationTo') {
+          valueColumn = col(table, 'relation_to')
+          valueField = undefined
+        } else if (typeof part === 'object') only = eq(col(table, 'relation_to'), part.collection)
+      } else if (rest.length > 0) throw new QueryError(`Cannot query inside "${path}"`)
+      if (op === 'exists') return value === false ? not(subquery(only)) : subquery(only)
+      const matching = (operator: string) =>
+        subquery(
+          and(only, operatorSQL(this.dialect, valueColumn, valueField, operator, value, path)),
         )
-      if (op === 'not_in')
-        return not(
-          subquery(operatorSQL(this.dialect, valueColumn, table.valueField, 'in', value, path)),
-        )
-      return subquery(operatorSQL(this.dialect, valueColumn, table.valueField, op, value, path))
+      if (op === 'not_equals') return not(matching('equals'))
+      if (op === 'not_in') return not(matching('in'))
+      return matching(op)
     }
 
     if (rest.length === 0) {

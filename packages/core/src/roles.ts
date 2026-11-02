@@ -12,7 +12,7 @@ import {
 import type { CollectionConfig, ResolvedConfig } from './config.js'
 import type { Database, RawDocument } from './database.js'
 import { EasyCMSError, NotFoundError, ValidationError } from './errors.js'
-import type { Field, Label } from './fields.js'
+import { type Field, type Label, relationTargets } from './fields.js'
 import { hasCalendarPage, hasJobsPage } from './rest/admin-jobs.js'
 import { VersionStore } from './versions.js'
 
@@ -136,8 +136,8 @@ function ruleFields(fields: readonly Field[]): Field[] {
 /** Collections a collection's relationship and upload fields point to. */
 function references(fields: readonly Field[], out = new Set<string>()): Set<string> {
   for (const field of fields) {
-    if (field.type === 'relationship') out.add(field.to)
-    else if (field.type === 'upload') out.add('media')
+    if (field.type === 'relationship' || field.type === 'upload')
+      for (const target of relationTargets(field)) out.add(target)
     else if (field.type === 'group' || field.type === 'array') references(field.fields, out)
     else if (field.type === 'blocks') for (const b of field.blocks) references(b.fields, out)
   }

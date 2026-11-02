@@ -9,6 +9,7 @@ import {
   type FilterKind,
   kindOf,
   readCondition,
+  relationOf,
 } from '../lib/list-filters'
 import { loadRelationTitles, relationTitle } from '../lib/relation-titles'
 
@@ -40,7 +41,7 @@ function valueText(field: AdminField, kind: FilterKind, value: string): string {
     const option = field.options?.find((o) => o.value === value)
     return option ? label(option.label, value) : value
   }
-  if (kind === 'relation') return relationTitle(field.to ?? '', value)
+  if (kind === 'relation') return relationTitle(relationOf(field), value)
   if (kind === 'date') return formatDay(value)
   return kind === 'text' ? `“${value}”` : value
 }
@@ -76,9 +77,9 @@ function text(condition: Condition): string {
 watchEffect(() => {
   for (const condition of props.conditions) {
     const field = fieldAt(condition.field)
-    if (field?.to && (field.type === 'relationship' || field.type === 'upload')) {
+    if (relationOf(field) && (field?.type === 'relationship' || field?.type === 'upload')) {
       const ids = ['in', 'not_in', 'equals'].flatMap((op) => condition.ops[op] ?? []).map(String)
-      void loadRelationTitles(field.to, ids)
+      void loadRelationTitles(relationOf(field), ids)
     }
   }
 })

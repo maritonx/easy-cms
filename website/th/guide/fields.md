@@ -36,7 +36,7 @@ field ทุกประเภท ตัวเลือก หน้าตาใ
 | `json` | ค่า JSON ใดก็ได้ | |
 | `richText` | เอกสาร JSON ของ Tiptap | ดู [Rich text](./rich-text) |
 | `upload` | id ของเอกสาร `media` หรือ array เมื่อใช้ `hasMany` | `hasMany`, `mimeTypes` ดู [การอัปโหลด](./uploads#several-files-galleries) |
-| `relationship` | id ของเอกสารใน collection อื่น | `to`, `hasMany`, `minRows`, `maxRows` |
+| `relationship` | id ของเอกสารใน collection อื่น หรือ `{ relationTo, value }` เมื่อชี้ได้หลาย collection | `to`, `hasMany`, `minRows`, `maxRows` |
 | `array` | รายการของแถว แต่ละแถวมี `id` และ field ย่อย | `fields`, `minRows`, `maxRows` |
 | `group` | object ซ้อน | `fields` |
 | `blocks` | รายการของแถวที่มีหลายชนิด แต่ละแถวมี `id` และ `blockType` | `blocks`, `minRows`, `maxRows` |
@@ -87,6 +87,47 @@ id จะถูกตรวจสอบว่ามีอยู่จริง�
   filterOptions: ({ id }) => ({ role: { equals: 'admin' } }),
 }
 ```
+
+#### หลาย collection {#several-collections}
+
+ถ้า `to` เป็นรายการ relationship จะชี้ไปเอกสารของ collection ไหนในรายการก็ได้ เช่น เมนูที่ลิงก์ไปบทความหรือหน้า
+ค่าแต่ละตัวเป็น `{ relationTo, value }` คือ collection กับ id ของเอกสาร (เป็นตัวเอกสารเมื่อ populate แล้ว):
+
+```ts
+{ name: 'link', type: 'relationship', to: ['posts', 'pages'] }
+{ name: 'featured', type: 'relationship', to: ['posts', 'pages'], hasMany: true }
+```
+
+```ts
+await cms.create('menu-items', { link: { relationTo: 'pages', value: 3 } })
+const item = await cms.findById('menu-items', 1) // link: { relationTo: 'pages', value: { id: 3, … } }
+if (item.link?.relationTo === 'pages') item.link.value // type เป็นหน้า (หรือ id ของมัน)
+```
+
+ค่าแต่ละตัว populate จาก collection ของมันเอง ด้วยสิทธิ์ของ collection นั้น ตอนบันทึกส่งค่าแบบที่อ่านมาได้เลย
+จะ populate แล้วหรือไม่ก็ได้ ถ้า `relationTo` ไม่อยู่ใน `to` จะถูกปฏิเสธ
+
+id ซ้ำกันได้ระหว่าง collection ดังนั้น filter ต้องระบุ collection:
+
+| Filter | ตรงกับ |
+|---|---|
+| `'link.pages': { in: [3, 4] }` | ลิงก์ไปหน้า 3 หรือ 4 |
+| `'link.pages': { exists: true }` | ลิงก์ไปหน้าใดก็ได้ |
+| `'link.relationTo': { equals: 'pages' }` | เหมือนกัน โดยดูแค่ collection |
+| `'link.value': { equals: 3 }` | id 3 ใน collection ไหนก็ได้ |
+| `link: { exists: false }` | ไม่มีลิงก์ |
+
+ในรายการ `hasMany` `'featured.pages': { equals: 3 }` ตรงกับค่าที่เป็นหน้า 3 ส่วนการแยกเงื่อนไข
+`featured.relationTo` กับ `featured.value` อาจตรงกับค่าคนละตัวกัน ใน blocks ให้ใช้ `.relationTo` และ `.value`
+ส่วน `link: { equals: 3 }` จะถูกปฏิเสธ เพราะไม่ได้บอกว่าเป็น collection ไหน
+
+ใน admin ช่องเลือกมีรายการ collection อยู่ข้างช่องค้นหา chip และคอลัมน์ในหน้า list แสดงเป็น "หน้า · เกี่ยวกับเรา"
+และแผง filter มีให้เลือกทีละ collection ("ลิงก์ › หน้า") `filterOptions` ได้ `relationTo` คือ collection
+ที่กำลังกรองตัวเลือก และคืน `where` ของ collection นั้น
+
+relationship ที่เพิ่ม collection ยังเก็บลิงก์เดิมไว้: migration ย้าย id ไปเป็นของ collection แรกใน `to`
+จึงต้องใส่ collection เดิมไว้ก่อน (`to: 'posts'` → `to: ['posts', 'pages']`) ถ้าเปลี่ยนกลับเป็น collection เดียว
+ลิงก์ไป collection อื่นจะถูกลบ (`migrate:create` แจ้งไว้) ใน GraphQL field แบบนี้ยังเป็น JSON อยู่
 
 ### array และ group {#array-and-group}
 
@@ -203,7 +244,7 @@ field ที่ไม่เก็บค่าอะไร เป็น component
 ## วิธีจัดเก็บ field {#how-fields-are-stored}
 
 แต่ละ collection คือตารางหนึ่งตาราง field คือคอลัมน์ (field ใน group จะถูกแผ่ออกเป็นระดับเดียว: `seo.title` →
-`seo_title`) ค่าของ array และ `hasMany` อยู่ในตารางลูก ส่วน blocks เป็นคอลัมน์ JSON field สองรายการที่จะแมปไปยังคอลัมน์
+`seo_title` และ relationship ที่ชี้หลาย collection เป็น `link_relation_to` กับ `link_value`) ค่าของ array และ `hasMany` อยู่ในตารางลูก ส่วน blocks เป็นคอลัมน์ JSON field สองรายการที่จะแมปไปยังคอลัมน์
 เดียวกันจะถูกรายงานเป็นข้อผิดพลาดของ config
 
 ## ขั้นต่อไป {#next-steps}

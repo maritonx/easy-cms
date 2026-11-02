@@ -198,6 +198,8 @@ export interface UploadField extends BaseField<'upload', never> {
 export interface FilterOptionsArgs {
   /** The document being edited; `undefined` while it is being created. */
   readonly id: ID | undefined
+  /** The collection the choices come from: one of the field's `to`. */
+  readonly relationTo: string
   readonly user: AuthUser | null
   readonly cms: EasyCMS
   /** The request's context (`onRequest`), `{}` when there is none. */
@@ -211,8 +213,11 @@ export interface FilterOptionsArgs {
 export type FilterOptions = (args: FilterOptionsArgs) => Where | true | Promise<Where | true>
 
 export interface RelationshipField extends BaseField<'relationship', never> {
-  /** Slug of the target collection. */
-  readonly to: string
+  /**
+   * Slug of the target collection, or several: then each value is `{ relationTo, value }`, the
+   * collection and the document's id (#327).
+   */
+  readonly to: string | readonly string[]
   readonly hasMany?: boolean
   /** With `hasMany`: the fewest documents. */
   readonly minRows?: number
@@ -271,6 +276,30 @@ export function mimeAllowedBy(mimeType: string, patterns: readonly string[]): bo
 }
 
 const SVG = 'image/svg+xml'
+
+/** A relationship to several collections: its values are `{ relationTo, value }` (#327). */
+export const isPolymorphic = (
+  field: Field,
+): field is RelationshipField & { readonly to: readonly string[] } =>
+  field.type === 'relationship' && Array.isArray(field.to)
+
+/** The collections a relationship or upload field points to. */
+export function relationTargets(field: Field): readonly string[] {
+  if (field.type === 'upload') return ['media']
+  if (field.type !== 'relationship') return []
+  return typeof field.to === 'string' ? [field.to] : field.to
+}
+
+/** A `{ relationTo, value }` of a relationship to several collections, or `undefined`. */
+export function polymorphicValue(
+  value: unknown,
+): { relationTo: string; value: unknown } | undefined {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined
+  const { relationTo } = value as { relationTo?: unknown }
+  return typeof relationTo === 'string'
+    ? { relationTo, value: (value as { value?: unknown }).value }
+    : undefined
+}
 
 /** Fields whose value is a list of rows: `array` and `blocks`. */
 export const hasRows = (field: Field): field is ArrayField | BlocksField =>

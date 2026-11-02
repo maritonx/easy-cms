@@ -739,6 +739,15 @@ describe('validateConfig', () => {
     })
   })
 
+  it('checks each collection of a relationship to several (#327)', () => {
+    expect(withFields([{ name: 'link', type: 'relationship', to: ['posts', 'users'] }])).toEqual([])
+    expect(withFields([{ name: 'link', type: 'relationship', to: ['posts'] }])).toEqual([])
+    for (const to of [['posts', 'nope'], ['posts', 'posts'], []])
+      expect(withFields([{ name: 'link', type: 'relationship', to }])).toEqual([
+        'collections.posts.fields.link.to',
+      ])
+  })
+
   it('checks useAsTitle', () => {
     const fields: Field[] = [
       { name: 'title', type: 'text' },

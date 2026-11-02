@@ -4022,13 +4022,19 @@ export class EasyCMS<C extends Config = Config> {
     const errors: FieldError[] = []
     const cms = this as unknown as EasyCMS
     const { user, context } = guard
-    const allowed = new Map<FilterOptions, Where | true>()
+    // By field and collection: a relationship to several collections filters each its own way.
+    const allowed = new Map<FilterOptions, Map<string, Where | true>>()
     for (const ref of references) {
       const filter = ref.filterOptions
       if (!filter) continue
-      if (!allowed.has(filter))
-        allowed.set(filter, await filter({ id: selfId, user, cms, context }))
-      const where = allowed.get(filter) as Where | true
+      const byCollection = allowed.get(filter) ?? new Map<string, Where | true>()
+      allowed.set(filter, byCollection)
+      if (!byCollection.has(ref.collection))
+        byCollection.set(
+          ref.collection,
+          await filter({ id: selfId, relationTo: ref.collection, user, cms, context }),
+        )
+      const where = byCollection.get(ref.collection) as Where | true
       if (where === true) continue
       const target = this.config.collections.find((c) => c.slug === ref.collection)
       const localization = this.config.localization

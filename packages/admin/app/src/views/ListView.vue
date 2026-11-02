@@ -78,7 +78,7 @@ import {
   type FolderTree as Tree,
   within,
 } from '../lib/folders'
-import { formatBytes, formatDate, humanize, label, t } from '../lib/i18n'
+import { formatBytes, formatDate, humanize, label, singularize, t } from '../lib/i18n'
 import {
   type Condition,
   whereOf as conditionsWhere,
@@ -220,27 +220,42 @@ function onDocumentClick(event: MouseEvent) {
     folderMenu.value = null
 }
 
-/** Titles of related documents shown in columns, by field and id. */
+/**
+ * Titles of related documents shown in columns, by field and id (`<collection>:<id>` for a
+ * relationship to several collections, #327).
+ */
 const relatedTitles = ref<Record<string, Record<string, string>>>({})
+/** A column's value as `[collection, id]`, or `null` when there is none. */
+function relatedOf(field: AdminField, value: unknown): [string, string] | null {
+  if (value === null || value === undefined) return null
+  if (!Array.isArray(field.to)) return [field.to ?? '', String(value)]
+  const pair = value as { relationTo?: unknown; value?: unknown }
+  return typeof pair.relationTo === 'string' ? [pair.relationTo, String(pair.value)] : null
+}
+const relatedKey = (field: AdminField, [slug, id]: [string, string]) =>
+  Array.isArray(field.to) ? `${slug}:${id}` : id
 async function loadRelatedTitles(docs: Doc[]) {
   const titles: Record<string, Record<string, string>> = {}
   for (const field of extraColumns.value) {
     if (field.type !== 'relationship' || !field.to) continue
-    const ids = [
-      ...new Set(docs.map((d) => d[field.name]).filter((v) => v !== null && v !== undefined)),
-    ]
-    if (ids.length === 0) continue
-    const target = findCollection(field.to)
-    try {
-      const found = await api<Paginated<Doc>>(
-        'GET',
-        `/${field.to}${toQuery({ where: { id: { in: ids.join(',') } }, limit: ids.length, depth: 0 })}`,
-      )
-      titles[field.name] = Object.fromEntries(
-        found.docs.map((d) => [String(d.id), titleOf(target, d)]),
-      )
-    } catch {
-      // Not readable: ids are shown.
+    const related = docs.map((d) => relatedOf(field, d[field.name])).filter((r) => r !== null)
+    for (const slug of new Set(related.map(([slug]) => slug))) {
+      const ids = [...new Set(related.filter(([s]) => s === slug).map(([, id]) => id))]
+      const target = findCollection(slug)
+      try {
+        const found = await api<Paginated<Doc>>(
+          'GET',
+          `/${slug}${toQuery({ where: { id: { in: ids.join(',') } }, limit: ids.length, depth: 0 })}`,
+        )
+        titles[field.name] = {
+          ...titles[field.name],
+          ...Object.fromEntries(
+            found.docs.map((d) => [relatedKey(field, [slug, String(d.id)]), titleOf(target, d)]),
+          ),
+        }
+      } catch {
+        // Not readable: ids are shown.
+      }
     }
   }
   relatedTitles.value = titles
@@ -253,8 +268,15 @@ watch(extraColumns, () => {
 
 function cell(field: AdminField, value: unknown): string {
   if (value === null || value === undefined || value === '') return '—'
-  if (field.type === 'relationship')
-    return relatedTitles.value[field.name]?.[String(value)] ?? `#${String(value)}`
+  if (field.type === 'relationship') {
+    const related = relatedOf(field, value)
+    if (!related) return '—'
+    const title = relatedTitles.value[field.name]?.[relatedKey(field, related)] ?? `#${related[1]}`
+    // Several collections: "Page · About".
+    return Array.isArray(field.to)
+      ? `${label(findCollection(related[0])?.labels?.singular, singularize(related[0]))} · ${title}`
+      : title
+  }
   if (Array.isArray(value) && value.length === 0) return '—'
   if (field.type === 'date') return formatDate(value)
   if (field.type === 'boolean') return value ? t('common.yes') : t('common.no')

@@ -63,6 +63,28 @@ describe('form values', () => {
     })
   })
 
+  it('keeps the collection of a relationship to several (#327)', () => {
+    const several = [
+      { name: 'link', type: 'relationship', to: ['posts', 'pages'] },
+      { name: 'featured', type: 'relationship', to: ['posts', 'pages'], hasMany: true },
+    ] as AdminField[]
+    expect(
+      toFormValues(several, {
+        link: { relationTo: 'pages', value: { id: 3, title: 'About' } },
+        featured: [
+          { relationTo: 'posts', value: 1 },
+          { relationTo: 'pages', value: { id: 3 } },
+        ],
+      }),
+    ).toEqual({
+      link: { relationTo: 'pages', value: 3 },
+      featured: [
+        { relationTo: 'posts', value: 1 },
+        { relationTo: 'pages', value: 3 },
+      ],
+    })
+  })
+
   it('converts between ISO and datetime-local in local time', () => {
     const iso = '2026-01-02T03:04:00.000Z'
     expect(fromLocalInput(toLocalInput(iso))).toBe(iso)

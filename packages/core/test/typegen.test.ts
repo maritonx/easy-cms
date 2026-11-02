@@ -30,6 +30,7 @@ const config = await resolveConfig(
           { name: 'cover', type: 'upload' },
           { name: 'category', type: 'relationship', to: 'categories' },
           { name: 'related', type: 'relationship', to: 'posts', hasMany: true },
+          { name: 'link', type: 'relationship', to: ['posts', 'site-pages'] },
           { name: 'secret', type: 'text', hidden: true },
           { name: 'links', type: 'array', fields: [{ name: 'url', type: 'text', required: true }] },
           { name: 'seo', type: 'group', fields: [{ name: 'title', type: 'text' }] },
@@ -68,6 +69,10 @@ describe('generateTypes (FR-INS-05)', () => {
     expect(output).toContain('  cover?: ID | Media | null\n')
     expect(output).toContain('  category?: ID | Category | null\n')
     expect(output).toContain('  related: (ID | Post)[]\n')
+    // Several collections (#327): told apart by relationTo.
+    expect(output).toContain(
+      '  link?: { relationTo: "posts"; value: ID | Post } | { relationTo: "site-pages"; value: ID | SitePage } | null\n',
+    )
     expect(output).toContain("  status: 'draft' | 'published'\n")
     expect(output).toContain('  links: {\n    id: string\n    url: string\n  }[]\n')
     expect(output).toContain('  seo: {\n    title?: string | null\n  }\n')

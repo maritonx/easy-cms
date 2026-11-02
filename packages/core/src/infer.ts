@@ -152,6 +152,21 @@ type RelationValue<C extends Config, S, A extends boolean> = [CollectionBySlug<C
   ? ID | Record<string, unknown>
   : ID | CollectionDocument<C, S & string, A>
 
+/**
+ * A relationship to several collections (#327): `{ relationTo, value }` per collection, so
+ * checking `relationTo` narrows `value`.
+ */
+type PolymorphicValue<
+  C extends Config,
+  To,
+  V extends 'output' | 'input',
+  A extends boolean,
+> = To extends readonly (infer S)[]
+  ? S extends string
+    ? { relationTo: S; value: V extends 'input' ? ID : RelationValue<C, S, A> }
+    : never
+  : never
+
 /** The content locales of a config (`localization.locales`); `string` when not literal. */
 export type LocaleOf<C extends Config> = C extends {
   readonly localization: { readonly locales: readonly (infer L extends string)[] }
@@ -165,11 +180,15 @@ export type LocaleOf<C extends Config> = C extends {
  */
 type LocaleMap<F extends Field, C extends Config> = {
   [L in LocaleOf<C>]?:
-    | (F extends { readonly type: 'relationship' | 'upload' }
+    | (F extends { readonly type: 'relationship'; readonly to: infer To extends readonly string[] }
         ? F extends { readonly hasMany: true }
-          ? ID[]
-          : ID
-        : FieldValue<F, C>)
+          ? PolymorphicValue<C, To, 'input', false>[]
+          : PolymorphicValue<C, To, 'input', false>
+        : F extends { readonly type: 'relationship' | 'upload' }
+          ? F extends { readonly hasMany: true }
+            ? ID[]
+            : ID
+          : FieldValue<F, C>)
     | null
 }
 
@@ -236,26 +255,33 @@ type OneLocaleValue<F extends Field, C extends Config, A extends boolean> = F ex
               ? F extends { readonly hasMany: true }
                 ? (ID | MediaDocument)[]
                 : ID | MediaDocument
-              : F extends { readonly type: 'relationship'; readonly to: infer S }
+              : F extends {
+                    readonly type: 'relationship'
+                    readonly to: infer To extends readonly string[]
+                  }
                 ? F extends { readonly hasMany: true }
-                  ? RelationValue<C, S, A>[]
-                  : RelationValue<C, S, A>
-                : F extends {
-                      readonly type: 'array'
-                      readonly fields: infer Sub extends readonly Field[]
-                    }
-                  ? Simplify<FieldsValue<Sub, C, A> & { id: string }>[]
+                  ? PolymorphicValue<C, To, 'output', A>[]
+                  : PolymorphicValue<C, To, 'output', A>
+                : F extends { readonly type: 'relationship'; readonly to: infer S }
+                  ? F extends { readonly hasMany: true }
+                    ? RelationValue<C, S, A>[]
+                    : RelationValue<C, S, A>
                   : F extends {
-                        readonly type: 'group'
+                        readonly type: 'array'
                         readonly fields: infer Sub extends readonly Field[]
                       }
-                    ? FieldsValue<Sub, C, A>
+                    ? Simplify<FieldsValue<Sub, C, A> & { id: string }>[]
                     : F extends {
-                          readonly type: 'blocks'
-                          readonly blocks: infer B extends readonly Block[]
+                          readonly type: 'group'
+                          readonly fields: infer Sub extends readonly Field[]
                         }
-                      ? BlockValue<B[number], C, A>[]
-                      : CustomValue<F>
+                      ? FieldsValue<Sub, C, A>
+                      : F extends {
+                            readonly type: 'blocks'
+                            readonly blocks: infer B extends readonly Block[]
+                          }
+                        ? BlockValue<B[number], C, A>[]
+                        : CustomValue<F>
 
 /** The value of a field of an added type (`CustomFieldTypes`). */
 type CustomValue<F> = F extends { readonly type: infer T extends keyof CustomFieldTypes }
@@ -359,31 +385,41 @@ export type GlobalDocument<
 // ---------------------------------------------------------------------------
 // Input types for create / update
 
-type InputValue<F extends Field> = F extends { readonly type: 'relationship' }
+type InputValue<F extends Field> = F extends {
+  readonly type: 'relationship'
+  readonly to: infer To extends readonly string[]
+}
   ? F extends { readonly hasMany: true }
-    ? readonly ID[]
-    : ID
-  : F extends { readonly type: 'select'; readonly hasMany: true }
-    ? Readonly<SelectValue<F>>
-    : F extends { readonly type: 'upload' }
-      ? F extends { readonly hasMany: true }
-        ? readonly ID[]
-        : ID
-      : F extends { readonly type: 'date' }
-        ? string | Date
-        : F extends { readonly type: 'array'; readonly fields: infer Sub extends readonly Field[] }
-          ? readonly Simplify<FieldsInput<Sub> & { id?: string }>[]
+    ? readonly PolymorphicValue<Config, To, 'input', false>[]
+    : PolymorphicValue<Config, To, 'input', false>
+  : F extends { readonly type: 'relationship' }
+    ? F extends { readonly hasMany: true }
+      ? readonly ID[]
+      : ID
+    : F extends { readonly type: 'select'; readonly hasMany: true }
+      ? Readonly<SelectValue<F>>
+      : F extends { readonly type: 'upload' }
+        ? F extends { readonly hasMany: true }
+          ? readonly ID[]
+          : ID
+        : F extends { readonly type: 'date' }
+          ? string | Date
           : F extends {
-                readonly type: 'group'
+                readonly type: 'array'
                 readonly fields: infer Sub extends readonly Field[]
               }
-            ? FieldsInput<Sub>
+            ? readonly Simplify<FieldsInput<Sub> & { id?: string }>[]
             : F extends {
-                  readonly type: 'blocks'
-                  readonly blocks: infer B extends readonly Block[]
+                  readonly type: 'group'
+                  readonly fields: infer Sub extends readonly Field[]
                 }
-              ? readonly BlockInput<B[number]>[]
-              : FieldValue<F>
+              ? FieldsInput<Sub>
+              : F extends {
+                    readonly type: 'blocks'
+                    readonly blocks: infer B extends readonly Block[]
+                  }
+                ? readonly BlockInput<B[number]>[]
+                : FieldValue<F>
 
 /**
  * Required fields must be given, unless Easy CMS can fill them (default value, slug from another

@@ -12,6 +12,7 @@ import {
   kindOf,
   OPS,
   readCondition,
+  relationOf,
   today,
   valuesOf,
 } from '../lib/list-filters'
@@ -82,7 +83,8 @@ async function show() {
   incomplete.value = new Set()
   for (const row of rows.value) {
     const field = fieldOf(row.path)?.field
-    if (kindAt(row.path) === 'relation' && field?.to) void loadRelationTitles(field.to, row.values)
+    if (kindAt(row.path) === 'relation' && relationOf(field))
+      void loadRelationTitles(relationOf(field), row.values)
   }
   fromLeft.value = false
   open.value = true
@@ -147,7 +149,7 @@ function preset(row: Row, days: number) {
 let searching = 0
 async function search(row: Row) {
   const field = fieldOf(row.path)?.field
-  const to = field?.to
+  const to = relationOf(field)
   const target = to ? findCollection(to) : undefined
   const titleField = target?.useAsTitle
   const query = row.query.trim()
@@ -277,7 +279,7 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocumentClick))
             <legend class="visually-hidden">{{ t('filter.value') }}</legend>
             <label v-for="id in row.values" :key="`v-${id}`" class="menu-item">
               <input type="checkbox" checked @change="toggleValue(row, id)" />
-              {{ relationTitle(fieldOf(row.path)?.field.to ?? '', id) }}
+              {{ relationTitle(relationOf(fieldOf(row.path)?.field), id) }}
             </label>
             <label>
               <span class="visually-hidden">{{ t('filter.search') }}</span>

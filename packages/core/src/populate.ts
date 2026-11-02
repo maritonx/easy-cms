@@ -1,7 +1,14 @@
 import type { ID } from './access.js'
 import type { CollectionConfig } from './config.js'
 import type { RawDocument } from './database.js'
-import { type Field, hasRows, rowFields } from './fields.js'
+import {
+  type Field,
+  hasRows,
+  isPolymorphic,
+  polymorphicValue,
+  relationTargets,
+  rowFields,
+} from './fields.js'
 import { docLinkMarks, linkTarget } from './rich-text-links.js'
 
 type Data = Record<string, unknown>
@@ -115,10 +122,39 @@ function collectSlots(
           },
         })
       }
+    } else if (isPolymorphic(field)) {
+      // `{ relationTo, value }` (#327): each value from its own collection, with its access.
+      const many = Array.isArray(value)
+      const items = (many ? value : [value]).map(polymorphicValue)
+      // Skip `{ [locale]: … }` maps (reads with `locale: 'all'`).
+      if (items.some((item) => item === undefined)) continue
+      const pairs = items as { relationTo: string; value: unknown }[]
+      const found = new Map<string, ReadonlyMap<ID, RawDocument>>()
+      let waiting = 0
+      for (const relationTo of new Set(pairs.map((p) => p.relationTo))) {
+        if (!bySlug.has(relationTo)) continue
+        waiting++
+        slots.push({
+          collection: relationTo,
+          ids: pairs.filter((p) => p.relationTo === relationTo).map((p) => p.value as ID),
+          assign: (byId) => {
+            found.set(relationTo, byId)
+            if (--waiting > 0) return
+            const filled = pairs
+              .map((p) => {
+                if (!bySlug.has(p.relationTo)) return p
+                const doc = found.get(p.relationTo)?.get(p.value as ID)
+                return doc ? { relationTo: p.relationTo, value: doc } : undefined
+              })
+              .filter((p) => p !== undefined)
+            data[field.name] = many ? filled : (filled[0] ?? null)
+          },
+        })
+      }
     } else if (field.type === 'relationship' || field.type === 'upload') {
       // Only ids are populated: skip `{ [locale]: … }` maps (reads with `locale: 'all'`).
       if (typeof value === 'object' && !Array.isArray(value)) continue
-      const collection = field.type === 'upload' ? 'media' : field.to
+      const collection = relationTargets(field)[0] as string
       if (!bySlug.has(collection)) continue // built-in collections are populated from M2/M5
       if (Array.isArray(value)) {
         const ids = value as ID[]

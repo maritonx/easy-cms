@@ -36,7 +36,7 @@ Every field has a `name` and a `type`. Common options:
 | `json` | any JSON value | |
 | `richText` | Tiptap JSON document | see [Rich text](./rich-text) |
 | `upload` | id of a `media` document, or an array with `hasMany` | `hasMany`, `mimeTypes`: see [Uploads](./uploads#several-files-galleries) |
-| `relationship` | id(s) of documents in another collection | `to`, `hasMany`, `minRows`, `maxRows` |
+| `relationship` | id(s) of documents in another collection, or `{ relationTo, value }` for several | `to`, `hasMany`, `minRows`, `maxRows` |
 | `array` | list of rows, each with an `id` and sub-fields | `fields`, `minRows`, `maxRows` |
 | `group` | nested object | `fields` |
 | `blocks` | list of rows of different kinds, each with `id` and `blockType` | `blocks`, `minRows`, `maxRows` |
@@ -88,6 +88,50 @@ collection, or `true` for any. The admin's picker offers only those, and saving 
   filterOptions: ({ id }) => ({ role: { equals: 'admin' } }),
 }
 ```
+
+#### Several collections
+
+With a list in `to`, a relationship points to documents of any of them: a menu item that links
+to a post or a page. Each value is `{ relationTo, value }`, the collection and the document's id
+(the document itself once populated):
+
+```ts
+{ name: 'link', type: 'relationship', to: ['posts', 'pages'] }
+{ name: 'featured', type: 'relationship', to: ['posts', 'pages'], hasMany: true }
+```
+
+```ts
+await cms.create('menu-items', { link: { relationTo: 'pages', value: 3 } })
+const item = await cms.findById('menu-items', 1) // link: { relationTo: 'pages', value: { id: 3, … } }
+if (item.link?.relationTo === 'pages') item.link.value // typed as a page (or its id)
+```
+
+Each value is populated from its own collection, with that collection's access. Saving accepts
+the value as it was read, populated or not. A `relationTo` that isn't in `to` is refused.
+
+Ids repeat across collections, so filters name the collection:
+
+| Filter | Matches |
+|---|---|
+| `'link.pages': { in: [3, 4] }` | links to page 3 or 4 |
+| `'link.pages': { exists: true }` | links to any page |
+| `'link.relationTo': { equals: 'pages' }` | the same, by the collection alone |
+| `'link.value': { equals: 3 }` | id 3 in any of the collections |
+| `link: { exists: false }` | no link |
+
+In a `hasMany` list, `'featured.pages': { equals: 3 }` matches a value that is page 3; separate
+`featured.relationTo` and `featured.value` conditions may match two different values. Inside
+blocks, use `.relationTo` and `.value`. `link: { equals: 3 }` is refused: it doesn't say which
+collection.
+
+In the admin, the picker has the collections beside the search, chips and list columns show
+"Page · About", and the filter panel offers each collection ("Link › Page"). `filterOptions`
+gets `relationTo`, the collection whose choices it filters, and returns a `where` on that one.
+
+A relationship that gets more collections keeps its links: the migration moves the ids to the
+first collection in `to`, so list the one it had first (`to: 'posts'` → `to: ['posts', 'pages']`).
+Back to one collection, links to the others are removed (`migrate:create` says so). GraphQL
+shows these fields as JSON for now.
 
 ### array and group
 
@@ -209,7 +253,7 @@ group or array needs a field that stores a value beside it.
 ## How fields are stored
 
 Each collection is a table; fields are columns (group fields are flattened: `seo.title` →
-`seo_title`). Arrays and `hasMany` values live in child tables; blocks are a JSON column. Two fields that would map to the
+`seo_title`; a relationship to several collections is `link_relation_to` and `link_value`). Arrays and `hasMany` values live in child tables; blocks are a JSON column. Two fields that would map to the
 same column are reported as a config error.
 
 ## Next steps

@@ -112,11 +112,11 @@ Packages add more types, e.g. `color` from `@easy-cms/fields`: see [Custom field
 
 | Option | Type | |
 |---|---|---|
-| `to` | `string` | **Required**. Slug of the target collection. |
+| `to` | `string \| string[]` | **Required**. Slug of the target collection, or several: values are then `{ relationTo, value }` ([several collections](../guide/fields#several-collections)). |
 | `hasMany` | `boolean` | Several documents; the value is an array. |
 | `minRows` | `number` | With `hasMany`: the fewest documents. |
 | `maxRows` | `number` | With `hasMany`: the most documents. |
-| `filterOptions` | `({ id, user, cms }) => Where \| true` | Which documents it may point to; the admin's picker offers only these and saving checks them. |
+| `filterOptions` | `({ id, relationTo, user, cms }) => Where \| true` | Which documents of `relationTo` it may point to; the admin's picker offers only these and saving checks them. |
 
 <!-- api: ArrayField -->
 ### array
