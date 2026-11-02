@@ -20,10 +20,14 @@ import {
 import Image from '@tiptap/extension-image'
 import { TableKit } from '@tiptap/extension-table'
 import StarterKit from '@tiptap/starter-kit'
-import { EditorContent, useEditor } from '@tiptap/vue-3'
+import { EditorContent, Extension, useEditor } from '@tiptap/vue-3'
 import { type Component, onBeforeUnmount, ref, watch } from 'vue'
+import LinkDialog, { type LinkTarget } from '../components/LinkDialog.vue'
 import MediaPicker from '../components/MediaPicker.vue'
+import { api } from '../lib/api'
+import { titleOf } from '../lib/fields'
 import { t } from '../lib/i18n'
+import { findCollection } from '../lib/session'
 
 type Doc = Record<string, unknown>
 
@@ -35,6 +39,35 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ 'update:modelValue': [Doc | null] }>()
 
+/**
+ * Links to a document (#326): the link mark's `doc`, `{ relationTo, value }`. The server keeps
+ * the id and works out the URL when the document is read.
+ */
+const DocLink = Extension.create({
+  name: 'docLink',
+  addGlobalAttributes() {
+    return [
+      {
+        types: ['link'],
+        attributes: {
+          doc: {
+            default: null,
+            parseHTML: (element) => {
+              try {
+                return JSON.parse(element.getAttribute('data-doc') ?? 'null')
+              } catch {
+                return null
+              }
+            },
+            renderHTML: (attributes) =>
+              attributes.doc ? { 'data-doc': JSON.stringify(attributes.doc) } : {},
+          },
+        },
+      },
+    ]
+  },
+})
+
 const editor = useEditor({
   content: props.modelValue ?? '',
   editable: !props.readOnly,
@@ -44,6 +77,7 @@ const editor = useEditor({
       link: { openOnClick: false, autolink: true, protocols: ['http', 'https', 'mailto', 'tel'] },
     }),
     Image,
+    DocLink,
     // Tables without merged cells: what HTML, Markdown and the API's readers all handle.
     TableKit.configure({ table: { resizable: false } }),
   ],
@@ -80,13 +114,52 @@ watch(
 )
 onBeforeUnmount(() => editor.value?.destroy())
 
+/** The link being edited: a web address or a document; `null` for a new one. */
+const linking = ref<LinkTarget | null | false>(false)
 function setLink() {
-  const current = editor.value?.getAttributes('link').href as string | undefined
-  const url = window.prompt(t('rte.linkPrompt'), current ?? 'https://')
-  if (url === null) return
-  const chain = editor.value?.chain().focus().extendMarkRange('link')
-  if (url.trim() === '') chain?.unsetLink().run()
-  else chain?.setLink({ href: url.trim() }).run()
+  const attrs = editor.value?.getAttributes('link') ?? {}
+  const doc = attrs.doc as { relationTo: string; value: number | string } | null | undefined
+  linking.value = doc?.relationTo
+    ? { doc }
+    : typeof attrs.href === 'string'
+      ? { href: attrs.href }
+      : null
+}
+async function applyLink(target: LinkTarget) {
+  linking.value = false
+  const e = editor.value
+  if (!e) return
+  if ('href' in target) {
+    // A web address replaces a link to a document, if it was one.
+    const attrs = { href: target.href, doc: null } as { href: string }
+    e.chain().focus().extendMarkRange('link').setLink(attrs).run()
+    return
+  }
+  // The server replaces the href with the document's URL when it is read.
+  const attrs = { href: '#', doc: target.doc } as { href: string }
+  if (!e.state.selection.empty || e.isActive('link')) {
+    e.chain().focus().extendMarkRange('link').setLink(attrs).run()
+    return
+  }
+  // Nothing selected: the document's title becomes the link's text.
+  let text = String(target.doc.value)
+  try {
+    const doc = await api<Record<string, unknown>>(
+      'GET',
+      `/${target.doc.relationTo}/${target.doc.value}?depth=0&draft=true`,
+    )
+    text = titleOf(findCollection(target.doc.relationTo), doc) || text
+  } catch {
+    // The id stands in for the title.
+  }
+  e.chain()
+    .focus()
+    .insertContent({ type: 'text', text, marks: [{ type: 'link', attrs }] })
+    .run()
+}
+function removeLink() {
+  linking.value = false
+  editor.value?.chain().focus().extendMarkRange('link').unsetLink().run()
 }
 const pickingImage = ref(false)
 function addImage() {
@@ -275,6 +348,13 @@ const actions = (): Action[] => {
       </button>
     </div>
     <EditorContent v-if="editor" :editor="editor" />
+    <LinkDialog
+      :open="linking !== false"
+      :current="linking === false ? null : linking"
+      @save="applyLink"
+      @remove="removeLink"
+      @cancel="linking = false"
+    />
     <MediaPicker
       :open="pickingImage"
       images-only

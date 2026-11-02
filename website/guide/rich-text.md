@@ -40,6 +40,21 @@ The value is stored as Tiptap JSON, a tree of nodes, not HTML:
 JSON keeps content independent of how you show it: the same document can become HTML, plain
 text for a search index, or your own components.
 
+### Links to documents
+
+The link button links to a web address or to **a document** of a collection whose documents
+have a URL (its [`preview`](./live-preview)). A link to a document keeps its id, not its URL:
+
+```json
+{ "type": "link", "attrs": { "doc": { "relationTo": "posts", "value": 12 }, "href": null } }
+```
+
+Reads at `depth` 1 or more (the REST default) fill in `href` with the document's URL as it is
+now, so the link follows the document when its slug or path changes, and `renderRichText` shows
+it like any link. A document that was deleted, or that the reader may not see, gets no `href`:
+its words stay, as plain text. Saving checks that the document exists and that its collection
+has a `preview`.
+
 ## Showing it on a page
 
 Install the renderer:

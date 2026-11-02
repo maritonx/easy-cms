@@ -951,6 +951,71 @@ test.describe('logged in as admin', () => {
     for (const id of ids) await page.request.delete(`/api/cms/posts/${id}`, { headers })
   })
 
+  test('links rich text to a document, kept by id (#326)', async ({ page }) => {
+    await page.goto('/admin/')
+    const me = (await (await page.request.get('/api/cms/auth/me')).json()) as { csrfToken: string }
+    const headers = { 'x-csrf-token': me.csrfToken, origin: new URL(page.url()).origin }
+    const create = async (data: Record<string, unknown>) =>
+      (
+        (await (await page.request.post('/api/cms/posts?depth=0', { headers, data })).json()) as {
+          id: number
+        }
+      ).id
+    const target = await create({ title: 'Link target', slug: 'link-target', status: 'published' })
+    const linking = await create({
+      title: 'Linking',
+      body: {
+        type: 'doc',
+        content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Read more' }] }],
+      },
+    })
+
+    await page.goto(`/admin/collections/posts/${linking}`)
+    const editor = page.locator('.rte-content')
+    await editor.click()
+    await page.keyboard.press('End')
+    await page.keyboard.press('Shift+Home')
+    await page.getByRole('button', { name: 'Link', exact: true }).click()
+    const dialog = page.getByRole('dialog', { name: 'Link' })
+    await dialog.getByLabel('A document').check()
+    await dialog.getByLabel('Document', { exact: true }).fill('Link target')
+    await page.getByRole('option', { name: 'Link target' }).click()
+    await dialog.getByRole('button', { name: 'Apply' }).click()
+    await expect(editor.locator('a[data-doc]')).toHaveText('Read more')
+    const saved = page.waitForResponse(
+      (r) => r.url().includes(`/api/cms/posts/${linking}`) && r.request().method() === 'PATCH',
+    )
+    await page.getByRole('button', { name: 'Save draft' }).click()
+    expect((await saved).ok()).toBe(true)
+
+    // Kept by id; read with the target's URL, which follows its slug.
+    const linkOf = async (query: string) => {
+      const doc = (await (
+        await page.request.get(`/api/cms/posts/${linking}?draft=true${query}`)
+      ).json()) as {
+        body: { content: { content: { marks?: { attrs: Record<string, unknown> }[] }[] }[] }
+      }
+      return doc.body.content[0]?.content[0]?.marks?.[0]?.attrs
+    }
+    expect(await linkOf('&depth=0')).toMatchObject({
+      doc: { relationTo: 'posts', value: target },
+      href: null,
+    })
+    // The standalone app's preview URL names the id; the others' the slug, which can change.
+    const where = standalone() ? `post=${target}` : 'link-target'
+    expect(String((await linkOf(''))?.href)).toContain(where)
+    if (!standalone()) {
+      await page.request.patch(`/api/cms/posts/${target}`, {
+        headers,
+        data: { slug: 'link-moved' },
+      })
+      expect(String((await linkOf(''))?.href)).toContain('link-moved')
+    }
+
+    for (const id of [linking, target])
+      await page.request.delete(`/api/cms/posts/${id}`, { headers })
+  })
+
   test('shows a ui field: a component that stores nothing (#325)', async ({ page }) => {
     // The standalone app's posts have readingTime, worked out by admin/reading-time.js.
     test.skip(standalone() === false, 'the ui field is in the standalone example')

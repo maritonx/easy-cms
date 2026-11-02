@@ -76,6 +76,21 @@ describe('renderRichText (FR-RTX-02/03)', () => {
     expect(renderRichText(doc({ type: 'image', attrs: { src: 'javascript:x' } }))).toBe('')
   })
 
+  it('renders a link to a document by its href, and as text without one (#326)', () => {
+    const link = (href: string | null) =>
+      renderRichText(
+        doc(
+          p(
+            text('post', [
+              { type: 'link', attrs: { href, doc: { relationTo: 'posts', value: 1 } } },
+            ]),
+          ),
+        ),
+      )
+    expect(link('/posts/hello')).toBe('<p><a href="/posts/hello">post</a></p>')
+    expect(link(null)).toBe('<p>post</p>')
+  })
+
   it('renders safe links with rel on external ones', () => {
     const link = (href: string, target?: string) =>
       renderRichText(doc(p(text('x', [{ type: 'link', attrs: { href, target } }]))))

@@ -3241,7 +3241,21 @@ export class EasyCMS<C extends Config = Config> {
     const depth = Math.max(0, Math.min(MAX_DEPTH, Math.trunc(options.depth ?? DEFAULT_DEPTH)))
     // Pick the locale, populate (populated documents are finished by the loader), then finish.
     const localized = docs.map((d) => this.pick(config, d, options) as RawDocument)
-    const populated = await populate(load, this.config.collections, config.fields, localized, depth)
+    // Links in rich text get the linked document's URL (#326), in the locale read.
+    const locale =
+      options.locale && options.locale !== 'all'
+        ? options.locale
+        : (this.config.localization?.defaultLocale ?? this.config.admin.locale)
+    const linkURL = (target: CollectionConfig, doc: RawDocument) =>
+      target.preview?.({ doc: doc as Data, locale }) ?? null
+    const populated = await populate(
+      load,
+      this.config.collections,
+      config.fields,
+      localized,
+      depth,
+      linkURL,
+    )
     return Promise.all(populated.map((d) => finish(config, d)))
   }
 
@@ -4000,12 +4014,28 @@ export class EasyCMS<C extends Config = Config> {
     guard: Pick<Guard, 'user' | 'context'>,
   ): Promise<FieldError[]> {
     const byCollection = new Map<string, Reference[]>()
+    const errors: FieldError[] = []
     for (const ref of references) {
+      const target = this.config.collections.find((c) => c.slug === ref.collection)
+      // A link in rich text needs a collection whose documents have a URL (#326).
+      if (ref.link && (!target || INTERNAL_COLLECTIONS.has(ref.collection))) {
+        errors.push({
+          field: ref.field,
+          message: `links to "${ref.collection}", which is not a collection`,
+        })
+        continue
+      }
+      if (ref.link && typeof target?.preview !== 'function') {
+        errors.push({
+          field: ref.field,
+          message: `links to "${ref.collection}", whose documents have no URL (set its preview)`,
+        })
+        continue
+      }
       // `media` is checked once it exists (M5).
-      if (!this.config.collections.some((c) => c.slug === ref.collection)) continue
+      if (!target) continue
       byCollection.set(ref.collection, [...(byCollection.get(ref.collection) ?? []), ref])
     }
-    const errors: FieldError[] = []
     for (const [collection, refs] of byCollection) {
       const found = await this.db.findByIds({
         collection,

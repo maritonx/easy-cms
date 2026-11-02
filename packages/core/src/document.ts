@@ -12,6 +12,7 @@ import {
   type SelectField,
 } from './fields.js'
 import type { Localization } from './localization.js'
+import { docLinkMarks, linkTarget } from './rich-text-links.js'
 
 type Data = Record<string, unknown>
 
@@ -186,6 +187,8 @@ export interface Reference {
   readonly mimeTypes?: readonly string[]
   /** The upload's `folder` with `folderOnly`: the file must be in it, checked when saving. */
   readonly folderOnly?: string
+  /** A link in rich text (#326): its collection must exist and have a URL (`preview`). */
+  readonly link?: true
 }
 
 export interface ValidateOptions {
@@ -372,10 +375,27 @@ async function normalizeValue(
       } catch {
         return fail('must be JSON-serializable')
       }
-    case 'richText':
+    case 'richText': {
       if (!isPlainObject(raw) || raw.type !== 'doc')
         return fail('must be a rich text document ({ type: "doc" })')
-      return raw
+      // Links to documents keep only the id: their URL is worked out when read (#326).
+      const marks = docLinkMarks(raw)
+      if (marks.length === 0) return raw
+      const doc = structuredClone(raw)
+      for (const mark of docLinkMarks(doc)) {
+        const target = linkTarget(mark.attrs.doc)
+        const id = target ? parseId(target.value) : undefined
+        if (!target || id === undefined)
+          return fail('has a link to a document without { relationTo, value }')
+        mark.attrs = {
+          ...mark.attrs,
+          doc: { relationTo: target.relationTo, value: id },
+          href: null,
+        }
+        references.push({ field: path, collection: target.relationTo, id, link: true })
+      }
+      return doc
+    }
     case 'upload':
     case 'relationship': {
       const target = field.type === 'upload' ? 'media' : field.to
