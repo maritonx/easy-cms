@@ -200,6 +200,9 @@ admin: { sidebar: [{ tag: 'ecms-order-actions', position: 'top' }] }
 ## Lists
 
 - Going back from a document returns to the list as it was: search, filters, page and scroll.
+- The table scrolls in its own box, so its column names and its pages stay in view. **Compact**
+  rows (beside **Columns**) fit more on the screen; the choice is remembered in the browser. A list
+  that fails to load says why, with **Retry**.
 - **Rows per page** (20, 50 or 100) is remembered in the browser. The page links show the first
   page, the ones around the current page and the last, and **Go to page** takes a number; the
   page is in the address (`?page=`).

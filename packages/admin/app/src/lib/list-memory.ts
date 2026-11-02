@@ -4,14 +4,16 @@
  */
 interface Left {
   path: string
+  /** The page's scroll, and the table's own (it scrolls under its sticky header, #281). */
   scroll: number
+  table?: number
 }
 
 const key = (slug: string) => `easy-cms-list:${slug}`
 
-export function leaveList(slug: string, path: string) {
+export function leaveList(slug: string, path: string, table = 0) {
   try {
-    sessionStorage.setItem(key(slug), JSON.stringify({ path, scroll: window.scrollY }))
+    sessionStorage.setItem(key(slug), JSON.stringify({ path, scroll: window.scrollY, table }))
   } catch {
     // Not kept.
   }
@@ -36,7 +38,7 @@ export function listPath(slug: string): string {
 }
 
 /** Where to scroll a list shown again as it was left; `null` for a fresh one. */
-export function scrollFor(slug: string, path: string): number | null {
+export function scrollFor(slug: string, path: string): { page: number; table: number } | null {
   const was = left(slug)
-  return was && was.path === path ? was.scroll : null
+  return was && was.path === path ? { page: was.scroll, table: was.table ?? 0 } : null
 }

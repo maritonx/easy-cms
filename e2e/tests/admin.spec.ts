@@ -890,6 +890,67 @@ test.describe('logged in as admin', () => {
     for (const id of media) await page.request.delete(`/api/cms/media/${id}`, { headers })
   })
 
+  test('keeps the header in view, offers compact rows, and retries a failed load (#281)', async ({
+    page,
+  }) => {
+    await page.goto('/admin/')
+    const me = (await (await page.request.get('/api/cms/auth/me')).json()) as { csrfToken: string }
+    const headers = { 'x-csrf-token': me.csrfToken, origin: new URL(page.url()).origin }
+    const ids: number[] = []
+    for (let n = 1; n <= 3; n++) {
+      const created = await page.request.post('/api/cms/posts?depth=0', {
+        headers,
+        data: { title: `Density ${n}` },
+      })
+      ids.push(((await created.json()) as { id: number }).id)
+    }
+    await page.goto('/admin/collections/posts')
+    const table = page.locator('.table-wrap.scroll')
+    await expect(table.getByRole('row').nth(1)).toBeVisible()
+    // The table scrolls in its own box; its header and footer stay put.
+    expect(
+      await table
+        .locator('thead th')
+        .first()
+        .evaluate((th) => getComputedStyle(th).position),
+    ).toBe('sticky')
+
+    // Compact rows, remembered after a reload.
+    const rowHeight = () =>
+      table
+        .locator('tbody tr')
+        .first()
+        .evaluate((tr) => tr.getBoundingClientRect().height)
+    const comfortable = await rowHeight()
+    await page.getByRole('button', { name: 'Compact rows' }).click()
+    await expect(page.getByRole('button', { name: 'Compact rows' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(await rowHeight()).toBeLessThan(comfortable)
+    await page.reload()
+    await expect(page.getByRole('button', { name: 'Compact rows' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    await page.getByRole('button', { name: 'Comfortable rows' }).click()
+
+    // A list that fails to load offers Retry, which loads it.
+    let fail = true
+    await page.route('**/api/cms/posts?**', (route) => (fail ? route.abort() : route.continue()))
+    await page.getByPlaceholder('Search Title').fill('zz-no-such-post')
+    const alert = page
+      .getByRole('alert')
+      .filter({ has: page.getByRole('button', { name: 'Retry' }) })
+    await expect(alert).toBeVisible()
+    fail = false
+    await alert.getByRole('button', { name: 'Retry' }).click()
+    await expect(alert).toBeHidden()
+    await expect(page.getByText('No results.')).toBeVisible()
+    await page.unroute('**/api/cms/posts?**')
+    for (const id of ids) await page.request.delete(`/api/cms/posts/${id}`, { headers })
+  })
+
   test('shows posts on a calendar, and creates one from a day (#272)', async ({ page }) => {
     // The standalone app's posts: admin.calendar by publishedAt, coloured by category.
     test.skip(test.info().project.name !== 'standalone', 'admin.calendar is set in standalone')
