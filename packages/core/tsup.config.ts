@@ -10,6 +10,7 @@ export default defineConfig({
     'src/conditions.ts',
     'src/plugin.ts',
     'src/internal.ts',
+    'src/client.ts',
   ],
   format: ['esm'],
   // tsup's dts build sets `baseUrl`, which TypeScript 6 deprecates.

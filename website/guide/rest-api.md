@@ -86,6 +86,45 @@ must include the CSRF token as `x-csrf-token` (from the login response, `GET /au
 **Servers and apps** send `Authorization: Bearer <token>` with an [API key](./api-keys) or the
 session token ([how to get one](./auth#tokens-for-other-apps)); no CSRF token is needed.
 
+## Reading from edge runtimes
+
+Easy CMS needs Node.js, but `@easy-cms/core/client` doesn't: it reads content over this API from
+Vercel's edge runtime, Cloudflare Workers, Deno or the browser. It is one file with no
+dependencies, and gives the same document types as the Local API.
+
+```ts
+import { createClient } from '@easy-cms/core/client'
+import type config from './easy-cms.config' // types only: nothing of the config is bundled
+
+const cms = createClient<typeof config>({ url: 'https://cms.example.com/api/cms' })
+
+const { docs } = await cms.find('posts', {
+  where: { category: { equals: 3 } },
+  sort: '-publishedAt',
+  limit: 10,
+  fetch: { next: { revalidate: 60, tags: ['posts'] } }, // passed on to fetch
+})
+const post = await cms.findById('posts', 12) // null when there is none
+const site = await cms.findGlobal('site')
+const preview = await cms.findById('posts', 12, { preview: token }) // the page's easy-cms-preview
+const results = await cms.search('easy', { collections: ['posts'] })
+```
+
+Without the config at hand (another repository), use the types from
+[`easy-cms generate:types`](./typescript): `createClient<{ collections: Collections; globals: Globals }>()`.
+
+| Option | |
+|---|---|
+| `url` | The API's URL, `routes.api` on your site. |
+| `token` | An [API key](./api-keys) or session token, sent as `Bearer`: reads what it may, and `draft: true`. Keep it on the server. |
+| `fetch` | Your own `fetch`. |
+| `fetchOptions` | Passed to every request, e.g. `{ cf: { cacheTtl: 60 } }` on Cloudflare. |
+
+`find` takes `where`, `sort`, `limit`, `page`, `cursor`, `count`, `depth`, `locale`,
+`fallbackLocale` and `draft`, as the query parameters above. A refused request throws an
+`EasyCMSClientError` with `status` and the API's `errors`. The client only reads: write with the
+REST API or the Local API on the server.
+
 ## CORS
 
 Browser code on another origin can call the API when that origin is listed in `cors` (or in

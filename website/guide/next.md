@@ -97,6 +97,11 @@ in Server Components, Route Handlers and Server Actions.
 - Login rate limiting needs the client's IP. On Vercel and Netlify it is found by itself.
   Behind another proxy that adds to `X-Forwarded-For`, use `createRouteHandlers(config,
   { trustProxy: true })`: the last address in the header counts (the one your proxy added).
+- **Edge runtime:** `getEasyCMS()` needs the Node.js runtime and says so under
+  `export const runtime = 'edge'`. On the edge, read over REST with
+  [`@easy-cms/core/client`](./rest-api#reading-from-edge-runtimes); the example's
+  [`/edge` route](https://github.com/maritonx/easy-cms/blob/main/examples/next-blog/app/edge/route.ts)
+  does. Pages under a layout that calls `getEasyCMS()` can't be edge pages.
 - Next.js removes trailing slashes, so the admin lives at `/admin` (not `/admin/`).
 - In `next dev`, changing fields or options reloads the CMS; after changing only the code of a
   hook, access rule or other function in the config, restart the dev server.

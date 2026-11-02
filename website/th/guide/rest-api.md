@@ -85,6 +85,45 @@ cookie `ecms-csrf`) และต้องมาจาก origin ของ API �
 **Server และแอป** ส่ง `Authorization: Bearer <token>` พร้อม [API key](./api-keys) หรือ session token
 ([วิธีได้มา](./auth#tokens-for-other-apps)) โดยไม่ต้องใช้ CSRF token
 
+## อ่านเนื้อหาจาก edge runtime {#reading-from-edge-runtimes}
+
+Easy CMS ต้องใช้ Node.js แต่ `@easy-cms/core/client` ไม่ต้อง: มันอ่านเนื้อหาผ่าน API นี้ได้จาก
+edge runtime ของ Vercel, Cloudflare Workers, Deno หรือในเบราว์เซอร์ เป็นไฟล์เดียวที่ไม่มี dependency
+และได้ type ของเอกสารแบบเดียวกับ Local API
+
+```ts
+import { createClient } from '@easy-cms/core/client'
+import type config from './easy-cms.config' // แค่ type: ไม่มีส่วนไหนของ config ถูก bundle ไปด้วย
+
+const cms = createClient<typeof config>({ url: 'https://cms.example.com/api/cms' })
+
+const { docs } = await cms.find('posts', {
+  where: { category: { equals: 3 } },
+  sort: '-publishedAt',
+  limit: 10,
+  fetch: { next: { revalidate: 60, tags: ['posts'] } }, // ส่งต่อให้ fetch
+})
+const post = await cms.findById('posts', 12) // null เมื่อไม่มี
+const site = await cms.findGlobal('site')
+const preview = await cms.findById('posts', 12, { preview: token }) // easy-cms-preview ของหน้านั้น
+const results = await cms.search('easy', { collections: ['posts'] })
+```
+
+ถ้าไม่มี config อยู่ใกล้มือ (อยู่คนละ repository) ใช้ type จาก
+[`easy-cms generate:types`](./typescript): `createClient<{ collections: Collections; globals: Globals }>()`
+
+| ตัวเลือก | |
+|---|---|
+| `url` | URL ของ API คือ `routes.api` บนเว็บของคุณ |
+| `token` | [API key](./api-keys) หรือ session token ส่งเป็น `Bearer`: อ่านได้ตามสิทธิ์ของมัน และใช้ `draft: true` ได้ เก็บไว้ฝั่ง server เท่านั้น |
+| `fetch` | `fetch` ของคุณเอง |
+| `fetchOptions` | ส่งไปกับทุก request เช่น `{ cf: { cacheTtl: 60 } }` บน Cloudflare |
+
+`find` รับ `where`, `sort`, `limit`, `page`, `cursor`, `count`, `depth`, `locale`,
+`fallbackLocale` และ `draft` เหมือน query parameter ด้านบน request ที่ถูกปฏิเสธจะ throw
+`EasyCMSClientError` ที่มี `status` และ `errors` จาก API client นี้อ่านได้อย่างเดียว: การเขียนให้ใช้
+REST API หรือ Local API ฝั่ง server
+
 ## CORS {#cors}
 
 โค้ดในเบราว์เซอร์จาก origin อื่นเรียก API ได้เมื่อ origin นั้นอยู่ใน `cors` (หรือใน

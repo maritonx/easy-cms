@@ -95,6 +95,11 @@ async function Post({ params }: { params: Params }) {
   เริ่มส่งหน้าไปแล้ว ส่วน `generateMetadata` อยู่นอก `<Suspense>` ได้
 - การจำกัดอัตราการเข้าสู่ระบบต้องรู้ IP ของ client บน Vercel และ Netlify หาได้เอง หลัง proxy อื่นที่เพิ่มที่อยู่ลงใน
   `X-Forwarded-For` ให้ใช้ `createRouteHandlers(config, { trustProxy: true })` ระบบจะใช้ที่อยู่ตัวสุดท้าย (ตัวที่ proxy ของคุณเพิ่ม)
+- **Edge runtime:** `getEasyCMS()` ต้องใช้ Node.js runtime และจะแจ้งเมื่ออยู่ใต้
+  `export const runtime = 'edge'` บน edge ให้อ่านผ่าน REST ด้วย
+  [`@easy-cms/core/client`](./rest-api#reading-from-edge-runtimes) แบบที่
+  [route `/edge`](https://github.com/maritonx/easy-cms/blob/main/examples/next-blog/app/edge/route.ts)
+  ในตัวอย่างทำ หน้าที่อยู่ใต้ layout ที่เรียก `getEasyCMS()` จะเป็นหน้า edge ไม่ได้
 - Next.js ตัดเครื่องหมาย slash ท้าย URL ออก หน้า admin จึงอยู่ที่ `/admin` (ไม่ใช่ `/admin/`)
 - ระหว่าง `next dev` การแก้ field หรือตัวเลือกจะโหลด CMS ใหม่ให้เอง แต่ถ้าแก้แค่โค้ดของ hook กฎสิทธิ์ หรือฟังก์ชันอื่นใน
   config ให้รีสตาร์ต dev server

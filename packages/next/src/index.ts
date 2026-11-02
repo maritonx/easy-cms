@@ -24,6 +24,14 @@ export type { ApiHandlerOptions }
  * same for every server layer, which Next.js each bundles the config into.
  */
 export function getEasyCMS<const C extends Config>(config: C): Promise<EasyCMS<C>> {
+  // Vercel's edge runtime sets `EdgeRuntime`; without Node.js the database can't open.
+  if (typeof (globalThis as { EdgeRuntime?: unknown }).EdgeRuntime === 'string') {
+    return Promise.reject(
+      new Error(
+        "getEasyCMS() needs the Node.js runtime, not the edge: remove `export const runtime = 'edge'`, or read over REST with createClient() from '@easy-cms/core/client'.",
+      ),
+    )
+  }
   return sharedEasyCMS(config)
 }
 
