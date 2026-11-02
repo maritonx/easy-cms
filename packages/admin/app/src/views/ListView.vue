@@ -283,7 +283,26 @@ const conditions = computed(() => readConditions(route.query))
 const filterFields = computed(() => filterableFields(collection?.fields ?? []))
 const timeZone = computed(() => session.schema?.timeZone)
 const filterPanel = ref<InstanceType<typeof FilterPanel>>()
-const activeFilters = computed(() => conditions.value.length + (scheduledOnly.value ? 1 : 0))
+/** The media library's file type (#282): `?type=image|video|document`. */
+const MEDIA_TYPES = ['image', 'video', 'document'] as const
+type MediaType = (typeof MEDIA_TYPES)[number]
+const mediaType = computed<MediaType | null>(() =>
+  isMedia && MEDIA_TYPES.includes(route.query.type as MediaType)
+    ? (route.query.type as MediaType)
+    : null,
+)
+function setMediaType(type: MediaType | null) {
+  setQuery({ type: type ?? undefined, page: undefined })
+}
+/** Documents: what isn't a picture, a video or a sound (PDF, Word, sheets, text, zip…). */
+const MEDIA_TYPE_WHERE: Record<MediaType, Record<string, unknown>> = {
+  image: { mimeType: { like: 'image/' } },
+  video: { mimeType: { like: 'video/' } },
+  document: { or: [{ mimeType: { like: 'application/' } }, { mimeType: { like: 'text/' } }] },
+}
+const activeFilters = computed(
+  () => conditions.value.length + (scheduledOnly.value ? 1 : 0) + (mediaType.value ? 1 : 0),
+)
 function setConditions(next: Condition[]) {
   setQuery({ ...writeConditions(next, route.query), page: undefined })
 }
@@ -309,8 +328,12 @@ const mine = computed(
 
 function whereOf() {
   const parts: Record<string, unknown>[] = []
-  if (search.value && titleField && !searchShort.value)
+  // Media: the file name or the alt text, as the media picker searches.
+  if (search.value && isMedia)
+    parts.push({ or: [{ filename: { like: search.value } }, { alt: { like: search.value } }] })
+  else if (search.value && titleField && !searchShort.value)
     parts.push({ [titleField]: { like: search.value } })
+  if (mediaType.value) parts.push(MEDIA_TYPE_WHERE[mediaType.value])
   parts.push(...conditionsWhere(conditions.value))
   // The open folder; a search also looks in its subfolders.
   if (useFolders) {
@@ -850,7 +873,12 @@ async function listWhere() {
 }
 
 function clearFilters() {
-  setQuery({ ...writeConditions([], route.query), scheduled: undefined, page: undefined })
+  setQuery({
+    ...writeConditions([], route.query),
+    scheduled: undefined,
+    type: undefined,
+    page: undefined,
+  })
 }
 
 let debounce: ReturnType<typeof setTimeout> | undefined
@@ -1162,10 +1190,14 @@ async function deleteSelected(query = '') {
     </nav>
     <div class="filters">
       <label v-if="titleField" class="search">
-        <span class="visually-hidden">{{ t('list.search', { field: titleLabel }) }}</span>
+        <span class="visually-hidden">{{ isMedia ? t('media.searchNameAlt') : t('list.search', { field: titleLabel }) }}</span>
         <Search :size="16" class="search-icon" aria-hidden="true" />
-        <input v-model="search" class="input" type="search" :placeholder="useFolders && currentFolder !== null ? t('folders.searchIn', { name: here?.name ?? '' }) : t('list.search', { field: titleLabel })" />
+        <input v-model="search" class="input" type="search" :placeholder="useFolders && currentFolder !== null ? t('folders.searchIn', { name: here?.name ?? '' }) : isMedia ? t('media.searchNameAlt') : t('list.search', { field: titleLabel })" />
       </label>
+      <div v-if="isMedia" class="type-filter" role="group" :aria-label="t('media.fileType')">
+        <button type="button" :class="['chip-btn', { on: mediaType === null }]" :aria-pressed="mediaType === null" @click="setMediaType(null)">{{ t('media.typeAll') }}</button>
+        <button v-for="type in MEDIA_TYPES" :key="type" type="button" :class="['chip-btn', { on: mediaType === type }]" :aria-pressed="mediaType === type" @click="setMediaType(type)">{{ t(`media.type.${type}`) }}</button>
+      </div>
       <span v-if="searchShort" class="muted" role="status">{{ t('list.searchMin', { count: collection.searchMin ?? 1 }) }}</span>
       <label v-if="collection.drafts" :class="['filter', { on: statusFilter }]">
         <span class="visually-hidden">{{ t('list.status') }}</span>
@@ -2367,6 +2399,28 @@ button.tree-toggle:hover {
   padding: 0.6rem 0.9rem;
   color: var(--faint);
   font-size: 0.85rem;
+}
+.type-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.chip-btn {
+  min-height: 2.25rem;
+  padding: 0 0.85rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.chip-btn.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
 }
 .select-matching {
   display: flex;

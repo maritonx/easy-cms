@@ -287,6 +287,15 @@ export function rowFields(
   return field.blocks.find((block) => block.slug === type)?.fields
 }
 
+/**
+ * Stores nothing: a component in the edit form (`admin.component`), e.g. a calculator, a preview
+ * or a button. Placed like any field (layout, groups, conditions); not in the database, the API or
+ * the generated types.
+ */
+export interface UiField extends BaseField<'ui', never> {
+  readonly admin: FieldAdmin & { readonly component: AdminComponent }
+}
+
 export type Field =
   | CustomField
   | TextField
@@ -304,6 +313,7 @@ export type Field =
   | ArrayField
   | GroupField
   | BlocksField
+  | UiField
 
 export type FieldType = Field['type']
 
@@ -329,4 +339,5 @@ export const FIELD_TYPES = [
   'array',
   'group',
   'blocks',
+  'ui',
 ] as const satisfies readonly FieldType[]

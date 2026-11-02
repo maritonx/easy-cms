@@ -50,7 +50,7 @@ const body = (doc: unknown, extra: Record<string, unknown> = {}) => ({
 })
 type Body = ReturnType<typeof body>
 const linkOf = (b: unknown) =>
-  ((b as Body).content[0]?.content[1]?.marks[0]?.attrs ?? {}) as Record<string, unknown>
+  ((b as Body).content[0]?.content[1]?.marks?.[0]?.attrs ?? {}) as Record<string, unknown>
 
 describe('links to documents in rich text (#326)', () => {
   it('keeps the id, and reads the URL from the linked document', async () => {

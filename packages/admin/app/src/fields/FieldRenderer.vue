@@ -73,7 +73,8 @@ function onNumber(value: string) {
   <div class="field-slot" :class="field.width ? `width-${field.width.replace('/', '-')}` : undefined">
   <!-- A component from an admin module instead of the input; the label and errors stay ours. -->
   <div v-if="field.admin?.component" class="field">
-    <span :id="`${id}-label`" class="field-label">
+    <!-- A ui field without a label shows its component alone. -->
+    <span v-if="field.type !== 'ui' || field.label" :id="`${id}-label`" class="field-label">
       {{ text }}<span v-if="field.required" class="field-required" aria-hidden="true">*</span>
       <span v-if="field.localized" class="field-locale" :title="t('locale.localized')" aria-hidden="true">{{ contentLocale()?.toUpperCase() }}</span>
     </span>
@@ -94,7 +95,7 @@ function onNumber(value: string) {
       :label="text"
       :read-only="readOnly"
       :role="field.type === 'group' ? 'group' : undefined"
-      :aria-labelledby="`${id}-label`"
+      :aria-labelledby="field.type !== 'ui' || field.label ? `${id}-label` : undefined"
       @change="set"
     />
     <p v-for="m in messages" :id="errorId" :key="m" class="field-error">{{ m }}</p>

@@ -279,7 +279,11 @@ type BlockInput<B> = B extends {
   ? Simplify<FieldsInput<Sub> & { id?: string; blockType: S }>
   : never
 
-type Visible<Fs extends readonly Field[]> = Exclude<Fs[number], { readonly hidden: true }>
+/** The fields with a value: not `hidden`, and not `ui` fields (which store nothing). */
+type Visible<Fs extends readonly Field[]> = Exclude<
+  Fs[number],
+  { readonly hidden: true } | { readonly type: 'ui' }
+>
 /** Always set when read: required fields, and lists and groups (empty `[]` / `{}` otherwise). */
 type Present =
   | { readonly required: true }

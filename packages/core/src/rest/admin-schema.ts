@@ -38,6 +38,7 @@ import {
   navIds,
   type ResolvedNavGroup,
 } from '../nav.js'
+import { adminFieldsOf } from '../resolve-config.js'
 import type { RoleOperation } from '../roles.js'
 import { hasCalendarPage, hasJobsPage } from './admin-jobs.js'
 import { adminModuleUrls } from './admin-modules.js'
@@ -374,7 +375,7 @@ async function serializeFields(
       case 'array':
         if (field.minRows !== undefined) f.minRows = field.minRows
         if (field.maxRows !== undefined) f.maxRows = field.maxRows
-        f.fields = await serializeFields(field.fields, checks, localized, folderId, who)
+        f.fields = await serializeFields(adminFieldsOf(field), checks, localized, folderId, who)
         break
       case 'blocks':
         if (field.minRows !== undefined) f.minRows = field.minRows
@@ -383,12 +384,16 @@ async function serializeFields(
           field.blocks.map(async (block) => ({
             slug: block.slug,
             ...(block.labels ? { labels: block.labels } : {}),
-            fields: await serializeFields(block.fields, checks, localized, folderId, who),
+            fields: await serializeFields(adminFieldsOf(block), checks, localized, folderId, who),
           })),
         )
         break
       case 'group':
-        f.fields = await serializeFields(field.fields, checks, localized, folderId, who)
+        f.fields = await serializeFields(adminFieldsOf(field), checks, localized, folderId, who)
+        break
+      // A component alone: without a label of its own, none is shown.
+      case 'ui':
+        if (field.label === undefined) f.label = ''
         break
     }
     out.push(f)
@@ -430,7 +435,7 @@ async function collection(
 ): Promise<AdminCollection> {
   const target = { collection: config.slug }
   const fields = await serializeFields(
-    config.fields,
+    adminFieldsOf(config),
     await checkers(cms, user, context),
     localized,
     folderIds(cms, user, context),
@@ -501,10 +506,16 @@ async function global(
     versions: Boolean(config.versions),
     preview: typeof config.preview === 'function',
     schedule: config.schedule === true,
-    fields: await serializeFields(config.fields, checks, localized, folderIds(cms, user, context), {
-      user,
-      context,
-    }),
+    fields: await serializeFields(
+      adminFieldsOf(config),
+      checks,
+      localized,
+      folderIds(cms, user, context),
+      {
+        user,
+        context,
+      },
+    ),
     permissions: {
       read: await may(cms, config.access?.read, user, target, 'read', context),
       update: await may(cms, config.access?.update, user, target, 'update', context),

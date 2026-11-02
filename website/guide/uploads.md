@@ -20,7 +20,8 @@ cancelled, and one that failed tried again. Files larger than `upload.maxFileSiz
 before they are sent. The files just uploaded stay selected, ready to move to a folder.
 
 The Media page shows a grid of cards (pictures, or an icon in each file type's color) or, with
-the switch beside the search, a table. A file's page previews it by type: images, a player for
+the switch beside the search, a table. The search looks in file names and alt text, and **Images**,
+**Video** and **Documents** narrow the list to one kind of file. A file's page previews it by type: images, a player for
 audio and video, the browser's PDF viewer, the start of text and CSV files (CSV as a table, Thai
 text from Excel read as Windows-874). Word, Excel, PowerPoint and zip files show their icon and a
 **Download** button; they are never sent to an outside viewer.

@@ -821,6 +821,75 @@ test.describe('logged in as admin', () => {
     await expect(page.getByText('No results')).toBeVisible()
   })
 
+  test('picks from large collections: Show more, recent picks, media by type (#282)', async ({
+    page,
+  }) => {
+    await page.goto('/admin/')
+    const me = (await (await page.request.get('/api/cms/auth/me')).json()) as { csrfToken: string }
+    const headers = { 'x-csrf-token': me.csrfToken, origin: new URL(page.url()).origin }
+    const categories: number[] = []
+    for (let n = 1; n <= 12; n++) {
+      const created = await page.request.post('/api/cms/categories?depth=0', {
+        headers,
+        data: { name: `Pick ${String(n).padStart(2, '0')}` },
+      })
+      categories.push(((await created.json()) as { id: number }).id)
+    }
+
+    // The relationship field: 10 results, then Show more.
+    await page.goto('/admin/collections/posts/new')
+    const field = page.getByLabel('Category', { exact: true })
+    await field.fill('Pick')
+    const options = page.getByRole('listbox').getByRole('option')
+    await expect(options.filter({ hasText: /^Pick/ })).toHaveCount(10)
+    await page.getByRole('option', { name: 'Show more' }).click()
+    await expect(options.filter({ hasText: /^Pick/ })).toHaveCount(12)
+    await expect(page.getByRole('option', { name: 'Show more' })).toBeHidden()
+
+    // A pick comes first next time, while nothing is typed.
+    await page.getByRole('option', { name: 'Pick 12' }).click()
+    await page.getByRole('button', { name: 'Remove Pick 12' }).click()
+    await field.click()
+    await expect(page.getByRole('listbox').getByText('Recently picked')).toBeVisible()
+    await expect(options.first()).toHaveText('Pick 12')
+    await page.keyboard.press('Escape')
+
+    // The media library: by type, and by alt text.
+    const photo = readFileSync(PHOTO)
+    const media: number[] = []
+    for (const [name, mimeType, buffer, alt] of [
+      ['pick-photo.png', 'image/png', photo, 'Pick photo alt'],
+      ['pick-terms.pdf', 'application/pdf', Buffer.from('%PDF-1.4\n%%EOF\n'), 'Pick terms alt'],
+    ] as const) {
+      const uploaded = await page.request.post('/api/cms/media', {
+        headers,
+        multipart: { file: { name, mimeType, buffer }, alt },
+      })
+      expect(uploaded.status()).toBe(201)
+      media.push(((await uploaded.json()) as { id: number }).id)
+    }
+    await page.goto('/admin/collections/media?q=pick-')
+    const types = page.getByRole('group', { name: 'File type' })
+    await types.getByRole('button', { name: 'Images' }).click()
+    await expect(page).toHaveURL(/type=image/)
+    const photoCard = page.getByRole('link', { name: /^Pick photo alt/ })
+    const termsCard = page.getByRole('link', { name: /^Pick terms alt/ })
+    await expect(photoCard).toBeVisible()
+    await expect(termsCard).toBeHidden()
+    await types.getByRole('button', { name: 'Documents' }).click()
+    await expect(termsCard).toBeVisible()
+    await expect(photoCard).toBeHidden()
+    await types.getByRole('button', { name: 'All' }).click()
+    await page
+      .getByRole('searchbox', { name: 'Search file name or alt text' })
+      .fill('Pick terms alt')
+    await expect(termsCard).toBeVisible()
+    await expect(photoCard).toBeHidden()
+
+    for (const id of categories) await page.request.delete(`/api/cms/categories/${id}`, { headers })
+    for (const id of media) await page.request.delete(`/api/cms/media/${id}`, { headers })
+  })
+
   test('keeps the header in view, offers compact rows, and retries a failed load (#281)', async ({
     page,
   }) => {
@@ -945,6 +1014,29 @@ test.describe('logged in as admin', () => {
 
     for (const id of [linking, target])
       await page.request.delete(`/api/cms/posts/${id}`, { headers })
+  })
+
+  test('shows a ui field: a component that stores nothing (#325)', async ({ page }) => {
+    // The standalone app's posts have readingTime, worked out by admin/reading-time.js.
+    test.skip(standalone() === false, 'the ui field is in the standalone example')
+    await page.goto('/admin/collections/posts/new')
+    await expect(page.getByText('Reading time', { exact: true })).toBeVisible()
+    await expect(page.locator('ecms-reading-time')).toHaveText('About 1 min read')
+    await page.locator('.rte-content').click()
+    await page.keyboard.type('word '.repeat(500))
+    await expect(page.locator('ecms-reading-time')).toHaveText('About 2 min read')
+    // Saved without it: nothing stored, nothing in the API.
+    await page.getByRole('textbox', { name: 'Title', exact: true }).fill('Reading time test')
+    const saved = page.waitForResponse(
+      (r) => r.url().includes('/api/cms/posts') && r.request().method() === 'POST',
+    )
+    await page.getByRole('button', { name: 'Save draft' }).click()
+    const doc = (await (await saved).json()) as Record<string, unknown>
+    expect(doc).not.toHaveProperty('readingTime')
+    const me = (await (await page.request.get('/api/cms/auth/me')).json()) as { csrfToken: string }
+    await page.request.delete(`/api/cms/posts/${doc.id}`, {
+      headers: { 'x-csrf-token': me.csrfToken, origin: new URL(page.url()).origin },
+    })
   })
 
   test('shows posts on a calendar, and creates one from a day (#272)', async ({ page }) => {

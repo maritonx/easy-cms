@@ -107,12 +107,15 @@ export function fieldSchema(field: Field): JsonSchema {
           }),
         },
       }
+    // Stores nothing (and is gone from a resolved config).
+    case 'ui':
+      return {}
   }
 }
 
 /** An object of fields. `required` lists required fields when `strict` (creating). */
 export function objectSchema(fields: readonly Field[], strict: boolean): JsonSchema {
-  const visible = fields.filter((f) => !f.hidden)
+  const visible = fields.filter((f) => !f.hidden && f.type !== 'ui')
   const required = strict
     ? visible
         .filter((f) => f.required && f.defaultValue === undefined && f.type !== 'slug')

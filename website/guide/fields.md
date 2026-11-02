@@ -40,6 +40,7 @@ Every field has a `name` and a `type`. Common options:
 | `array` | list of rows, each with an `id` and sub-fields | `fields`, `minRows`, `maxRows` |
 | `group` | nested object | `fields` |
 | `blocks` | list of rows of different kinds, each with `id` and `blockType` | `blocks`, `minRows`, `maxRows` |
+| `ui` | none: a component in the edit form | `admin.component` (required), see [ui](#ui) |
 
 ### select
 
@@ -66,6 +67,10 @@ field, e.g. pages under the same parent (as the [nested pages](./nested-docs) pl
 { name: 'author', type: 'relationship', to: 'users' }
 { name: 'related', type: 'relationship', to: 'posts', hasMany: true }
 ```
+
+In the admin the field searches the other collection as you type, 10 results at a time with
+**Show more** for the next 10; with nothing typed, the documents you picked recently in that
+collection come first (kept in the browser; not for fields with `filterOptions`).
 
 Ids are checked to exist when saving. Reads populate related documents to `depth` levels
 (default 1, max 3); at depth 0 you get ids. Deleted or unreadable documents become `null`, or
@@ -184,6 +189,22 @@ columns tell it otherwise, and the same query takes under a millisecond:
 UPDATE ecms_posts SET has_hero = layout @> '[{"blockType":"hero"}]';
 CREATE STATISTICS ecms_posts_has_hero_status (mcv) ON has_hero, status FROM ecms_posts;
 ```
+
+### ui
+
+A field that stores nothing: a component in the edit form, such as a calculator, a preview or a
+button.
+
+```ts
+{ name: 'readingTime', type: 'ui', label: 'Reading time', admin: { component: 'acme-reading-time', position: 'sidebar' } }
+```
+
+It has no column, isn't in the API or the generated types, and is never validated. It goes
+wherever a field goes: in `admin.layout`, in a group, an array row or a block, beside the side
+panel's fields, with `admin.condition`. Its [component](./plugins#admin-components) gets the edit
+page's state (the document as it is being typed) and can set other fields. Without a `label`,
+the component shows alone. Value options (`required`, `defaultValue`, `access`…) are refused, and a
+group or array needs a field that stores a value beside it.
 
 ## How fields are stored
 
