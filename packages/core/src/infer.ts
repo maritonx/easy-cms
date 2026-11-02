@@ -472,3 +472,26 @@ export type UpdateInput<C extends Config, S extends CollectionSlug<C>> = Partial
 export type GlobalInput<C extends Config, S extends GlobalSlug<C>> = Partial<
   Simplify<FieldsInput<GlobalBySlug<C, S>['fields']> & StatusInput<GlobalBySlug<C, S>>>
 >
+
+// ---------------------------------------------------------------------------
+// Blocks in rich text (#328)
+
+type BlocksOfField<F> = F extends {
+  readonly type: 'richText'
+  readonly blocks: readonly (infer B)[]
+}
+  ? B
+  : never
+
+/**
+ * The blocks of a rich text field, e.g. `RichTextBlocks<typeof config, 'posts', 'body'>`: a
+ * union of `{ blockType, id, fields }`, for typed renderers in `@easy-cms/richtext`.
+ */
+export type RichTextBlocks<C extends Config, S extends CollectionSlug<C>, F extends string> =
+  BlocksOfField<
+    Extract<CollectionBySlug<C, S>['fields'][number], { readonly name: F }>
+  > extends infer B
+    ? B extends { readonly slug: infer Slug; readonly fields: infer Fs extends readonly Field[] }
+      ? { blockType: Slug; id: string; fields: Simplify<FieldsValue<Fs, C, false>> }
+      : never
+    : never

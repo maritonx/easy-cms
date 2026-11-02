@@ -52,3 +52,42 @@ export async function pickerFilter(
   const where = await field.filterOptions({ id, relationTo: target, user, cms, context })
   return where === true ? undefined : where
 }
+
+/**
+ * The text of rich text blocks' cards from their `admin.summary` functions (#328), by block id.
+ * A block without one, or whose function fails, gets none: the admin shows its default.
+ */
+export async function blockSummaries(
+  cms: EasyCMS,
+  user: AuthUser,
+  body: unknown,
+): Promise<{ summaries: Record<string, string> }> {
+  const input = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>
+  const owner =
+    typeof input.collection === 'string'
+      ? cms.config.collections.find((c) => c.slug === input.collection)
+      : typeof input.global === 'string'
+        ? cms.config.globals.find((g) => g.slug === input.global)
+        : undefined
+  const field =
+    owner && typeof input.field === 'string' ? fieldAt(owner.fields, input.field) : undefined
+  if (!field || field.type !== 'richText' || !field.blocks)
+    throw new QueryError('block-summaries: no rich text field with blocks there')
+  const summaries: Record<string, string> = {}
+  for (const item of Array.isArray(input.blocks) ? input.blocks.slice(0, 200) : []) {
+    const { id, blockType, fields } = (item ?? {}) as Record<string, unknown>
+    const summary = field.blocks.find((b) => b.slug === blockType)?.admin?.summary
+    if (typeof id !== 'string' || typeof summary !== 'function') continue
+    try {
+      const text = await summary({
+        fields: fields && typeof fields === 'object' ? (fields as Record<string, unknown>) : {},
+        user,
+        cms,
+      })
+      if (typeof text === 'string') summaries[id] = text
+    } catch (error) {
+      cms.logger.warn(`admin.summary of block "${String(blockType)}" failed: ${String(error)}`)
+    }
+  }
+  return { summaries }
+}

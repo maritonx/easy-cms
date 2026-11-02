@@ -26,7 +26,11 @@ const config = await resolveConfig(
             required: true,
           },
           { name: 'tags', type: 'select', options: ['a', 'b'], hasMany: true },
-          { name: 'body', type: 'richText' },
+          {
+            name: 'body',
+            type: 'richText',
+            blocks: [{ slug: 'callout', fields: [{ name: 'text', type: 'text', required: true }] }],
+          },
           { name: 'cover', type: 'upload' },
           { name: 'category', type: 'relationship', to: 'categories' },
           { name: 'related', type: 'relationship', to: 'posts', hasMany: true },
@@ -78,6 +82,12 @@ describe('generateTypes (FR-INS-05)', () => {
     expect(output).toContain('  seo: {\n    title?: string | null\n  }\n')
     expect(output).toContain(`  role: "admin" | "editor" | "author"\n`)
     expect(output).toContain('  url: string\n  sizes: Record<string, MediaSize>\n')
+  })
+
+  it('types the blocks of rich text (#328)', () => {
+    expect(output).toContain(
+      'export type PostBodyBlock = {\n  blockType: "callout"\n  id: string\n  fields: {\n    text: string\n  }\n}',
+    )
   })
 
   it('leaves out hidden fields', () => {

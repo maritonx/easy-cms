@@ -168,7 +168,32 @@ export interface RichTextDocument {
   readonly content?: readonly unknown[]
 }
 
-export interface RichTextField extends BaseField<'richText', RichTextDocument> {}
+export interface RichTextField extends BaseField<'richText', RichTextDocument> {
+  /**
+   * Blocks editors place between paragraphs (#328): a card, a callout, a video. Each is a node
+   * `{ type: 'block', attrs: { blockType, id, fields } }` in the document.
+   */
+  readonly blocks?: readonly RichTextBlock[]
+}
+
+/** Arguments of a rich text block's `admin.summary` function. */
+export interface BlockSummaryArgs {
+  readonly fields: Record<string, unknown>
+  readonly user: AuthUser | null
+  readonly cms: EasyCMS
+}
+
+/** A block in rich text (`richText.blocks`): the fields of `Block`, and how its card reads. */
+export interface RichTextBlock extends Block {
+  readonly admin?: {
+    /**
+     * The text of the block's card in the editor: a function, run on the server, or the tag of a
+     * custom element from an admin module, which gets `fields`. Default: the block's label and
+     * its first value.
+     */
+    readonly summary?: string | ((args: BlockSummaryArgs) => string | Promise<string>)
+  }
+}
 
 /** References a document in the built-in `media` collection: a file or an image. */
 export interface UploadField extends BaseField<'upload', never> {

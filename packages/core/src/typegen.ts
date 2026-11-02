@@ -186,6 +186,26 @@ export function generateTypes(config: ResolvedConfig): string {
   for (const global of config.globals) {
     parts.push('', globalInterface(global, n.globals.get(global.slug) as string, n))
   }
+  // Blocks in rich text (#328): `PostBodyBlock`, for typed renderers.
+  const owners = [
+    ...config.collections.map((c) => ({ fields: c.fields, name: n.collections.get(c.slug) })),
+    ...config.globals.map((g) => ({ fields: g.fields, name: n.globals.get(g.slug) })),
+  ]
+  for (const { fields, name } of owners) {
+    if (!name) continue
+    for (const field of fields) {
+      if (field.type !== 'richText' || !field.blocks?.length) continue
+      const kinds = field.blocks.map(
+        (block) =>
+          `{\n  blockType: ${quote(block.slug)}\n  id: string\n  fields: {\n${fieldLines(block.fields, n, '    ').join('\n')}\n  }\n}`,
+      )
+      parts.push(
+        '',
+        `/** A block in \`${name}.${field.name}\`: \`{ type: 'block', attrs }\` in the document. */`,
+        `export type ${name}${pascal(field.name)}Block = ${kinds.join(' | ')}`,
+      )
+    }
+  }
   const map = (entries: Map<string, string>) =>
     [...entries].map(([slug, name]) => `  ${key(slug)}: ${name}`).join('\n')
   parts.push(

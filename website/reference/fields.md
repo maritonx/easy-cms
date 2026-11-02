@@ -55,7 +55,7 @@ An `AdminComponent` is a custom element name (lowercase, with a `-`), or `{ tag,
 | `select` | an option, or an array with `hasMany` | [`options`, `hasMany`](#select) |
 | `slug` | URL-safe `string`, unique | [`from`](#slug) |
 | `json` | any JSON | |
-| `richText` | Tiptap JSON | see [Rich text](/guide/rich-text) |
+| `richText` | Tiptap JSON | `blocks`: see [Rich text](/guide/rich-text#blocks-between-paragraphs) |
 | `upload` | id of a `media` document, or an array with `hasMany` | [`hasMany`, `mimeTypes`](#upload) |
 | `relationship` | id(s) of documents | [`to`, `hasMany`, `minRows`, `maxRows`](#relationship) |
 | `array` | rows with `id` and sub-fields | [`fields`, `minRows`, `maxRows`](#array) |

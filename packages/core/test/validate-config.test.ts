@@ -748,6 +748,43 @@ describe('validateConfig', () => {
       ])
   })
 
+  it('checks the blocks of rich text (#328)', () => {
+    const body = (blocks: unknown) =>
+      withFields([{ name: 'body', type: 'richText', blocks } as unknown as Field])
+    expect(
+      body([
+        {
+          slug: 'callout',
+          fields: [{ name: 'text', type: 'textarea' }],
+          admin: { summary: 'x-card' },
+        },
+      ]),
+    ).toEqual([])
+    expect(body([])).toEqual(['collections.posts.fields.body.blocks'])
+    expect(
+      body([
+        { slug: 'a', fields: [] },
+        { slug: 'a', fields: [] },
+      ]),
+    ).toEqual(['collections.posts.fields.body.blocks[1].slug'])
+    expect(
+      body([
+        {
+          slug: 'a',
+          fields: [
+            { name: 'inner', type: 'richText' },
+            { name: 'list', type: 'blocks', blocks: [{ slug: 'x', fields: [] }] },
+            { name: 'title', type: 'text', localized: true },
+          ],
+        },
+      ]),
+    ).toEqual([
+      'collections.posts.fields.body.blocks[0].fields.inner',
+      'collections.posts.fields.body.blocks[0].fields.list',
+      'collections.posts.fields.body.blocks[0].fields.title.localized',
+    ])
+  })
+
   it('checks useAsTitle', () => {
     const fields: Field[] = [
       { name: 'title', type: 'text' },

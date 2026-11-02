@@ -15,9 +15,32 @@ export type RichTextInput =
   | RichTextNode
   | { readonly type: string; readonly content?: readonly unknown[] }
 
-export interface RenderOptions {
+/**
+ * A block between paragraphs (#328): `{ type: 'block', attrs: { blockType, id, fields } }` in the
+ * document. `RichTextBlocks<typeof config, 'posts', 'body'>` from `@easy-cms/core` types them.
+ */
+export interface BlockData {
+  readonly blockType: string
+  readonly id: string
+  readonly fields: Readonly<Record<string, unknown>>
+}
+
+/**
+ * How each kind of block renders, by `blockType`: its fields (populated at `depth ≥ 1`) and the
+ * block. The result is used as is: escape text with `escapeHtml`. Blocks without one are left out.
+ */
+export type BlockRenderers<B extends BlockData = BlockData> = {
+  readonly [K in B['blockType']]?: (
+    fields: Extract<B, { blockType: K }>['fields'],
+    block: Extract<B, { blockType: K }>,
+  ) => string
+}
+
+export interface RenderOptions<B extends BlockData = BlockData> {
   /** Override or add node renderers. Receives the node and its rendered children. */
   nodes?: Record<string, (node: RichTextNode, children: string) => string>
+  /** Renderers of blocks between paragraphs, by `blockType`. */
+  blocks?: BlockRenderers<B>
   /** Attributes added to every link. Default adds `rel="noopener noreferrer"` to external links. */
   linkAttributes?: (href: string) => Record<string, string>
 }
@@ -89,9 +112,34 @@ function renderMarks(text: string, marks: RichTextNode['marks'], options: Render
   return html
 }
 
+/** A block node as `BlockData`, or `undefined` when its attributes aren't one. */
+function blockData(node: RichTextNode): BlockData | undefined {
+  const attrs = node.attrs ?? {}
+  if (typeof attrs.blockType !== 'string') return undefined
+  const fields = attrs.fields
+  return {
+    blockType: attrs.blockType,
+    id: typeof attrs.id === 'string' ? attrs.id : '',
+    fields:
+      fields && typeof fields === 'object' && !Array.isArray(fields)
+        ? (fields as Record<string, unknown>)
+        : {},
+  }
+}
+
+/** A block through its renderer; `''` when there is none. */
+function renderBlock(node: RichTextNode, blocks: BlockRenderers | undefined): string {
+  const block = blockData(node)
+  const render = block
+    ? (blocks as Record<string, BlockRenderers[string]> | undefined)?.[block.blockType]
+    : undefined
+  return block && render ? render(block.fields, block) : ''
+}
+
 function renderNode(node: RichTextNode, options: RenderOptions): string {
   if (!node || typeof node !== 'object') return ''
   if (node.type === 'text') return renderMarks(String(node.text ?? ''), node.marks, options)
+  if (node.type === 'block') return renderBlock(node, options.blocks)
 
   const children = (Array.isArray(node.content) ? node.content : [])
     .map((c) => renderNode(c, options))
@@ -171,12 +219,35 @@ function renderTable(node: RichTextNode, options: RenderOptions): string {
 }
 
 /** Renders a rich text document to HTML. Text is escaped and unsafe URLs are removed. */
-export function renderRichText(
+export function renderRichText<B extends BlockData = BlockData>(
   doc: RichTextInput | null | undefined,
-  options: RenderOptions = {},
+  options: RenderOptions<B> = {},
 ): string {
   if (!doc) return ''
-  return renderNode(doc as RichTextNode, options)
+  return renderNode(doc as RichTextNode, options as RenderOptions)
+}
+
+/**
+ * The text in a block's fields, for plain text: strings, also in groups and rows, not those of
+ * related documents.
+ */
+function blockText(node: RichTextNode): string {
+  const out: string[] = []
+  const walk = (value: unknown, depth: number) => {
+    if (depth > 10) return
+    if (typeof value === 'string') {
+      if (value.trim() !== '') out.push(value)
+    } else if (Array.isArray(value)) {
+      for (const item of value) walk(item, depth + 1)
+    } else if (value && typeof value === 'object') {
+      const object = value as Record<string, unknown>
+      // A related document (or a link to one) is not the block's own text.
+      if ('relationTo' in object || 'createdAt' in object) return
+      for (const [key, inner] of Object.entries(object)) if (key !== 'id') walk(inner, depth + 1)
+    }
+  }
+  walk(blockData(node)?.fields, 0)
+  return out.join('\n')
 }
 
 /** Plain text of a document, e.g. for excerpts or search. Blocks are separated by newlines. */
@@ -194,6 +265,7 @@ export function richTextToPlainText(doc: RichTextInput | null | undefined): stri
   const walk = (node: RichTextNode): string => {
     if (node.type === 'text') return String(node.text ?? '')
     if (node.type === 'hardBreak') return '\n'
+    if (node.type === 'block') return `${blockText(node)}\n`
     const inner = (node.content ?? []).map(walk).join('')
     return blocks.has(node.type) ? `${inner}\n` : inner
   }
@@ -202,9 +274,11 @@ export function richTextToPlainText(doc: RichTextInput | null | undefined): stri
     .trim()
 }
 
-export interface MarkdownOptions {
+export interface MarkdownOptions<B extends BlockData = BlockData> {
   /** Override or add node renderers. Receives the node and its rendered children. */
   nodes?: Record<string, (node: RichTextNode, children: string) => string>
+  /** Markdown of blocks between paragraphs, by `blockType`; blocks without one are left out. */
+  blocks?: BlockRenderers<B>
 }
 
 /** Escapes characters Markdown would read as formatting. */
@@ -256,6 +330,7 @@ const indent = (text: string, by: string) => text.replace(/\n(?!\n|$)/g, `\n${by
 function markdownNode(node: RichTextNode, options: MarkdownOptions): string {
   if (!node || typeof node !== 'object') return ''
   if (node.type === 'text') return markdownMarks(String(node.text ?? ''), node.marks)
+  if (node.type === 'block') return renderBlock(node, options.blocks)
   const content = Array.isArray(node.content) ? node.content : []
   const inline = () => content.map((c) => markdownNode(c, options)).join('')
   const blocks = () =>
@@ -355,10 +430,10 @@ function markdownTable(node: RichTextNode, options: MarkdownOptions): string {
  * Renders a rich text document to Markdown, e.g. for `llms.txt` or `.md` versions of pages.
  * Text that looks like Markdown is escaped, and unsafe URLs are removed.
  */
-export function renderMarkdown(
+export function renderMarkdown<B extends BlockData = BlockData>(
   doc: RichTextInput | null | undefined,
-  options: MarkdownOptions = {},
+  options: MarkdownOptions<B> = {},
 ): string {
   if (!doc) return ''
-  return markdownNode(doc as RichTextNode, options).trim()
+  return markdownNode(doc as RichTextNode, options as MarkdownOptions).trim()
 }

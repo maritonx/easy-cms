@@ -1,6 +1,7 @@
 import { type Access, type AccessArgs, type AuthUser, isStaff, type Where } from './access.js'
 import { QueryError } from './errors.js'
 import { type Field, hasRows, rowFields } from './fields.js'
+import { blockFields, blockNodes, blockOf, hasBlocks } from './rich-text-blocks.js'
 
 type Data = Record<string, unknown>
 
@@ -52,6 +53,20 @@ export class FieldAccessChecker {
   }
 }
 
+/** A rich text document with each block's fields passed through `map` (#328); a copy. */
+async function mapBlocks(
+  field: Field & { type: 'richText' },
+  doc: unknown,
+  map: (fields: readonly Field[], data: Data) => Promise<Data>,
+): Promise<unknown> {
+  const copy = structuredClone(doc)
+  for (const node of blockNodes(copy)) {
+    const block = blockOf(field, node)
+    if (block) node.attrs = { ...node.attrs, fields: await map(block.fields, blockFields(node)) }
+  }
+  return copy
+}
+
 /**
  * Removes fields the caller may not see: hidden fields always,
  * fields whose `access.read` denies when a checker is given.
@@ -71,6 +86,8 @@ export async function stripFields(
     const value = result[field.name]
     if (field.type === 'group' && value && typeof value === 'object') {
       result[field.name] = await stripFields(field.fields, value as Data, read)
+    } else if (field.type === 'richText' && hasBlocks(field, value)) {
+      result[field.name] = await mapBlocks(field, value, (f, d) => stripFields(f, d, read))
     } else if (hasRows(field) && Array.isArray(value)) {
       result[field.name] = await Promise.all(
         value.map((row) => {
@@ -104,6 +121,8 @@ export async function filterInput(
     const value = result[field.name]
     if (field.type === 'group' && value && typeof value === 'object' && !Array.isArray(value)) {
       result[field.name] = await filterInput(field.fields, value as Data, update)
+    } else if (field.type === 'richText' && hasBlocks(field, value)) {
+      result[field.name] = await mapBlocks(field, value, (f, d) => filterInput(f, d, update))
     } else if (hasRows(field) && Array.isArray(value)) {
       result[field.name] = await Promise.all(
         value.map((row) => {

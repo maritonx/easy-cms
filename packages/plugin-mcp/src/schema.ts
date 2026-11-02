@@ -54,8 +54,13 @@ export function fieldSchema(field: Field): JsonSchema {
     }
     case 'json':
       return { ...(label ? { description: label } : {}) }
-    case 'richText':
-      return { description: hint(RICH_TEXT_HINT) }
+    case 'richText': {
+      // Blocks between paragraphs (#328): which kinds, and the node they are.
+      const blocks = field.blocks?.length
+        ? ` Between paragraphs it may hold blocks: { "type": "block", "attrs": { "blockType", "id", "fields" } }, blockType one of ${field.blocks.map((b) => `"${b.slug}" (fields: ${b.fields.map((f) => f.name).join(', ')})`).join('; ')}.`
+        : ''
+      return { description: hint(`${RICH_TEXT_HINT}${blocks}`) }
+    }
     case 'upload': {
       const types = field.mimeTypes ? ` (${field.mimeTypes.join(', ')})` : ''
       const id = { type: ['integer', 'string'] }

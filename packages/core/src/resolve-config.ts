@@ -209,9 +209,9 @@ function withoutUiFields(config: ResolvedConfig): ResolvedConfig {
           changed = true
           next = { ...field, fields: inner.data, [ADMIN_FIELDS]: inner.admin } as unknown as Field
         }
-      } else if (field.type === 'blocks') {
+      } else if (field.type === 'blocks' || (field.type === 'richText' && field.blocks)) {
         let blocksChanged = false
-        const blocks = field.blocks.map((block) => {
+        const blocks = (field.blocks ?? []).map((block) => {
           const inner = strip(block.fields)
           if (!inner.changed) return block
           blocksChanged = true

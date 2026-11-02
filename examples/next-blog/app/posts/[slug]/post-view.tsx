@@ -1,7 +1,9 @@
 'use client'
 
+import type { RichTextBlocks } from '@easy-cms/core'
 import { useLivePreview } from '@easy-cms/next/live-preview'
-import { type RichTextInput, renderRichText } from '@easy-cms/richtext'
+import { escapeHtml, type RichTextInput, renderRichText } from '@easy-cms/richtext'
+import type config from '@/easy-cms.config'
 
 type Section =
   | { id: string; blockType: 'quote'; text: string; author?: string | null }
@@ -16,10 +18,33 @@ interface Post {
   sections?: Section[]
 }
 
+type BodyBlock = RichTextBlocks<typeof config, 'posts', 'body'>
+
+/** A related post or page's address; `null` until it is populated (or when it can't be read). */
+function linkOf(doc: BodyBlock & { blockType: 'card' }): { href: string; title: string } | null {
+  const { relationTo, value } = doc.fields.doc
+  if (typeof value !== 'object' || value === null) return null
+  const page = value as { slug?: string | null; path?: string | null; title?: string | null }
+  const href = relationTo === 'posts' ? `/posts/${page.slug}` : (page.path ?? `/${page.slug}`)
+  return { href, title: page.title ?? '' }
+}
+
 /** Renders a post; in the admin's live preview it follows the form as you type, unsaved. */
 export function PostView({ post: initial }: { post: Post }) {
   const post = useLivePreview(initial)
-  const html = renderRichText(post.body)
+  // Blocks between paragraphs: a card for another post or page, and a callout.
+  const html = renderRichText<BodyBlock>(post.body, {
+    blocks: {
+      card: (_fields, block) => {
+        const link = linkOf(block)
+        return link
+          ? `<a class="doc-card" href="${escapeHtml(link.href)}">${escapeHtml(link.title)}</a>`
+          : ''
+      },
+      callout: (fields) =>
+        `<aside class="callout ${fields.tone === 'warning' ? 'warning' : 'info'}">${escapeHtml(fields.text)}</aside>`,
+    },
+  })
   const cover =
     typeof post.cover === 'object' && post.cover
       ? (post.cover as { url: string; alt?: string })

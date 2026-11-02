@@ -128,7 +128,7 @@ export function applyFieldTypes(config: Config): { config: Config; issues: Confi
       if (!type) {
         if ((field.type === 'group' || field.type === 'array') && Array.isArray(field.fields))
           return { ...field, fields: convert(field.fields, `${here}.fields`) } as Field
-        if (field.type === 'blocks' && Array.isArray(field.blocks))
+        if ((field.type === 'blocks' || field.type === 'richText') && Array.isArray(field.blocks))
           return {
             ...field,
             blocks: field.blocks.map((block, b) => ({
