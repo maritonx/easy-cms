@@ -1,5 +1,12 @@
 # @easy-cms/plugin-ecommerce
 
+## 1.28.0
+
+### Patch Changes
+
+- Updated dependencies [8a8bf1f]
+  - @easy-cms/core@1.28.0
+
 ## 1.27.0
 
 ### Patch Changes

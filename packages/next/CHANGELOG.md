@@ -1,5 +1,14 @@
 # @easy-cms/next
 
+## 1.28.0
+
+### Patch Changes
+
+- 8a8bf1f: `@easy-cms/core/client`: read content over REST from edge runtimes (Vercel Edge, Cloudflare Workers, Deno) and browsers, typed from your config: `createClient<typeof config>({ url }).find('posts', { where })`, plus `findById`, `findGlobal` (with a preview token) and `search`. It is one file with no imports. `getEasyCMS()` from `@easy-cms/next` now says what to do when called on the edge runtime (#336).
+- Updated dependencies [8a8bf1f]
+  - @easy-cms/core@1.28.0
+  - @easy-cms/admin@1.28.0
+
 ## 1.27.0
 
 ### Patch Changes

@@ -1,5 +1,9 @@
 # @easy-cms/admin
 
+## 1.28.0
+
+No changes in this release.
+
 ## 1.27.0
 
 ### Minor Changes
