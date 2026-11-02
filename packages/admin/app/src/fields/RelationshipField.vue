@@ -57,6 +57,61 @@ watch(selectedIds, loadTitles)
 const query = ref('')
 const open = ref(false)
 const options = ref<Doc[]>([])
+/** The page of results shown up to, and whether there are more (#282). */
+const page = ref(1)
+const hasMore = ref(false)
+
+// What this browser picked last in this collection, offered first while the search is empty.
+const RECENT_MAX = 5
+const recentKey = `easy-cms-recent:${props.to}`
+interface Recent {
+  id: Id
+  title: string
+}
+function readRecent(): Recent[] {
+  try {
+    const list = JSON.parse(localStorage.getItem(recentKey) ?? '[]')
+    return Array.isArray(list) ? (list as Recent[]).slice(0, RECENT_MAX) : []
+  } catch {
+    return []
+  }
+}
+const recent = ref<Recent[]>(readRecent())
+function remember(id: Id, title: string) {
+  recent.value = [{ id, title }, ...recent.value.filter((r) => r.id !== id)].slice(0, RECENT_MAX)
+  try {
+    localStorage.setItem(recentKey, JSON.stringify(recent.value))
+  } catch {
+    // private mode: for this page only
+  }
+}
+/**
+ * The options shown: recent picks first while nothing is typed (not when the field's
+ * `filterOptions` narrow the choices per document), then the search's results.
+ */
+interface Item {
+  id: Id
+  title: string
+  recent: boolean
+}
+const recentShown = computed<Item[]>(() =>
+  query.value || props.filterPath
+    ? []
+    : recent.value
+        .filter((r) => !selectedIds.value.includes(r.id))
+        .map((r) => ({ id: r.id, title: r.title, recent: true })),
+)
+const items = computed<Item[]>(() => {
+  const picked = new Set(recentShown.value.map((r) => String(r.id)))
+  return [
+    ...recentShown.value,
+    ...options.value
+      .filter((d) => !picked.has(String(d.id)))
+      .map((d) => ({ id: d.id, title: titleOf(target, d), recent: false })),
+  ]
+})
+/** The keyboard's place: an item, or `items.length` for "Show more". */
+const lastIndex = computed(() => items.value.length + (hasMore.value ? 1 : 0))
 /** A search is under way: say so instead of "No matches". */
 const searching = ref(false)
 /** Only the latest search may set the options; an older, slower answer is dropped. */
@@ -68,27 +123,36 @@ const form = inject(FORM, null)
 /** The server applies the field's `filterOptions` for this document. */
 const filterQuery = useFilterQuery(() => props.filterPath)
 
-async function search() {
+async function search(more = false) {
   const field = target?.useAsTitle
   // A title with a trigram index needs `searchMin` characters; until then, no filter.
   const long = [...query.value].length >= (target?.searchMin ?? 1)
   const where = query.value && field && long ? { [field]: { like: query.value } } : undefined
   const run = ++latest
+  const next = more ? page.value + 1 : 1
   searching.value = true
   try {
     const result = await api<Paginated<Doc>>(
       'GET',
-      `/${props.to}${toQuery({ where, limit: 10, depth: 0, draft: true, sort: field ?? '-updatedAt' })}${filterQuery()}`,
+      `/${props.to}${toQuery({ where, limit: 10, page: next, depth: 0, draft: true, sort: field ?? '-updatedAt' })}&count=false${filterQuery()}`,
     )
     if (run !== latest) return
-    options.value = result.docs.filter((d) => !selectedIds.value.includes(d.id))
+    const found = result.docs.filter((d) => !selectedIds.value.includes(d.id))
+    options.value = more ? [...options.value, ...found] : found
+    page.value = next
+    hasMore.value = result.hasNextPage
     for (const doc of result.docs) titles.value[String(doc.id)] = titleOf(target, doc)
   } catch {
     if (run !== latest) return
-    options.value = []
+    if (!more) options.value = []
+    hasMore.value = false
   }
   searching.value = false
-  active.value = 0
+  if (!more) active.value = 0
+}
+/** The next 10 results, under the ones shown. */
+function showMore() {
+  void search(true)
 }
 function onInput() {
   open.value = true
@@ -101,9 +165,10 @@ function onFocus() {
   void search()
 }
 
-function choose(doc: Doc) {
-  titles.value[String(doc.id)] = titleOf(target, doc)
-  emit('update:modelValue', props.hasMany ? [...selectedIds.value, doc.id] : doc.id)
+function choose(item: { id: Id; title: string }) {
+  titles.value[String(item.id)] = item.title
+  remember(item.id, item.title)
+  emit('update:modelValue', props.hasMany ? [...selectedIds.value, item.id] : item.id)
   query.value = ''
   open.value = props.hasMany
   if (props.hasMany) void search()
@@ -112,12 +177,15 @@ function removeId(id: Id) {
   emit('update:modelValue', props.hasMany ? selectedIds.value.filter((v) => v !== id) : null)
 }
 function onKeydown(event: KeyboardEvent) {
-  if (!open.value || !options.value.length) return
-  if (event.key === 'ArrowDown') active.value = (active.value + 1) % options.value.length
+  if (!open.value || !lastIndex.value) return
+  if (event.key === 'ArrowDown') active.value = (active.value + 1) % lastIndex.value
   else if (event.key === 'ArrowUp')
-    active.value = (active.value - 1 + options.value.length) % options.value.length
-  else if (event.key === 'Enter') choose(options.value[active.value] as Doc)
-  else if (event.key === 'Escape') open.value = false
+    active.value = (active.value - 1 + lastIndex.value) % lastIndex.value
+  else if (event.key === 'Enter') {
+    const item = items.value[active.value]
+    if (item) choose(item)
+    else showMore()
+  } else if (event.key === 'Escape') open.value = false
   else return
   event.preventDefault()
 }
@@ -142,7 +210,7 @@ const createInitial = computed(() =>
 )
 function created(doc: Doc) {
   creating.value = false
-  choose(doc)
+  choose({ id: doc.id, title: titleOf(target, doc) })
   open.value = false
 }
 </script>
@@ -169,7 +237,7 @@ function created(doc: Doc) {
         :aria-expanded="open"
         :aria-controls="listId"
         :aria-invalid="invalid"
-        :aria-activedescendant="open && options.length ? `${listId}-${active}` : undefined"
+        :aria-activedescendant="open && lastIndex ? (active < items.length ? `${listId}-${active}` : `${listId}-more`) : undefined"
         :placeholder="t('field.searchRelation')"
         @input="onInput"
         @focus="onFocus"
@@ -177,19 +245,31 @@ function created(doc: Doc) {
         @keydown="onKeydown"
       />
       <ul v-if="open" :id="listId" class="options card" role="listbox">
+        <template v-for="(item, index) in items" :key="`${item.recent ? 'r' : 'o'}${item.id}`">
+          <li v-if="index === 0 && item.recent" class="group" role="presentation">{{ t('field.recentlyPicked') }}</li>
+          <li v-else-if="index === recentShown.length && recentShown.length" class="group" role="presentation">{{ t('field.allResults') }}</li>
+          <li
+            :id="`${listId}-${index}`"
+            role="option"
+            :aria-selected="index === active"
+            :class="{ active: index === active }"
+            @mousedown.prevent="choose(item)"
+          >
+            {{ item.title }}
+          </li>
+        </template>
         <li
-          v-for="(doc, index) in options"
-          :id="`${listId}-${index}`"
-          :key="String(doc.id)"
+          v-if="hasMore"
+          :id="`${listId}-more`"
           role="option"
-          :aria-selected="index === active"
-          :class="{ active: index === active }"
-          @mousedown.prevent="choose(doc)"
+          :aria-selected="active === items.length"
+          :class="['more', { active: active === items.length }]"
+          @mousedown.prevent="showMore"
         >
-          {{ titleOf(target, doc) }}
+          {{ t('field.showMore') }}
         </li>
-        <li v-if="!options.length && searching" class="muted empty loading-line" role="status"><span class="spinner" aria-hidden="true" />{{ t('common.loading') }}</li>
-        <li v-else-if="!options.length" class="muted empty">{{ t('field.noMatches') }}</li>
+        <li v-if="!items.length && searching" class="muted empty loading-line" role="status"><span class="spinner" aria-hidden="true" />{{ t('common.loading') }}</li>
+        <li v-else-if="!items.length" class="muted empty">{{ t('field.noMatches') }}</li>
       </ul>
     </div>
     <button v-if="!readOnly && !noAccess && canCreate && (hasMany || !selectedIds.length)" type="button" class="btn btn-ghost btn-sm create" @click="creating = true">
@@ -273,6 +353,22 @@ function created(doc: Doc) {
 }
 .options li.active {
   background: var(--accent-soft);
+}
+.options li.group {
+  padding: 0.45rem 0.75rem 0.2rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--faint);
+  cursor: default;
+}
+.options li.group:not(:first-child) {
+  margin-top: 0.25rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.55rem;
+}
+.options li.more {
+  color: var(--accent-ink);
+  font-weight: 600;
 }
 .options li.empty {
   cursor: default;
