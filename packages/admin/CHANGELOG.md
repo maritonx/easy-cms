@@ -1,5 +1,32 @@
 # @easy-cms/admin
 
+## 1.26.0
+
+### Minor Changes
+
+- eb5ed03: Picking from large collections (#282). A relationship field shows 10 results at a time with **Show
+  more** for the next 10, and with nothing typed the documents picked recently in that collection
+  come first (kept in the browser; not for fields with `filterOptions`). The media library's search
+  looks in file names and alt text, and **Images**, **Video** and **Documents** narrow it to one kind
+  of file (`?type=`).
+- 10641f1: List tables keep their header in view (#281): the table scrolls in its own box, with the column
+  names stuck at the top and the pages at the bottom, and going back from a document returns to
+  where the table was scrolled. **Compact** rows (beside **Columns**) fit more on the screen,
+  remembered in the browser. A list that fails to load shows **Retry** beside the message.
+- dfd3ee1: Rich text links to documents, kept by id (#326). The editor's link button links to a web address
+  or to a document of a collection with a `preview` URL; the link mark stores
+  `doc: { relationTo, value }` and no URL. Reads at `depth` 1 or more fill in `href` with the
+  document's URL as it is now, so links follow a document whose slug or path changes, and a deleted
+  or unreadable document leaves plain text. Saving checks the document exists and its collection
+  has a `preview`.
+- 47fd251: A `ui` field (#325): a component in the edit form that stores nothing, such as a calculator, a
+  preview or a button. `{ name: 'readingTime', type: 'ui', admin: { component: 'acme-reading-time' } }`
+  has no column and is left out of the API, validation, MCP and the generated types; it is placed
+  like any field (in `admin.layout`, groups, array rows, blocks and the side panel, with
+  `admin.condition`) and its component gets the edit page's state. Without a `label` the component
+  shows alone. Value options on it are refused, and a group or array needs a stored field beside it.
+  The standalone example shows a post's reading time with one.
+
 ## 1.25.1
 
 ### Patch Changes
