@@ -102,7 +102,8 @@ export interface AdminField {
   max?: number
   options?: { label: Label; value: string }[]
   hasMany?: boolean
-  to?: string
+  /** Several for a relationship to several collections (#327). */
+  to?: string | string[]
   /** An upload's allowed file types, e.g. `image/*`. */
   mimeTypes?: string[]
   /** An upload's media folder (`folder`): where its picker opens; `only`: nowhere else. */
@@ -353,7 +354,7 @@ async function serializeFields(
         if (field.from) f.from = field.from
         break
       case 'relationship':
-        f.to = field.to
+        f.to = typeof field.to === 'string' ? field.to : [...field.to]
         if (field.hasMany) f.hasMany = true
         if (field.minRows !== undefined) f.minRows = field.minRows
         if (field.maxRows !== undefined) f.maxRows = field.maxRows

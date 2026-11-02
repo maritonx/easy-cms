@@ -42,6 +42,7 @@ const config = defineConfig({
         { name: 'cover', type: 'upload' },
         { name: 'author', type: 'relationship', to: 'authors', required: true },
         { name: 'related', type: 'relationship', to: 'posts', hasMany: true },
+        { name: 'mention', type: 'relationship', to: ['posts', 'authors'] },
         { name: 'links', type: 'array', fields: [{ name: 'url', type: 'text', required: true }] },
         { name: 'seo', type: 'group', fields: [{ name: 'description', type: 'textarea' }] },
         { name: 'meta', type: 'json' },
@@ -97,6 +98,15 @@ describe('type inference', () => {
     expectTypeOf<Exclude<Post['author'], ID>['name']>().toEqualTypeOf<string>()
     expectTypeOf<NonNullable<Post['related']>>().toEqualTypeOf<(ID | Post)[]>()
     expectTypeOf<NonNullable<Author['posts']>>().toEqualTypeOf<(ID | Post)[]>()
+  })
+
+  it('tells collections apart by relationTo (#327)', () => {
+    expectTypeOf<NonNullable<Post['mention']>>().toEqualTypeOf<
+      { relationTo: 'posts'; value: ID | Post } | { relationTo: 'authors'; value: ID | Author }
+    >()
+    type Input = import('../src/index.js').CreateInput<Config, 'posts'>
+    expectTypeOf<{ relationTo: 'authors'; value: 1 }>().toExtend<NonNullable<Input['mention']>>()
+    expectTypeOf<{ relationTo: 'site'; value: 1 }>().not.toExtend<NonNullable<Input['mention']>>()
   })
 
   it('infers arrays and groups', () => {

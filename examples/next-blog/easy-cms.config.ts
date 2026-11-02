@@ -241,6 +241,14 @@ export default defineConfig({
           localized: true,
         },
         { name: 'tagline', type: 'text', label: { en: 'Tagline', th: 'คำโปรย' }, localized: true },
+        // Links to posts or pages, each `{ relationTo, value }`.
+        {
+          name: 'featured',
+          type: 'relationship',
+          to: ['posts', 'pages'],
+          hasMany: true,
+          label: { en: 'Featured', th: 'แนะนำ' },
+        },
       ],
     },
   ],

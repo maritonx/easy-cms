@@ -7,7 +7,14 @@ import type {
   ResolvedConfig,
   Where,
 } from '@easy-cms/core'
-import { API_KEYS, INTERNAL_COLLECTIONS, MEDIA, MEDIA_FOLDERS } from '@easy-cms/core/internal'
+import {
+  API_KEYS,
+  INTERNAL_COLLECTIONS,
+  isPolymorphic,
+  MEDIA,
+  MEDIA_FOLDERS,
+  relationTargets,
+} from '@easy-cms/core/internal'
 import {
   type GraphQLArgumentConfig,
   GraphQLBoolean,
@@ -520,6 +527,8 @@ class Builder {
         return { type: many(this.selectType(field, path) ?? GraphQLString) }
       case 'relationship':
       case 'upload':
+        // Several collections (#327): `{ relationTo, value }` as JSON until a union type comes.
+        if (isPolymorphic(field)) return { type: hasMany(field) ? list(JSONScalar) : JSONScalar }
         return this.relationField(field)
       case 'group': {
         const type = new GraphQLObjectType({
@@ -605,7 +614,7 @@ class Builder {
   }
 
   private relationField(field: Field & { type: 'relationship' | 'upload' }): FieldConfig {
-    const target = field.type === 'upload' ? MEDIA : field.to
+    const target = relationTargets(field)[0] as string
     const many = hasMany(field)
     const type = this.objects.get(target)
     if (!type || !this.exposed(target)) {
@@ -694,7 +703,8 @@ class Builder {
         return this.filters.DateTime
       case 'relationship':
       case 'upload':
-        return this.filters.ID
+        // Several collections (#327): not filterable here yet.
+        return isPolymorphic(field) ? undefined : this.filters.ID
       case 'select': {
         const type = this.selectType(field, path)
         if (!type) return this.filters.String
@@ -1008,7 +1018,7 @@ class Builder {
         return many(this.selectType(field, path) ?? GraphQLString)
       case 'relationship':
       case 'upload':
-        return many(GraphQLID)
+        return isPolymorphic(field) ? many(JSONScalar) : many(GraphQLID)
       case 'blocks':
         return list(JSONScalar)
       case 'group':

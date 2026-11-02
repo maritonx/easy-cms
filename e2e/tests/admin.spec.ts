@@ -1151,6 +1151,40 @@ test.describe('logged in as admin', () => {
     await expect(page.getByText('Tested end to end')).toBeVisible()
   })
 
+  test('links to posts or pages from one field (#327)', async ({ page }) => {
+    test.skip(test.info().project.name !== 'next', 'The Next.js example has the field')
+    await page.goto('/admin/')
+    const me = (await (await page.request.get('/api/cms/auth/me')).json()) as { csrfToken: string }
+    const headers = { 'x-csrf-token': me.csrfToken, origin: new URL(page.url()).origin }
+    const created = await page.request.post('/api/cms/pages', {
+      headers,
+      data: { status: 'published', title: 'Contact us', slug: 'contact-us' },
+    })
+    expect(created.status()).toBe(201)
+    const contact = (await created.json()) as { id: number }
+
+    await fromMenu(page, 'Settings', 'Site')
+    const featured = page.getByRole('combobox', { name: 'Featured' })
+    // Posts first; then the collection beside the search switches to pages.
+    await featured.fill('Hello')
+    await page.getByRole('option', { name: 'Hello from Playwright' }).click()
+    await page.getByRole('combobox', { name: 'Collection' }).selectOption({ label: 'Page' })
+    await featured.fill('Contact')
+    await page.getByRole('option', { name: 'Contact us' }).click()
+    const chips = page.locator('.chip')
+    await expect(chips).toHaveText(['Post · Hello from Playwright', 'Page · Contact us'])
+    await page.getByRole('button', { name: 'Save' }).click()
+    await expect(page.getByRole('status')).toHaveText('Saved')
+
+    await page.reload()
+    await expect(chips).toHaveText(['Post · Hello from Playwright', 'Page · Contact us'])
+    const site = (await (await page.request.get('/api/cms/globals/site?depth=0')).json()) as {
+      featured: { relationTo: string; value: number }[]
+    }
+    expect(site.featured.map((f) => f.relationTo)).toEqual(['posts', 'pages'])
+    expect(site.featured[1]?.value).toBe(contact.id)
+  })
+
   test('shows one group at a time, follows the page, and folds the panel away', async ({
     page,
   }) => {

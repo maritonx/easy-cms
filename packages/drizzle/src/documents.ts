@@ -30,14 +30,23 @@ function setAt(data: Data, path: readonly string[], value: unknown) {
   current[path[path.length - 1] as string] = value
 }
 
-const columnPath = (column: TableModel['columns'][number]) =>
-  column.locale === undefined ? column.path : [...column.path, column.locale]
+const columnPath = (column: TableModel['columns'][number]) => {
+  const path = column.locale === undefined ? column.path : [...column.path, column.locale]
+  return column.part === undefined ? path : [...path, column.part]
+}
 
 /** Converts a database row into document data (groups nested, children empty). */
 function rowToData(model: TableModel, row: Row): Data {
   const data: Data = {}
   // Localized fields become `{ [locale]: value }`; the Local API picks the requested locale.
   for (const column of model.columns) setAt(data, columnPath(column), row[column.column] ?? null)
+  // `{ relationTo, value }` (#327) with neither set is no link.
+  for (const column of model.columns) {
+    if (column.part !== 'value') continue
+    const path = columnPath(column).slice(0, -1)
+    const pair = getAt(data, path) as Data | undefined
+    if (pair && pair.value === null && pair.relationTo === null) setAt(data, path, null)
+  }
   for (const child of model.children)
     setAt(
       data,
@@ -92,7 +101,13 @@ async function attachChildren(db: Executor, model: TableModel, rows: Row[], docs
         locale === undefined
           ? childRow.id
           : String(childRow.id).replace(new RegExp(`:${locale}$`), '')
-      list.push(child.kind === 'array' ? { id, ...childDocs?.[i] } : childRow.value)
+      list.push(
+        child.kind === 'array'
+          ? { id, ...childDocs?.[i] }
+          : 'relation_to' in childRow
+            ? { relationTo: childRow.relation_to, value: childRow.value }
+            : childRow.value,
+      )
     })
   }
 }
@@ -141,10 +156,14 @@ async function insertChild(
 ) {
   const localeColumn = locale === undefined ? {} : { _locale: locale }
   if (child.kind === 'values') {
+    const polymorphic = 'relation_to' in child.table.table
     const rows = items.map((value, i) => ({
       _parent_id: parentId,
       _order: i,
-      value,
+      // Several collections (#327): `{ relationTo, value }`.
+      ...(polymorphic
+        ? { relation_to: (value as Data).relationTo, value: (value as Data).value }
+        : { value }),
       ...localeColumn,
     }))
     for (const part of chunks(rows)) await db.insert(child.table.table).values(part)

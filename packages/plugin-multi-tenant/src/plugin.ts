@@ -22,7 +22,14 @@ import {
   ValidationError,
   type Where,
 } from '@easy-cms/core'
-import { checkRenamedOptions, MEDIA, MEDIA_FOLDERS } from '@easy-cms/core/internal'
+import {
+  checkRenamedOptions,
+  isPolymorphic,
+  MEDIA,
+  MEDIA_FOLDERS,
+  polymorphicValue,
+  relationTargets,
+} from '@easy-cms/core/internal'
 import { INFO } from './info.js'
 import { membersEndpoints } from './members.js'
 import {
@@ -251,12 +258,9 @@ export function multiTenantPlugin<const S extends string, const T extends string
             ...field,
             blocks: field.blocks.map((b) => ({ ...b, fields: withTenantFilters(b.fields) })),
           }
-        const target =
-          field.type === 'relationship' ? field.to : field.type === 'upload' ? MEDIA : null
         if (
           (field.type !== 'relationship' && field.type !== 'upload') ||
-          !target ||
-          !scoped.has(target)
+          !relationTargets(field).some((target) => scoped.has(target))
         )
           return field
         const own = field.filterOptions
@@ -264,6 +268,8 @@ export function multiTenantPlugin<const S extends string, const T extends string
           ...field,
           filterOptions: async (args) => {
             const base = own ? await own(args) : true
+            // Several collections (#327): only the tenant-scoped ones are narrowed.
+            if (!scoped.has(args.relationTo)) return base
             const { tenant } = tenantOf(args.context)
             if (tenant === null) return base
             const mine: Where = { [TENANT_FIELD]: { equals: tenant } }
@@ -303,10 +309,13 @@ export function multiTenantPlugin<const S extends string, const T extends string
         const { tenant } = tenantOf(context)
         if (tenant !== null) return { ...data, [TENANT_FIELD]: tenant }
         for (const field of fields) {
-          const target =
-            field.type === 'relationship' ? field.to : field.type === 'upload' ? MEDIA : null
+          if (field.type !== 'relationship' && field.type !== 'upload') continue
+          // Several collections (#327): the collection of the first value.
+          const first = [data[field.name]].flat()[0]
+          const pair = isPolymorphic(field) ? polymorphicValue(first) : undefined
+          const target = pair ? pair.relationTo : relationTargets(field)[0]
           if (!target || !scoped.has(target) || field.name === TENANT_FIELD) continue
-          const value = [data[field.name]].flat()[0]
+          const value = pair ? pair.value : first
           const id = value && typeof value === 'object' ? (value as { id?: ID }).id : value
           if (id === null || id === undefined) continue
           if (!cms.config.collections.some((c) => c.slug === target)) continue

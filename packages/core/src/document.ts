@@ -8,6 +8,9 @@ import {
   type FilterOptions,
   hasRows,
   isHasMany,
+  isPolymorphic,
+  polymorphicValue,
+  relationTargets,
   rowFields,
   type SelectField,
 } from './fields.js'
@@ -398,20 +401,36 @@ async function normalizeValue(
     }
     case 'upload':
     case 'relationship': {
-      const target = field.type === 'upload' ? 'media' : field.to
+      const targets = relationTargets(field)
+      const poly = isPolymorphic(field)
       const many = field.hasMany === true
       const values = many ? raw : [raw]
-      if (!Array.isArray(values)) return fail('must be an array of ids')
+      if (!Array.isArray(values))
+        return fail(poly ? 'must be an array of { relationTo, value }' : 'must be an array of ids')
       if (many && field.minRows !== undefined && values.length < field.minRows)
         return fail(`must have at least ${itemsOf(field, field.minRows)}`)
       if (many && field.maxRows !== undefined && values.length > field.maxRows)
         return fail(`must have at most ${itemsOf(field, field.maxRows)}`)
-      const ids: ID[] = []
+      const out: unknown[] = []
       for (const item of values) {
-        const id = parseId(isPlainObject(item) ? item.id : item)
+        // Several collections (#327): `{ relationTo, value }`, the value an id or a document.
+        const pair = poly ? polymorphicValue(item) : undefined
+        if (poly && (!pair || !targets.includes(pair.relationTo)))
+          return fail(
+            pair
+              ? `can't link to "${pair.relationTo}": use one of ${targets.map((t) => `"${t}"`).join(', ')}`
+              : `must be ${many ? 'a list of' : ''} { relationTo, value } with relationTo one of ${targets.map((t) => `"${t}"`).join(', ')}`,
+          )
+        const target = pair ? pair.relationTo : (targets[0] as string)
+        const rawId = pair ? pair.value : item
+        const id = parseId(isPlainObject(rawId) ? rawId.id : rawId)
         if (id === undefined)
-          return fail(`must be ${many ? 'ids' : 'an id'} of "${target}" documents`)
-        ids.push(id)
+          return fail(
+            poly
+              ? `must have the id of a "${target}" document as value`
+              : `must be ${many ? 'ids' : 'an id'} of "${target}" documents`,
+          )
+        out.push(pair ? { relationTo: target, value: id } : id)
         references.push({
           field: path,
           collection: target,
@@ -423,7 +442,7 @@ async function normalizeValue(
             : {}),
         })
       }
-      return many ? ids : ids[0]
+      return many ? out : out[0]
     }
     case 'array': {
       if (!Array.isArray(raw)) return fail('must be an array')

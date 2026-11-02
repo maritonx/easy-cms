@@ -18,6 +18,7 @@ export function singularize(word: string): string {
 }
 
 const quote = (value: string) => JSON.stringify(value)
+const idOr = (type: string | undefined) => (type ? `ID | ${type}` : 'ID')
 const key = (name: string) => (/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(name) ? name : quote(name))
 
 interface Names {
@@ -79,8 +80,15 @@ function fieldType(field: Field, n: Names, indent: string): string {
       return field.hasMany ? `(${one})[]` : one
     }
     case 'relationship': {
-      const target = n.collections.get(field.to)
-      const one = target ? `ID | ${target}` : 'ID'
+      // Several collections (#327): `{ relationTo, value }`, told apart by `relationTo`.
+      const one =
+        typeof field.to === 'string'
+          ? idOr(n.collections.get(field.to))
+          : field.to
+              .map(
+                (slug) => `{ relationTo: ${quote(slug)}; value: ${idOr(n.collections.get(slug))} }`,
+              )
+              .join(' | ')
       return field.hasMany ? `(${one})[]` : one
     }
     case 'group':

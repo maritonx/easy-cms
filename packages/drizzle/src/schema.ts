@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import type { CollectionConfig, Field, ResolvedConfig } from '@easy-cms/core'
 import { ConfigError } from '@easy-cms/core'
-import { isHasMany } from '@easy-cms/core/internal'
+import { isHasMany, isPolymorphic } from '@easy-cms/core/internal'
 import type { AnyColumn, AnyTable, ColumnBuilder, Dialect } from './dialect.js'
 
 /** A scalar field stored as a column of this table. */
@@ -14,7 +14,14 @@ export interface ColumnModel {
   readonly locale?: string
   /** The default locale's column, used when a query names no locale. */
   readonly defaultLocale?: boolean
+  /**
+   * A relationship to several collections (#327) has two columns, `<field>_relation_to` and
+   * `<field>_value`: which part of `{ relationTo, value }` this one holds.
+   */
+  readonly part?: PolymorphicPart
 }
+
+export type PolymorphicPart = 'relationTo' | 'value'
 
 /** A child table holding array rows or hasMany values. */
 export interface ChildModel {
@@ -305,6 +312,10 @@ function buildTable(
     }
     if (kind === 'values' && options.valueField) {
       const valueKind = columnKind(options.valueField)
+      // Several collections (#327): which collection each value is from.
+      // Nullable: values saved before the field had several collections get theirs when the
+      // migration adds the column (see `relationMoves`).
+      if (isPolymorphic(options.valueField)) add('relation_to', dialect.text('relation_to'), 'text')
       add('value', makeColumn(dialect, 'value', valueKind), valueKind)
       indexes.push({ column: 'value', unique: false })
     }
@@ -351,15 +362,34 @@ function buildTable(
         const localization = field.localized ? builder.localization : null
         // Localized: one column per locale. The default locale keeps the plain name, so turning
         // `localized` on keeps existing values as the default locale's.
-        const targets = localization
-          ? localization.locales.map((locale) => ({
-              column: locale === localization.defaultLocale ? base : `${base}__${snake(locale)}`,
-              locale,
-            }))
-          : [{ column: base, locale: undefined }]
-        for (const { column, locale } of targets) {
-          add(column, makeColumn(dialect, column, kindOfColumn), kindOfColumn)
-          columnModels.push(
+        // Several collections (#327): `<field>_relation_to` and `<field>_value`.
+        const parts: { suffix: string; part?: PolymorphicPart; kind: ColumnKind }[] = isPolymorphic(
+          field,
+        )
+          ? [
+              { suffix: '_relation_to', part: 'relationTo', kind: 'text' },
+              { suffix: '_value', part: 'value', kind: kindOfColumn },
+            ]
+          : [{ suffix: '', kind: kindOfColumn }]
+        const targets = (
+          localization
+            ? localization.locales.map((locale) => ({
+                column: locale === localization.defaultLocale ? base : `${base}__${snake(locale)}`,
+                locale,
+              }))
+            : [{ column: base, locale: undefined }]
+        ).flatMap(({ column, locale }) =>
+          parts.map(({ suffix, part, kind }) => ({
+            column:
+              locale === undefined ? `${base}${suffix}` : column.replace(base, `${base}${suffix}`),
+            locale,
+            part,
+            kind,
+          })),
+        )
+        for (const { column, locale, part, kind: partKind } of targets) {
+          add(column, makeColumn(dialect, column, partKind), partKind)
+          const model: ColumnModel =
             locale === undefined
               ? { path: fieldPath, field, column }
               : {
@@ -368,8 +398,10 @@ function buildTable(
                   column,
                   locale,
                   defaultLocale: locale === localization?.defaultLocale,
-                },
-          )
+                }
+          columnModels.push(part ? { ...model, part } : model)
+          // The value column is the one indexed, as for a relationship to one collection.
+          if (part === 'relationTo') continue
           if (
             topLevel &&
             kind === 'root' &&

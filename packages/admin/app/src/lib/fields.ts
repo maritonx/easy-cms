@@ -51,7 +51,14 @@ export function toFormValues(fields: readonly AdminField[], doc: Data): Data {
         : []
     } else if (field.type === 'relationship' || field.type === 'upload') {
       const toId = (v: unknown) => (v && typeof v === 'object' ? (v as Data).id : v)
-      data[field.name] = Array.isArray(value) ? value.map(toId) : (toId(value) ?? null)
+      // Several collections (#327): `{ relationTo, value }`, the value an id.
+      const toValue = Array.isArray(field.to)
+        ? (v: unknown) =>
+            v && typeof v === 'object'
+              ? { relationTo: (v as Data).relationTo, value: toId((v as Data).value) }
+              : v
+        : toId
+      data[field.name] = Array.isArray(value) ? value.map(toValue) : (toValue(value) ?? null)
     } else {
       data[field.name] = value ?? (field.type === 'boolean' ? false : field.hasMany ? [] : null)
     }

@@ -70,8 +70,24 @@ export function fieldSchema(field: Field): JsonSchema {
         : { ...id, description: hint(`id of a media document${types} (see upload_media)`) }
     }
     case 'relationship': {
-      const id = { type: ['integer', 'string'] }
-      const about = hint(`id of a document in "${field.to}"`)
+      // Several collections (#327): `{ relationTo, value }`.
+      const id =
+        typeof field.to === 'string'
+          ? { type: ['integer', 'string'] }
+          : {
+              type: 'object',
+              properties: {
+                relationTo: { type: 'string', enum: [...field.to] },
+                value: { type: ['integer', 'string'] },
+              },
+              required: ['relationTo', 'value'],
+              additionalProperties: false,
+            }
+      const about = hint(
+        typeof field.to === 'string'
+          ? `id of a document in "${field.to}"`
+          : `a document in one of ${field.to.map((t) => `"${t}"`).join(', ')}: its collection and id`,
+      )
       return field.hasMany
         ? {
             type: 'array',

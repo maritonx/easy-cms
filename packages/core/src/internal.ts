@@ -32,7 +32,10 @@ export { FIELD_TYPE_BASES } from './field-types.js'
 export {
   hasRows,
   isHasMany,
+  isPolymorphic,
   mimeAllowedBy,
+  polymorphicValue,
+  relationTargets,
   rowFields,
   TRIGRAM_LIKE_MIN,
   uniqueWithinOf,

@@ -1,4 +1,5 @@
 import type { AdminField } from '@easy-cms/core'
+import { findCollection } from './session'
 import { dayOf, dayStart, nextDay } from './time-zone'
 
 /**
@@ -56,6 +57,24 @@ export function filterFields(fields: readonly AdminField[]): FilterField[] {
         walk(field.fields ?? [], `${prefix}${field.name}.`, [...trail, field])
         continue
       }
+      // Several collections (#327): one filter per collection, `link.pages` ("Link › Page").
+      if (field.type === 'relationship' && Array.isArray(field.to)) {
+        for (const slug of field.to) {
+          const collection = findCollection(slug)
+          const part = {
+            ...field,
+            name: slug,
+            to: slug,
+            label: collection?.labels?.singular ?? slug,
+          } as AdminField
+          out.push({
+            path: `${prefix}${field.name}.${slug}`,
+            field: part,
+            trail: [...trail, field, part],
+          })
+        }
+        continue
+      }
       if (kindOf(field))
         out.push({ path: `${prefix}${field.name}`, field, trail: [...trail, field] })
     }
@@ -66,6 +85,10 @@ export function filterFields(fields: readonly AdminField[]): FilterField[] {
       out.push({ path: stamp.name, field: stamp, trail: [stamp] })
   return out
 }
+
+/** The collection a relation filter searches (each collection of several has its own filter). */
+export const relationOf = (field: AdminField | undefined): string =>
+  typeof field?.to === 'string' ? field.to : ''
 
 /** The kind of a field's conditions; field types added by plugins filter as the type they store. */
 export function kindOf(field: AdminField): FilterKind | null {

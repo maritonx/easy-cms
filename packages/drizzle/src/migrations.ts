@@ -156,7 +156,10 @@ export class Migrator {
   /** Renames become drop + add unless interactive. */
   private async changes(prev: Snapshot, cur: Snapshot, interactive: boolean): Promise<string[]> {
     const { dialect } = this.options
-    const moves = this.localeMoves(prev, metaOf(prev), metaOf(cur))
+    const moves = [
+      ...this.localeMoves(prev, metaOf(prev), metaOf(cur)),
+      ...this.relationMoves(prev),
+    ]
     const [from, to] = [withoutMeta(prev), withoutMeta(cur)]
     if (interactive && moves.length === 0) return dialect.migration(from, to)
     // Columns are added first and dropped last, so values can move between them in the middle.
@@ -166,6 +169,64 @@ export class Migrator {
       ...moves,
       ...(await dialect.migration(union, to)),
     ]
+  }
+
+  /**
+   * A relationship that gets several collections (#327) keeps its values: the id moves from
+   * `<field>` to `<field>_value`, with the first collection of `to` as `<field>_relation_to`
+   * (list the collection it had first). Back to one collection, the values of that collection
+   * stay and the others are removed, with a warning.
+   */
+  private relationMoves(prev: Snapshot): string[] {
+    const q = (name: string) => this.q(name)
+    const text = (value: string) => `'${value.replace(/'/g, "''")}'`
+    const statements: string[] = []
+    const lost = new Set<string>()
+    for (const model of tableModels(this.options.schema)) {
+      const old = snapshotTable(prev, model.name)
+      if (!old) continue
+      const has = (column: string) => Object.hasOwn(old.columns ?? {}, column)
+      if (model.kind === 'values' && model.valueField?.type === 'relationship') {
+        const to = model.valueField.to
+        if (typeof to !== 'string' && !has('relation_to'))
+          statements.push(
+            `UPDATE ${q(model.name)} SET ${q('relation_to')} = ${text(to[0] as string)} WHERE ${q('relation_to')} IS NULL`,
+          )
+        if (typeof to === 'string' && has('relation_to')) {
+          statements.push(
+            `DELETE FROM ${q(model.name)} WHERE ${q('relation_to')} IS NULL OR ${q('relation_to')} <> ${text(to)}`,
+          )
+          lost.add(model.name)
+        }
+        continue
+      }
+      for (const column of model.columns) {
+        const { field } = column
+        if (field.type !== 'relationship') continue
+        if (column.part === 'value' && typeof field.to !== 'string') {
+          // `link_value` (or `link_value__en`) was `link` (`link__en`).
+          const before = column.column.replace(/_value(?=__|$)/, '')
+          const relationTo = column.column.replace(/_value(?=__|$)/, '_relation_to')
+          if (has(column.column) || !has(before)) continue
+          statements.push(
+            `UPDATE ${q(model.name)} SET ${q(column.column)} = ${q(before)}, ${q(relationTo)} = ${text(field.to[0] as string)} WHERE ${q(before)} IS NOT NULL`,
+          )
+        } else if (column.part === undefined && typeof field.to === 'string') {
+          const value = column.column.replace(/(?=__|$)/, '_value')
+          const relationTo = column.column.replace(/(?=__|$)/, '_relation_to')
+          if (has(column.column) || !has(value) || !has(relationTo)) continue
+          statements.push(
+            `UPDATE ${q(model.name)} SET ${q(column.column)} = ${q(value)} WHERE ${q(relationTo)} = ${text(field.to)}`,
+          )
+          lost.add(`${model.name}.${column.column}`)
+        }
+      }
+    }
+    if (lost.size > 0)
+      this.options.logger.warn(
+        `Links to other collections are removed from ${[...lost].join(', ')}: those relationships now have one collection.`,
+      )
+    return statements
   }
 
   /**
@@ -195,7 +256,10 @@ export class Migrator {
         const base = column.column
         // The old default locale's values move out of the plain column…
         const moved = model.columns.find(
-          (c) => c.path.join('.') === column.path.join('.') && c.locale === was.defaultLocale,
+          (c) =>
+            c.path.join('.') === column.path.join('.') &&
+            c.part === column.part &&
+            c.locale === was.defaultLocale,
         )
         if (moved && !has(moved.column)) keep.push(`${q(moved.column)} = ${q(base)}`)
         // …and the new default locale's move in (empty if it is a new locale).

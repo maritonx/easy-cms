@@ -1542,16 +1542,25 @@ function validateField(
         }
       }
       break
-    case 'relationship':
-      if (typeof field.to !== 'string' || !collectionSlugs.has(field.to)) {
-        add(
-          `${path}.to`,
-          `unknown collection ${JSON.stringify(field.to)}`,
-          `use one of: ${[...collectionSlugs].join(', ')}`,
-        )
+    case 'relationship': {
+      const to: unknown = field.to
+      // A list (#327): values are `{ relationTo, value }`, even with one collection in it.
+      if (Array.isArray(to)) {
+        if (to.length === 0) add(`${path}.to`, 'needs at least one collection')
+        if (new Set(to).size !== to.length) add(`${path}.to`, 'names a collection twice')
+      }
+      for (const target of Array.isArray(to) ? to : [to]) {
+        if (typeof target !== 'string' || !collectionSlugs.has(target)) {
+          add(
+            `${path}.to`,
+            `unknown collection ${JSON.stringify(target)}`,
+            `use one of: ${[...collectionSlugs].join(', ')}`,
+          )
+        }
       }
       validateManyRange(field, path, add)
       break
+    }
     case 'upload':
       validateManyRange(field, path, add)
       if (field.folder !== undefined && !FOLDER_KEY.test(String(field.folder)))

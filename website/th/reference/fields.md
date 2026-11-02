@@ -112,11 +112,11 @@
 
 | ตัวเลือก | Type | |
 |---|---|---|
-| `to` | `string` | **จำเป็น** slug ของ collection ปลายทาง |
+| `to` | `string \| string[]` | **จำเป็น** slug ของ collection ปลายทาง หรือหลายตัว: ค่าจะเป็น `{ relationTo, value }` ([หลาย collection](../guide/fields#several-collections)) |
 | `hasMany` | `boolean` | หลายเอกสาร ค่าเป็น array |
 | `minRows` | `number` | เมื่อใช้ `hasMany`: จำนวนเอกสารขั้นต่ำ |
 | `maxRows` | `number` | เมื่อใช้ `hasMany`: จำนวนเอกสารสูงสุด |
-| `filterOptions` | `({ id, user, cms }) => Where \| true` | เอกสารใดที่เลือกได้ ช่องเลือกใน admin แสดงเฉพาะเอกสารเหล่านี้ และตรวจซ้ำตอนบันทึก |
+| `filterOptions` | `({ id, relationTo, user, cms }) => Where \| true` | เอกสารใดของ `relationTo` ที่เลือกได้ ช่องเลือกใน admin แสดงเฉพาะเอกสารเหล่านี้ และตรวจซ้ำตอนบันทึก |
 
 <!-- api: ArrayField -->
 ### array {#array}
