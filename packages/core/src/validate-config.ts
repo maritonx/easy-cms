@@ -11,7 +11,7 @@ import { checkConfigKeys } from './config-keys.js'
 import { ADAPTER_API_VERSION } from './database.js'
 import { warnDeprecated } from './deprecation.js'
 import type { ConfigIssue } from './errors.js'
-import { FIELD_TYPES, type Field, type SelectOption } from './fields.js'
+import { FIELD_TYPES, type Field, type RichTextBlock, type SelectOption } from './fields.js'
 import { NAV_ID, navGroups, navIds } from './nav.js'
 import { fieldAt, SEARCHABLE_TYPES } from './search.js'
 import { isTimeZone } from './time-of-day.js'
@@ -231,7 +231,7 @@ function warnNestedUnique(config: Config, push: (issue: ConfigIssue) => void) {
           severity: 'warning',
         })
       if (field.type === 'group' || field.type === 'array') walk(field.fields, `${at}.fields`, true)
-      if (field.type === 'blocks')
+      if (field.type === 'blocks' || field.type === 'richText')
         for (const block of Array.isArray(field.blocks) ? field.blocks : [])
           walk(block?.fields, `${at}.blocks.${String(block?.slug)}`, true)
     }
@@ -774,7 +774,7 @@ function validateUpload(config: Config, add: Add) {
           add(`${at}.folder`, 'needs upload.folders: true', 'upload: { folders: true }')
         if ((field.type === 'group' || field.type === 'array') && Array.isArray(field.fields))
           walk(field.fields, at)
-        if (field.type === 'blocks' && Array.isArray(field.blocks))
+        if ((field.type === 'blocks' || field.type === 'richText') && Array.isArray(field.blocks))
           for (const [b, block] of field.blocks.entries())
             if (Array.isArray(block?.fields)) walk(block.fields, `${at}.blocks[${b}]`)
       }
@@ -1656,6 +1656,59 @@ function validateField(
           collectionSlugs,
           add,
         )
+      }
+      break
+    }
+    case 'richText': {
+      // Blocks between paragraphs (#328).
+      const blocks: unknown = field.blocks
+      if (blocks === undefined) break
+      if (!Array.isArray(blocks) || blocks.length === 0) {
+        add(
+          `${path}.blocks`,
+          'must be a list of at least one block',
+          "blocks: [{ slug: 'callout', fields: [...] }]",
+        )
+        break
+      }
+      const seen = new Set<string>()
+      for (const [i, block] of (blocks as RichTextBlock[]).entries()) {
+        const blockPath = `${path}.blocks[${i}]`
+        if (typeof block?.slug !== 'string' || !SLUG_PATTERN.test(block.slug)) {
+          add(
+            `${blockPath}.slug`,
+            'must be lowercase letters, digits, "-" or "_", starting with a letter',
+          )
+        } else if (seen.has(block.slug)) {
+          add(`${blockPath}.slug`, `duplicate block "${block.slug}"`)
+        } else {
+          seen.add(block.slug)
+        }
+        const summary: unknown = block?.admin?.summary
+        if (summary !== undefined && typeof summary !== 'string' && typeof summary !== 'function')
+          add(`${blockPath}.admin.summary`, 'must be a function or the tag of a custom element')
+        if (!Array.isArray(block?.fields)) {
+          add(`${blockPath}.fields`, 'must be an array')
+          continue
+        }
+        // No rich text or blocks inside, and nothing localized: the whole document is.
+        const walk = (fields: readonly Field[], at: string) => {
+          for (const inner of fields) {
+            const here = `${at}.${inner.name}`
+            if (inner.type === 'richText' || inner.type === 'blocks')
+              add(here, `a ${inner.type} field can't be inside a rich text block`)
+            if (inner.localized)
+              add(
+                `${here}.localized`,
+                "fields in rich text blocks can't be localized",
+                'set localized on the rich text field: its blocks follow its locale',
+              )
+            if ((inner.type === 'group' || inner.type === 'array') && Array.isArray(inner.fields))
+              walk(inner.fields, `${here}.fields`)
+          }
+        }
+        walk(block.fields, `${blockPath}.fields`)
+        validateFields(block.fields, `${blockPath}.fields`, new Set(), collectionSlugs, add)
       }
       break
     }

@@ -38,7 +38,14 @@ const config = defineConfig({
           required: true,
         },
         { name: 'tags', type: 'select', options: ['a', 'b'], hasMany: true },
-        { name: 'body', type: 'richText' },
+        {
+          name: 'body',
+          type: 'richText',
+          blocks: [
+            { slug: 'quote', fields: [{ name: 'text', type: 'text', required: true }] },
+            { slug: 'card', fields: [{ name: 'post', type: 'relationship', to: 'posts' }] },
+          ],
+        },
         { name: 'cover', type: 'upload' },
         { name: 'author', type: 'relationship', to: 'authors', required: true },
         { name: 'related', type: 'relationship', to: 'posts', hasMany: true },
@@ -107,6 +114,17 @@ describe('type inference', () => {
     type Input = import('../src/index.js').CreateInput<Config, 'posts'>
     expectTypeOf<{ relationTo: 'authors'; value: 1 }>().toExtend<NonNullable<Input['mention']>>()
     expectTypeOf<{ relationTo: 'site'; value: 1 }>().not.toExtend<NonNullable<Input['mention']>>()
+  })
+
+  it('types the blocks of rich text (#328)', () => {
+    type Blocks = import('../src/index.js').RichTextBlocks<Config, 'posts', 'body'>
+    expectTypeOf<Blocks['blockType']>().toEqualTypeOf<'quote' | 'card'>()
+    expectTypeOf<Extract<Blocks, { blockType: 'quote' }>['fields']>().toEqualTypeOf<{
+      text: string
+    }>()
+    expectTypeOf<Extract<Blocks, { blockType: 'card' }>['fields']>().toEqualTypeOf<{
+      post?: ID | Post | null
+    }>()
   })
 
   it('infers arrays and groups', () => {

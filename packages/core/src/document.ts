@@ -15,6 +15,7 @@ import {
   type SelectField,
 } from './fields.js'
 import type { Localization } from './localization.js'
+import { blockFields, blockNodes, blockOf } from './rich-text-blocks.js'
 import { docLinkMarks, linkTarget } from './rich-text-links.js'
 
 type Data = Record<string, unknown>
@@ -383,7 +384,8 @@ async function normalizeValue(
         return fail('must be a rich text document ({ type: "doc" })')
       // Links to documents keep only the id: their URL is worked out when read (#326).
       const marks = docLinkMarks(raw)
-      if (marks.length === 0) return raw
+      const nodes = blockNodes(raw)
+      if (marks.length === 0 && nodes.length === 0) return raw
       const doc = structuredClone(raw)
       for (const mark of docLinkMarks(doc)) {
         const target = linkTarget(mark.attrs.doc)
@@ -396,6 +398,25 @@ async function normalizeValue(
           href: null,
         }
         references.push({ field: path, collection: target.relationTo, id, link: true })
+      }
+      // Blocks between paragraphs (#328): their fields are checked as a blocks field's are.
+      for (const node of blockNodes(doc)) {
+        const { id: rawId, blockType } = node.attrs
+        const id = typeof rawId === 'string' && rawId !== '' ? rawId : randomUUID()
+        const block = blockOf(field, node)
+        if (!block) {
+          const known = field.blocks?.map((b) => `"${b.slug}"`).join(', ')
+          errors.push({
+            field: `${path}.${id}`,
+            message: `has a block "${String(blockType)}" this field doesn't have${known ? `: use one of ${known}` : ''}`,
+          })
+          continue
+        }
+        const input = applyDefaults(block.fields, generateSlugs(block.fields, blockFields(node)))
+        const sub = await validateFields(block.fields, input, options, `${path}.${id}.`)
+        errors.push(...sub.errors)
+        references.push(...sub.references)
+        node.attrs = { ...node.attrs, blockType: block.slug, id, fields: sub.data }
       }
       return doc
     }

@@ -46,7 +46,7 @@ import { readAdminModule } from './admin-modules.js'
 import { adminSchema } from './admin-schema.js'
 import { adminCounts, adminSearch } from './admin-search.js'
 import { adminStatus } from './admin-status.js'
-import { pickerFilter } from './filter-options.js'
+import { blockSummaries, pickerFilter } from './filter-options.js'
 import { cacheableResponse, cacheTags, cacheTimes } from './http-cache.js'
 import { parseDepth, parseListQuery } from './query.js'
 
@@ -355,6 +355,7 @@ const ADMIN_UI_ROUTES = new Set([
   'media-usage',
   'owned',
   'sso',
+  'block-summaries',
 ])
 
 const CORS_METHODS = 'GET, HEAD, POST, PATCH, PUT, DELETE'
@@ -813,6 +814,15 @@ async function route(
     const parsed = parseId(third)
     if (parsed === undefined) throw new HttpError('Not found', 404)
     return { body: await cms.roles.owned(parsed) }
+  }
+
+  // The cards of rich text blocks whose `admin.summary` is a function (#328):
+  // POST /admin/ui/block-summaries { collection | global, field, blocks: [{ id, blockType, fields }] }
+  if (first === 'admin' && second === 'block-summaries' && third === undefined) {
+    if (!ctx.user) throw new UnauthorizedError()
+    if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
+    const body = await readJson(ctx.request)
+    return { body: await blockSummaries(cms, ctx.user, body) }
   }
 
   // How many documents use these files (`?ids=1,2`), before they move to or from a private folder.

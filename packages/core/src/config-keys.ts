@@ -45,7 +45,7 @@ const FIELD: Record<string, Set<string>> = {
   json: keys(BASE_FIELD),
   select: keys(`${BASE_FIELD} options hasMany minRows maxRows`),
   slug: keys(`${BASE_FIELD} from`),
-  richText: keys(BASE_FIELD),
+  richText: keys(`${BASE_FIELD} blocks`),
   upload: keys(`${BASE_FIELD} hasMany minRows maxRows mimeTypes folder folderOnly filterOptions`),
   relationship: keys(`${BASE_FIELD} to hasMany minRows maxRows filterOptions`),
   array: keys(`${BASE_FIELD} fields minRows maxRows`),

@@ -139,7 +139,8 @@ function references(fields: readonly Field[], out = new Set<string>()): Set<stri
     if (field.type === 'relationship' || field.type === 'upload')
       for (const target of relationTargets(field)) out.add(target)
     else if (field.type === 'group' || field.type === 'array') references(field.fields, out)
-    else if (field.type === 'blocks') for (const b of field.blocks) references(b.fields, out)
+    else if (field.type === 'blocks' || field.type === 'richText')
+      for (const b of field.blocks ?? []) references(b.fields, out)
   }
   return out
 }

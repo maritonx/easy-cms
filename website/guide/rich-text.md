@@ -55,6 +55,68 @@ it like any link. A document that was deleted, or that the reader may not see, g
 its words stay, as plain text. Saving checks that the document exists and that its collection
 has a `preview`.
 
+### Blocks between paragraphs
+
+`blocks` lets editors place blocks with fields of their own between paragraphs: a card for
+another document, a callout, a video. Each block is a node in the document:
+
+```ts
+{
+  name: 'body',
+  type: 'richText',
+  blocks: [
+    { slug: 'card', fields: [{ name: 'doc', type: 'relationship', to: ['posts', 'pages'] }] },
+    {
+      slug: 'callout',
+      admin: { summary: ({ fields }) => `${fields.tone}: ${fields.text}` },
+      fields: [
+        { name: 'tone', type: 'select', options: ['info', 'warning'], defaultValue: 'info' },
+        { name: 'text', type: 'textarea', required: true },
+      ],
+    },
+  ],
+}
+```
+
+```json
+{ "type": "block", "attrs": { "blockType": "callout", "id": "…", "fields": { "tone": "info", "text": "…" } } }
+```
+
+In the editor, **Insert block** in the toolbar, or `/` on an empty line, lists the field's
+blocks. A block shows as a card: **Edit** opens its fields in a panel, and it is dragged, copied
+and deleted like a paragraph. The card reads the block's label and its first value. Set
+`admin.summary` to change that: a function, run on the server, or the tag of a custom element
+from an [admin module](./plugins#the-module), which gets `fields`.
+
+Saving checks a block's fields as a [blocks field's](./fields#blocks) are, with errors at
+`body.<block id>.<field>`; a block the field doesn't have is refused. Field access applies inside
+blocks, and relationships in them are populated to `depth`, each with its collection's access.
+Fields inside blocks can't be `localized`, `richText` or `blocks`: a localized rich text field
+keeps its blocks per locale. Search includes the text of blocks; filters can't look inside rich
+text.
+
+Render blocks with `blocks` in [`renderRichText`](#showing-it-on-a-page) and
+`renderMarkdown`. `RichTextBlocks` types them from your config:
+
+```ts
+import type { RichTextBlocks } from '@easy-cms/core'
+import { escapeHtml, renderRichText } from '@easy-cms/richtext'
+
+type BodyBlock = RichTextBlocks<typeof config, 'posts', 'body'>
+
+const html = renderRichText<BodyBlock>(post.body, {
+  blocks: {
+    callout: (fields) => `<aside class="${fields.tone}">${escapeHtml(fields.text)}</aside>`,
+    card: (fields) =>
+      typeof fields.doc.value === 'object' ? `<a href="/${fields.doc.relationTo}/${fields.doc.value.slug}">…</a>` : '',
+  },
+})
+```
+
+What a renderer returns is used as is: escape text with `escapeHtml`. A block without a renderer
+is left out of HTML and Markdown, and plain text takes the text in its fields. `generate:types`
+writes the same types, e.g. `PostBodyBlock`.
+
 ## Showing it on a page
 
 Install the renderer:

@@ -3,6 +3,7 @@ import type { CollectionConfig } from './config.js'
 import { QueryError } from './errors.js'
 import { type Field, hasRows, rowFields } from './fields.js'
 import type { Logger } from './logger.js'
+import { blockFields, blockNodes, blockOf, hasBlocks } from './rich-text-blocks.js'
 
 /** One document in one locale, as a search engine indexes it: plain text per field. */
 export interface SearchEntry {
@@ -114,8 +115,16 @@ function textOf(field: Field, value: unknown): string {
         .flat()
         .filter((v) => typeof v === 'string')
         .join(' ')
-    case 'richText':
-      return richText(value)
+    case 'richText': {
+      // With the text of blocks between paragraphs (#328).
+      const blocks = hasBlocks(field, value)
+        ? blockNodes(value).map((node) => {
+            const block = blockOf(field, node)
+            return block ? fieldsText(block.fields, blockFields(node)) : ''
+          })
+        : []
+      return [richText(value), ...blocks].filter(Boolean).join('\n')
+    }
     case 'group':
       return typeof value === 'object'
         ? fieldsText(field.fields, value as Record<string, unknown>)

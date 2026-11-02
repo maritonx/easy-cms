@@ -127,7 +127,45 @@ export default defineConfig({
           label: { en: 'Cover', th: 'รูปปก' },
           mimeTypes: ['image/*'],
         },
-        { name: 'body', type: 'richText', label: { en: 'Body', th: 'เนื้อหา' }, localized: true },
+        {
+          name: 'body',
+          type: 'richText',
+          label: { en: 'Body', th: 'เนื้อหา' },
+          localized: true,
+          // Blocks between paragraphs: "Insert block" in the toolbar, or "/" on an empty line.
+          blocks: [
+            {
+              slug: 'card',
+              labels: { singular: { en: 'Card', th: 'การ์ด' } },
+              fields: [
+                {
+                  name: 'doc',
+                  type: 'relationship',
+                  to: ['posts', 'pages'],
+                  required: true,
+                  label: { en: 'Post or page', th: 'บทความหรือหน้า' },
+                },
+              ],
+            },
+            {
+              slug: 'callout',
+              labels: { singular: { en: 'Callout', th: 'กล่องข้อความ' } },
+              // The card's text in the editor, worked out on the server.
+              admin: {
+                summary: ({ fields }) => `${String(fields.tone)}: ${String(fields.text ?? '')}`,
+              },
+              fields: [
+                {
+                  name: 'tone',
+                  type: 'select',
+                  options: ['info', 'warning'],
+                  defaultValue: 'info',
+                },
+                { name: 'text', type: 'textarea', required: true },
+              ],
+            },
+          ],
+        },
         // Several images in the order editors arrange them, shown under the post.
         {
           name: 'gallery',

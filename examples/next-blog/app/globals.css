@@ -91,3 +91,13 @@ a {
   object-fit: cover;
   border-radius: 6px;
 }
+/* A rich text block: a card linking to another post or page. */
+.doc-card {
+  display: block;
+  margin: 1rem 0;
+  padding: 0.85rem 1rem;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  font-weight: 600;
+  text-decoration: none;
+}

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  escapeHtml,
   type RichTextNode,
   renderMarkdown,
   renderRichText,
@@ -276,5 +277,64 @@ describe('tables', () => {
 
   it('keeps every cell on a line of its own in plain text', () => {
     expect(richTextToPlainText(doc(table))).toBe('Request\np95\nBy slug\n22 ms\na | b\nsecond\n<b>')
+  })
+})
+
+describe('blocks between paragraphs (#328)', () => {
+  type Blocks =
+    | {
+        blockType: 'card'
+        id: string
+        fields: { doc: { relationTo: 'posts'; value: { title: string } } }
+      }
+    | { blockType: 'callout'; id: string; fields: { tone: 'info' | 'warning'; text: string } }
+  const doc = {
+    type: 'doc',
+    content: [
+      { type: 'paragraph', content: [{ type: 'text', text: 'Before' }] },
+      {
+        type: 'block',
+        attrs: {
+          blockType: 'callout',
+          id: 'b1',
+          fields: { tone: 'warning', text: 'Mind the <gap>' },
+        },
+      },
+      {
+        type: 'block',
+        attrs: {
+          blockType: 'card',
+          id: 'b2',
+          fields: { doc: { relationTo: 'posts', value: { title: 'Other post', createdAt: 'x' } } },
+        },
+      },
+      { type: 'block', attrs: { blockType: 'video', id: 'b3', fields: { url: 'x' } } },
+    ],
+  }
+
+  it('renders each block with its renderer, and leaves out the others', () => {
+    const html = renderRichText<Blocks>(doc, {
+      blocks: {
+        callout: (fields, block) =>
+          `<aside class="${fields.tone}" id="${block.id}">${escapeHtml(fields.text)}</aside>`,
+        card: (fields) => `<a>${escapeHtml(fields.doc.value.title)}</a>`,
+      },
+    })
+    expect(html).toBe(
+      '<p>Before</p><aside class="warning" id="b1">Mind the &lt;gap&gt;</aside><a>Other post</a>',
+    )
+    expect(renderRichText(doc)).toBe('<p>Before</p>')
+  })
+
+  it('renders Markdown the same way', () => {
+    expect(
+      renderMarkdown<Blocks>(doc, {
+        blocks: { callout: (fields) => `> **${fields.tone}:** ${fields.text}` },
+      }),
+    ).toBe('Before\n\n> **warning:** Mind the <gap>')
+  })
+
+  it('keeps the text of blocks in plain text, not that of related documents', () => {
+    expect(richTextToPlainText(doc)).toBe('Before\nwarning\nMind the <gap>\nx')
   })
 })

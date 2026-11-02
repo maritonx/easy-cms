@@ -1185,6 +1185,70 @@ test.describe('logged in as admin', () => {
     expect(site.featured[1]?.value).toBe(contact.id)
   })
 
+  test('places blocks between paragraphs of rich text (#328)', async ({ page }) => {
+    test.skip(test.info().project.name !== 'next', 'The Next.js example has the blocks')
+    await page.goto('/admin/')
+    const me = (await (await page.request.get('/api/cms/auth/me')).json()) as { csrfToken: string }
+    const headers = { 'x-csrf-token': me.csrfToken, origin: new URL(page.url()).origin }
+    const created = await page.request.post('/api/cms/posts', {
+      headers,
+      data: {
+        title: 'Blocks in the body',
+        slug: 'blocks-in-the-body',
+        body: {
+          type: 'doc',
+          content: [
+            { type: 'paragraph', content: [{ type: 'text', text: 'First paragraph' }] },
+            { type: 'paragraph' },
+          ],
+        },
+      },
+    })
+    expect(created.status()).toBe(201)
+    const post = (await created.json()) as { id: number }
+
+    await page.goto(`/admin/collections/posts/${post.id}`)
+    const body = page.locator('.rte-content')
+    // `/` on an empty line: the callout.
+    await expect(body).toContainText('First paragraph')
+    await body.locator('p').last().click()
+    // ProseMirror takes the click's cursor on the next selectionchange: wait for it.
+    await expect(
+      body.locator('p.is-empty, p:has(> br.ProseMirror-trailingBreak)').last(),
+    ).toBeVisible()
+    await page.waitForFunction(() => {
+      const node = window.getSelection()?.anchorNode
+      return node?.nodeName === 'P' && node.textContent === ''
+    })
+    await page.keyboard.type('/')
+    await page.getByRole('option', { name: 'Callout' }).click()
+    const drawer = page.getByRole('dialog', { name: 'Callout' })
+    await drawer.getByLabel('Tone').selectOption('warning')
+    await drawer.getByLabel('Text').fill('Mind the gap')
+    await drawer.getByRole('button', { name: 'Done' }).click()
+    // Its card's text comes from `admin.summary`, on the server.
+    await expect(page.locator('.rte-block').first()).toContainText('warning: Mind the gap')
+
+    // The toolbar's button: a card for a page.
+    await page.getByRole('button', { name: 'Insert block' }).click()
+    await page.getByRole('option', { name: 'Card' }).click()
+    const card = page.getByRole('dialog', { name: 'Card' })
+    await card.getByRole('combobox', { name: 'Collection' }).selectOption({ label: 'Page' })
+    await card.getByRole('combobox', { name: 'Post or page' }).fill('Contact')
+    await page.getByRole('option', { name: 'Contact us' }).click()
+    await card.getByRole('button', { name: 'Done' }).click()
+    await expect(page.locator('.rte-block').nth(1)).toContainText('Page · Contact us')
+
+    await page.getByRole('button', { name: 'Publish', exact: true }).click()
+    await expect(badge(page, 'Published')).toBeVisible()
+
+    await page.goto('/posts/blocks-in-the-body')
+    await expect(page.getByText('First paragraph')).toBeVisible()
+    await expect(page.locator('aside.callout.warning')).toHaveText('Mind the gap')
+    await expect(page.locator('a.doc-card')).toHaveText('Contact us')
+    await expect(page.locator('a.doc-card')).toHaveAttribute('href', '/contact-us')
+  })
+
   test('shows one group at a time, follows the page, and folds the panel away', async ({
     page,
   }) => {

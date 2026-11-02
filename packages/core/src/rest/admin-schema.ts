@@ -115,7 +115,16 @@ export interface AdminField {
   maxRows?: number
   fields?: AdminField[]
   /** Block kinds of a `blocks` field. */
-  blocks?: { slug: string; labels?: { singular?: Label; plural?: Label }; fields: AdminField[] }[]
+  blocks?: {
+    slug: string
+    labels?: { singular?: Label; plural?: Label }
+    fields: AdminField[]
+    /**
+     * Rich text blocks (#328): the card's text comes from the server (`'server'`, the block's
+     * `admin.summary` function) or a custom element (its tag).
+     */
+    summary?: string
+  }[]
   /** The current user may not change this field. */
   readOnly?: boolean
   /** One value per content locale. */
@@ -388,6 +397,28 @@ async function serializeFields(
             fields: await serializeFields(adminFieldsOf(block), checks, localized, folderId, who),
           })),
         )
+        break
+      case 'richText':
+        if (field.blocks)
+          f.blocks = await Promise.all(
+            field.blocks.map(async (block) => {
+              const summary = block.admin?.summary
+              return {
+                slug: block.slug,
+                ...(block.labels ? { labels: block.labels } : {}),
+                fields: await serializeFields(
+                  adminFieldsOf(block),
+                  checks,
+                  localized,
+                  folderId,
+                  who,
+                ),
+                ...(summary !== undefined
+                  ? { summary: typeof summary === 'function' ? 'server' : summary }
+                  : {}),
+              }
+            }),
+          )
         break
       case 'group':
         f.fields = await serializeFields(adminFieldsOf(field), checks, localized, folderId, who)

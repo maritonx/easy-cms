@@ -253,6 +253,9 @@ function onNumber(value: string) {
     <RichTextField
       v-else-if="field.type === 'richText'"
       :id="id"
+      :blocks="field.blocks"
+      :path="path"
+      :errors="errors"
       :model-value="modelValue as Record<string, unknown> | null"
       :read-only="readOnly"
       :invalid="invalid"

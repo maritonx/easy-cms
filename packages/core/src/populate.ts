@@ -9,6 +9,7 @@ import {
   relationTargets,
   rowFields,
 } from './fields.js'
+import { blockFields, blockNodes, blockOf } from './rich-text-blocks.js'
 import { docLinkMarks, linkTarget } from './rich-text-links.js'
 
 type Data = Record<string, unknown>
@@ -104,10 +105,19 @@ function collectSlots(
             collectSlots(fields, row as Data, bySlug, slots, linkURL)
         }
       }
-    } else if (field.type === 'richText' && linkURL) {
-      // Links to documents get the document's URL; a missing or unreadable one, none (#326).
+    } else if (field.type === 'richText') {
       // Only documents: skip `{ [locale]: … }` maps (reads with `locale: 'all'`).
       if ((value as Data).type !== 'doc') continue
+      // Relationships in blocks between paragraphs (#328), as in a blocks field's rows.
+      for (const node of blockNodes(value)) {
+        const block = blockOf(field, node)
+        if (!block) continue
+        const fields = { ...blockFields(node) }
+        node.attrs = { ...node.attrs, fields }
+        collectSlots(block.fields, fields, bySlug, slots, linkURL)
+      }
+      if (!linkURL) continue
+      // Links to documents get the document's URL; a missing or unreadable one, none (#326).
       for (const mark of docLinkMarks(value)) {
         const target = linkTarget(mark.attrs.doc)
         const collection = target ? bySlug.get(target.relationTo) : undefined

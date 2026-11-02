@@ -55,7 +55,7 @@
 | `select` | หนึ่งตัวเลือก หรือ array เมื่อใช้ `hasMany` | [`options`, `hasMany`](#select) |
 | `slug` | `string` ที่ปลอดภัยสำหรับ URL และไม่ซ้ำ | [`from`](#slug) |
 | `json` | JSON ใดก็ได้ | |
-| `richText` | JSON ของ Tiptap | ดู [Rich text](/th/guide/rich-text) |
+| `richText` | JSON ของ Tiptap | `blocks`: ดู [Rich text](/th/guide/rich-text#blocks-between-paragraphs) |
 | `upload` | id ของเอกสาร `media` หรือ array เมื่อใช้ `hasMany` | [`hasMany`, `mimeTypes`](#upload) |
 | `relationship` | id ของเอกสาร | [`to`, `hasMany`](#relationship) |
 | `array` | แถวที่มี `id` และ field ย่อย | [`fields`, `minRows`, `maxRows`](#array) |

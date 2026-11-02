@@ -51,6 +51,65 @@ JSON ทำให้เนื้อหาไม่ผูกกับวิธี
 และ `renderRichText` แสดงได้เหมือนลิงก์ทั่วไป เอกสารที่ถูกลบหรือผู้อ่านไม่มีสิทธิ์ดูจะไม่มี `href` ข้อความยังอยู่แต่เป็นข้อความธรรมดา
 ตอนบันทึกจะตรวจว่าเอกสารมีอยู่จริง และ collection ของเอกสารมี `preview`
 
+### block ระหว่างย่อหน้า {#blocks-between-paragraphs}
+
+`blocks` ให้ผู้แก้ไขวาง block ที่มี field ของตัวเองไว้ระหว่างย่อหน้าได้ เช่น การ์ดของเอกสารอื่น กล่องข้อความ หรือวิดีโอ
+block แต่ละตัวเป็น node หนึ่งในเอกสาร:
+
+```ts
+{
+  name: 'body',
+  type: 'richText',
+  blocks: [
+    { slug: 'card', fields: [{ name: 'doc', type: 'relationship', to: ['posts', 'pages'] }] },
+    {
+      slug: 'callout',
+      admin: { summary: ({ fields }) => `${fields.tone}: ${fields.text}` },
+      fields: [
+        { name: 'tone', type: 'select', options: ['info', 'warning'], defaultValue: 'info' },
+        { name: 'text', type: 'textarea', required: true },
+      ],
+    },
+  ],
+}
+```
+
+```json
+{ "type": "block", "attrs": { "blockType": "callout", "id": "…", "fields": { "tone": "info", "text": "…" } } }
+```
+
+ใน editor ปุ่ม **แทรก block** บน toolbar หรือพิมพ์ `/` ในบรรทัดว่าง จะแสดงรายการ block ของ field นั้น
+block แสดงเป็นการ์ด กด **แก้ไข** เพื่อเปิด field ในแผงข้าง และลาก คัดลอก หรือลบได้เหมือนย่อหน้า
+การ์ดแสดงชื่อ block กับค่าแรกที่มี ถ้าอยากเปลี่ยนให้ตั้ง `admin.summary` เป็น function ที่ทำงานบน server
+หรือชื่อ custom element จาก [admin module](/th/guide/plugins#the-module) ที่ได้ `fields`
+
+ตอนบันทึก field ใน block ถูกตรวจแบบเดียวกับ [field ชนิด blocks](/th/guide/fields#blocks) error อยู่ที่
+`body.<id ของ block>.<field>` และ block ที่ field ไม่มีจะถูกปฏิเสธ สิทธิ์ของ field ใช้ใน block ด้วย
+relationship ใน block populate ตาม `depth` ด้วยสิทธิ์ของ collection นั้นๆ field ใน block เป็น `localized`,
+`richText` หรือ `blocks` ไม่ได้ ส่วน rich text ที่ localized เก็บ block แยกตามภาษาอยู่แล้ว การค้นหารวมข้อความใน block
+แต่ filter มองเข้าไปใน rich text ไม่ได้
+
+render block ด้วย option `blocks` ของ [`renderRichText`](#showing-it-on-a-page) และ `renderMarkdown`
+ส่วน `RichTextBlocks` ให้ type จาก config:
+
+```ts
+import type { RichTextBlocks } from '@easy-cms/core'
+import { escapeHtml, renderRichText } from '@easy-cms/richtext'
+
+type BodyBlock = RichTextBlocks<typeof config, 'posts', 'body'>
+
+const html = renderRichText<BodyBlock>(post.body, {
+  blocks: {
+    callout: (fields) => `<aside class="${fields.tone}">${escapeHtml(fields.text)}</aside>`,
+    card: (fields) =>
+      typeof fields.doc.value === 'object' ? `<a href="/${fields.doc.relationTo}/${fields.doc.value.slug}">…</a>` : '',
+  },
+})
+```
+
+สิ่งที่ renderer คืนมาจะถูกใช้ตามนั้นเลย ข้อความต้อง escape เองด้วย `escapeHtml` block ที่ไม่มี renderer
+จะไม่ออกใน HTML และ Markdown ส่วน plain text เอาข้อความจาก field ของมัน `generate:types` สร้าง type แบบเดียวกันให้ เช่น `PostBodyBlock`
+
 ## แสดงบนหน้าเว็บ {#showing-it-on-a-page}
 
 ติดตั้งตัวแปลง:

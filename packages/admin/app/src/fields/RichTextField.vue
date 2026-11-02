@@ -11,6 +11,7 @@ import {
   List,
   ListOrdered,
   Redo2,
+  SquarePlus,
   Table,
   TextQuote,
   Trash2,
@@ -19,15 +20,28 @@ import {
 } from '@lucide/vue'
 import Image from '@tiptap/extension-image'
 import { TableKit } from '@tiptap/extension-table'
+import { NodeSelection } from '@tiptap/pm/state'
 import StarterKit from '@tiptap/starter-kit'
 import { EditorContent, Extension, useEditor } from '@tiptap/vue-3'
-import { type Component, onBeforeUnmount, ref, watch } from 'vue'
+import { type Component, inject, onBeforeUnmount, reactive, ref, useId, watch } from 'vue'
 import LinkDialog, { type LinkTarget } from '../components/LinkDialog.vue'
 import MediaPicker from '../components/MediaPicker.vue'
 import { api } from '../lib/api'
-import { titleOf } from '../lib/fields'
+import { initialValues, titleOf } from '../lib/fields'
 import { t } from '../lib/i18n'
+import { FORM } from '../lib/plugins'
 import { findCollection } from '../lib/session'
+import { notify } from '../lib/toast'
+import BlockDrawer from './rich-text/BlockDrawer.vue'
+import BlockMenu from './rich-text/BlockMenu.vue'
+import {
+  type AdminBlock,
+  type BlockEditor,
+  blockNode,
+  EDITOR_NODE,
+  fromEditor,
+  toEditor,
+} from './rich-text/block-node'
 
 type Doc = Record<string, unknown>
 
@@ -36,6 +50,11 @@ const props = defineProps<{
   modelValue: Doc | null
   readOnly: boolean
   invalid: boolean
+  /** Blocks editors place between paragraphs (#328). */
+  blocks?: readonly AdminBlock[] | undefined
+  /** The field's path and the form's errors, for the blocks' errors (`body.<id>.<field>`). */
+  path?: string
+  errors?: Record<string, string[]>
 }>()
 const emit = defineEmits<{ 'update:modelValue': [Doc | null] }>()
 
@@ -68,8 +87,38 @@ const DocLink = Extension.create({
   },
 })
 
+// Blocks between paragraphs (#328): cards in the document, edited in a panel.
+const blocks = props.blocks ?? []
+const form = inject(FORM, null)
+const summaries = reactive<Record<string, string>>({})
+const editing = ref<{ position: number; id: string; block: AdminBlock; fields: Doc } | null>(null)
+const blockEditor: BlockEditor = {
+  blocks,
+  path: props.path ?? '',
+  errors: () => props.errors ?? {},
+  readOnly: () => props.readOnly,
+  summaries,
+  menu(at) {
+    menu.value = at
+  },
+  edit(position) {
+    const node = editor.value?.state.doc.nodeAt(position)
+    const block = blocks.find((b) => b.slug === node?.attrs.blockType)
+    if (!node || !block) return
+    editing.value = {
+      position,
+      id: String(node.attrs.id),
+      block,
+      fields: (node.attrs.fields ?? {}) as Doc,
+    }
+  },
+}
+function refused(blockType: string) {
+  notify('error', t('rte.blockNotHere', { type: blockType }))
+}
+
 const editor = useEditor({
-  content: props.modelValue ?? '',
+  content: props.modelValue ? toEditor(props.modelValue) : '',
   editable: !props.readOnly,
   extensions: [
     StarterKit.configure({
@@ -80,6 +129,7 @@ const editor = useEditor({
     DocLink,
     // Tables without merged cells: what HTML, Markdown and the API's readers all handle.
     TableKit.configure({ table: { resizable: false } }),
+    ...(blocks.length ? [blockNode(blockEditor, refused)] : []),
   ],
   editorProps: {
     attributes: {
@@ -91,7 +141,7 @@ const editor = useEditor({
     },
   },
   onUpdate({ editor }) {
-    emit('update:modelValue', editor.isEmpty ? null : (editor.getJSON() as Doc))
+    emit('update:modelValue', editor.isEmpty ? null : fromEditor(editor.getJSON() as Doc))
   },
 })
 
@@ -102,9 +152,10 @@ watch(
     const current = editor.value
     if (!current) return
     if (
-      JSON.stringify(value ?? null) !== JSON.stringify(current.isEmpty ? null : current.getJSON())
+      JSON.stringify(value ?? null) !==
+      JSON.stringify(current.isEmpty ? null : fromEditor(current.getJSON()))
     ) {
-      current.commands.setContent(value ?? '', { emitUpdate: false })
+      current.commands.setContent(value ? toEditor(value) : '', { emitUpdate: false })
     }
   },
 )
@@ -113,6 +164,91 @@ watch(
   (readOnly) => editor.value?.setEditable(!readOnly),
 )
 onBeforeUnmount(() => editor.value?.destroy())
+
+/** The block menu, open at this point of the viewport. */
+const menu = ref<{ left: number; top: number } | null>(null)
+const menuId = useId()
+function openBlockMenu(event: MouseEvent) {
+  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
+  menu.value = { left: rect.left, top: rect.bottom + 4 }
+}
+function insertBlock(block: AdminBlock) {
+  menu.value = null
+  const e = editor.value
+  if (!e) return
+  const id = crypto.randomUUID()
+  const content = {
+    type: EDITOR_NODE,
+    attrs: { blockType: block.slug, id, fields: initialValues(block.fields) },
+  }
+  // With a block (or image) selected, after it: inserting would replace it.
+  const { selection } = e.state
+  const chain = e.chain().focus()
+  ;(selection instanceof NodeSelection
+    ? chain.insertContentAt(selection.to, content)
+    : chain.insertContent(content)
+  ).run()
+  // A new block opens for editing.
+  e.state.doc.descendants((node, position) => {
+    if (node.type.name === EDITOR_NODE && node.attrs.id === id) blockEditor.edit(position)
+    return !editing.value
+  })
+}
+function saveBlock(fields: Doc) {
+  const current = editing.value
+  editing.value = null
+  const e = editor.value
+  if (!current || !e) return
+  const node = e.state.doc.nodeAt(current.position)
+  if (node?.type.name !== EDITOR_NODE || node.attrs.id !== current.id) return
+  e.chain()
+    .command(({ tr }) => {
+      tr.setNodeMarkup(current.position, undefined, { ...node.attrs, fields })
+      return true
+    })
+    .run()
+}
+
+// Card texts from the server, for blocks whose `admin.summary` is a function.
+const serverBlocks = new Set(blocks.filter((b) => b.summary === 'server').map((b) => b.slug))
+let summaryTimer: ReturnType<typeof setTimeout> | undefined
+async function loadSummaries() {
+  const e = editor.value
+  if (!e || serverBlocks.size === 0 || (!form?.collection && !form?.global)) return
+  const list: { id: string; blockType: string; fields: unknown }[] = []
+  e.state.doc.descendants((node) => {
+    if (node.type.name === EDITOR_NODE && serverBlocks.has(node.attrs.blockType))
+      list.push({
+        id: String(node.attrs.id),
+        blockType: node.attrs.blockType,
+        fields: node.attrs.fields,
+      })
+    return node.type.name !== EDITOR_NODE
+  })
+  if (list.length === 0) return
+  try {
+    const result = await api<{ summaries: Record<string, string> }>(
+      'POST',
+      '/admin/ui/block-summaries',
+      {
+        ...(form.collection ? { collection: form.collection } : { global: form.global }),
+        field: (props.path ?? '').replace(/\.\d+(?=\.|$)/g, ''),
+        blocks: list,
+      },
+    )
+    Object.assign(summaries, result.summaries)
+  } catch {
+    // The cards show their default text.
+  }
+}
+watch(
+  () => props.modelValue,
+  () => {
+    clearTimeout(summaryTimer)
+    summaryTimer = setTimeout(loadSummaries, 400)
+  },
+  { immediate: true },
+)
 
 /** The link being edited: a web address or a document; `null` for a new one. */
 const linking = ref<LinkTarget | null | false>(false)
@@ -185,6 +321,7 @@ const ICONS: Record<string, Component> = {
   quote: TextQuote,
   img: ImagePlus,
   table: Table,
+  block: SquarePlus,
   deleteTable: Trash2,
   undo: Undo2,
   redo: Redo2,
@@ -304,6 +441,9 @@ const actions = (): Action[] => {
       run: () => e.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
       active: () => e.isActive('table'),
     },
+    ...(blocks.length
+      ? [{ key: 'block', label: t('rte.blockInsert'), text: '+', run: () => {} } as Action]
+      : []),
     { key: 'undo', label: t('rte.undo'), text: '↶', run: () => e.chain().focus().undo().run() },
     { key: 'redo', label: t('rte.redo'), text: '↷', run: () => e.chain().focus().redo().run() },
   ]
@@ -322,8 +462,10 @@ const actions = (): Action[] => {
         :aria-label="action.label"
         :aria-pressed="action.active ? action.active() : undefined"
         :title="action.label"
+        :aria-haspopup="action.key === 'block' ? 'listbox' : undefined"
+        :aria-expanded="action.key === 'block' ? menu !== null : undefined"
         @mousedown.prevent
-        @click="action.run"
+        @click="action.key === 'block' ? openBlockMenu($event) : action.run()"
       >
         <component :is="ICONS[action.key]" v-if="ICONS[action.key]" :size="16" aria-hidden="true" />
         <template v-else>{{ action.text }}</template>
@@ -354,6 +496,17 @@ const actions = (): Action[] => {
       @save="applyLink"
       @remove="removeLink"
       @cancel="linking = false"
+    />
+    <BlockMenu v-if="menu" :id="menuId" :blocks="blocks" :at="menu" @choose="insertBlock" @close="menu = null" />
+    <BlockDrawer
+      v-if="editing"
+      :key="editing.id"
+      :block="editing.block"
+      :model-value="editing.fields"
+      :prefix="`${path ?? ''}.${editing.id}.`"
+      :errors="errors ?? {}"
+      :read-only="readOnly"
+      @done="saveBlock"
     />
     <MediaPicker
       :open="pickingImage"
