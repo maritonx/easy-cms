@@ -30,6 +30,15 @@ const config = defineConfig({
 })
 
 describe('getEasyCMS', () => {
+  it('says to use the REST client on the edge runtime (#336)', async () => {
+    vi.stubGlobal('EdgeRuntime', 'edge-runtime')
+    try {
+      await expect(getEasyCMS(config)).rejects.toThrow(/Node\.js runtime.*@easy-cms\/core\/client/)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('returns one typed instance per config', async () => {
     const a = await getEasyCMS(config)
     const b = await getEasyCMS(config)

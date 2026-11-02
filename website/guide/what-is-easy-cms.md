@@ -75,7 +75,8 @@ your app's server, so there is no separate CMS service to host, pay for or keep 
 ## When it doesn't
 
 - Editors must change the content model themselves without a developer: here the model is code.
-- You need edge runtimes: Easy CMS needs Node.js 22.12 or newer.
+- You need the CMS itself on an edge runtime: it needs Node.js 22.12 or newer. (Sites on the edge
+  can [read its content over REST](./rest-api#reading-from-edge-runtimes).)
 - You need a large marketplace of ready-made integrations today.
 
 ## Next steps

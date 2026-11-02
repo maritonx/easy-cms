@@ -443,6 +443,17 @@ test.describe('logged in as admin', () => {
     await expect(page.getByRole('link', { name: 'Hello from Playwright' })).toBeVisible()
   })
 
+  test('reads published posts from an edge route with @easy-cms/core/client (#336)', async ({
+    page,
+  }) => {
+    test.skip(test.info().project.name !== 'next', 'The Next.js example has the edge route')
+    const res = await page.request.get('/edge')
+    expect(res.ok()).toBe(true)
+    const body = await res.json()
+    expect(body.runtime).toBe('edge-runtime')
+    expect(body.posts).toContainEqual(expect.objectContaining({ title: 'Hello from Playwright' }))
+  })
+
   test('edits a draft while the published version stays live, and restores history (FR-VER)', async ({
     page,
   }) => {

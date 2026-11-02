@@ -71,7 +71,8 @@ Easy CMS คือ headless CMS ที่ติดตั้งเข้าไป
 ## เมื่อไหร่ที่ไม่เหมาะ {#when-it-doesnt}
 
 - ผู้แก้เนื้อหาต้องเปลี่ยนโครงสร้างเนื้อหาเองโดยไม่มีนักพัฒนา เพราะที่นี่โครงสร้างคือโค้ด
-- คุณต้องใช้ edge runtime: Easy CMS ต้องใช้ Node.js 22.12 ขึ้นไป
+- คุณต้องรันตัว CMS บน edge runtime: Easy CMS ต้องใช้ Node.js 22.12 ขึ้นไป (เว็บที่อยู่บน edge
+  [อ่านเนื้อหาผ่าน REST](./rest-api#reading-from-edge-runtimes) ได้)
 - คุณต้องการ integration สำเร็จรูปจำนวนมากตั้งแต่วันนี้
 
 ## ขั้นต่อไป {#next-steps}

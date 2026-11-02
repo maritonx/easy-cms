@@ -83,7 +83,8 @@ const user = await cms.auth.userFromHeaders(request.headers)
 
 ## Good to know
 
-- **Server only.** Easy CMS runs in Node.js 22.12 or newer, not in edge runtimes.
+- **Server only.** Easy CMS runs in Node.js 22.12 or newer, not in edge runtimes; there, read
+  content with the [REST client](./rest-api#reading-from-edge-runtimes).
 - **The admin's files** are read from `@easy-cms/admin` on disk. If your framework bundles server
   code, keep `@easy-cms/admin` (and your database driver) external, so the files stay where it
   looks for them; or pass `appDir` to `adminHandlerFor`.
