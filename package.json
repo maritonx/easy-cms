@@ -20,7 +20,7 @@
     "docs:screenshots": "pnpm --filter easy-cms-e2e screenshots"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.6.2",
+    "@biomejs/biome": "2.6.4",
     "@changesets/cli": "^3.0.3",
     "@types/node": "^22.20.4",
     "@vitest/coverage-v8": "5.0.5",
