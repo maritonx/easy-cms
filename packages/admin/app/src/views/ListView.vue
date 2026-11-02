@@ -21,6 +21,9 @@ import {
   Pin,
   PinOff,
   Plus,
+  RotateCw,
+  Rows3,
+  Rows4,
   Search,
   SearchX,
   Send,
@@ -90,6 +93,8 @@ import {
   PAGE_SIZES,
   PageCursors,
   pageLinks,
+  storeDensity,
+  storedDensity,
   storedPageSize,
   storePageSize,
 } from '../lib/list-pages'
@@ -684,6 +689,14 @@ async function fetchDocs(
 // --- Pages (#279): size, cursors behind Next and Previous, the total loaded after the rows ------
 
 const pageSize = ref(storedPageSize())
+/** Row height (#281), remembered in the browser. */
+const density = ref(storedDensity())
+function setDensity(next: 'comfortable' | 'compact') {
+  density.value = next
+  storeDensity(next)
+}
+/** The table's box: it scrolls under a sticky header and footer. */
+const tableWrap = ref<HTMLElement | null>(null)
 const cursors = new PageCursors()
 const total = ref<ListTotal | null>(null)
 /** The query the total and the cursors belong to. */
@@ -787,9 +800,13 @@ async function load() {
     result.value = found
     selected.value = new Set()
     void loadRelatedTitles(found.docs)
-    // Back from a document: where the list was scrolled to.
+    // Back from a document: where the list (and its table) was scrolled to.
     const scroll = scrollFor(slug, route.fullPath)
-    if (scroll !== null) requestAnimationFrame(() => window.scrollTo(0, scroll))
+    if (scroll !== null)
+      requestAnimationFrame(() => {
+        window.scrollTo(0, scroll.page)
+        tableWrap.value?.scrollTo(0, scroll.table)
+      })
   } catch (e) {
     if (current !== loads) return
     error.value =
@@ -942,7 +959,7 @@ onMounted(async () => {
 // Where the list was left (filters, page, scroll), for the document's back link. Before leaving:
 // by the time the list unmounts, the route is already the next page's.
 onBeforeRouteLeave((_to, from) => {
-  leaveList(slug, from.fullPath)
+  leaveList(slug, from.fullPath, tableWrap.value?.scrollTop ?? 0)
 })
 // A pending search must not apply its query to the next page.
 onBeforeUnmount(() => {
@@ -1215,6 +1232,14 @@ async function deleteSelected(query = '') {
           {{ t('calendar.calendar') }}
         </button>
       </div>
+      <div v-if="!grid && !calendarMode" class="view-switch" role="group" :aria-label="t('list.density')">
+        <button type="button" class="btn btn-sm btn-icon" :class="{ active: density === 'comfortable' }" :aria-pressed="density === 'comfortable'" :aria-label="t('list.comfortable')" :title="t('list.comfortable')" @click="setDensity('comfortable')">
+          <Rows3 :size="15" aria-hidden="true" />
+        </button>
+        <button type="button" class="btn btn-sm btn-icon" :class="{ active: density === 'compact' }" :aria-pressed="density === 'compact'" :aria-label="t('list.compact')" :title="t('list.compact')" @click="setDensity('compact')">
+          <Rows4 :size="15" aria-hidden="true" />
+        </button>
+      </div>
       <div v-if="columnFields.length && !grid && !calendarMode" ref="columnsMenu" class="columns">
         <button type="button" class="btn btn-sm" :aria-expanded="columnsOpen" aria-haspopup="true" @click="columnsOpen = !columnsOpen">
           <Columns3 :size="15" aria-hidden="true" />
@@ -1298,7 +1323,13 @@ async function deleteSelected(query = '') {
       @uploaded="onUploaded"
     />
 
-    <p v-if="error" class="notice notice-error" role="alert">{{ error }}</p>
+    <div v-if="error" class="notice notice-error load-error" role="alert">
+      <span>{{ error }}</span>
+      <button type="button" class="btn btn-sm" :disabled="loading" @click="reload()">
+        <RotateCw :size="14" aria-hidden="true" />
+        {{ t('list.retry') }}
+      </button>
+    </div>
 
     <CalendarView
       v-if="calendarMode && collection.calendar"
@@ -1315,7 +1346,7 @@ async function deleteSelected(query = '') {
       @update:view="onCalendarView"
       @update:day="onCalendarDay"
     />
-    <div v-else :class="['card', 'table-wrap', { 'grid-wrap': grid, reloading }]" :aria-busy="loading">
+    <div v-else ref="tableWrap" :class="['card', 'table-wrap', { 'grid-wrap': grid, scroll: !grid, compact: density === 'compact', reloading }]" :aria-busy="loading">
       <div v-if="reloading" class="progress-line table-progress" aria-hidden="true"><span /></div>
       <LoadingStatus v-if="firstLoad || reloading" />
       <p v-if="allMatching && total" class="select-matching" role="status">
@@ -2123,6 +2154,45 @@ button.menu-item {
 .table-wrap {
   position: relative;
   overflow-x: auto;
+}
+/*
+ * A table scrolls in its own box, under a sticky header and above a sticky footer (#281), so
+ * the column names and the pages stay in view however long the list.
+ */
+.table-wrap.scroll {
+  max-height: max(22rem, calc(100dvh - 13rem));
+  overflow: auto;
+}
+.table-wrap.scroll thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface);
+  box-shadow: inset 0 -1px var(--border);
+}
+.table-wrap.scroll .table-footer {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  z-index: 2;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+.table-wrap.compact th,
+.table-wrap.compact td {
+  padding-top: 0.3rem;
+  padding-bottom: 0.3rem;
+}
+.table-wrap.compact .preview {
+  padding-top: 0.15rem;
+  padding-bottom: 0.15rem;
+}
+.load-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
 }
 .table-progress {
   position: absolute;
