@@ -14,6 +14,9 @@ function hmac(secret: string, value: string): string {
   return createHmac('sha256', secret).update(value).digest('base64url')
 }
 
+/** `value`'s signature with the secret, checked with `signedWith`. */
+export const signValue = (secret: string, value: string): string => hmac(secret, value)
+
 /**
  * Secrets that verify: the current one first, then `previousSecrets` while one is replaced. New
  * values are always signed with the current one.

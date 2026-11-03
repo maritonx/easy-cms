@@ -13,6 +13,7 @@ export const BUILTIN_NAV: readonly NavGroup[] = [
       { id: 'site', label: { en: 'Site', th: 'เว็บไซต์' }, icon: 'globe' },
       { id: 'people', label: { en: 'Users & access', th: 'ผู้ใช้และสิทธิ์' }, icon: 'users' },
       { id: 'system', label: { en: 'System', th: 'ระบบ' }, icon: 'sliders-horizontal' },
+      { id: 'integrations', label: { en: 'Integrations', th: 'การเชื่อมต่อ' }, icon: 'link' },
     ],
   },
 ]

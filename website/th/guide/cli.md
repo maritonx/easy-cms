@@ -55,6 +55,7 @@ npx easy-cms <command> [--config <file>] [--cwd <dir>]
 | [`jobs:run`](#jobs-run) | รันงานตั้งเวลาที่ถึงกำหนดและส่ง webhook ซ้ำหนึ่งรอบ |
 | [`search:reindex [collection]`](#search-reindex) | สร้าง index ค้นหาใหม่จากฐานข้อมูล |
 | [`audit:resign`](#audit-resign) | หลังเปลี่ยน secret: เซ็น audit log ด้วยตัวใหม่ |
+| [`secrets:rotate`](#secrets-rotate) | หลังเปลี่ยน secret: เข้ารหัสการเชื่อมต่อใน Integrations ด้วยตัวใหม่ |
 | [`serve`](#serve) | รัน CMS เป็น server ของตัวเอง |
 
 ตัวเลือกที่ใช้ได้กับทุกคำสั่ง: `--config <file>` (ค่าเริ่มต้น `easy-cms.config.ts`), `--cwd <dir>`
@@ -166,6 +167,15 @@ npx easy-cms search:reindex posts
 สร้าง index [ค้นหา](./search) ใหม่จากเอกสารที่ publish แล้ว ใช้หลังเพิ่ม `search` ให้ collection
 หรือเปลี่ยน field หรือเมื่อ index ไม่สำเร็จ ส่วน index ในหน่วยความจำ (`memorySearch()`)
 เซิร์ฟเวอร์สร้างเองตอนเริ่ม จึงไม่ต้องทำอะไร
+
+### secrets:rotate {#secrets-rotate}
+
+```bash [pm]
+npx easy-cms secrets:rotate
+```
+
+ใช้หลัง[หมุน secret](./security#rotating-the-secret) เข้ารหัสการเชื่อมต่อใน[หน้าการเชื่อมต่อ](./integrations)ที่ยังใช้ secret ตัวใดใน
+`previousSecrets` ใหม่ด้วย `secret` ปัจจุบัน จึงลบ secret เก่าออกได้ การเชื่อมต่อแต่ละรายการก็ถูกเข้ารหัสใหม่ตอนถูกใช้ด้วย
 
 ### audit:resign {#audit-resign}
 

@@ -897,6 +897,91 @@ async function route(
   }
 
   // Saved webhook deliveries and emails, for admins and roles given them: list, retry, delete.
+  // Settings → Integrations (#311): plugins' integrations and the accounts connected to them.
+  if (first === 'admin' && second === 'integrations') {
+    if (!ctx.user) throw new UnauthorizedError()
+    if (cms.config.integrations.length === 0) throw new HttpError('Not found', 404)
+    if (!(await cms.roles.canView(ctx.user, 'integrations'))) throw new ForbiddenError()
+    const user = ctx.user
+    const [, , id, part, cid, action, extra] = segments
+    const integrations = cms.integrations
+    if (id === undefined) {
+      if (method !== 'GET') throw methodNotAllowed(ctx, 'GET')
+      return { body: await integrations.overview() }
+    }
+    const callbackUrl = `${cms.config.serverURL ?? ctx.url.origin}${cms.config.routes.api}/admin/integrations/${id}/callback`
+    if (part === undefined) {
+      if (method !== 'PUT') throw methodNotAllowed(ctx, 'PUT')
+      const body = (await readJson(ctx.request)) as { enabled?: unknown }
+      return { body: await integrations.setEnabled(id, body.enabled !== false, user) }
+    }
+    if (part === 'authorize' && cid === undefined) {
+      if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
+      const body = (await readJson(ctx.request)) as { name?: unknown }
+      return { body: integrations.authorize(id, user, callbackUrl, String(body.name ?? '')) }
+    }
+    if (part === 'callback' && cid === undefined) {
+      if (method !== 'GET') throw methodNotAllowed(ctx, 'GET')
+      // Back from the provider: to the Integrations page, saying what happened.
+      const page = new URL(`${cms.config.admin.path}/integrations`, ctx.url.origin)
+      page.searchParams.set('integration', id)
+      try {
+        const error =
+          ctx.url.searchParams.get('error_description') ?? ctx.url.searchParams.get('error')
+        if (error) throw new Error(error)
+        const result = await integrations.callback(
+          id,
+          ctx.url.searchParams.get('code') ?? '',
+          ctx.url.searchParams.get('state') ?? '',
+          callbackUrl,
+          user,
+        )
+        if ('pending' in result) page.searchParams.set('pending', String(result.pending))
+        else page.searchParams.set('connected', '1')
+      } catch (error) {
+        page.searchParams.set('error', (error as Error).message.slice(0, 300))
+      }
+      return { body: new Response(null, { status: 302, headers: { location: page.toString() } }) }
+    }
+    if (part === 'pending' && cid !== undefined && action === undefined) {
+      const pid = parseId(cid)
+      if (pid === undefined) throw new HttpError('Not found', 404)
+      if (method === 'GET') return { body: await integrations.pending(id, pid, user) }
+      if (method === 'POST') {
+        const body = (await readJson(ctx.request)) as { account?: unknown }
+        return {
+          status: 201,
+          body: await integrations.choose(id, pid, String(body.account ?? ''), user),
+        }
+      }
+      throw methodNotAllowed(ctx, 'GET, POST')
+    }
+    if (part === 'connections' && extra === undefined) {
+      if (cid === undefined) {
+        if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
+        return {
+          status: 201,
+          body: await integrations.connect(id, await readJson(ctx.request), user),
+        }
+      }
+      if (action === 'test') {
+        if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
+        const target = cid === 'env' ? 'env' : parseId(cid)
+        if (target === undefined) throw new HttpError('Not found', 404)
+        return { body: await integrations.test(id, target) }
+      }
+      const connection = parseId(cid)
+      if (connection === undefined || action !== undefined) throw new HttpError('Not found', 404)
+      if (method === 'PATCH')
+        return {
+          body: await integrations.update(id, connection, await readJson(ctx.request), user),
+        }
+      if (method === 'DELETE') return { body: await integrations.disconnect(id, connection, user) }
+      throw methodNotAllowed(ctx, 'PATCH, DELETE')
+    }
+    throw new HttpError('Not found', 404)
+  }
+
   if (first === 'admin' && second === 'deliveries') {
     if (!ctx.user) throw new UnauthorizedError()
     if (!(await cms.roles.canView(ctx.user, 'deliveries'))) throw new ForbiddenError()

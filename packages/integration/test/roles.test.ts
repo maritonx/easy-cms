@@ -168,6 +168,7 @@ describe('roles from the admin', () => {
       audit: false,
       // Not ticked for this role (#272).
       calendar: false,
+      integrations: false,
     })
     expect(schema.pages).toEqual([])
     expect(schema.dashboard).toEqual([])

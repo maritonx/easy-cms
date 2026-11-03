@@ -3,6 +3,7 @@ import { type AuditConfig, DEFAULT_AUDIT_KEEP, DEFAULT_FAILED_LOGINS } from './a
 import {
   auditLogsCollection,
   bulkOperationsCollection,
+  connectionsCollection,
   DEFAULT_ROLES,
   databaseBackupsCollection,
   emailDeliveriesCollection,
@@ -158,12 +159,14 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
       databaseBackupsCollection,
       bulkOperationsCollection,
       savedViewsCollection,
+      ...(resolvedIntegrations(config).length > 0 ? [connectionsCollection] : []),
       ...(config.auth?.rbac ? [rolesCollection] : []),
       ...((config.auth?.providers?.length ?? 0) > 0 ? [userIdentitiesCollection] : []),
       ...(config.audit ? [auditLogsCollection] : []),
     ],
     globals: config.globals ?? [],
     endpoints: config.endpoints ?? [],
+    integrations: resolvedIntegrations(config),
     cliCommands: config.cliCommands ?? [],
     events: config.events ?? [],
     jobs: config.jobs ?? [],
@@ -258,4 +261,9 @@ function resolveAudit(audit: AuditConfig): Required<AuditConfig> {
     failedLogins: audit.failedLogins ?? DEFAULT_FAILED_LOGINS,
     scope: audit.scope ?? false,
   }
+}
+
+/** Plugins' integrations (#311). */
+function resolvedIntegrations(config: Config) {
+  return config.integrations ?? []
 }

@@ -293,6 +293,29 @@ export default defineConfig({
   // SEO fields on posts and the site, with a search preview and Generate buttons in the admin.
   // Form notifications: SMTP when SMTP_HOST is set, else printed in the server's log.
   email: process.env.SMTP_HOST ? smtp() : consoleEmail({ from: 'Easy CMS Blog <blog@localhost>' }),
+  // Settings → Integrations: an account to connect from the admin. Plugins add their own
+  // (Telegram, AI providers…); this one only checks the URL and keeps the token encrypted.
+  integrations: [
+    {
+      id: 'status-webhook',
+      label: { en: 'Status webhook', th: 'Webhook สถานะ' },
+      category: 'automation',
+      description: { en: 'Where the site reports its status', th: 'ที่ที่เว็บรายงานสถานะ' },
+      kind: 'fields',
+      fields: [
+        { name: 'url', type: 'url', label: 'URL', required: true },
+        { name: 'token', label: 'Token', secret: true, required: true },
+      ],
+      env: { token: 'STATUS_WEBHOOK_TOKEN' },
+      test: ({ url }) => {
+        try {
+          return { ok: true, account: new URL(url ?? '').host }
+        } catch {
+          return { ok: false, message: 'Not a URL' }
+        }
+      },
+    },
+  ],
   plugins: [
     // Forms editors build in the admin (Forms), shown on the site with <easy-form>.
     formBuilderPlugin({ defaultTo: process.env.FORMS_TO ?? 'owner@localhost' }),

@@ -149,6 +149,14 @@ export {
   sharedEasyCMS,
 } from './framework.js'
 export type * from './infer.js'
+export type {
+  IntegrationCategory,
+  IntegrationConfig,
+  IntegrationConnection,
+  IntegrationField,
+  IntegrationOAuthResult,
+  IntegrationTestResult,
+} from './integrations.js'
 export {
   type LoadConfigOptions,
   loadConfig,

@@ -30,6 +30,8 @@ export type AdminAttention =
   | { id: 'jobs'; count: number; names: string[] }
   /** `jobs` paused from Settings → Jobs. */
   | { id: 'jobs-paused'; count: number; names: string[] }
+  /** Connections whose test or last use failed (Settings → Integrations, #311). */
+  | { id: 'integrations'; count: number; names: string[]; secrets?: number }
 
 /** What the dashboard shows admins (`GET <api>/admin/status`). */
 export interface AdminStatus {
@@ -118,6 +120,15 @@ export async function adminStatus(cms: EasyCMS): Promise<AdminStatus> {
   if (failed.length > 0) attention.push({ id: 'jobs', count: failed.length, names: failed })
   const paused = await pausedJobs(cms)
   if (paused.length > 0) attention.push({ id: 'jobs-paused', count: paused.length, names: paused })
+  if (config.integrations.length > 0) {
+    const broken = await cms.integrations.broken()
+    if (broken.length > 0)
+      attention.push({
+        id: 'integrations',
+        count: broken.length,
+        names: broken.map((b) => `${b.integration}: ${b.name}`),
+      })
+  }
 
   const backups = await backupAttention(cms)
   if (backups) attention.push(backups)

@@ -14,6 +14,7 @@ import type { EmailAdapter } from './email.js'
 import type { ConfigIssue } from './errors.js'
 import type { FieldTypeDefinition } from './field-types.js'
 import type { AdminComponent, Field, Label } from './fields.js'
+import type { IntegrationConfig } from './integrations.js'
 import type { EasyCMS } from './local-api.js'
 import type { LogsConfig } from './logger.js'
 import type { CollectionSearch, SearchAdapter } from './search.js'
@@ -1021,6 +1022,11 @@ export interface Config {
    */
   readonly telemetry?: boolean | TelemetryConfig
   readonly plugins?: readonly Plugin[]
+  /**
+   * Outside providers admins connect accounts to on the Integrations page (#311), usually added
+   * by plugins: a Telegram bot, an AI provider, a Facebook Page. See `IntegrationConfig`.
+   */
+  readonly integrations?: readonly IntegrationConfig[]
 }
 
 /** The config after plugins ran, validation passed and defaults were applied. */
@@ -1038,6 +1044,7 @@ export interface ResolvedConfig
     | 'endpoints'
     | 'plugins'
     | 'audit'
+    | 'integrations'
   > {
   readonly cors: readonly string[] | '*'
   /** `null` without localization. */
@@ -1052,6 +1059,7 @@ export interface ResolvedConfig
   readonly collections: readonly CollectionConfig[]
   readonly globals: readonly GlobalConfig[]
   readonly endpoints: readonly Endpoint[]
+  readonly integrations: readonly IntegrationConfig[]
   readonly cliCommands: readonly CliCommand[]
   readonly events: readonly string[]
   readonly jobs: readonly JobConfig[]

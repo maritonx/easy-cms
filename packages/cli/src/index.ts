@@ -72,6 +72,7 @@ Commands:
   jobs:run                Run due scheduled publishes, jobs, webhook and email retries (also: run-scheduled)
   search:reindex [slug]   Build the search index again from the database
   audit:resign            After a new secret: sign the audit log with it
+  secrets:rotate          After a new secret: encrypt the Integrations' connections with it
   backup <file>           Copy the database to a SQLite file while the CMS runs
   backup:decrypt <file>   Decrypt a backup made with backups.encryptionKey
   copy --from <config>    Copy all content from another config's database into this one
@@ -303,6 +304,17 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
             `${invalid.length} entries match no secret (changed after they were written), left as they are: #${invalid.slice(0, 20).join(', #')}${invalid.length > 20 ? ', …' : ''}`,
           )
           return 1
+        }
+        case 'secrets:rotate': {
+          if (cms.config.integrations.length === 0) {
+            io.out('No integrations in the config: nothing to encrypt again.')
+            return 0
+          }
+          const { resealed } = await cms.integrations.rotate()
+          io.out(
+            `${resealed} connections encrypted with the current secret. previousSecrets can go once every server runs with it.`,
+          )
+          return 0
         }
         case 'search:reindex': {
           if (!cms.config.search) {

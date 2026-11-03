@@ -1299,6 +1299,34 @@ test.describe('logged in as admin', () => {
     await expect(dialog).toHaveCount(0)
   })
 
+  test('connects an account on the Integrations page (#311)', async ({ page }) => {
+    test.skip(test.info().project.name !== 'next', 'The Next.js example has an integration')
+    await page.goto('/admin/integrations')
+    await expect(page.getByRole('heading', { level: 1, name: 'Integrations' })).toBeVisible()
+    const card = page.getByRole('article', { name: 'Status webhook' })
+    await card.getByRole('button', { name: 'Connect an account' }).click()
+    await card.getByRole('textbox', { name: 'URL' }).fill('not a url')
+    await card.getByLabel('Token').fill('token-0001')
+    await card.getByRole('button', { name: 'Save' }).click()
+    await expect(card.getByRole('alert')).toHaveText('Not a URL')
+    await card.getByRole('textbox', { name: 'URL' }).fill('https://status.example.com/hook')
+    await card.getByRole('button', { name: 'Save' }).click()
+    await expect(page.getByRole('status')).toHaveText('"Status webhook" connected')
+    // The token is masked; the account comes from the test.
+    await expect(card.getByText('status.example.com')).toBeVisible()
+    await expect(card.getByText('Default')).toBeVisible()
+    await card.getByRole('button', { name: 'Test' }).click()
+    await expect(page.getByRole('status')).toHaveText('It works: status.example.com')
+    // Categories filter the page; what the code sets is shown too.
+    await page.getByRole('button', { name: 'Set in code' }).click()
+    await expect(card).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'Storage' })).toBeVisible()
+    await page.getByRole('button', { name: 'All', exact: true }).click()
+    page.once('dialog', (dialog) => dialog.accept())
+    await card.getByRole('button', { name: 'Disconnect Status webhook' }).click()
+    await expect(card.getByText('No account connected yet.')).toBeVisible()
+  })
+
   test('shows one group at a time, follows the page, and folds the panel away', async ({
     page,
   }) => {

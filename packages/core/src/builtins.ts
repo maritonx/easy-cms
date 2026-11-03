@@ -20,6 +20,7 @@ export const OUTBOX = 'outbox'
 export const RATE_LIMITS = 'rate-limits'
 export const BULK_OPERATIONS = 'bulk-operations'
 export const SAVED_VIEWS = 'saved-views'
+export const CONNECTIONS = 'connections'
 
 /** Collections Easy CMS uses internally. Not exposed over REST or in the admin UI. */
 export const INTERNAL_COLLECTIONS: ReadonlySet<string> = new Set([
@@ -38,6 +39,7 @@ export const INTERNAL_COLLECTIONS: ReadonlySet<string> = new Set([
   RATE_LIMITS,
   BULK_OPERATIONS,
   SAVED_VIEWS,
+  CONNECTIONS,
 ])
 
 export const DEFAULT_ROLES = ['admin', 'editor'] as const
@@ -517,6 +519,29 @@ export const savedViewsCollection: CollectionConfig = {
     { name: 'state', type: 'json' },
     // For `default`: a view's id, or `config:<id>` for one of `admin.views`.
     { name: 'target', type: 'text' },
+  ],
+}
+
+/**
+ * Accounts connected to plugins' integrations (#311): one row per connection (its plain values,
+ * its secrets encrypted), one per integration turned off, and OAuth choices waiting (`pending`).
+ */
+export const connectionsCollection: CollectionConfig = {
+  slug: CONNECTIONS,
+  access: { read: nobody, create: nobody, update: nobody, delete: nobody },
+  fields: [
+    // connection | integration | pending
+    { name: 'kind', type: 'text', required: true },
+    { name: 'integration', type: 'text', required: true, index: true },
+    { name: 'name', type: 'text' },
+    { name: 'isDefault', type: 'boolean' },
+    { name: 'values', type: 'json' },
+    // AES-256-GCM, with a key derived from the secret (see integrations.ts).
+    { name: 'secret', type: 'text' },
+    { name: 'account', type: 'text' },
+    { name: 'lastUsedAt', type: 'text' },
+    { name: 'lastError', type: 'text' },
+    { name: 'enabled', type: 'boolean' },
   ],
 }
 
