@@ -1,14 +1,6 @@
-import {
-  createCipheriv,
-  createDecipheriv,
-  createHash,
-  createHmac,
-  hkdfSync,
-  randomBytes,
-  timingSafeEqual,
-} from 'node:crypto'
+import { createCipheriv, createDecipheriv, createHash, hkdfSync, randomBytes } from 'node:crypto'
 import type { AuthUser, ID } from './access.js'
-import { secretsOf } from './auth/tokens.js'
+import { secretsOf, signedWith, signValue } from './auth/tokens.js'
 import { CONNECTIONS } from './builtins.js'
 import type { ResolvedConfig } from './config.js'
 import { ForbiddenError, NotFoundError, QueryError, ValidationError } from './errors.js'
@@ -157,19 +149,11 @@ const keyIdOf = (sealed: unknown) => {
 
 function signState(secret: string, payload: Data): string {
   const body = Buffer.from(JSON.stringify(payload)).toString('base64url')
-  return `${body}.${createHmac('sha256', secret).update(`integration:${body}`).digest('base64url')}`
+  return `${body}.${signValue(secret, `integration:${body}`)}`
 }
 function readState(secrets: readonly string[], state: string): Data | null {
   const [body, signature] = state.split('.')
-  if (!body || !signature) return null
-  const ok = secrets.some((secret) => {
-    const expected = Buffer.from(
-      createHmac('sha256', secret).update(`integration:${body}`).digest('base64url'),
-    )
-    const given = Buffer.from(signature)
-    return expected.length === given.length && timingSafeEqual(expected, given)
-  })
-  if (!ok) return null
+  if (!body || !signature || !signedWith(secrets, `integration:${body}`, signature)) return null
   const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as Data
   return typeof payload.exp === 'number' && payload.exp > Date.now() ? payload : null
 }
