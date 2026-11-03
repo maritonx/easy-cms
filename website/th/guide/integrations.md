@@ -77,6 +77,27 @@ if (telegram) {
 ```
 
 `get` คืน `null` เมื่อยังไม่ได้เชื่อมหรือผู้ให้บริการถูกปิด
+`cms.integrations.all('telegram')` คืนการเชื่อมต่อทั้งหมด (ของ environment ก่อน) เช่นเพื่อส่งไปทุกแชต
+
+### ค้นหาค่า และติ๊กตัวเลือก {#finding-a-value-ticking-options}
+
+ช่องที่มี `lookup` จะมีปุ่ม **ค้นหา** อยู่ข้าง ๆ Easy CMS รัน `lookup` ด้วยค่าที่กรอกไว้แล้ว (ตอนแก้การเชื่อมต่อ
+จะใช้ secret ที่เก็บไว้แทนช่องที่เว้นว่าง) แล้วผู้ดูแลเลือกจากรายการ เช่นแชตที่มีคนส่งข้อความหาบอท ช่อง
+`multiselect` เป็นกลุ่ม checkbox เก็บเป็น `a,b,c`
+
+```ts
+fields: [
+  { name: 'botToken', label: 'Bot token', secret: true, required: true },
+  {
+    name: 'chatId',
+    label: 'Chat ID',
+    lookup: async ({ botToken }) => (await chatsOf(botToken)).map((c) => ({ value: String(c.id), label: c.title })),
+  },
+  { name: 'events', type: 'multiselect', options: [{ value: 'order.created', label: 'คำสั่งซื้อใหม่' }, 'form.submitted'] },
+]
+```
+
+ข้อผิดพลาดที่ `lookup` throw จะขึ้นใต้ช่อง แสดงได้ไม่เกิน 100 รายการ
 
 ### OAuth {#oauth}
 

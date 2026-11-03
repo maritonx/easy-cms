@@ -470,7 +470,7 @@ export function formBuilderPlugin<
         }
 
         const page = typeof body.page === 'string' ? body.page.slice(0, 500) : null
-        await cms.create(
+        const submission = await cms.create(
           submissions,
           {
             form: form.id,
@@ -481,6 +481,21 @@ export function formBuilderPlugin<
             ...(rateKey ? { rateKey } : {}),
           },
           { context },
+        )
+        // For webhooks and notifications (`form.submitted`): which form, and who sent it.
+        const emailField = rowsOf(form).find(
+          (r) => r.blockType === 'email' && typeof r.name === 'string',
+        )
+        const from = emailField ? values[emailField.name as string] : undefined
+        cms.emit(
+          'form.submitted',
+          {
+            form: { id: form.id, title: form.title ?? form.slug ?? '' },
+            submission: submission.id,
+            ...(typeof from === 'string' && from ? { email: from } : {}),
+            locale,
+          },
+          { collection: submissions, id: submission.id },
         )
         for (const email of buildEmails({
           form,
@@ -659,6 +674,8 @@ export function formBuilderPlugin<
     return {
       ...config,
       collections: [...(config.collections ?? []), formsCollection, submissionsCollection],
+      // A submission, for webhooks and notifications (#356).
+      events: [...new Set([...(config.events ?? []), 'form.submitted'])],
       admin: {
         ...config.admin,
         modules: [...new Set([...(config.admin?.modules ?? []), ADMIN_MODULE])],

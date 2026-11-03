@@ -14,8 +14,10 @@ interface Field {
   name: string
   label?: Label
   description?: Label
-  type?: 'text' | 'url' | 'textarea' | 'select'
-  options?: string[]
+  type?: 'text' | 'url' | 'textarea' | 'select' | 'multiselect'
+  options?: (string | { value: string; label: Label })[]
+  /** Has a Find button: choices from the provider (#356). */
+  findable?: boolean
   placeholder?: string
   required?: boolean
   secret?: boolean
@@ -234,6 +236,44 @@ onMounted(async () => {
     void router.replace({ query: category.value ? { category: category.value } : {} })
 })
 
+const optionValue = (o: string | { value: string }) => (typeof o === 'string' ? o : o.value)
+const optionLabel = (o: string | { value: string; label: Label }) =>
+  typeof o === 'string' ? o : label(o.label, o.value)
+/** Ticked options of a `multiselect`, kept as `a,b,c`. */
+function ticked(name: string): string[] {
+  return (form.value?.values[name] ?? '').split(',').filter(Boolean)
+}
+function tick(name: string, value: string, on: boolean) {
+  if (!form.value) return
+  const next = new Set(ticked(name))
+  if (on) next.add(value)
+  else next.delete(value)
+  form.value.values[name] = [...next].join(',')
+}
+/** Choices found for a field (its Find button), by field name. */
+const found = ref<Record<string, { value: string; label: string }[]>>({})
+async function find(integration: Integration, field: Field) {
+  const current = form.value
+  if (!current) return
+  errors.value = { ...errors.value, [field.name]: '' }
+  try {
+    const result = await api<{ choices: { value: string; label: string }[] }>(
+      'POST',
+      `/admin/integrations/${integration.id}/lookup/${field.name}`,
+      { values: current.values, connection: current.id },
+    )
+    found.value = { ...found.value, [field.name]: result.choices }
+    if (result.choices.length === 0) errors.value[field.name] = t('integrations.foundNone')
+  } catch (e) {
+    if (e instanceof ApiError) errors.value[field.name] = e.errors[0]?.message ?? e.message
+    else errors.value[field.name] = (e as Error).message
+  }
+}
+function pick(field: Field, value: string) {
+  if (form.value) form.value.values[field.name] = value
+  found.value = { ...found.value, [field.name]: [] }
+}
+
 const categoryLabel = (value: string) => t(`integrations.category.${value}` as never)
 const fieldLabel = (field: Field) => label(field.label, field.name)
 </script>
@@ -296,24 +336,39 @@ const fieldLabel = (field: Field) => label(field.label, field.name)
             <span v-if="errors.name" class="field-error">{{ errors.name }}</span>
           </label>
           <template v-if="integration.kind === 'fields'">
-            <label v-for="field in integration.fields" :key="field.name" class="field">
-              <span class="field-label">{{ fieldLabel(field) }}<span v-if="field.required && form.id === null" class="field-required" aria-hidden="true">*</span></span>
-              <span v-if="integration.envFields.includes(field.name)" class="field-hint">{{ t('integrations.fieldFromEnv') }}</span>
-              <select v-if="field.type === 'select'" v-model="form.values[field.name]" class="input">
-                <option v-for="o in field.options ?? []" :key="o" :value="o">{{ o }}</option>
-              </select>
-              <textarea v-else-if="field.type === 'textarea'" v-model="form.values[field.name]" class="textarea" />
-              <input
-                v-else
-                v-model="form.values[field.name]"
-                class="input"
-                :type="field.secret ? 'password' : field.type === 'url' ? 'url' : 'text'"
-                :autocomplete="field.secret ? 'off' : undefined"
-                :placeholder="field.secret && form.id !== null ? t('integrations.keepSecret') : field.placeholder"
-              />
-              <span v-if="field.description" class="field-hint">{{ label(field.description, '') }}</span>
-              <span v-if="errors[field.name]" class="field-error">{{ errors[field.name] }}</span>
-            </label>
+            <template v-for="field in integration.fields" :key="field.name">
+              <fieldset v-if="field.type === 'multiselect'" class="field ticks">
+                <legend class="field-label">{{ fieldLabel(field) }}</legend>
+                <label v-for="o in field.options ?? []" :key="optionValue(o)" class="tick">
+                  <input type="checkbox" :checked="ticked(field.name).includes(optionValue(o))" @change="tick(field.name, optionValue(o), ($event.target as HTMLInputElement).checked)" />
+                  {{ optionLabel(o) }}
+                </label>
+                <span v-if="field.description" class="field-hint">{{ label(field.description, '') }}</span>
+              </fieldset>
+              <label v-else class="field">
+                <span class="field-label">{{ fieldLabel(field) }}<span v-if="field.required && form.id === null" class="field-required" aria-hidden="true">*</span></span>
+                <span v-if="integration.envFields.includes(field.name)" class="field-hint">{{ t('integrations.fieldFromEnv') }}</span>
+                <select v-if="field.type === 'select'" v-model="form.values[field.name]" class="input">
+                  <option v-if="!field.required" value="">—</option>
+                  <option v-for="o in field.options ?? []" :key="optionValue(o)" :value="optionValue(o)">{{ optionLabel(o) }}</option>
+                </select>
+                <textarea v-else-if="field.type === 'textarea'" v-model="form.values[field.name]" class="textarea" />
+                <input
+                  v-else
+                  v-model="form.values[field.name]"
+                  class="input"
+                  :type="field.secret ? 'password' : field.type === 'url' ? 'url' : 'text'"
+                  :autocomplete="field.secret ? 'off' : undefined"
+                  :placeholder="field.secret && form.id !== null ? t('integrations.keepSecret') : field.placeholder"
+                />
+                <button v-if="field.findable" type="button" class="btn btn-sm find" @click="find(integration, field)">{{ t('integrations.find', { name: fieldLabel(field) }) }}</button>
+                <span v-if="found[field.name]?.length" class="choices" role="group" :aria-label="t('integrations.foundFor', { name: fieldLabel(field) })">
+                  <button v-for="choice in found[field.name]" :key="choice.value" type="button" class="btn btn-sm btn-ghost" @click="pick(field, choice.value)">{{ choice.label }}</button>
+                </span>
+                <span v-if="field.description" class="field-hint">{{ label(field.description, '') }}</span>
+                <span v-if="errors[field.name]" class="field-error">{{ errors[field.name] }}</span>
+              </label>
+            </template>
           </template>
           <p v-if="errors.values || errors['']" class="field-error" role="alert">{{ errors.values ?? errors[''] }}</p>
           <div class="actions">
@@ -480,8 +535,24 @@ const fieldLabel = (field: Field) => label(field.label, field.name)
   padding-top: 0.5rem;
   border-top: 1px solid var(--border);
 }
-.add {
+.add,
+.find {
   align-self: flex-start;
+}
+.ticks {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.tick {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+.choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
 }
 .readonly {
   background: var(--surface-2);

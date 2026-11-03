@@ -40,12 +40,35 @@ const page: IntegrationConfig = {
   },
 }
 
+// Choices from the provider (a Find button), and ticked options (#356).
+const chat: IntegrationConfig = {
+  id: 'chat',
+  label: 'Chat',
+  category: 'notifications',
+  kind: 'fields',
+  fields: [
+    { name: 'token', secret: true, required: true },
+    {
+      name: 'room',
+      required: true,
+      lookup: (values) => {
+        if (values.token !== 'chat-token') throw new Error('token refused')
+        return [
+          { value: 'r1', label: 'Room one' },
+          { value: 'r2', label: 'Room two' },
+        ]
+      },
+    },
+    { name: 'events', type: 'multiselect', options: ['a', { value: 'b', label: 'B' }] },
+  ],
+}
+
 const config = defineConfig({
   secret: SECRET,
   db: db(),
   audit: true,
   auth: { rbac: true },
-  integrations: [hook, page],
+  integrations: [hook, page, chat],
   collections: [],
 })
 
@@ -221,6 +244,56 @@ describe('integrations (#311)', () => {
     expect(entries.docs.map((e) => e.target)).toEqual(
       expect.arrayContaining(['status-hook', 'pages']),
     )
+  })
+
+  it('finds choices with the values typed or stored, keeps ticked options, and lists every connection', async () => {
+    const found = await call('/chat/lookup/room', 'POST', { values: { token: 'chat-token' } })
+    expect(found.body).toEqual({
+      choices: [
+        { value: 'r1', label: 'Room one' },
+        { value: 'r2', label: 'Room two' },
+      ],
+    })
+    const refused = await call('/chat/lookup/room', 'POST', { values: { token: 'nope' } })
+    expect(refused.status).toBe(400)
+    expect(JSON.stringify(refused.body)).toContain('token refused')
+    expect((await call('/chat/lookup/token', 'POST', {})).status).toBe(400)
+
+    const one = await call('/chat/connections', 'POST', {
+      name: 'One',
+      values: { token: 'chat-token', room: 'r1', events: ['a', 'b'] },
+    })
+    await call('/chat/connections', 'POST', {
+      name: 'Two',
+      values: { token: 'other-token', room: 'r2' },
+    })
+    // Editing a connection: the secret left empty is the stored one.
+    const again = await call('/chat/lookup/room', 'POST', {
+      connection: one.body?.id,
+      values: { token: '' },
+    })
+    expect(again.body?.choices).toHaveLength(2)
+
+    expect(await cms.integrations.all('chat')).toEqual([
+      { name: 'One', env: false, values: { token: 'chat-token', room: 'r1', events: 'a,b' } },
+      { name: 'Two', env: false, values: { token: 'other-token', room: 'r2' } },
+    ])
+    const overview = await call('')
+    const view = overview.body?.integrations.find((i: { id: string }) => i.id === 'chat')
+    expect(view.fields.find((f: { name: string }) => f.name === 'room')).toMatchObject({
+      findable: true,
+    })
+    expect(view.fields.find((f: { name: string }) => f.name === 'events')).toMatchObject({
+      type: 'multiselect',
+      options: ['a', { value: 'b', label: 'B' }],
+    })
+
+    const failed: unknown[] = []
+    const off = cms.on('integration.failed', ({ data }) => void failed.push(data))
+    await cms.integrations.markError('chat', 'room is gone', 'Two')
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    off()
+    expect(failed).toEqual([{ integration: 'chat', name: 'Two', error: 'room is gone' }])
   })
 
   it('reads connections after the secret changes, and encrypts them again with the new one', async () => {

@@ -102,6 +102,7 @@ to apply them, as the REST API does.
 | Method | Returns | |
 |---|---|---|
 | `runJobs(now?)` | `{ scheduled, webhooks, emails, jobs, outbox }` | Due scheduled jobs, webhook and email retries, the config's `jobs`, and outbox entries that are due (what cron and the timer call). |
+| `on(event, handler)` | `() => void` (stops listening) | Runs `handler({ event, data, about? })` after an event on this server: content changes, `cms.emit()` events and Easy CMS's failure events. Errors are logged. [Webhooks](/guide/webhooks#listening-on-the-server) |
 | `emit(event, data, about?)` | — | Sends an event of the config's `events` (e.g. `order.paid`) to the webhooks that list it; `about`: `{ collection, id }`. [Webhooks](/guide/webhooks#your-own-events) |
 | `runScheduled(now?)` | `{ ran, failed }` | Only the due scheduled jobs. |
 | `retryScheduled(id)` | `boolean` | Puts a failed scheduled job back in the queue and runs what is due; `false` when it isn't a failed one. |

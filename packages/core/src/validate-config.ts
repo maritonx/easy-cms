@@ -15,7 +15,7 @@ import { FIELD_TYPES, type Field, type RichTextBlock, type SelectOption } from '
 import { NAV_ID, navGroups, navIds } from './nav.js'
 import { fieldAt, SEARCHABLE_TYPES } from './search.js'
 import { isTimeZone } from './time-of-day.js'
-import { WEBHOOK_EVENTS } from './webhooks.js'
+import { SYSTEM_EVENTS, WEBHOOK_EVENTS } from './webhooks.js'
 
 export const MIN_SECRET_LENGTH = 32
 
@@ -111,6 +111,7 @@ export function validateConfig(config: Config): ConfigIssue[] {
   validateCommands(config, add)
   validateJobs(config, add)
   validateIntegrations(config, add)
+  validateListeners(config, add)
   validateTimeZone(config, add)
   validateEvents(config, add)
   const apiKeys: unknown = config.apiKeys
@@ -727,7 +728,7 @@ function validateWebhooks(config: Config, add: Add) {
     ...(config.collections ?? []).map((c) => c?.slug),
   ])
   const globals = new Set((config.globals ?? []).map((g) => g?.slug))
-  const custom = new Set(config.events ?? [])
+  const custom = new Set([...(config.events ?? []), ...SYSTEM_EVENTS])
   for (const [i, hook] of hooks.entries()) {
     const path = `webhooks[${i}]`
     if (typeof hook?.url !== 'string' || !/^https?:\/\/\S+$/.test(hook.url)) {
@@ -2076,5 +2077,30 @@ function validateIntegrations(config: Config, add: Add) {
     } else add(`${at}.kind`, "must be 'fields' or 'oauth'")
     if (item.test !== undefined && typeof item.test !== 'function')
       add(`${at}.test`, 'must be a function')
+    for (const [f, field] of (Array.isArray(item.fields) ? item.fields : []).entries()) {
+      const fieldItem = (field ?? {}) as Record<string, unknown>
+      if (fieldItem.lookup !== undefined && typeof fieldItem.lookup !== 'function')
+        add(`${at}.fields[${f}].lookup`, 'must be a function')
+    }
+  }
+}
+
+/** Plugins' event listeners (#356): event names, or `'*'`, and a handler. */
+function validateListeners(config: Config, add: Add) {
+  const list: unknown = config.listeners
+  if (list === undefined) return
+  if (!Array.isArray(list)) {
+    add('listeners', 'must be an array')
+    return
+  }
+  for (const [i, raw] of list.entries()) {
+    const item = (raw ?? {}) as Record<string, unknown>
+    const events = item.events
+    if (
+      events !== '*' &&
+      !(Array.isArray(events) && events.every((e) => typeof e === 'string' && e.length > 0))
+    )
+      add(`listeners[${i}].events`, "must be event names or '*'", "e.g. events: ['order.created']")
+    if (typeof item.handler !== 'function') add(`listeners[${i}].handler`, 'must be a function')
   }
 }

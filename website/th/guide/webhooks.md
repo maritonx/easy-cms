@@ -58,6 +58,44 @@ cms.emit('invoice.sent', { number: 'INV-1' }, { collection: 'invoices', id: 7 })
 
 body คือ `{ event, collection?, id?, doc, timestamp }` โดย `doc` คือสิ่งที่ส่งให้ `emit` การส่ง ลายเซ็น และการส่งซ้ำเหมือนเดิม
 
+## เมื่อมีบางอย่างล้มเหลว {#when-something-fails}
+
+Easy CMS ส่ง event ของตัวเองเมื่อมีบางอย่างล้มเหลว เพื่อให้ webhook (หรือ[การแจ้งเตือน](./notifications))
+บอกใครสักคน event เหล่านี้ไม่ต้องประกาศใน `events` ของ config
+
+| Event | เมื่อ | `doc` |
+|---|---|---|
+| `scheduled.failed` | การเผยแพร่หรือเลิกเผยแพร่[ตามเวลา](./drafts#scheduled-publishing)ล้มเหลว | `{ job, action, collection หรือ global, doc, error }` |
+| `delivery.failed` | webhook หรืออีเมลส่งไม่สำเร็จหลังลองซ้ำครบแล้ว | `{ kind: 'webhook' \| 'email', url หรือ to, event?, error, attempts }` |
+| `backup.failed` | การ[สำรองข้อมูล](./backups)ล้มเหลว | `{ backup, error }` |
+| `integration.failed` | การทดสอบหรือการใช้การเชื่อมต่อล้มเหลว ([การเชื่อมต่อ](./integrations)) | `{ integration, name, error }` |
+
+```ts
+webhooks: [{ url: 'https://alerts.example.com/hook', events: ['backup.failed', 'delivery.failed'], secret }]
+```
+
+## ฟัง event บนเซิร์ฟเวอร์ {#listening-on-the-server}
+
+`cms.on(event, handler)` รันฟังก์ชันหลังเกิด event บนเซิร์ฟเวอร์นี้ ทั้งการเปลี่ยนเนื้อหา (`create`,
+`publish`…) event จาก `cms.emit()` และ event ข้อผิดพลาดข้างบน คืนฟังก์ชันสำหรับเลิกฟัง handler รันทันทีหลังเกิด
+event โดยไม่ทำให้ request ช้าลง ข้อผิดพลาดจะถูกบันทึกใน log และไม่หยุดอย่างอื่น
+
+```ts
+const stop = cms.on('order.paid', async ({ data, about }) => {
+  await crm.addSale(data) // about: { collection: 'orders', id }
+})
+```
+
+plugin เพิ่มของตัวเองใน `listeners` ของ config ซึ่งลงทะเบียนตอน Easy CMS เริ่มทำงาน (`events: '*'`
+สำหรับทุก event)
+
+```ts
+listeners: [{ events: ['form.submitted'], handler: async ({ data }, { cms }) => { /* … */ } }]
+```
+
+listener ต่างจาก webhook ตรงที่ไม่ลองซ้ำ และรันเฉพาะบนเซิร์ฟเวอร์ที่เกิด event สำหรับงานที่ห้ามหาย
+ให้เข้าคิวไว้ (collection กับ[งานตั้งเวลา](./jobs)) แบบที่ notify plugin ทำ
+
 ## Requests {#requests}
 
 ```http

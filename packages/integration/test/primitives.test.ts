@@ -151,6 +151,60 @@ describe('events', () => {
     }
   })
 
+  it('reach cms.on and config listeners, content changes and system events too', async () => {
+    const heard: string[] = []
+    const cms = await open(
+      defineConfig({
+        ...config(),
+        webhooks: [{ url: `${url}/system`, events: ['backup.failed'] }],
+        listeners: [
+          { events: '*', handler: ({ event }) => void heard.push(`any:${event}`) },
+          {
+            events: ['order.paid'],
+            handler: () => {
+              throw new Error('a broken listener stops no one')
+            },
+          },
+        ],
+      }),
+    )
+    try {
+      received.length = 0
+      const paid: unknown[] = []
+      const off = cms.on('order.paid', (message) => void paid.push(message))
+      cms.emit('order.paid', { orderNumber: 'A-2' }, { collection: 'orders', id: 2 })
+      await new Promise((resolve) => setTimeout(resolve, 10))
+      expect(paid).toEqual([
+        {
+          event: 'order.paid',
+          data: { orderNumber: 'A-2' },
+          about: { collection: 'orders', id: 2 },
+        },
+      ])
+      off()
+      cms.emit('order.paid', { orderNumber: 'A-3' })
+      await cms.create('orders', { title: 'one' })
+      // Easy CMS's own failure events (internal to core).
+      ;(cms as unknown as { systemEvent(e: string, d: object): void }).systemEvent(
+        'backup.failed',
+        {
+          backup: 1,
+          error: 'disk full',
+        },
+      )
+      await cms.flushWebhooks()
+      await new Promise((resolve) => setTimeout(resolve, 10))
+      expect(paid).toHaveLength(1)
+      expect(heard).toEqual(['any:order.paid', 'any:order.paid', 'any:create', 'any:backup.failed'])
+      expect(received.find((r) => r.path === '/system')?.payload).toMatchObject({
+        event: 'backup.failed',
+        doc: { backup: 1, error: 'disk full' },
+      })
+    } finally {
+      await cms.destroy()
+    }
+  })
+
   it('must be declared for webhooks to list them', async () => {
     await expect(
       open(defineConfig({ ...config(), events: [], webhooks: [{ url, events: ['order.paid'] }] })),

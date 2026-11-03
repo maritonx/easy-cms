@@ -304,11 +304,13 @@ async function runBackup(cms: EasyCMS, record: RawDocument): Promise<void> {
     })
     cms.logger.info(`Backup ${key} written (${data.byteLength} bytes)`)
   } catch (error) {
+    const message = ((error as Error).message || String(error)).slice(0, 500)
     await update(cms, row, {
       state: 'failed',
-      error: ((error as Error).message || String(error)).slice(0, 500),
+      error: message,
       finishedAt: new Date().toISOString(),
     })
+    cms.systemEvent('backup.failed', { backup: row.id, error: message })
     throw error
   } finally {
     await rm(dir, { recursive: true, force: true })

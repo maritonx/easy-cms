@@ -221,6 +221,13 @@
           }
         },
         {
+          "path": "guide/notifications",
+          "title": {
+            "en": "Notifications",
+            "th": "การแจ้งเตือน"
+          }
+        },
+        {
           "path": "guide/seo",
           "title": {
             "en": "SEO",

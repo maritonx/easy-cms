@@ -26,6 +26,7 @@ import { applyFieldTypes, fieldTypeModules } from './field-types.js'
 import type { Field } from './fields.js'
 import { rolesCollection } from './roles.js'
 import { validateConfig } from './validate-config.js'
+import { SYSTEM_EVENTS } from './webhooks.js'
 
 export const DEFAULT_ADMIN_PATH = '/admin'
 export const DEFAULT_API_PATH = '/api/cms'
@@ -168,7 +169,8 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
     endpoints: config.endpoints ?? [],
     integrations: resolvedIntegrations(config),
     cliCommands: config.cliCommands ?? [],
-    events: config.events ?? [],
+    // Easy CMS's own events (#356), for webhooks and `cms.on`.
+    events: [...new Set([...(config.events ?? []), ...SYSTEM_EVENTS])],
     jobs: config.jobs ?? [],
     warnings,
     installedPlugins: (plugins ?? []).map((plugin) =>

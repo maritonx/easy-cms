@@ -119,6 +119,9 @@ export class Mailer {
     private readonly queue?: EmailQueue,
   ) {}
 
+  /** Told when an email is given up on (`delivery.failed`). */
+  onGiveUp: ((detail: { to: string; error: string; attempts: number }) => void) | undefined
+
   get configured(): boolean {
     return this.adapter !== undefined
   }
@@ -180,6 +183,8 @@ export class Mailer {
       if (delay === undefined) {
         failed++
         this.logger.error(`Email gave up after ${attempts} attempts: ${error}`)
+        const sent = JSON.parse(queued.message) as EmailMessage
+        this.onGiveUp?.({ to: [sent.to].flat().join(', '), error, attempts })
       }
       await this.queue.update(id, {
         ...queued,

@@ -102,6 +102,9 @@ importers:
       '@easy-cms/plugin-nested-docs':
         specifier: workspace:^
         version: link:../../packages/plugin-nested-docs
+      '@easy-cms/plugin-notify':
+        specifier: workspace:^
+        version: link:../../packages/plugin-notify
       '@easy-cms/plugin-redirects':
         specifier: workspace:^
         version: link:../../packages/plugin-redirects
@@ -681,6 +684,15 @@ importers:
       '@easy-cms/plugin-redirects':
         specifier: workspace:^
         version: link:../plugin-redirects
+
+  packages/plugin-notify:
+    devDependencies:
+      '@easy-cms/core':
+        specifier: workspace:^
+        version: link:../core
+      '@easy-cms/db-sqlite':
+        specifier: workspace:^
+        version: link:../db-sqlite
 
   packages/plugin-redirects:
     devDependencies:
@@ -8923,7 +8935,7 @@ snapshots:
       obug: 3.0.0
       std-env: 4.3.0
       tinyrainbow: 3.2.0
-      vitest: 5.0.5(@edge-runtime/vm@5.0.0)(@opentelemetry/api@1.10.0)(@types/node@26.6.5)(@vitest/coverage-v8@5.0.5)(happy-dom@21.0.4)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
+      vitest: 5.0.5(@edge-runtime/vm@5.0.0)(@opentelemetry/api@1.10.0)(@types/node@22.20.5)(@vitest/coverage-v8@5.0.5)(happy-dom@21.0.4)(vite@8.3.5(@types/node@22.20.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
 
   '@vitest/istanbul-lib-coverage@1.0.2': {}
 
@@ -8948,6 +8960,7 @@ snapshots:
       magic-string: 1.4.4
     optionalDependencies:
       vite: 8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1)
+    optional: true
 
   '@vitest/spy@5.0.5': {}
 
@@ -12491,6 +12504,7 @@ snapshots:
       happy-dom: 21.0.4
     transitivePeerDependencies:
       - msw
+    optional: true
 
   vscode-jsonrpc@10.0.0: {}
 

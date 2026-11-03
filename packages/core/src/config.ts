@@ -15,7 +15,7 @@ import type { ConfigIssue } from './errors.js'
 import type { FieldTypeDefinition } from './field-types.js'
 import type { AdminComponent, Field, Label } from './fields.js'
 import type { IntegrationConfig } from './integrations.js'
-import type { EasyCMS } from './local-api.js'
+import type { EasyCMS, EventMessage } from './local-api.js'
 import type { LogsConfig } from './logger.js'
 import type { CollectionSearch, SearchAdapter } from './search.js'
 import type { StorageAdapter } from './storage.js'
@@ -921,6 +921,14 @@ export interface Config {
   readonly events?: readonly string[]
   /** Work run with the scheduled jobs, e.g. a plugin's clean-up. */
   readonly jobs?: readonly JobConfig[]
+  /**
+   * Run after events on this server (#356), as `cms.on` does: plugins use this, e.g. to send a
+   * notification. `events`: names, or `'*'` for every event.
+   */
+  readonly listeners?: readonly {
+    readonly events: readonly string[] | '*'
+    readonly handler: (message: EventMessage, args: { readonly cms: EasyCMS }) => unknown
+  }[]
   /** Content in several languages: fields with `localized: true` hold one value per locale. */
   readonly localization?: LocalizationConfig | false
   readonly routes?: RoutesConfig
