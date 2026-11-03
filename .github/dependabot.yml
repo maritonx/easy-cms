@@ -33,6 +33,11 @@ updates:
       # APIs by accident.
       - dependency-name: '@types/node'
         update-types: [version-update:semver-major]
+      # FullCalendar 7 moved to the `fullcalendar` package, dropped its CSS and the fc-* classes the
+      # admin's calendar is styled and labelled by: a rewrite of the calendar's view. 6 is still
+      # maintained (`legacy`); patches come.
+      - dependency-name: '@fullcalendar/*'
+        update-types: [version-update:semver-major]
     groups:
       minor-and-patch:
         update-types: [minor, patch]
