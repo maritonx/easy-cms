@@ -184,7 +184,14 @@ describe('events', () => {
       off()
       cms.emit('order.paid', { orderNumber: 'A-3' })
       await cms.create('orders', { title: 'one' })
-      cms.systemEvent('backup.failed', { backup: 1, error: 'disk full' })
+      // Easy CMS's own failure events (internal to core).
+      ;(cms as unknown as { systemEvent(e: string, d: object): void }).systemEvent(
+        'backup.failed',
+        {
+          backup: 1,
+          error: 'disk full',
+        },
+      )
       await cms.flushWebhooks()
       await new Promise((resolve) => setTimeout(resolve, 10))
       expect(paid).toHaveLength(1)
