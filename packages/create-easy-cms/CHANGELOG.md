@@ -1,5 +1,9 @@
 # create-easy-cms
 
+## 1.31.0
+
+No changes in this release.
+
 ## 1.30.1
 
 No changes in this release.
