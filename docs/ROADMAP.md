@@ -49,7 +49,8 @@
 | [`Admin lists & shop`](https://github.com/maritonx/easy-cms/milestone/8) | — | รายการใน admin (saved views, ตัวกรอง, CSV) และ Omise |
 | [`Fields & editor`](https://github.com/maritonx/easy-cms/milestone/10) | — | ui field, ลิงก์และ block ใน rich text, relationship ไปหลาย collection (ทำก่อนส่วนที่เหลือของ M8 และ M9) |
 | [`Edge reads`](https://github.com/maritonx/easy-cms/milestone/11) | — | อ่านเนื้อหาจาก edge runtime ด้วย `@easy-cms/core/client` ตัว CMS ยังอยู่บน Node.js |
-| [`Integrations & social`](https://github.com/maritonx/easy-cms/milestone/9) | — | หน้า Integrations ให้ plugin เชื่อมกับผู้ให้บริการภายนอก และโพสไปหลายช่องทาง |
+| [`Integrations & social`](https://github.com/maritonx/easy-cms/milestone/9) | — | หน้า Integrations ให้ plugin เชื่อมกับผู้ให้บริการภายนอก, โพสไปหลายช่องทาง และแจ้งเตือนผู้ดูแลทาง Telegram |
+| [`AI`](https://github.com/maritonx/easy-cms/milestone/12) | — | เชื่อม Claude, GPT, Gemini ในหน้า Integrations และใช้ใน admin: alt text, SEO, แปลภาษา |
 
 ### Labels
 
@@ -204,7 +205,10 @@
 
 ### M9 — `Integrations & social` (ไม่กำหนดวัน) {#m9}
 
-จากการคุยเรื่องโพสไปหลายช่องทาง (2026-10-30) ทำหลัง M8 ตามลำดับ: #311 → #312 → #313 → #314
+จากการคุยเรื่องโพสไปหลายช่องทาง (2026-10-30) ทำหลัง M8 ตามลำดับ: #311 → #312 → #313 → #314 → #356
+- คุยเรื่อง Integrations เพิ่ม (2026-11-03): หน้าเดียวแบบ Vercel อยู่ในกลุ่ม Integrations ของ Settings แบ่งหมวด Social & messaging, AI, Notifications และ Automation พร้อมการ์ดอ่านอย่างเดียวของสิ่งที่ตั้งในโค้ด (Email, Storage, Search, Sign-in, Payments)
+- ติดตั้ง plugin ครั้งเดียวต่อหมวด (`plugin-social`, `plugin-notify`, `plugin-ai`) แล้วเปิดใช้ผู้ให้บริการแต่ละตัวด้วยคลิก เชื่อมได้หลายบัญชีต่อผู้ให้บริการ
+- Telegram ใช้แจ้งเตือนผู้ดูแล (#356) ไม่ใช่ช่องทางโพส
 - หน้า admin ติดตั้ง plugin ไม่ได้ (ต้องแก้โค้ดและ deploy) แต่เชื่อมบัญชีของ plugin ที่ติดตั้งแล้วได้ ทั้งแบบ OAuth และแบบวาง token
 - secret ที่เชื่อมผ่าน admin เข้ารหัส AES-256-GCM ในฐานข้อมูลด้วย key จาก `EASY_CMS_SECRET` ถ้าตั้ง env ไว้ env ชนะ
 - social post เป็น collection แยก โพสด้วยมือหรือตั้งเวลา (ยังไม่โพสอัตโนมัติ) สถานะแยกต่อช่องทาง
@@ -217,6 +221,20 @@
 | [#312](https://github.com/maritonx/easy-cms/issues/312) | Social plugin: post to several channels from the admin | area:plugins, area:admin | โพสทันทีและตั้งเวลาไปสองช่องทาง webhook ได้, ช่องหนึ่งล้มอีกช่องยังไป, ลองใหม่เฉพาะช่องที่ล้ม, Share เติมข้อมูลจากเอกสาร |
 | [#313](https://github.com/maritonx/easy-cms/issues/313) | Social plugin: Facebook Page and LINE OA channels | area:plugins | โพสไป Page และ LINE OA ทดสอบได้, ความผิดพลาดบอกเหตุผลจากผู้ให้บริการ, คู่มือสร้าง Meta app และ LINE channel |
 | [#314](https://github.com/maritonx/easy-cms/issues/314) | Post easycms.dev articles with the social plugin, and document it | area:docs, area:plugins | บทความบน easycms.dev โพสไป Facebook, LINE และ X จาก admin, คู่มือ EN/TH ครบทุกขั้น |
+| [#356](https://github.com/maritonx/easy-cms/issues/356) | Notify plugin: Telegram notifications for admins | area:plugins, area:admin | Telegram ได้รับแจ้งเมื่อมีฟอร์มใหม่และตั้งเวลาเผยแพร่ล้มเหลว, ส่งไม่สำเร็จลองใหม่, ปิดเรื่องที่แจ้งต่อ connection ได้ |
+
+### M12 — `AI` (ไม่กำหนดวัน) {#m12}
+
+จากการคุยเรื่อง Integrations (2026-11-03) ทำหลัง #311 ตามลำดับ: #357 → #358
+- ผู้ให้บริการ: Claude, GPT, Gemini และแบบ OpenAI-compatible เรียกผ่าน HTTP ไม่ใช้ SDK key เข้ารหัสในฐานข้อมูล หรือจาก env ซึ่งชนะ
+- คุมค่าใช้จ่าย: แสดง token ที่ใช้ต่อเดือน, จำกัดต่อผู้ใช้ต่อวัน (ค่าเริ่มต้น 100 ครั้ง), admin ปิดทีละ feature ได้
+- แจ้งว่าข้อความและรูปจะถูกส่งไปยังผู้ให้บริการ และต้องยอมรับตอนเปิดใช้ครั้งแรก
+- feature รอบแรก: alt text, SEO, แปลภาษา; ช่วยเขียนใน rich text และข้อความโพสต์ social ทำตามมา
+
+| # | Issue | Labels | เสร็จเมื่อ |
+|---|---|---|---|
+| [#357](https://github.com/maritonx/easy-cms/issues/357) | AI plugin: connect Claude, GPT, Gemini and OpenAI-compatible providers | area:plugins, area:security | ผู้ให้บริการแต่ละตัวตอบผ่าน API จำลองได้, ใช้ connection เริ่มต้นและต่อ feature ได้, จำกัดต่อวันปฏิเสธครั้งที่ 101, การ์ดแสดง token ที่ใช้ |
+| [#358](https://github.com/maritonx/easy-cms/issues/358) | AI features: alt text, SEO fields and translation | area:plugins, area:admin | alt text, SEO และแปลไทย ↔ อังกฤษเติมจากผู้ให้บริการจำลอง และบันทึกหลังตรวจ |
 
 ---
 
