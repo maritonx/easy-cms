@@ -46,6 +46,7 @@ import { readAdminModule } from './admin-modules.js'
 import { adminSchema } from './admin-schema.js'
 import { adminCounts, adminSearch, LIST_TOTAL_MAX } from './admin-search.js'
 import { adminStatus } from './admin-status.js'
+import { exportCsv } from './export-csv.js'
 import { blockSummaries, pickerFilter } from './filter-options.js'
 import { cacheableResponse, cacheTags, cacheTimes } from './http-cache.js'
 import { parseDepth, parseListQuery } from './query.js'
@@ -1244,6 +1245,22 @@ async function route(
     !cms.config.collections.some((c) => c.slug === collection)
   ) {
     throw new HttpError(`Unknown collection "${collection}"`, 404)
+  }
+  // The list as CSV (#89): GET /:collection/export.csv?where…&sort=&columns=&ids=&lang=&headers=
+  if (second === 'export.csv' && third === undefined) {
+    if (method !== 'GET') throw methodNotAllowed(ctx, 'GET')
+    if (!ctx.user) throw new UnauthorizedError()
+    const { where, sort } = parseListQuery(ctx.url)
+    return {
+      body: await exportCsv(cms, collection, ctx.url, {
+        user: ctx.user,
+        context: ctx.context,
+        ...parseLocale(ctx.url),
+        draft,
+        ...(where ? { where } : {}),
+        ...(sort ? { sort } : {}),
+      }),
+    }
   }
   // Bulk actions (#280): POST /:collection/bulk { action, ids | where, folder?, transferTo? };
   // GET /:collection/bulk/:id (progress), POST /:collection/bulk/:id/cancel

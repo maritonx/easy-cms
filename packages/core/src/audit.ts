@@ -4,6 +4,7 @@ import type { AuthUser, ID, RequestContext, Where } from './access.js'
 import { secretsOf } from './auth/tokens.js'
 import { AUDIT_LOGS, INTERNAL_COLLECTIONS } from './builtins.js'
 import type { CollectionConfig, GlobalConfig } from './config.js'
+import { csvCell } from './csv.js'
 import type { PaginatedDocs, RawDocument } from './database.js'
 import { QueryError } from './errors.js'
 import type { Field } from './fields.js'
@@ -339,17 +340,7 @@ export class AuditLog {
       limit: CSV_LIMIT,
       page: 1,
     })
-    const cell = (value: unknown) => {
-      const s =
-        value === null || value === undefined
-          ? ''
-          : typeof value === 'string'
-            ? value
-            : JSON.stringify(value)
-      // Spreadsheets run cells that start like a formula: quote those.
-      const safe = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s
-      return /[",\n\r]/.test(safe) ? `"${safe.replaceAll('"', '""')}"` : safe
-    }
+    const cell = csvCell
     const lines = [
       ['at', 'action', 'target', 'doc', 'title', 'actor', 'via', 'ip', 'changes', 'detail'].join(
         ',',

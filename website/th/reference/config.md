@@ -320,6 +320,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `calendar` | `{ start, end?, color? }` | โหมดปฏิทินข้างหน้ารายการ: `start` และ `end` เป็น field วันที่ระดับบนสุด `color` เป็น field select หรือ relationship (ไม่ใช่ hasMany) ที่ใช้แยกสีเอกสาร [ระบบจัดการ](/th/guide/admin#calendar) |
 | `ownerField` | `string` | เมื่อเปิด `auth.rbac`: relationship ไปที่ `users` ที่บอกเจ้าของ เช่น `'author'` สำหรับบทบาทที่ได้ "เฉพาะเอกสารของตัวเอง" ค่าเริ่มต้น: ผู้สร้าง (`createdBy`) [บทบาทและสิทธิ์](/th/guide/roles#own-documents-only) |
 | `confirmDelete` | `{ typeTitle?, impact? }` | ถามมากขึ้นก่อนลบ: `typeTitle` ให้พิมพ์ชื่อ `impact` คือ path ใต้ API ที่เรียกพร้อม `?id=` แล้วคืน `{ message }` บอกสิ่งที่จะหายไปด้วย ลบจากการเลือกหลายรายการไม่ได้ |
+| `export` | `boolean` | `false`: ไม่มีปุ่มส่งออก CSV ในหน้ารายการ และ `GET <api>/:collection/export.csv` จะปฏิเสธ ค่าเริ่มต้น `true` [ระบบจัดการ](/th/guide/admin#export-to-csv) |
 | `views` | `{ id, label, where?, search?, sort?, columns?, pageSize?, density? }[]` | tab เหนือหน้ารายการที่ทุกคนเห็น ก่อนมุมมองที่ผู้ใช้บันทึก [ระบบจัดการ](/th/guide/admin#saved-views) |
 
 <!-- api: GlobalConfig -->

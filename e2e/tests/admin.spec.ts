@@ -1,5 +1,6 @@
 import { createHash, createHmac } from 'node:crypto'
 import { readFileSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { expect, type Page, type Route, test } from '@playwright/test'
 import sharp from 'sharp'
@@ -1280,6 +1281,22 @@ test.describe('logged in as admin', () => {
     await page.getByRole('button', { name: 'Actions for Hello posts' }).click()
     await page.getByRole('button', { name: 'Delete view' }).click()
     await expect(views.getByRole('button', { name: 'Hello posts' })).toHaveCount(0)
+  })
+
+  test('exports the list to CSV (#89)', async ({ page }) => {
+    await page.goto('/admin/collections/posts?q=Hello')
+    await page.getByRole('button', { name: 'Export CSV' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Export to CSV' })
+    await expect(dialog.getByRole('radio', { name: /^All \d+ matching the list$/ })).toBeChecked()
+    const download = page.waitForEvent('download')
+    await dialog.getByRole('button', { name: /^Download/ }).click()
+    const file = await download
+    expect(file.suggestedFilename()).toMatch(/^posts-\d{4}-\d{2}-\d{2}\.csv$/)
+    const text = (await readFile((await file.path()) as string, 'utf8')).replace(/^\uFEFF/, '')
+    const [header, ...rows] = text.trimEnd().split('\r\n')
+    expect(header).toMatch(/^ID,Title,.*Updated$/)
+    expect(rows.some((row) => row.includes('Hello from Playwright'))).toBe(true)
+    await expect(dialog).toHaveCount(0)
   })
 
   test('shows one group at a time, follows the page, and folds the panel away', async ({
