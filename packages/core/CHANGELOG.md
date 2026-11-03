@@ -1,5 +1,12 @@
 # @easy-cms/core
 
+## 1.31.0
+
+### Minor Changes
+
+- c1ef8a3: Export a list to CSV (#89): "Export CSV" in the admin's list downloads every document matching its filters and search (or the ones selected), with the columns shown or every field the user may read. `GET <api>/:collection/export.csv` does the same for scripts (`where`, `sort`, `ids`, `columns`, `headers=names`, `lang`, `locale`): UTF-8 with a BOM for Excel, at most 100,000 rows, read by cursor and streamed. Relationships are titles, rich text plain text, dates ISO 8601 in `timeZone`; formulas are defused. Each export is recorded in the audit log; `admin.export: false` turns it off.
+- d526159: Saved views of the admin's lists (#87): a list's filters, search, sort, columns, rows per page and row height are saved as a view, a tab above the list, for yourself or shared with everyone who may read the collection. Views can be updated, renamed, deleted and chosen as the one a list opens with; links open them (`?view=<id>`). `admin.views` in a collection's config adds views for everyone. Views are kept in a new internal `saved-views` table: after upgrading, run `easy-cms migrate:create` and deploy the migration.
+
 ## 1.30.1
 
 ### Patch Changes
