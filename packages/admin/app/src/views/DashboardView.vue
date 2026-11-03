@@ -8,7 +8,7 @@ import Skeleton from '../components/Skeleton.vue'
 import StatusBadges from '../components/StatusBadges.vue'
 import ZoneNote from '../components/ZoneNote.vue'
 import { api, type Doc, type Paginated, toQuery } from '../lib/api'
-import { counts, refreshCounts } from '../lib/counts'
+import { counts, countText, more, refreshCounts } from '../lib/counts'
 import { titleOf } from '../lib/fields'
 import { formatDate, label, locale, singularize, t } from '../lib/i18n'
 import { collectionIcon } from '../lib/icons'
@@ -273,7 +273,7 @@ const system = computed(() => {
 
 onMounted(() => {
   if (views?.status) void loadStatus()
-  void refreshCounts(true).finally(() => {
+  void refreshCounts({ force: true }).finally(() => {
     countsPending.value = false
   })
   void Promise.all(content.map((c) => latest(c))).then((lists) => {
@@ -375,9 +375,9 @@ const time = (value: string) =>
           </span>
           <span class="tile-count" aria-hidden="true">
             <Skeleton v-if="counts[c.slug] === undefined && countsLoading" width="2ch" height="1.4rem" />
-            <template v-else>{{ counts[c.slug] ?? '' }}</template>
+            <template v-else>{{ countText(counts[c.slug], more[c.slug]) }}</template>
           </span>
-          <span class="visually-hidden">{{ t('dashboard.documents', { count: counts[c.slug] ?? 0 }) }}</span>
+          <span class="visually-hidden">{{ t('dashboard.documents', { count: countText(counts[c.slug] ?? 0, more[c.slug]) }) }}</span>
         </RouterLink>
         <!-- Media is created by uploading, in its list. -->
         <RouterLink

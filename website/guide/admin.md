@@ -66,8 +66,11 @@ export default defineConfig({
 
 ### Numbers and badges
 
-Each collection shows how many documents it has; `admin.count: false` hides it. A **badge** shows
-what needs attention instead, counted for each user from what they may read:
+Each collection shows how many documents it has; `admin.count: false` hides it. Past 10,000 it
+reads "10k+": the count stops there, so a large collection doesn't slow the menu. The numbers are
+counted when the admin opens, after you create or delete, and every minute; the server keeps them
+30 seconds per user. A **badge** shows what needs attention instead, counted for each user from
+what they may read:
 
 ```ts
 {
@@ -98,7 +101,8 @@ Arrow keys move through the menu; left and right fold and unfold groups.
 
 - **Go to** any collection, global, page or setting, by name or group.
 - **Create** a document of any collection you may create in.
-- **Documents**: titles in every collection you may read and ids.
+- **Documents**: titles in every collection you may read and ids, a few per collection, with
+  **See all in …** to open its list searched for the same words.
 - **Recently opened** documents, before you type.
 - **Commands**: theme, language, collapsing the menu, shortcuts, logging out, and your own:
 

@@ -263,6 +263,21 @@ describe('numbers and search', () => {
     expect(result.badges).toEqual({ orders: 2 })
   })
 
+  it('keeps the numbers 30 s per user, and counts again on ?fresh (#283)', async () => {
+    type Counts = { counts: Record<string, number>; more: string[] }
+    const before = await get<Counts>('/admin/ui/counts')
+    expect(before.more).toEqual([])
+    const order = await cms.create('orders', { number: 'A-NEW', status: 'paid' })
+    // Kept: the same numbers until they are 30 s old…
+    expect((await get<Counts>('/admin/ui/counts')).counts.orders).toBe(before.counts.orders)
+    // …or the admin asks again after a change.
+    const fresh = await get<Counts>('/admin/ui/counts?fresh')
+    expect(fresh.counts.orders).toBe((before.counts.orders ?? 0) + 1)
+    expect((await get<Counts>('/admin/ui/counts')).counts.orders).toBe(fresh.counts.orders)
+    await cms.delete('orders', order.id)
+    await get<Counts>('/admin/ui/counts?fresh')
+  })
+
   it('finds documents by title, and by id', async () => {
     const found = await get<{ docs: { collection: string; title: string }[] }>(
       '/admin/ui/search?q=mug',

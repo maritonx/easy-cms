@@ -2,7 +2,7 @@
 import type { AdminNavGroup, AdminNavNode } from '@easy-cms/core'
 import { Plus } from '@lucide/vue'
 import { computed } from 'vue'
-import { badges, counts } from '../lib/counts'
+import { badges, counts, countText, more } from '../lib/counts'
 import { label, t } from '../lib/i18n'
 import { entryOf, keyOf } from '../lib/nav'
 import { session } from '../lib/session'
@@ -30,7 +30,10 @@ const rows = computed(() =>
       badge: c?.badge && entry?.collection ? (badges[entry.collection] ?? 0) : 0,
       badgeTone: c?.badge?.tone ?? 'accent',
       badgeLabel: c?.badge?.label ? label(c.badge.label, '') : '',
-      count: c && !c.noCount && entry?.collection ? counts[entry.collection] : undefined,
+      count:
+        c && !c.noCount && entry?.collection && counts[entry.collection] !== undefined
+          ? countText(counts[entry.collection], more[entry.collection])
+          : undefined,
       // Media is added by uploading, in the library.
       create: c?.permissions.create === true && c.slug !== 'media',
       singular: c ? label(c.labels?.singular, c.slug) : '',
@@ -56,7 +59,7 @@ const id = (group: AdminNavGroup) => `nav-${group.id.replace(/[^a-z0-9-]/gi, '_'
             class="nav-badge"
             :class="`tone-${row.badgeTone}`"
             :aria-label="row.badgeLabel ? `${row.badge} ${row.badgeLabel}` : t('nav.attention', { n: row.badge })"
-          >{{ row.badge }}</span>
+          >{{ countText(row.badge) }}</span>
           <span v-else-if="row.count !== undefined" class="nav-count" aria-hidden="true">{{ row.count }}</span>
         </RouterLink>
         <RouterLink

@@ -1308,6 +1308,12 @@ test.describe('logged in as admin', () => {
     await expect(page.getByRole('option', { name: /Hello from Playwright/ })).toBeVisible()
     await page.keyboard.press('Escape')
     await expect(search).toHaveCount(0)
+    // After a collection's results: its whole list, searched for the same words (#283).
+    await page.keyboard.press('ControlOrMeta+k')
+    await search.fill('Hello from')
+    await page.getByRole('option', { name: 'See all in Posts' }).click()
+    await expect(page).toHaveURL(/\/admin\/collections\/posts\?q=Hello(%20|\+)from$/)
+    await expect(page.getByRole('searchbox')).toHaveValue('Hello from')
     // Go to a place by name.
     await page.keyboard.press('ControlOrMeta+k')
     await search.fill('categ')

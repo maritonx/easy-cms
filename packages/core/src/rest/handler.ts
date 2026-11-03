@@ -44,7 +44,7 @@ import { adminEmail, sendTestEmail, verifyEmail } from './admin-email.js'
 import { adminJobs, hasJobsPage, retryOutbox, retryScheduled, updateJob } from './admin-jobs.js'
 import { readAdminModule } from './admin-modules.js'
 import { adminSchema } from './admin-schema.js'
-import { adminCounts, adminSearch } from './admin-search.js'
+import { adminCounts, adminSearch, LIST_TOTAL_MAX } from './admin-search.js'
 import { adminStatus } from './admin-status.js'
 import { blockSummaries, pickerFilter } from './filter-options.js'
 import { cacheableResponse, cacheTags, cacheTimes } from './http-cache.js'
@@ -52,10 +52,9 @@ import { parseDepth, parseListQuery } from './query.js'
 
 /** At most this many scheduled publishes in a calendar's range (#272). */
 const SCHEDULED_RANGE_LIMIT = 500
-/** How far the admin's list totals count: past this they read "10,000+" (#279). */
-export const LIST_TOTAL_MAX = 10_000
 
-export { SESSION_COOKIE }
+/** How far the admin's list totals count: past this they read "10,000+" (#279). */
+export { LIST_TOTAL_MAX, SESSION_COOKIE }
 export const CSRF_COOKIE = 'ecms-csrf'
 export const CSRF_HEADER = 'x-csrf-token'
 const MAX_BODY_BYTES = 1024 * 1024
@@ -985,7 +984,14 @@ async function route(
       return { body: await adminSchema(cms, ctx.user, ctx.url.origin, ctx.context) }
     // /admin/ui/counts → the menu's numbers; /admin/ui/search?q= → the command palette's documents
     if (second === 'counts' && third === undefined)
-      return { body: await adminCounts(cms, { user: ctx.user, context: ctx.context }) }
+      return {
+        body: await adminCounts(
+          cms,
+          { user: ctx.user, context: ctx.context },
+          // `?fresh`: after creating or deleting, not the numbers kept for 30 s.
+          { fresh: ctx.url.searchParams.has('fresh') },
+        ),
+      }
     if (second === 'search' && third === undefined)
       return {
         body: {

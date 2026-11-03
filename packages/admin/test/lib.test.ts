@@ -1,6 +1,7 @@
 import { ADMIN_ICONS, type AdminField } from '@easy-cms/core'
 import { describe, expect, it } from 'vitest'
 import { toQuery } from '../app/src/lib/api'
+import { countText } from '../app/src/lib/counts'
 import {
   errorsUnder,
   fromLocalInput,
@@ -27,6 +28,16 @@ const fields: AdminField[] = [
   { name: 'seo', type: 'group', fields: [{ name: 'title', type: 'text' }] },
   { name: 'rows', type: 'array', fields: [{ name: 'x', type: 'text' }] },
 ]
+
+describe('menu numbers (#283)', () => {
+  it('reads "10k+" above what the server counts', () => {
+    expect(countText(42)).toBe('42')
+    expect(countText(10_000)).toBe('10000')
+    expect(countText(10_000, true)).toBe('10k+')
+    expect(countText(10_001)).toBe('10k+')
+    expect(countText(undefined)).toBe('')
+  })
+})
 
 describe('form values', () => {
   it('builds initial values with defaults and empty containers', () => {

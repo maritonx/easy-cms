@@ -107,7 +107,7 @@ const options = computed<Option[]>(() => {
           to: `/collections/${c.slug}/new`,
         })
     }
-    for (const hit of hits.value) {
+    for (const [i, hit] of hits.value.entries()) {
       const c = schema?.collections.find((x) => x.slug === hit.collection)
       out.push({
         id: `doc:${hit.collection}:${hit.id}`,
@@ -122,6 +122,15 @@ const options = computed<Option[]>(() => {
         icon: c ? collectionIcon(c.icon) : FileText,
         to: `/collections/${hit.collection}/${hit.id}`,
       })
+      // After a collection's few results: its list, searched for the same words (#283).
+      if (hits.value[i + 1]?.collection !== hit.collection)
+        out.push({
+          id: `all:${hit.collection}`,
+          section: 'docs',
+          label: t('palette.seeAll', { name: label(c?.labels?.plural, hit.collection) }),
+          icon: Search,
+          to: `/collections/${hit.collection}?q=${encodeURIComponent(query.value.trim())}`,
+        })
     }
   }
   const commands: Option[] = [
