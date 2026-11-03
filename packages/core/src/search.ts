@@ -155,7 +155,8 @@ function fieldsText(fields: readonly Field[], data: Record<string, unknown>): st
 }
 
 /** The text of a Tiptap document: its text nodes, blocks on lines of their own. */
-function richText(node: unknown): string {
+/** The plain text of a rich text document. */
+export function richText(node: unknown): string {
   if (!node || typeof node !== 'object') return ''
   const { text, content } = node as { text?: unknown; content?: unknown }
   if (typeof text === 'string') return text

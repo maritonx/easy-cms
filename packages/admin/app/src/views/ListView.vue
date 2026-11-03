@@ -7,6 +7,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Columns3,
+  Download,
   Ellipsis,
   Eye,
   EyeOff,
@@ -37,6 +38,7 @@ import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import DeleteDialog from '../components/DeleteDialog.vue'
 import DocumentDrawer from '../components/DocumentDrawer.vue'
+import ExportDialog from '../components/ExportDialog.vue'
 import FilterChips from '../components/FilterChips.vue'
 import FilterPanel from '../components/FilterPanel.vue'
 import FolderMoveDialog from '../components/FolderMoveDialog.vue'
@@ -62,7 +64,7 @@ import {
   trackBulk,
 } from '../lib/bulk-tasks'
 import { initialFor, loadRange } from '../lib/calendar'
-import { localeName } from '../lib/content-locale'
+import { contentLocale, localeName } from '../lib/content-locale'
 import { titleOf } from '../lib/fields'
 import { extensionOf } from '../lib/filetypes'
 import {
@@ -79,7 +81,7 @@ import {
   type FolderTree as Tree,
   within,
 } from '../lib/folders'
-import { formatBytes, formatDate, humanize, label, singularize, t } from '../lib/i18n'
+import { formatBytes, formatDate, humanize, label, locale, singularize, t } from '../lib/i18n'
 import {
   type Condition,
   whereOf as conditionsWhere,
@@ -115,6 +117,7 @@ import {
   viewQuery,
 } from '../lib/saved-views'
 import { findCollection, session } from '../lib/session'
+import { settings } from '../lib/settings'
 import {
   type Job,
   liveIdsOf,
@@ -768,7 +771,55 @@ function setPageSize(size: number) {
   else setQuery({ page: undefined })
 }
 
-/** After a change (saved, deleted, uploaded): the rows and a fresh total. */
+// --- Export CSV (#89): the list's filters, search and sort; the rows shown or chosen -----------
+
+const exporting = ref(false)
+const exportBusy = ref(false)
+/** Downloads `GET <api>/:collection/export.csv` for what the list shows. */
+async function runExport(rows: 'all' | 'selected', columns: 'shown' | 'all') {
+  const where = await listWhere()
+  const params = new URLSearchParams({ sort: sort.value, lang: locale.value, draft: 'true' })
+  if (where) params.set('where', JSON.stringify(where))
+  if (rows === 'selected') params.set('ids', [...selected.value].join(','))
+  // As the table shows them: the title, the chosen columns, the status and when it changed.
+  const shown = [
+    titleField,
+    ...extraColumns.value.map((f) => f.name),
+    collection?.drafts ? 'status' : undefined,
+    'updatedAt',
+  ].filter((c): c is string => !!c)
+  params.set('columns', columns === 'all' ? 'all' : shown.join(','))
+  const lang = contentLocale()
+  if (lang) params.set('locale', lang)
+  exportBusy.value = true
+  try {
+    // Fetched, so a refusal (e.g. more than 100,000 rows) is said here, not saved as the file.
+    const response = await fetch(`${settings.apiPath}/${slug}/export.csv?${params}`, {
+      credentials: 'same-origin',
+    })
+    if (!response.ok) {
+      const body = (await response.json().catch(() => null)) as {
+        errors?: { message: string }[]
+      } | null
+      throw new Error(body?.errors?.[0]?.message ?? response.statusText)
+    }
+    const name = /filename="([^"]+)"/.exec(response.headers.get('content-disposition') ?? '')?.[1]
+    const url = URL.createObjectURL(await response.blob())
+    const link = document.createElement('a')
+    link.href = url
+    link.download = name ?? `${slug}.csv`
+    document.body.append(link)
+    link.click()
+    link.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+    exporting.value = false
+  } catch (e) {
+    notify('error', (e as Error).message)
+  }
+  exportBusy.value = false
+}
+
+/** After a change (saved, deleted, uploaded): the rows and a fresh total. */ /** After a change (saved, deleted, uploaded): the rows and a fresh total. */
 function reload() {
   totalKey = ''
   return load()
@@ -1368,6 +1419,10 @@ async function deleteSelected(query = '') {
           <FolderPlus :size="16" aria-hidden="true" />
           {{ t('folders.new') }}
         </button>
+        <button v-if="!collection.noExport && !treeMode" type="button" class="btn" @click="exporting = true">
+          <Download :size="16" aria-hidden="true" />
+          {{ t('export.button') }}
+        </button>
         <!-- Media is created by uploading, below. -->
         <RouterLink v-if="collection.permissions.create && !isMedia" :to="newLink" class="btn btn-primary">
           <Plus :size="16" aria-hidden="true" />
@@ -1376,6 +1431,15 @@ async function deleteSelected(query = '') {
       </div>
     </header>
 
+    <ExportDialog
+      v-if="exporting"
+      :total="total ? total.total : null"
+      :more="total?.more ?? false"
+      :selected="selected.size"
+      :busy="exportBusy"
+      @export="runExport"
+      @close="exporting = false"
+    />
     <ViewTabs
       v-if="!isMedia && !collection.tree"
       :tabs="viewTabs"

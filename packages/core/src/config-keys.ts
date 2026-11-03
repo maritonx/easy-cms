@@ -28,7 +28,7 @@ const GLOBAL = keys(
 )
 const CONTAINER_ADMIN = keys('icon order sidebar layout group')
 const COLLECTION_ADMIN = keys(
-  'icon order sidebar layout group editIn badge count empty list calendar ownerField confirmDelete views',
+  'icon order sidebar layout group editIn badge count empty list calendar ownerField confirmDelete views export',
 )
 const FIELD_ADMIN = keys(
   'description width condition component after cell column allowCreate initialValue position filter',

@@ -1257,6 +1257,8 @@ function validateCollectionAdmin(admin: Record<string, unknown>, path: string, a
   }
   if (count !== undefined && typeof count !== 'boolean')
     add(`${path}.count`, 'must be true or false')
+  if (admin.export !== undefined && typeof admin.export !== 'boolean')
+    add(`${path}.export`, 'must be true or false')
   if (empty !== undefined) {
     const e = (empty ?? {}) as Record<string, unknown>
     if (e.description !== undefined && !isLabel(e.description))

@@ -191,6 +191,8 @@ export interface CollectionAdmin extends ContainerAdmin {
    * list's filters, search, sort, columns, page size and row height. Editors can't change them.
    */
   readonly views?: readonly CollectionView[]
+  /** `false`: no Export CSV in the list, and `GET <api>/:collection/export.csv` refuses (#89). */
+  readonly export?: boolean
 }
 
 /** A view of a collection's list in the admin (`admin.views`). */

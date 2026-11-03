@@ -250,6 +250,14 @@ admin: {
 
 มุมมองเก็บในตารางภายใน `saved-views` หลังอัปเกรดเป็นเวอร์ชันนี้ ให้รัน `easy-cms migrate:create` แล้ว deploy migration
 
+### ส่งออกเป็น CSV {#export-to-csv}
+
+**ส่งออก CSV** ดาวน์โหลดหน้ารายการเป็นตาราง: ทุกเอกสารที่ตรง filter และคำค้น (หรือเฉพาะที่เลือก) ตามลำดับในหน้าจอ
+ใช้คอลัมน์ที่แสดงอยู่หรือทุก field ส่วน field ที่คุณอ่านไม่ได้จะไม่ถูกใส่ relationship เป็นชื่อเรื่อง ("หน้า · เกี่ยวกับเรา" เมื่อชี้ได้หลาย collection)
+รายการหลายค่าคั่นด้วย `; ` rich text เป็นข้อความธรรมดา และวันที่ตาม `timeZone` ไฟล์เป็น UTF-8 พร้อม BOM ให้ Excel อ่านภาษาไทยได้
+ไม่เกิน 100,000 แถว ทุกครั้งที่ส่งออกจะบันทึกใน [audit log](/th/guide/audit-log) ปิดได้ด้วย `admin.export: false` ใน collection
+ส่วน script ใช้ [`GET /:collection/export.csv`](/th/guide/rest-api) กับ API key
+
 ### ปฏิทิน {#calendar}
 
 <Screenshot name="calendar" alt="บทความบนปฏิทินรายเดือน สีตามหมวดหมู่ และบทความของวันนี้พร้อมสถานะในการ์ดด้านข้าง" />

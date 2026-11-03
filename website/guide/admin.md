@@ -276,6 +276,16 @@ admin: {
 Views are kept in the internal `saved-views` table: after upgrading to this version, run
 `easy-cms migrate:create` and deploy the migration.
 
+### Export to CSV
+
+**Export CSV** downloads the list as a spreadsheet: every document matching its filters and search
+(or the ones selected), in its order, with the columns shown or every field. Fields you may not
+read are left out. Relationships are their titles ("Page · About" for several collections), lists
+joined with `; `, rich text plain text and dates in `timeZone`. The file is UTF-8 with a byte
+order mark, so Excel reads Thai; at most 100,000 rows. Each export is recorded in the
+[audit log](./audit-log). `admin.export: false` on a collection turns it off. Scripts use
+[`GET /:collection/export.csv`](./rest-api) with an API key.
+
 ### Calendar
 
 <Screenshot name="calendar" alt="Posts on a month calendar, coloured by category, with today's posts and their status in the card beside it" />
