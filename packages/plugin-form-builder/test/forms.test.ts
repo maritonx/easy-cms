@@ -185,6 +185,8 @@ describe('forms', () => {
   it('stores valid submissions and sends the emails', async () => {
     const { cms, email, load, submit, good } = await setup()
     try {
+      const told: Record<string, unknown>[] = []
+      cms.on('form.submitted', (message) => void told.push({ ...message }))
       const { token } = await load()
       const response = await submit({
         data: { ...good, extra: 'dropped' },
@@ -201,6 +203,20 @@ describe('forms', () => {
         page: '/contact',
         summary: 'Somchai · somchai@x.test · sales',
       })
+      // Which form and who sent it, for webhooks and notifications; not the answers.
+      await new Promise((resolve) => setTimeout(resolve, 10))
+      expect(told).toEqual([
+        {
+          event: 'form.submitted',
+          data: expect.objectContaining({
+            form: expect.objectContaining({ title: expect.any(String) }),
+            submission: docs[0]?.id,
+            email: 'somchai@x.test',
+          }),
+          about: { collection: 'form-submissions', id: docs[0]?.id },
+        },
+      ])
+      expect(JSON.stringify(told)).not.toContain('Hello there')
       await cms.flushEmails()
       const [owner, reply] = email.sent
       expect(owner).toMatchObject({

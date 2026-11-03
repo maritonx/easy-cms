@@ -85,6 +85,29 @@ if (telegram) {
 ```
 
 `get` returns `null` when nothing is connected or the provider is turned off.
+`cms.integrations.all('telegram')` returns every connection (the environment's first), e.g. to
+send to each chat.
+
+### Finding a value, ticking options
+
+A field with `lookup` has a **Find** button beside it: Easy CMS runs `lookup` with the values typed
+so far (editing a connection, its stored secrets for the ones left empty) and the admin picks one
+of the choices, e.g. the chats a bot was written to. A `multiselect` field is a set of checkboxes,
+kept as `a,b,c`:
+
+```ts
+fields: [
+  { name: 'botToken', label: 'Bot token', secret: true, required: true },
+  {
+    name: 'chatId',
+    label: 'Chat ID',
+    lookup: async ({ botToken }) => (await chatsOf(botToken)).map((c) => ({ value: String(c.id), label: c.title })),
+  },
+  { name: 'events', type: 'multiselect', options: [{ value: 'order.created', label: 'New orders' }, 'form.submitted'] },
+]
+```
+
+An error thrown by `lookup` shows under the field. At most 100 choices are shown.
 
 ### OAuth
 

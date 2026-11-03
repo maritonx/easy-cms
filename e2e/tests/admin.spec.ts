@@ -1327,6 +1327,36 @@ test.describe('logged in as admin', () => {
     await expect(card.getByText('No account connected yet.')).toBeVisible()
   })
 
+  test('connects Telegram for notifications, finding the chat (#356)', async ({ page }) => {
+    test.skip(test.info().project.name !== 'next', 'The Next.js example has the notify plugin')
+    await page.goto('/admin/integrations')
+    const card = page.getByRole('article', { name: 'Telegram' })
+    await card.getByRole('button', { name: 'Connect an account' }).click()
+    await card.getByLabel('Bot token').fill('123456:e2e-token')
+    // The chats the bot was written to (the mock Telegram, TELEGRAM_API_URL).
+    await card.getByRole('button', { name: 'Find Chat ID' }).click()
+    await card
+      .getByRole('group', { name: 'Found for Chat ID' })
+      .getByRole('button', { name: 'Site team (group)' })
+      .click()
+    await expect(card.getByRole('textbox', { name: 'Chat ID' })).toHaveValue('-1001')
+    // The example's admin is in Thai; these messages in English.
+    await card.getByRole('combobox', { name: 'Language' }).selectOption('en')
+    const events = card.getByRole('group', { name: 'Events' })
+    await events.getByRole('checkbox', { name: 'A form was sent' }).check()
+    await events.getByRole('checkbox', { name: 'A backup failed' }).check()
+    await card.getByRole('button', { name: 'Save' }).click()
+    await expect(page.getByRole('status')).toHaveText('"Telegram" connected')
+    await expect(card.getByText('@easy_cms_e2e_bot')).toBeVisible()
+    // Connecting sent a test message to the chat.
+    const sent = (await (await page.request.get('http://localhost:3112/sent')).json()) as {
+      chat_id: string
+      text: string
+    }[]
+    expect(sent.at(-1)).toMatchObject({ chat_id: '-1001' })
+    expect(sent.at(-1)?.text).toContain('test message')
+  })
+
   test('shows one group at a time, follows the page, and folds the panel away', async ({
     page,
   }) => {
@@ -1808,6 +1838,17 @@ test.describe('logged in as admin', () => {
     await expect(page.getByRole('row', { name: /Somchai/ })).toBeVisible()
     const csv = await page.request.get('/api/cms/form/contact/submissions.csv')
     expect(await csv.text()).toContain('Somchai,somchai@example.test,Hello from the e2e test')
+    // The Next.js example tells its Telegram chat: the form and who sent it, not the message.
+    if (test.info().project.name === 'next')
+      await expect(async () => {
+        const told = (await (await page.request.get('http://localhost:3112/sent')).json()) as {
+          text: string
+        }[]
+        const text = told.at(-1)?.text ?? ''
+        expect(text).toContain('A form was sent')
+        expect(text).toContain('From: somchai@example.test')
+        expect(text).not.toContain('Hello from the e2e test')
+      }).toPass()
 
     // At a glance: the dashboard panel and the overview page (admin.dashboard, admin.pages).
     await page.goto('/admin/')

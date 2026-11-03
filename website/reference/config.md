@@ -28,8 +28,9 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `cors` | `string[] \| '*'` | `[]` | Origins whose browser code may call the API. [Security](/guide/security) |
 | `cronSecret` | `string` | `CRON_SECRET` | Bearer secret for `GET <api>/jobs/run`, at least 32 characters (a shorter `CRON_SECRET` is a warning). [Scheduling](/guide/drafts#scheduled-publishing) |
 | `webhooks` | `WebhookConfig[]` | `[]` | See [webhooks](#webhooks). |
-| `events` | `string[]` | `[]` | Events of the app or its plugins besides content changes (`<area>.<what>`, e.g. `order.paid`), sent with `cms.emit()` to webhooks that list them. [Webhooks](/guide/webhooks#your-own-events) |
+| `events` | `string[]` | `[]` | Events of the app or its plugins besides content changes (`<area>.<what>`, e.g. `order.paid`), sent with `cms.emit()` to webhooks that list them. Easy CMS's own failure events (`scheduled.failed`, `delivery.failed`, `backup.failed`, `integration.failed`) are always there. [Webhooks](/guide/webhooks#your-own-events) |
 | `jobs` | `JobConfig[]` | `[]` | Work run with the scheduled jobs, e.g. a plugin's clean-up. See [jobs](#jobs). |
+| `listeners` | `{ events: string[] \| '*', handler(message, { cms }) }[]` | `[]` | Run after events on this server, as `cms.on` does; plugins use it, e.g. to send a notification. [Webhooks](/guide/webhooks#listening-on-the-server) |
 | `timeZone` | `string` | the server's | IANA time zone of times of day in the config (`jobs[].at`, `backups.at`), e.g. `Asia/Bangkok`. The admin shows and takes every date in it, whatever the browser's zone. [The admin](/guide/admin#time-zone) |
 | `localization` | `LocalizationConfig \| false` | — | See [localization](#localization). |
 | `routes` | `RoutesConfig` | | See [routes](#routes). |

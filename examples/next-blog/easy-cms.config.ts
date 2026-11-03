@@ -8,6 +8,7 @@ import { formBuilderPlugin } from '@easy-cms/plugin-form-builder'
 import { graphqlPlugin } from '@easy-cms/plugin-graphql'
 import { mcpPlugin } from '@easy-cms/plugin-mcp'
 import { nestedDocsPlugin } from '@easy-cms/plugin-nested-docs'
+import { notifyPlugin } from '@easy-cms/plugin-notify'
 import { redirectsPlugin } from '@easy-cms/plugin-redirects'
 import { seoPlugin } from '@easy-cms/plugin-seo'
 
@@ -325,6 +326,9 @@ export default defineConfig({
     graphqlPlugin(),
     // Pages inside pages (About → Team): a tree in the admin, paths kept up to date.
     nestedDocsPlugin({ collections: ['pages'] }),
+    // Telegram messages to admins when a form is sent or something fails (Settings →
+    // Integrations).
+    notifyPlugin(),
     // Redirects under Settings in the admin; a post whose slug changes redirects from its old
     // address (served by the middleware in this example).
     // Pages redirect too, including the pages under one that moved.

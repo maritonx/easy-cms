@@ -22,6 +22,9 @@ const TENANTS = 'http://localhost:3104'
 /** Stripe's API for the shop (`stripe-mock.ts`); payments arrive as signed webhooks. */
 const STRIPE = 'http://localhost:3111'
 
+/** Telegram's Bot API for the Next.js example's notifications (`telegram-mock.ts`). */
+const TELEGRAM = 'http://localhost:3112'
+
 /** The shop example (`examples/shop`, Next.js), as a production build. */
 const SHOP = 'http://localhost:3105'
 
@@ -102,6 +105,7 @@ export default defineConfig({
         SITE_URL: `http://localhost:${app.port}`,
         // The key file is served; nothing is sent, as localhost isn't a public site.
         INDEXNOW_KEY: 'e2e-indexnow-key',
+        TELEGRAM_API_URL: TELEGRAM,
         // Single sign-on on standalone, where the schema is pushed. Nuxt and Next.js run from the
         // examples' migrations, which are made without a provider.
         ...(app.name !== 'standalone'
@@ -117,6 +121,12 @@ export default defineConfig({
       name: 'stripe',
       command: `node stripe-mock.ts ${new URL(STRIPE).port}`,
       url: STRIPE,
+      reuseExistingServer: false,
+    },
+    {
+      name: 'telegram',
+      command: `node telegram-mock.ts ${new URL(TELEGRAM).port}`,
+      url: TELEGRAM,
       reuseExistingServer: false,
     },
     {

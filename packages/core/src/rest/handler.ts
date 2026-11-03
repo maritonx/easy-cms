@@ -943,6 +943,10 @@ async function route(
       }
       return { body: new Response(null, { status: 302, headers: { location: page.toString() } }) }
     }
+    if (part === 'lookup' && cid !== undefined && action === undefined) {
+      if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
+      return { body: await integrations.lookup(id, cid, await readJson(ctx.request)) }
+    }
     if (part === 'pending' && cid !== undefined && action === undefined) {
       const pid = parseId(cid)
       if (pid === undefined) throw new HttpError('Not found', 404)

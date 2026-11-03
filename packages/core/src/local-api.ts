@@ -125,7 +125,13 @@ import {
   type VersionSummary,
   versionLimit,
 } from './versions.js'
-import { type QueuedDelivery, type WebhookEvent, type WebhookQueue, Webhooks } from './webhooks.js'
+import {
+  type QueuedDelivery,
+  type SYSTEM_EVENTS,
+  type WebhookEvent,
+  type WebhookQueue,
+  Webhooks,
+} from './webhooks.js'
 
 type Data = Record<string, unknown>
 
@@ -258,6 +264,15 @@ export interface SearchResults {
   readonly limit: number
   readonly hasNextPage: boolean
 }
+
+/** What a listener of `cms.on` gets: the event's name, its data, and the document it is about. */
+export interface EventMessage {
+  readonly event: string
+  readonly data: Record<string, unknown>
+  /** The document or global it is about, when there is one. */
+  readonly about?: { readonly collection?: string; readonly id?: ID; readonly global?: string }
+}
+export type EventListener = (message: EventMessage) => unknown
 
 export interface CreateEasyCMSOptions {
   /** Project root. Default `process.cwd()`. */
@@ -442,6 +457,13 @@ export class EasyCMS<C extends Config = Config> {
     )
     this.audit = new AuditLog(this as unknown as EasyCMS)
     this.integrations = new Integrations(this as unknown as EasyCMS)
+    // `listeners` in the config (plugins' notifications…): as with `cms.on`.
+    for (const listener of config.listeners ?? []) {
+      const run = (message: EventMessage) =>
+        listener.handler(message, { cms: this as unknown as EasyCMS })
+      if (listener.events === '*') this.anyListeners.add(run)
+      else for (const event of listener.events) this.on(event, run)
+    }
     this.folders = new MediaFolders(config, db, this.roles)
     this.webhooks = new Webhooks(
       config.webhooks ?? [],
@@ -455,6 +477,10 @@ export class EasyCMS<C extends Config = Config> {
       logger,
       config.collections.some((c) => c.slug === EMAIL_DELIVERIES) ? this.emailQueue() : undefined,
     )
+    this.webhooks.onGiveUp = ({ url, event, error, attempts }) =>
+      this.systemEvent('delivery.failed', { kind: 'webhook', url, event, error, attempts })
+    this.mailer.onGiveUp = ({ to, error, attempts }) =>
+      this.systemEvent('delivery.failed', { kind: 'email', to, error, attempts })
     this.outbox = config.collections.some((c) => c.slug === OUTBOX)
       ? new Outbox(db, logger, (entry, done, mark) =>
           this.telemetry
@@ -2527,6 +2553,47 @@ export class EasyCMS<C extends Config = Config> {
     if (!this.config.events.includes(event))
       throw new QueryError(`Unknown event "${event}": add it to \`events\` in the config`)
     this.webhooks.emit(event, about ?? {}, data)
+    this.dispatch(event, data, about)
+  }
+
+  private readonly listeners = new Map<string, Set<EventListener>>()
+  /** Listeners of every event (`events: '*'` in the config's `listeners`). */
+  private readonly anyListeners = new Set<EventListener>()
+
+  /**
+   * Runs `handler` after each `event` on this server (#356): the config's and plugins' events, the
+   * content changes webhooks get (`create`, `publish`…), and Easy CMS's own (`scheduled.failed`,
+   * `delivery.failed`, `backup.failed`, `integration.failed`). It runs after the change, without
+   * being waited for; its errors are logged. Returns a function that stops it.
+   */
+  on(event: string, handler: EventListener): () => void {
+    const set = this.listeners.get(event) ?? new Set<EventListener>()
+    set.add(handler)
+    this.listeners.set(event, set)
+    return () => set.delete(handler)
+  }
+
+  private dispatch(
+    event: string,
+    data: Record<string, unknown>,
+    about?: { collection?: string; id?: ID; global?: string },
+  ) {
+    const set = [...(this.listeners.get(event) ?? []), ...this.anyListeners]
+    if (set.length === 0) return
+    for (const handler of set)
+      queueMicrotask(() => {
+        Promise.resolve()
+          .then(() => handler({ event, data, ...(about ? { about } : {}) }))
+          .catch((error) =>
+            this.logger.error(`A listener of ${event} failed: ${errorText(error)}`, { error }),
+          )
+      })
+  }
+
+  /** @internal Easy CMS's own events (`SYSTEM_EVENTS`): to webhooks that list them and `cms.on`. */
+  systemEvent(event: (typeof SYSTEM_EVENTS)[number], data: Record<string, unknown>) {
+    this.webhooks.emit(event, {}, data)
+    this.dispatch(event, data)
   }
 
   /**
@@ -2700,6 +2767,13 @@ export class EasyCMS<C extends Config = Config> {
             error: message,
             updatedAt: new Date().toISOString(),
           },
+        })
+        this.systemEvent('scheduled.failed', {
+          job: row.id,
+          action,
+          ...(row.collection ? { collection: row.collection } : { global: row.global }),
+          doc: row.doc ?? null,
+          error: message,
         })
       }
     }
@@ -3530,8 +3604,10 @@ export class EasyCMS<C extends Config = Config> {
     doc: Data,
     before?: unknown,
   ) {
-    for (const change of this.changeEvents(config, event, doc, before))
+    for (const change of this.changeEvents(config, event, doc, before)) {
       this.webhooks.emit(change.event, change.target, change.body)
+      this.dispatch(change.event, change.body, change.target)
+    }
     if (this.searches(config, event)) this.searchIndex?.syncLater(config.slug, doc.id as ID)
     const purge = this.config.httpCache?.purge
     const tags = this.purgeTags(config, event, doc, before)
@@ -3609,8 +3685,10 @@ export class EasyCMS<C extends Config = Config> {
     }
     if (!done.has('webhooks')) {
       const changes = this.changeEvents(config, event, doc, entry.before)
-      for (const change of changes)
+      for (const change of changes) {
         await this.webhooks.emitSaved(change.event, change.target, change.body)
+        this.dispatch(change.event, change.body, change.target)
+      }
       if (changes.length > 0 && (this.config.webhooks?.length ?? 0) > 0) await mark('webhooks')
     }
     if (!done.has('search') && this.searchIndex && this.searches(config, event)) {

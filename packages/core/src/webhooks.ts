@@ -4,6 +4,14 @@ import { USERS } from './builtins.js'
 import type { Logger } from './logger.js'
 import { signWebhook } from './webhook-signature.js'
 
+/** Events Easy CMS sends itself when something fails (#356). */
+export const SYSTEM_EVENTS = [
+  'scheduled.failed',
+  'delivery.failed',
+  'backup.failed',
+  'integration.failed',
+] as const
+
 export const WEBHOOK_EVENTS = [
   'create',
   'update',
@@ -315,10 +323,16 @@ export class Webhooks {
     }
   }
 
+  /** Told when a delivery is given up on (`delivery.failed`). */
+  onGiveUp:
+    | ((detail: { url: string; event: string; error: string; attempts: number }) => void)
+    | undefined
+
   private giveUp(hook: WebhookConfig, event: string, error: string, attempts: number) {
     this.logger.error(
       `Webhook ${hook.url} failed for ${event} after ${attempts} attempts: ${error}`,
     )
+    this.onGiveUp?.({ url: hook.url, event, error, attempts })
   }
 }
 

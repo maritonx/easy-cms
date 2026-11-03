@@ -100,6 +100,7 @@ Local API เชื่อผู้เรียกและข้ามกฎส�
 | Method | คืนค่า | |
 |---|---|---|
 | `runJobs(now?)` | `{ scheduled, webhooks, emails, jobs, outbox }` | งานตั้งเวลาที่ถึงกำหนด webhook และอีเมลที่ต้องส่งซ้ำ `jobs` ของ config และรายการ outbox ที่ถึงเวลา (สิ่งที่ cron และตัวจับเวลาเรียก) |
+| `on(event, handler)` | `() => void` (เลิกฟัง) | รัน `handler({ event, data, about? })` หลังเกิด event บนเซิร์ฟเวอร์นี้ ทั้งการเปลี่ยนเนื้อหา event จาก `cms.emit()` และ event ข้อผิดพลาดของ Easy CMS ข้อผิดพลาดจะถูกบันทึกใน log [Webhooks](/th/guide/webhooks#listening-on-the-server) |
 | `emit(event, data, about?)` | — | ส่ง event ใน `events` ของ config (เช่น `order.paid`) ไปยัง webhook ที่ระบุไว้ `about` คือ `{ collection, id }` [Webhooks](/th/guide/webhooks#your-own-events) |
 | `runScheduled(now?)` | `{ ran, failed }` | เฉพาะงานตั้งเวลาที่ถึงกำหนด |
 | `retryScheduled(id)` | `boolean` | ใส่งานตั้งเวลาที่ล้มกลับเข้าคิวแล้วรันงานที่ถึงกำหนด คืน `false` ถ้าไม่ใช่งานที่ล้ม |

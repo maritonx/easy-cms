@@ -591,6 +591,9 @@ const en = {
   'integrations.confirmDisconnect': 'Disconnect "{name}"? Its keys are deleted.',
   'integrations.disconnected': '"{name}" disconnected',
   'integrations.chooseAccount': 'Choose the account to connect',
+  'integrations.find': 'Find {name}',
+  'integrations.foundFor': 'Found for {name}',
+  'integrations.foundNone': 'Nothing found yet.',
   'integrations.staleSecrets':
     '{count} connections are encrypted with a previous secret. Run `easy-cms secrets:rotate`, then remove it from previousSecrets.',
   'status.integrations': '{count} connections in Integrations stopped working',
@@ -1685,6 +1688,9 @@ const th: Record<MessageKey, string> = {
   'integrations.confirmDisconnect': 'ตัดการเชื่อม "{name}" ไหม key ของบัญชีนี้จะถูกลบ',
   'integrations.disconnected': 'ตัดการเชื่อม "{name}" แล้ว',
   'integrations.chooseAccount': 'เลือกบัญชีที่จะเชื่อม',
+  'integrations.find': 'ค้นหา {name}',
+  'integrations.foundFor': 'ที่พบสำหรับ {name}',
+  'integrations.foundNone': 'ยังไม่พบอะไร',
   'integrations.staleSecrets':
     'มี {count} การเชื่อมต่อที่ยังเข้ารหัสด้วย secret เก่า รัน `easy-cms secrets:rotate` แล้วค่อยลบออกจาก previousSecrets',
   'status.integrations': 'การเชื่อมต่อ {count} รายการใน Integrations ใช้งานไม่ได้',

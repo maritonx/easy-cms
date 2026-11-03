@@ -28,6 +28,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `webhooks` | `WebhookConfig[]` | `[]` | ดู [webhooks](#webhooks) |
 | `events` | `string[]` | `[]` | event ของแอปหรือ plugin นอกจากการแก้เนื้อหา (`<area>.<what>` เช่น `order.paid`) ส่งด้วย `cms.emit()` ไปยัง webhook ที่ระบุไว้ [Webhooks](/th/guide/webhooks#your-own-events) |
 | `jobs` | `JobConfig[]` | `[]` | งานที่รันพร้อมงานตั้งเวลา เช่นงานเก็บกวาดของ plugin ดู [jobs](#jobs) |
+| `listeners` | `{ events: string[] \| '*', handler(message, { cms }) }[]` | `[]` | รันหลังเกิด event บนเซิร์ฟเวอร์นี้ แบบเดียวกับ `cms.on` plugin ใช้เช่นเพื่อส่งการแจ้งเตือน [Webhooks](/th/guide/webhooks#listening-on-the-server) |
 | `timeZone` | `string` | เขตเวลาของ server | เขตเวลา IANA ของเวลาของวันใน config (`jobs[].at`, `backups.at`) เช่น `Asia/Bangkok` หน้าแอดมินแสดงและรับวันเวลาทั้งหมดตามเขตนี้ ไม่ว่าเบราว์เซอร์จะอยู่เขตไหน [ระบบจัดการ](/th/guide/admin#time-zone) |
 | `localization` | `LocalizationConfig \| false` | — | ดู [localization](#localization) |
 | `routes` | `RoutesConfig` | | ดู [routes](#routes) |

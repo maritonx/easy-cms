@@ -60,6 +60,46 @@ cms.emit('invoice.sent', { number: 'INV-1' }, { collection: 'invoices', id: 7 })
 The body is `{ event, collection?, id?, doc, timestamp }`, with what was given as `doc`;
 delivery, signatures and retries are the same.
 
+## When something fails
+
+Easy CMS sends events of its own when something fails, for a webhook (or a
+[notification](./notifications)) to tell someone. They need no `events` in the config:
+
+| Event | When | `doc` |
+|---|---|---|
+| `scheduled.failed` | A [scheduled](./drafts#scheduled-publishing) publish or unpublish failed | `{ job, action, collection or global, doc, error }` |
+| `delivery.failed` | A webhook or an email was given up on after its retries | `{ kind: 'webhook' \| 'email', url or to, event?, error, attempts }` |
+| `backup.failed` | A [backup](./backups) failed | `{ backup, error }` |
+| `integration.failed` | A connection's test or use failed ([Integrations](./integrations)) | `{ integration, name, error }` |
+
+```ts
+webhooks: [{ url: 'https://alerts.example.com/hook', events: ['backup.failed', 'delivery.failed'], secret }]
+```
+
+## Listening on the server
+
+`cms.on(event, handler)` runs a function after an event on this server: content changes
+(`create`, `publish`…), `cms.emit()` events and the failure events above. It returns a function
+that stops listening. Handlers run just after the event without holding up the request; an error
+is logged and stops nothing.
+
+```ts
+const stop = cms.on('order.paid', async ({ data, about }) => {
+  await crm.addSale(data) // about: { collection: 'orders', id }
+})
+```
+
+Plugins add theirs to `listeners` in the config, registered when Easy CMS starts (`events: '*'`
+for every event):
+
+```ts
+listeners: [{ events: ['form.submitted'], handler: async ({ data }, { cms }) => { /* … */ } }]
+```
+
+Unlike webhooks, listeners aren't retried and run only on the server where the event happened:
+for work that must not be lost, queue it (a collection and a [job](./jobs)), as the notify plugin
+does.
+
 ## Requests
 
 ```http

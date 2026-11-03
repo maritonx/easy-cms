@@ -17,8 +17,20 @@ export interface IntegrationField {
   readonly name: string
   readonly label?: Label
   readonly description?: Label
-  readonly type?: 'text' | 'url' | 'textarea' | 'select'
-  readonly options?: readonly string[]
+  /** `multiselect`: ticked options, kept as `a,b,c`. */
+  readonly type?: 'text' | 'url' | 'textarea' | 'select' | 'multiselect'
+  /** For `select` and `multiselect`: values, or `{ value, label }`. */
+  readonly options?: readonly (string | { readonly value: string; readonly label: Label })[]
+  /**
+   * Choices from the provider for this field (#356): a Find button beside it runs this with the
+   * values typed so far, e.g. the chats a Telegram bot was written to.
+   */
+  readonly lookup?: (
+    values: Readonly<Record<string, string>>,
+    args: { cms: EasyCMS },
+  ) =>
+    | Promise<readonly { value: string; label: string }[]>
+    | readonly { value: string; label: string }[]
   readonly placeholder?: string
   readonly required?: boolean
   /** Encrypted at rest and never sent back to the admin (shown as `••••1234`). */
@@ -172,6 +184,9 @@ export interface AdminConnection {
   values: Record<string, string>
 }
 
+/** A field as the admin gets it: without its functions. */
+export type AdminIntegrationField = Omit<IntegrationField, 'lookup'> & { findable?: true }
+
 export interface AdminIntegration {
   id: string
   label: Label
@@ -181,7 +196,7 @@ export interface AdminIntegration {
   docs?: string
   plugin?: string
   kind: 'fields' | 'oauth'
-  fields: IntegrationField[]
+  fields: AdminIntegrationField[]
   enabled: boolean
   /** Fields set in the environment. */
   envFields: string[]
@@ -216,7 +231,7 @@ export const OFFICIAL_PLUGINS: readonly {
     name: '@easy-cms/plugin-notify',
     category: 'notifications',
     description: { en: 'Telegram notifications for admins', th: 'แจ้งเตือนผู้ดูแลทาง Telegram' },
-    docs: 'https://easycms.dev/docs/integrations',
+    docs: 'https://easycms.dev/docs/notifications',
   },
   {
     name: '@easy-cms/plugin-ai',
@@ -342,6 +357,22 @@ export class Integrations {
     return { name: String(row.name), values: { ...this.decrypt(row), ...env }, env: false }
   }
 
+  /**
+   * Every connection of an integration (the environment's first), e.g. to notify each chat;
+   * none when it is turned off.
+   */
+  async all(id: string): Promise<IntegrationConnection[]> {
+    const def = this.definition(id)
+    if (!(await this.enabled(id))) return []
+    const env = this.envValues(def)
+    const out: IntegrationConnection[] = this.envComplete(def)
+      ? [{ name: ENV_NAME, values: env, env: true }]
+      : []
+    for (const row of await this.rows(id, 'connection'))
+      out.push({ name: String(row.name), values: { ...this.decrypt(row), ...env }, env: false })
+    return out
+  }
+
   /** The connection was used: its card says when, and an earlier error is gone. */
   async markUsed(id: string, name?: string) {
     await this.mark(id, name, { lastUsedAt: new Date().toISOString(), lastError: null })
@@ -349,6 +380,11 @@ export class Integrations {
   /** It failed: the card and the dashboard's "needs attention" say why. */
   async markError(id: string, message: string, name?: string) {
     await this.mark(id, name, { lastError: message.slice(0, 500) })
+    this.cms.systemEvent('integration.failed', {
+      integration: id,
+      name: name ?? null,
+      error: message,
+    })
   }
   private async mark(id: string, name: string | undefined, patch: Data) {
     const rows = await this.rows(id, 'connection')
@@ -424,7 +460,11 @@ export class Integrations {
         ...(def.docs ? { docs: def.docs } : {}),
         ...(def.plugin ? { plugin: def.plugin } : {}),
         kind: def.kind,
-        fields: [...(def.fields ?? [])],
+        // Functions don't travel: `findable` says a field has a Find button.
+        fields: (def.fields ?? []).map(({ lookup, ...field }) => ({
+          ...field,
+          ...(lookup ? { findable: true } : {}),
+        })),
         enabled: await this.enabled(def.id),
         envFields: Object.keys(env),
         testable: typeof def.test === 'function',
@@ -469,7 +509,9 @@ export class Integrations {
     const input = (raw && typeof raw === 'object' ? raw : {}) as Data
     const out: Record<string, string> = {}
     for (const field of def.fields ?? []) {
-      const value = input[field.name]
+      const raw = input[field.name]
+      // Ticked options arrive as a list.
+      const value = Array.isArray(raw) ? raw.filter((v) => typeof v === 'string').join(',') : raw
       if (typeof value === 'string' && value.trim() !== '') out[field.name] = value.trim()
     }
     return out
@@ -645,8 +687,37 @@ export class Integrations {
           updatedAt: new Date().toISOString(),
         },
       })
+      if (!result.ok)
+        this.cms.systemEvent('integration.failed', {
+          integration: id,
+          name: row.name ?? null,
+          error: result.message ?? 'Test failed',
+        })
     }
     return result
+  }
+
+  /**
+   * A field's choices from the provider, with the values typed (and, editing a connection, its
+   * stored secrets for the fields left empty).
+   */
+  async lookup(id: string, fieldName: string, body: unknown) {
+    const def = this.definition(id)
+    const field = (def.fields ?? []).find((f) => f.name === fieldName)
+    if (!field?.lookup) throw new QueryError(`${id}.${fieldName} has nothing to look up`)
+    const input = (body ?? {}) as Data
+    const stored =
+      input.connection !== undefined && input.connection !== null
+        ? this.decrypt(await this.row(id, input.connection as ID))
+        : {}
+    const values = { ...stored, ...this.envValues(def), ...this.cleanValues(def, input.values) }
+    try {
+      return { choices: [...(await field.lookup(values, { cms: this.cms }))].slice(0, 100) }
+    } catch (error) {
+      throw new ValidationError(CONNECTIONS, [
+        { field: fieldName, message: (error as Error).message },
+      ])
+    }
   }
 
   // --- OAuth -----------------------------------------------------------------------------------

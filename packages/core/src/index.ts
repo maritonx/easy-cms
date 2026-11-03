@@ -168,6 +168,8 @@ export {
   type DepthOptions,
   type DocumentOf,
   EasyCMS,
+  type EventListener,
+  type EventMessage,
   type FindOptions,
   type IncrementOptions,
   type LivePreview,
