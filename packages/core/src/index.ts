@@ -72,6 +72,7 @@ export type {
   CollectionConfig,
   CollectionHooks,
   CollectionListAdmin,
+  CollectionView,
   ContainerAdmin,
   DashboardWidget,
   Endpoint,

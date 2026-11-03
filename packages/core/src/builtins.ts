@@ -19,6 +19,7 @@ export const AUDIT_LOGS = 'audit-logs'
 export const OUTBOX = 'outbox'
 export const RATE_LIMITS = 'rate-limits'
 export const BULK_OPERATIONS = 'bulk-operations'
+export const SAVED_VIEWS = 'saved-views'
 
 /** Collections Easy CMS uses internally. Not exposed over REST or in the admin UI. */
 export const INTERNAL_COLLECTIONS: ReadonlySet<string> = new Set([
@@ -36,6 +37,7 @@ export const INTERNAL_COLLECTIONS: ReadonlySet<string> = new Set([
   OUTBOX,
   RATE_LIMITS,
   BULK_OPERATIONS,
+  SAVED_VIEWS,
 ])
 
 export const DEFAULT_ROLES = ['admin', 'editor'] as const
@@ -493,6 +495,28 @@ export const bulkOperationsCollection: CollectionConfig = {
     // A step holds the operation until then; a process that stopped lets it go.
     { name: 'leaseUntil', type: 'text' },
     { name: 'finishedAt', type: 'text' },
+  ],
+}
+
+/**
+ * Lists saved by admin users (#87): a list's filters, search, sort, columns, page size and row
+ * height, for its user or shared with everyone who may read the collection. A row of kind
+ * `default` holds the view a user opens the collection with.
+ */
+export const savedViewsCollection: CollectionConfig = {
+  slug: SAVED_VIEWS,
+  access: { read: nobody, create: nobody, update: nobody, delete: nobody },
+  fields: [
+    { name: 'collection', type: 'text', required: true, index: true },
+    { name: 'user', type: 'text', required: true, index: true },
+    // view | default
+    { name: 'kind', type: 'text', required: true },
+    { name: 'name', type: 'text' },
+    { name: 'shared', type: 'boolean' },
+    // `{ query, columns?, pageSize?, density? }`: the list's URL query, and what the browser kept.
+    { name: 'state', type: 'json' },
+    // For `default`: a view's id, or `config:<id>` for one of `admin.views`.
+    { name: 'target', type: 'text' },
   ],
 }
 

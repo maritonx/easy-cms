@@ -50,6 +50,7 @@ import Skeleton from '../components/Skeleton.vue'
 import StatusBadges from '../components/StatusBadges.vue'
 import TransferDialog from '../components/TransferDialog.vue'
 import UploadDropzone from '../components/UploadDropzone.vue'
+import ViewTabs from '../components/ViewTabs.vue'
 import { ApiError, api, type Doc, type Id, type Paginated, toQuery } from '../lib/api'
 import {
   BULK_DONE,
@@ -100,6 +101,19 @@ import {
 } from '../lib/list-pages'
 import { useDelayedLoading } from '../lib/loading'
 import { crumbsFor, isPinned, togglePin } from '../lib/nav'
+import {
+  configState,
+  createView,
+  deleteView,
+  loadViews,
+  type SavedView,
+  sameState,
+  setDefaultView,
+  updateView,
+  type ViewState,
+  type ViewTab,
+  viewQuery,
+} from '../lib/saved-views'
 import { findCollection, session } from '../lib/session'
 import {
   type Job,
@@ -917,6 +931,168 @@ const listQuery = computed(() =>
   ),
 )
 watch(listQuery, load)
+// A view or a link changed the search: the box follows.
+watch(
+  () => route.query.q,
+  (q) => {
+    const value = typeof q === 'string' ? q : ''
+    if (value !== search.value) search.value = value
+  },
+)
+
+// --- Saved views (#87): tabs above the list, `?view=<id>` or `?view=config:<id>` --------------
+
+const views = ref<SavedView[]>([])
+/** The view the user opens this list with. */
+const defaultView = ref<string | null>(null)
+const viewsBusy = ref(false)
+const viewTabs = computed<ViewTab[]>(() => [
+  ...(collection?.views ?? []).map((view) => ({
+    key: `config:${view.id}`,
+    name: label(view.label, view.id),
+    kind: 'config' as const,
+    editable: false,
+    shared: true,
+    state: configState(view),
+  })),
+  ...views.value.map((view) => ({
+    key: String(view.id),
+    name: view.name,
+    kind: view.shared ? ('shared' as const) : ('own' as const),
+    editable: view.editable,
+    shared: view.shared,
+    state: view.state,
+  })),
+])
+const activeViewKey = computed(() =>
+  typeof route.query.view === 'string' ? route.query.view : null,
+)
+const activeView = computed(
+  () => viewTabs.value.find((tab) => tab.key === activeViewKey.value) ?? null,
+)
+const currentState = computed<ViewState>(() => ({
+  query: viewQuery(route.query),
+  columns: [...shownColumns.value],
+  pageSize: pageSize.value,
+  density: density.value,
+}))
+/** The list differs from the view shown; for All, it has filters, a search or a sort. */
+const viewDirty = computed(() => {
+  const view = activeView.value
+  if (!view) return Object.keys(currentState.value.query).length > 0
+  // What a view from the config leaves out is the user's to choose.
+  return !sameState(
+    {
+      query: view.state.query,
+      columns: view.state.columns ?? currentState.value.columns ?? [],
+      pageSize: view.state.pageSize ?? pageSize.value,
+      density: view.state.density ?? density.value,
+    },
+    currentState.value,
+  )
+})
+
+/** Shows a view's columns, page size and row height (the browser keeps them, as when chosen). */
+function applyViewSettings(state: ViewState) {
+  if (state.columns) {
+    const known = new Set(columnFields.value.map((f) => f.name))
+    shownColumns.value = state.columns.filter((c) => known.has(c))
+    try {
+      localStorage.setItem(columnsKey, JSON.stringify(shownColumns.value))
+    } catch {
+      // private mode: for this page only
+    }
+  }
+  if (state.pageSize && state.pageSize !== pageSize.value) {
+    storePageSize(state.pageSize)
+    pageSize.value = state.pageSize
+  }
+  if (state.density) setDensity(state.density)
+}
+/** Opens a view, or All (`null`): its filters, search and sort in the URL. */
+function selectView(key: string | null) {
+  const view = viewTabs.value.find((tab) => tab.key === key)
+  if (!view) {
+    void router.replace({ query: {} })
+    return
+  }
+  applyViewSettings(view.state)
+  void router.replace({ query: { ...view.state.query, view: view.key } })
+}
+async function saveView(name: string, shared: boolean) {
+  viewsBusy.value = true
+  try {
+    const view = await createView(slug, { name, shared, state: currentState.value })
+    views.value = [...views.value, view]
+    void router.replace({ query: { ...route.query, view: String(view.id) } })
+    notify('success', t('views.saved', { name }))
+  } catch (e) {
+    notify('error', (e as Error).message)
+  }
+  viewsBusy.value = false
+}
+async function changeView(
+  key: string,
+  patch: Partial<{ name: string; shared: boolean; state: ViewState }>,
+  message: string,
+) {
+  const saved = views.value.find((view) => String(view.id) === key)
+  if (!saved) return
+  viewsBusy.value = true
+  try {
+    const next = await updateView(slug, saved.id, patch)
+    views.value = views.value.map((view) => (view.id === saved.id ? next : view))
+    notify('success', message)
+  } catch (e) {
+    notify('error', (e as Error).message)
+  }
+  viewsBusy.value = false
+}
+async function removeView(key: string) {
+  const saved = views.value.find((view) => String(view.id) === key)
+  if (!saved || !window.confirm(t('views.confirmDelete', { name: saved.name }))) return
+  try {
+    await deleteView(slug, saved.id)
+    views.value = views.value.filter((view) => view.id !== saved.id)
+    if (defaultView.value === key) defaultView.value = null
+    void router.replace({ query: viewQuery(route.query) })
+    notify('success', t('views.deleted', { name: saved.name }))
+  } catch (e) {
+    notify('error', (e as Error).message)
+  }
+}
+async function chooseDefault(key: string | null) {
+  try {
+    defaultView.value = (await setDefaultView(slug, key)).default
+    notify('success', key ? t('views.defaultSet') : t('views.defaultUnset'))
+  } catch (e) {
+    notify('error', (e as Error).message)
+  }
+}
+/**
+ * The user's views; then the view in the link (its columns and row height, and its filters
+ * unless the link has its own), or else the one they open the list with.
+ */
+async function startViews() {
+  try {
+    const found = await loadViews(slug)
+    views.value = found.views
+    defaultView.value = found.default
+  } catch {
+    return // no views: the list as it is
+  }
+  const key = activeViewKey.value
+  const own = Object.keys(viewQuery(route.query)).length > 0
+  if (key) {
+    const view = viewTabs.value.find((tab) => tab.key === key)
+    if (!view) {
+      notify('error', t('views.unavailable'))
+      void router.replace({ query: { ...route.query, view: undefined } })
+    } else if (own) applyViewSettings(view.state)
+    else selectView(key)
+  } else if (!own && defaultView.value && viewTabs.value.some((t) => t.key === defaultView.value))
+    selectView(defaultView.value)
+}
 
 // --- Calendar mode (`admin.calendar`, #272): `?calendar=<view>&date=<day>` --------------------
 
@@ -1002,6 +1178,8 @@ function onDrawerDeleted() {
 }
 onMounted(async () => {
   document.addEventListener('click', onDocumentClick)
+  // Not the media library (it browses folders) nor a tree: their lists have no views.
+  if (!isMedia && !collection?.tree) void startViews()
   // Searching a folder looks in its subfolders, so the tree comes first.
   await loadTree()
   void load()
@@ -1198,6 +1376,21 @@ async function deleteSelected(query = '') {
       </div>
     </header>
 
+    <ViewTabs
+      v-if="!isMedia && !collection.tree"
+      :tabs="viewTabs"
+      :active="activeView ? activeView.key : null"
+      :dirty="viewDirty"
+      :default-key="defaultView"
+      :busy="viewsBusy"
+      @select="selectView"
+      @save="saveView"
+      @update="activeView && changeView(activeView.key, { state: currentState }, t('views.updated', { name: activeView.name }))"
+      @rename="(key, name) => changeView(key, { name }, t('views.renamed', { name }))"
+      @share="(key, shared) => changeView(key, { shared }, t(shared ? 'views.nowShared' : 'views.nowPrivate'))"
+      @remove="removeView"
+      @set-default="chooseDefault"
+    />
     <div :class="{ library: useFolders }">
     <aside v-if="useFolders" class="library-tree card">
       <FolderTree :tree="tree" :current="currentFolder" :label="t('folders.tree')" @select="openFolder" @drop="onFolderDrop" />
