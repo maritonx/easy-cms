@@ -62,7 +62,25 @@ export async function api<T>(method: string, path: string, body?: unknown): Prom
     if (response.status === 401 && !path.startsWith('/auth/')) onUnauthorized()
     throw new ApiError(response.status, (data?.errors as ApiErrorItem[]) ?? [])
   }
+  if (createsOrDeletes(method, path)) contentChanged()
   return data as T
+}
+
+/** Fired after a document was created or deleted: the menu's numbers count again (#283). */
+export const CONTENT_CHANGED = 'easy-cms:content-changed'
+export const contentChanged = () => window.dispatchEvent(new Event(CONTENT_CHANGED))
+
+/**
+ * A request that adds or removes documents: `POST /:collection`, `DELETE /:collection/:id`,
+ * `DELETE /:collection?where…`, and bulk actions (`POST /:collection/bulk`).
+ */
+function createsOrDeletes(method: string, path: string): boolean {
+  const [route = ''] = path.split('?')
+  const parts = route.split('/').filter(Boolean)
+  if (parts[0] === 'admin' || parts[0] === 'auth' || parts[0] === 'globals') return false
+  if (method === 'POST') return parts.length === 1 || (parts.length === 2 && parts[1] === 'bulk')
+  if (method === 'DELETE') return parts.length <= 2
+  return false
 }
 
 /** Builds a bracket query string: `{ where: { title: { like: 'x' } } }` → `where[title][like]=x`. */
@@ -214,7 +232,10 @@ export function uploadWithProgress(
       form,
       onProgress,
     )
-    if (status >= 200 && status < 300) return data as Doc
+    if (status >= 200 && status < 300) {
+      contentChanged()
+      return data as Doc
+    }
     throw failed(status, data)
   })()
   return {

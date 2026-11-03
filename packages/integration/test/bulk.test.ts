@@ -159,6 +159,13 @@ describe('bulk actions on every match, in the background (#280)', () => {
     const response = await call('/posts/bulk', 'admin', 'POST', { action: 'publish' })
     expect(response.status).toBe(400)
     expect(await response.text()).toMatch(/More than 10,000 documents match/)
+    // The menu's number stops there too, and says there are more (#283).
+    const menu = (await (await call('/admin/ui/counts?fresh', 'admin')).json()) as {
+      counts: Record<string, number>
+      more: string[]
+    }
+    expect(menu.counts.posts).toBe(10_000)
+    expect(menu.more).toEqual(['posts'])
   })
 
   it('stops after the step running when cancelled', async () => {

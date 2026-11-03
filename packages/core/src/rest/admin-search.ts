@@ -22,29 +22,67 @@ async function readable(cms: EasyCMS, c: CollectionConfig, who: Who): Promise<bo
   }
 }
 
+/** Counts stop here: a list or menu shows "10,000+" (#279) instead of counting every row. */
+export const LIST_TOTAL_MAX = 10_000
+
+/** How long the menu's numbers are kept per user (#283). */
+export const MENU_COUNTS_TTL = 30_000
+
+export interface AdminCounts {
+  counts: Record<string, number>
+  badges: Record<string, number>
+  /** Collections with more than `LIST_TOTAL_MAX`: their count is that much. */
+  more: string[]
+}
+
+/** The numbers kept per instance, by user and request context. */
+const kept = new WeakMap<EasyCMS, Map<string, { at: number; value: AdminCounts }>>()
+
 /**
- * The menu's numbers: documents per collection (drafts too) and `admin.badge` counts, for what
- * the user may read.
+ * The menu's numbers: documents per collection (drafts too, up to `LIST_TOTAL_MAX`) and
+ * `admin.badge` counts, for what the user may read. Kept 30 s per user; `fresh` counts again,
+ * after the user created or deleted something.
  */
 export async function adminCounts(
   cms: EasyCMS,
   who: Who,
-): Promise<{ counts: Record<string, number>; badges: Record<string, number> }> {
+  options: { fresh?: boolean } = {},
+): Promise<AdminCounts> {
+  // The context decides what a user may read (e.g. the tenant chosen), so it is part of the key.
+  const key = `${String(who.user.id)}:${who.user.apiKey ? 'key' : 'user'}:${JSON.stringify(who.context)}`
+  const cache = kept.get(cms) ?? new Map<string, { at: number; value: AdminCounts }>()
+  kept.set(cms, cache)
+  const now = Date.now()
+  const hit = cache.get(key)
+  if (hit && !options.fresh && now - hit.at < MENU_COUNTS_TTL) return hit.value
+
   const counts: Record<string, number> = {}
   const badges: Record<string, number> = {}
+  const more: string[] = []
   await Promise.all(
     listed(cms).map(async (c) => {
       const read = { ...who, overrideAccess: false, draft: true } as const
       try {
-        if (c.admin?.count !== false) counts[c.slug] = await cms.count(c.slug, read)
+        if (c.admin?.count !== false) {
+          const total = await cms.count(c.slug, { ...read, max: LIST_TOTAL_MAX })
+          counts[c.slug] = Math.min(total, LIST_TOTAL_MAX)
+          if (total > LIST_TOTAL_MAX) more.push(c.slug)
+        }
         if (c.admin?.badge)
-          badges[c.slug] = await cms.count(c.slug, { ...read, where: c.admin.badge.where as Where })
+          badges[c.slug] = await cms.count(c.slug, {
+            ...read,
+            where: c.admin.badge.where as Where,
+            max: LIST_TOTAL_MAX,
+          })
       } catch {
         // Not readable for this user: no number.
       }
     }),
   )
-  return { counts, badges }
+  const value = { counts, badges, more }
+  for (const [k, entry] of cache) if (now - entry.at >= MENU_COUNTS_TTL) cache.delete(k)
+  cache.set(key, { at: now, value })
+  return value
 }
 
 export interface SearchHit {

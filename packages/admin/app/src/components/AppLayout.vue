@@ -37,8 +37,6 @@ watch(
   () => route.fullPath,
   () => {
     menuOpen.value = false
-    // Creating or deleting changes the counts next to the menu items.
-    void refreshCounts()
   },
 )
 // The panel follows the page to its group; pages not in the menu leave it as it is.
@@ -63,7 +61,7 @@ watch(
     }, 0)
   },
 )
-onMounted(() => void refreshCounts(true))
+onMounted(() => void refreshCounts({ force: true }))
 
 /** Arrow keys move through a column of the menu. */
 function onMenuKey(event: KeyboardEvent) {
