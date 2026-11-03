@@ -52,6 +52,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `telemetry` | `boolean \| { traces?, metrics? }` | off | OpenTelemetry spans and metrics through `@opentelemetry/api`, sent wherever the app's SDK sends them. [Observability](/guide/observability) |
 | `search` | `SearchAdapter` | — | Relevance-ranked search of the collections that have `search`, e.g. `memorySearch()`. [Search](/guide/search) |
 | `logs` | `LogsConfig` | readable lines | `{ format: 'json' }` for one JSON object per line, with request ids. See [logs](#logs). |
+| `integrations` | `IntegrationConfig[]` | `[]` | Outside providers admins connect accounts to on the Integrations page, usually added by plugins. [Integrations](/guide/integrations) |
 | `plugins` | `Plugin[]` | `[]` | `(config) => config`, run in order before validation; `definePlugin(fn, { name, version, apiVersion? })` names one for the dashboard; `apiVersion` (`PLUGIN_API_VERSION`) stops startup when the plugin is for another plugin API. [Plugins](/guide/plugins) |
 | `fieldTypes` | `FieldTypeDefinition[]` | `[]` | Field types from packages, e.g. `color` from `@easy-cms/fields`. [Custom field types](/guide/field-types) |
 

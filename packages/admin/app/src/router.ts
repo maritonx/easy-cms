@@ -64,6 +64,12 @@ export const router = createRouter({
           name: 'calendar',
           component: () => import('./views/CalendarPageView.vue'),
         },
+        // Settings → Integrations (plugins' `integrations`; admins, roles given it, #311).
+        {
+          path: 'integrations',
+          name: 'integrations',
+          component: () => import('./views/IntegrationsView.vue'),
+        },
         // Settings → Jobs (admins, roles given it).
         { path: 'jobs', name: 'jobs', component: () => import('./views/JobsView.vue') },
         // Saved webhook deliveries and emails (admins, roles given them).

@@ -220,7 +220,8 @@ export class Roles {
     if (isSystemAdmin(user)) return true
     if (user.apiKey) return false
     // Deliveries and jobs belong to the whole system, not to a part of it (e.g. a tenant).
-    if ((id === 'deliveries' || id === 'jobs') && user.scoped === true) return false
+    if ((id === 'deliveries' || id === 'jobs' || id === 'integrations') && user.scoped === true)
+      return false
     // Admins of a part of the site (e.g. a tenant) see its audit log, when entries have a part.
     if (
       id === 'audit' &&
@@ -556,6 +557,7 @@ export class Roles {
         ? [{ id: 'deliveries' }]
         : []),
       ...(hasJobsPage(this.config) ? [{ id: 'jobs' }] : []),
+      ...(this.config.integrations.length > 0 ? [{ id: 'integrations' }] : []),
       ...(hasCalendarPage(this.config) ? [{ id: 'calendar' }] : []),
       ...this.config.admin.pages.map((page) => ({ id: viewId.page(page.path), label: page.label })),
       ...this.config.admin.dashboard.map((widget) => ({

@@ -214,6 +214,13 @@
           }
         },
         {
+          "path": "guide/integrations",
+          "title": {
+            "en": "Integrations",
+            "th": "การเชื่อมต่อ"
+          }
+        },
+        {
           "path": "guide/seo",
           "title": {
             "en": "SEO",

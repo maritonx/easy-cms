@@ -50,6 +50,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `search` | `SearchAdapter` | — | ค้นหาแบบเรียงตามความเกี่ยวข้องใน collection ที่มี `search` เช่น `memorySearch()` [ค้นหา](/th/guide/search) |
 | `outbox` | `boolean` | `false` | รัน after hook, webhook และ `httpCache.purge` จาก outbox ที่เขียนใน transaction เดียวกับการบันทึก หลังส่ง response และ retry จนสำเร็จ hook ต้องรันซ้ำได้โดยไม่เสียหาย [Outbox](/th/guide/hooks#outbox) |
 | `logs` | `LogsConfig` | บรรทัดที่อ่านง่าย | `{ format: 'json' }` เขียน JSON บรรทัดละหนึ่ง object พร้อม request id ดู [logs](#logs) |
+| `integrations` | `IntegrationConfig[]` | `[]` | ผู้ให้บริการภายนอกที่ผู้ดูแลเชื่อมบัญชีได้ในหน้าการเชื่อมต่อ ส่วนใหญ่เพิ่มโดย plugin [การเชื่อมต่อ](/th/guide/integrations) |
 | `plugins` | `Plugin[]` | `[]` | `(config) => config` ทำงานตามลำดับก่อนตรวจ config `definePlugin(fn, { name, version, apiVersion? })` ตั้งชื่อให้แสดงบนแดชบอร์ด ส่วน `apiVersion` (`PLUGIN_API_VERSION`) หยุดการเริ่มทำงานถ้า plugin เขียนไว้สำหรับ plugin API เวอร์ชันอื่น [Plugins](/th/guide/plugins) |
 | `fieldTypes` | `FieldTypeDefinition[]` | `[]` | ชนิด field จากแพ็กเกจ เช่น `color` จาก `@easy-cms/fields` [ชนิด field เพิ่มเติม](/th/guide/field-types) |
 

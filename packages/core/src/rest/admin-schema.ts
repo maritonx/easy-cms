@@ -75,7 +75,16 @@ export type AdminNavItem =
   | { kind: 'page'; path: string }
   | {
       kind: 'view'
-      view: 'roles' | 'sso' | 'backups' | 'email' | 'deliveries' | 'jobs' | 'audit' | 'calendar'
+      view:
+        | 'roles'
+        | 'sso'
+        | 'backups'
+        | 'email'
+        | 'deliveries'
+        | 'jobs'
+        | 'audit'
+        | 'calendar'
+        | 'integrations'
     }
 
 /** A group of the admin menu (`admin.nav`), with what this user may open in it. */
@@ -279,6 +288,8 @@ export interface AdminSchema {
     audit: boolean
     /** The Calendar page (#272): documents with `admin.calendar` and scheduled publishing. */
     calendar: boolean
+    /** Settings → Integrations (#311): plugins' integrations. */
+    integrations: boolean
   }
   /** Roles from the admin are on (`auth.rbac`): documents have owners. */
   rbac: boolean
@@ -595,6 +606,8 @@ export async function adminSchema(
     sso: admin && cms.auth.sso.enabled,
     audit: cms.audit.enabled && (await cms.roles.canView(user, 'audit')),
     calendar: hasCalendarPage(cms.config) && (await cms.roles.canView(user, 'calendar')),
+    integrations:
+      cms.config.integrations.length > 0 && (await cms.roles.canView(user, 'integrations')),
   }
   const roles = await cms.roles.options()
   const adminCollections = await Promise.all(
@@ -770,6 +783,7 @@ const VIEW_GROUPS: readonly [ViewKey, string][] = [
   ['deliveries', 'settings.system'],
   ['jobs', 'settings.system'],
   ['audit', 'settings.system'],
+  ['integrations', 'settings.integrations'],
 ]
 
 /** The menu for this user: groups (the config's merged over the built-in ones) and their items. */

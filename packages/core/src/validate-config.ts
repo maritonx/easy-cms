@@ -110,6 +110,7 @@ export function validateConfig(config: Config): ConfigIssue[] {
   validateEndpoints(config, collectionSlugs, add)
   validateCommands(config, add)
   validateJobs(config, add)
+  validateIntegrations(config, add)
   validateTimeZone(config, add)
   validateEvents(config, add)
   const apiKeys: unknown = config.apiKeys
@@ -2043,5 +2044,37 @@ function validateAdapterVersions(config: Config, add: Add) {
           ? 'upgrade Easy CMS (every @easy-cms/* package)'
           : 'upgrade the adapter to a version for this Easy CMS',
       )
+  }
+}
+
+/** Plugins' integrations (#311): ids, categories, and what connecting needs. */
+function validateIntegrations(config: Config, add: Add) {
+  const list: unknown = config.integrations
+  if (list === undefined) return
+  if (!Array.isArray(list)) {
+    add('integrations', 'must be an array')
+    return
+  }
+  const ids = new Set<string>()
+  for (const [i, raw] of list.entries()) {
+    const at = `integrations[${i}]`
+    const item = (raw ?? {}) as Record<string, unknown>
+    if (typeof item.id !== 'string' || !/^[a-z0-9][a-z0-9-]*$/.test(item.id))
+      add(`${at}.id`, 'must be lowercase letters, digits and "-"', "e.g. id: 'telegram'")
+    else if (ids.has(item.id)) add(`${at}.id`, `two integrations are named "${item.id}"`)
+    else ids.add(item.id)
+    if (!isLabel(item.label)) add(`${at}.label`, 'must be a string or { en, th }')
+    if (!['social', 'ai', 'notifications', 'automation'].includes(item.category as string))
+      add(`${at}.category`, "must be 'social', 'ai', 'notifications' or 'automation'")
+    if (item.kind === 'fields') {
+      if (!Array.isArray(item.fields) || item.fields.length === 0)
+        add(`${at}.fields`, 'needs at least one field to fill')
+    } else if (item.kind === 'oauth') {
+      const oauth = (item.oauth ?? {}) as Record<string, unknown>
+      if (typeof oauth.authorizeUrl !== 'function' || typeof oauth.exchange !== 'function')
+        add(`${at}.oauth`, 'needs authorizeUrl and exchange functions')
+    } else add(`${at}.kind`, "must be 'fields' or 'oauth'")
+    if (item.test !== undefined && typeof item.test !== 'function')
+      add(`${at}.test`, 'must be a function')
   }
 }

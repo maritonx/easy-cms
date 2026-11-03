@@ -6,6 +6,7 @@ import {
   KeyRound,
   ListChecks,
   Mail,
+  Plug,
   ScrollText,
   Send,
   ShieldCheck,
@@ -39,6 +40,7 @@ const VIEWS: Record<
   jobs: { to: '/jobs', key: 'jobs.title', icon: ListChecks },
   audit: { to: '/audit', key: 'audit.title', icon: ScrollText },
   calendar: { to: '/calendar', key: 'calendar.title', icon: CalendarDays },
+  integrations: { to: '/integrations', key: 'integrations.title', icon: Plug },
 }
 
 export const keyOf = (item: AdminNavItem): string => {

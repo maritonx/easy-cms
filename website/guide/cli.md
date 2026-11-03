@@ -57,6 +57,7 @@ npx easy-cms <command> [--config <file>] [--cwd <dir>]
 | [`jobs:run`](#jobs-run) | Run due scheduled jobs and webhook retries once. |
 | [`search:reindex [collection]`](#search-reindex) | Build the search index again from the database. |
 | [`audit:resign`](#audit-resign) | After a new secret: sign the audit log with it. |
+| [`secrets:rotate`](#secrets-rotate) | After a new secret: encrypt the Integrations' connections with it. |
 | [`serve`](#serve) | Run the CMS as its own server. |
 
 Options for every command: `--config <file>` (default `easy-cms.config.ts`), `--cwd <dir>`
@@ -178,6 +179,16 @@ npx easy-cms search:reindex posts
 Builds the [search](./search) index again from the published documents: after adding `search`
 to a collection or changing its fields, or when indexing failed. An in-memory index
 (`memorySearch()`) is built by the server when it starts, so there is nothing to do for it.
+
+### secrets:rotate
+
+```bash [pm]
+npx easy-cms secrets:rotate
+```
+
+After [rotating the secret](./security#rotating-the-secret): encrypts the [Integrations](./integrations)'
+connections still using one of `previousSecrets` with the current `secret`, so the old one can be
+removed. Connections are also encrypted again one by one as they are used.
 
 ### audit:resign
 

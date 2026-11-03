@@ -160,6 +160,7 @@ const ANCHORS: Record<AdminAttention['id'], string> = {
   'audit-tampered': 'audit-log',
   jobs: 'failed-jobs',
   'jobs-paused': 'paused-jobs',
+  integrations: 'broken-connections',
 }
 /** An attention item as text, with where the docs explain the fix. */
 function describe(item: AdminAttention) {
@@ -226,6 +227,13 @@ function describe(item: AdminAttention) {
         detail: t('status.jobsDetail', { names: item.names.join(', ') }),
         href,
         ...(views?.jobs ? { to: '/jobs' } : {}),
+      }
+    case 'integrations':
+      return {
+        title: t('status.integrations', { count: item.count }),
+        detail: item.names.join(', '),
+        href,
+        ...(views?.integrations ? { to: '/integrations' } : {}),
       }
     case 'jobs-paused':
       return {

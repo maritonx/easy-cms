@@ -83,6 +83,7 @@ import type {
   MediaDocument,
   UpdateInput,
 } from './infer.js'
+import { Integrations } from './integrations.js'
 import {
   ALL_LOCALES,
   localizeSort,
@@ -399,6 +400,8 @@ export class EasyCMS<C extends Config = Config> {
   readonly audit: AuditLog
   /** Folders of the media library and their permissions (`upload.folders`). */
   readonly folders: MediaFolders
+  /** Accounts connected to plugins' integrations (`integrations`, Settings → Integrations). */
+  readonly integrations: Integrations
   private readonly versions: VersionStore
   private readonly webhooks: Webhooks
   private readonly mailer: Mailer
@@ -438,6 +441,7 @@ export class EasyCMS<C extends Config = Config> {
       (entry) => this.audit.record(entry),
     )
     this.audit = new AuditLog(this as unknown as EasyCMS)
+    this.integrations = new Integrations(this as unknown as EasyCMS)
     this.folders = new MediaFolders(config, db, this.roles)
     this.webhooks = new Webhooks(
       config.webhooks ?? [],
