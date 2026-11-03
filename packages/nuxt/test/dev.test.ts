@@ -3,7 +3,19 @@ import { describe, expect, it } from 'vitest'
 import { cookieHeader, fixture, freshDatabase } from './helpers.js'
 
 freshDatabase()
-await setup({ rootDir: fixture, dev: true, setupTimeout: 180_000 })
+// The server counts as ready only once `/` renders the fixture's page: `nuxi dev` answers 503
+// until its first server build is done, and @nuxt/test-utils keeps polling until then (a server
+// that exits fails at once). That build is all the time it takes. On the 3-core macOS runner,
+// next to the other packages' tests, it has taken over a minute, past the 60s test-utils allows
+// outside Windows (Windows gets 120s), so macOS gets 180s. The setup timeout covers it and the
+// in-process Nuxt load before it (over 20s there too).
+const macOS = process.platform === 'darwin'
+await setup({
+  rootDir: fixture,
+  dev: true,
+  setupTimeout: macOS ? 280_000 : 180_000,
+  ...(macOS && { serverStartTimeout: 180_000 }),
+})
 
 describe('@easy-cms/nuxt in dev (FR-ADP-01)', () => {
   it('pushes the schema and exposes the Local API to server routes', async () => {
