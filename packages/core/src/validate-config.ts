@@ -1222,7 +1222,32 @@ function validateLayout(
 }
 
 function validateCollectionAdmin(admin: Record<string, unknown>, path: string, add: Add) {
-  const { badge, count, empty } = admin
+  const { badge, count, empty, views } = admin
+  if (views !== undefined) {
+    if (!Array.isArray(views)) add(`${path}.views`, 'must be an array')
+    const ids = new Set<string>()
+    for (const [i, raw] of (Array.isArray(views) ? views : []).entries()) {
+      const view = (raw ?? {}) as Record<string, unknown>
+      const at = `${path}.views[${i}]`
+      if (typeof view.id !== 'string' || !/^[a-z0-9][a-z0-9_-]*$/.test(view.id))
+        add(`${at}.id`, 'must be lowercase letters, digits, "-" or "_"', "e.g. id: 'to-review'")
+      else if (ids.has(view.id)) add(`${at}.id`, `duplicate view "${view.id}"`)
+      else ids.add(view.id)
+      if (!isLabel(view.label)) add(`${at}.label`, 'must be a string or { en, th }')
+      if (
+        view.where !== undefined &&
+        (typeof view.where !== 'object' || view.where === null || Array.isArray(view.where))
+      )
+        add(`${at}.where`, 'must be a where query', "e.g. { status: { equals: 'draft' } }")
+      if (view.pageSize !== undefined && ![10, 25, 50, 100].includes(view.pageSize as number))
+        add(`${at}.pageSize`, 'must be 10, 25, 50 or 100')
+      if (
+        view.density !== undefined &&
+        !['comfortable', 'compact'].includes(view.density as string)
+      )
+        add(`${at}.density`, "must be 'comfortable' or 'compact'")
+    }
+  }
   if (badge !== undefined) {
     const b = (badge ?? {}) as Record<string, unknown>
     if (typeof b.where !== 'object' || b.where === null || Array.isArray(b.where))

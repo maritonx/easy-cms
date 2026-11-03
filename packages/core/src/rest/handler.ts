@@ -49,6 +49,7 @@ import { adminStatus } from './admin-status.js'
 import { blockSummaries, pickerFilter } from './filter-options.js'
 import { cacheableResponse, cacheTags, cacheTimes } from './http-cache.js'
 import { parseDepth, parseListQuery } from './query.js'
+import { createView, deleteView, listViews, setDefaultView, updateView } from './saved-views.js'
 
 /** At most this many scheduled publishes in a calendar's range (#272). */
 const SCHEDULED_RANGE_LIMIT = 500
@@ -355,6 +356,7 @@ const ADMIN_UI_ROUTES = new Set([
   'owned',
   'sso',
   'block-summaries',
+  'views',
 ])
 
 const CORS_METHODS = 'GET, HEAD, POST, PATCH, PUT, DELETE'
@@ -817,6 +819,30 @@ async function route(
 
   // The cards of rich text blocks whose `admin.summary` is a function (#328):
   // POST /admin/ui/block-summaries { collection | global, field, blocks: [{ id, blockType, fields }] }
+  // Saved views of a list (#87): GET/POST /admin/ui/views/:collection,
+  // PATCH/DELETE /admin/ui/views/:collection/:id, PUT /admin/ui/views/:collection/default
+  if (first === 'admin' && second === 'views' && third !== undefined && segments.length <= 4) {
+    if (!ctx.user || ctx.user.apiKey) throw new UnauthorizedError()
+    const who = { user: ctx.user, context: ctx.context }
+    const fourth = segments[3]
+    if (fourth === undefined) {
+      if (method === 'GET') return { body: await listViews(cms, third, who) }
+      if (method === 'POST')
+        return { status: 201, body: await createView(cms, third, who, await readJson(ctx.request)) }
+      throw methodNotAllowed(ctx, 'GET, POST')
+    }
+    if (fourth === 'default') {
+      if (method !== 'PUT') throw methodNotAllowed(ctx, 'PUT')
+      return { body: await setDefaultView(cms, third, who, await readJson(ctx.request)) }
+    }
+    const id = parseId(fourth)
+    if (id === undefined) throw new HttpError('Not found', 404)
+    if (method === 'PATCH')
+      return { body: await updateView(cms, third, who, id, await readJson(ctx.request)) }
+    if (method === 'DELETE') return { body: await deleteView(cms, third, who, id) }
+    throw methodNotAllowed(ctx, 'PATCH, DELETE')
+  }
+
   if (first === 'admin' && second === 'block-summaries' && third === undefined) {
     if (!ctx.user) throw new UnauthorizedError()
     if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')

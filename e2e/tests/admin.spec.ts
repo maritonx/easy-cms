@@ -1249,6 +1249,39 @@ test.describe('logged in as admin', () => {
     await expect(page.locator('a.doc-card')).toHaveAttribute('href', '/contact-us')
   })
 
+  test('saves a list as a view, opens it, and opens the list with it (#87)', async ({ page }) => {
+    await page.goto('/admin/collections/posts')
+    const views = page.getByRole('group', { name: 'Views' })
+    await page.getByRole('searchbox').fill('Hello')
+    await expect(page).toHaveURL(/q=Hello/)
+    await page.getByRole('button', { name: 'Save view' }).click()
+    await page.getByRole('textbox', { name: 'View name' }).fill('Hello posts')
+    await page.getByRole('button', { name: 'Save', exact: true }).click()
+    await expect(page.getByRole('status')).toHaveText('View "Hello posts" saved')
+    const tab = views.getByRole('button', { name: 'Hello posts' })
+    await expect(tab).toHaveAttribute('aria-pressed', 'true')
+    await expect(page).toHaveURL(/view=\d+/)
+
+    // All clears it; the tab brings it back.
+    await views.getByRole('button', { name: 'All' }).click()
+    await expect(page.getByRole('searchbox')).toHaveValue('')
+    await tab.click()
+    await expect(page.getByRole('searchbox')).toHaveValue('Hello')
+
+    // The list opens with it.
+    await page.getByRole('button', { name: 'Actions for Hello posts' }).click()
+    await page.getByRole('button', { name: 'Open the list with this view' }).click()
+    await expect(page.getByRole('status')).toHaveText('The list opens with this view')
+    await page.goto('/admin/collections/posts')
+    await expect(page).toHaveURL(/view=\d+/)
+    await expect(page.getByRole('searchbox')).toHaveValue('Hello')
+
+    page.once('dialog', (dialog) => dialog.accept())
+    await page.getByRole('button', { name: 'Actions for Hello posts' }).click()
+    await page.getByRole('button', { name: 'Delete view' }).click()
+    await expect(views.getByRole('button', { name: 'Hello posts' })).toHaveCount(0)
+  })
+
   test('shows one group at a time, follows the page, and folds the panel away', async ({
     page,
   }) => {

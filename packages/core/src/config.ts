@@ -186,6 +186,28 @@ export interface CollectionAdmin extends ContainerAdmin {
    * Documents are then deleted one at a time, not from a selection.
    */
   readonly confirmDelete?: { readonly typeTitle?: boolean; readonly impact?: string }
+  /**
+   * Views everyone gets as tabs above the list (#87), before the ones users save: a name and the
+   * list's filters, search, sort, columns, page size and row height. Editors can't change them.
+   */
+  readonly views?: readonly CollectionView[]
+}
+
+/** A view of a collection's list in the admin (`admin.views`). */
+export interface CollectionView {
+  /** Lowercase letters, digits, `-` or `_`: in links, `?view=config:<id>`. */
+  readonly id: string
+  readonly label: Label
+  /** Conditions of the list's filter panel: fields with their operators, joined with AND. */
+  readonly where?: Where
+  /** The search box's text. */
+  readonly search?: string
+  /** Field path, `-` prefix for descending. */
+  readonly sort?: string
+  /** The columns shown beside the title, in order. */
+  readonly columns?: readonly string[]
+  readonly pageSize?: 10 | 25 | 50 | 100
+  readonly density?: 'comfortable' | 'compact'
 }
 
 /**

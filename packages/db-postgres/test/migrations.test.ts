@@ -85,6 +85,7 @@ describe('postgres development push', () => {
       'migrations',
       'posts',
       'posts__tags',
+      'saved_views',
       'sessions',
       'users',
     ])

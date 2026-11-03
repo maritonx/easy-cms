@@ -252,6 +252,30 @@ as a chip: click it to change the conditions, × to remove it.
   `admin: { filter: false }` on it.
 - On a large collection, give a field people filter by often an index (`index: true`).
 
+### Saved views
+
+A list's filters, search, sort, columns, rows per page and row height can be saved as a **view**,
+a tab above the list. Change the list, then **Save view** and give it a name; **Share with
+everyone** shows it to all who may read the collection. When the list differs from the view shown,
+**Update view** saves the change. The menu beside the tabs opens the list with a view by default,
+renames, shares or deletes it. A link to a view (`?view=<id>`) opens it; changes added to the link
+stay. Only the owner, or an admin for a shared view, changes a view; each user keeps up to 50 of
+their own per list.
+
+Views from the config come first, for everyone, and can't be changed in the admin:
+
+```ts
+admin: {
+  views: [
+    { id: 'to-review', label: 'To review', where: { status: { equals: 'draft' } }, sort: '-updatedAt' },
+    { id: 'mine', label: 'Mine', where: { author: { equals: 1 } }, columns: ['author', 'category'] },
+  ],
+}
+```
+
+Views are kept in the internal `saved-views` table: after upgrading to this version, run
+`easy-cms migrate:create` and deploy the migration.
+
 ### Calendar
 
 <Screenshot name="calendar" alt="Posts on a month calendar, coloured by category, with today's posts and their status in the card beside it" />

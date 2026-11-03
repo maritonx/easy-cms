@@ -323,6 +323,7 @@ Every hook also gets `user`, `cms` and `slug`.
 | `calendar` | `{ start, end?, color? }` | A Calendar mode beside the list: `start` and `end` are top-level date fields, `color` a select or relationship field (not hasMany) that colours documents. [The admin](/guide/admin#calendar) |
 | `ownerField` | `string` | With `auth.rbac`: a relationship field to `users` naming the owner, e.g. `'author'`, for roles given "own documents only". Default: who created it (`createdBy`). [Roles](/guide/roles#own-documents-only) |
 | `confirmDelete` | `{ typeTitle?, impact? }` | Deleting asks more: `typeTitle` has the user type the title; `impact` is a path under the API, called with `?id=`, returning `{ message }` about what goes too. No deleting from a selection. |
+| `views` | `{ id, label, where?, search?, sort?, columns?, pageSize?, density? }[]` | Tabs above the list for everyone, before the views users save. [The admin](/guide/admin#saved-views) |
 
 <!-- api: GlobalConfig -->
 ## globals

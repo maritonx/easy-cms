@@ -45,6 +45,7 @@ describe('development push (FR-DAT-02)', () => {
       'ecms_posts',
       'ecms_posts__rows',
       'ecms_posts__tags',
+      'ecms_saved_views',
       'ecms_sessions',
       'ecms_users',
     ])
@@ -114,6 +115,7 @@ describe('development push (FR-DAT-02)', () => {
       'ecms_media',
       'ecms_migrations',
       'ecms_posts',
+      'ecms_saved_views',
       'ecms_sessions',
       'ecms_users',
       'posts',
@@ -138,6 +140,7 @@ describe('development push (FR-DAT-02)', () => {
       'cms_media',
       'cms_migrations',
       'cms_posts',
+      'cms_saved_views',
       'cms_sessions',
       'cms_users',
     ])
