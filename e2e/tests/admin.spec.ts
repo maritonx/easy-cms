@@ -1476,6 +1476,40 @@ test.describe('logged in as admin', () => {
       .toBe('A mountain lake at sunrise')
   })
 
+  test('writes the SEO title and description with AI (#358)', async ({ page }) => {
+    test.skip(test.info().project.name !== 'next', 'The Next.js example has the AI plugin')
+    await page.goto('/admin/collections/posts?q=A cover without words')
+    await page.getByRole('link', { name: 'A cover without words' }).click()
+    await page.getByRole('tab', { name: 'SEO' }).click()
+    const metaTitle = page.getByRole('textbox', { name: 'Meta title' })
+    const metaDescription = page.getByRole('textbox', { name: 'Meta description' })
+    await page.getByRole('button', { name: 'Write title and description with AI' }).click()
+    // Into the form, for review: the preview follows, and Undo is beside it.
+    await expect(metaTitle).toHaveValue('Covers that speak: writing alt text with AI')
+    await expect(metaDescription).toHaveValue(
+      'How Easy CMS writes alt text for images, and why it matters to readers.',
+    )
+    await expect(page.getByText('Written by AI: check that they fit the page.')).toBeVisible()
+    await page.getByRole('button', { name: 'Undo', exact: true }).click()
+    await expect(metaTitle).toHaveValue('')
+    await page.getByRole('button', { name: 'Write title and description with AI' }).click()
+    await expect(metaTitle).toHaveValue('Covers that speak: writing alt text with AI')
+    // Something is there now: replacing it asks first.
+    page.once('dialog', (dialog) => dialog.dismiss())
+    await page.getByRole('button', { name: 'Write title and description with AI' }).click()
+    await expect(metaTitle).toHaveValue('Covers that speak: writing alt text with AI')
+    await page.getByRole('button', { name: 'Save draft' }).click()
+    const id = page.url().split('/').pop()?.split('?')[0]
+    await expect
+      .poll(async () => {
+        const doc = (await (await page.request.get(`/api/cms/posts/${id}?draft=true`)).json()) as {
+          meta?: { title?: string }
+        }
+        return doc.meta?.title
+      })
+      .toBe('Covers that speak: writing alt text with AI')
+  })
+
   test('shows one group at a time, follows the page, and folds the panel away', async ({
     page,
   }) => {

@@ -27,7 +27,15 @@ createServer((req, res) => {
     if (path === '/v1/messages') {
       const request = JSON.parse(body || '{}') as { model?: string; system?: string }
       // Each feature's prompt (#358) gets an answer of its own.
-      const text = request.system?.includes('alt text') ? 'A mountain lake at sunrise' : 'OK'
+      const text = request.system?.includes('alt text')
+        ? 'A mountain lake at sunrise'
+        : request.system?.includes('search engines')
+          ? JSON.stringify({
+              title: 'Covers that speak: writing alt text with AI',
+              description:
+                'How Easy CMS writes alt text for images, and why it matters to readers.',
+            })
+          : 'OK'
       return send(200, {
         model: request.model,
         content: [{ type: 'text', text }],

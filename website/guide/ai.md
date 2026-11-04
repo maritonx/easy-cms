@@ -66,6 +66,14 @@ upload field, an image without alt text says **No alt text**: it opens the file 
 The button shows to users who may change the file, while the **Alt text** feature is on. Each press is
 one request toward the user's daily limit.
 
+## SEO
+
+With the [SEO plugin](./seo), the search result preview has **Write title and description with AI**:
+one request writes both from the document's title and text (the top-level text, textarea and rich
+text fields, about 6,000 characters; `aiSource` changes it), within the plugin's good lengths, in the
+language being edited. They go into the meta fields for review, with **Undo**; replacing values you
+have asks first. The **Generate** buttons keep working from your code's generators.
+
 ## Limits
 
 Each user makes at most **100 requests a day** (in `timeZone`); the 101st is refused. Admins change

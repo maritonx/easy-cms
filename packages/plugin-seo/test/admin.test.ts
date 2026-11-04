@@ -112,12 +112,86 @@ describe('ecms-seo-preview', () => {
     })
     await new Promise((resolve) => setTimeout(resolve, 500))
     await flush()
-    expect(api).toHaveBeenCalledTimes(1)
+    // Once for the URL (and once whether AI is there, #358).
+    const posts = api.mock.calls.filter((call) => (call as unknown[])[0] === 'POST')
+    expect(posts).toHaveLength(1)
     expect(api).toHaveBeenCalledWith(
       'POST',
       '/seo/generate',
       expect.objectContaining({ kind: 'url' }),
     )
     expect(text(preview)).toContain('blog.test › posts › hello')
+  })
+
+  it('writes the title and description with AI, asks before replacing them, and undoes (#358)', async () => {
+    const api = vi.fn(async (method: string, path: string, _body?: unknown) =>
+      path === '/admin/ai/status'
+        ? { connected: true, features: ['seo'], used: 0, limit: 100 }
+        : method === 'POST'
+          ? { value: { title: 'AI title', description: 'AI description' } }
+          : {},
+    )
+    const preview = await make('ecms-seo-preview', {
+      path: 'meta',
+      collection: 'posts',
+      id: 4,
+      doc: { title: 'Hello', meta: { title: 'Mine', description: '' } },
+      locale: 'en',
+      options: { titleField: 'title', url: false, siteURL: 'https://blog.test' },
+      api,
+    })
+    await flush()
+    await flush()
+    const events: unknown[] = []
+    preview.addEventListener('set-field', (e) => events.push((e as CustomEvent).detail))
+    const button = () => preview.shadowRoot?.querySelector<HTMLButtonElement>('[data-action="ai"]')
+    expect(button()?.textContent).toContain('Write title and description with AI')
+
+    // A title is there: asked first; no, nothing happens.
+    // happy-dom has no confirm(): the admin's browser does.
+    const confirm = vi.fn().mockReturnValueOnce(false).mockReturnValueOnce(true)
+    vi.stubGlobal('confirm', confirm)
+    button()?.click()
+    await flush()
+    expect(events).toEqual([])
+    button()?.click()
+    await flush()
+    await flush()
+    expect(confirm).toHaveBeenCalledTimes(2)
+    expect(api).toHaveBeenCalledWith('POST', '/seo/generate', {
+      kind: 'ai',
+      collection: 'posts',
+      id: 4,
+      doc: { title: 'Hello', meta: { title: 'Mine', description: '' } },
+      locale: 'en',
+    })
+    expect(events).toEqual([
+      { path: 'meta.title', value: 'AI title' },
+      { path: 'meta.description', value: 'AI description' },
+    ])
+    expect(text(preview)).toContain('Written by AI')
+    preview.shadowRoot?.querySelector<HTMLButtonElement>('[data-action="undo-ai"]')?.click()
+    await flush()
+    expect(events.slice(2)).toEqual([
+      { path: 'meta.title', value: 'Mine' },
+      { path: 'meta.description', value: '' },
+    ])
+    expect(text(preview)).not.toContain('Written by AI')
+    vi.unstubAllGlobals()
+  })
+
+  it('shows no AI button without an AI plugin, or read-only', async () => {
+    const api = vi.fn(async () => {
+      throw new Error('Not found')
+    })
+    const preview = await make('ecms-seo-preview', {
+      path: 'meta',
+      doc: {},
+      options: { titleField: 'title', url: false, siteURL: '' },
+      api,
+    })
+    await flush()
+    await flush()
+    expect(preview.shadowRoot?.querySelector('[data-action="ai"]')).toBeNull()
   })
 })

@@ -57,6 +57,12 @@ const MESSAGES = {
     noTitle: 'Page title',
     noDescription: 'Add a description to control the text under the title.',
     hidden: 'Hidden from search engines: the page gets "noindex" and is left out of the sitemap.',
+    writeAi: 'Write title and description with AI',
+    writingAi: 'Writing…',
+    spentAi: "Today's AI requests are used up",
+    replaceAi: "Replace the title and description you have with AI's?",
+    writtenAi: 'Written by AI: check that they fit the page.',
+    undo: 'Undo',
   },
   th: {
     characters: '{n} / {max} ตัวอักษร',
@@ -73,6 +79,12 @@ const MESSAGES = {
     noTitle: 'ชื่อหน้า',
     noDescription: 'เพิ่มคำอธิบายเพื่อกำหนดข้อความใต้ชื่อหน้า',
     hidden: 'ซ่อนจากเครื่องมือค้นหาอยู่: หน้านี้มี "noindex" และไม่อยู่ใน sitemap',
+    writeAi: 'เขียน title และ description ด้วย AI',
+    writingAi: 'กำลังเขียน…',
+    spentAi: 'ใช้คำขอ AI ของวันนี้ครบแล้ว',
+    replaceAi: 'ให้ AI เขียน title และ description แทนที่มีอยู่ไหม?',
+    writtenAi: 'เขียนโดย AI: ตรวจดูว่าตรงกับหน้า',
+    undo: 'เลิกทำ',
   },
 } as const
 
@@ -119,6 +131,22 @@ const BASE_STYLE = `
   button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
   button:disabled { opacity: 0.6; cursor: default; }
 `
+
+/** Whether "Write with AI" works here (#358): asked once per page (per admin API). */
+const aiStatus = new WeakMap<Api, Promise<{ ready: boolean; spent: boolean }>>()
+function aiReady(api: Api, fresh = false): Promise<{ ready: boolean; spent: boolean }> {
+  const known = aiStatus.get(api)
+  if (known && !fresh) return known
+  const asking = api('GET', '/admin/ai/status')
+    .then((value) => {
+      const s = value as { connected: boolean; features: string[]; used: number; limit: number }
+      return { ready: s.connected && s.features.includes('seo'), spent: s.used >= s.limit }
+    })
+    // No AI plugin: no button.
+    .catch(() => ({ ready: false, spent: false }))
+  aiStatus.set(api, asking)
+  return asking
+}
 
 /** Stores the admin's properties and re-renders once per batch of changes. */
 abstract class SeoElement extends HTMLElement {
@@ -305,6 +333,11 @@ class SeoPreview extends SeoElement {
   private url = ''
   private urlFor = ''
   private timer: ReturnType<typeof setTimeout> | undefined
+  /** "Write with AI" shows: a provider is connected and the feature is on. */
+  private ai: { ready: boolean; spent: boolean } = { ready: false, spent: false }
+  private aiAsked = false
+  /** The title and description before AI wrote them, for Undo. */
+  private beforeAi: { title: unknown; description: unknown } | null = null
 
   protected override css() {
     return `
@@ -315,6 +348,9 @@ class SeoPreview extends SeoElement {
       .description { margin: 0; font-size: 0.875rem; line-height: 1.5; color: var(--text-muted); }
       .placeholder { font-style: italic; opacity: 0.75; }
       .noindex { margin: 0.6rem 0 0; font-size: 0.8rem; color: var(--warning, var(--text-muted)); }
+      .ai { margin-top: 0.6rem; }
+      .ai button { color: var(--accent-ink); font-weight: 600; }
+      .written { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; color: var(--accent-ink); }
     `
   }
 
@@ -327,7 +363,25 @@ class SeoPreview extends SeoElement {
       | undefined
     const description = typeof meta.description === 'string' ? meta.description.trim() : ''
     if (url) this.refreshUrl()
+    if (!this.aiAsked && this.ctx.api) {
+      this.aiAsked = true
+      void aiReady(this.ctx.api).then((status) => {
+        this.ai = status
+        this.update()
+      })
+    }
     const address = breadcrumb(url ? this.url : siteURL)
+    const aiButton =
+      this.ai.ready && !this.ctx.readOnly
+        ? `<div class="row ai">
+            <button type="button" data-action="ai" ${this.busy || this.ai.spent ? 'disabled' : ''}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg>
+              ${esc(this.t(this.busy ? 'writingAi' : this.ai.spent ? 'spentAi' : 'writeAi'))}
+            </button>
+          </div>
+          ${this.beforeAi ? `<p class="hint written" role="status">${esc(this.t('writtenAi'))} <button type="button" data-action="undo-ai">${esc(this.t('undo'))}</button></p>` : ''}
+          ${this.renderNotice()}`
+        : ''
     return `
       <section class="card" aria-label="${esc(this.t('preview'))}">
         <p class="label">${esc(this.t('preview'))}</p>
@@ -336,7 +390,53 @@ class SeoPreview extends SeoElement {
         <p class="description ${description ? '' : 'placeholder'}">${esc(description ? truncate(description, 160) : this.t('noDescription'))}</p>
         ${meta.noindex === true ? `<p class="noindex">${esc(this.t('hidden'))}</p>` : ''}
       </section>
+      ${aiButton}
     `
+  }
+
+  /** "Write with AI": the title and description at once, into the form for review. */
+  protected override async onAction(action: string) {
+    const path = this.ctx.path
+    if (!path || !this.ctx.api) return
+    const set = (field: string, value: unknown) =>
+      this.dispatchEvent(
+        new CustomEvent('set-field', { detail: { path: `${path}.${field}`, value } }),
+      )
+    if (action === 'undo-ai' && this.beforeAi) {
+      set('title', this.beforeAi.title)
+      set('description', this.beforeAi.description)
+      this.beforeAi = null
+      this.update()
+      return
+    }
+    if (action !== 'ai' || this.busy) return
+    const meta = (readPath(this.ctx.doc, path) ?? {}) as Record<string, unknown>
+    const has = (v: unknown) => typeof v === 'string' && v.trim() !== ''
+    if ((has(meta.title) || has(meta.description)) && !window.confirm(this.t('replaceAi'))) return
+    this.busy = true
+    this.notice = null
+    this.update()
+    try {
+      const { collection, global, id, doc, locale } = this.ctx
+      const result = (await this.ctx.api('POST', GENERATE_PATH, {
+        kind: 'ai',
+        ...(collection ? { collection } : {}),
+        ...(global ? { global } : {}),
+        id,
+        doc,
+        locale,
+      })) as { value: { title: string; description: string } }
+      this.beforeAi ??= { title: meta.title ?? null, description: meta.description ?? null }
+      set('title', result.value.title)
+      set('description', result.value.description)
+    } catch (error) {
+      this.notice = { text: this.t('failed', { message: (error as Error).message }), error: true }
+    } finally {
+      this.busy = false
+      // Today's count changed.
+      this.ai = await aiReady(this.ctx.api, true)
+      this.update()
+    }
   }
 
   /** The page URL comes from `generateURL` on the server; ask again when the form settles. */
