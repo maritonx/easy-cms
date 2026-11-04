@@ -136,6 +136,12 @@ accounts (a user's Pages), the admin chooses one:
 Everything `exchange` returns is encrypted. The app's own id and secret stay in environment
 variables.
 
+### Consent
+
+`consent: { text, policy? }` is shown before the first connection, e.g. that text sent to an AI
+provider leaves the site: an admin accepts it once (**Accept and connect**), and who did goes to the
+audit log. Connecting before that is refused. `test` gets the connection's `name` too.
+
 ## Next steps
 
 - [Plugins](./plugins): writing one.

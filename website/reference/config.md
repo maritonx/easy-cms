@@ -54,6 +54,8 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `search` | `SearchAdapter` | — | Relevance-ranked search of the collections that have `search`, e.g. `memorySearch()`. [Search](/guide/search) |
 | `logs` | `LogsConfig` | readable lines | `{ format: 'json' }` for one JSON object per line, with request ids. See [logs](#logs). |
 | `integrations` | `IntegrationConfig[]` | `[]` | Outside providers admins connect accounts to on the Integrations page, usually added by plugins. [Integrations](/guide/integrations) |
+| `ai` | `AiConfig` | — | AI providers and limits for `cms.ai`, set by `@easy-cms/plugin-ai`. [AI](/guide/ai) |
+| `aiFeatures` | `AiFeatureConfig[]` | `[]` | Features that use AI (`{ id, label, description?, default? }`): admins turn each off or pick its connection. [AI](/guide/ai#features) |
 | `plugins` | `Plugin[]` | `[]` | `(config) => config`, run in order before validation; `definePlugin(fn, { name, version, apiVersion? })` names one for the dashboard; `apiVersion` (`PLUGIN_API_VERSION`) stops startup when the plugin is for another plugin API. [Plugins](/guide/plugins) |
 | `fieldTypes` | `FieldTypeDefinition[]` | `[]` | Field types from packages, e.g. `color` from `@easy-cms/fields`. [Custom field types](/guide/field-types) |
 

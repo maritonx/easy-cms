@@ -105,6 +105,11 @@ Fields inside groups, arrays and blocks follow their parent.
 - A field that must be filled in (required, without a default) stays editable for roles that create
   documents.
 
+## AI requests
+
+With the [AI plugin](./ai), a role can have its own **AI requests per day**: empty uses everyone's
+limit, 0 keeps the role from using AI.
+
 ## Fields that point elsewhere
 
 When a role may edit posts but not read categories, a post's category field shows the value as it

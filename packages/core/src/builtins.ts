@@ -21,6 +21,7 @@ export const RATE_LIMITS = 'rate-limits'
 export const BULK_OPERATIONS = 'bulk-operations'
 export const SAVED_VIEWS = 'saved-views'
 export const CONNECTIONS = 'connections'
+export const AI_USAGE = 'ai-usage'
 
 /** Collections Easy CMS uses internally. Not exposed over REST or in the admin UI. */
 export const INTERNAL_COLLECTIONS: ReadonlySet<string> = new Set([
@@ -40,6 +41,7 @@ export const INTERNAL_COLLECTIONS: ReadonlySet<string> = new Set([
   BULK_OPERATIONS,
   SAVED_VIEWS,
   CONNECTIONS,
+  AI_USAGE,
 ])
 
 export const DEFAULT_ROLES = ['admin', 'editor'] as const
@@ -542,6 +544,27 @@ export const connectionsCollection: CollectionConfig = {
     { name: 'lastUsedAt', type: 'text' },
     { name: 'lastError', type: 'text' },
     { name: 'enabled', type: 'boolean' },
+  ],
+}
+
+/**
+ * One row per AI request (#357): who, which feature and connection, the tokens. Never the prompt or
+ * the answer. Added with `ai`; kept 90 days.
+ */
+export const aiUsageCollection: CollectionConfig = {
+  slug: AI_USAGE,
+  access: { read: nobody, create: nobody, update: nobody, delete: nobody },
+  fields: [
+    { name: 'user', type: 'text', index: true },
+    { name: 'feature', type: 'text', required: true },
+    { name: 'integration', type: 'text', required: true },
+    { name: 'connection', type: 'text' },
+    { name: 'input', type: 'number' },
+    { name: 'output', type: 'number' },
+    { name: 'ok', type: 'boolean' },
+    { name: 'error', type: 'text' },
+    // The document it was for, e.g. the image of alt text.
+    { name: 'about', type: 'text' },
   ],
 }
 

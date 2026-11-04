@@ -90,6 +90,9 @@ importers:
       '@easy-cms/next':
         specifier: workspace:^
         version: link:../../packages/next
+      '@easy-cms/plugin-ai':
+        specifier: workspace:^
+        version: link:../../packages/plugin-ai
       '@easy-cms/plugin-form-builder':
         specifier: workspace:^
         version: link:../../packages/plugin-form-builder
@@ -570,6 +573,15 @@ importers:
       vue:
         specifier: ^3.5.0
         version: 3.5.44(typescript@6.0.3)
+
+  packages/plugin-ai:
+    devDependencies:
+      '@easy-cms/core':
+        specifier: workspace:^
+        version: link:../core
+      '@easy-cms/db-sqlite':
+        specifier: workspace:^
+        version: link:../db-sqlite
 
   packages/plugin-ecommerce:
     devDependencies:

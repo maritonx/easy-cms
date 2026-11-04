@@ -7,6 +7,7 @@ import {
   filterInput,
   stripFields,
 } from './access-control.js'
+import { Ai } from './ai.js'
 import {
   API_KEYS,
   type ApiKeyOperation,
@@ -417,6 +418,8 @@ export class EasyCMS<C extends Config = Config> {
   readonly folders: MediaFolders
   /** Accounts connected to plugins' integrations (`integrations`, Settings → Integrations). */
   readonly integrations: Integrations
+  /** AI for the admin's features (#357): `null` without an AI plugin (`ai` in the config). */
+  readonly ai: Ai | null
   private readonly versions: VersionStore
   private readonly webhooks: Webhooks
   private readonly mailer: Mailer
@@ -457,6 +460,7 @@ export class EasyCMS<C extends Config = Config> {
     )
     this.audit = new AuditLog(this as unknown as EasyCMS)
     this.integrations = new Integrations(this as unknown as EasyCMS)
+    this.ai = config.ai ? new Ai(this as unknown as EasyCMS, config.ai) : null
     // `listeners` in the config (plugins' notifications…): as with `cms.on`.
     for (const listener of config.listeners ?? []) {
       const run = (message: EventMessage) =>
@@ -2366,6 +2370,9 @@ export class EasyCMS<C extends Config = Config> {
       await this.audit
         .upkeep(now)
         .catch((error) => this.logger.error(`Audit log: ${(error as Error).message}`, { error }))
+      await this.ai
+        ?.upkeep(now)
+        .catch((error) => this.logger.error(`AI usage: ${(error as Error).message}`, { error }))
       await this.rateLimiter
         ?.clear(now)
         .catch((error) => this.logger.error(`Rate limits: ${(error as Error).message}`, { error }))

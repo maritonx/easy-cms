@@ -4,6 +4,7 @@ import { postgres } from '@easy-cms/db-postgres'
 import { sqlite } from '@easy-cms/db-sqlite'
 import { smtp } from '@easy-cms/email-smtp'
 import { color } from '@easy-cms/fields'
+import { aiPlugin } from '@easy-cms/plugin-ai'
 import { formBuilderPlugin } from '@easy-cms/plugin-form-builder'
 import { graphqlPlugin } from '@easy-cms/plugin-graphql'
 import { mcpPlugin } from '@easy-cms/plugin-mcp'
@@ -329,6 +330,8 @@ export default defineConfig({
     // Telegram messages to admins when a form is sent or something fails (Settings →
     // Integrations).
     notifyPlugin(),
+    // AI providers for the admin's AI features (Settings → Integrations, AI).
+    aiPlugin(),
     // Redirects under Settings in the admin; a post whose slug changes redirects from its old
     // address (served by the middleware in this example).
     // Pages redirect too, including the pages under one that moved.

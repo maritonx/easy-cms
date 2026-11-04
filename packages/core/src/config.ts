@@ -6,6 +6,7 @@ import type {
   RequestContext,
   Where,
 } from './access.js'
+import type { AiConfig, AiFeatureConfig } from './ai.js'
 import type { AuditConfig } from './audit.js'
 import type { PasswordEmailFn } from './auth/emails.js'
 import type { AuthProvider } from './auth/providers.js'
@@ -1035,6 +1036,16 @@ export interface Config {
    * by plugins: a Telegram bot, an AI provider, a Facebook Page. See `IntegrationConfig`.
    */
   readonly integrations?: readonly IntegrationConfig[]
+  /**
+   * AI providers and limits (#357), set by `@easy-cms/plugin-ai`: `cms.ai` answers the admin's AI
+   * features with them. See `AiConfig`.
+   */
+  readonly ai?: AiConfig
+  /**
+   * Features that use AI, added by plugins and by Easy CMS itself: admins turn each off or pick
+   * the connection it uses on the Integrations page. See `AiFeatureConfig`.
+   */
+  readonly aiFeatures?: readonly AiFeatureConfig[]
 }
 
 /** The config after plugins ran, validation passed and defaults were applied. */
@@ -1053,6 +1064,7 @@ export interface ResolvedConfig
     | 'plugins'
     | 'audit'
     | 'integrations'
+    | 'aiFeatures'
   > {
   readonly cors: readonly string[] | '*'
   /** `null` without localization. */
@@ -1068,6 +1080,7 @@ export interface ResolvedConfig
   readonly globals: readonly GlobalConfig[]
   readonly endpoints: readonly Endpoint[]
   readonly integrations: readonly IntegrationConfig[]
+  readonly aiFeatures: readonly AiFeatureConfig[]
   readonly cliCommands: readonly CliCommand[]
   readonly events: readonly string[]
   readonly jobs: readonly JobConfig[]

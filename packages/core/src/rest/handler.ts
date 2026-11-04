@@ -896,6 +896,17 @@ async function route(
     throw methodNotAllowed(ctx, 'PATCH, DELETE')
   }
 
+  // Settings → Integrations, AI (#357): the main connection, the features, the limit, the usage.
+  if (first === 'admin' && second === 'ai' && segments.length === 2) {
+    if (!ctx.user) throw new UnauthorizedError()
+    if (!cms.ai) throw new HttpError('Not found', 404)
+    if (!(await cms.roles.canView(ctx.user, 'integrations'))) throw new ForbiddenError()
+    if (method === 'GET') return { body: await cms.ai.overview() }
+    if (method === 'PUT')
+      return { body: await cms.ai.update(await readJson(ctx.request), ctx.user) }
+    throw methodNotAllowed(ctx, 'GET, PUT')
+  }
+
   // Saved webhook deliveries and emails, for admins and roles given them: list, retry, delete.
   // Settings → Integrations (#311): plugins' integrations and the accounts connected to them.
   if (first === 'admin' && second === 'integrations') {
@@ -918,7 +929,9 @@ async function route(
     if (part === 'authorize' && cid === undefined) {
       if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
       const body = (await readJson(ctx.request)) as { name?: unknown }
-      return { body: integrations.authorize(id, user, callbackUrl, String(body.name ?? '')) }
+      return {
+        body: await integrations.authorize(id, user, callbackUrl, String(body.name ?? '')),
+      }
     }
     if (part === 'callback' && cid === undefined) {
       if (method !== 'GET') throw methodNotAllowed(ctx, 'GET')
@@ -942,6 +955,10 @@ async function route(
         page.searchParams.set('error', (error as Error).message.slice(0, 300))
       }
       return { body: new Response(null, { status: 302, headers: { location: page.toString() } }) }
+    }
+    if (part === 'consent' && cid === undefined) {
+      if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
+      return { body: await integrations.consent(id, user) }
     }
     if (part === 'lookup' && cid !== undefined && action === undefined) {
       if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')

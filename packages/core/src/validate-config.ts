@@ -112,6 +112,7 @@ export function validateConfig(config: Config): ConfigIssue[] {
   validateJobs(config, add)
   validateIntegrations(config, add)
   validateListeners(config, add)
+  validateAi(config, add)
   validateTimeZone(config, add)
   validateEvents(config, add)
   const apiKeys: unknown = config.apiKeys
@@ -2102,5 +2103,46 @@ function validateListeners(config: Config, add: Add) {
     )
       add(`listeners[${i}].events`, "must be event names or '*'", "e.g. events: ['order.created']")
     if (typeof item.handler !== 'function') add(`listeners[${i}].handler`, 'must be a function')
+  }
+}
+
+/** AI providers (#357) answer with an integration's connections; features have unique ids. */
+function validateAi(config: Config, add: Add) {
+  const ai: unknown = config.ai
+  if (ai !== undefined) {
+    const providers = (ai as { providers?: unknown })?.providers
+    if (!Array.isArray(providers)) add('ai.providers', 'must be an array')
+    else {
+      const ids = new Set((config.integrations ?? []).map((i) => i?.id))
+      for (const [i, raw] of providers.entries()) {
+        const provider = (raw ?? {}) as Record<string, unknown>
+        if (typeof provider.integration !== 'string' || !ids.has(provider.integration))
+          add(`ai.providers[${i}].integration`, 'must be the id of an integration')
+        if (typeof provider.generate !== 'function')
+          add(`ai.providers[${i}].generate`, 'must be a function')
+      }
+    }
+    const limits = (ai as { limits?: Record<string, unknown> })?.limits
+    const whole = (v: unknown) => Number.isInteger(v) && (v as number) >= 0
+    if (limits?.perUserPerDay !== undefined && !whole(limits.perUserPerDay))
+      add('ai.limits.perUserPerDay', 'must be a whole number, 0 or more')
+    for (const [role, value] of Object.entries((limits?.roles ?? {}) as Record<string, unknown>))
+      if (!whole(value)) add(`ai.limits.roles.${role}`, 'must be a whole number, 0 or more')
+  }
+  const features: unknown = config.aiFeatures
+  if (features === undefined) return
+  if (!Array.isArray(features)) {
+    add('aiFeatures', 'must be an array')
+    return
+  }
+  const seen = new Set<string>()
+  for (const [i, raw] of features.entries()) {
+    const feature = (raw ?? {}) as Record<string, unknown>
+    if (typeof feature.id !== 'string' || !/^[a-z0-9][a-z0-9-]*$/.test(feature.id))
+      add(`aiFeatures[${i}].id`, 'must be lowercase letters, digits and "-"', "e.g. id: 'alt-text'")
+    else if (seen.has(feature.id) || feature.id === 'test')
+      add(`aiFeatures[${i}].id`, `"${feature.id}" is taken`)
+    else seen.add(feature.id)
+    if (!isLabel(feature.label)) add(`aiFeatures[${i}].label`, 'must be a string or { en, th }')
   }
 }

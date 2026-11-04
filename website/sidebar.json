@@ -228,6 +228,13 @@
           }
         },
         {
+          "path": "guide/ai",
+          "title": {
+            "en": "AI",
+            "th": "AI"
+          }
+        },
+        {
           "path": "guide/seo",
           "title": {
             "en": "SEO",

@@ -3,6 +3,7 @@ import type { Label } from '@easy-cms/core'
 import { CheckCircle2, CircleAlert, ExternalLink, Plug, Plus, Star, Trash2 } from '@lucide/vue'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import AiSettings from '../components/AiSettings.vue'
 import { ApiError, api } from '../lib/api'
 import { formatDate, label, t } from '../lib/i18n'
 import { notify } from '../lib/toast'
@@ -31,6 +32,8 @@ interface Connection {
   lastUsedAt: string | null
   lastError: string | null
   values: Record<string, string>
+  /** AI providers: this month. */
+  usage?: { requests: number; input: number; output: number }
 }
 interface Integration {
   id: string
@@ -45,6 +48,9 @@ interface Integration {
   envFields: string[]
   testable: boolean
   connections: Connection[]
+  /** Accepted before the first connection (AI providers' privacy). */
+  consent?: { text: Label; policy?: string }
+  consented?: { at: string; by: string } | null
 }
 interface Overview {
   integrations: Integration[]
@@ -73,9 +79,12 @@ const catalog = computed(() =>
 )
 const showCode = computed(() => !category.value || category.value === 'code')
 
+/** Tells the AI box to read its connections again. */
+const version = ref(0)
 async function load() {
   try {
     data.value = await api<Overview>('GET', '/admin/integrations')
+    version.value++
   } catch (e) {
     error.value = (e as Error).message
   }
@@ -90,7 +99,24 @@ const form = ref<{
 } | null>(null)
 const errors = ref<Record<string, string>>({})
 const busy = ref(false)
+/** The integration whose consent is shown before connecting. */
+const consenting = ref<string | null>(null)
+async function accept(integration: Integration) {
+  try {
+    await api('POST', `/admin/integrations/${integration.id}/consent`)
+    consenting.value = null
+    await load()
+    const fresh = data.value?.integrations.find((i) => i.id === integration.id)
+    if (fresh) startAdding(fresh)
+  } catch (e) {
+    notify('error', (e as Error).message)
+  }
+}
 function startAdding(integration: Integration) {
+  if (integration.consent && !integration.consented) {
+    consenting.value = integration.id
+    return
+  }
   errors.value = {}
   form.value = {
     integration: integration.id,
@@ -292,6 +318,8 @@ const fieldLabel = (field: Field) => label(field.label, field.name)
       <button v-for="c in CATEGORIES" :key="c" type="button" :class="['chip-btn', { on: category === c }]" :aria-pressed="category === c" @click="setCategory(c)">{{ categoryLabel(c) }}</button>
     </div>
 
+    <AiSettings v-if="data && (category === null || category === 'ai')" :version="version" />
+
     <div v-if="data" class="grid">
       <article v-for="integration in shown" :key="integration.id" class="card integration" :aria-labelledby="`int-${integration.id}`">
         <header class="head">
@@ -316,6 +344,7 @@ const fieldLabel = (field: Field) => label(field.label, field.name)
               <span v-if="connection.account" class="muted small">{{ connection.account }}</span>
               <span v-if="connection.lastError" class="error small"><CircleAlert :size="13" aria-hidden="true" /> {{ connection.lastError }}</span>
               <span v-else-if="connection.lastUsedAt" class="muted small"><CheckCircle2 :size="13" aria-hidden="true" /> {{ t('integrations.lastUsed', { date: formatDate(connection.lastUsedAt) }) }}</span>
+              <span v-if="connection.usage" class="muted small">{{ t('ai.usage', { requests: connection.usage.requests.toLocaleString(), tokens: (connection.usage.input + connection.usage.output).toLocaleString() }) }}</span>
             </div>
             <div class="actions">
               <button v-if="integration.testable" type="button" class="btn btn-sm" @click="test(integration, connection)">{{ t('integrations.test') }}</button>
@@ -329,6 +358,14 @@ const fieldLabel = (field: Field) => label(field.label, field.name)
         </ul>
         <p v-else class="muted small">{{ t('integrations.none') }}</p>
 
+        <div v-if="consenting === integration.id && integration.consent" class="consent" role="group" :aria-label="t('integrations.consentTitle')">
+          <p>{{ label(integration.consent.text, '') }}</p>
+          <a v-if="integration.consent.policy" :href="integration.consent.policy" target="_blank" rel="noopener" class="docs">{{ t('integrations.policy') }} <ExternalLink :size="13" aria-hidden="true" /></a>
+          <div class="actions">
+            <button type="button" class="btn btn-ghost" @click="consenting = null">{{ t('common.cancel') }}</button>
+            <button type="button" class="btn btn-primary" @click="accept(integration)">{{ t('integrations.accept') }}</button>
+          </div>
+        </div>
         <form v-if="form?.integration === integration.id" class="connect" novalidate @submit.prevent="submit(integration)">
           <label class="field">
             <span class="field-label">{{ t('integrations.name') }}<span class="field-required" aria-hidden="true">*</span></span>
@@ -378,7 +415,7 @@ const fieldLabel = (field: Field) => label(field.label, field.name)
             </button>
           </div>
         </form>
-        <button v-else-if="integration.enabled" type="button" class="btn btn-sm add" @click="startAdding(integration)">
+        <button v-else-if="integration.enabled && consenting !== integration.id" type="button" class="btn btn-sm add" @click="startAdding(integration)">
           <Plus :size="14" aria-hidden="true" /> {{ t('integrations.add') }}
         </button>
       </article>
@@ -414,6 +451,15 @@ const fieldLabel = (field: Field) => label(field.label, field.name)
 </template>
 
 <style scoped>
+.consent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
 .intro {
   margin: 0 0 1rem;
 }
