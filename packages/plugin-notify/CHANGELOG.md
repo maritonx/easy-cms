@@ -1,5 +1,17 @@
 # @easy-cms/plugin-notify
 
+## 1.33.0
+
+### Minor Changes
+
+- 69417d3: Real logos on the Integrations page. An integration's `icon` can be its logo: SVG `paths` (e.g. from simple-icons) with a brand `color`, which the admin swaps for the text color where it wouldn't show (a black logo in dark mode); only path data and `#rrggbb` colors are accepted. Telegram, Anthropic, Gemini and OpenAI now show theirs (simple-icons and Iconify's `logos`, both CC0, bundled at build time).
+
+### Patch Changes
+
+- Updated dependencies [69417d3]
+- Updated dependencies [6098969]
+  - @easy-cms/core@1.33.0
+
 ## 1.32.0
 
 ### Minor Changes
