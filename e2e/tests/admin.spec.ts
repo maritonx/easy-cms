@@ -1510,6 +1510,82 @@ test.describe('logged in as admin', () => {
       .toBe('Covers that speak: writing alt text with AI')
   })
 
+  test('translates a post with AI, a field at a time or all missing at once (#358)', async ({
+    page,
+  }) => {
+    test.skip(test.info().project.name !== 'next', 'The Next.js example has the AI plugin')
+    await page.goto('/admin/')
+    const me = (await (await page.request.get('/api/cms/auth/me')).json()) as { csrfToken: string }
+    const headers = { 'x-csrf-token': me.csrfToken, origin: new URL(page.url()).origin }
+    const created = (await (
+      await page.request.post('/api/cms/posts?locale=th', {
+        headers,
+        data: {
+          title: 'สวัสดีชาวโลก',
+          excerpt: 'บทความแรก',
+          body: {
+            type: 'doc',
+            content: [
+              {
+                type: 'paragraph',
+                content: [
+                  { type: 'text', text: 'อ่าน ' },
+                  { type: 'text', text: 'ที่นี่', marks: [{ type: 'bold' }] },
+                ],
+              },
+            ],
+          },
+        },
+      })
+    ).json()) as { id: number }
+    await page.goto(`/admin/collections/posts/${created.id}`)
+    await page
+      .getByRole('group', { name: 'Content language' })
+      .getByRole('button', { name: /^English/ })
+      .click()
+
+    // One field: from Thai, into the form, with Undo beside it.
+    const excerpt = page.getByRole('textbox', { name: 'Excerpt' })
+    const excerptField = page.locator('.field').filter({ has: excerpt })
+    await excerptField.getByRole('button', { name: 'Translate from TH' }).click()
+    await expect(excerpt).toHaveValue('[EN] บทความแรก')
+    await expect(excerptField.getByText('Translated by AI: check it before saving.')).toBeVisible()
+    await excerptField.getByRole('button', { name: 'Undo', exact: true }).click()
+    await expect(excerpt).toHaveValue('')
+
+    // All that is missing in English at once: title, excerpt and body.
+    await expect(page.getByText('3 fields are not translated into EN yet.')).toBeVisible()
+    await page.getByRole('button', { name: 'Translate them from TH' }).click()
+    await expect(page.getByRole('status')).toContainText('3 fields translated by AI')
+    await expect(page.getByRole('textbox', { name: 'Title', exact: true })).toHaveValue(
+      '[EN] สวัสดีชาวโลก',
+    )
+    await expect(excerpt).toHaveValue('[EN] บทความแรก')
+    await page.getByRole('button', { name: 'Save draft' }).click()
+    await expect
+      .poll(async () => {
+        const doc = (await (
+          await page.request.get(`/api/cms/posts/${created.id}?draft=true&locale=en`)
+        ).json()) as { title?: string; body?: unknown }
+        return [doc.title, doc.body]
+      })
+      .toEqual([
+        '[EN] สวัสดีชาวโลก',
+        {
+          type: 'doc',
+          content: [
+            {
+              type: 'paragraph',
+              content: [
+                { type: 'text', text: '[EN] อ่าน ' },
+                { type: 'text', text: 'ที่นี่', marks: [{ type: 'bold' }] },
+              ],
+            },
+          ],
+        },
+      ])
+  })
+
   test('shows one group at a time, follows the page, and folds the panel away', async ({
     page,
   }) => {

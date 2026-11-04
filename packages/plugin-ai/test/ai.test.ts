@@ -172,7 +172,12 @@ describe('aiPlugin config', () => {
     ])
     expect(config.ai?.providers.map((p) => p.integration)).toEqual(ai?.map((i) => i.id))
     expect(config.collections.some((c) => c.slug === 'ai-usage')).toBe(true)
-    expect(config.aiFeatures.map((f) => f.id)).toEqual(['alt-text', 'summary', 'later'])
+    expect(config.aiFeatures.map((f) => f.id)).toEqual([
+      'alt-text',
+      'translate',
+      'summary',
+      'later',
+    ])
   })
 
   it('takes a choice of providers, and refuses unknown ones', async () => {
@@ -308,6 +313,7 @@ describe('aiPlugin', () => {
       perUserPerDay: 100,
       features: [
         { id: 'alt-text', enabled: true, connection: null },
+        { id: 'translate', enabled: true, connection: null },
         { id: 'summary', enabled: false, connection: 'anthropic:Main' },
         { id: 'later', enabled: true, connection: null },
       ],
@@ -446,7 +452,7 @@ describe('aiPlugin', () => {
     await connect('anthropic', { apiKey: 'a' })
     expect((await call('/ai/status')).body).toEqual({
       connected: true,
-      features: ['alt-text', 'summary'],
+      features: ['alt-text', 'translate', 'summary'],
       used: 0,
       limit: 100,
     })
@@ -477,6 +483,133 @@ describe('aiPlugin', () => {
     expect((await call('/ai/alt-text', 'POST', {})).status).toBe(400)
     await call('/ai', 'PUT', { features: { 'alt-text': { enabled: false } } })
     expect((await call('/ai/alt-text', 'POST', { media: media.id })).status).toBe(400)
+  })
+
+  it('translates a localized field from the default locale, keeping rich text formatting (#358)', async () => {
+    const { cms, connect, call } = await open(
+      config_({
+        localization: { locales: ['th', 'en'], defaultLocale: 'th' },
+        collections: [
+          {
+            slug: 'posts',
+            fields: [
+              { name: 'title', type: 'text', localized: true },
+              { name: 'code', type: 'text' },
+              {
+                name: 'body',
+                type: 'richText',
+                localized: true,
+                blocks: [
+                  {
+                    slug: 'callout',
+                    fields: [
+                      { name: 'heading', type: 'text' },
+                      { name: 'size', type: 'number' },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      }),
+    )
+    await connect('anthropic', { apiKey: 'a' })
+    const body = {
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [
+            { type: 'text', text: 'สวัสดี ' },
+            { type: 'text', text: 'โลก', marks: [{ type: 'bold' }] },
+            { type: 'text', text: ' ของเรา', marks: [{ type: 'link', attrs: { href: '/about' } }] },
+          ],
+        },
+        {
+          type: 'block',
+          attrs: { blockType: 'callout', id: 'b1', fields: { heading: 'หัวข้อ', size: 3 } },
+        },
+        {
+          type: 'bulletList',
+          content: [
+            {
+              type: 'listItem',
+              content: [{ type: 'paragraph', content: [{ type: 'text', text: 'ข้อแรก' }] }],
+            },
+          ],
+        },
+      ],
+    }
+    const post = await cms.create('posts', { title: 'สวัสดี', code: 'x', body }, { locale: 'th' })
+    const translate = (field: string, extra: object = {}) =>
+      call('/ai/translate', 'POST', { collection: 'posts', id: post.id, field, to: 'en', ...extra })
+
+    reply = JSON.stringify({ paragraphs: [['Hello']] })
+    expect((await translate('title')).body).toEqual({ value: 'Hello' })
+    const asked = calls.at(-1)?.body as {
+      system: string
+      messages: { content: { text?: string }[] }[]
+    }
+    expect(asked.system).toContain('from Thai into English')
+    expect(JSON.parse(asked.messages[0]?.content.at(-1)?.text ?? '{}')).toEqual({
+      paragraphs: [['สวัสดี']],
+    })
+
+    // Rich text: pieces per paragraph, in place; marks, the link and the block's other fields stay.
+    reply = JSON.stringify({
+      paragraphs: [['Hello ', 'world', ' of ours'], ['Heading'], ['First item']],
+    })
+    const translated = (await translate('body')).body.value
+    const last = calls.at(-1)?.body as { messages: { content: { text?: string }[] }[] }
+    const sent = JSON.parse(last.messages[0]?.content.at(-1)?.text ?? '{}')
+    expect(sent).toEqual({ paragraphs: [['สวัสดี ', 'โลก', ' ของเรา'], ['หัวข้อ'], ['ข้อแรก']] })
+    expect(translated).toEqual({
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [
+            { type: 'text', text: 'Hello ' },
+            { type: 'text', text: 'world', marks: [{ type: 'bold' }] },
+            {
+              type: 'text',
+              text: ' of ours',
+              marks: [{ type: 'link', attrs: { href: '/about' } }],
+            },
+          ],
+        },
+        {
+          type: 'block',
+          attrs: { blockType: 'callout', id: 'b1', fields: { heading: 'Heading', size: 3 } },
+        },
+        {
+          type: 'bulletList',
+          content: [
+            {
+              type: 'listItem',
+              content: [{ type: 'paragraph', content: [{ type: 'text', text: 'First item' }] }],
+            },
+          ],
+        },
+      ],
+    })
+    // Nothing was saved: the English body is still empty.
+    expect(
+      (await cms.findById('posts', post.id, { locale: 'en', fallbackLocale: false }))?.body ?? null,
+    ).toBeNull()
+
+    // An answer in another shape would lose the formatting: refused.
+    reply = JSON.stringify({ paragraphs: [['Hello world of ours'], ['Heading'], ['First item']] })
+    const lost = await translate('body')
+    expect(lost.status).toBe(400)
+    expect(JSON.stringify(lost.body)).toContain('lost its formatting')
+
+    expect((await translate('code')).status).toBe(400)
+    expect((await translate('title', { to: 'th' })).status).toBe(400)
+    expect((await translate('title', { to: 'fr' })).status).toBe(400)
+    await call('/ai', 'PUT', { features: { translate: { enabled: false } } })
+    expect((await translate('title')).status).toBe(400)
   })
 
   it('refuses alt text to users who may not change the file', async () => {

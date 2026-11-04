@@ -10,8 +10,9 @@ import { contentLocale } from '../lib/content-locale'
 import { fromLocalInput, toLocalInput } from '../lib/fields'
 import { label, t } from '../lib/i18n'
 import { FORM } from '../lib/plugins'
-import { findCollection } from '../lib/session'
+import { findCollection, session } from '../lib/session'
 import { zoneDiffers } from '../lib/time-zone'
+import { hasText, TRANSLATION, valueIn } from '../lib/translation'
 import ApiKeyPermissions from './ApiKeyPermissions.vue'
 import ArrayField from './ArrayField.vue'
 import BlocksField from './BlocksField.vue'
@@ -72,9 +73,52 @@ const form = inject(FORM, null)
 const isAlt = computed(
   () => form?.collection === 'media' && props.path === 'alt' && props.field.type === 'text',
 )
+// AI translation (#358): a top-level localized text field, edited in another locale than the
+// default, whose default-locale value has text.
+const translation = inject(TRANSLATION, null)
+const defaultLocale = computed(() => session.schema?.localization?.defaultLocale ?? null)
+const isTranslatable = computed(
+  () =>
+    !!form &&
+    !!props.field.localized &&
+    !props.path.includes('.') &&
+    ['text', 'textarea', 'richText'].includes(props.field.type),
+)
 onMounted(() => {
-  if (isAlt.value) void loadAiStatus()
+  if (isAlt.value || isTranslatable.value) void loadAiStatus()
 })
+const translateAi = computed(() => {
+  const from = defaultLocale.value
+  const to = contentLocale()
+  return (
+    isTranslatable.value &&
+    !props.readOnly &&
+    !!from &&
+    !!to &&
+    to !== from &&
+    (form?.id.value != null || !!form?.global) &&
+    hasText(valueIn(translation?.source.value ?? null, props.field.name, from)) &&
+    aiFeature('translate')
+  )
+})
+const fromLanguage = computed(() => (defaultLocale.value ?? '').toUpperCase())
+async function translateField() {
+  if (!form) return
+  const filled =
+    typeof props.modelValue === 'string' ? props.modelValue.trim() : hasText(props.modelValue)
+  if (filled && !window.confirm(t('ai.replaceTranslation'))) return
+  await runAi(async () => {
+    const { value } = await api<{ value: unknown }>('POST', '/admin/ai/translate', {
+      ...(form.collection
+        ? { collection: form.collection, id: form.id.value }
+        : { global: form.global }),
+      field: props.field.name,
+      from: defaultLocale.value,
+      to: contentLocale(),
+    })
+    return value
+  }, 'ai.translatedHint')
+}
 const altAi = computed(
   () => isAlt.value && !props.readOnly && form?.id.value != null && aiFeature('alt-text'),
 )
@@ -89,18 +133,18 @@ function undoAi() {
   set(beforeAi)
   aiWritten.value = false
 }
-async function writeAlt() {
-  if (!form || form.id.value == null) return
+/** What the hint under the field says about the AI's value. */
+const aiHint = ref<'ai.writtenHint' | 'ai.translatedHint'>('ai.writtenHint')
+/** Asks AI for the field's value and writes it in, for review, with Undo beside it. */
+async function runAi(ask: () => Promise<unknown>, hint: typeof aiHint.value = 'ai.writtenHint') {
+  aiHint.value = hint
   const before = props.modelValue
   aiBusy.value = true
   aiError.value = ''
   try {
-    const { alt } = await api<{ alt: string }>('POST', '/admin/ai/alt-text', {
-      media: form.id.value,
-      locale: contentLocale() ?? null,
-    })
+    const value = await ask()
     if (!aiWritten.value) beforeAi = before
-    set(alt)
+    set(value)
     aiWritten.value = true
   } catch (e) {
     aiError.value = (e as Error).message
@@ -108,6 +152,18 @@ async function writeAlt() {
     aiBusy.value = false
     void loadAiStatus(true)
   }
+}
+async function writeAlt() {
+  if (!form || form.id.value == null) return
+  await runAi(
+    async () =>
+      (
+        await api<{ alt: string }>('POST', '/admin/ai/alt-text', {
+          media: form.id.value,
+          locale: contentLocale() ?? null,
+        })
+      ).alt,
+  )
 }
 
 const numberValue = computed(() => (typeof props.modelValue === 'number' ? props.modelValue : ''))
@@ -213,11 +269,12 @@ function onNumber(value: string) {
   </fieldset>
 
   <div v-else :class="['field', { 'ai-written': aiWritten }]">
-    <div v-if="altAi" class="field-head">
+    <div v-if="altAi || translateAi" class="field-head">
       <label :for="id" class="field-label">
-        {{ text }}<span v-if="field.localized" class="field-locale" :title="t('locale.localized')" aria-hidden="true">{{ contentLocale()?.toUpperCase() }}</span>
+        {{ text }}<span v-if="field.required" class="field-required" aria-hidden="true">*</span><span v-if="field.localized" class="field-locale" :title="t('locale.localized')" aria-hidden="true">{{ contentLocale()?.toUpperCase() }}</span>
       </label>
-      <AiButton :label="t('ai.writeAlt')" :busy="aiBusy" @run="writeAlt" />
+      <AiButton v-if="altAi" :label="t('ai.writeAlt')" :busy="aiBusy" @run="writeAlt" />
+      <AiButton v-else :label="t('ai.translateFrom', { locale: fromLanguage })" :busy="aiBusy" @run="translateField" />
     </div>
     <label v-else :for="id" class="field-label">
       {{ text }}<span v-if="field.required" class="field-required" aria-hidden="true">*</span>
@@ -237,11 +294,6 @@ function onNumber(value: string) {
       :aria-describedby="invalid ? errorId : undefined"
       @input="set(($event.target as HTMLInputElement).value); aiWritten = false"
     />
-    <p v-if="aiError" class="field-error" role="alert">{{ aiError }}</p>
-    <p v-if="aiWritten" class="field-hint ai-hint" role="status">
-      {{ t('ai.writtenHint') }}
-      <button type="button" class="btn btn-ghost btn-sm" @click="undoAi">{{ t('ai.undo') }}</button>
-    </p>
     <textarea
       v-else-if="field.type === 'textarea'"
       :id="id"
@@ -252,7 +304,7 @@ function onNumber(value: string) {
       :aria-required="field.required ? 'true' : undefined"
       :aria-invalid="invalid"
       :aria-describedby="invalid ? errorId : undefined"
-      @input="set(($event.target as HTMLTextAreaElement).value)"
+      @input="set(($event.target as HTMLTextAreaElement).value); aiWritten = false"
     />
     <input
       v-else-if="field.type === 'number'"
@@ -361,6 +413,11 @@ function onNumber(value: string) {
       {{ t('field.noAccess', { label: label(findCollection('media')?.labels?.plural, 'media') }) }}
     </p>
     <span v-if="field.type === 'slug' && field.from" class="field-hint">↳ {{ field.from }}</span>
+    <p v-if="aiError" class="field-error" role="alert">{{ aiError }}</p>
+    <p v-if="aiWritten" class="field-hint ai-hint" role="status">
+      {{ t(aiHint) }}
+      <button type="button" class="btn btn-ghost btn-sm" @click="undoAi">{{ t('ai.undo') }}</button>
+    </p>
     <p v-if="jsonError" :id="errorId" class="field-error">{{ t('field.invalidJson') }}</p>
     <p v-for="m in messages" :id="errorId" :key="m" class="field-error">{{ m }}</p>
   </div>

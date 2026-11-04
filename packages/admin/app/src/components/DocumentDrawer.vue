@@ -10,7 +10,7 @@ import { useDelayedLoading } from '../lib/loading'
 import { FORM, setPath } from '../lib/plugins'
 import { findCollection, mayHavePassword, session } from '../lib/session'
 import { notify } from '../lib/toast'
-import { missingLocales } from '../lib/translation'
+import { missingLocales, TRANSLATION } from '../lib/translation'
 import DeleteDialog from './DeleteDialog.vue'
 import FormSkeleton from './FormSkeleton.vue'
 import LocaleSwitcher from './LocaleSwitcher.vue'
@@ -113,6 +113,9 @@ async function load() {
 
 // Languages this document still needs translating into (dots on the language buttons).
 const untranslated = ref<string[]>([])
+/** The document in every locale: fields translate from the default one (#358). */
+const allLocales = ref<Doc | null>(null)
+provide(TRANSLATION, { source: allLocales })
 async function refreshTranslations() {
   const localization = session.schema?.localization
   if (!localization || !localized.value || !props.id) {
@@ -124,6 +127,7 @@ async function refreshTranslations() {
       'GET',
       `/${props.slug}/${encodeURIComponent(String(props.id))}?depth=0&draft=true&locale=all`,
     )
+    allLocales.value = all
     untranslated.value = missingLocales(
       collection?.fields ?? [],
       all,

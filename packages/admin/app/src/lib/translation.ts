@@ -1,4 +1,5 @@
 import type { AdminField } from '@easy-cms/core'
+import type { InjectionKey, Ref } from 'vue'
 
 type Data = Record<string, unknown>
 
@@ -52,4 +53,23 @@ export function inLocale(
     out[field.name] = found === undefined ? null : map[found]
   }
   return out
+}
+
+/**
+ * The document in every locale (`locale=all`), for translating a field from the default locale
+ * (#358): the edit page and drawer provide it.
+ */
+export const TRANSLATION: InjectionKey<{ source: Readonly<Ref<Data | null>> }> =
+  Symbol('easy-cms-translation')
+
+/** A field's value in a locale, from a `locale=all` document. */
+export function valueIn(doc: Data | null, name: string, locale: string): unknown {
+  const value = doc?.[name]
+  return isMap(value) ? value[locale] : undefined
+}
+
+/** Whether a value has something to translate (rich text: some text). */
+export function hasText(value: unknown): boolean {
+  if (typeof value === 'string') return value.trim() !== ''
+  return !!value && typeof value === 'object' && JSON.stringify(value).includes('"text":"')
 }

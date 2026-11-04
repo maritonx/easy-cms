@@ -905,6 +905,23 @@ async function route(
       if (method !== 'GET') throw methodNotAllowed(ctx, 'GET')
       return { body: await cms.ai.status(ctx.user) }
     }
+    if (third === 'translate') {
+      if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
+      const body = (await readJson(ctx.request)) as Record<string, unknown>
+      const str = (v: unknown) => (typeof v === 'string' ? v : undefined)
+      return {
+        body: await cms.ai.translate({
+          ...(typeof body.collection === 'string' ? { collection: body.collection } : {}),
+          ...(typeof body.global === 'string' ? { global: body.global } : {}),
+          id: typeof body.id === 'string' || typeof body.id === 'number' ? body.id : null,
+          field: str(body.field) ?? '',
+          from: str(body.from) ?? null,
+          to: str(body.to) ?? '',
+          user: ctx.user,
+          context: ctx.context,
+        }),
+      }
+    }
     if (third === 'alt-text') {
       if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
       const body = (await readJson(ctx.request)) as { media?: unknown; locale?: unknown }
