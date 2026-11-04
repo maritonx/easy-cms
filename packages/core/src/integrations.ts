@@ -12,6 +12,18 @@ import type { EasyCMS } from './local-api.js'
 
 export type IntegrationCategory = 'social' | 'ai' | 'notifications' | 'automation'
 
+/**
+ * A provider's logo: SVG paths, e.g. from simple-icons. Without `fill`, a path takes `color` (the
+ * brand's), or the text color where that wouldn't show on the admin's background.
+ */
+export interface IntegrationLogo {
+  readonly paths: readonly { readonly d: string; readonly fill?: string }[]
+  /** Default `0 0 24 24`. */
+  readonly viewBox?: string
+  /** `#rrggbb`. */
+  readonly color?: string
+}
+
 /** A value to fill when connecting (`kind: 'fields'`). */
 export interface IntegrationField {
   readonly name: string
@@ -63,7 +75,8 @@ export interface IntegrationConfig {
   readonly label: Label
   readonly category: IntegrationCategory
   readonly description?: Label
-  readonly icon?: string
+  /** Its logo (#363), or the name of an admin icon (`ADMIN_ICONS`). Without one: its first letter. */
+  readonly icon?: string | IntegrationLogo
   /** A link to its guide. */
   readonly docs?: string
   /** The plugin it comes from, e.g. `@easy-cms/plugin-notify`. */
@@ -199,7 +212,7 @@ export interface AdminIntegration {
   label: Label
   category: IntegrationCategory
   description?: Label
-  icon?: string
+  icon?: string | IntegrationLogo
   docs?: string
   plugin?: string
   kind: 'fields' | 'oauth'

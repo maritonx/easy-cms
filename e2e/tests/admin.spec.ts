@@ -2213,6 +2213,8 @@ test.describe('logged in as admin', () => {
     // The user deleted in the test before, and who did it.
     await page.getByLabel('Action').selectOption('delete')
     const deleted = list.getByRole('listitem').filter({ hasText: 'leaver@e2e.test' })
+    // The list reloads with the filter: the user's creation goes, the deletion stays.
+    await expect(deleted).toHaveCount(1)
     await expect(deleted).toContainText('Deleted')
     await expect(deleted).toContainText(ADMIN.email)
 

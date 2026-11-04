@@ -6,6 +6,7 @@ import {
   type IntegrationConfig,
   type IntegrationField,
 } from '@easy-cms/core'
+import { anthropicLogo, geminiLogo, openaiLogo } from './logos.js'
 
 // The providers' HTTP APIs, without their SDKs. `<NAME>_API_URL` points tests at a stand-in
 // server.
@@ -111,6 +112,7 @@ export const anthropic: AiProviderDefinition = {
     id: 'anthropic',
     label: 'Anthropic (Claude)',
     category: 'ai',
+    icon: anthropicLogo,
     description: { en: 'Claude models', th: 'model Claude' },
     plugin: '@easy-cms/plugin-ai',
     docs: 'https://easycms.dev/docs/ai',
@@ -161,6 +163,7 @@ export const anthropic: AiProviderDefinition = {
 function openAiCompatible(options: {
   id: string
   label: IntegrationConfig['label']
+  icon: NonNullable<IntegrationConfig['icon']>
   description: { en: string; th: string }
   base: (values: Values) => string
   defaultModel?: string
@@ -186,6 +189,7 @@ function openAiCompatible(options: {
       id: options.id,
       label: options.label,
       category: 'ai',
+      icon: options.icon,
       description: options.description,
       plugin: '@easy-cms/plugin-ai',
       docs: 'https://easycms.dev/docs/ai',
@@ -230,6 +234,7 @@ function openAiCompatible(options: {
 export const openai: AiProviderDefinition = openAiCompatible({
   id: 'openai',
   label: 'OpenAI (GPT)',
+  icon: openaiLogo,
   description: { en: 'GPT models', th: 'model GPT' },
   base: () => trim(process.env.OPENAI_API_URL ?? 'https://api.openai.com/v1'),
   defaultModel: 'gpt-5-mini',
@@ -242,6 +247,8 @@ export const openai: AiProviderDefinition = openAiCompatible({
 export const openaiCompatible: AiProviderDefinition = openAiCompatible({
   id: 'openai-compatible',
   label: 'OpenAI-compatible',
+  // A server of your own: no one brand's logo.
+  icon: 'globe',
   description: {
     en: 'Ollama, OpenRouter or another server with an OpenAI-style API',
     th: 'Ollama, OpenRouter หรือเซิร์ฟเวอร์อื่นที่มี API แบบ OpenAI',
@@ -303,6 +310,7 @@ export const gemini: AiProviderDefinition = {
     id: 'gemini',
     label: 'Google Gemini',
     category: 'ai',
+    icon: geminiLogo,
     description: { en: 'Gemini models', th: 'model Gemini' },
     plugin: '@easy-cms/plugin-ai',
     docs: 'https://easycms.dev/docs/ai',

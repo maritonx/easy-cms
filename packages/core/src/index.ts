@@ -167,6 +167,7 @@ export type {
   IntegrationConfig,
   IntegrationConnection,
   IntegrationField,
+  IntegrationLogo,
   IntegrationOAuthResult,
   IntegrationTestResult,
 } from './integrations.js'

@@ -1,4 +1,5 @@
 import type { IntegrationField } from '@easy-cms/core'
+import { siTelegram } from 'simple-icons'
 import { ChannelError, type NotifyChannel } from './channel.js'
 import type { Notice } from './messages.js'
 
@@ -92,7 +93,8 @@ export const telegram: NotifyChannel = {
       en: 'Tell admins about new orders, form answers and failures in a Telegram chat.',
       th: 'แจ้งผู้ดูแลเรื่องคำสั่งซื้อใหม่ ฟอร์ม และข้อผิดพลาดในแชต Telegram',
     },
-    icon: 'send',
+    // A trademark of its owner, naming the service; from simple-icons (CC0), bundled at build time.
+    icon: { paths: [{ d: siTelegram.path }], color: `#${siTelegram.hex}` },
     docs: 'https://easycms.dev/docs/notifications',
     plugin: '@easy-cms/plugin-notify',
     kind: 'fields',

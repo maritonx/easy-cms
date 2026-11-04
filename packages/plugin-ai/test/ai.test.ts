@@ -163,6 +163,13 @@ describe('aiPlugin config', () => {
     const ai = config.integrations?.filter((i) => i.category === 'ai')
     expect(ai?.map((i) => i.id)).toEqual(['anthropic', 'openai', 'gemini', 'openai-compatible'])
     expect(ai?.every((i) => i.consent)).toBe(true)
+    // Logos from simple-icons and Iconify, bundled; a server of your own gets an admin icon.
+    expect(ai?.map((i) => (typeof i.icon === 'object' ? i.icon.color : i.icon))).toEqual([
+      '#191919',
+      '#000000',
+      '#8E75B2',
+      'globe',
+    ])
     expect(config.ai?.providers.map((p) => p.integration)).toEqual(ai?.map((i) => i.id))
     expect(config.collections.some((c) => c.slug === 'ai-usage')).toBe(true)
     expect(config.aiFeatures.map((f) => f.id)).toEqual(['summary', 'later'])

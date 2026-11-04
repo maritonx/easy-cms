@@ -142,6 +142,10 @@ describe('notifyPlugin config', () => {
       ['events', 'multiselect'],
     ])
     expect(telegram?.env).toEqual({ token: 'TELEGRAM_BOT_TOKEN' })
+    expect(telegram?.icon).toMatchObject({
+      color: '#26A5E4',
+      paths: [{ d: expect.stringMatching(/^M/) }],
+    })
     const queue = config.collections.find((c) => c.slug === 'notify-messages')
     expect(queue?.access?.read?.({} as never)).toBe(false)
     expect(config.jobs?.map((j) => j.name)).toContain('notify:send')

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Label } from '@easy-cms/core'
+import type { IntegrationLogo, Label } from '@easy-cms/core'
 import {
   CheckCircle2,
   CircleAlert,
@@ -17,6 +17,7 @@ import {
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AiSettings from '../components/AiSettings.vue'
+import IntegrationIcon from '../components/IntegrationIcon.vue'
 import { ApiError, api } from '../lib/api'
 import { formatDate, label, t } from '../lib/i18n'
 import { notify } from '../lib/toast'
@@ -56,6 +57,7 @@ interface Integration {
   label: Label
   category: Category
   description?: Label
+  icon?: string | IntegrationLogo
   docs?: string
   plugin?: string
   kind: 'fields' | 'oauth'
@@ -484,7 +486,7 @@ const fieldLabel = (field: Field) => label(field.label, field.name)
         <ul class="list">
           <template v-for="row in group.rows" :key="row.key">
             <li v-if="row.kind === 'integration'" class="row">
-              <span class="logo" aria-hidden="true">{{ label(row.integration.label, row.integration.id).charAt(0).toUpperCase() }}</span>
+              <IntegrationIcon :icon="row.integration.icon" :name="label(row.integration.label, row.integration.id)" />
               <div class="what">
                 <strong>{{ label(row.integration.label, row.integration.id) }}</strong>
                 <span class="desc">{{ label(row.integration.description ?? '', '') || row.integration.plugin }}</span>
@@ -556,7 +558,7 @@ const fieldLabel = (field: Field) => label(field.label, field.name)
         </div>
         <div v-else-if="openIntegration" class="panel">
           <header class="panel-header">
-            <span class="logo" aria-hidden="true">{{ label(openIntegration.label, openIntegration.id).charAt(0).toUpperCase() }}</span>
+            <IntegrationIcon :icon="openIntegration.icon" :name="label(openIntegration.label, openIntegration.id)" />
             <div class="grow">
               <h2 id="drawer-title">{{ label(openIntegration.label, openIntegration.id) }}</h2>
               <p class="muted small">{{ categoryLabel(openIntegration.category) }}<template v-if="openIntegration.plugin"> · {{ openIntegration.plugin }}</template></p>

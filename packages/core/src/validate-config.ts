@@ -2078,6 +2078,33 @@ function validateIntegrations(config: Config, add: Add) {
     } else add(`${at}.kind`, "must be 'fields' or 'oauth'")
     if (item.test !== undefined && typeof item.test !== 'function')
       add(`${at}.test`, 'must be a function')
+    if (item.icon !== undefined && typeof item.icon !== 'string') {
+      // Paths only: the admin draws them, so nothing else may ride along.
+      const logo = (item.icon ?? {}) as { paths?: unknown; color?: unknown; viewBox?: unknown }
+      const hex = (v: unknown) => typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v)
+      const paths = Array.isArray(logo.paths) ? logo.paths : []
+      if (
+        paths.length === 0 ||
+        paths.some((p) => {
+          const path = (p ?? {}) as { d?: unknown; fill?: unknown }
+          return (
+            typeof path.d !== 'string' ||
+            !/^[MmLlHhVvCcSsQqTtAaZzEe0-9.,\s+-]+$/.test(path.d) ||
+            (path.fill !== undefined && !hex(path.fill))
+          )
+        })
+      )
+        add(
+          `${at}.icon`,
+          'must be an admin icon name, or { paths: [{ d, fill? }], color? } with SVG path data',
+        )
+      if (logo.color !== undefined && !hex(logo.color)) add(`${at}.icon.color`, 'must be #rrggbb')
+      if (
+        logo.viewBox !== undefined &&
+        !(typeof logo.viewBox === 'string' && /^-?[\d.]+( -?[\d.]+){3}$/.test(logo.viewBox))
+      )
+        add(`${at}.icon.viewBox`, "must be four numbers, e.g. '0 0 24 24'")
+    }
     for (const [f, field] of (Array.isArray(item.fields) ? item.fields : []).entries()) {
       const fieldItem = (field ?? {}) as Record<string, unknown>
       if (fieldItem.lookup !== undefined && typeof fieldItem.lookup !== 'function')

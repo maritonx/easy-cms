@@ -26,7 +26,8 @@
   },
   "devDependencies": {
     "@easy-cms/core": "workspace:^",
-    "@easy-cms/db-sqlite": "workspace:^"
+    "@easy-cms/db-sqlite": "workspace:^",
+    "simple-icons": "16.36.0"
   },
   "engines": {
     "node": ">=22.12"
