@@ -1303,8 +1303,13 @@ test.describe('logged in as admin', () => {
     test.skip(test.info().project.name !== 'next', 'The Next.js example has an integration')
     await page.goto('/admin/integrations')
     await expect(page.getByRole('heading', { level: 1, name: 'Integrations' })).toBeVisible()
-    const card = page.getByRole('article', { name: 'Status webhook' })
-    await card.getByRole('button', { name: 'Connect an account' }).click()
+    // One row per integration; its drawer holds the accounts.
+    const row = page.getByRole('listitem').filter({ hasText: 'Status webhook' })
+    await expect(row).toContainText('Not connected')
+    await page.getByRole('button', { name: 'Connect Status webhook' }).click()
+    const card = page.getByRole('dialog', { name: 'Status webhook' })
+    await expect(page).toHaveURL(/open=status-webhook/)
+    // Nothing connected yet: the form is open.
     await card.getByRole('textbox', { name: 'URL' }).fill('not a url')
     await card.getByLabel('Token').fill('token-0001')
     await card.getByRole('button', { name: 'Save' }).click()
@@ -1317,11 +1322,20 @@ test.describe('logged in as admin', () => {
     await expect(card.getByText('Default')).toBeVisible()
     await card.getByRole('button', { name: 'Test' }).click()
     await expect(page.getByRole('status')).toHaveText('It works: status.example.com')
-    // Categories filter the page; what the code sets is shown too.
-    await page.getByRole('button', { name: 'Set in code' }).click()
-    await expect(card).toHaveCount(0)
-    await expect(page.getByRole('heading', { name: 'Storage' })).toBeVisible()
+    await card.getByRole('button', { name: 'Close' }).click()
+    await expect(card).toBeHidden()
+    await expect(row).toContainText('1 connected')
+    // The search and the categories narrow the list; what the code sets is listed too.
+    const search = page.getByRole('searchbox', { name: 'Search integrations' })
+    await search.fill('status')
+    await expect(page.getByRole('listitem').filter({ hasText: 'Telegram' })).toHaveCount(0)
+    await expect(row).toBeVisible()
+    await search.fill('')
+    await page.getByRole('button', { name: /^Set in code/ }).click()
+    await expect(row).toHaveCount(0)
+    await expect(page.getByRole('listitem').filter({ hasText: 'Storage' })).toBeVisible()
     await page.getByRole('button', { name: 'All', exact: true }).click()
+    await page.getByRole('button', { name: 'Manage Status webhook' }).click()
     page.once('dialog', (dialog) => dialog.accept())
     await card.getByRole('button', { name: 'Disconnect Status webhook' }).click()
     await expect(card.getByText('No account connected yet.')).toBeVisible()
@@ -1330,8 +1344,8 @@ test.describe('logged in as admin', () => {
   test('connects Telegram for notifications, finding the chat (#356)', async ({ page }) => {
     test.skip(test.info().project.name !== 'next', 'The Next.js example has the notify plugin')
     await page.goto('/admin/integrations')
-    const card = page.getByRole('article', { name: 'Telegram' })
-    await card.getByRole('button', { name: 'Connect an account' }).click()
+    await page.getByRole('button', { name: 'Connect Telegram' }).click()
+    const card = page.getByRole('dialog', { name: 'Telegram' })
     await card.getByLabel('Bot token').fill('123456:e2e-token')
     // The chats the bot was written to (the mock Telegram, TELEGRAM_API_URL).
     await card.getByRole('button', { name: 'Find Chat ID' }).click()
@@ -1362,10 +1376,11 @@ test.describe('logged in as admin', () => {
   }) => {
     test.skip(test.info().project.name !== 'next', 'The Next.js example has the AI plugin')
     await page.goto('/admin/integrations?category=ai')
-    const box = page.getByRole('region', { name: 'AI features' })
-    await expect(box).toContainText('Connect an AI provider below to use AI features.')
-    const card = page.getByRole('article', { name: 'Anthropic (Claude)' })
-    await card.getByRole('button', { name: 'Connect an account' }).click()
+    await expect(page.getByRole('listitem').filter({ hasText: 'AI settings' })).toContainText(
+      'No AI provider connected yet',
+    )
+    await page.getByRole('button', { name: 'Connect Anthropic (Claude)' }).click()
+    const card = page.getByRole('dialog', { name: 'Anthropic (Claude)' })
     // The provider's policy first, once (the mock Anthropic API, ANTHROPIC_API_URL).
     const consent = card.getByRole('group', { name: 'Before connecting' })
     await expect(consent).toContainText('are sent to Anthropic')
@@ -1385,7 +1400,10 @@ test.describe('logged in as admin', () => {
     // Connecting tested it: the model answered, and its tokens count on the card.
     await expect(card.getByText('claude-e2e-1')).toBeVisible()
     await expect(card.getByText('This month: requests 1, tokens 13')).toBeVisible()
+    await card.getByRole('button', { name: 'Close' }).click()
 
+    await page.getByRole('button', { name: 'Manage AI settings' }).click()
+    const box = page.getByRole('dialog', { name: 'AI settings' })
     await box
       .getByRole('combobox', { name: 'Main connection' })
       .selectOption('anthropic:Anthropic (Claude)')
@@ -1394,12 +1412,18 @@ test.describe('logged in as admin', () => {
     await limit.fill('50')
     await box.getByRole('button', { name: 'Save' }).click()
     await expect(page.getByRole('status')).toHaveText('AI settings saved')
+    // The drawer is in the address: a reload opens it again.
     await page.reload()
     await expect(limit).toHaveValue('50')
     await expect(box.getByRole('combobox', { name: 'Main connection' })).toHaveValue(
       'anthropic:Anthropic (Claude)',
     )
     await expect(box.getByRole('table', { name: 'By feature' })).toContainText('Test button')
+    await page.keyboard.press('Escape')
+    await expect(box).toBeHidden()
+    await expect(page.getByRole('listitem').filter({ hasText: 'AI settings' })).toContainText(
+      'Main: Anthropic (Claude)',
+    )
   })
 
   test('shows one group at a time, follows the page, and folds the panel away', async ({
@@ -2189,6 +2213,8 @@ test.describe('logged in as admin', () => {
     // The user deleted in the test before, and who did it.
     await page.getByLabel('Action').selectOption('delete')
     const deleted = list.getByRole('listitem').filter({ hasText: 'leaver@e2e.test' })
+    // The list reloads with the filter: the user's creation goes, the deletion stays.
+    await expect(deleted).toHaveCount(1)
     await expect(deleted).toContainText('Deleted')
     await expect(deleted).toContainText(ADMIN.email)
 

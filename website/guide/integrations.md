@@ -142,6 +142,23 @@ variables.
 provider leaves the site: an admin accepts it once (**Accept and connect**), and who did goes to the
 audit log. Connecting before that is refused. `test` gets the connection's `name` too.
 
+### Logo
+
+`icon` is the provider's logo on its row and in its drawer: SVG paths, e.g. from
+[simple-icons](https://simpleicons.org) (CC0), or the name of an admin icon (`'globe'`). Without
+one, its first letter shows.
+
+```ts
+import { siTelegram } from 'simple-icons' // a devDependency: the bundler keeps only this icon
+
+icon: { paths: [{ d: siTelegram.path }], color: `#${siTelegram.hex}` }
+```
+
+A path without `fill` takes `color`, or the text color where the brand's wouldn't show (a black logo
+in dark mode); `viewBox` defaults to `0 0 24 24`. Only path data and `#rrggbb` colors are accepted:
+the admin draws nothing else. Logos are trademarks of their owners, shown to name their services; the
+official plugins' come from simple-icons and, for OpenAI, Iconify's `logos` set (both CC0).
+
 ## Next steps
 
 - [Plugins](./plugins): writing one.

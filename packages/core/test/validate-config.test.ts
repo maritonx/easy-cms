@@ -167,6 +167,43 @@ describe('validateConfig', () => {
     ])
   })
 
+  it("checks integrations' logos: SVG paths and colors only (#363)", () => {
+    const hook = (icon: unknown) =>
+      validateConfig(
+        baseConfig({
+          integrations: [
+            {
+              id: 'hook',
+              label: 'Hook',
+              category: 'automation',
+              kind: 'fields',
+              fields: [{ name: 'url' }],
+              icon: icon as never,
+            },
+          ],
+        }),
+      ).map((i) => i.path)
+    expect(hook('globe')).toEqual([])
+    expect(
+      hook({ paths: [{ d: 'M12 0C5.37 0 0 5.37 0 12s5.37 12 12 12z' }], color: '#26A5E4' }),
+    ).toEqual([])
+    expect(
+      hook({
+        viewBox: '0 0 256 260',
+        paths: [{ d: 'M0 0h10v10z', fill: '#000000' }, { d: 'M1e-5 2z' }],
+      }),
+    ).toEqual([])
+    expect(hook({ paths: [] })).toEqual(['integrations[0].icon'])
+    expect(hook({ paths: [{ d: 'M0 0"/><script>alert(1)</script>' }] })).toEqual([
+      'integrations[0].icon',
+    ])
+    expect(hook({ paths: [{ d: 'M0 0z', fill: 'url(#x)' }] })).toEqual(['integrations[0].icon'])
+    expect(hook({ paths: [{ d: 'M0 0z' }], color: 'red' })).toEqual(['integrations[0].icon.color'])
+    expect(hook({ paths: [{ d: 'M0 0z' }], viewBox: '0 0 24' })).toEqual([
+      'integrations[0].icon.viewBox',
+    ])
+  })
+
   it('checks the site URL and side-panel fields', () => {
     const issues = validateConfig(
       baseConfig({
