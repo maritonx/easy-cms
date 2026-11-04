@@ -210,8 +210,11 @@ describe('notifyPlugin', () => {
       sent()
         .map((c) => c.body.chat_id)
         .sort(),
-    ).toEqual(['1', '1', '2'].slice(1).concat('1').sort())
-    expect((await rows(cms)).every((r) => r.state === 'sent')).toBe(true)
+    ).toEqual(['1', '1', '2'])
+    // The row is marked sent once Telegram has answered: a moment after the message arrives.
+    await vi.waitFor(async () =>
+      expect((await rows(cms)).every((r) => r.state === 'sent')).toBe(true),
+    )
   })
 
   it('retries after 1, 5 and 30 minutes, then marks the connection broken', async () => {
