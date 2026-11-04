@@ -1,7 +1,7 @@
 import type { AuthUser, ID } from './access.js'
 import { AI_USAGE, CONNECTIONS, MEDIA } from './builtins.js'
 import type { ResolvedConfig } from './config.js'
-import { QueryError, TooManyRequestsError, ValidationError } from './errors.js'
+import { ForbiddenError, QueryError, TooManyRequestsError, ValidationError } from './errors.js'
 import type { Label } from './fields.js'
 import type { IntegrationConnection, IntegrationTestResult } from './integrations.js'
 import type { EasyCMS } from './local-api.js'
@@ -121,6 +121,29 @@ export interface AdminAi {
     byUser: { user: string; requests: number; input: number; output: number }[]
     byFeature: { feature: string; requests: number; input: number; output: number }[]
   }
+}
+
+/** Easy CMS's own AI features, there with `ai` (#358). */
+export const CORE_AI_FEATURES: readonly AiFeatureConfig[] = [
+  {
+    id: 'alt-text',
+    label: { en: 'Alt text', th: 'เขียน alt text' },
+    description: {
+      en: 'Describes an image in the media library',
+      th: 'บรรยายรูปในคลังสื่อ',
+    },
+  },
+]
+
+/** What the admin needs to show AI buttons (`GET <api>/admin/ai/status`). */
+export interface AiStatus {
+  /** A provider is connected. */
+  connected: boolean
+  /** Features that are on. */
+  features: string[]
+  /** Requests the user made today, and may make. */
+  used: number
+  limit: number
 }
 
 type Data = Record<string, unknown>
@@ -401,6 +424,62 @@ export class Ai {
     return { data: Buffer.from(file.body).toString('base64'), mediaType }
   }
 
+  /** For the admin's AI buttons: whether they work, and how many requests are left today. */
+  async status(user: AuthUser): Promise<AiStatus> {
+    const enabled = await Promise.all(
+      this.features.map(async (f) => ((await this.enabled(f.id)) ? f.id : null)),
+    )
+    return {
+      connected: (await this.connections()).length > 0,
+      features: enabled.filter((id): id is string => id !== null),
+      ...(await this.remaining(user)),
+    }
+  }
+
+  /** The language to write in: the content locale being edited, else the default one. */
+  private language(locale: string | null | undefined): string {
+    const code =
+      locale ?? this.config.localization?.defaultLocale ?? this.config.admin.locale ?? 'en'
+    try {
+      return new Intl.DisplayNames(['en'], { type: 'language' }).of(code) ?? code
+    } catch {
+      return code
+    }
+  }
+
+  /**
+   * Alt text for an image in the media library (`alt-text`), for the user to review before saving:
+   * what it shows, in one sentence of at most 125 characters.
+   */
+  async altText(
+    id: ID,
+    options: { user: AuthUser; locale?: string | null; context?: Record<string, unknown> },
+  ): Promise<{ alt: string }> {
+    const access = await this.cms.documentPermissions(
+      MEDIA,
+      String(id),
+      options.user,
+      options.context ?? {},
+    )
+    if (!access.update) throw new ForbiddenError('You may not change this file')
+    const result = await this.generate(
+      {
+        feature: 'alt-text',
+        system: [
+          'You write alt text for images on a website: one plain sentence saying what the image',
+          'shows, for people who cannot see it. Do not start with "Image of" or "Picture of".',
+          `At most 125 characters. Write it in ${this.language(options.locale)}.`,
+          'Answer with the alt text only, without quotes.',
+        ].join(' '),
+        prompt: 'Write the alt text for this image.',
+        images: [{ media: id }],
+        maxTokens: 200,
+      },
+      { user: options.user, about: { collection: MEDIA, id } },
+    )
+    return { alt: shorten(result.text.trim().replace(/^["'“]+|["'”]+$/g, ''), 125) }
+  }
+
   // --- Admins ----------------------------------------------------------------------------------
 
   /** Settings → Integrations, AI: the main connection, the features, the limit and this month. */
@@ -579,6 +658,14 @@ export class Ai {
       if (old.docs.length < 500) return
     }
   }
+}
+
+/** At most `max` characters, cut at a word when there is one. */
+function shorten(text: string, max: number): string {
+  if (text.length <= max) return text
+  const cut = text.slice(0, max)
+  const space = cut.lastIndexOf(' ')
+  return (space > max * 0.6 ? cut.slice(0, space) : cut).replace(/[\s,;:]+$/, '')
 }
 
 /** Removes a Markdown code fence some models put around JSON. */

@@ -55,6 +55,17 @@ until an admin chooses). Plugins add theirs to `aiFeatures` in the config:
 aiFeatures: [{ id: 'summary', label: 'Summaries', description: 'Writes the excerpt of a post', default: true }]
 ```
 
+## Alt text
+
+With a provider connected, the **Alternative text** of an image in the media library has a
+**Write with AI** button: the model looks at the image and writes one sentence of at most 125
+characters, in the language being edited (else the default one). It goes into the field for you to
+check, marked "Written by AI", with **Undo** beside it; nothing is saved until you save. In an
+upload field, an image without alt text says **No alt text**: it opens the file to add one.
+
+The button shows to users who may change the file, while the **Alt text** feature is on. Each press is
+one request toward the user's daily limit.
+
 ## Limits
 
 Each user makes at most **100 requests a day** (in `timeZone`); the 101st is refused. Admins change

@@ -1,11 +1,15 @@
 <script setup lang="ts">
 import type { AdminField } from '@easy-cms/core'
-import { computed, defineAsyncComponent, ref } from 'vue'
+import { computed, defineAsyncComponent, inject, onMounted, ref } from 'vue'
+import AiButton from '../components/AiButton.vue'
 import PluginElement from '../components/PluginElement.vue'
 import ZoneNote from '../components/ZoneNote.vue'
+import { aiFeature, loadAiStatus } from '../lib/ai'
+import { api } from '../lib/api'
 import { contentLocale } from '../lib/content-locale'
 import { fromLocalInput, toLocalInput } from '../lib/fields'
 import { label, t } from '../lib/i18n'
+import { FORM } from '../lib/plugins'
 import { findCollection } from '../lib/session'
 import { zoneDiffers } from '../lib/time-zone'
 import ApiKeyPermissions from './ApiKeyPermissions.vue'
@@ -61,6 +65,49 @@ function onJsonInput(value: string) {
 function toggleOption(value: string, checked: boolean) {
   const current = Array.isArray(props.modelValue) ? (props.modelValue as string[]) : []
   set(checked ? [...current, value] : current.filter((v) => v !== value))
+}
+
+// AI alt text (#358): on a media file's `alt`, once it is saved (the server reads the file).
+const form = inject(FORM, null)
+const isAlt = computed(
+  () => form?.collection === 'media' && props.path === 'alt' && props.field.type === 'text',
+)
+onMounted(() => {
+  if (isAlt.value) void loadAiStatus()
+})
+const altAi = computed(
+  () => isAlt.value && !props.readOnly && form?.id.value != null && aiFeature('alt-text'),
+)
+const aiBusy = ref(false)
+/** The value came from AI and wasn't changed since: the field says so, to check it. */
+const aiWritten = ref(false)
+/** What was there before, for Undo beside the field (a toast is out of reach in a drawer). */
+let beforeAi: unknown = null
+/** Why AI couldn't write it (no connection, today's limit…), under the field. */
+const aiError = ref('')
+function undoAi() {
+  set(beforeAi)
+  aiWritten.value = false
+}
+async function writeAlt() {
+  if (!form || form.id.value == null) return
+  const before = props.modelValue
+  aiBusy.value = true
+  aiError.value = ''
+  try {
+    const { alt } = await api<{ alt: string }>('POST', '/admin/ai/alt-text', {
+      media: form.id.value,
+      locale: contentLocale() ?? null,
+    })
+    if (!aiWritten.value) beforeAi = before
+    set(alt)
+    aiWritten.value = true
+  } catch (e) {
+    aiError.value = (e as Error).message
+  } finally {
+    aiBusy.value = false
+    void loadAiStatus(true)
+  }
 }
 
 const numberValue = computed(() => (typeof props.modelValue === 'number' ? props.modelValue : ''))
@@ -165,8 +212,14 @@ function onNumber(value: string) {
     <p v-for="m in messages" :key="m" class="field-error">{{ m }}</p>
   </fieldset>
 
-  <div v-else class="field">
-    <label :for="id" class="field-label">
+  <div v-else :class="['field', { 'ai-written': aiWritten }]">
+    <div v-if="altAi" class="field-head">
+      <label :for="id" class="field-label">
+        {{ text }}<span v-if="field.localized" class="field-locale" :title="t('locale.localized')" aria-hidden="true">{{ contentLocale()?.toUpperCase() }}</span>
+      </label>
+      <AiButton :label="t('ai.writeAlt')" :busy="aiBusy" @run="writeAlt" />
+    </div>
+    <label v-else :for="id" class="field-label">
       {{ text }}<span v-if="field.required" class="field-required" aria-hidden="true">*</span>
       <span v-if="field.localized" class="field-locale" :title="t('locale.localized')" aria-hidden="true">{{ contentLocale()?.toUpperCase() }}</span>
     </label>
@@ -182,8 +235,13 @@ function onNumber(value: string) {
       :aria-required="field.required ? 'true' : undefined"
       :aria-invalid="invalid"
       :aria-describedby="invalid ? errorId : undefined"
-      @input="set(($event.target as HTMLInputElement).value)"
+      @input="set(($event.target as HTMLInputElement).value); aiWritten = false"
     />
+    <p v-if="aiError" class="field-error" role="alert">{{ aiError }}</p>
+    <p v-if="aiWritten" class="field-hint ai-hint" role="status">
+      {{ t('ai.writtenHint') }}
+      <button type="button" class="btn btn-ghost btn-sm" @click="undoAi">{{ t('ai.undo') }}</button>
+    </p>
     <textarea
       v-else-if="field.type === 'textarea'"
       :id="id"
@@ -323,6 +381,25 @@ function onNumber(value: string) {
 </template>
 
 <style scoped>
+.field-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
+}
+/* Written by AI: marked until the user checks and changes it, or saves. */
+.ai-written :is(.input, .textarea) {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.ai-hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  color: var(--accent-ink);
+}
 .field-slot {
   display: flex;
   flex-direction: column;

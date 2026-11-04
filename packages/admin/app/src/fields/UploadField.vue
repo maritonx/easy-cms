@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { EyeOff, ImageUp, Lock, Trash2, Upload } from '@lucide/vue'
+import { EyeOff, ImageUp, Lock, TextCursorInput, Trash2, Upload } from '@lucide/vue'
 import { ref, watch } from 'vue'
+import DocumentDrawer from '../components/DocumentDrawer.vue'
 import MediaPicker from '../components/MediaPicker.vue'
 import MediaThumb from '../components/MediaThumb.vue'
 import { api, type Doc } from '../lib/api'
@@ -45,6 +46,11 @@ async function load(id: unknown) {
 }
 watch(() => props.modelValue, load, { immediate: true })
 
+/** An image without alt text: its drawer opens to add it (with AI, where it is on). */
+const editingAlt = ref(false)
+const needsAlt = (doc: Doc) =>
+  String(doc.mimeType ?? '').startsWith('image/') && !String(doc.alt ?? '').trim()
+
 function choose(doc: Doc) {
   media.value = doc
   picking.value = false
@@ -60,6 +66,10 @@ function choose(doc: Doc) {
       <div class="info">
         <RouterLink :to="`/collections/media/${media.id}`" class="name">{{ media.alt || media.filename }}</RouterLink>
         <span class="muted small">{{ media.mimeType }}</span>
+        <button v-if="needsAlt(media)" type="button" class="no-alt small" :title="t('ai.noAltHint')" @click="editingAlt = true">
+          <TextCursorInput :size="13" aria-hidden="true" />
+          {{ t('ai.noAlt') }}
+        </button>
         <!-- A private file: visitors to the site can't open it. -->
         <span v-if="media.private" class="private small" :title="t('media.privateHint')">
           <EyeOff :size="13" aria-hidden="true" />
@@ -106,12 +116,32 @@ function choose(doc: Doc) {
       {{ t('media.choose') }}
     </button>
     <span v-else class="muted">—</span>
+    <DocumentDrawer
+      v-if="editingAlt && media"
+      slug="media"
+      :id="String(media.id)"
+      @saved="(doc) => { media = doc; editingAlt = false }"
+      @close="editingAlt = false"
+    />
     <MediaPicker :open="picking" :mime-types="mimeTypes" :folder="folder"
     :filter-query="filterQuery()" @select="choose" @close="picking = false" />
   </div>
 </template>
 
 <style scoped>
+.no-alt {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  align-self: flex-start;
+  padding: 0.05rem 0.5rem;
+  border: 1px solid var(--warning-text);
+  border-radius: 999px;
+  background: var(--warning-soft);
+  color: var(--warning-text);
+  font: inherit;
+  cursor: pointer;
+}
 .selected {
   display: flex;
   align-items: center;

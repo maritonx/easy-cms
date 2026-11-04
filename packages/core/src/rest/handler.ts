@@ -896,6 +896,31 @@ async function route(
     throw methodNotAllowed(ctx, 'PATCH, DELETE')
   }
 
+  // The admin's AI buttons (#358): whether they work, and the features themselves. Each feature
+  // checks the user may change the document; its prompt stays on the server.
+  if (first === 'admin' && second === 'ai' && segments.length === 3) {
+    if (!ctx.user) throw new UnauthorizedError()
+    if (!cms.ai) throw new HttpError('Not found', 404)
+    if (third === 'status') {
+      if (method !== 'GET') throw methodNotAllowed(ctx, 'GET')
+      return { body: await cms.ai.status(ctx.user) }
+    }
+    if (third === 'alt-text') {
+      if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
+      const body = (await readJson(ctx.request)) as { media?: unknown; locale?: unknown }
+      if (typeof body.media !== 'string' && typeof body.media !== 'number')
+        throw new ValidationError('media', [{ field: 'media', message: 'is required' }])
+      return {
+        body: await cms.ai.altText(body.media, {
+          user: ctx.user,
+          locale: typeof body.locale === 'string' ? body.locale : null,
+          context: ctx.context,
+        }),
+      }
+    }
+    throw new HttpError('Not found', 404)
+  }
+
   // Settings → Integrations, AI (#357): the main connection, the features, the limit, the usage.
   if (first === 'admin' && second === 'ai' && segments.length === 2) {
     if (!ctx.user) throw new UnauthorizedError()
