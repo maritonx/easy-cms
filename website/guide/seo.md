@@ -69,6 +69,7 @@ suggest nothing.
 | `generateImage` | — | Suggests a share image: a media document or its id. |
 | `generateURL` | — | The page's address, for the preview and the [sitemap](#sitemap). |
 | `autoGenerate` | `false` | Fill empty meta fields with the generators when a document is saved. |
+| `aiSource` | title + text fields | With the [AI plugin](./ai#seo): `({ doc, collection?, global?, locale }) => string`, the text **Write title and description with AI** sends. |
 | `fields` | — | `(defaults) => fields`: change the group's fields, e.g. add a keywords field. |
 | `titleLength` | `{ min: 50, max: 60 }` | Length marked as good. |
 | `descriptionLength` | `{ min: 100, max: 150 }` | Length marked as good. |

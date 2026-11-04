@@ -647,3 +647,166 @@ describe('IndexNow', () => {
     ).rejects.toThrow('indexNow.key')
   })
 })
+
+describe('Write with AI (#358)', () => {
+  // A provider of the test's own: an integration whose key comes from the environment.
+  const asked: { system?: string; prompt: string; json?: unknown }[] = []
+  let answer = '{"title":"Hello world, a short guide","description":"How to say hello."}'
+  const withAi = (extra: Partial<Config> = {}) =>
+    base(
+      [
+        seoPlugin({ collections: ['posts'], globals: ['site'] }),
+        (config: Config): Config => ({
+          ...config,
+          integrations: [
+            ...(config.integrations ?? []),
+            {
+              id: 'fake-ai',
+              label: 'Fake AI',
+              category: 'ai',
+              kind: 'fields',
+              fields: [{ name: 'key', required: true, secret: true }],
+              env: { key: 'FAKE_AI_KEY' },
+            },
+          ],
+          ai: {
+            providers: [
+              {
+                integration: 'fake-ai',
+                generate: async (_values, request) => {
+                  asked.push(request)
+                  return { text: answer, usage: { input: 10, output: 5 } }
+                },
+              },
+            ],
+          },
+        }),
+      ],
+      {
+        collections: [
+          {
+            slug: 'posts',
+            useAsTitle: 'title',
+            fields: [
+              { name: 'title', type: 'text' },
+              { name: 'body', type: 'richText' },
+            ],
+          },
+        ],
+        auth: { rbac: true },
+        ...extra,
+      },
+    )
+
+  it('writes the title and description from the content, for users who may change it', async () => {
+    process.env.FAKE_AI_KEY = 'k'
+    const cwd = mkdtempSync(join(tmpdir(), 'easy-cms-seo-ai-'))
+    dirs.push(cwd)
+    const cms = await createEasyCMS(withAi(), {
+      cwd,
+      schema: 'push',
+      logger: silentLogger,
+      scheduler: false,
+    })
+    try {
+      expect(cms.config.aiFeatures.map((f) => f.id)).toEqual(['alt-text', 'seo'])
+      const handle = createRestHandler(cms)
+      const tokenOf = async (email: string, role: string) => {
+        await cms.create('users', { email, password: PASSWORD, role })
+        return (await cms.auth.login({ email, password: PASSWORD })).token
+      }
+      const editor = await tokenOf('ed@x.co', 'editor')
+      const write = (body: unknown, token = editor) =>
+        handle(
+          new Request('http://cms.test/api/cms/seo/generate', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+            body: JSON.stringify({ kind: 'ai', ...(body as object) }),
+          }),
+        )
+      const post = await cms.create('posts', { title: 'Hello' })
+      const doc = {
+        title: 'Hello world',
+        body: {
+          type: 'doc',
+          content: [
+            {
+              type: 'paragraph',
+              content: [
+                { type: 'text', text: 'Say ' },
+                { type: 'text', text: 'hello', marks: [{ type: 'bold' }] },
+              ],
+            },
+          ],
+        },
+      }
+      const res = await write({ collection: 'posts', id: post.id, doc, locale: null })
+      expect(await res.json()).toEqual({
+        value: { title: 'Hello world, a short guide', description: 'How to say hello.' },
+      })
+      const sent = asked.at(-1)
+      expect(sent?.prompt).toContain('Hello world\n\nSay hello')
+      expect(sent?.system).toContain('50 to 60 characters')
+      expect(sent?.system).toContain('100 to 150 characters')
+      expect(sent?.json).toMatchObject({ required: ['title', 'description'] })
+      // A new document, and a global.
+      expect((await write({ collection: 'posts', id: null, doc })).status).toBe(200)
+      expect((await write({ global: 'site', doc: { name: 'Blog' } })).status).toBe(200)
+
+      expect((await write({ collection: 'posts', id: post.id, doc: {} })).status).toBe(400)
+      expect((await write({ collection: 'nope', doc })).status).toBe(404)
+      answer = 'not json'
+      expect((await write({ collection: 'posts', id: post.id, doc })).status).toBe(400)
+      answer = '{"title":"T","description":"D"}'
+
+      // A role that may only read posts may not.
+      await cms.roles.create(
+        { key: 'reader', name: 'Reader', permissions: { collections: { posts: ['read'] } } },
+        { id: 1, role: 'admin', collection: 'users' } as never,
+      )
+      const reader = await tokenOf('read@x.co', 'reader')
+      expect((await write({ collection: 'posts', id: post.id, doc }, reader)).status).toBe(403)
+      // Turned off by an admin.
+      await cms.ai?.update({ features: { seo: { enabled: false } } }, {
+        id: 1,
+        role: 'admin',
+        email: 'a@x.co',
+        collection: 'users',
+      } as never)
+      expect((await write({ collection: 'posts', id: post.id, doc })).status).toBe(400)
+    } finally {
+      delete process.env.FAKE_AI_KEY
+      await cms.destroy()
+    }
+  })
+
+  it('takes its text from aiSource', async () => {
+    process.env.FAKE_AI_KEY = 'k'
+    const cwd = mkdtempSync(join(tmpdir(), 'easy-cms-seo-ai-'))
+    dirs.push(cwd)
+    const config = withAi()
+    const plugins = [
+      seoPlugin({ collections: ['posts'], aiSource: ({ doc }) => `Custom: ${String(doc.title)}` }),
+      ...(config.plugins ?? []).slice(1),
+    ]
+    const cms = await createEasyCMS(
+      { ...config, plugins },
+      { cwd, schema: 'push', logger: silentLogger, scheduler: false },
+    )
+    try {
+      await cms.create('users', { email: 'a@x.co', password: PASSWORD, role: 'admin' })
+      const { token } = await cms.auth.login({ email: 'a@x.co', password: PASSWORD })
+      await createRestHandler(cms)(
+        new Request('http://cms.test/api/cms/seo/generate', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+          body: JSON.stringify({ kind: 'ai', collection: 'posts', id: null, doc: { title: 'X' } }),
+        }),
+      )
+      expect(asked.at(-1)?.prompt).toBe('The page:\n\nCustom: X')
+    } finally {
+      delete process.env.FAKE_AI_KEY
+      await cms.destroy()
+    }
+  })
+})

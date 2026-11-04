@@ -90,6 +90,17 @@ export interface SeoPluginOptions {
   readonly generateURL?: Generate
   /** Fill empty meta fields with the generators when a document is saved. Default false. */
   readonly autoGenerate?: boolean
+  /**
+   * With `@easy-cms/plugin-ai` (#358): the text "Write with AI" sends to write the meta title and
+   * description. Default: the title, then the text of the top-level text, textarea and rich text
+   * fields, cut at about 6,000 characters.
+   */
+  readonly aiSource?: (args: {
+    doc: Record<string, unknown>
+    collection?: string
+    global?: string
+    locale: string | null
+  }) => string | Promise<string>
   /** Changes the fields of the group, e.g. `(defaults) => [...defaults, noindexField]`. */
   readonly fields?: (defaults: Field[]) => Field[]
   /** Length the admin marks as good for titles. Default 50–60 characters. */
@@ -367,12 +378,86 @@ export function seoPlugin<const C extends string = never, const G extends string
       }
     }
 
+    /** "Write with AI" (#358): the title and description at once, for the user to review. */
+    const writeWithAi = async (
+      body: Record<string, unknown>,
+      user: NonNullable<Parameters<Endpoint['handler']>[0]['user']>,
+      cms: Parameters<Endpoint['handler']>[0]['cms'],
+    ): Promise<Response | { value: { title: string; description: string } }> => {
+      const ai = cms.ai
+      if (!ai) return error(404, 'No AI plugin')
+      const collection = typeof body.collection === 'string' ? body.collection : undefined
+      const global = typeof body.global === 'string' ? body.global : undefined
+      const container = collection
+        ? collections.includes(collection) &&
+          cms.config.collections.find((c) => c.slug === collection)
+        : global && globals.includes(global) && cms.config.globals.find((g) => g.slug === global)
+      if (!container) return error(404, 'No SEO fields on this collection or global')
+      const id = typeof body.id === 'string' || typeof body.id === 'number' ? body.id : null
+      // Who may change the document may write its meta: as the REST API would let them.
+      const allowed = collection
+        ? id !== null
+          ? (await cms.documentPermissions(collection, id, user)).update
+          : (await cms.roles.allows(user, { collection }, 'create')) !== false
+        : (await cms.roles.allows(user, { global: global as string }, 'update')) !== false
+      if (!allowed) return error(403, 'You may not change this document')
+      const doc =
+        typeof body.doc === 'object' && body.doc !== null
+          ? (body.doc as Record<string, unknown>)
+          : {}
+      const locale = typeof body.locale === 'string' ? body.locale : null
+      const titleField = 'useAsTitle' in container ? (container.useAsTitle ?? null) : null
+      const source = options.aiSource
+        ? await options.aiSource({
+            doc,
+            locale,
+            ...(collection ? { collection } : { global: global as string }),
+          })
+        : contentText(container.fields, doc, titleField)
+      if (!source.trim()) return error(400, 'Nothing to write from yet: add some content first')
+      const title = options.titleLength ?? DEFAULT_TITLE_LENGTH
+      const description = options.descriptionLength ?? DEFAULT_DESCRIPTION_LENGTH
+      try {
+        const result = await ai.generate(
+          {
+            feature: 'seo',
+            system: [
+              'You write the title and description search engines show for a web page.',
+              `The title: ${title.min} to ${title.max} characters, what the page is about, no site name.`,
+              `The description: ${description.min} to ${description.max} characters, one or two sentences`,
+              'that make a reader want to open the page. Plain text, no quotes, no emoji.',
+              `Write both in ${ai.languageOf(locale)}.`,
+            ].join(' '),
+            prompt: `The page:\n\n${source.slice(0, 6000)}`,
+            json: {
+              type: 'object',
+              properties: { title: { type: 'string' }, description: { type: 'string' } },
+              required: ['title', 'description'],
+            },
+            maxTokens: 400,
+          },
+          { user, ...(collection && id !== null ? { about: { collection, id } } : {}) },
+        )
+        const value = (result.json ?? {}) as { title?: unknown; description?: unknown }
+        return {
+          value: {
+            title: typeof value.title === 'string' ? value.title.trim() : '',
+            description: typeof value.description === 'string' ? value.description.trim() : '',
+          },
+        }
+      } catch (e) {
+        const status = (e as { status?: number }).status
+        return error(typeof status === 'number' ? status : 400, (e as Error).message)
+      }
+    }
+
     const endpoint: Endpoint = {
       path: GENERATE_PATH,
       method: 'post',
       handler: async ({ json, user, cms }) => {
         if (!user) return error(401, 'Log in to generate SEO values')
         const body = await json()
+        if (body.kind === 'ai') return writeWithAi(body, user, cms)
         const kind = body.kind as GenerateKind
         if (!GENERATE_KINDS.includes(kind))
           return error(400, `kind must be one of ${GENERATE_KINDS.join(', ')}`)
@@ -520,6 +605,18 @@ export function seoPlugin<const C extends string = never, const G extends string
         modules: [...new Set([...(config.admin?.modules ?? []), ADMIN_MODULE])],
       },
       endpoints: [...(config.endpoints ?? []), endpoint, ...siteEndpoints],
+      // Used only with an AI plugin (`ai` in the config): "Write with AI" on the SEO fields.
+      aiFeatures: [
+        ...(config.aiFeatures ?? []),
+        {
+          id: 'seo',
+          label: { en: 'SEO title and description', th: 'title และ description สำหรับ SEO' },
+          description: {
+            en: 'Writes the search result text from the content',
+            th: 'เขียนข้อความในผลค้นหาจากเนื้อหา',
+          },
+        },
+      ],
     }
   }
   // Not definePlugin(): this package's browser code must not import core's values.
@@ -527,6 +624,44 @@ export function seoPlugin<const C extends string = never, const G extends string
 }
 
 const isEmpty = (value: unknown) => value === null || value === undefined || value === ''
+
+/** The words of rich text: its text nodes, a line per block. */
+function richText(value: unknown): string {
+  const out: string[] = []
+  const walk = (node: unknown) => {
+    if (!node || typeof node !== 'object') return
+    const n = node as { text?: unknown; content?: unknown; type?: unknown }
+    if (typeof n.text === 'string') out.push(n.text)
+    if (Array.isArray(n.content)) {
+      for (const child of n.content) walk(child)
+      if (n.type !== 'text' && n.type !== 'doc') out.push('\n')
+    }
+  }
+  walk(value)
+  return out
+    .join('')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
+/** What "Write with AI" sends by default: the title, then the text fields' words. */
+function contentText(
+  fields: readonly Field[],
+  doc: Record<string, unknown>,
+  titleField: string | null,
+): string {
+  const parts: string[] = []
+  const title = titleField ? doc[titleField] : undefined
+  if (typeof title === 'string' && title.trim()) parts.push(title.trim())
+  for (const field of fields) {
+    if (!('name' in field) || field.name === titleField || field.name === 'meta') continue
+    const value = doc[field.name]
+    if ((field.type === 'text' || field.type === 'textarea') && typeof value === 'string')
+      parts.push(value.trim())
+    else if (field.type === 'richText') parts.push(richText(value))
+  }
+  return parts.filter(Boolean).join('\n\n')
+}
 
 /**
  * An error in the REST API's format. Not Easy CMS's error classes: importing core at runtime

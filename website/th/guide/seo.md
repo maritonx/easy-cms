@@ -66,6 +66,7 @@ generator คืนค่า field ตามที่อ่านมาได้
 | `generateImage` | — | เสนอรูปสำหรับแชร์: เอกสาร media หรือ id ของมัน |
 | `generateURL` | — | ที่อยู่ของหน้า สำหรับตัวอย่างผลการค้นหาและ [sitemap](#sitemap) |
 | `autoGenerate` | `false` | เติมช่อง meta ที่ว่างด้วย generator ตอนบันทึกเอกสาร |
+| `aiSource` | title + ช่องข้อความ | เมื่อใช้ [AI plugin](./ai#seo): `({ doc, collection?, global?, locale }) => string` คือข้อความที่ปุ่ม **เขียน title และ description ด้วย AI** ส่งไป |
 | `fields` | — | `(defaults) => fields`: ปรับ field ใน group เช่น เพิ่มช่อง keywords |
 | `titleLength` | `{ min: 50, max: 60 }` | ความยาวที่ถือว่าพอดี |
 | `descriptionLength` | `{ min: 100, max: 150 }` | ความยาวที่ถือว่าพอดี |

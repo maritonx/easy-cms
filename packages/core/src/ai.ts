@@ -436,8 +436,8 @@ export class Ai {
     }
   }
 
-  /** The language to write in: the content locale being edited, else the default one. */
-  private language(locale: string | null | undefined): string {
+  /** The language to write in, by name (`Thai`): the content locale being edited, else the default. */
+  languageOf(locale: string | null | undefined): string {
     const code =
       locale ?? this.config.localization?.defaultLocale ?? this.config.admin.locale ?? 'en'
     try {
@@ -468,7 +468,7 @@ export class Ai {
         system: [
           'You write alt text for images on a website: one plain sentence saying what the image',
           'shows, for people who cannot see it. Do not start with "Image of" or "Picture of".',
-          `At most 125 characters. Write it in ${this.language(options.locale)}.`,
+          `At most 125 characters. Write it in ${this.languageOf(options.locale)}.`,
           'Answer with the alt text only, without quotes.',
         ].join(' '),
         prompt: 'Write the alt text for this image.',
