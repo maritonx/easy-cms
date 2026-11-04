@@ -1,5 +1,15 @@
 # @easy-cms/core
 
+## 1.35.0
+
+### Minor Changes
+
+- 512a515: AI translation (#358). With `@easy-cms/plugin-ai` and `localization`, a localized text, textarea or rich text field edited in another locale has **Translate from <default>**: the translation goes into the field for review, with Undo. Rich text is translated by its text pieces only, so marks, links, lists and blocks stay in place (blocks' text fields are translated too); an answer that loses the shape is refused. A document still missing translations in a locale offers to translate them all at once, one request per field, with Undo. Core registers the `translate` AI feature and serves `POST <api>/admin/ai/translate` for users who may change the document.
+
+### Patch Changes
+
+- 1b9b334: AI SEO (#358). With `@easy-cms/plugin-ai`, the SEO plugin's search result preview has **Write title and description with AI**: one request writes both from the document's title and text, within the plugin's good lengths and in the language being edited, into the meta fields for review with Undo; replacing values asks first. The plugin registers the `seo` AI feature, `aiSource` changes the text sent, and only users who may change the document can use it. Core's `cms.ai.languageOf(locale)` names the language to write in.
+
 ## 1.34.0
 
 ### Minor Changes
