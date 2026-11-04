@@ -1,3 +1,4 @@
+import { CORE_AI_FEATURES } from './ai.js'
 import { apiKeysCollection } from './api-keys.js'
 import { type AuditConfig, DEFAULT_AUDIT_KEEP, DEFAULT_FAILED_LOGINS } from './audit.js'
 import {
@@ -170,7 +171,7 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
     globals: config.globals ?? [],
     endpoints: config.endpoints ?? [],
     integrations: resolvedIntegrations(config),
-    aiFeatures: config.ai ? (config.aiFeatures ?? []) : [],
+    aiFeatures: config.ai ? [...CORE_AI_FEATURES, ...(config.aiFeatures ?? [])] : [],
     cliCommands: config.cliCommands ?? [],
     // Easy CMS's own events (#356), for webhooks and `cms.on`.
     events: [...new Set([...(config.events ?? []), ...SYSTEM_EVENTS])],

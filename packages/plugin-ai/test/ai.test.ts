@@ -172,7 +172,7 @@ describe('aiPlugin config', () => {
     ])
     expect(config.ai?.providers.map((p) => p.integration)).toEqual(ai?.map((i) => i.id))
     expect(config.collections.some((c) => c.slug === 'ai-usage')).toBe(true)
-    expect(config.aiFeatures.map((f) => f.id)).toEqual(['summary', 'later'])
+    expect(config.aiFeatures.map((f) => f.id)).toEqual(['alt-text', 'summary', 'later'])
   })
 
   it('takes a choice of providers, and refuses unknown ones', async () => {
@@ -307,6 +307,7 @@ describe('aiPlugin', () => {
       main: 'openai:Main',
       perUserPerDay: 100,
       features: [
+        { id: 'alt-text', enabled: true, connection: null },
         { id: 'summary', enabled: false, connection: 'anthropic:Main' },
         { id: 'later', enabled: true, connection: null },
       ],
@@ -429,6 +430,80 @@ describe('aiPlugin', () => {
       media_type: 'image/png',
       data: png.toString('base64'),
     })
+  })
+
+  it('writes alt text for an image the user may change, in the locale being edited (#358)', async () => {
+    const { cms, connect, call } = await open(
+      config_({ localization: { locales: ['th', 'en'], defaultLocale: 'th' } }),
+    )
+    const png = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+      'base64',
+    )
+    const media = await cms.upload({ data: new Uint8Array(png), name: 'dot.png' })
+    // Nothing connected: the buttons stay hidden.
+    expect((await call('/ai/status')).body).toMatchObject({ connected: false, used: 0 })
+    await connect('anthropic', { apiKey: 'a' })
+    expect((await call('/ai/status')).body).toEqual({
+      connected: true,
+      features: ['alt-text', 'summary'],
+      used: 0,
+      limit: 100,
+    })
+
+    reply = '"A small black dot on a white background, centred in the frame"'
+    const written = await call('/ai/alt-text', 'POST', { media: media.id, locale: 'en' })
+    expect(written.body).toEqual({
+      alt: 'A small black dot on a white background, centred in the frame',
+    })
+    const sent = calls.at(-1)?.body as {
+      system: string
+      max_tokens: number
+      messages: { content: { type: string }[] }[]
+    }
+    expect(sent.system).toContain('Write it in English')
+    expect(sent.messages[0]?.content.map((c) => c.type)).toEqual(['image', 'text'])
+    // Without a locale: the default one.
+    await call('/ai/alt-text', 'POST', { media: media.id })
+    expect(String(calls.at(-1)?.body.system)).toContain('Write it in Thai')
+    expect((await call('/ai/status')).body).toMatchObject({ used: 2 })
+
+    // At most 125 characters, cut at a word.
+    reply = `${'word '.repeat(40)}end`
+    const long = (await call('/ai/alt-text', 'POST', { media: media.id })).body.alt as string
+    expect(long.length).toBeLessThanOrEqual(125)
+    expect(long.endsWith('word')).toBe(true)
+
+    expect((await call('/ai/alt-text', 'POST', {})).status).toBe(400)
+    await call('/ai', 'PUT', { features: { 'alt-text': { enabled: false } } })
+    expect((await call('/ai/alt-text', 'POST', { media: media.id })).status).toBe(400)
+  })
+
+  it('refuses alt text to users who may not change the file', async () => {
+    const { cms, connect, call } = await open()
+    await connect('anthropic', { apiKey: 'a' })
+    const media = await cms.upload({
+      data: new TextEncoder().encode('%PDF-1.4\n%\n'),
+      name: 'a.pdf',
+    })
+    const role = await call('/roles', 'POST', {
+      key: 'reader',
+      name: 'Reader',
+      permissions: { collections: { media: ['read'] } },
+    })
+    expect(role.status).toBeLessThan(300)
+    await cms.create('users', { email: 'reader@x.co', password: 'password123', role: 'reader' })
+    const { token } = await cms.auth.login({ email: 'reader@x.co', password: 'password123' })
+    const res = await createRestHandler(cms)(
+      new Request('http://cms.test/api/cms/admin/ai/alt-text', {
+        method: 'POST',
+        headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+        body: JSON.stringify({ media: media.id }),
+      }),
+    )
+    expect(res.status).toBe(403)
+    // Nothing was asked.
+    expect(calls.filter((c) => c.path === '/anthropic/v1/messages')).toHaveLength(1)
   })
 
   it('reads an environment key, and says when nothing is connected', async () => {

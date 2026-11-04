@@ -1426,6 +1426,56 @@ test.describe('logged in as admin', () => {
     )
   })
 
+  test('writes alt text with AI, from an upload field and the media library (#358)', async ({
+    page,
+  }) => {
+    test.skip(test.info().project.name !== 'next', 'The Next.js example has the AI plugin')
+    await page.goto('/admin/')
+    const me = (await (await page.request.get('/api/cms/auth/me')).json()) as { csrfToken: string }
+    const headers = { 'x-csrf-token': me.csrfToken, origin: new URL(page.url()).origin }
+    const images = (await (
+      await page.request.get('/api/cms/media?where[filename][like]=.png&limit=50&depth=0')
+    ).json()) as { docs: { id: number; filename: string; alt?: string | null }[] }
+    const [first, second] = images.docs.filter((d) => !d.alt)
+    expect(second).toBeTruthy()
+
+    // A post whose cover has no alt text: the field says so, and opens the file to add it.
+    const post = (await (
+      await page.request.post('/api/cms/posts', {
+        headers,
+        data: { title: 'A cover without words', cover: second?.id },
+      })
+    ).json()) as { id: number }
+    await page.goto(`/admin/collections/posts/${post.id}`)
+    await page.getByRole('button', { name: 'No alt text' }).click()
+    const drawer = page.getByRole('dialog').filter({ has: page.getByLabel('Alternative text') })
+    const alt = drawer.getByLabel('Alternative text')
+    await drawer.getByRole('button', { name: 'Write with AI' }).click()
+    // Written into the form, for review; Undo takes it back.
+    await expect(alt).toHaveValue('A mountain lake at sunrise')
+    const hint = drawer.getByRole('status').filter({ hasText: 'Written by AI' })
+    await hint.getByRole('button', { name: 'Undo' }).click()
+    await expect(alt).toHaveValue('')
+    await drawer.getByRole('button', { name: 'Write with AI' }).click()
+    await expect(alt).toHaveValue('A mountain lake at sunrise')
+    await drawer.getByRole('button', { name: 'Save' }).click()
+    await expect(page.getByRole('button', { name: 'No alt text' })).toHaveCount(0)
+
+    // In the media library.
+    await page.goto(`/admin/collections/media/${first?.id}`)
+    await page.getByRole('button', { name: 'Write with AI' }).click()
+    await expect(page.getByLabel('Alternative text')).toHaveValue('A mountain lake at sunrise')
+    await page.getByRole('button', { name: 'Save', exact: true }).click()
+    await expect
+      .poll(async () => {
+        const doc = (await (await page.request.get(`/api/cms/media/${first?.id}`)).json()) as {
+          alt?: string
+        }
+        return doc.alt
+      })
+      .toBe('A mountain lake at sunrise')
+  })
+
   test('shows one group at a time, follows the page, and folds the panel away', async ({
     page,
   }) => {

@@ -2167,7 +2167,7 @@ function validateAi(config: Config, add: Add) {
     const feature = (raw ?? {}) as Record<string, unknown>
     if (typeof feature.id !== 'string' || !/^[a-z0-9][a-z0-9-]*$/.test(feature.id))
       add(`aiFeatures[${i}].id`, 'must be lowercase letters, digits and "-"', "e.g. id: 'alt-text'")
-    else if (seen.has(feature.id) || feature.id === 'test')
+    else if (seen.has(feature.id) || feature.id === 'test' || feature.id === 'alt-text')
       add(`aiFeatures[${i}].id`, `"${feature.id}" is taken`)
     else seen.add(feature.id)
     if (!isLabel(feature.label)) add(`aiFeatures[${i}].label`, 'must be a string or { en, th }')

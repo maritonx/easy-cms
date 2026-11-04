@@ -25,10 +25,12 @@ createServer((req, res) => {
     if (path === '/v1/models')
       return send(200, { data: [{ id: 'claude-e2e-1', display_name: 'Claude E2E' }] })
     if (path === '/v1/messages') {
-      const request = JSON.parse(body || '{}') as { model?: string }
+      const request = JSON.parse(body || '{}') as { model?: string; system?: string }
+      // Each feature's prompt (#358) gets an answer of its own.
+      const text = request.system?.includes('alt text') ? 'A mountain lake at sunrise' : 'OK'
       return send(200, {
         model: request.model,
-        content: [{ type: 'text', text: 'OK' }],
+        content: [{ type: 'text', text }],
         usage: { input_tokens: 12, output_tokens: 1 },
       })
     }
