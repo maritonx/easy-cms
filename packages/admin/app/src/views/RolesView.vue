@@ -91,12 +91,15 @@ const draft = ref<{
   admin: string[]
   own: Record<string, RoleOperation[]>
   fields: { collections: Rules; globals: Rules }
+  /** AI requests a day (with an AI plugin); empty: everyone's limit. */
+  aiPerDay: string
 }>({
   collections: {},
   globals: {},
   admin: [],
   own: {},
   fields: { collections: {}, globals: {} },
+  aiPerDay: '',
 })
 const baseline = ref('')
 const snapshot = () => JSON.stringify({ name: name.value, draft: draft.value })
@@ -117,6 +120,7 @@ function reset(role: AdminRole | undefined) {
       collections: copyRules(role?.permissions.fields?.collections),
       globals: copyRules(role?.permissions.fields?.globals),
     },
+    aiPerDay: role?.permissions.aiPerDay === undefined ? '' : String(role.permissions.aiPerDay),
   }
   expanded.value = null
   baseline.value = snapshot()
@@ -297,7 +301,10 @@ function permissions(): RolePermissions {
     const rules = draft.value.fields[row.group][row.slug]
     if (rules && Object.keys(rules).length > 0) fields[row.group][row.slug] = rules
   }
-  return { collections, globals, admin: draft.value.admin, own, fields }
+  const ai = Number(draft.value.aiPerDay)
+  const aiPerDay =
+    draft.value.aiPerDay.trim() !== '' && Number.isInteger(ai) && ai >= 0 ? { aiPerDay: ai } : {}
+  return { collections, globals, admin: draft.value.admin, own, fields, ...aiPerDay }
 }
 
 async function save() {
@@ -588,6 +595,15 @@ const ticks = (p: RolePermissions) =>
               </li>
             </ul>
           </section>
+
+          <section v-if="data?.ai" class="card panel" aria-labelledby="ai-heading">
+            <h2 id="ai-heading">AI</h2>
+            <label class="field ai-limit">
+              <span class="field-label">{{ t('roles.aiPerDay') }}</span>
+              <input v-model="draft.aiPerDay" class="input" type="number" min="0" step="1" inputmode="numeric" />
+              <span class="field-hint">{{ t('roles.aiPerDayHint') }}</span>
+            </label>
+          </section>
         </template>
 
         <section class="card panel">
@@ -687,6 +703,9 @@ const ticks = (p: RolePermissions) =>
 </template>
 
 <style scoped>
+.ai-limit .input {
+  max-width: 10rem;
+}
 .crumbs {
   display: flex;
   align-items: center;

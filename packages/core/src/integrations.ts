@@ -84,11 +84,16 @@ export interface IntegrationConfig {
       redirectUri: string
     }) => Promise<IntegrationOAuthResult> | IntegrationOAuthResult
   }
-  /** Checks the values without posting anything. */
+  /** Checks the values without posting anything; `name` is the connection's. */
   readonly test?: (
     values: Readonly<Record<string, string>>,
-    args: { cms: EasyCMS },
+    args: { cms: EasyCMS; name?: string },
   ) => Promise<IntegrationTestResult> | IntegrationTestResult
+  /**
+   * Asked before the first connection (#357), e.g. that text sent to an AI provider leaves the
+   * site: an admin accepts it, and who did is audit-logged.
+   */
+  readonly consent?: { readonly text: Label; readonly policy?: string }
 }
 
 /** A connection as plugins read it: its values, secrets decrypted. */
@@ -182,6 +187,8 @@ export interface AdminConnection {
   lastError: string | null
   /** Plain values; secrets as `••••1234`. */
   values: Record<string, string>
+  /** AI providers (#357): requests and tokens this month. */
+  usage?: { requests: number; input: number; output: number }
 }
 
 /** A field as the admin gets it: without its functions. */
@@ -202,6 +209,9 @@ export interface AdminIntegration {
   envFields: string[]
   testable: boolean
   connections: AdminConnection[]
+  /** Asked before the first connection; `consented` says who accepted it. */
+  consent?: { text: Label; policy?: string }
+  consented?: { at: string; by: string } | null
 }
 
 /** What the code configures: shown, not changed, on the Integrations page. */
@@ -240,7 +250,7 @@ export const OFFICIAL_PLUGINS: readonly {
       en: 'Claude, GPT and Gemini for alt text, SEO and translation',
       th: 'Claude, GPT และ Gemini สำหรับ alt text, SEO และแปลภาษา',
     },
-    docs: 'https://easycms.dev/docs/integrations',
+    docs: 'https://easycms.dev/docs/ai',
   },
   {
     name: '@easy-cms/plugin-ecommerce',
@@ -408,6 +418,8 @@ export class Integrations {
     staleSecrets: number
   }> {
     const integrations: AdminIntegration[] = []
+    const usage = (await this.cms.ai?.usageByConnection()) ?? new Map()
+    const aiProviders = new Set(this.config.ai?.providers.map((p) => p.integration) ?? [])
     const current = keyId(keyOf(this.config.secret))
     let stale = 0
     for (const def of this.definitions) {
@@ -468,7 +480,13 @@ export class Integrations {
         enabled: await this.enabled(def.id),
         envFields: Object.keys(env),
         testable: typeof def.test === 'function',
-        connections,
+        connections: aiProviders.has(def.id)
+          ? connections.map((c) => ({
+              ...c,
+              usage: usage.get(`${def.id}:${c.name}`) ?? { requests: 0, input: 0, output: 0 },
+            }))
+          : connections,
+        ...(def.consent ? { consent: def.consent, consented: await this.consented(def.id) } : {}),
       })
     }
     const installed = new Set(this.config.installedPlugins.map((p) => p.name))
@@ -562,11 +580,12 @@ export class Integrations {
   async connect(id: string, body: unknown, user: AuthUser) {
     const def = this.definition(id)
     if (def.kind !== 'fields') throw new QueryError(`${id} connects with its Connect button`)
+    await this.checkConsent(def)
     const input = (body ?? {}) as Data
     const name = await this.uniqueName(id, String(input.name ?? ''))
     const values = this.cleanValues(def, input.values)
     this.checkFields(def, values, false)
-    const result = def.test ? await def.test(values, { cms: this.cms }) : null
+    const result = def.test ? await def.test(values, { cms: this.cms, name }) : null
     if (result && !result.ok)
       throw new ValidationError(CONNECTIONS, [
         { field: 'values', message: result.message ?? 'the provider refused these values' },
@@ -630,13 +649,44 @@ export class Integrations {
   /** Turns the integration on or off; its connections are kept. */
   async setEnabled(id: string, enabled: boolean, user: AuthUser) {
     this.definition(id)
+    await this.saveIntegration(id, { enabled })
+    await this.audit(user, enabled ? 'enable' : 'disable', id)
+    return { enabled }
+  }
+
+  /** Who accepted the integration's `consent`, and when; `null` before anyone did. */
+  private async consented(id: string): Promise<{ at: string; by: string } | null> {
+    const [row] = await this.rows(id, 'integration')
+    const consent = ((row?.values ?? {}) as Data).consent as { at: string; by: string } | undefined
+    return consent ?? null
+  }
+  private async checkConsent(def: IntegrationConfig) {
+    if (def.consent && !(await this.consented(def.id)))
+      throw new ValidationError(CONNECTIONS, [
+        { field: 'consent', message: 'must be accepted before connecting' },
+      ])
+  }
+
+  /** An admin accepts the integration's `consent`; audit-logged. */
+  async consent(id: string, user: AuthUser) {
+    const def = this.definition(id)
+    if (!def.consent) throw new QueryError(`${id} asks for no consent`)
+    const [row] = await this.rows(id, 'integration')
+    const consent = { at: new Date().toISOString(), by: String(user.email ?? user.id) }
+    await this.saveIntegration(id, { values: { ...((row?.values ?? {}) as Data), consent } })
+    await this.audit(user, 'consent', id)
+    return { consented: consent }
+  }
+
+  /** The integration's own row (on or off, consent), made when first needed. */
+  private async saveIntegration(id: string, patch: Data) {
     const [row] = await this.rows(id, 'integration')
     const now = new Date().toISOString()
     if (row)
       await this.cms.db.update({
         collection: CONNECTIONS,
         id: row.id as ID,
-        data: { ...row, enabled, updatedAt: now },
+        data: { ...row, ...patch, updatedAt: now },
       })
     else
       await this.cms.db.create({
@@ -651,13 +701,12 @@ export class Integrations {
           account: null,
           lastUsedAt: null,
           lastError: null,
-          enabled,
+          enabled: null,
           createdAt: now,
           updatedAt: now,
+          ...patch,
         },
       })
-    await this.audit(user, enabled ? 'enable' : 'disable', id)
-    return { enabled }
   }
 
   /** Checks a connection's values with the provider; the card shows the result. */
@@ -668,9 +717,10 @@ export class Integrations {
       cid === 'env'
         ? this.envValues(def)
         : { ...this.decrypt(await this.row(id, cid)), ...this.envValues(def) }
+    const name = cid === 'env' ? ENV_NAME : String((await this.row(id, cid)).name)
     let result: IntegrationTestResult
     try {
-      result = await def.test(values, { cms: this.cms })
+      result = await def.test(values, { cms: this.cms, name })
     } catch (error) {
       result = { ok: false, message: (error as Error).message }
     }
@@ -723,10 +773,16 @@ export class Integrations {
   // --- OAuth -----------------------------------------------------------------------------------
 
   /** The provider's sign-in page to send the admin to. */
-  authorize(id: string, user: AuthUser, redirectUri: string, name: string): { url: string } {
+  async authorize(
+    id: string,
+    user: AuthUser,
+    redirectUri: string,
+    name: string,
+  ): Promise<{ url: string }> {
     const def = this.definition(id)
     if (def.kind !== 'oauth' || !def.oauth)
       throw new QueryError(`${id} connects with pasted values`)
+    await this.checkConsent(def)
     const state = signState(this.config.secret, {
       i: id,
       u: String(user.id),

@@ -1,0 +1,50 @@
+{
+  "name": "@easy-cms/plugin-ai",
+  "version": "1.32.0",
+  "description": "AI for Easy CMS: connect Claude, GPT, Gemini or an OpenAI-compatible provider on the Integrations page, for the admin's AI features",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "prepack": "node ../../scripts/check-publish.mjs"
+  },
+  "peerDependencies": {
+    "@easy-cms/core": "workspace:^"
+  },
+  "devDependencies": {
+    "@easy-cms/core": "workspace:^",
+    "@easy-cms/db-sqlite": "workspace:^"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maritonx/easy-cms.git",
+    "directory": "packages/plugin-ai"
+  },
+  "keywords": [
+    "easy-cms",
+    "easy-cms-plugin",
+    "ai",
+    "claude",
+    "openai",
+    "gemini"
+  ]
+}

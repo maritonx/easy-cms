@@ -5,6 +5,19 @@ export {
   type AdminPageRoute,
   type SetFieldDetail,
 } from './admin-elements.js'
+export {
+  type AdminAi,
+  type Ai,
+  type AiConfig,
+  type AiFeatureConfig,
+  type AiImage,
+  type AiProvider,
+  AiProviderError,
+  type AiProviderRequest,
+  type AiProviderResult,
+  type AiRequest,
+  type AiResult,
+} from './ai.js'
 export type {
   ApiKeyContext,
   ApiKeyGlobalOperation,

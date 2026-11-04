@@ -19,6 +19,7 @@
     "@easy-cms/email-smtp": "workspace:^",
     "@easy-cms/fields": "workspace:^",
     "@easy-cms/next": "workspace:^",
+    "@easy-cms/plugin-ai": "workspace:^",
     "@easy-cms/plugin-form-builder": "workspace:^",
     "@easy-cms/plugin-graphql": "workspace:^",
     "@easy-cms/plugin-mcp": "workspace:^",

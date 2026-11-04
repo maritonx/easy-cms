@@ -1357,6 +1357,51 @@ test.describe('logged in as admin', () => {
     expect(sent.at(-1)?.text).toContain('test message')
   })
 
+  test('connects an AI provider after accepting its policy, and sets AI up (#357)', async ({
+    page,
+  }) => {
+    test.skip(test.info().project.name !== 'next', 'The Next.js example has the AI plugin')
+    await page.goto('/admin/integrations?category=ai')
+    const box = page.getByRole('region', { name: 'AI features' })
+    await expect(box).toContainText('Connect an AI provider below to use AI features.')
+    const card = page.getByRole('article', { name: 'Anthropic (Claude)' })
+    await card.getByRole('button', { name: 'Connect an account' }).click()
+    // The provider's policy first, once (the mock Anthropic API, ANTHROPIC_API_URL).
+    const consent = card.getByRole('group', { name: 'Before connecting' })
+    await expect(consent).toContainText('are sent to Anthropic')
+    await expect(consent.getByRole('link', { name: /Privacy policy/ })).toHaveAttribute(
+      'href',
+      'https://www.anthropic.com/legal/privacy',
+    )
+    await consent.getByRole('button', { name: 'Accept and connect' }).click()
+    await card.getByLabel('API key').fill('sk-ant-e2e')
+    await card.getByRole('button', { name: 'Find Model' }).click()
+    await card
+      .getByRole('group', { name: 'Found for Model' })
+      .getByRole('button', { name: 'Claude E2E (claude-e2e-1)' })
+      .click()
+    await card.getByRole('button', { name: 'Save' }).click()
+    await expect(page.getByRole('status')).toHaveText('"Anthropic (Claude)" connected')
+    // Connecting tested it: the model answered, and its tokens count on the card.
+    await expect(card.getByText('claude-e2e-1')).toBeVisible()
+    await expect(card.getByText('This month: requests 1, tokens 13')).toBeVisible()
+
+    await box
+      .getByRole('combobox', { name: 'Main connection' })
+      .selectOption('anthropic:Anthropic (Claude)')
+    await expect(page.getByRole('status')).toHaveText('AI settings saved')
+    const limit = box.getByRole('spinbutton', { name: 'Requests per user per day' })
+    await limit.fill('50')
+    await box.getByRole('button', { name: 'Save' }).click()
+    await expect(page.getByRole('status')).toHaveText('AI settings saved')
+    await page.reload()
+    await expect(limit).toHaveValue('50')
+    await expect(box.getByRole('combobox', { name: 'Main connection' })).toHaveValue(
+      'anthropic:Anthropic (Claude)',
+    )
+    await expect(box.getByRole('table', { name: 'By feature' })).toContainText('Test button')
+  })
+
   test('shows one group at a time, follows the page, and folds the panel away', async ({
     page,
   }) => {

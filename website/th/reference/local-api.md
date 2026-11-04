@@ -130,6 +130,8 @@ Local API เชื่อผู้เรียกและข้ามกฎส�
 
 object `cms` ยังมี `config` (config ที่ resolve แล้ว), `auth` (การ login และตรวจ session),
 `auth.sso` (การเข้าสู่ระบบด้วย `auth.providers`), `audit` (เมื่อเปิด `audit`: `audit.record({ action, target, doc })` เขียนรายการ), `roles` (เมื่อเปิด `auth.rbac`: `roles.allows(user, { collection }, operation)` บอกว่า role ของผู้ใช้อนุญาตอะไร),
+`integrations` (การเชื่อมต่อ: `integrations.get(id)` [การเชื่อมต่อ](/th/guide/integrations)), `ai` (เมื่อมี
+`@easy-cms/plugin-ai` ไม่อย่างนั้นเป็น `null`: `ai.generate({ feature, prompt })` [AI](/th/guide/ai)),
 `db`, `storage`, `logger` และ `cwd`
 
 `db` คือ database adapter ที่อยู่ใต้กฎสิทธิ์ hook และ version สิ่งที่มันมีให้อาจเปลี่ยนได้ระหว่าง minor version ส่วน `config` คือ config

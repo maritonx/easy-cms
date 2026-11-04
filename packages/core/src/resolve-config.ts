@@ -1,6 +1,7 @@
 import { apiKeysCollection } from './api-keys.js'
 import { type AuditConfig, DEFAULT_AUDIT_KEEP, DEFAULT_FAILED_LOGINS } from './audit.js'
 import {
+  aiUsageCollection,
   auditLogsCollection,
   bulkOperationsCollection,
   connectionsCollection,
@@ -161,6 +162,7 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
       bulkOperationsCollection,
       savedViewsCollection,
       ...(resolvedIntegrations(config).length > 0 ? [connectionsCollection] : []),
+      ...(config.ai ? [aiUsageCollection] : []),
       ...(config.auth?.rbac ? [rolesCollection] : []),
       ...((config.auth?.providers?.length ?? 0) > 0 ? [userIdentitiesCollection] : []),
       ...(config.audit ? [auditLogsCollection] : []),
@@ -168,6 +170,7 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
     globals: config.globals ?? [],
     endpoints: config.endpoints ?? [],
     integrations: resolvedIntegrations(config),
+    aiFeatures: config.ai ? (config.aiFeatures ?? []) : [],
     cliCommands: config.cliCommands ?? [],
     // Easy CMS's own events (#356), for webhooks and `cms.on`.
     events: [...new Set([...(config.events ?? []), ...SYSTEM_EVENTS])],

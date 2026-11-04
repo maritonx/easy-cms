@@ -206,6 +206,7 @@ cd my-cms && npm run dev       # http://localhost:4000/admin
 | [`@easy-cms/plugin-form-builder`](packages/plugin-form-builder) | Forms built in the admin, submissions with an overview and a dashboard panel, email notifications, spam protection, `<easy-form>` | [Forms](https://easycms.dev/docs/forms) |
 | [`@easy-cms/plugin-redirects`](packages/plugin-redirects) | Redirects managed in the admin, automatic redirects when a page moves | [Redirects](https://easycms.dev/docs/redirects) |
 | [`@easy-cms/plugin-notify`](packages/plugin-notify) | Telegram messages to admins when a form is sent, an order comes in or something fails | [Notifications](https://easycms.dev/docs/notifications) |
+| [`@easy-cms/plugin-ai`](packages/plugin-ai) | Claude, GPT, Gemini or an OpenAI-compatible server for the admin's AI features, with daily limits and usage | [AI](https://easycms.dev/docs/ai) |
 | [`@easy-cms/plugin-nested-docs`](packages/plugin-nested-docs) | Pages inside pages: parents, full paths, breadcrumbs, a tree in the admin | [Nested pages](https://easycms.dev/docs/nested-docs) |
 | [`@easy-cms/plugin-graphql`](packages/plugin-graphql) (experimental) | GraphQL API: queries and mutations for every collection and global, with your access rules | [GraphQL](https://easycms.dev/docs/graphql) |
 | [`@easy-cms/plugin-mcp`](packages/plugin-mcp) (experimental) | Model Context Protocol server for AI assistants | [MCP](https://easycms.dev/docs/mcp) |

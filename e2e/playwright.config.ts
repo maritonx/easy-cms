@@ -25,6 +25,9 @@ const STRIPE = 'http://localhost:3111'
 /** Telegram's Bot API for the Next.js example's notifications (`telegram-mock.ts`). */
 const TELEGRAM = 'http://localhost:3112'
 
+/** Anthropic's API for the Next.js example's AI connections (`ai-mock.ts`). */
+const ANTHROPIC = 'http://localhost:3113'
+
 /** The shop example (`examples/shop`, Next.js), as a production build. */
 const SHOP = 'http://localhost:3105'
 
@@ -106,6 +109,7 @@ export default defineConfig({
         // The key file is served; nothing is sent, as localhost isn't a public site.
         INDEXNOW_KEY: 'e2e-indexnow-key',
         TELEGRAM_API_URL: TELEGRAM,
+        ANTHROPIC_API_URL: ANTHROPIC,
         // Single sign-on on standalone, where the schema is pushed. Nuxt and Next.js run from the
         // examples' migrations, which are made without a provider.
         ...(app.name !== 'standalone'
@@ -127,6 +131,12 @@ export default defineConfig({
       name: 'telegram',
       command: `node telegram-mock.ts ${new URL(TELEGRAM).port}`,
       url: TELEGRAM,
+      reuseExistingServer: false,
+    },
+    {
+      name: 'anthropic',
+      command: `node ai-mock.ts ${new URL(ANTHROPIC).port}`,
+      url: ANTHROPIC,
       reuseExistingServer: false,
     },
     {

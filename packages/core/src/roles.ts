@@ -40,6 +40,8 @@ export interface RolePermissions {
   readonly own?: Readonly<Record<string, readonly RoleOperation[]>>
   /** Top-level fields the role may only read or not see, by collection or global slug. */
   readonly fields?: { readonly collections?: FieldRules; readonly globals?: FieldRules }
+  /** AI requests a user of the role makes a day (with `ai`); 0: none. Unset: everyone's limit. */
+  readonly aiPerDay?: number
 }
 
 /** One role as Settings → Roles shows it (`GET <api>/admin/roles`). */
@@ -94,6 +96,8 @@ export interface AdminRoles {
   })[]
   globals: AdminRoleTarget[]
   views: AdminRoleView[]
+  /** Roles can be given a daily AI limit (`ai` in the config). */
+  ai: boolean
 }
 
 /** One change to a role (`GET <api>/admin/roles/:id/history`). */
@@ -444,6 +448,7 @@ export class Roles {
         fields: adminFields(g.fields, undefined),
       })),
       views: this.views(),
+      ai: Boolean(this.config.ai),
     }
   }
 
@@ -652,7 +657,11 @@ export class Roles {
         undefined,
       ),
     }
-    return { ...picked, admin, own, fields }
+    const aiPerDay =
+      this.config.ai && Number.isInteger(input.aiPerDay) && (input.aiPerDay as number) >= 0
+        ? { aiPerDay: input.aiPerDay as number }
+        : {}
+    return { ...picked, admin, own, fields, ...aiPerDay }
   }
 
   /**
@@ -708,6 +717,12 @@ export class Roles {
         { field: 'name', message: 'must be at most 60 characters' },
       ])
     return value.trim()
+  }
+
+  /** The role's daily AI limit set in Settings → Roles, if any (`auth.rbac`). */
+  async aiLimit(key: string): Promise<number | undefined> {
+    if (!this.enabled) return undefined
+    return (await this.permissionsOf(key)).aiPerDay
   }
 
   private async permissionsOf(key: string): Promise<RolePermissions> {
