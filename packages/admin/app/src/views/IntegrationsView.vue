@@ -1,14 +1,30 @@
 <script setup lang="ts">
 import type { Label } from '@easy-cms/core'
-import { CheckCircle2, CircleAlert, ExternalLink, Plug, Plus, Star, Trash2 } from '@lucide/vue'
-import { computed, onMounted, ref } from 'vue'
+import {
+  CheckCircle2,
+  CircleAlert,
+  Code2,
+  Copy,
+  ExternalLink,
+  Package,
+  Plus,
+  Search,
+  Sparkles,
+  Star,
+  Trash2,
+  X,
+} from '@lucide/vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AiSettings from '../components/AiSettings.vue'
 import { ApiError, api } from '../lib/api'
 import { formatDate, label, t } from '../lib/i18n'
 import { notify } from '../lib/toast'
 
-/** Settings → Integrations (#311): plugins' providers by category, and the accounts connected. */
+/**
+ * Settings → Integrations (#311): plugins' providers in one compact list by category, each opening a
+ * drawer with its accounts (`?open=<id>`).
+ */
 
 type Category = 'social' | 'ai' | 'notifications' | 'automation'
 interface Field {
@@ -71,13 +87,147 @@ const category = computed(() => {
 function setCategory(value: string | null) {
   void router.replace({ query: value ? { category: value } : {} })
 }
-const shown = computed(() =>
-  (data.value?.integrations ?? []).filter((i) => !category.value || i.category === category.value),
-)
+const query = ref('')
+const matches = (...texts: string[]) => {
+  const q = query.value.trim().toLowerCase()
+  return !q || texts.some((text) => text.toLowerCase().includes(q))
+}
+
+/** What a row says about an integration. */
+function statusOf(integration: Integration): {
+  kind: 'ok' | 'error' | 'off' | 'none'
+  text: string
+} {
+  if (!integration.enabled) return { kind: 'off', text: t('integrations.statusOff') }
+  if (integration.connections.some((c) => c.lastError))
+    return { kind: 'error', text: t('integrations.statusProblem') }
+  if (integration.connections.length)
+    return {
+      kind: 'ok',
+      text: t('integrations.statusConnected', { count: integration.connections.length }),
+    }
+  return { kind: 'none', text: t('integrations.statusNone') }
+}
+
+/** The AI plugin's settings, for its row (`GET /admin/ai`); `null` without it. */
+const ai = ref<{
+  main: string | null
+  connections: { id: string; integration: string; name: string; label: Label }[]
+  features: { enabled: boolean }[]
+  usage: { byFeature: { requests: number }[] }
+} | null>(null)
+async function loadAi() {
+  try {
+    ai.value = await api('GET', '/admin/ai')
+  } catch {
+    ai.value = null
+  }
+}
+const aiSummary = computed(() => {
+  const value = ai.value
+  if (!value) return ''
+  const main = value.connections.find((c) => c.id === value.main) ?? value.connections[0]
+  if (!main) return t('ai.rowNone')
+  const count = value.usage.byFeature.reduce((sum, f) => sum + f.requests, 0)
+  return t('ai.rowSummary', {
+    main: label(main.label, main.integration),
+    count: count.toLocaleString(),
+  })
+})
+
+type Row =
+  | { kind: 'integration'; key: string; integration: Integration }
+  | { kind: 'ai'; key: string }
+  | { kind: 'code'; key: string; service: Overview['configured'][number] }
+/** The list: by category, filtered by the chips and the search. */
+const groups = computed(() => {
+  const out: { category: Category | 'code'; rows: Row[] }[] = []
+  for (const c of CATEGORIES) {
+    if (category.value && category.value !== c) continue
+    const rows: Row[] = []
+    if (c === 'code') {
+      for (const service of data.value?.configured ?? []) {
+        const name = t(`integrations.kind.${service.kind}` as never)
+        if (matches(name, service.name)) rows.push({ kind: 'code', key: service.id, service })
+      }
+    } else {
+      if (c === 'ai' && ai.value && matches(t('ai.row'), 'AI')) rows.push({ kind: 'ai', key: 'ai' })
+      for (const integration of data.value?.integrations ?? [])
+        if (
+          integration.category === c &&
+          matches(
+            label(integration.label, integration.id),
+            label(integration.description ?? '', ''),
+            integration.plugin ?? '',
+          )
+        )
+          rows.push({ kind: 'integration', key: integration.id, integration })
+    }
+    if (rows.length) out.push({ category: c, rows })
+  }
+  return out
+})
 const catalog = computed(() =>
-  (data.value?.catalog ?? []).filter((p) => !category.value || p.category === category.value),
+  (data.value?.catalog ?? []).filter(
+    (p) =>
+      (!category.value || p.category === category.value) &&
+      matches(p.name, label(p.description, '')),
+  ),
 )
-const showCode = computed(() => !category.value || category.value === 'code')
+/** Headings between categories only when everything shows. */
+const grouped = computed(() => !category.value && !query.value.trim())
+const counts = computed(() => {
+  const out: Record<string, number> = { code: data.value?.configured.length ?? 0 }
+  for (const i of data.value?.integrations ?? []) out[i.category] = (out[i.category] ?? 0) + 1
+  return out
+})
+async function copy(text: string) {
+  try {
+    await navigator.clipboard.writeText(text)
+    notify('success', t('integrations.copied'))
+  } catch (e) {
+    notify('error', (e as Error).message)
+  }
+}
+
+/** The drawer: an integration's id, or `ai` for the AI settings (`?open=` in the address). */
+const opened = computed(() => (typeof route.query.open === 'string' ? route.query.open : null))
+const openIntegration = computed(
+  () => data.value?.integrations.find((i) => i.id === opened.value) ?? null,
+)
+const drawer = ref<HTMLDialogElement>()
+function open(id: string) {
+  void router.replace({ query: { ...route.query, open: id } })
+}
+function close() {
+  const { open: _, ...rest } = route.query
+  void router.replace({ query: rest })
+}
+watch(
+  [opened, () => data.value],
+  async ([id]) => {
+    await nextTick()
+    const dialog = drawer.value
+    if (!id || !dialog) return
+    if (!dialog.open) {
+      form.value = null
+      consenting.value = null
+      found.value = {}
+      dialog.showModal()
+      // Nothing connected yet: straight to connecting.
+      const integration = openIntegration.value
+      if (integration?.enabled && integration.connections.length === 0) startAdding(integration)
+    }
+  },
+  { flush: 'post' },
+)
+watch(opened, (id) => {
+  if (!id && drawer.value?.open) drawer.value.close()
+})
+function onDrawerClick(event: MouseEvent) {
+  // The dialog element itself is the backdrop; the panel is inside it.
+  if (event.target === drawer.value) close()
+}
 
 /** Tells the AI box to read its connections again. */
 const version = ref(0)
@@ -85,6 +235,7 @@ async function load() {
   try {
     data.value = await api<Overview>('GET', '/admin/integrations')
     version.value++
+    void loadAi()
   } catch (e) {
     error.value = (e as Error).message
   }
@@ -313,130 +464,211 @@ const fieldLabel = (field: Field) => label(field.label, field.name)
     <p v-if="error" class="notice notice-warning" role="alert">{{ error }}</p>
     <p v-if="data?.staleSecrets" class="notice notice-warning">{{ t('integrations.staleSecrets', { count: data.staleSecrets }) }}</p>
 
-    <div class="categories" role="group" :aria-label="t('integrations.categories')">
-      <button type="button" :class="['chip-btn', { on: category === null }]" :aria-pressed="category === null" @click="setCategory(null)">{{ t('integrations.all') }}</button>
-      <button v-for="c in CATEGORIES" :key="c" type="button" :class="['chip-btn', { on: category === c }]" :aria-pressed="category === c" @click="setCategory(c)">{{ categoryLabel(c) }}</button>
+    <div class="filters">
+      <label class="search">
+        <Search :size="16" aria-hidden="true" />
+        <span class="sr-only">{{ t('integrations.search') }}</span>
+        <input v-model="query" type="search" class="input" autocomplete="off" :placeholder="t('integrations.searchPlaceholder')" />
+      </label>
+      <div class="categories" role="group" :aria-label="t('integrations.categories')">
+        <button type="button" :class="['chip-btn', { on: category === null }]" :aria-pressed="category === null" @click="setCategory(null)">{{ t('integrations.all') }}</button>
+        <button v-for="c in CATEGORIES.filter((c) => counts[c] || category === c)" :key="c" type="button" :class="['chip-btn', { on: category === c }]" :aria-pressed="category === c" @click="setCategory(c)">
+          {{ categoryLabel(c) }} <span class="count">{{ counts[c] ?? 0 }}</span>
+        </button>
+      </div>
     </div>
 
-    <AiSettings v-if="data && (category === null || category === 'ai')" :version="version" />
+    <template v-if="data">
+      <section v-for="group in grouped ? groups : groups.length ? [{ category: null, rows: groups.flatMap((g) => g.rows) }] : []" :key="group.category ?? 'all'" class="group" :aria-labelledby="group.category ? `group-${group.category}` : undefined">
+        <h2 v-if="group.category" :id="`group-${group.category}`">{{ categoryLabel(group.category) }}</h2>
+        <ul class="list">
+          <template v-for="row in group.rows" :key="row.key">
+            <li v-if="row.kind === 'integration'" class="row">
+              <span class="logo" aria-hidden="true">{{ label(row.integration.label, row.integration.id).charAt(0).toUpperCase() }}</span>
+              <div class="what">
+                <strong>{{ label(row.integration.label, row.integration.id) }}</strong>
+                <span class="desc">{{ label(row.integration.description ?? '', '') || row.integration.plugin }}</span>
+              </div>
+              <span :class="['status', `status-${statusOf(row.integration).kind}`]">
+                <CheckCircle2 v-if="statusOf(row.integration).kind === 'ok'" :size="14" aria-hidden="true" />
+                <CircleAlert v-else-if="statusOf(row.integration).kind === 'error'" :size="14" aria-hidden="true" />
+                {{ statusOf(row.integration).text }}
+              </span>
+              <button
+                type="button"
+                :class="['btn', 'btn-sm', 'act', { 'btn-primary': row.integration.enabled && !row.integration.connections.length }]"
+                :aria-label="t(row.integration.connections.length || !row.integration.enabled ? 'integrations.manageName' : 'integrations.connectName', { name: label(row.integration.label, row.integration.id) })"
+                @click="open(row.integration.id)"
+              >{{ row.integration.connections.length || !row.integration.enabled ? t('integrations.manage') : t('integrations.connect') }}</button>
+            </li>
+            <li v-else-if="row.kind === 'ai'" class="row">
+              <span class="logo muted" aria-hidden="true"><Sparkles :size="18" /></span>
+              <div class="what">
+                <strong>{{ t('ai.row') }}</strong>
+                <span class="desc">{{ aiSummary }}</span>
+              </div>
+              <span class="status status-ai">{{ t('ai.featuresOn', { on: ai?.features.filter((f) => f.enabled).length ?? 0, all: ai?.features.length ?? 0 }) }}</span>
+              <button type="button" class="btn btn-sm act" :aria-label="t('integrations.manageName', { name: t('ai.row') })" @click="open('ai')">{{ t('integrations.manage') }}</button>
+            </li>
+            <li v-else class="row">
+              <span class="logo muted" aria-hidden="true"><Code2 :size="18" /></span>
+              <div class="what">
+                <strong>{{ t(`integrations.kind.${row.service.kind}` as never) }}</strong>
+                <span class="desc">{{ row.service.name }} · {{ t('integrations.inCode') }}</span>
+              </div>
+              <span class="status status-code">{{ t('integrations.statusCode') }}</span>
+            </li>
+          </template>
+        </ul>
+      </section>
 
-    <div v-if="data" class="grid">
-      <article v-for="integration in shown" :key="integration.id" class="card integration" :aria-labelledby="`int-${integration.id}`">
-        <header class="head">
-          <div>
-            <h2 :id="`int-${integration.id}`"><Plug :size="16" aria-hidden="true" /> {{ label(integration.label, integration.id) }}</h2>
-            <p class="muted small">{{ categoryLabel(integration.category) }}<template v-if="integration.plugin"> · {{ integration.plugin }}</template></p>
-          </div>
-          <label class="switch">
-            <input type="checkbox" role="switch" :checked="integration.enabled" :aria-label="t('integrations.enable', { name: label(integration.label, integration.id) })" @change="toggle(integration)" />
-            <span>{{ t(integration.enabled ? 'integrations.on' : 'integrations.off') }}</span>
-          </label>
-        </header>
-        <p v-if="integration.description" class="description">{{ label(integration.description, '') }}</p>
-        <a v-if="integration.docs" :href="integration.docs" target="_blank" rel="noopener" class="docs">{{ t('integrations.guide') }} <ExternalLink :size="13" aria-hidden="true" /></a>
-
-        <ul v-if="integration.connections.length" class="connections">
-          <li v-for="connection in integration.connections" :key="String(connection.id)" class="connection">
-            <div class="who">
-              <strong>{{ connection.name }}</strong>
-              <span v-if="connection.isDefault" class="badge"><Star :size="11" aria-hidden="true" /> {{ t('integrations.default') }}</span>
-              <span v-if="connection.env" class="badge">{{ t('integrations.fromEnv') }}</span>
-              <span v-if="connection.account" class="muted small">{{ connection.account }}</span>
-              <span v-if="connection.lastError" class="error small"><CircleAlert :size="13" aria-hidden="true" /> {{ connection.lastError }}</span>
-              <span v-else-if="connection.lastUsedAt" class="muted small"><CheckCircle2 :size="13" aria-hidden="true" /> {{ t('integrations.lastUsed', { date: formatDate(connection.lastUsedAt) }) }}</span>
-              <span v-if="connection.usage" class="muted small">{{ t('ai.usage', { requests: connection.usage.requests.toLocaleString(), tokens: (connection.usage.input + connection.usage.output).toLocaleString() }) }}</span>
+      <section v-if="catalog.length" class="group" aria-labelledby="group-catalog">
+        <h2 id="group-catalog">{{ t('integrations.catalog') }}</h2>
+        <ul class="list">
+          <li v-for="plugin in catalog" :key="plugin.name" class="row catalog">
+            <span class="logo muted" aria-hidden="true"><Package :size="18" /></span>
+            <div class="what">
+              <strong>{{ plugin.name }}</strong>
+              <span class="desc">{{ label(plugin.description, '') }} · <a :href="plugin.docs" target="_blank" rel="noopener">{{ t('integrations.guide') }}</a></span>
             </div>
-            <div class="actions">
-              <button v-if="integration.testable" type="button" class="btn btn-sm" @click="test(integration, connection)">{{ t('integrations.test') }}</button>
-              <template v-if="!connection.env">
-                <button v-if="!connection.isDefault" type="button" class="btn btn-sm btn-ghost" @click="makeDefault(integration, connection)">{{ t('integrations.makeDefault') }}</button>
-                <button type="button" class="btn btn-sm btn-ghost" @click="startEditing(integration, connection)">{{ t('integrations.edit') }}</button>
-                <button type="button" class="btn btn-sm btn-ghost danger" :aria-label="t('integrations.disconnectName', { name: connection.name })" @click="disconnect(integration, connection)"><Trash2 :size="14" aria-hidden="true" /> {{ t('integrations.disconnect') }}</button>
-              </template>
-            </div>
+            <span class="install">
+              <code>npm install {{ plugin.name }}</code>
+              <button type="button" class="btn btn-sm btn-icon" :aria-label="t('integrations.copy')" :title="t('integrations.copy')" @click="copy(`npm install ${plugin.name}`)"><Copy :size="14" aria-hidden="true" /></button>
+            </span>
           </li>
         </ul>
-        <p v-else class="muted small">{{ t('integrations.none') }}</p>
+      </section>
 
-        <div v-if="consenting === integration.id && integration.consent" class="consent" role="group" :aria-label="t('integrations.consentTitle')">
-          <p>{{ label(integration.consent.text, '') }}</p>
-          <a v-if="integration.consent.policy" :href="integration.consent.policy" target="_blank" rel="noopener" class="docs">{{ t('integrations.policy') }} <ExternalLink :size="13" aria-hidden="true" /></a>
-          <div class="actions">
-            <button type="button" class="btn btn-ghost" @click="consenting = null">{{ t('common.cancel') }}</button>
-            <button type="button" class="btn btn-primary" @click="accept(integration)">{{ t('integrations.accept') }}</button>
+      <p v-if="!groups.length && !catalog.length" class="empty muted">{{ t('integrations.noMatch', { query }) }}</p>
+    </template>
+
+    <Teleport to="body">
+      <dialog ref="drawer" class="drawer" :aria-labelledby="opened ? 'drawer-title' : undefined" @cancel.prevent="close" @click="onDrawerClick" @close="opened && close()">
+        <div v-if="opened === 'ai'" class="panel">
+          <header class="panel-header">
+            <span class="logo muted" aria-hidden="true"><Sparkles :size="18" /></span>
+            <div class="grow"><h2 id="drawer-title">{{ t('ai.row') }}</h2><p class="muted small">{{ categoryLabel('ai') }}</p></div>
+            <button type="button" class="btn btn-ghost btn-sm btn-icon" :aria-label="t('integrations.close')" @click="close"><X :size="18" aria-hidden="true" /></button>
+          </header>
+          <div class="panel-body">
+            <AiSettings :version="version" @changed="loadAi" />
           </div>
         </div>
-        <form v-if="form?.integration === integration.id" class="connect" novalidate @submit.prevent="submit(integration)">
-          <label class="field">
-            <span class="field-label">{{ t('integrations.name') }}<span class="field-required" aria-hidden="true">*</span></span>
-            <input v-model="form.name" class="input" maxlength="60" required />
-            <span v-if="errors.name" class="field-error">{{ errors.name }}</span>
-          </label>
-          <template v-if="integration.kind === 'fields'">
-            <template v-for="field in integration.fields" :key="field.name">
-              <fieldset v-if="field.type === 'multiselect'" class="field ticks">
-                <legend class="field-label">{{ fieldLabel(field) }}</legend>
-                <label v-for="o in field.options ?? []" :key="optionValue(o)" class="tick">
-                  <input type="checkbox" :checked="ticked(field.name).includes(optionValue(o))" @change="tick(field.name, optionValue(o), ($event.target as HTMLInputElement).checked)" />
-                  {{ optionLabel(o) }}
-                </label>
-                <span v-if="field.description" class="field-hint">{{ label(field.description, '') }}</span>
-              </fieldset>
-              <label v-else class="field">
-                <span class="field-label">{{ fieldLabel(field) }}<span v-if="field.required && form.id === null" class="field-required" aria-hidden="true">*</span></span>
-                <span v-if="integration.envFields.includes(field.name)" class="field-hint">{{ t('integrations.fieldFromEnv') }}</span>
-                <select v-if="field.type === 'select'" v-model="form.values[field.name]" class="input">
-                  <option v-if="!field.required" value="">—</option>
-                  <option v-for="o in field.options ?? []" :key="optionValue(o)" :value="optionValue(o)">{{ optionLabel(o) }}</option>
-                </select>
-                <textarea v-else-if="field.type === 'textarea'" v-model="form.values[field.name]" class="textarea" />
-                <input
-                  v-else
-                  v-model="form.values[field.name]"
-                  class="input"
-                  :type="field.secret ? 'password' : field.type === 'url' ? 'url' : 'text'"
-                  :autocomplete="field.secret ? 'off' : undefined"
-                  :placeholder="field.secret && form.id !== null ? t('integrations.keepSecret') : field.placeholder"
-                />
-                <button v-if="field.findable" type="button" class="btn btn-sm find" @click="find(integration, field)">{{ t('integrations.find', { name: fieldLabel(field) }) }}</button>
-                <span v-if="found[field.name]?.length" class="choices" role="group" :aria-label="t('integrations.foundFor', { name: fieldLabel(field) })">
-                  <button v-for="choice in found[field.name]" :key="choice.value" type="button" class="btn btn-sm btn-ghost" @click="pick(field, choice.value)">{{ choice.label }}</button>
-                </span>
-                <span v-if="field.description" class="field-hint">{{ label(field.description, '') }}</span>
-                <span v-if="errors[field.name]" class="field-error">{{ errors[field.name] }}</span>
+        <div v-else-if="openIntegration" class="panel">
+          <header class="panel-header">
+            <span class="logo" aria-hidden="true">{{ label(openIntegration.label, openIntegration.id).charAt(0).toUpperCase() }}</span>
+            <div class="grow">
+              <h2 id="drawer-title">{{ label(openIntegration.label, openIntegration.id) }}</h2>
+              <p class="muted small">{{ categoryLabel(openIntegration.category) }}<template v-if="openIntegration.plugin"> · {{ openIntegration.plugin }}</template></p>
+            </div>
+            <label class="switch">
+              <input type="checkbox" role="switch" :checked="openIntegration.enabled" :aria-label="t('integrations.enable', { name: label(openIntegration.label, openIntegration.id) })" @change="toggle(openIntegration)" />
+              <span>{{ t(openIntegration.enabled ? 'integrations.on' : 'integrations.off') }}</span>
+            </label>
+            <button type="button" class="btn btn-ghost btn-sm btn-icon" :aria-label="t('integrations.close')" @click="close"><X :size="18" aria-hidden="true" /></button>
+          </header>
+          <div v-for="integration in [openIntegration]" :key="integration.id" class="panel-body">
+            <p v-if="integration.description || integration.docs" class="description">
+              {{ label(integration.description ?? '', '') }}
+              <a v-if="integration.docs" :href="integration.docs" target="_blank" rel="noopener" class="docs">{{ t('integrations.guide') }} <ExternalLink :size="13" aria-hidden="true" /></a>
+            </p>
+            <p v-if="integration.consented" class="muted small">{{ t('integrations.consentedBy', { who: integration.consented.by, date: formatDate(integration.consented.at) }) }}</p>
+
+            <section :aria-labelledby="`conn-${integration.id}`">
+              <h3 :id="`conn-${integration.id}`">{{ t('integrations.connections') }}</h3>
+              <ul v-if="integration.connections.length" class="connections">
+                <li v-for="connection in integration.connections" :key="String(connection.id)" class="connection">
+                  <div class="who">
+                    <strong>{{ connection.name }}</strong>
+                    <span v-if="connection.isDefault" class="badge"><Star :size="11" aria-hidden="true" /> {{ t('integrations.default') }}</span>
+                    <span v-if="connection.env" class="badge">{{ t('integrations.fromEnv') }}</span>
+                    <span v-if="connection.account" class="muted small">{{ connection.account }}</span>
+                  </div>
+                  <div class="meta small">
+                    <span v-if="connection.lastError" class="error"><CircleAlert :size="13" aria-hidden="true" /> {{ connection.lastError }}</span>
+                    <span v-else-if="connection.lastUsedAt" class="muted"><CheckCircle2 :size="13" aria-hidden="true" /> {{ t('integrations.lastUsed', { date: formatDate(connection.lastUsedAt) }) }}</span>
+                    <span v-if="connection.usage" class="muted">{{ t('ai.usage', { requests: connection.usage.requests.toLocaleString(), tokens: (connection.usage.input + connection.usage.output).toLocaleString() }) }}</span>
+                  </div>
+                  <div class="actions">
+                    <button v-if="integration.testable" type="button" class="btn btn-sm" @click="test(integration, connection)">{{ t('integrations.test') }}</button>
+                    <template v-if="!connection.env">
+                      <button v-if="!connection.isDefault" type="button" class="btn btn-sm btn-ghost" @click="makeDefault(integration, connection)">{{ t('integrations.makeDefault') }}</button>
+                      <button type="button" class="btn btn-sm btn-ghost" @click="startEditing(integration, connection)">{{ t('integrations.edit') }}</button>
+                      <button type="button" class="btn btn-sm btn-ghost danger" :aria-label="t('integrations.disconnectName', { name: connection.name })" @click="disconnect(integration, connection)"><Trash2 :size="14" aria-hidden="true" /> {{ t('integrations.disconnect') }}</button>
+                    </template>
+                  </div>
+                </li>
+              </ul>
+              <p v-else class="muted small">{{ t('integrations.none') }}</p>
+            </section>
+
+            <div v-if="consenting === integration.id && integration.consent" class="consent" role="group" :aria-label="t('integrations.consentTitle')">
+              <strong>{{ t('integrations.consentTitle') }}</strong>
+              <p>{{ label(integration.consent.text, '') }}</p>
+              <a v-if="integration.consent.policy" :href="integration.consent.policy" target="_blank" rel="noopener" class="docs">{{ t('integrations.policy') }} <ExternalLink :size="13" aria-hidden="true" /></a>
+              <div class="actions end">
+                <button type="button" class="btn btn-ghost" @click="consenting = null">{{ t('common.cancel') }}</button>
+                <button type="button" class="btn btn-primary" @click="accept(integration)">{{ t('integrations.accept') }}</button>
+              </div>
+            </div>
+
+            <form v-if="form?.integration === integration.id" class="connect" novalidate @submit.prevent="submit(integration)">
+              <label class="field">
+                <span class="field-label">{{ t('integrations.name') }}<span class="field-required" aria-hidden="true">*</span></span>
+                <input v-model="form.name" class="input" maxlength="60" required />
+                <span v-if="errors.name" class="field-error">{{ errors.name }}</span>
               </label>
-            </template>
-          </template>
-          <p v-if="errors.values || errors['']" class="field-error" role="alert">{{ errors.values ?? errors[''] }}</p>
-          <div class="actions">
-            <button type="button" class="btn btn-ghost" @click="form = null">{{ t('common.cancel') }}</button>
-            <button type="submit" class="btn btn-primary" :disabled="busy">
-              {{ integration.kind === 'oauth' && form.id === null ? t('integrations.connectWith', { name: label(integration.label, integration.id) }) : t('integrations.save') }}
+              <template v-if="integration.kind === 'fields'">
+                <template v-for="field in integration.fields" :key="field.name">
+                  <fieldset v-if="field.type === 'multiselect'" class="field ticks">
+                    <legend class="field-label">{{ fieldLabel(field) }}</legend>
+                    <label v-for="o in field.options ?? []" :key="optionValue(o)" class="tick">
+                      <input type="checkbox" :checked="ticked(field.name).includes(optionValue(o))" @change="tick(field.name, optionValue(o), ($event.target as HTMLInputElement).checked)" />
+                      {{ optionLabel(o) }}
+                    </label>
+                    <span v-if="field.description" class="field-hint">{{ label(field.description, '') }}</span>
+                  </fieldset>
+                  <label v-else class="field">
+                    <span class="field-label">{{ fieldLabel(field) }}<span v-if="field.required && form.id === null" class="field-required" aria-hidden="true">*</span></span>
+                    <span v-if="integration.envFields.includes(field.name)" class="field-hint">{{ t('integrations.fieldFromEnv') }}</span>
+                    <select v-if="field.type === 'select'" v-model="form.values[field.name]" class="input">
+                      <option v-if="!field.required" value="">—</option>
+                      <option v-for="o in field.options ?? []" :key="optionValue(o)" :value="optionValue(o)">{{ optionLabel(o) }}</option>
+                    </select>
+                    <textarea v-else-if="field.type === 'textarea'" v-model="form.values[field.name]" class="textarea" />
+                    <span v-else class="with-find">
+                      <input
+                        v-model="form.values[field.name]"
+                        class="input"
+                        :type="field.secret ? 'password' : field.type === 'url' ? 'url' : 'text'"
+                        :autocomplete="field.secret ? 'off' : undefined"
+                        :placeholder="field.secret && form.id !== null ? t('integrations.keepSecret') : field.placeholder"
+                      />
+                      <button v-if="field.findable" type="button" class="btn find" @click="find(integration, field)">{{ t('integrations.find', { name: fieldLabel(field) }) }}</button>
+                    </span>
+                    <span v-if="found[field.name]?.length" class="choices" role="group" :aria-label="t('integrations.foundFor', { name: fieldLabel(field) })">
+                      <button v-for="choice in found[field.name]" :key="choice.value" type="button" class="btn btn-sm btn-ghost" @click="pick(field, choice.value)">{{ choice.label }}</button>
+                    </span>
+                    <span v-if="field.description" class="field-hint">{{ label(field.description, '') }}</span>
+                    <span v-if="errors[field.name]" class="field-error">{{ errors[field.name] }}</span>
+                  </label>
+                </template>
+              </template>
+              <p v-if="errors.values || errors['']" class="field-error" role="alert">{{ errors.values ?? errors[''] }}</p>
+              <div class="actions end">
+                <button type="button" class="btn btn-ghost" @click="form = null">{{ t('common.cancel') }}</button>
+                <button type="submit" class="btn btn-primary" :disabled="busy">
+                  {{ integration.kind === 'oauth' && form.id === null ? t('integrations.connectWith', { name: label(integration.label, integration.id) }) : t('integrations.save') }}
+                </button>
+              </div>
+            </form>
+            <button v-else-if="integration.enabled && consenting !== integration.id" type="button" class="btn add" @click="startAdding(integration)">
+              <Plus :size="14" aria-hidden="true" /> {{ t('integrations.add') }}
             </button>
           </div>
-        </form>
-        <button v-else-if="integration.enabled && consenting !== integration.id" type="button" class="btn btn-sm add" @click="startAdding(integration)">
-          <Plus :size="14" aria-hidden="true" /> {{ t('integrations.add') }}
-        </button>
-      </article>
-
-      <template v-if="showCode">
-        <article v-for="service in data.configured" :key="service.id" class="card integration readonly">
-          <h2><Plug :size="16" aria-hidden="true" /> {{ t(`integrations.kind.${service.kind}` as never) }}</h2>
-          <p class="muted small">{{ categoryLabel('code') }}</p>
-          <p>{{ service.name }}</p>
-          <p class="muted small">{{ t('integrations.inCode') }}</p>
-        </article>
-      </template>
-
-      <article v-for="plugin in catalog" :key="plugin.name" class="card integration readonly">
-        <h2><Plug :size="16" aria-hidden="true" /> {{ plugin.name }}</h2>
-        <p class="description">{{ label(plugin.description, '') }}</p>
-        <p class="muted small">{{ t('integrations.install') }}</p>
-        <code class="install">npm install {{ plugin.name }}</code>
-        <a :href="plugin.docs" target="_blank" rel="noopener" class="docs">{{ t('integrations.guide') }} <ExternalLink :size="13" aria-hidden="true" /></a>
-      </article>
-    </div>
+        </div>
+      </dialog>
+    </Teleport>
 
     <div v-if="choosing" class="choose card" role="dialog" aria-modal="false" :aria-label="t('integrations.chooseAccount')">
       <h2>{{ t('integrations.chooseAccount') }}</h2>
@@ -451,25 +683,46 @@ const fieldLabel = (field: Field) => label(field.label, field.name)
 </template>
 
 <style scoped>
-.consent {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-}
 .intro {
   margin: 0 0 1rem;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.filters {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+.search {
+  position: relative;
+  max-width: 26rem;
+}
+.search :deep(svg) {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--faint);
+}
+.search .input {
+  padding-left: 2.3rem;
 }
 .categories {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
-  margin-bottom: 1.25rem;
 }
 .chip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   min-height: 2.25rem;
   padding: 0 0.85rem;
   border: 1px solid var(--border-strong);
@@ -481,38 +734,233 @@ const fieldLabel = (field: Field) => label(field.label, field.name)
   font-weight: 600;
   cursor: pointer;
 }
+.chip-btn .count {
+  color: var(--faint);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
 .chip-btn.on {
   border-color: var(--accent);
   background: var(--accent-soft);
   color: var(--accent-ink);
 }
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
-  gap: 1rem;
-  align-items: start;
+.chip-btn.on .count {
+  color: inherit;
 }
-.integration {
+.group {
+  margin-bottom: 1.5rem;
+}
+.group h2 {
+  margin: 0 0 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.row {
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr) auto auto;
+  gap: 0.9rem;
+  align-items: center;
+  min-height: 4rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--border);
+}
+.row:first-child {
+  border-top: 0;
+}
+.logo {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-weight: 700;
+}
+.logo.muted {
+  background: var(--surface-2);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+.what {
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
-  padding: 1rem 1.1rem;
+  min-width: 0;
 }
-.integration h2 {
+.desc {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.status-ok {
+  background: var(--success-soft);
+  color: var(--ok);
+}
+.status-error {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.status-off {
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+.status-none {
+  color: var(--faint);
+  font-weight: 500;
+}
+.status-code {
+  background: var(--info-soft);
+  color: var(--info);
+}
+.status-ai {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+.install {
   display: flex;
+  grid-column: 3 / span 2;
   align-items: center;
   gap: 0.4rem;
-  margin: 0;
-  font-size: 1.05rem;
 }
-.head {
+.install code {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-2);
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+.empty {
+  padding: 2rem 1rem;
+  text-align: center;
+}
+@media (max-width: 640px) {
+  .row {
+    grid-template-columns: 2.5rem minmax(0, 1fr) auto;
+    row-gap: 0.4rem;
+  }
+  .row .status {
+    grid-column: 2;
+    justify-self: start;
+  }
+  .row .act {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+  }
+  .desc {
+    white-space: normal;
+  }
+  .install {
+    grid-column: 1 / -1;
+    flex-wrap: wrap;
+  }
+  .install code {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
+/* The drawer, like a small collection's (DocumentDrawer). */
+.drawer {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+}
+.drawer::backdrop {
+  background: rgb(0 0 0 / 35%);
+}
+.panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
-  justify-content: space-between;
-  gap: 0.75rem;
+  flex-direction: column;
+  width: min(32rem, 100vw);
+  background: var(--bg);
+  box-shadow: var(--shadow);
+  animation: slide-in 0.2s ease;
 }
-.head p,
-.integration p {
+@keyframes slide-in {
+  from {
+    transform: translateX(2rem);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .panel {
+    animation: none;
+  }
+}
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem 0.85rem 1.25rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.panel-header h2 {
   margin: 0;
+  overflow: hidden;
+  font-size: 1.1rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.panel-header p {
+  margin: 0;
+}
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+.panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: 1.25rem;
+}
+.panel-body p {
+  margin: 0;
+}
+.panel-body h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
 }
 .small {
   font-size: 0.85rem;
@@ -530,26 +978,36 @@ const fieldLabel = (field: Field) => label(field.label, field.name)
   font-size: 0.9rem;
 }
 .connections {
-  list-style: none;
-  margin: 0;
-  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 .connection {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
-  padding: 0.6rem 0.7rem;
+  gap: 0.35rem;
+  padding: 0.7rem 0.8rem;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
+  background: var(--surface);
 }
-.who {
+.who,
+.meta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  gap: 0.25rem 0.75rem;
+}
+.who {
   gap: 0.4rem;
+}
+.meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 .badge {
   display: inline-flex;
@@ -561,9 +1019,6 @@ const fieldLabel = (field: Field) => label(field.label, field.name)
   font-size: 0.75rem;
 }
 .error {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
   color: var(--danger);
 }
 .actions {
@@ -571,18 +1026,31 @@ const fieldLabel = (field: Field) => label(field.label, field.name)
   flex-wrap: wrap;
   gap: 0.3rem;
 }
+.actions.end {
+  justify-content: flex-end;
+}
 .danger {
   color: var(--danger);
 }
+.consent,
 .connect {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  padding-top: 0.5rem;
-  border-top: 1px solid var(--border);
+  padding: 0.9rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
 }
-.add,
-.find {
+.with-find {
+  display: flex;
+  gap: 0.4rem;
+}
+.with-find .input {
+  flex: 1;
+  min-width: 0;
+}
+.add {
   align-self: flex-start;
 }
 .ticks {
@@ -600,17 +1068,6 @@ const fieldLabel = (field: Field) => label(field.label, field.name)
   flex-wrap: wrap;
   gap: 0.3rem;
 }
-.readonly {
-  background: var(--surface-2);
-}
-.install {
-  font-family: var(--mono);
-  font-size: 0.85rem;
-  padding: 0.35rem 0.5rem;
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  overflow-wrap: anywhere;
-}
 .choose {
   position: fixed;
   z-index: 40;
@@ -621,11 +1078,11 @@ const fieldLabel = (field: Field) => label(field.label, field.name)
   box-shadow: var(--shadow);
 }
 .choose ul {
-  list-style: none;
-  margin: 0.5rem 0 1rem;
-  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
+  margin: 0.5rem 0 1rem;
+  padding: 0;
+  list-style: none;
 }
 </style>

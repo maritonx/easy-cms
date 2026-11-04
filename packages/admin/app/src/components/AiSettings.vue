@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { Label } from '@easy-cms/core'
-import { Sparkles } from '@lucide/vue'
 import { ref, watch } from 'vue'
 import { ApiError, api } from '../lib/api'
 import { label, t } from '../lib/i18n'
@@ -31,6 +30,8 @@ interface AdminAi {
 
 /** Changes when the page reloads its connections. */
 const props = defineProps<{ version: number }>()
+/** After a change, for the page's summary row. */
+const emit = defineEmits<{ changed: [] }>()
 
 const data = ref<AdminAi | null>(null)
 const limit = ref('')
@@ -52,6 +53,7 @@ async function save(change: Record<string, unknown>, message: string) {
     data.value = await api<AdminAi>('PUT', '/admin/ai', change)
     limit.value = String(data.value.perUserPerDay)
     notify('success', message)
+    emit('changed')
     return true
   } catch (e) {
     notify('error', (e as Error).message)
@@ -68,6 +70,7 @@ async function saveLimit() {
   try {
     data.value = await api<AdminAi>('PUT', '/admin/ai', { perUserPerDay: value })
     notify('success', t('ai.saved'))
+    emit('changed')
   } catch (e) {
     limitError.value =
       e instanceof ApiError ? (e.errors[0]?.message ?? e.message) : (e as Error).message
@@ -87,8 +90,7 @@ const number = (n: number) => n.toLocaleString()
 </script>
 
 <template>
-  <section v-if="data" class="ai card" aria-labelledby="ai-settings">
-    <h2 id="ai-settings"><Sparkles :size="16" aria-hidden="true" /> {{ t('ai.title') }}</h2>
+  <div v-if="data" class="ai">
     <p class="muted small">{{ t('ai.privacy') }}</p>
 
     <p v-if="data.connections.length === 0" class="notice">{{ t('ai.noConnection') }}</p>
@@ -164,23 +166,14 @@ const number = (n: number) => n.toLocaleString()
         </tbody>
       </table>
     </div>
-  </section>
+  </div>
 </template>
 
 <style scoped>
 .ai {
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
-  padding: 1rem 1.1rem;
-  margin-bottom: 1rem;
-}
-.ai h2 {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  margin: 0;
-  font-size: 1.05rem;
+  gap: 0.75rem;
 }
 .ai h3 {
   margin: 0.5rem 0 0;
@@ -212,9 +205,10 @@ const number = (n: number) => n.toLocaleString()
   padding: 0;
   list-style: none;
 }
+/* In the drawer: name and switch, then the connection. */
 .feature {
   display: grid;
-  grid-template-columns: 1fr minmax(10rem, 16rem) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 0.75rem;
   align-items: center;
   padding: 0.5rem 0;
@@ -250,12 +244,8 @@ const number = (n: number) => n.toLocaleString()
   gap: 0.4rem;
   font-size: 0.85rem;
 }
-@media (max-width: 640px) {
-  .feature {
-    grid-template-columns: 1fr auto;
-  }
-  .feature select {
-    grid-column: 1 / -1;
-  }
+.feature select {
+  grid-column: 1 / -1;
+  grid-row: 2;
 }
 </style>
