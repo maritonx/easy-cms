@@ -74,6 +74,17 @@ text fields, about 6,000 characters; `aiSource` changes it), within the plugin's
 language being edited. They go into the meta fields for review, with **Undo**; replacing values you
 have asks first. The **Generate** buttons keep working from your code's generators.
 
+## Translation
+
+With [localization](./localization), a localized text, textarea or rich text field edited in another
+locale than the default has **Translate from TH** (the default locale) when the default has text. The
+translation goes into the field for review, with **Undo**; replacing text you have asks first. Rich text
+is translated by its text only: bold, links, lists and blocks stay where they were, and a block's text
+fields are translated too. A document that still misses translations in this locale says so above the
+form, with **Translate them from TH**: each missing field is one request, and Undo takes them all back.
+
+Translation reads the default locale as saved, and only users who may change the document can use it.
+
 ## Limits
 
 Each user makes at most **100 requests a day** (in `timeZone`); the 101st is refused. Admins change

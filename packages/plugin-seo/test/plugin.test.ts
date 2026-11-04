@@ -709,7 +709,7 @@ describe('Write with AI (#358)', () => {
       scheduler: false,
     })
     try {
-      expect(cms.config.aiFeatures.map((f) => f.id)).toEqual(['alt-text', 'seo'])
+      expect(cms.config.aiFeatures.map((f) => f.id)).toEqual(['alt-text', 'translate', 'seo'])
       const handle = createRestHandler(cms)
       const tokenOf = async (email: string, role: string) => {
         await cms.create('users', { email, password: PASSWORD, role })

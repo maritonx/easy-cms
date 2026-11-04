@@ -4,6 +4,7 @@ import { CalendarClock, ChevronDown, ChevronLeft, Eye, EyeOff, Link2, Trash2 } f
 import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import ActivityPanel from '../components/ActivityPanel.vue'
+import AiButton from '../components/AiButton.vue'
 import ApiKeyCreated from '../components/ApiKeyCreated.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import DeleteDialog from '../components/DeleteDialog.vue'
@@ -20,6 +21,7 @@ import TransferDialog from '../components/TransferDialog.vue'
 import VersionHistory from '../components/VersionHistory.vue'
 import FieldLayout from '../fields/FieldLayout.vue'
 import FieldList from '../fields/FieldList.vue'
+import { aiFeature, loadAiStatus } from '../lib/ai'
 import { ApiError, api, type Doc } from '../lib/api'
 import { contentLocale, localeQuery, setContentLocale } from '../lib/content-locale'
 import { initialValues, snapshot, titleOf, toFormValues } from '../lib/fields'
@@ -41,7 +43,7 @@ import {
 import { PUBLISH_EVENT, SAVE_EVENT } from '../lib/shortcuts'
 import { type Job, shownStatus } from '../lib/status'
 import { notify, showMessages } from '../lib/toast'
-import { missingLocales } from '../lib/translation'
+import { hasText, missingLocales, TRANSLATION, valueIn } from '../lib/translation'
 
 const route = useRoute()
 const router = useRouter()
@@ -258,6 +260,9 @@ function hasLocalized(fields: readonly { localized?: boolean; fields?: unknown }
 
 // Languages this document still needs translating into (dots on the language buttons).
 const untranslated = ref<string[]>([])
+/** The document in every locale: fields translate from the default one (#358). */
+const allLocales = ref<Doc | null>(null)
+provide(TRANSLATION, { source: allLocales })
 async function refreshTranslations() {
   const localization = session.schema?.localization
   if (!localization || !localized.value || !id) {
@@ -269,6 +274,7 @@ async function refreshTranslations() {
       'GET',
       `/${slug}/${encodeURIComponent(String(id))}?depth=0&draft=true&locale=all`,
     )
+    allLocales.value = all
     untranslated.value = missingLocales(
       collection?.fields ?? [],
       all,
@@ -279,6 +285,54 @@ async function refreshTranslations() {
     untranslated.value = []
   }
 }
+
+// "Translate missing fields" (#358): the localized text fields still empty in this locale, from
+// the default one, one request each; into the form for review, with Undo for them all.
+const missingHere = computed(() => {
+  const from = session.schema?.localization?.defaultLocale
+  const to = contentLocale()
+  if (!from || !to || to === from || !id || readOnly.value) return []
+  return (collection?.fields ?? []).filter(
+    (f) =>
+      f.localized &&
+      ['text', 'textarea', 'richText'].includes(f.type) &&
+      hasText(valueIn(allLocales.value, f.name, from)) &&
+      !hasText(form.value[f.name]),
+  )
+})
+const translating = ref<{ done: number; of: number } | null>(null)
+async function translateMissing() {
+  const fields = missingHere.value
+  if (fields.length === 0 || translating.value) return
+  const before = { ...form.value }
+  translating.value = { done: 0, of: fields.length }
+  let done = 0
+  try {
+    for (const field of fields) {
+      const { value } = await api<{ value: unknown }>('POST', '/admin/ai/translate', {
+        collection: slug,
+        id,
+        field: field.name,
+        from: session.schema?.localization?.defaultLocale,
+        to: contentLocale(),
+      })
+      form.value = { ...form.value, [field.name]: value }
+      translating.value = { done: ++done, of: fields.length }
+    }
+    notify('success', t('ai.translated', { count: done }), {
+      ms: 15000,
+      action: { label: t('ai.undo'), run: () => (form.value = before) },
+    })
+  } catch (e) {
+    notify('error', t('ai.translateFailed', { count: done, message: (e as Error).message }))
+  } finally {
+    translating.value = null
+    void loadAiStatus(true)
+  }
+}
+onMounted(() => {
+  if (localized.value) void loadAiStatus()
+})
 
 async function switchLocale(next: string) {
   if (dirty.value && !window.confirm(t('locale.switchUnsaved'))) return
@@ -579,6 +633,15 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
           <button type="button" class="btn btn-sm" @click="localDraft.restore()">{{ t('form.draftRestore') }}</button>
           <button type="button" class="btn btn-sm btn-ghost" @click="localDraft.clear()">{{ t('form.draftDiscard') }}</button>
         </div>
+        <div v-if="missingHere.length && aiFeature('translate')" class="notice translate-bar">
+          <span>{{ t('ai.missingHere', { count: missingHere.length, locale: contentLocale()?.toUpperCase() ?? '' }) }}</span>
+          <AiButton
+            :label="t('ai.translateMissing', { locale: session.schema?.localization?.defaultLocale?.toUpperCase() ?? '' })"
+            :busy="!!translating"
+            @run="translateMissing"
+          />
+          <span v-if="translating" class="muted small" aria-live="polite">{{ t('ai.translatingOf', translating) }}</span>
+        </div>
         <ErrorSummary ref="summary" :errors="errors" :fields="collection.fields" @go="goToError" />
         <div v-if="titleField" class="title-field">
           <label class="visually-hidden" for="doc-title">{{ label(titleField.label, titleField.name) }}</label>
@@ -790,6 +853,12 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
 </template>
 
 <style scoped>
+.translate-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
 /* A bar across the page: offsets the content padding (--page-x / --page-top). */
 .editor-header {
   position: sticky;

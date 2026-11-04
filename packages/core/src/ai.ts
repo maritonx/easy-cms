@@ -2,7 +2,7 @@ import type { AuthUser, ID } from './access.js'
 import { AI_USAGE, CONNECTIONS, MEDIA } from './builtins.js'
 import type { ResolvedConfig } from './config.js'
 import { ForbiddenError, QueryError, TooManyRequestsError, ValidationError } from './errors.js'
-import type { Label } from './fields.js'
+import type { Field, Label } from './fields.js'
 import type { IntegrationConnection, IntegrationTestResult } from './integrations.js'
 import type { EasyCMS } from './local-api.js'
 import { lastSlot } from './time-of-day.js'
@@ -131,6 +131,14 @@ export const CORE_AI_FEATURES: readonly AiFeatureConfig[] = [
     description: {
       en: 'Describes an image in the media library',
       th: 'บรรยายรูปในคลังสื่อ',
+    },
+  },
+  {
+    id: 'translate',
+    label: { en: 'Translation', th: 'แปลภาษา' },
+    description: {
+      en: 'Translates localized text, textarea and rich text fields from another locale',
+      th: 'แปลช่องข้อความ, textarea และ rich text ที่มีหลายภาษา จากอีกภาษาหนึ่ง',
     },
   },
 ]
@@ -480,6 +488,134 @@ export class Ai {
     return { alt: shorten(result.text.trim().replace(/^["'“]+|["'”]+$/g, ''), 125) }
   }
 
+  /**
+   * A localized field's value translated from another locale (`translate`), for the user to review
+   * before saving: text and textarea as they are; rich text by its text only, so marks, links and
+   * blocks stay where they were (a block's text and textarea fields are translated too).
+   */
+  async translate(args: {
+    collection?: string
+    global?: string
+    id?: ID | null
+    field: string
+    from?: string | null
+    to: string
+    user: AuthUser
+    context?: Record<string, unknown>
+  }): Promise<{ value: unknown }> {
+    const localization = this.config.localization
+    const fail = (field: string, message: string): never => {
+      throw new ValidationError(AI_USAGE, [{ field, message }])
+    }
+    if (!localization) fail('to', 'needs `localization` in the config')
+    const locales = localization?.locales ?? []
+    const from = args.from ?? localization?.defaultLocale ?? ''
+    if (!locales.includes(args.to)) fail('to', `must be one of ${locales.join(', ')}`)
+    if (!locales.includes(from) || from === args.to) fail('from', 'must be another locale')
+    const container = args.collection
+      ? this.config.collections.find((c) => c.slug === args.collection)
+      : this.config.globals.find((g) => g.slug === args.global)
+    if (!container) fail(args.collection ? 'collection' : 'global', 'is not known')
+    const field = (container as { fields: readonly Field[] }).fields.find(
+      (f) => 'name' in f && f.name === args.field,
+    )
+    if (
+      !field ||
+      !('localized' in field && field.localized) ||
+      !['text', 'textarea', 'richText'].includes(field.type)
+    )
+      fail('field', 'must be a localized text, textarea or rich text field')
+    const options = {
+      locale: from,
+      draft: true,
+      depth: 0,
+      fallbackLocale: false,
+      user: args.user,
+      overrideAccess: false,
+      ...(args.context ? { context: args.context } : {}),
+    } as const
+    let source: Record<string, unknown> | null
+    if (args.collection) {
+      if (args.id === null || args.id === undefined) fail('id', 'is required')
+      const id = args.id as ID
+      const access = await this.cms.documentPermissions(
+        args.collection,
+        String(id),
+        args.user,
+        args.context ?? {},
+      )
+      if (!access.update) throw new ForbiddenError('You may not change this document')
+      source = (await this.cms.findById(args.collection, id, options)) as Record<
+        string,
+        unknown
+      > | null
+    } else {
+      const allowed = await this.cms.roles.allows(
+        args.user,
+        { global: args.global as string },
+        'update',
+      )
+      if (allowed === false) throw new ForbiddenError('You may not change this global')
+      source = (await this.cms.findGlobal(args.global as string, options)) as Record<
+        string,
+        unknown
+      >
+    }
+    const value = source?.[args.field]
+    const languages = `from ${this.languageOf(from)} into ${this.languageOf(args.to)}`
+    const ask = async (strings: string[][]) => {
+      const length = strings.flat().join('').length
+      const result = await this.generate(
+        {
+          feature: 'translate',
+          system: [
+            `You translate website content ${languages}.`,
+            'You get JSON {"paragraphs": [[...], ...]}: each paragraph is a list of pieces of one',
+            'sentence or line, split where the formatting changes. Translate each paragraph as a',
+            'whole, then split the translation into the same number of pieces, in the same order, so',
+            'each piece keeps its formatting. Keep names, code, URLs and numbers as they are. Answer',
+            'with the same shape: {"paragraphs": [[...], ...]}.',
+          ].join(' '),
+          prompt: JSON.stringify({ paragraphs: strings }),
+          json: {
+            type: 'object',
+            properties: {
+              paragraphs: { type: 'array', items: { type: 'array', items: { type: 'string' } } },
+            },
+            required: ['paragraphs'],
+          },
+          maxTokens: Math.min(8192, Math.max(256, Math.ceil(length * 1.5) + 200)),
+        },
+        {
+          user: args.user,
+          ...(args.collection && args.id != null
+            ? { about: { collection: args.collection, id: args.id } }
+            : {}),
+        },
+      )
+      const out = (result.json as { paragraphs?: unknown } | undefined)?.paragraphs
+      const same =
+        Array.isArray(out) &&
+        out.length === strings.length &&
+        out.every(
+          (p, i) =>
+            Array.isArray(p) &&
+            p.length === strings[i]?.length &&
+            p.every((s) => typeof s === 'string'),
+        )
+      if (!same) throw new QueryError('The translation lost its formatting; try again')
+      return out as string[][]
+    }
+    if (field?.type === 'richText') {
+      const pieces = richTextPieces(value, field)
+      if (pieces.paragraphs.length === 0) fail('field', 'has nothing to translate yet')
+      return { value: pieces.fill(await ask(pieces.paragraphs)) }
+    }
+    if (typeof value !== 'string' || !value.trim()) fail('field', 'has nothing to translate yet')
+    const [[text]] = (await ask([[value as string]])) as [[string]]
+    return { value: text }
+  }
+
   // --- Admins ----------------------------------------------------------------------------------
 
   /** Settings → Integrations, AI: the main connection, the features, the limit and this month. */
@@ -657,6 +793,54 @@ export class Ai {
       for (const row of old.docs) await this.cms.db.delete({ collection: AI_USAGE, id: row.id })
       if (old.docs.length < 500) return
     }
+  }
+}
+
+type Node = { type?: string; text?: string; content?: Node[]; attrs?: Record<string, unknown> }
+
+/**
+ * Rich text's words for translation: per paragraph (a node holding text) its text pieces, split
+ * where marks change; a block's text and textarea fields each a paragraph of one piece. `fill`
+ * puts translated pieces back, in a copy, in the same places.
+ */
+function richTextPieces(value: unknown, field: Field) {
+  const doc = structuredClone(value ?? null) as Node | null
+  const blocks = 'blocks' in field ? (field.blocks ?? []) : []
+  const slots: { set: (text: string) => void }[][] = []
+  const paragraphs: string[][] = []
+  const walk = (node: Node | undefined) => {
+    if (!node || typeof node !== 'object') return
+    if (node.type === 'block' && node.attrs) {
+      const def = blocks.find((b) => b.slug === node.attrs?.blockType)
+      const values = (node.attrs.fields ?? {}) as Record<string, unknown>
+      for (const f of def?.fields ?? []) {
+        if (!('name' in f) || (f.type !== 'text' && f.type !== 'textarea')) continue
+        const text = values[f.name]
+        if (typeof text !== 'string' || !text.trim()) continue
+        paragraphs.push([text])
+        slots.push([{ set: (t) => (values[f.name] = t) }])
+      }
+      return
+    }
+    const children = Array.isArray(node.content) ? node.content : []
+    const texts = children.filter((c) => c?.type === 'text' && typeof c.text === 'string')
+    if (texts.length > 0 && texts.some((c) => (c.text as string).trim())) {
+      paragraphs.push(texts.map((c) => c.text as string))
+      slots.push(texts.map((c) => ({ set: (t: string) => (c.text = t) })))
+    }
+    for (const child of children) if (child?.type !== 'text') walk(child)
+  }
+  walk(doc ?? undefined)
+  return {
+    paragraphs,
+    fill(translated: string[][]) {
+      translated.forEach((pieces, i) => {
+        pieces.forEach((text, j) => {
+          slots[i]?.[j]?.set(text)
+        })
+      })
+      return doc
+    },
   }
 }
 
