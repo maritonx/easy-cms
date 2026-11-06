@@ -82,7 +82,8 @@ admin ใช้ มีแค่สคริปต์นำเข้าที่�
 // Import a WordPress site's published posts, pages, categories and images into Easy CMS.
 // Run it again any time: documents are matched by their WordPress id and updated.
 //
-//   npx tsx --env-file=.env scripts/import-wordpress.ts https://old-site.com [--limit 10]
+//   npx tsx --env-file=.env scripts/import-wordpress.ts https://old-site.com [--limit 10] [--old-slugs old-slugs.tsv]
+import { readFileSync } from 'node:fs'
 import { createEasyCMS } from '@easy-cms/core'
 import { normalizePath } from '@easy-cms/plugin-redirects'
 import Image from '@tiptap/extension-image'
@@ -91,9 +92,19 @@ import StarterKit from '@tiptap/starter-kit'
 import config from '../easy-cms.config'
 
 const site = process.argv[2]?.replace(/\/+$/, '')
-if (!site) throw new Error('Usage: import-wordpress.ts https://old-site.com [--limit 10]')
+if (!site) throw new Error('Usage: import-wordpress.ts https://old-site.com [--limit 10] [--old-slugs file]')
 const limitArg = process.argv.indexOf('--limit')
 const limit = limitArg > 0 ? Number(process.argv[limitArg + 1]) : Infinity
+
+// Slugs posts had before (WordPress's `_wp_old_slug`), from WP-CLI: a WordPress id and a slug a line.
+const oldSlugs = new Map<number, string[]>()
+const oldSlugsArg = process.argv.indexOf('--old-slugs')
+if (oldSlugsArg > 0) {
+  for (const line of readFileSync(process.argv[oldSlugsArg + 1], 'utf8').split('\n')) {
+    const [id, old] = line.trim().split('\t')
+    if (id && old) oldSlugs.set(Number(id), [...(oldSlugs.get(Number(id)) ?? []), old])
+  }
+}
 
 // Where each kind of document lives on the new site; old addresses redirect there.
 const newPath = { posts: (slug: string) => `/blog/${slug}`, pages: (slug: string) => `/${slug}` }
@@ -161,12 +172,14 @@ async function richText(html: string) {
   return doc
 }
 
-/** Creates or updates the document with this WordPress id. */
+/** Creates or updates the document with this WordPress id; `before` is what the last run stored. */
 async function save(collection: 'categories' | 'posts' | 'pages', wpId: number, data: Record<string, unknown>) {
   const { docs } = await cms.find(collection, { where: { wpId: { equals: wpId } }, limit: 1, draft: true })
-  return docs[0]
-    ? cms.update(collection, docs[0].id, { ...data, wpId } as never)
-    : cms.create(collection, { ...data, wpId } as never)
+  const before = docs[0] as { id: number | string; slug?: string } | undefined
+  const doc = before
+    ? await cms.update(collection, before.id, { ...data, wpId } as never)
+    : await cms.create(collection, { ...data, wpId } as never)
+  return { doc, before }
 }
 
 /** A 301 from the old address, when it differs from the new one. */
@@ -179,10 +192,25 @@ async function redirect(oldLink: string, to: string) {
   if (!totalDocs) await cms.create('redirects', { from, to, type: '301' })
 }
 
+/** A slug changed in WordPress since the last run: redirects to the old address go to the new one. */
+async function retarget(oldTo: string, to: string) {
+  const { docs } = await cms.find('redirects', { where: { to: { equals: oldTo } }, limit: 0 })
+  for (const r of docs) await cms.update('redirects', r.id, { to } as never)
+}
+
+/** The permalink with an older slug in place of the current one, or null if the slug isn't last. */
+function withSlug(link: string, slug: string, old: string) {
+  const url = new URL(link)
+  const path = url.pathname.replace(/\/$/, '')
+  if (!path.endsWith(`/${slug}`)) return null
+  url.pathname = `${path.slice(0, -slug.length)}${old}/`
+  return url.href
+}
+
 // Categories first, so posts can point to them.
 const categoryIds = new Map<number, number | string>()
 for (const c of await wp<{ id: number; name: string; slug: string }>('categories')) {
-  const doc = await save('categories', c.id, { name: plain(c.name), slug: decodeURIComponent(c.slug) })
+  const { doc } = await save('categories', c.id, { name: plain(c.name), slug: decodeURIComponent(c.slug) })
   categoryIds.set(c.id, doc.id)
 }
 console.log(`categories: ${categoryIds.size}`)
@@ -204,8 +232,13 @@ for (const kind of ['posts', 'pages'] as const) {
       data.categories = (item.categories ?? []).map((id) => categoryIds.get(id)).filter(Boolean)
       data.cover = featured?.source_url ? ((await upload(featured.source_url, featured.alt_text))?.id ?? null) : null
     }
-    await save(kind, item.id, data)
+    const { before } = await save(kind, item.id, data)
+    if (before?.slug && before.slug !== slug) await retarget(newPath[kind](before.slug), newPath[kind](slug))
     await redirect(item.link, newPath[kind](slug))
+    for (const old of oldSlugs.get(item.id) ?? []) {
+      const oldLink = withSlug(item.link, item.slug, old)
+      if (oldLink) await redirect(oldLink, newPath[kind](slug))
+    }
     console.log(`${kind}: ${slug}`)
   }
 }
@@ -234,6 +267,8 @@ images: 48 in the media library
 ```
 
 รันซ้ำได้อย่างปลอดภัย: เอกสารและรูปที่นำเข้าแล้วจะถูกอัปเดต ไม่ถูกคัดลอกซ้ำ และ redirect ที่มีอยู่แล้วจะคงไว้
+ถ้าบทความถูกเปลี่ยน slug ใน WordPress หลังรอบที่แล้ว redirect ที่เคยชี้ไปที่อยู่เก่าจะถูกเปลี่ยนให้ชี้ไปที่อยู่ใหม่
+จึงไม่จบที่ 404
 ให้รันอีกครั้งในวันเปิดตัวเพื่อดึงบทความล่าสุด
 
 สำหรับฐานข้อมูล production ให้รันจากเครื่องของคุณด้วยค่าของ production หลัง `easy-cms migrate` และตั้ง
@@ -254,6 +289,62 @@ NODE_ENV=production DATABASE_URL=… npx tsx --env-file=.env scripts/import-word
 ให้เว็บของคุณทำตาม redirect เหล่านี้ตาม[เสิร์ฟ redirect](../redirects#serve-them): server middleware ใน Nuxt
 หรือ proxy ใน Next.js หน้ารวมหมวดหมู่ แท็ก และหน้ารวมตามวันที่เดิมไม่ได้ถูก redirect ให้เพิ่มเฉพาะหน้าที่สำคัญเองใน
 **ตั้งค่า → การเปลี่ยนเส้นทาง**
+
+### slug ที่ถูกเปลี่ยนก่อนย้าย {#slugs-changed-before-the-move}
+
+เมื่อ slug ของบทความที่เผยแพร่แล้วถูกเปลี่ยน WordPress จะเก็บ slug เดิมไว้ใน `_wp_old_slug` และ redirect ให้
+ลิงก์ไปที่อยู่เดิมจึงยังใช้ได้บนเว็บเก่า แต่ REST API ไม่ส่ง field นี้มา ถ้ารัน [WP-CLI](https://wp-cli.org) บนเว็บเก่าได้
+ให้ export slug เดิมออกมาแล้วส่งไฟล์ให้สคริปต์:
+
+```bash
+wp db query "SELECT post_id, meta_value FROM $(wp db prefix)postmeta WHERE meta_key = '_wp_old_slug'" --skip-column-names > old-slugs.tsv
+```
+
+```bash
+npx tsx --env-file=.env scripts/import-wordpress.ts https://old-site.com --old-slugs old-slugs.tsv
+```
+
+slug เดิมแต่ละตัวจะได้ `301` ไปที่อยู่ใหม่ของบทความด้วย WordPress เก็บ slug เดิมไว้เฉพาะบทความ ไม่เก็บของหน้า
+
+## 5. ตรวจที่อยู่เดิมทุกที่อยู่ {#_5-check-every-old-address}
+
+ก่อนเปลี่ยน DNS ให้ขอทุกที่อยู่ใน sitemap ของเว็บเก่าจากเว็บใหม่ที่ขึ้นไว้บน staging ที่อยู่ไหนได้ 404 คือหน้าที่ยังไม่มี
+redirect:
+
+```ts [scripts/check-redirects.ts]
+// Asks the new site for every address in the old site's sitemap; a 404 is a missing redirect.
+//
+//   npx tsx scripts/check-redirects.ts https://old-site.com/wp-sitemap.xml https://staging.example.com
+const [sitemap, newSite] = process.argv.slice(2)
+if (!sitemap || !newSite) throw new Error('Usage: check-redirects.ts <old sitemap URL> <new site URL>')
+
+/** Every page address in a sitemap; an index lists other sitemaps, which are read too. */
+async function urls(url: string): Promise<string[]> {
+  const xml = await (await fetch(url)).text()
+  const locs = [...xml.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/g)].map((m) => m[1]!.replaceAll('&amp;', '&'))
+  return xml.includes('<sitemapindex') ? (await Promise.all(locs.map(urls))).flat() : locs
+}
+
+let missing = 0
+const all = await urls(sitemap)
+for (const url of all) {
+  const { pathname, search } = new URL(url)
+  // Redirects are followed: a redirect to a page that doesn't exist is a 404 too.
+  const res = await fetch(`${newSite.replace(/\/+$/, '')}${pathname}${search}`)
+  if (res.status === 404) {
+    missing++
+    console.log(`404 ${pathname}`)
+  }
+}
+console.log(`${all.length} old addresses, ${missing} missing`)
+```
+
+```bash
+npx tsx scripts/check-redirects.ts https://old-site.com/wp-sitemap.xml https://staging.example.com
+```
+
+WordPress มี `/wp-sitemap.xml` ตั้งแต่รุ่น 5.5 ถ้าใช้ Yoast SEO ให้ใช้ `/sitemap_index.xml` sitemap มีแต่ที่อยู่ปัจจุบัน
+จึงไม่ได้ทดสอบ slug เดิม ให้สุ่มเปิดจาก `old-slugs.tsv` เองสักสองสามตัว
 
 ## อะไรย้ายมาได้ อะไรไม่ได้ {#what-comes-across-and-what-doesn-t}
 
