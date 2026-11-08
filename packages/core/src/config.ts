@@ -195,6 +195,11 @@ export interface CollectionAdmin extends ContainerAdmin {
   readonly views?: readonly CollectionView[]
   /** `false`: no Export CSV in the list, and `GET <api>/:collection/export.csv` refuses (#89). */
   readonly export?: boolean
+  /**
+   * Operations roles can be given besides those the collection has, e.g. `['publish']` without
+   * `drafts`, for a step a plugin checks itself (the social plugin's posting, #312).
+   */
+  readonly permissions?: readonly 'publish'[]
 }
 
 /** A view of a collection's list in the admin (`admin.views`). */

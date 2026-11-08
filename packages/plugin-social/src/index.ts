@@ -1,0 +1,4 @@
+export { ChannelError, type SocialChannel, type SocialMessage } from './channel.js'
+export { type ShareValues, type SocialPluginOptions, socialPlugin } from './plugin.js'
+export type { ChannelDelivery, ChannelState, Delivery } from './shared.js'
+export { webhook } from './webhook.js'

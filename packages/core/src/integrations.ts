@@ -248,7 +248,7 @@ export const OFFICIAL_PLUGINS: readonly {
       en: 'Post to Facebook, LINE and webhooks from the admin',
       th: 'โพสต์ไป Facebook, LINE และ webhook จาก admin',
     },
-    docs: 'https://easycms.dev/docs/integrations',
+    docs: 'https://easycms.dev/docs/social',
   },
   {
     name: '@easy-cms/plugin-notify',

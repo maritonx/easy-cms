@@ -235,6 +235,13 @@
           }
         },
         {
+          "path": "guide/social",
+          "title": {
+            "en": "Social posts",
+            "th": "โพสต์โซเชียล"
+          }
+        },
+        {
           "path": "guide/seo",
           "title": {
             "en": "SEO",

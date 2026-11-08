@@ -1586,6 +1586,68 @@ test.describe('logged in as admin', () => {
       ])
   })
 
+  test('shares a post to social channels, posting to each on its own (#312)', async ({ page }) => {
+    test.skip(test.info().project.name !== 'next', 'The Next.js example has the social plugin')
+    await page.goto('/admin/')
+    const me = (await (await page.request.get('/api/cms/auth/me')).json()) as { csrfToken: string }
+    const headers = { 'x-csrf-token': me.csrfToken, origin: new URL(page.url()).origin }
+    // Two scenarios (the mock, social-mock.ts): one posts, one is off.
+    for (const [name, path] of [
+      ['Make', '/ok'],
+      ['n8n', '/down'],
+    ])
+      expect(
+        (
+          await page.request.post('/api/cms/admin/integrations/social-webhook/connections', {
+            headers,
+            data: { name, values: { url: `http://localhost:3114${path}` } },
+          })
+        ).status(),
+      ).toBe(201)
+
+    // Share on a post's edit page writes a social post from it.
+    await page.goto('/admin/collections/posts?q=Hello from Playwright')
+    await page.getByRole('link', { name: 'Hello from Playwright' }).click()
+    await page.getByRole('button', { name: 'Share on social media' }).click()
+    await expect(page).toHaveURL(/\/admin\/collections\/social-posts\/\d+$/)
+    await expect(page.getByRole('textbox', { name: 'Title', exact: true })).toHaveValue(
+      'Hello from Playwright',
+    )
+    const pickers = page.getByRole('combobox', { name: 'Choose a channel' })
+    await expect(pickers).toHaveCount(2)
+    await expect(pickers.first()).toHaveValue('social-webhook:Make')
+
+    // The post's cover came along; without serverURL channels couldn't fetch it: said up front.
+    const panel = page.locator('ecms-social-panel')
+    await expect(panel).toContainText('Set `serverURL` so channels can fetch the image')
+    await page.getByRole('button', { name: 'Remove', exact: true }).click()
+    // A title of its own (later tests search for the post's).
+    await page.getByRole('textbox', { name: 'Title', exact: true }).fill('Launch post')
+    await page.getByRole('button', { name: 'Save', exact: true }).click()
+    await expect(panel).not.toContainText('serverURL')
+
+    // Post now: Make posts; n8n is tried again later, on its own.
+    page.once('dialog', (dialog) => dialog.accept())
+    await page.getByRole('button', { name: 'Post now' }).click()
+    const make = panel.getByRole('listitem').filter({ hasText: 'Webhook (social) · Make' })
+    const n8n = panel.getByRole('listitem').filter({ hasText: 'Webhook (social) · n8n' })
+    await expect(make).toContainText('Posted')
+    await expect(make.getByRole('link', { name: 'View post' })).toHaveAttribute(
+      'href',
+      /^https:\/\/x\.example\/status\//,
+    )
+    await expect(n8n).toContainText('Trying again at')
+    await expect(n8n).toContainText('503')
+    const sent = (await (await page.request.get('http://localhost:3114/sent')).json()) as {
+      path: string
+      body: { channel: string; source: unknown }
+    }[]
+    expect(sent.find((s) => s.path === '/ok')?.body).toMatchObject({
+      channel: 'social-webhook:Make',
+      source: { collection: 'posts' },
+    })
+  })
+
   test('shows one group at a time, follows the page, and folds the panel away', async ({
     page,
   }) => {
@@ -1798,8 +1860,8 @@ test.describe('logged in as admin', () => {
     await page.getByRole('link', { name: 'Create the first one' }).click()
     await page.getByRole('textbox', { name: 'Name', exact: true }).fill('E2E importer')
     // Creating posts needs reading them: ticking Create ticks Read too.
-    await page.getByRole('checkbox', { name: 'Posts: Create' }).check()
-    await expect(page.getByRole('checkbox', { name: 'Posts: Read' })).toBeChecked()
+    await page.getByRole('checkbox', { name: 'Posts: Create', exact: true }).check()
+    await expect(page.getByRole('checkbox', { name: 'Posts: Read', exact: true })).toBeChecked()
     await page.getByRole('button', { name: 'Save', exact: true }).click()
 
     const dialog = page.getByRole('dialog', { name: 'Copy your new API key' })
@@ -2264,7 +2326,7 @@ test.describe('logged in as admin', () => {
     await expect(list.getByRole('button', { name: /Admin/ })).toBeVisible()
     await expect(list.getByRole('button', { name: /Editor/ })).toBeVisible()
     // Editors start with everything they could do before roles.
-    await expect(page.getByRole('checkbox', { name: 'Posts: Publish' })).toBeChecked()
+    await expect(page.getByRole('checkbox', { name: 'Posts: Publish', exact: true })).toBeChecked()
 
     // A new role from the editor's permissions.
     await page.getByRole('button', { name: 'New role' }).click()
@@ -2280,32 +2342,39 @@ test.describe('logged in as admin', () => {
     )
 
     // Unticking Read unticks the rest; ticking Delete ticks Read again.
-    await page.getByRole('checkbox', { name: 'Posts: Read' }).uncheck()
-    await expect(page.getByRole('checkbox', { name: 'Posts: Publish' })).not.toBeChecked()
-    await page.getByRole('checkbox', { name: 'Posts: Update' }).check()
-    await expect(page.getByRole('checkbox', { name: 'Posts: Read' })).toBeChecked()
+    await page.getByRole('checkbox', { name: 'Posts: Read', exact: true }).uncheck()
+    await expect(
+      page.getByRole('checkbox', { name: 'Posts: Publish', exact: true }),
+    ).not.toBeChecked()
+    await page.getByRole('checkbox', { name: 'Posts: Update', exact: true }).check()
+    await expect(page.getByRole('checkbox', { name: 'Posts: Read', exact: true })).toBeChecked()
     await page.getByRole('checkbox', { name: 'System status on the dashboard' }).check()
     // Updating only their own posts; tags hidden; the title must stay editable (required).
-    const ownUpdate = page.getByRole('button', { name: 'Posts: Update own documents only' })
+    const ownUpdate = page.getByRole('button', {
+      name: 'Posts: Update own documents only',
+      exact: true,
+    })
     await ownUpdate.click()
     await expect(ownUpdate).toHaveAttribute('aria-pressed', 'true')
     await page.getByRole('button', { name: 'Fields of Posts' }).click()
     await page.getByRole('radiogroup', { name: 'Tags' }).getByText('Hidden').click()
     const titleHidden = page.getByRole('radiogroup', { name: 'Title' }).getByLabel('Hidden')
     await expect(titleHidden).toBeEnabled()
-    await page.getByRole('checkbox', { name: 'Posts: Create' }).check()
+    await page.getByRole('checkbox', { name: 'Posts: Create', exact: true }).check()
     await expect(titleHidden).toBeDisabled()
     await page.getByRole('button', { name: 'Save', exact: true }).click()
     await expect(page.getByRole('status')).toHaveText('Role saved')
 
     await page.reload()
-    await expect(page.getByRole('checkbox', { name: 'Posts: Update' })).toBeChecked()
-    await expect(page.getByRole('checkbox', { name: 'Posts: Delete' })).not.toBeChecked()
+    await expect(page.getByRole('checkbox', { name: 'Posts: Update', exact: true })).toBeChecked()
+    await expect(
+      page.getByRole('checkbox', { name: 'Posts: Delete', exact: true }),
+    ).not.toBeChecked()
     await expect(
       page.getByRole('checkbox', { name: 'System status on the dashboard' }),
     ).toBeChecked()
     await expect(
-      page.getByRole('button', { name: 'Posts: Update own documents only' }),
+      page.getByRole('button', { name: 'Posts: Update own documents only', exact: true }),
     ).toHaveAttribute('aria-pressed', 'true')
     await page.getByRole('button', { name: 'Fields of Posts' }).click()
     await expect(page.getByRole('radiogroup', { name: 'Tags' }).getByLabel('Hidden')).toBeChecked()

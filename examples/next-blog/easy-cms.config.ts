@@ -12,6 +12,7 @@ import { nestedDocsPlugin } from '@easy-cms/plugin-nested-docs'
 import { notifyPlugin } from '@easy-cms/plugin-notify'
 import { redirectsPlugin } from '@easy-cms/plugin-redirects'
 import { seoPlugin } from '@easy-cms/plugin-seo'
+import { socialPlugin } from '@easy-cms/plugin-social'
 
 /**
  * A post's or page's address on the site (English at ?locale=en), shared by the SEO and
@@ -332,6 +333,15 @@ export default defineConfig({
     notifyPlugin(),
     // AI providers for the admin's AI features (Settings → Integrations, AI).
     aiPlugin(),
+    // Social posts (Content): Share on a post writes one, sent to webhooks (Make, n8n…) set up in
+    // Settings → Integrations.
+    socialPlugin({
+      collections: ['posts'],
+      url: ({ doc, collection }) => {
+        const path = pageURL(collection, doc, null)
+        return path ? `${process.env.SITE_URL ?? 'http://localhost:3000'}${path}` : null
+      },
+    }),
     // Redirects under Settings in the admin; a post whose slug changes redirects from its old
     // address (served by the middleware in this example).
     // Pages redirect too, including the pages under one that moved.
