@@ -1263,14 +1263,20 @@ async function route(
         throw new HttpError(`Unknown collection "${collection}"`, 404)
       }
       const parsed = parseId(id)
+      const hasActions = !!cms.config.collections.find((c) => c.slug === collection)?.actions
+        ?.length
       return {
         body: {
           ...(await cms.documentPermissions(collection, id, ctx.user, ctx.context)),
           // The actions the user may press on it (#386), for its edit page and row menu.
-          actions:
-            parsed === undefined
-              ? []
-              : await availableActions(cms, collection, parsed, ctx.user, ctx.context),
+          ...(hasActions
+            ? {
+                actions:
+                  parsed === undefined
+                    ? []
+                    : await availableActions(cms, collection, parsed, ctx.user, ctx.context),
+              }
+            : {}),
         },
       }
     }
