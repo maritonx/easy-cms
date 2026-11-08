@@ -1,6 +1,6 @@
 {
   "name": "@easy-cms/plugin-social",
-  "version": "1.37.0",
+  "version": "1.38.0",
   "description": "Social posts for Easy CMS: write a post once and send it to several channels (webhooks to Make, n8n or Zapier first), with schedules, retries and a status per channel",
   "license": "MIT",
   "type": "module",
