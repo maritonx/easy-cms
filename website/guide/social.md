@@ -10,7 +10,7 @@ see how each one went.
 `@easy-cms/plugin-social` (experimental) adds **Social posts** to Content. A post has a text, a link,
 an image and the channels it goes to; each channel can have its own text. Channels are accounts
 connected in **Settings → Integrations**: the first is a **webhook**, a URL that gets each post as
-signed JSON, such as a Make, n8n or Zapier scenario that posts to X, LinkedIn or anywhere else. A
+signed JSON, such as a Make, n8n or Zapier scenario that posts to LinkedIn, Threads, Discord or anywhere else. A
 [Facebook Page](#facebook-page) and a [LINE Official Account](#line-oa) are channels of their own.
 
 ```bash [pm]
@@ -39,7 +39,7 @@ social`, see [Migrations](./deployment)). Jobs must run to send scheduled posts 
 ## Connecting a webhook
 
 **Settings → Integrations → Social & messaging → Webhook (social) → Connect**: name it (e.g. "Make
-→ X"), paste the scenario's URL and, to sign posts, a secret. Connecting sends `{ "test": true }`,
+→ LinkedIn"), paste the scenario's URL and, to sign posts, a secret. Connecting sends `{ "test": true }`,
 which the scenario can ignore. Each connection is one channel.
 
 Each post arrives as:
@@ -47,7 +47,7 @@ Each post arrives as:
 ```json
 {
   "post": 12,
-  "channel": "social-webhook:Make → X",
+  "channel": "social-webhook:Make → LinkedIn",
   "text": "Our new guide is out",
   "link": "https://example.com/posts/guide",
   "image": { "url": "https://example.com/api/cms/media/file/guide.png", "alt": "The cover" },
@@ -149,6 +149,26 @@ collection, a separate right in **Settings → Roles**, so an editor can draft a
 
 Each channel given up on sends `social.failed`, and each post `social.posted`, to [webhooks](./webhooks#your-own-events)
 that list them and to `cms.on`; the [notify plugin](./notifications) tells your chat about failures.
+
+## Costs {#costs}
+
+What each channel costs to post with, as of November 2026; check the providers' pages, as prices change.
+
+| Channel | Cost |
+|---|---|
+| Facebook Page | Free: posting to your own Pages through the Graph API has no charge. |
+| LINE OA | One message per friend reached, from the plan's monthly quota; the free plan's is small ([LINE's pricing](https://developers.line.biz/en/docs/messaging-api/pricing/) for your country). The panel shows the quota before you post. |
+| Webhook | Whatever the scenario costs: Make's free plan has 1,000 credits a month, about one per module run. |
+| X | Not built in yet. X's API is pay-per-use, with no free plan: [$0.015 a post, $0.20 with a link](https://docs.x.com/x-api/getting-started/pricing), paid from credits bought ahead. Make [no longer has an X app](https://help.make.com/x-formerly-twitter-app-integration-discontinued), so a webhook to Make can't post there. |
+
+**Scheduled posts and retries need jobs to run often**: a failed channel is tried again after 1, 5
+and 30 minutes, and a scheduled post goes out at the first run after its time. On Vercel's Hobby plan,
+whose cron runs once a day, call the jobs endpoint from [GitHub Actions](./drafts#scheduled-publishing)
+every few minutes.
+
+**Images.** A post's image is a file in the media library: when the shared document has none (e.g.
+its share image is generated), the post has none either. Facebook still shows the link's preview;
+LINE's card has no picture. Give the posts you care about a cover.
 
 ## Options
 

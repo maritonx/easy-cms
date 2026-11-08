@@ -8,7 +8,7 @@
 
 `@easy-cms/plugin-social` (ทดลอง) เพิ่ม **โพสต์โซเชียล** ในเมนู Content โพสต์หนึ่งมีข้อความ ลิงก์ รูป และช่องทางที่จะส่ง
 แต่ละช่องทางมีข้อความของตัวเองได้ ช่องทางคือบัญชีที่เชื่อมไว้ใน **Settings → การเชื่อมต่อ** ช่องทางแรกคือ **webhook**
-คือ URL ที่รับแต่ละโพสต์เป็น JSON ที่ลงลายเซ็น เช่น scenario ของ Make, n8n หรือ Zapier ที่โพสต์ต่อไปยัง X, LinkedIn
+คือ URL ที่รับแต่ละโพสต์เป็น JSON ที่ลงลายเซ็น เช่น scenario ของ Make, n8n หรือ Zapier ที่โพสต์ต่อไปยัง LinkedIn, Threads, Discord
 หรือที่อื่น ส่วน [Facebook Page](#facebook-page) และ [LINE Official Account](#line-oa) เป็นช่องทางในตัว
 
 ```bash [pm]
@@ -35,7 +35,7 @@ plugin เพิ่ม collection `social-posts` ให้สร้าง migrat
 
 ## เชื่อม webhook {#connecting-a-webhook}
 
-**Settings → การเชื่อมต่อ → โซเชียลและแชต → Webhook (โซเชียล) → เชื่อมบัญชี** ตั้งชื่อ (เช่น "Make → X") วาง URL
+**Settings → การเชื่อมต่อ → โซเชียลและแชต → Webhook (โซเชียล) → เชื่อมบัญชี** ตั้งชื่อ (เช่น "Make → LinkedIn") วาง URL
 ของ scenario และใส่ secret ถ้าต้องการลงลายเซ็น ตอนเชื่อมต่อจะส่ง `{ "test": true }` ไปให้ ซึ่ง scenario ข้ามไปได้
 การเชื่อมต่อหนึ่งเท่ากับหนึ่งช่องทาง
 
@@ -44,7 +44,7 @@ plugin เพิ่ม collection `social-posts` ให้สร้าง migrat
 ```json
 {
   "post": 12,
-  "channel": "social-webhook:Make → X",
+  "channel": "social-webhook:Make → LinkedIn",
   "text": "คู่มือใหม่ออกแล้ว",
   "link": "https://example.com/posts/guide",
   "image": { "url": "https://example.com/api/cms/media/file/guide.png", "alt": "รูปปก" },
@@ -133,6 +133,23 @@ broadcast นับหนึ่งข้อความต่อเพื่อ�
 
 ช่องทางที่เลิกลองแล้วจะส่ง `social.failed` และโพสต์ที่สำเร็จส่ง `social.posted` ไปยัง[webhook](./webhooks#your-own-events)
 ที่ระบุไว้และ `cms.on` ส่วน [notify plugin](./notifications) จะแจ้งในแชตเมื่อโพสต์ไม่สำเร็จ
+
+## ค่าใช้จ่าย {#costs}
+
+ค่าใช้จ่ายในการโพสต์ของแต่ละช่องทาง ณ พฤศจิกายน 2026 ราคาเปลี่ยนได้ ให้ดูหน้าราคาของผู้ให้บริการ
+
+| ช่องทาง | ค่าใช้จ่าย |
+|---|---|
+| Facebook Page | ฟรี การโพสต์ไปยังเพจของคุณผ่าน Graph API ไม่มีค่าใช้จ่าย |
+| LINE OA | หนึ่งข้อความต่อเพื่อนหนึ่งคนที่ได้รับ หักจากโควตารายเดือนของแพ็กเกจ แพ็กเกจฟรีมีโควตาน้อย ([ราคาของ LINE](https://developers.line.biz/en/docs/messaging-api/pricing/) ในประเทศของคุณ) แผงจะแสดงโควตาก่อนโพสต์ |
+| Webhook | ตามค่าใช้จ่ายของ scenario แพ็กเกจฟรีของ Make มี 1,000 credit ต่อเดือน ประมาณหนึ่ง credit ต่อการรันหนึ่งโมดูล |
+| X | ยังไม่มีในตัว API ของ X จ่ายตามการใช้งาน ไม่มีแพ็กเกจฟรี: [$0.015 ต่อโพสต์ และ $0.20 ถ้ามีลิงก์](https://docs.x.com/x-api/getting-started/pricing) จ่ายจากเครดิตที่ซื้อไว้ก่อน และ Make [เลิกมีแอป X แล้ว](https://help.make.com/x-formerly-twitter-app-integration-discontinued) webhook ไป Make จึงโพสต์ไป X ไม่ได้ |
+
+**โพสต์ที่ตั้งเวลาและการลองซ้ำต้องมีการรันงานบ่อย ๆ** ช่องทางที่ล้มจะลองใหม่หลัง 1, 5 และ 30 นาที และโพสต์ที่ตั้งเวลาจะส่งในการรันครั้งแรกหลังถึงเวลา
+บนแพลน Hobby ของ Vercel ที่ cron รันวันละครั้ง ให้เรียก endpoint ของงานจาก [GitHub Actions](./drafts#scheduled-publishing) ทุกไม่กี่นาที
+
+**รูป** รูปของโพสต์คือไฟล์ในคลังสื่อ ถ้าเอกสารที่แชร์ไม่มีรูป (เช่น รูปแชร์ถูกสร้างอัตโนมัติ) โพสต์ก็ไม่มีรูป Facebook ยังแสดงตัวอย่างลิงก์ได้
+แต่การ์ด LINE จะไม่มีรูป บทความที่สำคัญควรใส่รูปปก
 
 ## ตัวเลือก {#options}
 
