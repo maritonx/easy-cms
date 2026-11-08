@@ -113,6 +113,22 @@ from a cron:
 { "crons": [{ "path": "/api/cms/jobs/run", "schedule": "* * * * *" }] }
 ```
 
+Vercel's Hobby plan runs crons once a day. A scheduled GitHub Actions workflow can call the
+endpoint more often for free (GitHub may start it a few minutes late):
+
+```yaml
+# .github/workflows/jobs.yml — secret CRON_SECRET, variable SITE_URL
+on:
+  schedule: [{ cron: '*/10 * * * *' }]
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - run: >
+          curl --fail-with-body -sS -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+          "${{ vars.SITE_URL }}/api/cms/jobs/run"
+```
+
 Set `CRON_SECRET` (or `cronSecret` in the config) to a random string of at least 32 characters.
 Logged-in admins can call it too, with `POST` (a link can't run jobs for them), and
 `npx easy-cms jobs:run` runs due jobs once from any cron. When the database doesn't answer (a

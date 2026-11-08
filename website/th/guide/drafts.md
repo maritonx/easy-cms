@@ -111,6 +111,22 @@ await cms.cancelSchedule('posts', id, jobId)
 { "crons": [{ "path": "/api/cms/jobs/run", "schedule": "* * * * *" }] }
 ```
 
+แพลน Hobby ของ Vercel รัน cron ได้วันละครั้ง ใช้ GitHub Actions ที่ตั้งเวลาไว้เรียก endpoint ให้ถี่กว่านั้นได้ฟรี
+(GitHub อาจเริ่มช้าไปไม่กี่นาที):
+
+```yaml
+# .github/workflows/jobs.yml — secret CRON_SECRET และ variable SITE_URL
+on:
+  schedule: [{ cron: '*/10 * * * *' }]
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - run: >
+          curl --fail-with-body -sS -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+          "${{ vars.SITE_URL }}/api/cms/jobs/run"
+```
+
 ตั้งค่า `CRON_SECRET` (หรือ `cronSecret` ใน config) เป็นข้อความสุ่มยาวอย่างน้อย 32 ตัวอักษร
 admin ที่เข้าสู่ระบบแล้วก็เรียกได้เช่นกันด้วย `POST` (ลิงก์จึงสั่งรันงานแทน admin ไม่ได้) และ
 `npx easy-cms jobs:run` จะรันงานที่ถึงเวลาหนึ่งครั้งจาก cron ใดก็ได้ ถ้าฐานข้อมูลไม่ตอบ (การเชื่อมต่อหลุด หรือหมดเวลา)
