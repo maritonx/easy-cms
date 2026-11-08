@@ -113,6 +113,12 @@ export default defineConfig({
         INDEXNOW_KEY: 'e2e-indexnow-key',
         TELEGRAM_API_URL: TELEGRAM,
         ANTHROPIC_API_URL: ANTHROPIC,
+        // Facebook and LINE through the mock social-mock.ts (#313).
+        META_APP_ID: 'e2e-app',
+        META_APP_SECRET: 'e2e-app-secret',
+        FACEBOOK_GRAPH_URL: `${SOCIAL}/graph`,
+        FACEBOOK_DIALOG_URL: `${SOCIAL}/dialog`,
+        LINE_API_URL: `${SOCIAL}/line`,
         // Single sign-on on standalone, where the schema is pushed. Nuxt and Next.js run from the
         // examples' migrations, which are made without a provider.
         ...(app.name !== 'standalone'

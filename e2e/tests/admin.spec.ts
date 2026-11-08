@@ -1661,6 +1661,71 @@ test.describe('logged in as admin', () => {
     })
   })
 
+  test('connects a Facebook Page and a LINE OA, and posts to both (#313)', async ({ page }) => {
+    test.skip(test.info().project.name !== 'next', 'The Next.js example has the social plugin')
+    // Facebook: through its login dialog (the mock, social-mock.ts), then the Page to post as.
+    await page.goto('/admin/integrations?category=social')
+    await page.getByRole('button', { name: 'Connect Facebook Page' }).click()
+    const facebook = page.getByRole('dialog', { name: 'Facebook Page' })
+    await facebook.getByRole('button', { name: 'Connect with Facebook Page' }).click()
+    const choose = page.getByRole('dialog', { name: 'Choose the account to connect' })
+    await choose.getByRole('button', { name: 'Easy CMS Page' }).click()
+    await expect(page.getByRole('status')).toContainText('connected')
+    await page.getByRole('button', { name: 'Manage Facebook Page' }).click()
+    await expect(facebook.getByText('Easy CMS Page')).toBeVisible()
+    await facebook.getByRole('button', { name: 'Close' }).click()
+
+    // LINE: the channel access token, tested against the bot.
+    await page.getByRole('button', { name: 'Connect LINE OA' }).click()
+    const line = page.getByRole('dialog', { name: 'LINE OA' })
+    await line.getByLabel('Channel access token').fill('e2e-line-token')
+    await line.getByRole('button', { name: 'Save' }).click()
+    await expect(page.getByRole('status')).toHaveText('"LINE OA" connected')
+    await expect(line.getByText('Easy CMS @easycms')).toBeVisible()
+    await line.getByRole('button', { name: 'Close' }).click()
+
+    // A social post to both; LINE says up front whom it reaches and the month's messages.
+    const me = (await (await page.request.get('/api/cms/auth/me')).json()) as { csrfToken: string }
+    const created = (await (
+      await page.request.post('/api/cms/social-posts?depth=0', {
+        headers: { 'x-csrf-token': me.csrfToken, origin: new URL(page.url()).origin },
+        data: {
+          title: 'Two channels',
+          text: 'Out on Facebook and LINE',
+          link: 'https://easycms.dev/docs/social',
+          channels: [
+            { connection: 'facebook-page:Facebook Page' },
+            { connection: 'line-oa:LINE OA' },
+          ],
+        },
+      })
+    ).json()) as { id: number }
+    await page.goto(`/admin/collections/social-posts/${created.id}`)
+    const panel = page.locator('ecms-social-panel')
+    await expect(panel).toContainText('Reaches about 40 followers · messages this month: 10 / 200')
+    page.once('dialog', (dialog) => dialog.accept())
+    await page.getByRole('button', { name: 'Post now' }).click()
+    const fb = panel.getByRole('listitem').filter({ hasText: 'Facebook Page' })
+    await expect(fb).toContainText('Posted')
+    await expect(fb.getByRole('link', { name: 'View post' })).toHaveAttribute(
+      'href',
+      /^https:\/\/www\.facebook\.com\/101_\d+$/,
+    )
+    await expect(panel.getByRole('listitem').filter({ hasText: 'LINE OA' })).toContainText('Posted')
+    const sent = (await (await page.request.get('http://localhost:3114/sent')).json()) as {
+      path: string
+      body: Record<string, unknown> & { messages?: { altText: string }[] }
+    }[]
+    expect(sent.find((s) => s.path.endsWith('/101/feed'))?.body).toMatchObject({
+      message: 'Out on Facebook and LINE',
+      link: 'https://easycms.dev/docs/social',
+      access_token: 'e2e-page-token',
+    })
+    expect(sent.find((s) => s.path.endsWith('/broadcast'))?.body.messages?.[0].altText).toBe(
+      'Two channels: Out on Facebook and LINE',
+    )
+  })
+
   test('shows one group at a time, follows the page, and folds the panel away', async ({
     page,
   }) => {

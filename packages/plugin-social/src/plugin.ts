@@ -10,7 +10,9 @@ import {
   type Where,
 } from '@easy-cms/core'
 import { ChannelError, type SocialChannel, type SocialMessage } from './channel.js'
+import { facebook } from './facebook.js'
 import { INFO } from './info.js'
+import { line } from './line.js'
 import {
   ACTION_PATH,
   AI_PATH,
@@ -47,7 +49,7 @@ export interface SocialPluginOptions {
   }) => ShareValues | Promise<ShareValues>
   /** A document's public address, for the post's link, e.g. `({ doc }) => \`https://…/${doc.slug}\``. */
   readonly url?: (args: { doc: Doc; collection: string }) => string | null | undefined
-  /** Where posts go. Default: the webhook (Make, n8n, Zapier). */
+  /** Where posts go. Default: the webhook (Make, n8n, Zapier), Facebook Pages and LINE OA. */
   readonly channels?: readonly SocialChannel[]
   /** Slug of the social posts collection. Default `social-posts`. */
   readonly slug?: string
@@ -70,7 +72,7 @@ const json = (status: number, message: string) =>
  * on the Integrations page; the webhook comes first.
  */
 export function socialPlugin(options: SocialPluginOptions = {}) {
-  const channels = options.channels ?? [webhook]
+  const channels = options.channels ?? [webhook, facebook, line]
   const slug = options.slug ?? 'social-posts'
   const sources = options.collections ?? []
 
@@ -383,6 +385,7 @@ export function socialPlugin(options: SocialPluginOptions = {}) {
           const result = await channel.send(conn.values, {
             post: id,
             channel: connection,
+            title: String(doc.title ?? ''),
             text: String(row.text || doc.text || ''),
             link: typeof doc.link === 'string' && doc.link ? doc.link : null,
             image,
@@ -465,7 +468,18 @@ export function socialPlugin(options: SocialPluginOptions = {}) {
           const ref = sourceOf(doc)
           if (ref && !(await isLive(cms, ref)))
             problems.push('The source isn’t published yet: its link may not open')
-          return { problems }
+          // Each channel's word before posting (a LINE broadcast's reach and quota).
+          const notes: Record<string, { info?: string; warning?: string }> = {}
+          for (const row of rowsOf(saved)) {
+            const connection = row.connection as string
+            const channel = channelOf(connection)
+            if (!channel?.preview) continue
+            const conn = await cms.integrations.get(channel.integration.id, {
+              name: nameOf(connection),
+            })
+            if (conn) notes[connection] = await channel.preview(conn.values).catch(() => ({}))
+          }
+          return { problems, notes }
         }
         if (!(await mayPost(cms, user, id))) return json(403, 'You may not post this')
         const doc = (await cms.findById(slug, id, { depth: 0 })) as Doc | null
