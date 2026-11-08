@@ -1726,6 +1726,54 @@ test.describe('logged in as admin', () => {
     )
   })
 
+  test('connects X with its four keys, counts X’s way, and posts (#380)', async ({ page }) => {
+    test.skip(test.info().project.name !== 'next', 'The Next.js example has the social plugin')
+    await page.goto('/admin/integrations?category=social')
+    await page.getByRole('button', { name: 'Connect X', exact: true }).click()
+    const card = page.getByRole('dialog', { name: 'X', exact: true })
+    await card.getByLabel(/^API key/).fill('e2e-key')
+    await card.getByLabel(/^API secret/).fill('e2e-key-secret')
+    await card.getByLabel(/^Access token(?! secret)/).fill('e2e-token')
+    await card.getByLabel(/^Access token secret/).fill('e2e-token-secret')
+    await card.getByRole('button', { name: 'Save' }).click()
+    await expect(page.getByRole('status')).toHaveText('"X" connected')
+    await expect(card.getByText('@easycms_e2e')).toBeVisible()
+    await card.getByRole('button', { name: 'Close' }).click()
+
+    const me = (await (await page.request.get('/api/cms/auth/me')).json()) as { csrfToken: string }
+    const created = (await (
+      await page.request.post('/api/cms/social-posts?depth=0', {
+        headers: { 'x-csrf-token': me.csrfToken, origin: new URL(page.url()).origin },
+        data: {
+          title: 'On X',
+          text: 'Out on X 🎉',
+          link: 'https://easycms.dev/docs/social',
+          channels: [{ connection: 'x:X' }],
+        },
+      })
+    ).json()) as { id: number }
+    await page.goto(`/admin/collections/social-posts/${created.id}`)
+    // X counts the emoji as two.
+    await expect(page.locator('ecms-social-count').first()).toContainText('11 / 255 characters')
+    const panel = page.locator('ecms-social-panel')
+    await expect(panel).toContainText('X API: about $0.20 for a post with a link')
+    page.once('dialog', (dialog) => dialog.accept())
+    await page.getByRole('button', { name: 'Post now' }).click()
+    const row = panel.getByRole('listitem').filter({ hasText: 'X · X' })
+    await expect(row).toContainText('Posted')
+    await expect(row.getByRole('link', { name: 'View post' })).toHaveAttribute(
+      'href',
+      /^https:\/\/x\.com\/easycms_e2e\/status\/\d+$/,
+    )
+    const sent = (await (await page.request.get('http://localhost:3114/sent')).json()) as {
+      path: string
+      body: { text?: string }
+    }[]
+    expect(sent.find((s) => s.path === '/x/2/tweets')?.body.text).toBe(
+      'Out on X 🎉\n\nhttps://easycms.dev/docs/social',
+    )
+  })
+
   test('shows one group at a time, follows the page, and folds the panel away', async ({
     page,
   }) => {

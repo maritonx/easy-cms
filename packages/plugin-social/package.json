@@ -28,7 +28,8 @@
   "devDependencies": {
     "@easy-cms/core": "workspace:^",
     "@easy-cms/db-sqlite": "workspace:^",
-    "happy-dom": "^21.0.4"
+    "happy-dom": "^21.0.4",
+    "simple-icons": "16.36.0"
   },
   "engines": {
     "node": ">=22.12"

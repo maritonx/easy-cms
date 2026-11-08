@@ -42,4 +42,49 @@ export interface ChannelOption {
   /** The integration's logo (SVG paths), or its first letter. */
   icon?: unknown
   maxLength?: number
+  /** How the channel counts: `x`, X's weighted length (see `xLength`). */
+  counting?: 'x'
+}
+
+/** Characters an X post may have, by X's count. */
+export const X_MAX = 280
+
+/** X's weight-1 ranges: Latin to Georgian (Thai is in them), and some punctuation. */
+const LIGHT: readonly (readonly [number, number])[] = [
+  [0, 4351],
+  [8192, 8205],
+  [8208, 8223],
+  [8242, 8247],
+]
+
+/**
+ * A text's length as X counts it: a link 23 whatever its length, an emoji 2, CJK and other
+ * scripts 2 a character, the rest (Thai among them) 1 a code point.
+ */
+export function xLength(text: string): number {
+  let total = 0
+  for (const part of text.split(/(https?:\/\/\S+)/)) {
+    if (/^https?:\/\//.test(part)) {
+      total += 23
+      continue
+    }
+    const graphemes =
+      typeof Intl.Segmenter === 'function'
+        ? Array.from(
+            new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(part),
+            (g) => g.segment,
+          )
+        : [...part]
+    for (const grapheme of graphemes) {
+      if (/\p{Extended_Pictographic}/u.test(grapheme)) {
+        total += 2
+        continue
+      }
+      for (const char of grapheme) {
+        const code = char.codePointAt(0) ?? 0
+        total += LIGHT.some(([from, to]) => code >= from && code <= to) ? 1 : 2
+      }
+    }
+  }
+  return total
 }

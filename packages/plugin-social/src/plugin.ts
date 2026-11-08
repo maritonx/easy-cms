@@ -21,8 +21,10 @@ import {
   type ChannelOption,
   type Delivery,
   SHARE_PATH,
+  xLength,
 } from './shared.js'
 import { webhook } from './webhook.js'
+import { x } from './x.js'
 
 type Doc = Record<string, unknown>
 
@@ -72,7 +74,7 @@ const json = (status: number, message: string) =>
  * on the Integrations page; the webhook comes first.
  */
 export function socialPlugin(options: SocialPluginOptions = {}) {
-  const channels = options.channels ?? [webhook, facebook, line]
+  const channels = options.channels ?? [webhook, facebook, line, x]
   const slug = options.slug ?? 'social-posts'
   const sources = options.collections ?? []
 
@@ -432,6 +434,7 @@ export function socialPlugin(options: SocialPluginOptions = {}) {
               label: `${name} · ${conn.name}`,
               ...(icon ? { icon } : {}),
               ...(channel.maxLength ? { maxLength: channel.maxLength } : {}),
+              ...(channel.counting ? { counting: channel.counting } : {}),
             })
           }
         }
@@ -477,7 +480,9 @@ export function socialPlugin(options: SocialPluginOptions = {}) {
             const conn = await cms.integrations.get(channel.integration.id, {
               name: nameOf(connection),
             })
-            if (conn) notes[connection] = await channel.preview(conn.values).catch(() => ({}))
+            const link = typeof doc.link === 'string' && doc.link ? doc.link : null
+            if (conn)
+              notes[connection] = await channel.preview(conn.values, { link }).catch(() => ({}))
           }
           return { problems, notes }
         }
@@ -586,6 +591,8 @@ export function socialPlugin(options: SocialPluginOptions = {}) {
         const channel = typeof input.channel === 'string' ? input.channel : null
         const adapter = channel ? channelOf(channel) : undefined
         const max = adapter?.maxLength ?? 500
+        // X counts emoji and CJK twice (#380).
+        const measure = adapter?.counting === 'x' ? xLength : (value: string) => [...value].length
         const where = channel
           ? `a post on ${channel.slice(0, channel.indexOf(':')) || 'social media'}`
           : 'a social media post'
@@ -595,7 +602,7 @@ export function socialPlugin(options: SocialPluginOptions = {}) {
               feature: 'social',
               system: [
                 `You write ${where} that makes people want to read the page it shares.`,
-                `At most ${max} characters, plain text, no hashtags unless they fit, no link (it is added`,
+                `At most ${max} characters${adapter?.counting === 'x' ? ' (an emoji counts as two)' : ''}, plain text, no hashtags unless they fit, no link (it is added`,
                 `separately). Write it in ${ai.languageOf(null)}. Answer with the post only.`,
               ].join(' '),
               prompt: `The page:\n\n${source.slice(0, 6000)}`,
@@ -604,12 +611,11 @@ export function socialPlugin(options: SocialPluginOptions = {}) {
             { user, ...(id !== null ? { about: { collection: slug, id } } : {}) },
           )
           let text = result.text.trim().replace(/^["“]+|["”]+$/g, '')
-          if ([...text].length > max)
-            text =
-              [...text]
-                .slice(0, max - 1)
-                .join('')
-                .trimEnd() + '…'
+          if (measure(text) > max) {
+            const chars = [...text]
+            while (chars.length && measure(`${chars.join('').trimEnd()}…`) > max) chars.pop()
+            text = `${chars.join('').trimEnd()}…`
+          }
           return { text }
         } catch (e) {
           const status = (e as { status?: number }).status

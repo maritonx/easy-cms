@@ -11,6 +11,7 @@ import {
   type ChannelOption,
   type Delivery,
   SHARE_PATH,
+  xLength,
 } from './shared.js'
 
 type Api = (method: string, path: string, body?: unknown) => Promise<unknown>
@@ -372,8 +373,10 @@ class SocialCount extends SocialElement {
   }
 
   private count() {
-    const value = typeof this.ctx.value === 'string' ? this.ctx.value : ''
-    const n = length(value.trim())
+    const value = typeof this.ctx.value === 'string' ? this.ctx.value.trim() : ''
+    // Each channel counts its own way: X weighs emoji and CJK twice (#380).
+    const n = length(value)
+    const sized = (c: ChannelOption) => (c.counting === 'x' ? xLength(value) : n)
     const rows = Array.isArray(this.ctx.doc.channels) ? (this.ctx.doc.channels as Doc[]) : []
     // `channels.2.text`: that row's channel; the post's text: the rows that use it.
     const match = /^channels\.(\d+)\.text$/.exec(this.ctx.path ?? '')
@@ -383,10 +386,12 @@ class SocialCount extends SocialElement {
     const limits = using
       .map((r) => this.channels.find((c) => c.id === r.connection))
       .filter((c): c is ChannelOption => !!c?.maxLength)
-    const tightest = limits.sort((a, b) => (a.maxLength ?? 0) - (b.maxLength ?? 0))[0]
+    const room = (c: ChannelOption) => (c.maxLength ?? 0) - sized(c)
+    const tightest = limits.sort((a, b) => room(a) - room(b))[0]
     if (!tightest) return `<span class="hint">${esc(this.t('chars', { n }))}</span>`
-    const over = n > (tightest.maxLength ?? Number.POSITIVE_INFINITY)
-    return `<span class="${over ? 'error' : 'hint'}">${esc(this.t('charsMax', { n, max: tightest.maxLength ?? 0 }))}${over ? ` · ${esc(this.t('over', { channel: tightest.label }))}` : ''}</span>`
+    const used = sized(tightest)
+    const over = room(tightest) < 0
+    return `<span class="${over ? 'error' : 'hint'}">${esc(this.t('charsMax', { n: used, max: tightest.maxLength ?? 0 }))}${over ? ` · ${esc(this.t('over', { channel: tightest.label }))}` : ''}</span>`
   }
 }
 

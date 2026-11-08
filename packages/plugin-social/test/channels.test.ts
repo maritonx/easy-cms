@@ -13,6 +13,8 @@ import {
 import { sqlite } from '@easy-cms/db-sqlite'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { socialPlugin } from '../src/index.js'
+import { xLength } from '../src/shared.js'
+import { oauthHeader } from '../src/x.js'
 
 // Facebook's Graph API and LINE's Messaging API, as far as the adapters use them (#313).
 type Hit = {
@@ -68,6 +70,32 @@ beforeAll(async () => {
       if (path === '/line/v2/bot/message/quota') return send(200, { type: 'limited', value: 200 })
       if (path === '/line/v2/bot/message/quota/consumption') return send(200, { totalUsage: 150 })
       if (path === '/line/v2/bot/message/broadcast') return send(200, {})
+      // X: the access token says how it answers.
+      if (path.startsWith('/x/')) {
+        const token = /oauth_token="([^"]*)"/.exec(bearer)?.[1] ?? ''
+        if (!bearer.startsWith('OAuth ') || !/oauth_signature="[^"]+"/.test(bearer))
+          return send(401, { title: 'Unauthorized', status: 401 })
+        if (token === 'revoked')
+          return send(401, { title: 'Unauthorized', detail: 'Unauthorized', status: 401 })
+        if (token === 'read-only')
+          return send(403, {
+            title: 'Forbidden',
+            detail:
+              'Your client app is not configured with the appropriate oauth1 app permissions for this endpoint.',
+            status: 403,
+          })
+        if (token === 'broke')
+          return send(402, {
+            title: 'CreditsDepleted',
+            detail: 'Your account has no credits',
+            status: 402,
+          })
+        if (token === 'busy') return send(429, { title: 'Too Many Requests', status: 429 })
+        if (path === '/x/2/users/me')
+          return send(200, { data: { id: '9', name: 'Easy CMS', username: 'easycms' } })
+        if (path === '/x/2/tweets')
+          return send(201, { data: { id: '1850', text: JSON.parse(body).text } })
+      }
       send(404, { error: { message: `Unknown ${path}` } })
     })
   })
@@ -79,6 +107,7 @@ beforeAll(async () => {
     FACEBOOK_GRAPH_URL: `${base}/graph`,
     FACEBOOK_DIALOG_URL: `${base}/dialog`,
     LINE_API_URL: `${base}/line`,
+    X_API_URL: `${base}/x`,
   })
 })
 afterAll(() => {
@@ -88,6 +117,7 @@ afterAll(() => {
     'FACEBOOK_GRAPH_URL',
     'FACEBOOK_DIALOG_URL',
     'LINE_API_URL',
+    'X_API_URL',
   ])
     delete process.env[key]
   server.close()
@@ -353,5 +383,133 @@ describe('LINE OA', () => {
     } finally {
       delete process.env.LINE_CHANNEL_ACCESS_TOKEN
     }
+  })
+})
+
+describe('X', () => {
+  const keys = (accessToken: string) => ({
+    apiKey: 'key',
+    apiSecret: 'key-secret',
+    accessToken,
+    accessTokenSecret: 'token-secret',
+  })
+
+  it('signs requests as OAuth 1.0a does (X’s own example)', () => {
+    const header = oauthHeader(
+      'POST',
+      'https://api.twitter.com/1.1/statuses/update.json?include_entities=true&status=Hello%20Ladies%20%2B%20Gentlemen%2C%20a%20signed%20OAuth%20request%21',
+      {
+        apiKey: 'xvz1evFS4wEEPTGEFPHBog',
+        apiSecret: 'kAcSOqF21Fu85e7zjz7ZN2U4ZRhfV3WpwPAoE3Z7kBw',
+        accessToken: '370773112-GmHxMAgYyLbNEtIKZeRNFsMKPR9EyMZeS9weJAEb',
+        accessTokenSecret: 'LswwdoUaIvS8ltyTt5jkRh4J50vUPVVHtR2YPi5kE',
+      },
+      1318622958,
+      'kYjzVBB8Y0ZFabxSWbWovY3uYSQ2pTgmZeNu2VS4cg',
+    )
+    expect(header).toContain('oauth_signature="hCtSmYh%2BiHYCEqBWrE7C7hYmtUk%3D"')
+  })
+
+  it('counts as X does: a link 23, an emoji 2, Thai 1 a code point', () => {
+    expect(xLength('Hello')).toBe(5)
+    expect(xLength('https://easycms.dev/blog/a-very-long-address-indeed')).toBe(23)
+    expect(xLength('ใหม่')).toBe(4)
+    expect(xLength('🎉')).toBe(2)
+    expect(xLength('👩‍💻')).toBe(2)
+    expect(xLength('日本')).toBe(4)
+  })
+
+  it('connects with four keys, says the cost first, and posts the text with its link', async () => {
+    const { cms, call } = await open()
+    const made = await call('/admin/integrations/x/connections', 'POST', {
+      name: 'Main',
+      values: keys('good'),
+    })
+    expect(made.status).toBe(201)
+    const card = (await call('/admin/integrations')).body.integrations.find(
+      (i: { id: string }) => i.id === 'x',
+    )
+    expect(card.connections[0].account).toBe('@easycms')
+
+    const social = await cms.create('social-posts', {
+      title: 'Out now',
+      text: 'Our guide is out 🎉',
+      link: 'https://easycms.dev/guide',
+      channels: [{ connection: 'x:Main' }],
+    })
+    const check = await call('/social/post', 'POST', { post: social.id, action: 'check' })
+    expect(check.body.notes['x:Main']).toEqual({
+      info: 'X API: about $0.20 for a post with a link',
+    })
+    hits.length = 0
+    const now = await call('/social/post', 'POST', { post: social.id, action: 'now' })
+    expect(now.body.delivery.channels['x:Main']).toMatchObject({
+      state: 'posted',
+      url: 'https://x.com/easycms/status/1850',
+    })
+    const tweet = hits.find((h) => h.path === '/x/2/tweets') as Hit
+    expect(JSON.parse(tweet.body)).toEqual({
+      text: 'Our guide is out 🎉\n\nhttps://easycms.dev/guide',
+    })
+    expect(tweet.auth).toMatch(/^OAuth .*oauth_consumer_key="key"/)
+    const channels = await call('/social/channels')
+    expect(channels.body.channels.find((c: { id: string }) => c.id === 'x:Main')).toMatchObject({
+      maxLength: 255,
+      counting: 'x',
+    })
+  })
+
+  it('says what to fix when X refuses, and tries again only when busy', async () => {
+    const { cms, call } = await open()
+    expect(
+      (
+        await call('/admin/integrations/x/connections', 'POST', {
+          name: 'Old',
+          values: keys('revoked'),
+        })
+      ).status,
+    ).toBe(400)
+    const cases = [
+      ['read-only', 'failed', 'set it, then make the access token again'],
+      ['broke', 'failed', 'add credits in console.x.com'],
+      ['busy', 'sending', 'Too Many Requests'],
+    ] as const
+    for (const [token, state, said] of cases) {
+      Object.assign(process.env, {
+        X_API_KEY: 'key',
+        X_API_SECRET: 'key-secret',
+        X_ACCESS_TOKEN: token,
+        X_ACCESS_TOKEN_SECRET: 'token-secret',
+      })
+      const social = await cms.create('social-posts', {
+        title: token,
+        text: `About ${token}`,
+        channels: [{ connection: 'x:Environment' }],
+      })
+      const now = await call('/social/post', 'POST', { post: social.id, action: 'now' })
+      const result = now.body.delivery.channels['x:Environment']
+      expect(result.state).toBe(state)
+      expect(result.error).toContain(said)
+    }
+    for (const key of ['X_API_KEY', 'X_API_SECRET', 'X_ACCESS_TOKEN', 'X_ACCESS_TOKEN_SECRET'])
+      delete process.env[key]
+  })
+
+  it('refuses a post longer than X takes before sending it', async () => {
+    const { cms, call } = await open()
+    await call('/admin/integrations/x/connections', 'POST', { name: 'Main', values: keys('good') })
+    const social = await cms.create('social-posts', {
+      title: 'Long',
+      text: '🎉'.repeat(130),
+      link: 'https://easycms.dev/guide',
+      channels: [{ connection: 'x:Main' }],
+    })
+    hits.length = 0
+    const now = await call('/social/post', 'POST', { post: social.id, action: 'now' })
+    expect(now.body.delivery.channels['x:Main']).toMatchObject({
+      state: 'failed',
+      error: expect.stringContaining('285 of 280 characters'),
+    })
+    expect(hits.some((h) => h.path === '/x/2/tweets')).toBe(false)
   })
 })

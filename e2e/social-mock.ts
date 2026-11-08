@@ -1,6 +1,6 @@
 // A Make or n8n scenario as far as the social plugin uses it, on its own port: `/ok` posts and
 // answers with the post's URL, `/down` fails. Under `/graph` and `/dialog`, Facebook's Graph API
-// and its login dialog; under `/line`, LINE's Messaging API (#313). `GET /sent` lists what came,
+// and its login dialog; under `/line`, LINE's Messaging API (#313); under `/x`, X's API (#380). `GET /sent` lists what came,
 // for the suite to check.
 import { createServer } from 'node:http'
 
@@ -48,6 +48,17 @@ createServer((req, res) => {
         return send(200, { id: `${post[1]}_${sent.length}` })
       }
       return send(404, { error: { message: `Unknown ${route}`, code: 100 } })
+    }
+    if (path.startsWith('/x/')) {
+      if (!String(req.headers.authorization).startsWith('OAuth '))
+        return send(401, { title: 'Unauthorized', status: 401 })
+      if (path === '/x/2/users/me')
+        return send(200, { data: { id: '9', name: 'Easy CMS', username: 'easycms_e2e' } })
+      if (path === '/x/2/tweets') {
+        sent.push({ path, body: JSON.parse(body || '{}') })
+        return send(201, { data: { id: String(1000 + sent.length) } })
+      }
+      return send(404, { title: `Unknown ${path}` })
     }
     if (path.startsWith('/line/')) {
       const route = path.slice('/line'.length)

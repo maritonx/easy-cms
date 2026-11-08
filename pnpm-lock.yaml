@@ -751,6 +751,9 @@ importers:
       happy-dom:
         specifier: ^21.0.4
         version: 21.0.4
+      simple-icons:
+        specifier: 16.36.0
+        version: 16.36.0
 
   packages/richtext: {}
 

@@ -1,4 +1,5 @@
 import { ChannelError, type SocialChannel, type SocialMessage } from './channel.js'
+import { LINE } from './logos.js'
 
 // LINE Official Accounts through the Messaging API, without an SDK (#313): a broadcast to every
 // follower, as a card. LINE_API_URL points tests at a stand-in.
@@ -105,6 +106,7 @@ export const line: SocialChannel = {
     id: 'line-oa',
     label: 'LINE OA',
     category: 'social',
+    icon: LINE,
     description: {
       en: 'Broadcasts each post as a card to your LINE Official Account’s followers',
       th: 'broadcast แต่ละโพสต์เป็นการ์ดถึงผู้ติดตาม LINE Official Account ของคุณ',
