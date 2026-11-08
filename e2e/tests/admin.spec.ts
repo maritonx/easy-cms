@@ -1617,6 +1617,19 @@ test.describe('logged in as admin', () => {
     await expect(pickers).toHaveCount(2)
     await expect(pickers.first()).toHaveValue('social-webhook:Make')
 
+    // The text written by AI from the shared post, for review (the mock Anthropic API).
+    const text = page.getByRole('textbox', { name: 'Text', exact: true })
+    page.once('dialog', (dialog) => dialog.accept())
+    await page
+      .locator('ecms-social-count')
+      .first()
+      .getByRole('button', { name: 'Write with AI' })
+      .click()
+    await expect(text).toHaveValue(
+      'Hello from Playwright: our end-to-end test has something to say.',
+    )
+    await expect(page.getByText('Written by AI: check it before posting.')).toBeVisible()
+
     // The post's cover came along; without serverURL channels couldn't fetch it: said up front.
     const panel = page.locator('ecms-social-panel')
     await expect(panel).toContainText('Set `serverURL` so channels can fetch the image')

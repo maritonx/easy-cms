@@ -5,6 +5,7 @@
  */
 import {
   ACTION_PATH,
+  AI_PATH,
   CHANNELS_PATH,
   type ChannelDelivery,
   type ChannelOption,
@@ -64,6 +65,12 @@ const MESSAGES = {
     share: 'Share on social media',
     shareSave: 'Save first, then share.',
     sharing: 'Creating a post…',
+    writeAi: 'Write with AI',
+    writingAi: 'Writing…',
+    spentAi: "Today's AI requests are used up",
+    replaceAi: 'Replace this text with one written by AI?',
+    writtenAi: 'Written by AI: check it before posting.',
+    undo: 'Undo',
   },
   th: {
     pick: 'เลือกช่องทาง',
@@ -92,6 +99,12 @@ const MESSAGES = {
     share: 'แชร์ไปโซเชียล',
     shareSave: 'บันทึกก่อน แล้วค่อยแชร์',
     sharing: 'กำลังสร้างโพสต์…',
+    writeAi: 'เขียนด้วย AI',
+    writingAi: 'กำลังเขียน…',
+    spentAi: 'ใช้คำขอ AI ของวันนี้ครบแล้ว',
+    replaceAi: 'แทนที่ข้อความนี้ด้วยข้อความที่ AI เขียนไหม?',
+    writtenAi: 'เขียนโดย AI: ตรวจดูก่อนโพสต์',
+    undo: 'เลิกทำ',
   },
 } as const
 type MessageKey = keyof (typeof MESSAGES)['en']
@@ -119,6 +132,21 @@ function channelsOf(api: Api) {
     .then((v) => v as { channels: ChannelOption[]; canPost: boolean })
     .catch(() => ({ channels: [], canPost: false }))
   channelsCache.set(api, asking)
+  return asking
+}
+
+/** Whether "Write with AI" works here: asked once per page (per admin API). */
+const aiCache = new WeakMap<Api, Promise<{ ready: boolean; spent: boolean }>>()
+function aiOf(api: Api, fresh = false) {
+  const known = aiCache.get(api)
+  if (known && !fresh) return known
+  const asking = api('GET', '/admin/ai/status')
+    .then((v) => {
+      const s = v as { connected: boolean; features: string[]; used: number; limit: number }
+      return { ready: s.connected && s.features.includes('social'), spent: s.used >= s.limit }
+    })
+    .catch(() => ({ ready: false, spent: false }))
+  aiCache.set(api, asking)
   return asking
 }
 
@@ -265,9 +293,85 @@ class SocialChannelPicker extends SocialElement {
   }
 }
 
-/** Under a post's text (or a channel's): its length, against the channels' limits. */
+/**
+ * Under a post's text (or a channel's): its length against the channels' limits, and Write with AI
+ * (with an AI plugin), into the field for review with Undo.
+ */
 class SocialCount extends SocialElement {
+  private ai = { ready: false, spent: false }
+  private aiAsked = false
+  private busy = false
+  private beforeAi: { value: unknown } | null = null
+  private notice: string | null = null
+
+  protected override css() {
+    return `
+      .bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.25rem 0.75rem; }
+      .ai { color: var(--accent-ink); font-weight: 600; border-color: transparent; background: transparent; }
+      .written { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin: 0.25rem 0 0; font-size: 0.8rem; color: var(--accent-ink); }
+    `
+  }
+
   protected render() {
+    if (!this.aiAsked && this.ctx.api) {
+      this.aiAsked = true
+      void aiOf(this.ctx.api).then((status) => {
+        this.ai = status
+        this.update()
+      })
+    }
+    const button =
+      this.ai.ready && !this.ctx.readOnly
+        ? `<button type="button" class="ai" data-action="ai" ${this.busy || this.ai.spent ? 'disabled' : ''}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg>
+            ${esc(this.t(this.busy ? 'writingAi' : this.ai.spent ? 'spentAi' : 'writeAi'))}
+          </button>`
+        : ''
+    return `
+      <div class="bar">${this.count()}${button}</div>
+      ${this.beforeAi ? `<p class="written" role="status">${esc(this.t('writtenAi'))} <button type="button" data-action="undo-ai">${esc(this.t('undo'))}</button></p>` : ''}
+      ${this.notice ? `<p class="error" role="alert">${esc(this.notice)}</p>` : ''}
+    `
+  }
+
+  protected override async onAction(action: string) {
+    const { api, path, id, doc } = this.ctx
+    if (!api || !path) return
+    const set = (value: unknown) =>
+      this.dispatchEvent(new CustomEvent('set-field', { detail: { path, value } }))
+    if (action === 'undo-ai' && this.beforeAi) {
+      set(this.beforeAi.value)
+      this.beforeAi = null
+      this.update()
+      return
+    }
+    if (action !== 'ai' || this.busy) return
+    const current = typeof this.ctx.value === 'string' ? this.ctx.value.trim() : ''
+    if (current && !window.confirm(this.t('replaceAi'))) return
+    const match = /^channels\.(\d+)\.text$/.exec(path)
+    const rows = Array.isArray(doc.channels) ? (doc.channels as Doc[]) : []
+    const channel = match ? rows[Number(match[1])]?.connection : undefined
+    this.busy = true
+    this.notice = null
+    this.update()
+    try {
+      const result = (await api('POST', AI_PATH, {
+        post: id,
+        doc: { title: doc.title, text: doc.text, source: doc.source ?? null },
+        ...(typeof channel === 'string' ? { channel } : {}),
+      })) as { text: string }
+      this.beforeAi ??= { value: this.ctx.value ?? null }
+      set(result.text)
+    } catch (error) {
+      this.notice = (error as Error).message
+    } finally {
+      this.busy = false
+      this.ai = await aiOf(api, true)
+      this.update()
+    }
+  }
+
+  private count() {
     const value = typeof this.ctx.value === 'string' ? this.ctx.value : ''
     const n = length(value.trim())
     const rows = Array.isArray(this.ctx.doc.channels) ? (this.ctx.doc.channels as Doc[]) : []
@@ -280,9 +384,9 @@ class SocialCount extends SocialElement {
       .map((r) => this.channels.find((c) => c.id === r.connection))
       .filter((c): c is ChannelOption => !!c?.maxLength)
     const tightest = limits.sort((a, b) => (a.maxLength ?? 0) - (b.maxLength ?? 0))[0]
-    if (!tightest) return `<p class="hint">${esc(this.t('chars', { n }))}</p>`
+    if (!tightest) return `<span class="hint">${esc(this.t('chars', { n }))}</span>`
     const over = n > (tightest.maxLength ?? Number.POSITIVE_INFINITY)
-    return `<p class="${over ? 'error' : 'hint'}">${esc(this.t('charsMax', { n, max: tightest.maxLength ?? 0 }))}${over ? ` · ${esc(this.t('over', { channel: tightest.label }))}` : ''}</p>`
+    return `<span class="${over ? 'error' : 'hint'}">${esc(this.t('charsMax', { n, max: tightest.maxLength ?? 0 }))}${over ? ` · ${esc(this.t('over', { channel: tightest.label }))}` : ''}</span>`
   }
 }
 

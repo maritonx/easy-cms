@@ -13,6 +13,7 @@ import { ChannelError, type SocialChannel, type SocialMessage } from './channel.
 import { INFO } from './info.js'
 import {
   ACTION_PATH,
+  AI_PATH,
   CHANNELS_PATH,
   type ChannelDelivery,
   type ChannelOption,
@@ -532,6 +533,77 @@ export function socialPlugin(options: SocialPluginOptions = {}) {
       },
     }
 
+    /** "Write with AI": a post's text from what it shares, for review in the form. */
+    const aiEndpoint: Endpoint = {
+      path: AI_PATH,
+      method: 'post',
+      handler: async ({ json: body, user, cms }) => {
+        if (!user) return json(401, 'Log in to write with AI')
+        const ai = cms.ai
+        if (!ai) return json(404, 'No AI plugin')
+        const input = (await body()) as Doc
+        const id =
+          typeof input.post === 'string' || typeof input.post === 'number' ? input.post : null
+        // Who may change the post (or create one, before it is saved) may have it written.
+        const allowed =
+          id !== null
+            ? (await cms.documentPermissions(slug, String(id), user)).update
+            : (await cms.roles.allows(user, { collection: slug }, 'create')) !== false
+        if (!allowed) return json(403, 'You may not change this post')
+        const form = (typeof input.doc === 'object' && input.doc !== null ? input.doc : {}) as Doc
+        const parts: string[] = []
+        const ref = sourceOf(form)
+        if (ref) {
+          const config = cms.config.collections.find((c) => c.slug === ref.collection)
+          const source = (await cms.findById(ref.collection, ref.id as string, {
+            depth: 0,
+            draft: true,
+            user,
+            overrideAccess: false,
+          })) as Doc | null
+          if (source && config) parts.push(contentText(config, source))
+        }
+        if (parts.length === 0)
+          for (const key of ['title', 'text'] as const)
+            if (typeof form[key] === 'string' && (form[key] as string).trim())
+              parts.push(form[key] as string)
+        const source = parts.join('\n\n').trim()
+        if (!source) return json(400, 'Nothing to write from yet: share a document or add a title')
+        const channel = typeof input.channel === 'string' ? input.channel : null
+        const adapter = channel ? channelOf(channel) : undefined
+        const max = adapter?.maxLength ?? 500
+        const where = channel
+          ? `a post on ${channel.slice(0, channel.indexOf(':')) || 'social media'}`
+          : 'a social media post'
+        try {
+          const result = await ai.generate(
+            {
+              feature: 'social',
+              system: [
+                `You write ${where} that makes people want to read the page it shares.`,
+                `At most ${max} characters, plain text, no hashtags unless they fit, no link (it is added`,
+                `separately). Write it in ${ai.languageOf(null)}. Answer with the post only.`,
+              ].join(' '),
+              prompt: `The page:\n\n${source.slice(0, 6000)}`,
+              maxTokens: 400,
+            },
+            { user, ...(id !== null ? { about: { collection: slug, id } } : {}) },
+          )
+          let text = result.text.trim().replace(/^["“]+|["”]+$/g, '')
+          if ([...text].length > max)
+            text =
+              [...text]
+                .slice(0, max - 1)
+                .join('')
+                .trimEnd() + '…'
+          return { text }
+        } catch (e) {
+          const status = (e as { status?: number }).status
+          return json(typeof status === 'number' ? status : 400, (e as Error).message)
+        }
+      },
+    }
+
     const shareEndpoint: Endpoint = {
       path: SHARE_PATH,
       method: 'post',
@@ -610,7 +682,25 @@ export function socialPlugin(options: SocialPluginOptions = {}) {
       ...config,
       collections: [...(config.collections ?? []).map(withShare), posts],
       integrations: [...(config.integrations ?? []), ...integrations],
-      endpoints: [...(config.endpoints ?? []), channelsEndpoint, actionEndpoint, shareEndpoint],
+      endpoints: [
+        ...(config.endpoints ?? []),
+        channelsEndpoint,
+        actionEndpoint,
+        shareEndpoint,
+        aiEndpoint,
+      ],
+      // Used only with an AI plugin (`ai` in the config): Write with AI on a post's text.
+      aiFeatures: [
+        ...(config.aiFeatures ?? []),
+        {
+          id: 'social',
+          label: { en: 'Social posts', th: 'โพสต์โซเชียล' },
+          description: {
+            en: 'Writes a social post from the document it shares',
+            th: 'เขียนโพสต์โซเชียลจากเอกสารที่แชร์',
+          },
+        },
+      ],
       jobs: [...(config.jobs ?? []), job],
       events: [...new Set([...(config.events ?? []), 'social.posted', 'social.failed'])],
       admin: {
@@ -619,6 +709,33 @@ export function socialPlugin(options: SocialPluginOptions = {}) {
       },
     }
   }, INFO)
+}
+
+/** A document's words for AI: its title, then its text, textarea and rich text fields. */
+function contentText(collection: CollectionConfig, doc: Doc): string {
+  const parts: string[] = []
+  const titleField = collection.useAsTitle
+  if (titleField && typeof doc[titleField] === 'string') parts.push(doc[titleField] as string)
+  const words = (node: unknown): string => {
+    if (!node || typeof node !== 'object') return ''
+    const n = node as { text?: unknown; content?: unknown[] }
+    const own = typeof n.text === 'string' ? n.text : ''
+    const kids = Array.isArray(n.content)
+      ? n.content.map(words).join(n.text === undefined ? ' ' : '')
+      : ''
+    return `${own}${kids}`
+  }
+  for (const field of collection.fields) {
+    if (!('name' in field) || field.name === titleField) continue
+    const value = doc[field.name]
+    if ((field.type === 'text' || field.type === 'textarea') && typeof value === 'string')
+      parts.push(value)
+    else if (field.type === 'richText') parts.push(words(value).replace(/\s+/g, ' '))
+  }
+  return parts
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .join('\n\n')
 }
 
 /** What a document shares by default: its title, first textarea, and first image. */
