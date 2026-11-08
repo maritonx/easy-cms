@@ -1,12 +1,19 @@
 // Option names of the config: errors for names that changed (with the new name), and warnings for
 // names Easy CMS doesn't know (usually a typo, which would otherwise do nothing).
-import type { Config } from './config.js'
+import type { CollectionAdmin, Config, ContainerAdmin } from './config.js'
 import { ConfigError, type ConfigIssue } from './errors.js'
 
 type Add = (issue: ConfigIssue) => void
 type Data = Record<string, unknown>
 
 const keys = (list: string) => new Set(list.split(/\s+/).filter(Boolean))
+/** The names of a type's options, checked by TypeScript to be all of them and no others. */
+const exactKeys =
+  <T>() =>
+  <const K extends readonly (keyof T & string)[]>(
+    ...list: Exclude<keyof T & string, K[number]> extends never ? K : never
+  ) =>
+    new Set<string>(list)
 
 const CONFIG =
   keys(`secret previousSecrets integrations listeners ai aiFeatures db serverURL cors cronSecret timeZone webhooks events jobs localization routes admin
@@ -26,9 +33,26 @@ const COLLECTION = keys(`slug labels fields useAsTitle drafts versions schedule 
 const GLOBAL = keys(
   'slug label fields drafts versions schedule preview access hooks scope admin httpCache',
 )
-const CONTAINER_ADMIN = keys('icon order sidebar layout group')
-const COLLECTION_ADMIN = keys(
-  'icon order sidebar layout group editIn badge count empty list calendar ownerField confirmDelete views export',
+// Typed against the interfaces, so an option added there and forgotten here doesn't compile: the
+// admin's `permissions` was warned about as unknown in 1.37–1.39.
+const CONTAINER_ADMIN = exactKeys<ContainerAdmin>()('icon', 'order', 'sidebar', 'layout', 'group')
+const COLLECTION_ADMIN = exactKeys<CollectionAdmin>()(
+  'icon',
+  'order',
+  'sidebar',
+  'layout',
+  'group',
+  'editIn',
+  'badge',
+  'count',
+  'empty',
+  'list',
+  'calendar',
+  'ownerField',
+  'confirmDelete',
+  'views',
+  'export',
+  'permissions',
 )
 const FIELD_ADMIN = keys(
   'description width condition component after cell column allowCreate initialValue position filter',
