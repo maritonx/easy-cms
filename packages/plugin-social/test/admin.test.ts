@@ -151,3 +151,57 @@ describe('ecms-social-share', () => {
     expect(went).toEqual(['/collections/social-posts/9'])
   })
 })
+
+describe('Write with AI', () => {
+  it('writes the text for a channel, for review; asks before replacing; undoes', async () => {
+    const api = vi.fn(async (method: string, path: string, _body?: unknown) => {
+      if (path === '/social/channels') return channels
+      if (path === '/admin/ai/status')
+        return { connected: true, features: ['social'], used: 0, limit: 100 }
+      if (path === '/social/ai') return { text: 'Short and sweet' }
+      return { method }
+    })
+    const count = await make('ecms-social-count', {
+      value: 'Mine',
+      path: 'channels.1.text',
+      id: 5,
+      api,
+      doc: {
+        title: 'Launch',
+        text: 'Main',
+        source: 3,
+        channels: [{ connection: 'social-webhook:Make' }, { connection: 'x:Main', text: 'Mine' }],
+      },
+    })
+    const events: unknown[] = []
+    count.addEventListener('set-field', (e) => events.push((e as CustomEvent).detail))
+    const confirm = vi.fn().mockReturnValueOnce(false).mockReturnValueOnce(true)
+    vi.stubGlobal('confirm', confirm)
+    const button = () => count.shadowRoot?.querySelector<HTMLButtonElement>('[data-action="ai"]')
+    button()?.click()
+    await flush()
+    expect(events).toEqual([])
+    button()?.click()
+    await flush()
+    expect(api).toHaveBeenCalledWith('POST', '/social/ai', {
+      post: 5,
+      doc: { title: 'Launch', text: 'Main', source: 3 },
+      channel: 'x:Main',
+    })
+    expect(events).toEqual([{ path: 'channels.1.text', value: 'Short and sweet' }])
+    expect(text(count)).toContain('Written by AI')
+    count.shadowRoot?.querySelector<HTMLButtonElement>('[data-action="undo-ai"]')?.click()
+    await flush()
+    expect(events.at(-1)).toEqual({ path: 'channels.1.text', value: 'Mine' })
+    vi.unstubAllGlobals()
+  })
+
+  it('shows no button without an AI plugin', async () => {
+    const api = vi.fn(async (_m: string, path: string) => {
+      if (path === '/social/channels') return channels
+      throw new Error('Not found')
+    })
+    const count = await make('ecms-social-count', { value: '', path: 'text', api, doc: {} })
+    expect(count.shadowRoot?.querySelector('[data-action="ai"]')).toBeNull()
+  })
+})

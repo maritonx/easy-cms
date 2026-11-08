@@ -66,6 +66,14 @@ post from it: its title, its first textarea (an excerpt), `url`, its first image
 channel. `share: ({ doc, collection }) => ({ title, text, link, image })` fills it your way. Remove the
 channels it shouldn't go to; a channel's own text replaces the post's text there.
 
+## Writing with AI
+
+With the [AI plugin](./ai), the post's text and each channel's text have **Write with AI**: it writes
+from the shared document (its title and text; before anything is shared, the post's title), within the
+channel's length (500 characters for the webhook), in the default language. The text goes into the field
+for review, with **Undo**; replacing text you have asks first. It is the **Social posts** feature in the
+AI settings, and each press is one request toward the user's daily limit.
+
 ## Posting
 
 The **Posting** panel beside the post shows each channel: not posted, scheduled, sending, posted (with

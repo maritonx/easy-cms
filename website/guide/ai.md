@@ -85,6 +85,11 @@ form, with **Translate them from TH**: each missing field is one request, and Un
 
 Translation reads the default locale as saved, and only users who may change the document can use it.
 
+## Social posts
+
+With the [social plugin](./social), a social post's text has **Write with AI**, from the document it
+shares. See [Writing with AI](./social#writing-with-ai).
+
 ## Limits
 
 Each user makes at most **100 requests a day** (in `timeZone`); the 101st is refused. Admins change

@@ -4,6 +4,11 @@
 export const CHANNELS_PATH = '/social/channels'
 /** `POST { post, action: 'now' | 'schedule' | 'cancel' | 'retry', postAt?, channel? }`. */
 export const ACTION_PATH = '/social/post'
+/**
+ * `POST { post?, doc, channel? }` (#312, with an AI plugin): the post's text written by AI from its
+ * source, for a channel's length when one is named; returns `{ text }`.
+ */
+export const AI_PATH = '/social/ai'
 /** `POST { collection, id }`: a social post filled from a document; returns `{ id }`. */
 export const SHARE_PATH = '/social/share'
 

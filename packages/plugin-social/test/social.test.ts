@@ -415,3 +415,85 @@ describe('socialPlugin', () => {
     })
   })
 })
+
+describe('Write with AI', () => {
+  // A provider of the test's own: an integration whose key comes from the environment.
+  const asked: { system?: string; prompt: string }[] = []
+  let answer = '"Our first post is out: read how we started."'
+  const withAi = (): Config => {
+    const base = config()
+    return {
+      ...base,
+      plugins: [
+        ...(base.plugins ?? []),
+        (c: Config): Config => ({
+          ...c,
+          integrations: [
+            ...(c.integrations ?? []),
+            {
+              id: 'fake-ai',
+              label: 'Fake AI',
+              category: 'ai',
+              kind: 'fields',
+              fields: [{ name: 'key', required: true, secret: true }],
+              env: { key: 'FAKE_AI_KEY' },
+            },
+          ],
+          ai: {
+            providers: [
+              {
+                integration: 'fake-ai',
+                generate: async (_values, request) => {
+                  asked.push(request)
+                  return { text: answer, usage: { input: 10, output: 5 } }
+                },
+              },
+            ],
+          },
+        }),
+      ],
+    }
+  }
+
+  it('writes the text from the shared document, for a channel when named', async () => {
+    process.env.FAKE_AI_KEY = 'k'
+    try {
+      const { cms, call, login } = await open(withAi())
+      expect(cms.config.aiFeatures.map((f) => f.id)).toContain('social')
+      const page = await cms.create('posts', {
+        title: 'How we started',
+        excerpt: 'The story of the first week',
+        status: 'published',
+      })
+      const social = await cms.create('social-posts', { title: 'x', text: 'x', source: page.id })
+      const written = await call('/social/ai', 'POST', {
+        post: social.id,
+        doc: { title: 'x', text: 'x', source: page.id },
+      })
+      expect(written.body).toEqual({ text: 'Our first post is out: read how we started.' })
+      expect(asked.at(-1)?.prompt).toContain('How we started\n\nThe story of the first week')
+      expect(asked.at(-1)?.system).toContain('At most 500 characters')
+      // Before the post is saved: its title, without a source.
+      await call('/social/ai', 'POST', { post: null, doc: { title: 'Launch day' } })
+      expect(asked.at(-1)?.prompt).toBe('The page:\n\nLaunch day')
+      // Too long: cut to the channel's limit.
+      answer = 'x'.repeat(600)
+      const cut = await call('/social/ai', 'POST', { post: social.id, doc: { title: 'T' } })
+      expect([...(cut.body.text as string)]).toHaveLength(500)
+
+      expect((await call('/social/ai', 'POST', { post: social.id, doc: {} })).status).toBe(400)
+      await call('/admin/roles', 'POST', {
+        key: 'reader',
+        name: 'Reader',
+        permissions: { collections: { 'social-posts': ['read'] } },
+      })
+      await login('r@x.co', 'reader')
+      expect(
+        (await call('/social/ai', 'POST', { post: social.id, doc: { title: 'T' } }, 'r@x.co'))
+          .status,
+      ).toBe(403)
+    } finally {
+      delete process.env.FAKE_AI_KEY
+    }
+  })
+})
