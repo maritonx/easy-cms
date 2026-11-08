@@ -1,5 +1,12 @@
 # @easy-cms/next
 
+## 1.37.0
+
+### Patch Changes
+
+- @easy-cms/admin@1.37.0
+  - @easy-cms/core@1.37.0
+
 ## 1.36.0
 
 ### Patch Changes

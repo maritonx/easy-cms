@@ -1,5 +1,15 @@
 # @easy-cms/plugin-social
 
+## 1.37.0
+
+### Minor Changes
+
+- 0aa6dd4: Write social posts with AI (#312). With `@easy-cms/plugin-ai`, a social post's text and each channel's text have **Write with AI**: written from the shared document (or the post's title), within the channel's length, in the default language, into the field for review with Undo; replacing text asks first. It is the `social` AI feature, for users who may change the post.
+
+### Patch Changes
+
+- @easy-cms/core@1.37.0
+
 ## 1.36.0
 
 ### Minor Changes
