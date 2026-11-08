@@ -76,6 +76,7 @@ A collection is a type of content with many documents: posts, products, pages.
 | `admin.order` | Its place in its menu group, e.g. `1`: lower first; collections without one come after, in config order. The media library comes last, user accounts are under Settings. |
 | `admin.group` | `'settings'` lists the collection under Settings in the menu (with Users and API keys) instead of with the content; `false` leaves it out of the menu (links still reach it). See [The menu](./admin#the-menu). |
 | `admin.editIn` | `'drawer'`: create and edit in a panel over the list, for small collections such as categories; relationship fields to it get a "Create" button that opens the same panel. Collections with drafts, versions or preview always use the full page. |
+| `actions` | Buttons that run your code on a document, from its page, a list row or the selection ([Actions](./actions)). |
 | `admin.list` | `{ tree: 'parent', sort: 'title' }` shows the list as a tree along a relationship to the same collection, and sets its default order. |
 | `drafts` | Adds `status` (`draft` \| `published`). See [Drafts](./drafts). |
 | `versions` | `true` or `{ keep }`: keep a version of every save, with history and restore; with `drafts`, drafts of published documents are kept separately. See [Versions](./drafts#versions). |

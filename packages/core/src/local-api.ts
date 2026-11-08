@@ -7,6 +7,7 @@ import {
   filterInput,
   stripFields,
 } from './access-control.js'
+import { ACTION_PREFIX, runAction } from './actions.js'
 import { Ai } from './ai.js'
 import {
   API_KEYS,
@@ -32,8 +33,15 @@ import {
   USERS,
   WEBHOOK_DELIVERIES,
 } from './builtins.js'
-import { runBulkOperations } from './bulk.js'
+import {
+  type BulkOperation,
+  type BulkResult,
+  bulkIds,
+  runBulkOperations,
+  startBulk,
+} from './bulk.js'
 import type {
+  ActionResult,
   CollectionConfig,
   Config,
   GlobalConfig,
@@ -2110,6 +2118,46 @@ export class EasyCMS<C extends Config = Config> {
         },
       )
     return { update: await check('update'), delete: await check('delete') }
+  }
+
+  /**
+   * Runs a collection's action (#386) as `user`, checking who may, `when` and its form: on one
+   * document (`id`), up to 100 now (`ids`), or every document matching `where` in the background.
+   */
+  runAction(
+    collection: Slug<C>,
+    name: string,
+    target: { id: ID },
+    options: { user: AuthUser; input?: unknown; context?: RequestContext },
+  ): Promise<ActionResult>
+  runAction(
+    collection: Slug<C>,
+    name: string,
+    target: { ids: readonly ID[] },
+    options: { user: AuthUser; input?: unknown; context?: RequestContext },
+  ): Promise<BulkResult>
+  runAction(
+    collection: Slug<C>,
+    name: string,
+    target: { where: Where },
+    options: { user: AuthUser; input?: unknown; context?: RequestContext },
+  ): Promise<BulkOperation>
+  async runAction(
+    collection: Slug<C>,
+    name: string,
+    target: { id: ID } | { ids: readonly ID[] } | { where: Where },
+    options: { user: AuthUser; input?: unknown; context?: RequestContext },
+  ): Promise<ActionResult | BulkResult | BulkOperation> {
+    const slug = collection as string
+    const cms = this as unknown as EasyCMS
+    if ('id' in target) return runAction(cms, slug, name, target.id, options)
+    const bulk = {
+      user: options.user,
+      input: options.input,
+      ...(options.context ? { context: options.context } : {}),
+    }
+    if ('ids' in target) return bulkIds(cms, slug, `${ACTION_PREFIX}${name}`, target.ids, bulk)
+    return startBulk(cms, slug, `${ACTION_PREFIX}${name}`, target.where, bulk)
   }
 
   /** Closes the database connection. */

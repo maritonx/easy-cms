@@ -1,13 +1,22 @@
 // Bulk actions (#280): on up to 100 documents at once, or on every document matching a list's
 // filters as an operation that runs in the background, 100 documents a step.
 import type { AuthUser, ID, RequestContext, Where } from './access.js'
+import {
+  ACTION_PREFIX,
+  actionInput,
+  actionOf,
+  bulkActionName,
+  NotApplicableError,
+  runOn,
+} from './actions.js'
 import { auditContext } from './audit.js'
 import { BULK_OPERATIONS, MEDIA } from './builtins.js'
 import type { RawDocument } from './database.js'
 import { ForbiddenError, NotFoundError, QueryError } from './errors.js'
 import type { EasyCMS } from './local-api.js'
 
-export type BulkAction = 'publish' | 'unpublish' | 'delete' | 'move'
+/** The built-in actions, and a collection's own as `action:<name>` (#386). */
+export type BulkAction = 'publish' | 'unpublish' | 'delete' | 'move' | `action:${string}`
 export const BULK_ACTIONS: readonly BulkAction[] = ['publish', 'unpublish', 'delete', 'move']
 /** Documents a step handles, and the most ids one request may name. */
 export const BULK_STEP = 100
@@ -23,7 +32,7 @@ const FINISHED_KEPT = 10
 /** Why a document was left out: no permission, gone, or an error (with its message). */
 export interface BulkProblem {
   id: ID
-  reason: 'forbidden' | 'not-found' | 'error'
+  reason: 'forbidden' | 'not-found' | 'not-applicable' | 'error'
   message?: string
 }
 
@@ -34,6 +43,8 @@ export interface BulkOptions {
   folder?: ID | null
   /** `delete` of users with roles: who gets the documents they own. */
   transferTo?: ID | null
+  /** A collection's own action (`action:<name>`): its form's values. */
+  input?: unknown
 }
 
 /** What a bulk action on named documents did. */
@@ -62,6 +73,10 @@ export interface BulkOperation {
 const ACTIVE = ['pending', 'running', 'cancelling']
 
 function check(cms: EasyCMS, collection: string, action: string, options: BulkOptions) {
+  if (action.startsWith(ACTION_PREFIX)) {
+    bulkActionName(cms, collection, action.slice(ACTION_PREFIX.length))
+    return
+  }
   if (!BULK_ACTIONS.includes(action as BulkAction))
     throw new QueryError(`action must be one of ${BULK_ACTIONS.join(', ')}`)
   const config = cms.collection(collection as never)
@@ -89,7 +104,14 @@ async function apply(
   }
   const slug = collection as never
   try {
-    if (action === 'publish') await cms.update(slug, id, { status: 'published' } as never, access)
+    if (action.startsWith(ACTION_PREFIX)) {
+      const own = actionOf(cms, collection, action.slice(ACTION_PREFIX.length))
+      await runOn(cms, collection, own, id, (options.input ?? {}) as Record<string, unknown>, {
+        user: options.user,
+        ...(options.context ? { context: options.context } : {}),
+      })
+    } else if (action === 'publish')
+      await cms.update(slug, id, { status: 'published' } as never, access)
     else if (action === 'unpublish') await cms.unpublish(slug, id, access)
     else if (action === 'move')
       await cms.update(slug, id, { folder: options.folder ?? null } as never, access)
@@ -101,9 +123,22 @@ async function apply(
     return null
   } catch (error) {
     if (error instanceof ForbiddenError) return { id, reason: 'forbidden' }
+    if (error instanceof NotApplicableError) return { id, reason: 'not-applicable' }
     if (error instanceof NotFoundError) return { id, reason: 'not-found' }
     return { id, reason: 'error', message: (error as Error).message }
   }
+}
+
+/** The options with a collection's own action's form checked (its clean values). */
+async function withInput(
+  cms: EasyCMS,
+  collection: string,
+  action: string,
+  options: BulkOptions,
+): Promise<BulkOptions> {
+  if (!action.startsWith(ACTION_PREFIX)) return options
+  const own = actionOf(cms, collection, action.slice(ACTION_PREFIX.length))
+  return { ...options, input: await actionInput(own, collection, options.input) }
 }
 
 /**
@@ -119,6 +154,7 @@ export async function bulkIds(
 ): Promise<BulkResult> {
   check(cms, collection, action, options)
   if (ids.length > BULK_STEP) throw new QueryError(`ids: at most ${BULK_STEP} at a time`)
+  options = await withInput(cms, collection, action, options)
   const result: BulkResult = { done: 0, skipped: [], failed: [] }
   for (const id of new Set(ids)) {
     const problem = await apply(cms, collection, action as BulkAction, id, options)
@@ -141,6 +177,7 @@ export async function startBulk(
   options: BulkOptions,
 ): Promise<BulkOperation> {
   check(cms, collection, action, options)
+  options = await withInput(cms, collection, action, options)
   const total = await cms.count(collection as never, {
     ...(where ? { where } : {}),
     draft: true,
@@ -159,7 +196,10 @@ export async function startBulk(
     data: {
       collection,
       action,
-      query: where ?? null,
+      // A collection's own action keeps its form's values beside the list's `where`.
+      query: action.startsWith(ACTION_PREFIX)
+        ? { where: where ?? null, input: options.input ?? {} }
+        : (where ?? null),
       folder: options.folder === undefined ? null : JSON.stringify(options.folder),
       transferTo: options.transferTo === undefined ? null : JSON.stringify(options.transferTo),
       user: String(options.user.id),
@@ -231,7 +271,15 @@ export async function stepBulk(cms: EasyCMS, id: ID, now: Date = new Date()): Pr
       : {}),
   }
   const handled = Number(claimed.done) + Number(claimed.skipped) + Number(claimed.failed)
-  const query = (claimed.query ?? undefined) as Where | undefined
+  const stored = (claimed.query ?? undefined) as
+    | Where
+    | { where: Where | null; input: Record<string, unknown> }
+    | undefined
+  const own = action.startsWith(ACTION_PREFIX) && stored !== undefined
+  const query = (own ? ((stored as { where: Where | null }).where ?? undefined) : stored) as
+    | Where
+    | undefined
+  if (own) options.input = (stored as { input: Record<string, unknown> }).input
   const after = claimed.after as ID | null
   const conditions = [query, after === null ? undefined : { id: { gt: after } }].filter(
     (w): w is Where => w !== undefined,

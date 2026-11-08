@@ -65,6 +65,10 @@ export type {
 } from './backups.js'
 export { type FieldCondition, matchesCondition } from './conditions.js'
 export type {
+  ActionArgs,
+  ActionFieldType,
+  ActionPlace,
+  ActionResult,
   AdminCommand,
   AdminConfig,
   AdminLocale,
@@ -80,6 +84,7 @@ export type {
   BeforeDeleteHook,
   BeforeValidateHook,
   CliCommand,
+  CollectionAction,
   CollectionAdmin,
   CollectionCalendarAdmin,
   CollectionConfig,
@@ -134,6 +139,7 @@ export {
   type EmailSetting,
 } from './email.js'
 export {
+  ActionError,
   ConfigError,
   type ConfigIssue,
   EasyCMSError,
@@ -225,6 +231,7 @@ export type {
   BuiltInJob,
 } from './rest/admin-jobs.js'
 export type {
+  AdminAction,
   AdminCollection,
   AdminComponentRef,
   AdminField,

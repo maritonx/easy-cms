@@ -1774,6 +1774,85 @@ test.describe('logged in as admin', () => {
     )
   })
 
+  test('runs a collection’s actions from the page, a row and the selection (#386)', async ({
+    page,
+  }) => {
+    test.skip(test.info().project.name !== 'next', 'The Next.js example has post actions')
+    await page.goto('/admin/')
+    const me = (await (await page.request.get('/api/cms/auth/me')).json()) as { csrfToken: string }
+    const headers = { 'x-csrf-token': me.csrfToken, origin: new URL(page.url()).origin }
+    const ids: number[] = []
+    for (const title of ['Review me', 'Review me too']) {
+      const created = await page.request.post('/api/cms/posts?depth=0', {
+        headers,
+        data: { title, status: 'draft' },
+      })
+      ids.push(((await created.json()) as { id: number }).id)
+    }
+    // Over REST: its form is checked.
+    const refused = await page.request.post(`/api/cms/posts/${ids[0]}/actions/send-for-review`, {
+      headers,
+      data: { input: {} },
+    })
+    expect(refused.status()).toBe(400)
+
+    // The page: unsaved changes are saved first, then its form.
+    await page.goto(`/admin/collections/posts/${ids[0]}`)
+    await page.getByRole('textbox', { name: 'Title', exact: true }).fill('Review me, please')
+    page.once('dialog', (dialog) => dialog.accept())
+    await page.getByRole('button', { name: 'Send for review' }).click()
+    const form = page.getByRole('dialog', { name: 'Send for review' })
+    await form.getByRole('button', { name: 'Send for review' }).click()
+    await expect(form.getByText('is required')).toBeVisible()
+    await form.getByLabel('Reviewer’s email').fill('reviewer@e2e.test')
+    // Typing in it takes the message away.
+    await expect(form.getByText('is required')).toBeHidden()
+    await form.getByLabel('Note').fill('Before Friday')
+    await shot(page, 'actions-form')
+    await form.getByRole('button', { name: 'Send for review' }).click()
+    await expect(page.getByRole('status')).toHaveText('Sent to reviewer@e2e.test')
+    await expect(form).toBeHidden()
+    await expect(page.getByRole('textbox', { name: 'Title', exact: true })).toHaveValue(
+      'Review me, please',
+    )
+    // `when`: a draft isn't on the site yet.
+    await expect(page.getByRole('button', { name: 'Actions', exact: true })).toHaveCount(0)
+
+    // A row's menu.
+    await page.goto('/admin/collections/posts?q=Review me')
+    await page.getByRole('button', { name: 'More actions for Review me too' }).click()
+    await page.getByRole('menuitem', { name: 'Send for review' }).click()
+    await form.getByLabel('Reviewer’s email').fill('reviewer@e2e.test')
+    await form.getByRole('button', { name: 'Send for review' }).click()
+    await expect(page.getByRole('status')).toHaveText('Sent to reviewer@e2e.test')
+
+    // The selection: on both at once.
+    await page.getByRole('checkbox', { name: 'Select Review me, please' }).check()
+    await page.getByRole('checkbox', { name: 'Select Review me too' }).check()
+    await page
+      .getByRole('toolbar', { name: 'Actions for selected documents' })
+      .getByRole('button', { name: 'Send for review' })
+      .click()
+    await expect(form).toContainText('On 2 documents.')
+    await shot(page, 'actions-bulk')
+    await form.getByLabel('Reviewer’s email').fill('team@e2e.test')
+    await form.getByRole('button', { name: 'Send for review' }).click()
+    await expect(page.getByRole('status')).toHaveText('Send for review: done on 2')
+
+    // ⌘K on the page lists it too.
+    await page.goto(`/admin/collections/posts/${ids[1]}`)
+    await expect(page.getByRole('button', { name: 'Send for review' })).toBeVisible()
+    await page.keyboard.press('ControlOrMeta+k')
+    await page.getByRole('combobox', { name: 'Search and commands' }).fill('send for')
+    await expect(page.getByRole('option', { name: 'Send for review', exact: true })).toBeVisible()
+    await page.keyboard.press('Escape')
+
+    // "Open on the site" is a right of its own, for roles to be given.
+    await page.goto('/admin/roles?role=editor')
+    await expect(page.getByRole('checkbox', { name: 'Posts: Open on the site' })).not.toBeChecked()
+    await shot(page, 'actions-roles')
+  })
+
   test('shows one group at a time, follows the page, and folds the panel away', async ({
     page,
   }) => {

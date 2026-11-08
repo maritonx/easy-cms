@@ -42,6 +42,8 @@ export interface RolePermissions {
   readonly fields?: { readonly collections?: FieldRules; readonly globals?: FieldRules }
   /** AI requests a user of the role makes a day (with `ai`); 0: none. Unset: everyone's limit. */
   readonly aiPerDay?: number
+  /** Actions (#386) the role may press, by collection: those that are rights of their own. */
+  readonly actions?: Readonly<Record<string, readonly string[]>>
 }
 
 /** One role as Settings → Roles shows it (`GET <api>/admin/roles`). */
@@ -73,6 +75,8 @@ export interface AdminRoleTarget {
   slug: string
   /** Operations that make sense here (`publish` with drafts). */
   ops: RoleOperation[]
+  /** Actions that are rights of their own (`default: 'admins'`), to give to roles. */
+  actions?: { name: string; label: Label }[]
   /** No role has been given anything here yet (added to the config since). */
   new: boolean
   fields: AdminRoleField[]
@@ -125,6 +129,10 @@ export const rolesCollection: CollectionConfig = {
     { name: 'permissions', type: 'json' },
   ],
 }
+
+/** A collection's actions that are rights of their own in Settings → Roles (#386). */
+const rightActions = (c: CollectionConfig) =>
+  (c.actions ?? []).filter((a) => (a.default ?? 'admins') === 'admins')
 
 /** Roles can be given `publish`: with drafts, or when the collection asks for it (`admin.permissions`). */
 const publishes = (c: CollectionConfig) =>
@@ -218,6 +226,14 @@ export class Roles {
       if (operation === 'read' || operation === 'update') return { id: { equals: user.id } }
     }
     return false
+  }
+
+  /** Whether the user's role was given an action that is a right of its own (#386). */
+  async allowsAction(user: AuthUser, collection: string, name: string): Promise<boolean> {
+    if (!this.enabled || isSystemAdmin(user)) return true
+    if (user.role === 'admin') return true
+    const permissions = await this.permissionsOf(user.role)
+    return permissions.actions?.[collection]?.includes(name) ?? false
   }
 
   /**
@@ -442,6 +458,9 @@ export class Roles {
               (s) => s !== c.slug && governed(s),
             ),
             fields: adminFields(c.fields, c.admin?.ownerField),
+            ...(rightActions(c).length
+              ? { actions: rightActions(c).map((a) => ({ name: a.name, label: a.label })) }
+              : {}),
             ...(owner ? { owner } : {}),
           }
         }),
@@ -662,7 +681,26 @@ export class Roles {
       this.config.ai && Number.isInteger(input.aiPerDay) && (input.aiPerDay as number) >= 0
         ? { aiPerDay: input.aiPerDay as number }
         : {}
-    return { ...picked, admin, own, fields, ...aiPerDay }
+    // Actions that are rights of their own, of collections the role may at least read.
+    const actions: Record<string, string[]> = {}
+    if (typeof input.actions === 'object' && input.actions !== null) {
+      for (const [slug, names] of Object.entries(input.actions)) {
+        const config = this.config.collections.find((c) => c.slug === slug)
+        if (!config || !picked.collections[slug]?.length || !Array.isArray(names)) continue
+        const valid = rightActions(config)
+          .map((a) => a.name)
+          .filter((name) => names.includes(name))
+        if (valid.length > 0) actions[slug] = valid
+      }
+    }
+    return {
+      ...picked,
+      admin,
+      own,
+      fields,
+      ...aiPerDay,
+      ...(Object.keys(actions).length ? { actions } : {}),
+    }
   }
 
   /**

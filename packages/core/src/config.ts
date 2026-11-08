@@ -275,6 +275,75 @@ export interface CollectionConfig {
   readonly hooks?: CollectionHooks
   /** How the collection looks in the admin: its menu item, list, edit page and components. */
   readonly admin?: CollectionAdmin
+  /**
+   * Buttons that run your code on a document: on its edit page, a list row, or several selected
+   * documents (#386). Also `POST <api>/<collection>/<id>/actions/<name>` and `cms.runAction()`.
+   */
+  readonly actions?: readonly CollectionAction[]
+}
+
+/** Where an action's button is: the edit page, a list row's menu, the bar of selected documents. */
+export type ActionPlace = 'document' | 'row' | 'bulk'
+
+/** The field types an action's form (`fields`) may have. */
+export type ActionFieldType =
+  | 'text'
+  | 'textarea'
+  | 'number'
+  | 'select'
+  | 'boolean'
+  | 'date'
+  | 'email'
+  | 'relationship'
+
+/** What an action's `run`, `when` and `access` get. */
+export interface ActionArgs {
+  /** The document as its edit page shows it: the draft, when there is one. */
+  readonly doc: Record<string, unknown> & { readonly id: string | number }
+  readonly user: AuthUser
+  readonly cms: EasyCMS
+  readonly collection: string
+}
+
+/** What an action did, for the admin to say: a message, and a page to open. */
+export interface ActionResult {
+  readonly message?: string
+  /** Opened in a new tab, e.g. a quote's PDF or the provider's page. */
+  readonly open?: string
+}
+
+/** A button that runs your code on a document (#386). */
+export interface CollectionAction {
+  /** In URLs and the audit log. Lowercase letters, digits and `-`, unique in the collection. */
+  readonly name: string
+  readonly label: Label
+  /** Where its button is. Default: the edit page and list rows. */
+  readonly on?: readonly ActionPlace[]
+  /** Whether the button shows for this document, e.g. only while a booking is pending. */
+  readonly when?: (args: ActionArgs) => boolean | Promise<boolean>
+  /** Who may press it. Default: whoever may update the document. */
+  readonly access?: (args: ActionArgs) => boolean | Promise<boolean>
+  /**
+   * With `auth.rbac`: `admins` (default) makes it a right of its own in Settings → Roles, which
+   * only admins have until it is given; `editors` lets every role that may update the
+   * collection press it.
+   */
+  readonly default?: 'admins' | 'editors'
+  /** A small form asked before running; its values are `input`. */
+  readonly fields?: readonly (Field & { readonly type: ActionFieldType })[]
+  /** Asked before running (a form counts as asking). `danger` makes the button red. */
+  readonly confirm?: boolean | { readonly text?: Label; readonly danger?: boolean }
+  /** Shown as a button of its own on the edit page, not only in its Actions menu. */
+  readonly primary?: boolean
+  /**
+   * Runs on one document at a time (bulk runs it for each). Throw `ActionError` to tell the user
+   * why it can't; other errors are logged and shown as a failure.
+   */
+  readonly run: (
+    args: ActionArgs & { readonly input: Readonly<Record<string, unknown>> },
+    // `void`: a `run` that returns nothing, as most do.
+    // biome-ignore lint/suspicious/noConfusingVoidType: a function returning nothing is `void`
+  ) => ActionResult | undefined | Promise<ActionResult | undefined | void> | void
 }
 
 /** How long a CDN may keep a public read. */

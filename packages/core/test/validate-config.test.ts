@@ -840,6 +840,38 @@ describe('validateConfig', () => {
     expect(withFields(fields, typo)).toEqual(['collections.posts.admin.permision'])
   })
 
+  it('says what is wrong with an action (#386)', () => {
+    const issues = validateConfig(
+      baseConfig({
+        collections: [
+          {
+            slug: 'posts',
+            fields: [{ name: 'title', type: 'text' }],
+            actions: [
+              { name: 'Bad Name', label: 'x', run: () => undefined },
+              { name: 'ok', label: 'x', run: () => undefined, on: ['nowhere'] as never },
+              { name: 'ok', label: 'x', run: () => undefined },
+              {
+                name: 'form',
+                label: 'x',
+                run: () => undefined,
+                fields: [{ name: 'file', type: 'upload' } as never],
+                colour: 'red',
+              } as never,
+            ],
+          },
+        ],
+      }),
+    )
+    expect(issues.map((i) => i.path)).toEqual([
+      'collections.posts.actions.form.colour',
+      'collections.posts.actions.Bad Name.name',
+      'collections.posts.actions.ok.on',
+      'collections.posts.actions.ok.name',
+      'collections.posts.actions.form.fields.file.type',
+    ])
+  })
+
   it('reports every problem at once', () => {
     const issues = validateConfig({
       secret: '',

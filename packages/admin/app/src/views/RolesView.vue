@@ -5,6 +5,7 @@ import type {
   AdminRoleField,
   AdminRoles,
   FieldRule,
+  Label,
   RoleOperation,
   RolePermissions,
 } from '@easy-cms/core'
@@ -51,6 +52,8 @@ interface Row {
   /** Collections with owners: the field naming the owner. */
   owner?: string
   fields: AdminRoleField[]
+  /** Actions that are rights of their own (#386). */
+  actions?: { name: string; label: Label }[]
 }
 type Rules = Record<string, Record<string, FieldRule>>
 
@@ -93,6 +96,8 @@ const draft = ref<{
   fields: { collections: Rules; globals: Rules }
   /** AI requests a day (with an AI plugin); empty: everyone's limit. */
   aiPerDay: string
+  /** Actions given, by collection (#386). */
+  actions: Record<string, string[]>
 }>({
   collections: {},
   globals: {},
@@ -100,6 +105,7 @@ const draft = ref<{
   own: {},
   fields: { collections: {}, globals: {} },
   aiPerDay: '',
+  actions: {},
 })
 const baseline = ref('')
 const snapshot = () => JSON.stringify({ name: name.value, draft: draft.value })
@@ -121,6 +127,9 @@ function reset(role: AdminRole | undefined) {
       globals: copyRules(role?.permissions.fields?.globals),
     },
     aiPerDay: role?.permissions.aiPerDay === undefined ? '' : String(role.permissions.aiPerDay),
+    actions: Object.fromEntries(
+      Object.entries(role?.permissions.actions ?? {}).map(([k, v]) => [k, [...v]]),
+    ),
   }
   expanded.value = null
   baseline.value = snapshot()
@@ -162,6 +171,7 @@ const rows = computed<Row[]>(() => [
     new: c.new,
     ...(c.owner ? { owner: c.owner } : {}),
     fields: c.fields,
+    ...(c.actions?.length ? { actions: c.actions } : {}),
   })),
   ...(data.value?.globals ?? []).map((g) => {
     const global = session.schema?.globals.find((x) => x.slug === g.slug)
@@ -176,6 +186,13 @@ const rows = computed<Row[]>(() => [
   }),
 ])
 
+const hasAction = (row: Row, name: string) => draft.value.actions[row.slug]?.includes(name) ?? false
+function toggleAction(row: Row, name: string, on: boolean) {
+  const set = new Set(draft.value.actions[row.slug] ?? [])
+  if (on) set.add(name)
+  else set.delete(name)
+  draft.value.actions[row.slug] = (row.actions ?? []).map((a) => a.name).filter((n) => set.has(n))
+}
 const has = (row: Row, op: RoleOperation) => draft.value[row.group][row.slug]?.includes(op) ?? false
 function setOps(row: Row, next: Set<RoleOperation>) {
   draft.value[row.group][row.slug] = row.ops.filter((op) => next.has(op))
@@ -304,7 +321,22 @@ function permissions(): RolePermissions {
   const ai = Number(draft.value.aiPerDay)
   const aiPerDay =
     draft.value.aiPerDay.trim() !== '' && Number.isInteger(ai) && ai >= 0 ? { aiPerDay: ai } : {}
-  return { collections, globals, admin: draft.value.admin, own, fields, ...aiPerDay }
+  const actions: Record<string, string[]> = {}
+  for (const row of rows.value) {
+    const names = (draft.value.actions[row.slug] ?? []).filter(
+      () => (draft.value.collections[row.slug] ?? []).length > 0,
+    )
+    if (row.group === 'collections' && names.length > 0) actions[row.slug] = names
+  }
+  return {
+    collections,
+    globals,
+    admin: draft.value.admin,
+    own,
+    fields,
+    ...aiPerDay,
+    ...(Object.keys(actions).length ? { actions } : {}),
+  }
 }
 
 async function save() {
@@ -536,6 +568,22 @@ const ticks = (p: RolePermissions) =>
                           <UserRound :size="13" aria-hidden="true" />
                         </button>
                       </span>
+                    </td>
+                  </tr>
+                  <tr v-if="row.actions?.length" class="actions-row">
+                    <td :colspan="OPS.length + 1">
+                      <div class="action-rights">
+                      <span class="field-hint">{{ t('roles.actions') }}</span>
+                      <label v-for="action in row.actions" :key="action.name" class="action-right">
+                        <input
+                          type="checkbox"
+                          :checked="hasAction(row, action.name)"
+                          :disabled="!(draft.collections[row.slug] ?? []).length"
+                          @change="toggleAction(row, action.name, ($event.target as HTMLInputElement).checked)"
+                        />
+                        <span>{{ `${row.name}: ${label(action.label, action.name)}` }}</span>
+                      </label>
+                      </div>
                     </td>
                   </tr>
                   <tr v-if="expanded === rowKey(row)" :id="`fields-${row.group}-${row.slug}`" class="fields-row">
@@ -918,6 +966,20 @@ input[type='checkbox'] {
   background: var(--accent-soft);
   color: var(--accent-ink);
   font-size: 0.7rem;
+}
+.actions-row > td {
+  padding-top: 0;
+}
+.action-rights {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  align-items: center;
+}
+.action-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 .fields-row > td {
   padding: 0.6rem 0.9rem 0.8rem;

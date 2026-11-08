@@ -137,6 +137,7 @@ export function validateConfig(config: Config): ConfigIssue[] {
       !(Array.isArray(permissions) && permissions.every((p) => p === 'publish'))
     )
       add(`${path}.admin.permissions`, "must be a list of operations: 'publish'")
+    validateActions(collection.actions, `${path}.actions`, collectionSlugs, add)
   })
 
   globals.forEach((global, i) => {
@@ -2178,4 +2179,80 @@ function validateAi(config: Config, add: Add) {
     else seen.add(feature.id)
     if (!isLabel(feature.label)) add(`aiFeatures[${i}].label`, 'must be a string or { en, th }')
   }
+}
+
+const ACTION_NAME = /^[a-z][a-z0-9-]{0,47}$/
+const ACTION_PLACES = new Set(['document', 'row', 'bulk'])
+const ACTION_FIELD_TYPES = new Set([
+  'text',
+  'textarea',
+  'number',
+  'select',
+  'boolean',
+  'date',
+  'email',
+  'relationship',
+])
+
+/** A collection's actions (#386): names, places, the form's field types and `run`. */
+function validateActions(
+  value: unknown,
+  path: string,
+  collectionSlugs: Set<string>,
+  add: (path: string, message: string, hint?: string) => void,
+) {
+  if (value === undefined) return
+  if (!Array.isArray(value)) {
+    add(path, 'must be a list of actions')
+    return
+  }
+  const seen = new Set<string>()
+  value.forEach((action: Record<string, unknown>, i) => {
+    const name = typeof action?.name === 'string' ? action.name : undefined
+    const at = `${path}.${name ?? `[${i}]`}`
+    if (!name || !ACTION_NAME.test(name))
+      add(`${at}.name`, 'must be lowercase letters, digits and "-", starting with a letter')
+    else if (seen.has(name)) add(`${at}.name`, `"${name}" is used by another action`)
+    else seen.add(name)
+    if (action?.label === undefined) add(`${at}.label`, 'is required')
+    if (typeof action?.run !== 'function') add(`${at}.run`, 'must be a function')
+    for (const key of ['when', 'access'] as const)
+      if (action?.[key] !== undefined && typeof action[key] !== 'function')
+        add(`${at}.${key}`, 'must be a function')
+    const on = action?.on
+    if (
+      on !== undefined &&
+      !(
+        Array.isArray(on) &&
+        on.length > 0 &&
+        on.every((p) => typeof p === 'string' && ACTION_PLACES.has(p))
+      )
+    )
+      add(`${at}.on`, "must list 'document', 'row' or 'bulk'")
+    const byDefault = action?.default
+    if (byDefault !== undefined && byDefault !== 'admins' && byDefault !== 'editors')
+      add(`${at}.default`, "must be 'admins' or 'editors'")
+    const fields = action?.fields
+    if (fields === undefined) return
+    if (!Array.isArray(fields)) {
+      add(`${at}.fields`, 'must be a list of fields')
+      return
+    }
+    fields.forEach((field: Record<string, unknown>, j) => {
+      const fieldAt = `${at}.fields.${typeof field?.name === 'string' ? field.name : `[${j}]`}`
+      if (typeof field?.name !== 'string' || !field.name) add(`${fieldAt}.name`, 'is required')
+      if (typeof field?.type !== 'string' || !ACTION_FIELD_TYPES.has(field.type))
+        add(
+          `${fieldAt}.type`,
+          `must be one of ${[...ACTION_FIELD_TYPES].join(', ')}`,
+          'an action’s form takes simple fields',
+        )
+      if (field?.type === 'relationship') {
+        const targets = Array.isArray(field.to) ? field.to : [field.to]
+        for (const target of targets)
+          if (typeof target !== 'string' || !collectionSlugs.has(target))
+            add(`${fieldAt}.to`, `"${String(target)}" is not a collection`)
+      }
+    })
+  })
 }

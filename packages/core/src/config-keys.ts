@@ -29,7 +29,8 @@ const AUDIT = keys('keepDays values failedLogins scope')
 const RATE_LIMIT = keys('window anonymous users apiKeys')
 const LOGS = keys('format requests')
 const COLLECTION = keys(`slug labels fields useAsTitle drafts versions schedule preview access hooks
-  admin httpCache search`)
+  admin httpCache search actions`)
+const ACTION = keys('name label on when access default fields confirm primary run')
 const GLOBAL = keys(
   'slug label fields drafts versions schedule preview access hooks scope admin httpCache',
 )
@@ -202,6 +203,16 @@ export function checkConfigKeys(config: Config, add: Add) {
         check(item.admin.calendar, `${at}.admin.calendar`, 'calendar', keys('start end color'), add)
       if (isObject(item.versions))
         check(item.versions, `${at}.versions`, 'versions', keys('keep'), add)
+      if (collection && Array.isArray(item.actions))
+        for (const [j, action] of item.actions.entries())
+          if (isObject(action))
+            check(
+              action,
+              `${at}.actions.${typeof action.name === 'string' ? action.name : `[${j}]`}`,
+              'action',
+              ACTION,
+              add,
+            )
       checkFields(item.fields, `${at}.fields`, add)
     }
   }

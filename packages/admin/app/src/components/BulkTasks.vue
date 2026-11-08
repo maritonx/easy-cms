@@ -9,7 +9,7 @@ import {
   isActive,
   resumeBulk,
 } from '../lib/bulk-tasks'
-import { label, t } from '../lib/i18n'
+import { label, type MessageKey, t } from '../lib/i18n'
 import { findCollection, session } from '../lib/session'
 
 // Operations still running after a reload, once signed in.
@@ -36,7 +36,22 @@ function outcome(op: BulkOperation): string {
   if (op.state === 'failed') return t('bulk.stopped', { error: op.error ?? '' })
   return ''
 }
+/** What it is doing, or did: a built-in action, or a collection's own (#386). */
+function heading(op: BulkOperation): string {
+  const done = !isActive(op)
+  if (op.action.startsWith('action:')) {
+    const own = findCollection(op.collection)?.actions?.find(
+      (a) => a.name === op.action.slice('action:'.length),
+    )
+    const action = own ? label(own.label, own.name) : op.action.slice('action:'.length)
+    return t(done ? 'bulk.actionDone' : 'bulk.action', { action, label: name(op) })
+  }
+  return t((done ? `bulk.${op.action}Done` : `bulk.${op.action}`) as MessageKey, {
+    label: name(op),
+  })
+}
 function reason(problem: BulkOperation['problems'][number]): string {
+  if (problem.reason === 'not-applicable') return t('bulk.notApplicable')
   if (problem.reason === 'forbidden') return t('bulk.forbidden')
   if (problem.reason === 'not-found') return t('bulk.notFound')
   return problem.message ?? ''
@@ -47,7 +62,7 @@ function reason(problem: BulkOperation['problems'][number]): string {
   <section v-if="bulkTasks.length" class="bulk-tasks" :aria-label="t('bulk.panel')">
     <article v-for="op in bulkTasks" :key="op.id" class="task card">
       <header>
-        <strong>{{ t(isActive(op) ? `bulk.${op.action}` : `bulk.${op.action}Done`, { label: name(op) }) }}</strong>
+        <strong>{{ heading(op) }}</strong>
         <button v-if="!isActive(op)" type="button" class="btn btn-ghost btn-icon btn-sm" :aria-label="t('toast.dismiss')" @click="dismissBulk(op)">
           <X :size="14" aria-hidden="true" />
         </button>
