@@ -28,6 +28,9 @@ const TELEGRAM = 'http://localhost:3112'
 /** Anthropic's API for the Next.js example's AI connections (`ai-mock.ts`). */
 const ANTHROPIC = 'http://localhost:3113'
 
+/** Webhooks for the Next.js example's social posts (`social-mock.ts`). */
+const SOCIAL = 'http://localhost:3114'
+
 /** The shop example (`examples/shop`, Next.js), as a production build. */
 const SHOP = 'http://localhost:3105'
 
@@ -137,6 +140,12 @@ export default defineConfig({
       name: 'anthropic',
       command: `node ai-mock.ts ${new URL(ANTHROPIC).port}`,
       url: ANTHROPIC,
+      reuseExistingServer: false,
+    },
+    {
+      name: 'social',
+      command: `node social-mock.ts ${new URL(SOCIAL).port}`,
+      url: SOCIAL,
       reuseExistingServer: false,
     },
     {

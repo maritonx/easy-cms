@@ -10,6 +10,7 @@ export const NOTIFY_EVENTS = [
   'delivery.failed',
   'backup.failed',
   'integration.failed',
+  'social.failed',
 ] as const
 export type NotifyEvent = (typeof NOTIFY_EVENTS)[number]
 
@@ -20,6 +21,7 @@ export const EVENT_LABELS: Record<NotifyEvent, { en: string; th: string }> = {
   'delivery.failed': { en: 'A webhook or email gave up', th: 'Webhook หรืออีเมลส่งไม่สำเร็จ' },
   'backup.failed': { en: 'A backup failed', th: 'การสำรองข้อมูลล้มเหลว' },
   'integration.failed': { en: 'An integration failed', th: 'การเชื่อมต่อล้มเหลว' },
+  'social.failed': { en: 'A social post failed', th: 'โพสต์โซเชียลไม่สำเร็จ' },
 }
 
 /** A message for people: a title, some lines, and a page of the admin. */
@@ -55,6 +57,8 @@ const T = {
     email: 'Email',
     document: 'Document',
     error: 'Error',
+    post: 'Post',
+    channel: 'Channel',
     to: 'To',
     attempts: 'Attempts',
     connection: 'Connection',
@@ -73,6 +77,8 @@ const T = {
     email: 'อีเมล',
     document: 'เอกสาร',
     error: 'ข้อผิดพลาด',
+    post: 'โพสต์',
+    channel: 'ช่องทาง',
     to: 'ถึง',
     attempts: 'จำนวนครั้ง',
     connection: 'การเชื่อมต่อ',
@@ -148,6 +154,19 @@ function describe(message: EventMessage, language: Language): Omit<Notice, 'open
       }
     case 'backup.failed':
       return { title, lines: line(t.error, d.error), path: '/backups' }
+    case 'social.failed': {
+      // From @easy-cms/plugin-social (#312): a channel given up on.
+      const post = (d.post ?? {}) as Data
+      return {
+        title,
+        lines: [
+          ...line(t.post, post.title ?? post.id),
+          ...line(t.channel, d.channel),
+          ...line(t.error, d.error),
+        ],
+        path: docPath,
+      }
+    }
     case 'integration.failed':
       return {
         title,

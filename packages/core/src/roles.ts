@@ -126,6 +126,10 @@ export const rolesCollection: CollectionConfig = {
   ],
 }
 
+/** Roles can be given `publish`: with drafts, or when the collection asks for it (`admin.permissions`). */
+const publishes = (c: CollectionConfig) =>
+  c.drafts === true || (c.admin?.permissions ?? []).includes('publish')
+
 /** Collections roles are given access to: not internal ones, nor API keys (each user has their own). */
 export function governed(slug: string): boolean {
   // Media folders follow the role's grants on `media`.
@@ -432,7 +436,7 @@ export class Roles {
           const owner = this.ownerOf(c.slug)
           return {
             slug: c.slug,
-            ops: ROLE_OPERATIONS.filter((op) => op !== 'publish' || c.drafts === true),
+            ops: ROLE_OPERATIONS.filter((op) => op !== 'publish' || publishes(c)),
             new: !seen('collections', c.slug),
             references: [...references(ruleFields(c.fields))].filter(
               (s) => s !== c.slug && governed(s),
@@ -577,7 +581,7 @@ export class Roles {
     const collections: Record<string, RoleOperation[]> = {}
     for (const c of this.config.collections) {
       if (governed(c.slug))
-        collections[c.slug] = ROLE_OPERATIONS.filter((op) => op !== 'publish' || c.drafts === true)
+        collections[c.slug] = ROLE_OPERATIONS.filter((op) => op !== 'publish' || publishes(c))
     }
     const globals: Record<string, RoleOperation[]> = {}
     for (const g of this.config.globals)
@@ -612,10 +616,7 @@ export class Roles {
     const collections = new Map(
       this.config.collections
         .filter((c) => governed(c.slug))
-        .map((c) => [
-          c.slug,
-          ROLE_OPERATIONS.filter((op) => op !== 'publish' || c.drafts === true),
-        ]),
+        .map((c) => [c.slug, ROLE_OPERATIONS.filter((op) => op !== 'publish' || publishes(c))]),
     )
     const globals = new Map(
       this.config.globals.map((g) => [

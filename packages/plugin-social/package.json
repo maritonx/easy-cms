@@ -1,0 +1,52 @@
+{
+  "name": "@easy-cms/plugin-social",
+  "version": "1.35.1",
+  "description": "Social posts for Easy CMS: write a post once and send it to several channels (webhooks to Make, n8n or Zapier first), with schedules, retries and a status per channel",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./admin": "./dist/admin.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "prepack": "node ../../scripts/check-publish.mjs"
+  },
+  "peerDependencies": {
+    "@easy-cms/core": "workspace:^"
+  },
+  "devDependencies": {
+    "@easy-cms/core": "workspace:^",
+    "@easy-cms/db-sqlite": "workspace:^",
+    "happy-dom": "^21.0.4"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maritonx/easy-cms.git",
+    "directory": "packages/plugin-social"
+  },
+  "keywords": [
+    "easy-cms",
+    "easy-cms-plugin",
+    "social",
+    "webhook",
+    "make",
+    "n8n"
+  ]
+}

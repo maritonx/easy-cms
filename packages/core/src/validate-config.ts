@@ -131,6 +131,12 @@ export function validateConfig(config: Config): ConfigIssue[] {
     const editIn: unknown = collection.admin?.editIn
     if (editIn !== undefined && editIn !== 'page' && editIn !== 'drawer')
       add(`${path}.admin.editIn`, `must be "page" or "drawer" (got ${JSON.stringify(editIn)})`)
+    const permissions: unknown = collection.admin?.permissions
+    if (
+      permissions !== undefined &&
+      !(Array.isArray(permissions) && permissions.every((p) => p === 'publish'))
+    )
+      add(`${path}.admin.permissions`, "must be a list of operations: 'publish'")
   })
 
   globals.forEach((global, i) => {

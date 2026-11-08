@@ -52,6 +52,7 @@ admin.
 | `delivery.failed` | A webhook or an email given up on after its retries |
 | `backup.failed` | Why a [backup](./backups) failed |
 | `integration.failed` | A connection that stopped working (not the notification channels themselves) |
+| `social.failed` | A [social post](./social)'s channel given up on, and why |
 
 These are the [failure events](./webhooks#when-something-fails) webhooks can get too.
 
