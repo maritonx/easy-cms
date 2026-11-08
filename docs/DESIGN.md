@@ -437,3 +437,4 @@ CI รัน lint, typecheck, build และ test บน Linux, macOS และ
 - [ADR-0062](adr/0062-rate-limit.md) — rate limit ของ API นับในหน่วยความจำ แล้วรวมกันผ่านฐานข้อมูลทุก 5 วินาที
 - [ADR-0063](adr/0063-break-glass-passwords.md) — บังคับ SSO ด้วย `auth.password: { breakGlass }` ใน config, มีผลและบันทึกตอนเริ่มเซิร์ฟเวอร์
 - [ADR-0064](adr/0064-calendar-view.md) — ปฏิทินเป็นโหมดของหน้ารายการด้วย `admin.calendar` ผ่าน REST API เดิม, FullCalendar 6 โหลดเมื่อใช้, เขตเวลาโดยไม่ใช้ plugin
+- [ADR-0065](adr/0065-code-first-application-engine.md) — application engine แบบ code-first: ไม่ทำ UI builder (ยืนยัน ADR-0004), custom actions, หน้ารายการแบบของตัวเองเป็น view, Kanban ในตัว, พื้นที่ฟอร์มแบบของตัวเอง, ธีมและสัญญาของ CSS, template CRM และ Booking
