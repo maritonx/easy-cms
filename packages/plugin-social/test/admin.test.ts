@@ -82,6 +82,24 @@ describe('ecms-social-count', () => {
     await flush()
     expect(text(count)).toBe('11 characters')
   })
+
+  it('counts X’s way for X: an emoji is two (#380)', async () => {
+    const api = vi.fn(async () => ({
+      channels: [
+        { id: 'line-oa:Main', label: 'LINE OA · Main', maxLength: 12 },
+        { id: 'x:Main', label: 'X · Main', maxLength: 12, counting: 'x' },
+      ],
+      canPost: true,
+    }))
+    const count = await make('ecms-social-count', {
+      value: 'Launch 🎉🎉🎉',
+      path: 'text',
+      api,
+      doc: { channels: [{ connection: 'line-oa:Main' }, { connection: 'x:Main' }] },
+    })
+    // 10 for LINE, 13 for X: X is the one over.
+    expect(text(count)).toBe('13 / 12 characters · Too long for X · Main')
+  })
 })
 
 describe('ecms-social-panel', () => {

@@ -11,7 +11,7 @@ see how each one went.
 an image and the channels it goes to; each channel can have its own text. Channels are accounts
 connected in **Settings → Integrations**: the first is a **webhook**, a URL that gets each post as
 signed JSON, such as a Make, n8n or Zapier scenario that posts to LinkedIn, Threads, Discord or anywhere else. A
-[Facebook Page](#facebook-page) and a [LINE Official Account](#line-oa) are channels of their own.
+[Facebook Page](#facebook-page), a [LINE Official Account](#line-oa) and an [X account](#x) are channels of their own.
 
 ```bash [pm]
 npm install @easy-cms/plugin-social
@@ -116,6 +116,30 @@ and warns when the post would go over.
 The text on the card is cut at 300 characters, and the image needs an `https` URL. LINE gives no link to
 a broadcast, so the panel shows it posted without one.
 
+## X {#x}
+
+Posts go to your X account through an X app of your own, with keys that don't expire:
+
+1. At [console.x.com](https://console.x.com) create an app, and in its settings give it **Read and
+   Write** permission.
+2. Under **Keys and tokens**, copy the **API key and secret** (OAuth 1.0 consumer keys), then
+   generate an **access token and secret** for your account. Make them after setting Read and Write:
+   tokens made while the app could only read can't post. X shows each once.
+3. Buy credits: X's API has no free plan (see [Costs](#costs)).
+
+**Settings → Integrations → X → Connect**: paste the four values. Connecting checks them and shows
+the account's @name. Or set `X_API_KEY`, `X_API_SECRET`, `X_ACCESS_TOKEN` and
+`X_ACCESS_TOKEN_SECRET` on the server.
+
+A post is its text and the link; X shows the link's card, with the page's share image, so no image is
+uploaded. X counts in its own way: the link is 23 characters whatever its length, an emoji or a CJK
+character is 2, and Thai is 1 a character. The text may have 255, so that with the link the post fits
+X's 280, and the counter beside the text counts X's way.
+
+When X refuses, the card says what to do: keys that were made again (401), an app without write
+permission or a post X already has (403), no credits left (402). Only a busy X (429) or an outage is
+tried again.
+
 ## Writing and sharing
 
 **Share on social media** on a document's edit page (collections in `collections`) writes a social
@@ -127,7 +151,7 @@ channels it shouldn't go to; a channel's own text replaces the post's text there
 
 With the [AI plugin](./ai), the post's text and each channel's text have **Write with AI**: it writes
 from the shared document (its title and text; before anything is shared, the post's title), within the
-channel's length (300 characters for LINE, 500 for the others), in the default language. The text goes into the field
+channel's length (300 characters for LINE, 255 by X's count for X, 500 for the others), in the default language. The text goes into the field
 for review, with **Undo**; replacing text you have asks first. It is the **Social posts** feature in the
 AI settings, and each press is one request toward the user's daily limit.
 
@@ -159,7 +183,7 @@ What each channel costs to post with, as of November 2026; check the providers' 
 | Facebook Page | Free: posting to your own Pages through the Graph API has no charge. |
 | LINE OA | One message per friend reached, from the plan's monthly quota; the free plan's is small ([LINE's pricing](https://developers.line.biz/en/docs/messaging-api/pricing/) for your country). The panel shows the quota before you post. |
 | Webhook | Whatever the scenario costs: Make's free plan has 1,000 credits a month, about one per module run. |
-| X | Not built in yet. X's API is pay-per-use, with no free plan: [$0.015 a post, $0.20 with a link](https://docs.x.com/x-api/getting-started/pricing), paid from credits bought ahead. Make [no longer has an X app](https://help.make.com/x-formerly-twitter-app-integration-discontinued), so a webhook to Make can't post there. |
+| X | Pay-per-use, with no free plan: [$0.015 a post, $0.20 with a link](https://docs.x.com/x-api/getting-started/pricing), paid from credits bought ahead. The panel shows the cost before you post. |
 
 **Scheduled posts and retries need jobs to run often**: a failed channel is tried again after 1, 5
 and 30 minutes, and a scheduled post goes out at the first run after its time. On Vercel's Hobby plan,
@@ -177,7 +201,7 @@ LINE's card has no picture. Give the posts you care about a cover.
 | `collections` | `[]` | Collections whose edit page has **Share**, and which a post's source points to. |
 | `url` | — | `({ doc, collection }) => string`: a shared document's link. |
 | `share` | title, first textarea, `url`, first image | `({ doc, collection, cms }) => ({ title, text, link, image })`. |
-| `channels` | `[webhook, facebook, line]` | Where posts go (adapters). |
+| `channels` | `[webhook, facebook, line, x]` | Where posts go (adapters). |
 | `slug` | `social-posts` | The collection. |
 
 ## Next steps

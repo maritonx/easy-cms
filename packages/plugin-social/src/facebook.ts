@@ -1,4 +1,5 @@
 import { ChannelError, type SocialChannel, type SocialMessage } from './channel.js'
+import { FACEBOOK } from './logos.js'
 
 // Facebook Pages through the Graph API, without an SDK (#313). The Meta app's id and secret come
 // from META_APP_ID and META_APP_SECRET; FACEBOOK_GRAPH_URL and FACEBOOK_DIALOG_URL point tests at
@@ -52,6 +53,7 @@ export const facebook: SocialChannel = {
     id: 'facebook-page',
     label: 'Facebook Page',
     category: 'social',
+    icon: FACEBOOK,
     description: {
       en: 'Posts to Facebook Pages you manage. Needs a Meta app: set META_APP_ID and META_APP_SECRET.',
       th: 'โพสต์ไปยังเพจ Facebook ที่คุณดูแล ต้องมี Meta app: ตั้ง META_APP_ID และ META_APP_SECRET',

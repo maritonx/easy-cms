@@ -1,7 +1,7 @@
 import { createHmac, randomUUID } from 'node:crypto'
 import { ChannelError, type SocialChannel, type SocialMessage } from './channel.js'
 
-// A URL that gets each post as signed JSON: a Make, n8n or Zapier scenario that posts it to X or
+// A URL that gets each post as signed JSON: a Make, n8n or Zapier scenario that posts it to LinkedIn or
 // anywhere else. Signed like Easy CMS's webhooks, so `verifyWebhook` checks it.
 
 async function post(values: Readonly<Record<string, string>>, body: Record<string, unknown>) {
@@ -50,8 +50,8 @@ export const webhook: SocialChannel = {
     label: { en: 'Webhook (social)', th: 'Webhook (โซเชียล)' },
     category: 'social',
     description: {
-      en: 'Posts go to a URL as signed JSON: a Make, n8n or Zapier scenario that posts to X or anywhere else',
-      th: 'ส่งโพสต์เป็น JSON ที่ลงลายเซ็นไปยัง URL เช่น scenario ของ Make, n8n หรือ Zapier ที่โพสต์ต่อไปยัง X หรือที่อื่น',
+      en: 'Posts go to a URL as signed JSON: a Make, n8n or Zapier scenario that posts to LinkedIn, Threads, Discord or anywhere else',
+      th: 'ส่งโพสต์เป็น JSON ที่ลงลายเซ็นไปยัง URL เช่น scenario ของ Make, n8n หรือ Zapier ที่โพสต์ต่อไปยัง LinkedIn, Threads, Discord หรือที่อื่น',
     },
     icon: 'link',
     docs: 'https://easycms.dev/docs/social',

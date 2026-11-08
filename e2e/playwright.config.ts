@@ -119,6 +119,7 @@ export default defineConfig({
         FACEBOOK_GRAPH_URL: `${SOCIAL}/graph`,
         FACEBOOK_DIALOG_URL: `${SOCIAL}/dialog`,
         LINE_API_URL: `${SOCIAL}/line`,
+        X_API_URL: `${SOCIAL}/x`,
         // Single sign-on on standalone, where the schema is pushed. Nuxt and Next.js run from the
         // examples' migrations, which are made without a provider.
         ...(app.name !== 'standalone'

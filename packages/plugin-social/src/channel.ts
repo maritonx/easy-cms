@@ -16,18 +16,21 @@ export interface SocialMessage {
 
 /**
  * A place social posts go (#312): an integration admins connect accounts to, and how it posts.
- * The webhook comes first; Facebook Pages and LINE follow (#313).
+ * Built in: the webhook, Facebook Pages and LINE (#313), and X (#380).
  */
 export interface SocialChannel {
   readonly integration: IntegrationConfig
   /** Characters a post may have there, for the admin's counter. */
   readonly maxLength?: number
+  /** How `maxLength` counts: `x` is X's weighted length (a link 23, an emoji 2). */
+  readonly counting?: 'x'
   /**
    * What to say before posting, beside the channel in the panel, e.g. how many people a LINE
    * broadcast reaches and the month's quota; `warning` when it may cost or fail.
    */
   readonly preview?: (
     values: Readonly<Record<string, string>>,
+    draft: { readonly link: string | null },
   ) => Promise<{ readonly info?: string; readonly warning?: string }>
   /** Posts; returns the post's URL when the channel says. Throws `ChannelError` with the reason. */
   readonly send: (
