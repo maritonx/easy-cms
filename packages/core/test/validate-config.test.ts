@@ -832,6 +832,14 @@ describe('validateConfig', () => {
     expect(withFields(fields, { useAsTitle: 'body' })).toEqual(['collections.posts.useAsTitle'])
   })
 
+  it('knows the publish right on a collection’s admin, as plugin-social sets it', () => {
+    const fields: Field[] = [{ name: 'title', type: 'text' }]
+    expect(withFields(fields, { admin: { permissions: ['publish'] } })).toEqual([])
+    // A typo next to it is still warned about.
+    const typo = { admin: { permissions: ['publish'], permision: true } } as never
+    expect(withFields(fields, typo)).toEqual(['collections.posts.admin.permision'])
+  })
+
   it('reports every problem at once', () => {
     const issues = validateConfig({
       secret: '',
