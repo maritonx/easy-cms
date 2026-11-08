@@ -51,7 +51,7 @@
 | [`Edge reads`](https://github.com/maritonx/easy-cms/milestone/11) | — | อ่านเนื้อหาจาก edge runtime ด้วย `@easy-cms/core/client` ตัว CMS ยังอยู่บน Node.js |
 | [`Integrations & social`](https://github.com/maritonx/easy-cms/milestone/9) | — | หน้า Integrations ให้ plugin เชื่อมกับผู้ให้บริการภายนอก, โพสไปหลายช่องทาง และแจ้งเตือนผู้ดูแลทาง Telegram |
 | [`AI`](https://github.com/maritonx/easy-cms/milestone/12) | — | เชื่อม Claude, GPT, Gemini ในหน้า Integrations และใช้ใน admin: alt text, SEO, แปลภาษา |
-| `Apps` | — | application engine แบบ code-first ([ADR-0065](adr/0065-code-first-application-engine.md)): custom actions, view ของตัวเอง, Kanban, ธีม, พื้นที่ฟอร์ม, template CRM และ Booking |
+| [`Apps`](https://github.com/maritonx/easy-cms/milestone/13) | — | application engine แบบ code-first ([ADR-0065](adr/0065-code-first-application-engine.md)): custom actions, view ของตัวเอง, Kanban, ธีม, พื้นที่ฟอร์ม, template CRM และ Booking |
 
 ### Labels
 
@@ -245,13 +245,13 @@ Kanban → ธีม → พื้นที่ฟอร์ม → CRM → Bookin
 
 | # | Issue | Labels | เสร็จเมื่อ |
 |---|---|---|---|
-| — | Custom actions: document, row and bulk buttons that run server code | area:core, area:admin | ประกาศใน config, มีสิทธิ์และการยืนยัน, แสดงผลลัพธ์, ใช้ได้ทั้งบนเอกสาร แถวในรายการ และหลายรายการ |
-| — | Custom list views: your component as a view of the list | area:admin | component ได้ผลลัพธ์ query และ `api`, เปลี่ยน query และเลือกเอกสารผ่าน event, สลับกับตารางหรือแทน (`default: true`) |
-| — | Kanban view, built on custom list views | area:admin | จัดกลุ่มตาม select, ลากเปลี่ยนคอลัมน์บันทึกตามสิทธิ์, ใช้คีย์บอร์ดได้ |
-| — | Admin theme: fonts, favicon and admin.css | area:admin, area:docs | ฟอนต์ (CSP เฉพาะโดเมนที่ประกาศ), favicon, `admin.css`; เอกสารบอกว่าตัวแปร CSS และ `data-ecms` เป็นสัญญา selector อื่นไม่รับประกัน |
-| — | Your component as the edit page's form | area:admin | `admin.edit.component` แทนพื้นที่ฟอร์ม, ส่วนหัว บันทึก ฉบับร่าง ประวัติ ยังเป็นของระบบ, ใช้ `set-field`/`change` |
-| — | CRM template for create-easy-cms | area:release, area:docs | ลูกค้า ดีลใน Kanban กิจกรรม และ actions สร้างจาก `create-easy-cms` แล้ว e2e ผ่าน |
-| — | Booking template for create-easy-cms | area:release, area:docs | บริการ ช่วงเวลา การจองในปฏิทิน ยืนยัน/ยกเลิกด้วย action รับมัดจำผ่าน Omise |
+| [#386](https://github.com/maritonx/easy-cms/issues/386) | Custom actions: document, row and bulk buttons that run server code | area:core, area:admin | ประกาศใน config, มีสิทธิ์และการยืนยัน, แสดงผลลัพธ์, ใช้ได้ทั้งบนเอกสาร แถวในรายการ และหลายรายการ |
+| [#387](https://github.com/maritonx/easy-cms/issues/387) | Custom list views: your component as a view of the list | area:admin | component ได้ผลลัพธ์ query และ `api`, เปลี่ยน query และเลือกเอกสารผ่าน event, สลับกับตารางหรือแทน (`default: true`) |
+| [#388](https://github.com/maritonx/easy-cms/issues/388) | Kanban view, built on custom list views | area:admin | จัดกลุ่มตาม select, ลากเปลี่ยนคอลัมน์บันทึกตามสิทธิ์, ใช้คีย์บอร์ดได้ |
+| [#389](https://github.com/maritonx/easy-cms/issues/389) | Admin theme: fonts, favicon and admin.css | area:admin, area:docs | ฟอนต์ (CSP เฉพาะโดเมนที่ประกาศ), favicon, `admin.css`; เอกสารบอกว่าตัวแปร CSS และ `data-ecms` เป็นสัญญา selector อื่นไม่รับประกัน |
+| [#390](https://github.com/maritonx/easy-cms/issues/390) | Your component as the edit page's form | area:admin | `admin.edit.component` แทนพื้นที่ฟอร์ม, ส่วนหัว บันทึก ฉบับร่าง ประวัติ ยังเป็นของระบบ, ใช้ `set-field`/`change` |
+| [#391](https://github.com/maritonx/easy-cms/issues/391) | CRM template for create-easy-cms | area:release, area:docs | ลูกค้า ดีลใน Kanban กิจกรรม และ actions สร้างจาก `create-easy-cms` แล้ว e2e ผ่าน |
+| [#392](https://github.com/maritonx/easy-cms/issues/392) | Booking template for create-easy-cms | area:release, area:docs | บริการ ช่วงเวลา การจองในปฏิทิน ยืนยัน/ยกเลิกด้วย action รับมัดจำผ่าน Omise |
 
 ---
 
