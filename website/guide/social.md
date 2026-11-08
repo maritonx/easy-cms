@@ -10,8 +10,8 @@ see how each one went.
 `@easy-cms/plugin-social` (experimental) adds **Social posts** to Content. A post has a text, a link,
 an image and the channels it goes to; each channel can have its own text. Channels are accounts
 connected in **Settings → Integrations**: the first is a **webhook**, a URL that gets each post as
-signed JSON, such as a Make, n8n or Zapier scenario that posts to X, LinkedIn or anywhere else.
-Facebook Pages and LINE follow.
+signed JSON, such as a Make, n8n or Zapier scenario that posts to X, LinkedIn or anywhere else. A
+[Facebook Page](#facebook-page) and a [LINE Official Account](#line-oa) are channels of their own.
 
 ```bash [pm]
 npm install @easy-cms/plugin-social
@@ -59,6 +59,63 @@ with `x-easy-cms-signature-v2` and `x-easy-cms-timestamp`, as Easy CMS's [webhoo
 sign theirs, so `verifyWebhook(body, headers, secret)` checks it. A `2xx` answer means posted; when it
 says `{ "url": "…" }`, the post links to it.
 
+## Facebook Page {#facebook-page}
+
+Posts go to Pages you manage through a **Meta app** of your own:
+
+1. At [developers.facebook.com](https://developers.facebook.com/apps) create an app (type **Business**)
+   and add **Facebook Login for Business**.
+2. In its settings, add the redirect URI
+   `https://example.com/api/cms/admin/integrations/facebook-page/callback` (your `serverURL`).
+3. Set the app's id and secret on the server:
+
+```bash
+META_APP_ID=1234567890
+META_APP_SECRET=…
+```
+
+Then **Settings → Integrations → Facebook Page → Connect with Facebook Page**: Facebook asks you to log
+in and allow the app to manage your Pages; back in the admin, choose the Page. Each Page you connect is
+one channel. The admin gets a Page token that doesn't expire unless you take the app's access back, or
+change your Facebook password: then the card shows the error, and you connect the Page again.
+
+A post with an image goes up as a photo, with the text and the link as its caption; without one it is a
+link post, with Facebook's preview of the link. The panel links to the post.
+
+::: warning Development mode and App Review
+A new app is in **Development mode**: it works for the people with a role on the app (its admins,
+developers and testers) and the Pages they manage, which is enough for your own site. Letting anyone
+else connect their Page needs **App Review** for `pages_manage_posts`, `pages_read_engagement` and
+`pages_show_list`, and a verified business.
+:::
+
+`FACEBOOK_GRAPH_VERSION` picks another Graph API version (default `v26.0`).
+
+## LINE OA {#line-oa}
+
+Posts go to every friend of a LINE Official Account as a card: the image, the title, the text and a
+button to the link.
+
+1. In the [LINE Official Account Manager](https://manager.line.biz) turn on the **Messaging API** for
+   your account (**Settings → Messaging API**). This makes a channel in the
+   [LINE Developers Console](https://developers.line.biz/console/).
+2. In the console, open the channel's **Messaging API** tab and issue a **channel access token
+   (long-lived)**.
+
+**Settings → Integrations → LINE OA → Connect**: paste the token and, if you like, the button's text
+(default "Read more"). Connecting checks the token against the account and shows its name. Or set
+`LINE_CHANNEL_ACCESS_TOKEN` on the server.
+
+::: warning Each friend reached is a message
+A broadcast counts one message per friend it reaches toward your plan's monthly quota; the free plan's is
+small, and what's over is paid or refused, depending on the plan (see LINE's pricing for your country).
+Before you post, the panel shows about how many friends the post reaches and the month's messages so far,
+and warns when the post would go over.
+:::
+
+The text on the card is cut at 300 characters, and the image needs an `https` URL. LINE gives no link to
+a broadcast, so the panel shows it posted without one.
+
 ## Writing and sharing
 
 **Share on social media** on a document's edit page (collections in `collections`) writes a social
@@ -70,7 +127,7 @@ channels it shouldn't go to; a channel's own text replaces the post's text there
 
 With the [AI plugin](./ai), the post's text and each channel's text have **Write with AI**: it writes
 from the shared document (its title and text; before anything is shared, the post's title), within the
-channel's length (500 characters for the webhook), in the default language. The text goes into the field
+channel's length (300 characters for LINE, 500 for the others), in the default language. The text goes into the field
 for review, with **Undo**; replacing text you have asks first. It is the **Social posts** feature in the
 AI settings, and each press is one request toward the user's daily limit.
 
@@ -100,7 +157,7 @@ that list them and to `cms.on`; the [notify plugin](./notifications) tells your 
 | `collections` | `[]` | Collections whose edit page has **Share**, and which a post's source points to. |
 | `url` | — | `({ doc, collection }) => string`: a shared document's link. |
 | `share` | title, first textarea, `url`, first image | `({ doc, collection, cms }) => ({ title, text, link, image })`. |
-| `channels` | `[webhook]` | Where posts go (adapters). |
+| `channels` | `[webhook, facebook, line]` | Where posts go (adapters). |
 | `slug` | `social-posts` | The collection. |
 
 ## Next steps

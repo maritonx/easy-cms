@@ -387,6 +387,7 @@ describe('socialPlugin', () => {
     expect((await call('/social/post', 'POST', { post: social.id, action: 'check' })).body).toEqual(
       {
         problems: ['Set `serverURL` so channels can fetch the image'],
+        notes: {},
       },
     )
     const refused = await call('/social/post', 'POST', { post: social.id, action: 'now' })

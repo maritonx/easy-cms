@@ -397,6 +397,8 @@ class SocialPanel extends SocialElement {
   private notice: string | null = null
   /** What would stop the post (a private image, an unpublished source), said before posting. */
   private problems: string[] = []
+  /** Each channel's word before posting, e.g. a LINE broadcast's reach and quota. */
+  private notes: Record<string, { info?: string; warning?: string }> = {}
   private checkedFor: string | null = null
   private timer: ReturnType<typeof setTimeout> | undefined
 
@@ -433,7 +435,12 @@ class SocialPanel extends SocialElement {
     this.checkedFor = key
     void api('POST', ACTION_PATH, { post: id, action: 'check', image, source })
       .then((result) => {
-        this.problems = (result as { problems?: string[] }).problems ?? []
+        const checked = result as {
+          problems?: string[]
+          notes?: Record<string, { info?: string; warning?: string }>
+        }
+        this.problems = checked.problems ?? []
+        this.notes = checked.notes ?? {}
         this.update()
       })
       .catch(() => {})
@@ -468,6 +475,8 @@ class SocialPanel extends SocialElement {
             <span class="state">${esc(label)}</span>
             ${s.state === 'posted' && s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(this.t('view'))}</a>` : ''}
             ${s.error && s.state !== 'posted' ? `<p class="error">${esc(s.error)}</p>` : ''}
+            ${s.state !== 'posted' && this.notes[c]?.info ? `<p class="hint">${esc(this.notes[c]?.info ?? '')}</p>` : ''}
+            ${s.state !== 'posted' && this.notes[c]?.warning ? `<p class="warning">${esc(this.notes[c]?.warning ?? '')}</p>` : ''}
             ${s.state === 'failed' && this.canPost ? `<div class="row"><button type="button" data-action="retry" data-channel="${esc(c)}" ${this.busy ? 'disabled' : ''}>${esc(this.t('retry'))}</button></div>` : ''}
           </li>`
       })

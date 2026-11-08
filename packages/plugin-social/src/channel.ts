@@ -6,6 +6,8 @@ export interface SocialMessage {
   readonly post: string | number
   /** `<integration>:<connection name>`. */
   readonly channel: string
+  /** The post's title, e.g. a LINE card's heading. */
+  readonly title: string
   readonly text: string
   readonly link: string | null
   readonly image: { readonly url: string; readonly alt: string | null } | null
@@ -20,6 +22,13 @@ export interface SocialChannel {
   readonly integration: IntegrationConfig
   /** Characters a post may have there, for the admin's counter. */
   readonly maxLength?: number
+  /**
+   * What to say before posting, beside the channel in the panel, e.g. how many people a LINE
+   * broadcast reaches and the month's quota; `warning` when it may cost or fail.
+   */
+  readonly preview?: (
+    values: Readonly<Record<string, string>>,
+  ) => Promise<{ readonly info?: string; readonly warning?: string }>
   /** Posts; returns the post's URL when the channel says. Throws `ChannelError` with the reason. */
   readonly send: (
     values: Readonly<Record<string, string>>,
