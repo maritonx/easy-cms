@@ -1,5 +1,11 @@
 # @easy-cms/core
 
+## 1.39.1
+
+### Patch Changes
+
+- 2f7e8f6: No more "collections.social-posts.admin.permissions is not an option Easy CMS knows" warning: `admin.permissions` on a collection (the publish right, which `@easy-cms/plugin-social` sets) is a known option. The known option lists of a collection's and global's `admin` are now checked against their types, so they can't fall behind again.
+
 ## 1.39.0
 
 No changes in this release.
