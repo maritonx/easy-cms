@@ -22,6 +22,7 @@ export const BULK_OPERATIONS = 'bulk-operations'
 export const SAVED_VIEWS = 'saved-views'
 export const CONNECTIONS = 'connections'
 export const AI_USAGE = 'ai-usage'
+export const ADMIN_SETTINGS = 'admin-settings'
 
 /** Collections Easy CMS uses internally. Not exposed over REST or in the admin UI. */
 export const INTERNAL_COLLECTIONS: ReadonlySet<string> = new Set([
@@ -42,6 +43,7 @@ export const INTERNAL_COLLECTIONS: ReadonlySet<string> = new Set([
   SAVED_VIEWS,
   CONNECTIONS,
   AI_USAGE,
+  ADMIN_SETTINGS,
 ])
 
 export const DEFAULT_ROLES = ['admin', 'editor'] as const
@@ -604,6 +606,21 @@ export const databaseBackupsCollection: CollectionConfig = {
     { name: 'author', type: 'text' },
     { name: 'downloadedBy', type: 'text' },
     { name: 'downloadedAt', type: 'text' },
+    // Where it is (#395): `{ server | <integration>:<connection>: { state, … } }`.
+    { name: 'copies', type: 'json' },
+  ],
+}
+
+/**
+ * Settings admins change in the admin rather than the code, one row per key (e.g. `backups`),
+ * the value as JSON. What the config sets wins over them.
+ */
+export const adminSettingsCollection: CollectionConfig = {
+  slug: ADMIN_SETTINGS,
+  access: { read: nobody, create: nobody, update: nobody, delete: nobody },
+  fields: [
+    { name: 'key', type: 'text', required: true, unique: true },
+    { name: 'value', type: 'json' },
   ],
 }
 

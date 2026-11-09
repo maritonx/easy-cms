@@ -4,12 +4,14 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { gzip } from 'node:zlib'
-import type { ID } from './access.js'
+import type { AuthUser, ID } from './access.js'
+import { getSetting, setSetting } from './admin-settings.js'
 import { DATABASE_BACKUPS, USERS } from './builtins.js'
 import type { Config } from './config.js'
 import { copyDatabase } from './copy.js'
 import type { RawDocument } from './database.js'
-import { EasyCMSError, NotFoundError } from './errors.js'
+import { EasyCMSError, NotFoundError, ValidationError } from './errors.js'
+import type { BackupDestination } from './integrations.js'
 import type { EasyCMS } from './local-api.js'
 import { diskStorage, type StorageAdapter } from './storage.js'
 import { lastSlot } from './time-of-day.js'
@@ -57,6 +59,217 @@ const PERIOD = { daily: 86_400_000, weekly: 7 * 86_400_000 } as const
 
 export type BackupState = 'pending' | 'running' | 'done' | 'failed'
 
+/** A backup's copy in one place (`server`, or a destination's `<integration>:<connection>`). */
+export interface BackupCopy {
+  state: 'done' | 'retrying' | 'failed' | 'removed'
+  at?: string
+  attempts?: number
+  nextAt?: string
+  error?: string
+  /** Opens the file at the provider, e.g. in Google Drive. */
+  link?: string
+}
+
+/** The settings saved from the admin (Settings → Backups); what the config sets wins. */
+interface SavedSettings {
+  frequency?: 'daily' | 'weekly' | null
+  at?: string
+  keep?: number
+  server?: boolean
+  destinations?: { connection: string; keep?: number | null }[]
+}
+
+/** Backup settings in effect: the config's, else the admin's, else the defaults. */
+export interface BackupSettings {
+  frequency: 'daily' | 'weekly' | null
+  at: string
+  keep: number
+  /** Kept on this server's backup storage (the folder, or `backups.storage`). */
+  server: boolean
+  destinations: { connection: string; keep: number | null }[]
+  /** Set in the config, so the admin can't change them. */
+  locked: ('frequency' | 'at' | 'keep')[]
+}
+
+const SETTINGS_KEY = 'backups'
+/** A destination that failed is tried again after these waits, then given up on. */
+const RETRY_MINUTES = [1, 5, 30]
+
+/** The settings in effect. */
+export async function backupSettings(cms: EasyCMS): Promise<BackupSettings> {
+  const config = cms.config.backups
+  const saved = ((await getSetting<SavedSettings>(cms, SETTINGS_KEY).catch(() => undefined)) ??
+    {}) as SavedSettings
+  const locked: BackupSettings['locked'] = []
+  if (config?.frequency !== undefined) locked.push('frequency')
+  if (config?.at !== undefined) locked.push('at')
+  if (config?.keep !== undefined) locked.push('keep')
+  return {
+    frequency: config?.frequency ?? saved.frequency ?? null,
+    at: config?.at ?? saved.at ?? DEFAULT_BACKUP_TIME,
+    keep: config?.keep ?? saved.keep ?? DEFAULT_BACKUP_KEEP,
+    server: saved.server ?? true,
+    destinations: (saved.destinations ?? []).map((d) => ({
+      connection: d.connection,
+      keep: d.keep ?? null,
+    })),
+    locked,
+  }
+}
+
+const TIME = /^([01]\d|2[0-3]):[0-5]\d$/
+
+/** Saves the settings an admin changed (Settings → Backups). Audit-logged. */
+export async function saveBackupSettings(
+  cms: EasyCMS,
+  body: unknown,
+  user: AuthUser,
+): Promise<BackupSettings> {
+  const input = (typeof body === 'object' && body !== null ? body : {}) as Record<string, unknown>
+  const errors: { field: string; message: string }[] = []
+  const next: SavedSettings = {}
+  if (input.frequency !== undefined) {
+    if (input.frequency !== null && input.frequency !== 'daily' && input.frequency !== 'weekly')
+      errors.push({ field: 'frequency', message: 'must be daily, weekly or empty' })
+    else next.frequency = input.frequency as 'daily' | 'weekly' | null
+  }
+  if (input.at !== undefined) {
+    if (typeof input.at !== 'string' || !TIME.test(input.at))
+      errors.push({ field: 'at', message: 'must be a time, HH:MM' })
+    else next.at = input.at
+  }
+  const keepOf = (value: unknown, field: string) => {
+    if (value === null || value === undefined) return null
+    if (!Number.isInteger(value) || (value as number) < 1 || (value as number) > 1000) {
+      errors.push({ field, message: 'must be a whole number from 1 to 1000' })
+      return null
+    }
+    return value as number
+  }
+  if (input.keep !== undefined) {
+    const keep = keepOf(input.keep, 'keep')
+    if (keep !== null) next.keep = keep
+  }
+  next.server = input.server !== false
+  const places = new Set((await backupPlaces(cms)).map((p) => p.id))
+  const destinations = Array.isArray(input.destinations) ? input.destinations : []
+  next.destinations = []
+  destinations.forEach((d, i) => {
+    const connection = String((d as { connection?: unknown })?.connection ?? '')
+    if (!places.has(connection))
+      errors.push({ field: `destinations.${i}`, message: `"${connection}" is not connected` })
+    else
+      next.destinations?.push({
+        connection,
+        keep: keepOf((d as { keep?: unknown }).keep, `destinations.${i}.keep`),
+      })
+  })
+  if (!next.server && next.destinations.length === 0)
+    errors.push({
+      field: 'server',
+      message: 'Keep backups somewhere: this server or a destination',
+    })
+  if (errors.length) throw new ValidationError(DATABASE_BACKUPS, errors)
+  const saved = { ...((await getSetting<SavedSettings>(cms, SETTINGS_KEY)) ?? {}), ...next }
+  await setSetting(cms, SETTINGS_KEY, saved)
+  await cms.audit.record({
+    action: 'backups.settings',
+    target: 'backups',
+    user,
+    detail: { ...saved },
+  })
+  return backupSettings(cms)
+}
+
+/** The connections backups can go to: of integrations that keep backups. */
+export async function backupPlaces(
+  cms: EasyCMS,
+): Promise<{ id: string; label: string; integration: string }[]> {
+  const out: { id: string; label: string; integration: string }[] = []
+  for (const def of cms.config.integrations) {
+    if (!def.backups) continue
+    const name = typeof def.label === 'string' ? def.label : (def.label.en ?? def.id)
+    for (const conn of await cms.integrations.all(def.id))
+      out.push({
+        id: `${def.id}:${conn.name}`,
+        label: `${name} · ${conn.name}`,
+        integration: def.id,
+      })
+  }
+  return out
+}
+
+/** An error trying again won't fix. */
+const permanent = (message: string) => Object.assign(new Error(message), { permanent: true })
+
+/** The destination of a place `<integration>:<connection>`. */
+async function destinationFor(cms: EasyCMS, place: string): Promise<BackupDestination> {
+  const at = place.indexOf(':')
+  const integration = place.slice(0, at)
+  const name = place.slice(at + 1)
+  const def = cms.config.integrations.find((d) => d.id === integration)
+  if (!def?.backups) throw permanent(`${integration} no longer keeps backups`)
+  const conn = await cms.integrations.get(integration, { name })
+  if (!conn) throw permanent(`The connection "${name}" is gone`)
+  return def.backups(conn.values, { cms })
+}
+
+/** A backup's copies; older records were only on the server. */
+function copiesOf(row: RawDocument): Record<string, BackupCopy> {
+  const copies = row.copies as Record<string, BackupCopy> | null | undefined
+  if (copies && typeof copies === 'object') return { ...copies }
+  return row.state === 'done' ? { server: { state: 'done' } } : {}
+}
+
+/**
+ * Sends a backup file to a destination, the `attempt`th time; what to record. A failure is
+ * tried again later when `retry` (the file is on the server to send again) and it may help.
+ */
+async function sendCopy(
+  cms: EasyCMS,
+  place: string,
+  filename: string,
+  data: Uint8Array,
+  attempt: number,
+  retry: boolean,
+  backup: ID,
+): Promise<BackupCopy> {
+  const at = place.indexOf(':')
+  try {
+    const destination = await destinationFor(cms, place)
+    const stored = await destination.put(filename, data)
+    void cms.integrations.markUsed(place.slice(0, at), place.slice(at + 1)).catch(() => {})
+    return {
+      state: 'done',
+      at: new Date().toISOString(),
+      ...(stored?.link ? { link: stored.link } : {}),
+    }
+  } catch (error) {
+    const message = ((error as Error).message || String(error)).slice(0, 500)
+    const lasting = (error as { permanent?: boolean }).permanent === true
+    const wait = RETRY_MINUTES[attempt - 1]
+    if (!lasting && retry && wait !== undefined)
+      return {
+        state: 'retrying',
+        attempts: attempt,
+        nextAt: new Date(Date.now() + wait * 60_000).toISOString(),
+        error: message,
+      }
+    if (lasting)
+      await cms.integrations
+        .markError(place.slice(0, at), message, place.slice(at + 1))
+        .catch(() => {})
+    cms.systemEvent('backup.failed', { backup, destination: place, error: message })
+    return { state: 'failed', attempts: attempt, at: new Date().toISOString(), error: message }
+  }
+}
+
+/** Deletes a backup's file in one place. */
+async function deleteCopy(cms: EasyCMS, place: string, filename: string): Promise<void> {
+  if (place === 'server') return (await backupStorage(cms)).delete(filename)
+  return (await destinationFor(cms, place)).delete(filename)
+}
+
 /** One backup as the admin shows it (`GET <api>/admin/backups`). */
 export interface AdminBackup {
   id: ID
@@ -73,6 +286,8 @@ export interface AdminBackup {
   author: string | null
   downloadedBy: string | null
   downloadedAt: string | null
+  /** Where it is: `server`, and destinations as `<integration>:<connection>`. */
+  copies: Record<string, BackupCopy>
 }
 
 /** Settings → Backups (`GET <api>/admin/backups`). */
@@ -88,7 +303,16 @@ export interface AdminBackups {
     database: string
     /** Why backups can't be made with this setup, if they can't. */
     unavailable: string | null
+    /** Kept on this server's backup storage. */
+    server: boolean
+    destinations: { connection: string; keep: number | null }[]
+    /** Set in the config: shown, not changed. */
+    locked: ('frequency' | 'at' | 'keep')[]
+    /** Files are encrypted (`backups.encryptionKey`). */
+    encrypted: boolean
   }
+  /** Connected destinations to choose from, and names for those backups were sent to. */
+  places: { id: string; label: string }[]
   backups: AdminBackup[]
 }
 
@@ -111,7 +335,7 @@ export function backupStorage(cms: EasyCMS): Promise<StorageAdapter> {
 
 /** Why this setup can't make backups, or `null` when it can. */
 export function backupUnavailable(cms: EasyCMS): string | null {
-  if (cms.db.backup || cms.config.backups?.sqlite) return null
+  if (cms.db.backup || cms.config.backups?.sqlite || cms.config.db.backupAdapter) return null
   return `The ${cms.config.db.name} database needs the SQLite adapter to write backups: backups: { sqlite } with sqlite from @easy-cms/db-sqlite`
 }
 
@@ -124,7 +348,7 @@ export async function writeBackupFile<C extends Config>(
   file: string,
 ): Promise<void> {
   if (cms.db.backup) return cms.db.backup(file)
-  const factory = cms.config.backups?.sqlite
+  const factory = cms.config.backups?.sqlite ?? cms.config.db.backupAdapter
   if (!factory) throw new EasyCMSError(backupUnavailable(cms as unknown as EasyCMS) as string, 400)
   // The same table names: the copy and a later restore match table for table.
   const prefix = cms.db.tablePrefix
@@ -180,6 +404,7 @@ function toAdmin(row: RawDocument): AdminBackup {
     author: text(row.author),
     downloadedBy: text(row.downloadedBy),
     downloadedAt: text(row.downloadedAt),
+    copies: copiesOf(row),
   }
 }
 
@@ -194,6 +419,7 @@ async function update(cms: EasyCMS, row: RawDocument, data: Record<string, unkno
 export async function listBackups(cms: EasyCMS): Promise<AdminBackups> {
   const config = cms.config.backups
   const storage = await backupStorage(cms)
+  const settings = await backupSettings(cms)
   const { docs } = await cms.db.find({
     collection: DATABASE_BACKUPS,
     sort: ['-createdAt'],
@@ -202,14 +428,19 @@ export async function listBackups(cms: EasyCMS): Promise<AdminBackups> {
   })
   return {
     settings: {
-      frequency: config?.frequency ?? null,
-      at: config?.at ?? DEFAULT_BACKUP_TIME,
-      keep: config?.keep ?? DEFAULT_BACKUP_KEEP,
+      frequency: settings.frequency,
+      at: settings.at,
+      keep: settings.keep,
       storage: storage.name,
       dir: config?.storage ? null : (config?.dir ?? DEFAULT_DIR),
       database: cms.config.db.name,
       unavailable: backupUnavailable(cms),
+      server: settings.server,
+      destinations: settings.destinations,
+      locked: settings.locked,
+      encrypted: !!config?.encryptionKey,
     },
+    places: (await backupPlaces(cms)).map(({ id, label }) => ({ id, label })),
     backups: docs.map(toAdmin),
   }
 }
@@ -285,24 +516,58 @@ async function runBackup(cms: EasyCMS, record: RawDocument): Promise<void> {
     const encryptionKey = cms.config.backups?.encryptionKey
     const gzipped = new Uint8Array(await gzipAsync(await readFile(file)))
     const data = encryptionKey ? encryptBackup(gzipped, encryptionKey) : gzipped
-    const storage = await backupStorage(cms)
+    const settings = await backupSettings(cms)
     const filename = `${filenameFor(cms, started)}${encryptionKey ? '.enc' : ''}`
     // Two backups in the same minute: keep both.
-    const key = (await storage.get(filename))
-      ? filename.replace(/\.db\.gz(\.enc)?$/, `-${row.id}.db.gz$1`)
-      : filename
-    await storage.put(key, data, {
-      contentType: encryptionKey ? 'application/octet-stream' : 'application/gzip',
+    const key = filename.replace(/\.db\.gz(\.enc)?$/, `-${row.id}.db.gz$1`)
+    const copies: Record<string, BackupCopy> = {}
+    // On the server unless only destinations were chosen.
+    const onServer = settings.server || settings.destinations.length === 0
+    // A name no other backup has, in any place (two backups in the same minute).
+    const taken = await cms.db.find({
+      collection: DATABASE_BACKUPS,
+      where: { filename: { equals: filename } },
+      sort: ['id'],
+      limit: 1,
+      page: 1,
     })
-    // Older ones go first, so the list never shows more than `keep` finished backups.
-    await pruneBackups(cms, 1)
+    const name = taken.docs.length > 0 ? key : filename
+    if (onServer) {
+      const storage = await backupStorage(cms)
+      await storage.put(name, data, {
+        contentType: encryptionKey ? 'application/octet-stream' : 'application/gzip',
+      })
+      copies.server = { state: 'done', at: new Date().toISOString() }
+    }
+    for (const destination of settings.destinations)
+      copies[destination.connection] = await sendCopy(
+        cms,
+        destination.connection,
+        name,
+        data,
+        1,
+        onServer,
+        row.id,
+      )
+    const kept = Object.values(copies).some((c) => c.state === 'done' || c.state === 'retrying')
+    if (!kept) {
+      const why = Object.values(copies)
+        .map((c) => c.error)
+        .filter(Boolean)
+        .join('; ')
+      throw new Error(why || 'No destination took the backup')
+    }
+    // The oldest go first (this one counted as the newest), so a backup shown as done never
+    // has more than `keep` before it in a place.
+    await pruneBackups(cms, copies)
     row = await update(cms, row, {
       state: 'done',
-      filename: key,
+      filename: name,
       size: data.byteLength,
       finishedAt: new Date().toISOString(),
+      copies,
     })
-    cms.logger.info(`Backup ${key} written (${data.byteLength} bytes)`)
+    cms.logger.info(`Backup ${name} written (${data.byteLength} bytes)`)
   } catch (error) {
     const message = ((error as Error).message || String(error)).slice(0, 500)
     await update(cms, row, {
@@ -318,12 +583,17 @@ async function runBackup(cms: EasyCMS, record: RawDocument): Promise<void> {
 }
 
 /**
- * Keeps the newest `keep` finished backups (minus `room` for ones about to finish), and failed
- * records for 30 days.
+ * Keeps each place's newest backups (its own `keep`, else the main one), deleting the files of
+ * older ones there; a record goes when no place holds it. Failed records stay 30 days.
  */
-async function pruneBackups(cms: EasyCMS, room = 0): Promise<void> {
-  const keep = Math.max(0, (cms.config.backups?.keep ?? DEFAULT_BACKUP_KEEP) - room)
-  const storage = await backupStorage(cms)
+async function pruneBackups(
+  cms: EasyCMS,
+  /** A backup about to be marked done: counted first in each place it is in. */
+  newest?: Record<string, BackupCopy>,
+): Promise<void> {
+  const settings = await backupSettings(cms)
+  const keepOf = new Map<string, number>([['server', settings.keep]])
+  for (const d of settings.destinations) keepOf.set(d.connection, d.keep ?? settings.keep)
   const { docs } = await cms.db.find({
     collection: DATABASE_BACKUPS,
     where: { state: { equals: 'done' } },
@@ -331,9 +601,25 @@ async function pruneBackups(cms: EasyCMS, room = 0): Promise<void> {
     limit: 0,
     page: 1,
   })
-  for (const row of docs.slice(keep)) {
-    if (typeof row.filename === 'string') await storage.delete(row.filename).catch(() => {})
-    await cms.db.delete({ collection: DATABASE_BACKUPS, id: row.id })
+  const counts = new Map<string, number>()
+  for (const [place, copy] of Object.entries(newest ?? {}))
+    if (copy.state === 'done' || copy.state === 'retrying') counts.set(place, 1)
+  for (const row of docs) {
+    const copies = copiesOf(row)
+    let changed = false
+    for (const [place, copy] of Object.entries(copies)) {
+      if (copy.state !== 'done') continue
+      const n = (counts.get(place) ?? 0) + 1
+      counts.set(place, n)
+      if (n <= (keepOf.get(place) ?? settings.keep)) continue
+      if (typeof row.filename === 'string')
+        await deleteCopy(cms, place, row.filename).catch(() => {})
+      copies[place] = { state: 'removed', at: new Date().toISOString() }
+      changed = true
+    }
+    const held = Object.values(copies).some((c) => c.state === 'done' || c.state === 'retrying')
+    if (!held) await cms.db.delete({ collection: DATABASE_BACKUPS, id: row.id })
+    else if (changed) await update(cms, row, { copies })
   }
   const old = new Date(Date.now() - 30 * 86_400_000).toISOString()
   const failed = await cms.db.find({
@@ -344,6 +630,45 @@ async function pruneBackups(cms: EasyCMS, room = 0): Promise<void> {
     page: 1,
   })
   for (const row of failed.docs) await cms.db.delete({ collection: DATABASE_BACKUPS, id: row.id })
+}
+
+/** Sends again the copies whose next try is due, from the file on the server. */
+async function retryCopies(cms: EasyCMS, now: Date): Promise<void> {
+  const { docs } = await cms.db.find({
+    collection: DATABASE_BACKUPS,
+    where: { state: { equals: 'done' } },
+    sort: ['-createdAt'],
+    limit: 50,
+    page: 1,
+  })
+  for (const row of docs) {
+    const copies = copiesOf(row)
+    const due = Object.entries(copies).filter(
+      ([, c]) => c.state === 'retrying' && Date.parse(c.nextAt ?? '') <= now.getTime(),
+    )
+    if (due.length === 0 || typeof row.filename !== 'string') continue
+    // Claimed: one process sends the retries of a record (compare and set).
+    const { id, ...rest } = row
+    const claimed = await cms.db.update({
+      collection: DATABASE_BACKUPS,
+      id,
+      data: {
+        ...rest,
+        updatedAt: new Date(
+          Math.max(now.getTime(), Date.parse(String(row.updatedAt)) + 1),
+        ).toISOString(),
+      },
+      where: { updatedAt: { equals: row.updatedAt as string } },
+    })
+    if (!claimed) continue
+    const file = await (await backupStorage(cms)).get(row.filename).catch(() => null)
+    for (const [place, copy] of due) {
+      copies[place] = file
+        ? await sendCopy(cms, place, row.filename, file.body, (copy.attempts ?? 1) + 1, true, id)
+        : { ...copy, state: 'failed', error: 'The file is no longer on the server to send again' }
+    }
+    await update(cms, { ...row, ...claimed }, { copies })
+  }
 }
 
 /** The latest slot of a schedule at or before `now`: today's (or the past) `HH:MM`. */
@@ -373,9 +698,13 @@ export async function runDueBackups(cms: EasyCMS, now: Date = new Date()): Promi
       })
   }
 
-  const every = cms.config.backups?.frequency
+  await retryCopies(cms, now).catch((error) =>
+    cms.logger.error(`Backup retries: ${(error as Error).message}`, { error }),
+  )
+  const settings = await backupSettings(cms)
+  const every = settings.frequency
   if (!every) return
-  const slot = lastSlot(now, cms.config.backups?.at ?? DEFAULT_BACKUP_TIME, cms.config.timeZone)
+  const slot = lastSlot(now, settings.at, cms.config.timeZone)
   const latest = await cms.db.find({
     collection: DATABASE_BACKUPS,
     where: { trigger: { equals: 'scheduled' } },
@@ -399,7 +728,7 @@ export async function backupAttention(
   cms: EasyCMS,
   now: number = Date.now(),
 ): Promise<{ id: 'backups'; failed: boolean; lastDone: string | null } | null> {
-  const every = cms.config.backups?.frequency
+  const every = (await backupSettings(cms)).frequency
   if (!every) return null
   const [scheduled, done] = await Promise.all([
     cms.db.find({
@@ -438,11 +767,18 @@ export async function downloadBackup(
   const row = await cms.db.findById({ collection: DATABASE_BACKUPS, id })
   if (row?.state !== 'done' || typeof row.filename !== 'string')
     throw new NotFoundError(DATABASE_BACKUPS, id)
-  const file = await (await backupStorage(cms)).get(row.filename)
-  if (!file)
-    throw new EasyCMSError(`The file ${row.filename} is no longer in the backup storage`, 404)
+  // From the server when it is there, else from a destination that has it.
+  const copies = copiesOf(row)
+  let body: Uint8Array | null = null
+  if (copies.server?.state === 'done')
+    body = (await (await backupStorage(cms)).get(row.filename))?.body ?? null
+  for (const [place, copy] of Object.entries(copies)) {
+    if (body || place === 'server' || copy.state !== 'done') continue
+    body = await (await destinationFor(cms, place)).get(row.filename).catch(() => null)
+  }
+  if (!body)
+    throw new EasyCMSError(`The file ${row.filename} is in no place that keeps backups`, 404)
   let { filename } = row
-  let body = file.body
   if (filename.endsWith('.enc')) {
     const encryptionKey = cms.config.backups?.encryptionKey
     if (!encryptionKey)
@@ -464,6 +800,8 @@ export async function deleteBackup(cms: EasyCMS, id: ID): Promise<void> {
   if (row.state === 'running' || row.state === 'pending')
     throw new EasyCMSError('A backup in progress cannot be deleted', 409)
   if (typeof row.filename === 'string')
-    await (await backupStorage(cms)).delete(row.filename).catch(() => {})
+    for (const [place, copy] of Object.entries(copiesOf(row)))
+      if (copy.state === 'done' || copy.state === 'retrying')
+        await deleteCopy(cms, place, row.filename).catch(() => {})
   await cms.db.delete({ collection: DATABASE_BACKUPS, id })
 }

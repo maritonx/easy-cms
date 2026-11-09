@@ -64,14 +64,15 @@ plugin เพิ่ม collection `social-posts` ให้สร้าง migrat
    แล้วเพิ่ม **Facebook Login for Business**
 2. ในการตั้งค่า เพิ่ม redirect URI
    `https://example.com/api/cms/admin/integrations/facebook-page/callback` (ตาม `serverURL` ของคุณ)
-3. ตั้ง id และ secret ของแอปบนเซิร์ฟเวอร์:
+3. ใน **Settings → การเชื่อมต่อ → Facebook Page → Key ของแอป** วาง id และ secret ของแอป (การ์ดแสดง redirect URI
+   ให้คัดลอก) หรือตั้งบนเซิร์ฟเวอร์ ซึ่งชนะ:
 
 ```bash
 META_APP_ID=1234567890
 META_APP_SECRET=…
 ```
 
-จากนั้น **Settings → การเชื่อมต่อ → Facebook Page → เชื่อมกับ Facebook Page** Facebook จะให้ล็อกอินและอนุญาตให้แอป
+จากนั้น **เชื่อมกับ Facebook Page** Facebook จะให้ล็อกอินและอนุญาตให้แอป
 จัดการเพจ กลับมาที่หน้า admin แล้วเลือกเพจ เพจหนึ่งเท่ากับหนึ่งช่องทาง admin จะได้ Page token ที่ไม่หมดอายุ
 เว้นแต่คุณถอนสิทธิ์แอปหรือเปลี่ยนรหัสผ่าน Facebook ซึ่งการ์ดจะแสดงข้อผิดพลาด และต้องเชื่อมเพจใหม่
 

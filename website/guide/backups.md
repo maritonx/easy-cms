@@ -29,8 +29,9 @@ Setting a new one signs everyone out and invalidates preview links.
 <Screenshot name="backups" alt="Settings → Backups: the schedule, back up now, and the backups with Download" />
 
 Admins find **Settings → Backups** in the admin: **Back up now**, the list of backups with who
-made them, **Download** and **Delete**. Scheduled backups and how many to keep are set in the
-config:
+made them and where each one is, **Download** and **Delete**, and the settings: when backups run
+(every day or week, at a time), how many to keep, and **where they go**. What the config sets wins
+and shows as set in the code:
 
 ```ts
 import { sqlite } from '@easy-cms/db-sqlite'
@@ -50,11 +51,13 @@ backups: {
   database: documents, users, versions, settings. SQLite copies itself; **Postgres** is copied
   into a SQLite file, so pass `sqlite` from `@easy-cms/db-sqlite` as `backups.sqlite` (install the
   package). For a large Postgres database, keep your provider's backups or `pg_dump` too.
+- **Turso and other remote libSQL databases** are copied into a local SQLite file, table by table,
+  like Postgres; the SQLite adapter does this itself.
 - **Uploaded files are not included**: back up the uploads folder, or turn on versioning for the
   S3 bucket.
 - **Where they're kept:** `backups/` on the server's disk by default, which is lost with the server
-  (and on serverless hosts, with every deploy). Set `backups.storage` to a **private** bucket, or
-  download them. Never use the uploads folder or a public bucket: a backup holds password hashes
+  (and on serverless hosts, with every deploy). Send them to a [destination](#destinations), set
+  `backups.storage` to a **private** bucket, or download them. Never use the uploads folder or a public bucket: a backup holds password hashes
   and API key hashes. A `backups.storage` that gives public URLs (e.g. S3 with `publicURL`) logs a
   warning at startup. `create-easy-cms` adds `backups/` to `.gitignore`.
 - **Encryption:** with `backups.encryptionKey` (at least 32 characters, e.g.
@@ -70,6 +73,25 @@ backups: {
   backup last. Keep downloaded files as safe as the database.
 - Upgrading to Easy CMS 0.32 adds the `database-backups` table: create a migration
   (`npx easy-cms migrate:create backups`).
+
+### Destinations: Google Drive, R2, S3 {#destinations}
+
+Plugins add places backups can go, connected in **Settings → Integrations → Backups**:
+`@easy-cms/plugin-backups` has **Google Drive** and **S3-compatible storage** (Cloudflare R2,
+Backblaze B2, AWS S3, Wasabi). Connected ones are listed under **Where they go** in Settings →
+Backups: tick this server, destinations, or both, each with how many to keep (cheap storage can
+keep more).
+
+- A destination that fails (busy, down) is tried again after 1, 5 and 30 minutes, from the file on
+  this server; then the backup says so and `backup.failed` tells the [notify plugin](./notifications).
+  A connection that was taken back fails at once, and its card in Integrations says why. With only
+  destinations ticked and none taking the file, the backup fails.
+- **Download** works from any place that still has the file.
+- Without `encryptionKey` the page warns while backups leave the server: they hold the whole
+  database, users' emails and password hashes included.
+
+A plugin's integration says it keeps backups with `backups(values) => ({ put, get, delete })`; a
+failure that trying again won't fix throws an error with `permanent: true`.
 
 ### Restoring a backup from the admin
 
