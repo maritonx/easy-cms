@@ -98,6 +98,44 @@ export default defineConfig({
       versions: true,
       // Publish or unpublish at a set time (the server runs due jobs every minute).
       schedule: true,
+      // Buttons that run code on a post (#386): on its page, its row and selected posts.
+      actions: [
+        {
+          name: 'send-for-review',
+          label: { en: 'Send for review', th: 'ส่งให้ตรวจ' },
+          on: ['document', 'row', 'bulk'],
+          // Anyone who may edit the post may send it.
+          default: 'editors',
+          when: ({ doc }) => doc.status !== 'published',
+          fields: [
+            {
+              name: 'reviewer',
+              type: 'email',
+              required: true,
+              label: { en: 'Reviewer’s email', th: 'อีเมลผู้ตรวจ' },
+            },
+            { name: 'note', type: 'textarea', label: { en: 'Note', th: 'หมายเหตุ' } },
+          ],
+          primary: true,
+          run: async ({ doc, cms, input, user }) => {
+            await cms.sendEmail({
+              to: String(input.reviewer),
+              subject: `Please review: ${String(doc.title)}`,
+              text: `${user.email} asks you to review "${String(doc.title)}".\n\n${String(input.note ?? '')}`,
+            })
+            return { message: `Sent to ${String(input.reviewer)}` }
+          },
+        },
+        {
+          name: 'open-on-site',
+          label: { en: 'Open on the site', th: 'เปิดบนเว็บ' },
+          // Admins, and roles given it in Settings → Roles.
+          when: ({ doc }) => doc.status === 'published' && typeof doc.slug === 'string',
+          run: ({ doc }) => ({
+            open: `${process.env.SITE_URL ?? 'http://localhost:3000'}/posts/${String(doc.slug)}`,
+          }),
+        },
+      ],
       // Live preview in the admin: the page that shows a post.
       preview: ({ doc }) => (doc.slug ? `/posts/${doc.slug}` : null),
       // Roles limited to their own posts (Settings → Roles) go by the author.

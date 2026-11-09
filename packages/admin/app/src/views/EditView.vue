@@ -1,8 +1,18 @@
 <script setup lang="ts">
-import type { ScheduledPublish } from '@easy-cms/core'
-import { CalendarClock, ChevronDown, ChevronLeft, Eye, EyeOff, Link2, Trash2 } from '@lucide/vue'
+import type { AdminAction, ScheduledPublish } from '@easy-cms/core'
+import {
+  CalendarClock,
+  ChevronDown,
+  ChevronLeft,
+  Ellipsis,
+  Eye,
+  EyeOff,
+  Link2,
+  Trash2,
+} from '@lucide/vue'
 import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
+import ActionDialog from '../components/ActionDialog.vue'
 import ActivityPanel from '../components/ActivityPanel.vue'
 import AiButton from '../components/AiButton.vue'
 import ApiKeyCreated from '../components/ApiKeyCreated.vue'
@@ -21,6 +31,7 @@ import TransferDialog from '../components/TransferDialog.vue'
 import VersionHistory from '../components/VersionHistory.vue'
 import FieldLayout from '../fields/FieldLayout.vue'
 import FieldList from '../fields/FieldList.vue'
+import { actionLabel, pageActions, useActions } from '../lib/actions'
 import { aiFeature, loadAiStatus } from '../lib/ai'
 import { ApiError, api, type Doc } from '../lib/api'
 import { contentLocale, localeQuery, setContentLocale } from '../lib/content-locale'
@@ -138,7 +149,7 @@ showMessages(message)
 
 // Collection-level permissions say what is possible at all; for an existing document the
 // server resolves document-level rules (e.g. "only your own") into exact answers.
-const docPermissions = ref<{ update: boolean; delete: boolean } | null>(null)
+const docPermissions = ref<{ update: boolean; delete: boolean; actions?: string[] } | null>(null)
 const canSave = computed(
   () =>
     !!collection && (id ? (docPermissions.value?.update ?? false) : collection.permissions.create),
@@ -180,6 +191,47 @@ provide(FORM, {
   id: computed(() => id ?? null),
 })
 const splitOpen = ref(false)
+
+// The collection's actions (#386) that apply to this document: primary ones as buttons, the rest
+// in the Actions menu. They run on what is saved, so changes are saved first.
+const actions = useActions(
+  () => slug,
+  () => load(),
+)
+const docActions = computed(() =>
+  (collection?.actions ?? []).filter(
+    (a) => a.on.includes('document') && (docPermissions.value?.actions ?? []).includes(a.name),
+  ),
+)
+const primaryActions = computed(() => docActions.value.filter((a) => a.primary))
+const menuActions = computed(() => docActions.value.filter((a) => !a.primary))
+const actionsOpen = ref(false)
+// ⌘K lists them too while this page is open.
+watch(
+  docActions,
+  (list) => {
+    pageActions.value = list.map((a) => ({
+      name: a.name,
+      label: actionLabel(a),
+      run: () => void press(a),
+    }))
+  },
+  { immediate: true },
+)
+onBeforeUnmount(() => {
+  pageActions.value = []
+})
+async function press(action: AdminAction) {
+  actionsOpen.value = false
+  if (!id) return
+  if (dirty.value) {
+    if (!window.confirm(t('actions.saveFirst', { action: actionLabel(action) }))) return
+    // A draft where there are drafts: the action runs on the draft, as this page shows it.
+    await save(collection?.drafts ? 'draft' : undefined)
+    if (dirty.value || Object.keys(errors.value).length) return
+  }
+  actions.start(action, { id })
+}
 const newKey = ref<{ key: string; id: string | number } | null>(null)
 async function closeNewKey() {
   const created = newKey.value
@@ -357,7 +409,7 @@ async function load() {
         'GET',
         `/${slug}/${encodeURIComponent(id)}?depth=0&draft=true${localeQuery({ editing: true })}`,
       ),
-      api<{ update: boolean; delete: boolean }>(
+      api<{ update: boolean; delete: boolean; actions?: string[] }>(
         'GET',
         `/admin/ui/access/${slug}/${encodeURIComponent(id)}`,
       ),
@@ -577,6 +629,41 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
         </div>
       </div>
       <div class="actions">
+        <button
+          v-for="action in primaryActions"
+          :key="action.name"
+          type="button"
+          :class="['btn', action.confirm?.danger && 'btn-danger']"
+          :disabled="actions.busy.value || saving"
+          @click="press(action)"
+        >
+          {{ actionLabel(action) }}
+        </button>
+        <div v-if="menuActions.length" class="actions-menu">
+          <button
+            type="button"
+            class="btn"
+            :aria-expanded="actionsOpen"
+            aria-haspopup="menu"
+            :disabled="actions.busy.value || saving"
+            @click="actionsOpen = !actionsOpen"
+          >
+            <Ellipsis :size="16" aria-hidden="true" />
+            {{ t('actions.menu') }}
+          </button>
+          <div v-if="actionsOpen" class="split-menu" role="menu">
+            <button
+              v-for="action in menuActions"
+              :key="action.name"
+              type="button"
+              role="menuitem"
+              :class="{ danger: action.confirm?.danger }"
+              @click="press(action)"
+            >
+              {{ actionLabel(action) }}
+            </button>
+          </div>
+        </div>
         <LocaleSwitcher v-if="localized" :missing="untranslated" @change="switchLocale" />
         <button v-if="collection.preview && canSave" type="button" class="btn" :aria-pressed="previewing" @click="previewing = !previewing">
           <component :is="previewing ? EyeOff : Eye" :size="16" aria-hidden="true" />
@@ -823,6 +910,13 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
       </div>
     </footer>
 
+    <ActionDialog
+      :pending="actions.pending.value"
+      :errors="actions.errors.value"
+      :busy="actions.busy.value"
+      @submit="actions.submit"
+      @cancel="actions.cancel"
+    />
     <ConfirmDialog
       :open="confirmingDiscard"
       :message="t('edit.confirmDiscard')"
@@ -929,6 +1023,12 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
   border-bottom-left-radius: 0;
   border-left: 1px solid color-mix(in srgb, var(--accent-text) 25%, transparent);
   width: 2.4rem;
+}
+.actions-menu {
+  position: relative;
+}
+.split-menu button.danger {
+  color: var(--danger);
 }
 .split-menu {
   position: absolute;

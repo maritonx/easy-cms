@@ -130,6 +130,17 @@ export class UnauthorizedError extends EasyCMSError {
   }
 }
 
+/**
+ * An action's refusal, shown to the user as it is (#386): `throw new ActionError('Too late to
+ * cancel')`. Other errors in an action are logged and shown as a general failure.
+ */
+export class ActionError extends EasyCMSError {
+  constructor(message: string) {
+    super(message, 400)
+    this.name = 'ActionError'
+  }
+}
+
 /** Logged in, but not allowed to do this. */
 export class ForbiddenError extends EasyCMSError {
   constructor(message = 'You are not allowed to do this') {

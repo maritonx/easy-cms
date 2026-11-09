@@ -3,11 +3,11 @@
 import { ref } from 'vue'
 import { api, type Id } from './api'
 
-export type BulkAction = 'publish' | 'unpublish' | 'delete' | 'move'
+export type BulkAction = 'publish' | 'unpublish' | 'delete' | 'move' | `action:${string}`
 
 export interface BulkProblem {
   id: Id
-  reason: 'forbidden' | 'not-found' | 'error'
+  reason: 'forbidden' | 'not-found' | 'not-applicable' | 'error'
   message?: string
 }
 

@@ -105,6 +105,12 @@ Fields inside groups, arrays and blocks follow their parent.
 - A field that must be filled in (required, without a default) stays editable for roles that create
   documents.
 
+## Actions
+
+A collection's [actions](./actions) that are rights of their own (`default: 'admins'`, the default)
+are listed under it: tick them for the roles that may press them. Until then only admins may.
+Actions with `default: 'editors'` follow the right to update and aren't listed.
+
 ## AI requests
 
 With the [AI plugin](./ai), a role can have its own **AI requests per day**: empty uses everyone's

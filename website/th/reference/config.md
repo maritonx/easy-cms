@@ -282,6 +282,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `access` | `{ read?, create?, update?, delete? }` | ต้อง login | [การควบคุมสิทธิ์](/th/guide/access-control) |
 | `hooks` | `CollectionHooks` | — | ดู [hooks](#hooks) |
 | `admin` | `CollectionAdmin` | — | ดู [admin components](#admin-components) |
+| `actions` | `CollectionAction[]` | — | ปุ่มที่รันโค้ดของคุณกับเอกสาร: `{ name, label, on?, when?, access?, default?, fields?, confirm?, primary?, run }` [Actions](/th/guide/actions) |
 
 <!-- api: VersionsConfig -->
 ### versions {#versions}

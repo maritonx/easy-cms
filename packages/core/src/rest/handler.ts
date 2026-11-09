@@ -6,6 +6,7 @@ import {
   type RequestContext,
   type Where,
 } from '../access.js'
+import { availableActions, bulkActionName, runAction } from '../actions.js'
 import { API_KEYS, type ApiKeyPermissions } from '../api-keys.js'
 import { auditContext } from '../audit.js'
 import { type Session, SIGNUP_HONEYPOT } from '../auth/auth.js'
@@ -1261,7 +1262,23 @@ async function route(
       ) {
         throw new HttpError(`Unknown collection "${collection}"`, 404)
       }
-      return { body: await cms.documentPermissions(collection, id, ctx.user, ctx.context) }
+      const parsed = parseId(id)
+      const hasActions = !!cms.config.collections.find((c) => c.slug === collection)?.actions
+        ?.length
+      return {
+        body: {
+          ...(await cms.documentPermissions(collection, id, ctx.user, ctx.context)),
+          // The actions the user may press on it (#386), for its edit page and row menu.
+          ...(hasActions
+            ? {
+                actions:
+                  parsed === undefined
+                    ? []
+                    : await availableActions(cms, collection, parsed, ctx.user, ctx.context),
+              }
+            : {}),
+        },
+      }
     }
     throw new HttpError('Not found', 404)
   }
@@ -1413,6 +1430,32 @@ async function route(
   // Bulk actions (#280): POST /:collection/bulk { action, ids | where, folder?, transferTo? };
   // GET /:collection/bulk/:id (progress), POST /:collection/bulk/:id/cancel
   if (second === 'bulk') return bulkRoute(cms, ctx, method, collection, segments.slice(2), access)
+  // A collection's own action on several documents (#386): POST /:collection/actions/:name
+  // { ids | where, input? }, through bulk operations.
+  if (second === 'actions' && third !== undefined && segments.length === 3) {
+    if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
+    const user = ctx.user
+    if (!user) throw new UnauthorizedError()
+    const body = (await readJson(ctx.request)) as Record<string, unknown>
+    const name = bulkActionName(cms, collection, third)
+    const options = {
+      user,
+      input: body.input,
+      ...(access.context ? { context: access.context } : {}),
+    }
+    if (Array.isArray(body.ids))
+      return { body: await bulkIds(cms, collection, name, body.ids as ID[], options) }
+    const where = body.where
+    if (
+      where !== undefined &&
+      (typeof where !== 'object' || where === null || Array.isArray(where))
+    )
+      throw new QueryError('where must be an object')
+    return {
+      status: 202,
+      body: await startBulk(cms, collection, name, where as Where | undefined, options),
+    }
+  }
   if (second !== undefined && third !== undefined) {
     return documentAction(cms, ctx, method, collection, second, segments.slice(2))
   }
@@ -1522,6 +1565,21 @@ async function documentAction(
   } as const
   const depth = parseDepth(ctx.url)
   const [action, versionId, extra] = path
+  // A collection's own action on this document (#386): POST /:collection/:id/actions/:name { input? }
+  if (action === 'actions' && versionId !== undefined && extra === undefined) {
+    if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
+    if (!ctx.user) throw new UnauthorizedError()
+    const parsed = parseId(id)
+    if (parsed === undefined) throw new NotFoundError(collection, id)
+    const body = await readJson(ctx.request).catch(() => ({}) as Record<string, unknown>)
+    return {
+      body: await runAction(cms, collection, versionId, parsed, {
+        user: ctx.user,
+        input: (body as Record<string, unknown>).input,
+        context: ctx.context,
+      }),
+    }
+  }
   // An admin emails a user a link to set their password (an invitation, or a reset).
   if (collection === USERS && action === 'password-link' && path.length === 1) {
     if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')

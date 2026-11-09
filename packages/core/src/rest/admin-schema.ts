@@ -6,6 +6,7 @@ import {
   type RequestContext,
 } from '../access.js'
 import { evaluateAccess, FieldAccessChecker } from '../access-control.js'
+import { placesOf, roleAllows } from '../actions.js'
 import { API_KEYS } from '../api-keys.js'
 import { passwordFor, type SsoProviderRef } from '../auth/sso.js'
 import {
@@ -206,6 +207,22 @@ export interface AdminCollection {
   owner?: string
   /** Deleting asks to type the title, and says what goes too (`admin.confirmDelete`). */
   confirmDelete?: { typeTitle?: boolean; impact?: string }
+  /**
+   * The collection's actions the user's role lets them press (#386); which apply to a document
+   * comes with its permissions (`GET <api>/admin/ui/access/:collection/:id`).
+   */
+  actions?: AdminAction[]
+}
+
+/** An action's button, as the admin draws it. */
+export interface AdminAction {
+  name: string
+  label: Label
+  on: ('document' | 'row' | 'bulk')[]
+  /** The form asked before running. */
+  fields?: AdminField[]
+  confirm?: { text?: Label; danger?: boolean }
+  primary?: boolean
 }
 
 export interface AdminGlobal {
@@ -535,6 +552,34 @@ async function collection(
   if (config.admin?.confirmDelete) result.confirmDelete = { ...config.admin.confirmDelete }
   const owner = cms.roles.ownerOf(config.slug)
   if (owner && fields.some((f) => f.name === owner)) result.owner = owner
+  const actions: AdminAction[] = []
+  for (const action of config.actions ?? []) {
+    if (!(await roleAllows(cms, user, config.slug, action))) continue
+    const confirm = action.confirm
+    actions.push({
+      name: action.name,
+      label: action.label,
+      on: [...placesOf(action)],
+      ...(action.fields?.length
+        ? {
+            fields: await serializeFields(
+              action.fields,
+              await checkers(cms, user, context),
+              false,
+              undefined,
+              { user, context },
+            ),
+          }
+        : {}),
+      ...(confirm
+        ? {
+            confirm: confirm === true ? {} : JSON.parse(JSON.stringify(confirm)),
+          }
+        : {}),
+      ...(action.primary ? { primary: true } : {}),
+    })
+  }
+  if (actions.length) result.actions = actions
   // Drafts, history and preview need the whole page.
   if (config.admin?.editIn === 'drawer' && !result.drafts && !result.versions && !result.preview)
     result.editIn = 'drawer'

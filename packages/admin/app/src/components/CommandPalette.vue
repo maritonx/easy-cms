@@ -13,9 +13,11 @@ import {
   Search,
   Sun,
   User,
+  Zap,
 } from '@lucide/vue'
 import { type Component, computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { pageActions } from '../lib/actions'
 import { api } from '../lib/api'
 import { label, locale, setLocale, t } from '../lib/i18n'
 import { collectionIcon } from '../lib/icons'
@@ -134,6 +136,14 @@ const options = computed<Option[]>(() => {
     }
   }
   const commands: Option[] = [
+    // The open document's actions (#386).
+    ...pageActions.value.map((a) => ({
+      id: `action:${a.name}`,
+      section: 'commands' as const,
+      label: a.label,
+      icon: Zap,
+      run: a.run,
+    })),
     ...(schema?.commands ?? []).map((c, i) => ({
       id: `cmd:${i}`,
       section: 'commands' as const,

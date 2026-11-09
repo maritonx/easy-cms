@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AdminField } from '@easy-cms/core'
+import type { AdminAction, AdminField } from '@easy-cms/core'
 import {
   ArrowDown,
   ArrowUp,
@@ -35,6 +35,7 @@ import {
 } from '@lucide/vue'
 import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
+import ActionDialog from '../components/ActionDialog.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import DeleteDialog from '../components/DeleteDialog.vue'
 import DocumentDrawer from '../components/DocumentDrawer.vue'
@@ -53,6 +54,7 @@ import StatusBadges from '../components/StatusBadges.vue'
 import TransferDialog from '../components/TransferDialog.vue'
 import UploadDropzone from '../components/UploadDropzone.vue'
 import ViewTabs from '../components/ViewTabs.vue'
+import { actionLabel, useActions } from '../lib/actions'
 import { ApiError, api, type Doc, type Id, type Paginated, toQuery } from '../lib/api'
 import {
   BULK_DONE,
@@ -228,6 +230,35 @@ const columnsOpen = ref(false)
 const columnsMenu = ref<HTMLElement>()
 /** The row whose "more" menu is open. */
 const rowMenu = ref<Doc['id'] | null>(null)
+/** The collection's actions (#386) that apply to the row whose menu is open, asked for then. */
+const rowActions = ref<AdminAction[]>([])
+watch(rowMenu, async (id) => {
+  rowActions.value = []
+  const own = (collection?.actions ?? []).filter((a) => a.on.includes('row'))
+  if (id === null || own.length === 0) return
+  const access = await api<{ actions?: string[] }>(
+    'GET',
+    `/admin/ui/access/${slug}/${encodeURIComponent(String(id))}`,
+  ).catch(() => ({ actions: [] as string[] }))
+  if (rowMenu.value === id) rowActions.value = own.filter((a) => access.actions?.includes(a.name))
+})
+const bulkActions = computed(() => (collection?.actions ?? []).filter((a) => a.on.includes('bulk')))
+const actions = useActions(
+  () => slug,
+  async () => {
+    selected.value = new Set()
+    await reload()
+  },
+)
+function pressRow(action: AdminAction, id: Doc['id']) {
+  rowMenu.value = null
+  actions.start(action, { id })
+}
+async function pressBulk(action: AdminAction) {
+  if (allMatching.value && total.value)
+    actions.start(action, { where: (await listWhere()) ?? {}, count: total.value.total })
+  else actions.start(action, { ids: [...selected.value] })
+}
 function onDocumentClick(event: MouseEvent) {
   if (columnsOpen.value && !columnsMenu.value?.contains(event.target as Node))
     columnsOpen.value = false
@@ -1871,6 +1902,16 @@ async function deleteSelected(query = '') {
                     {{ t('list.open') }}
                   </RouterLink>
                   <button
+                    v-for="action in rowActions"
+                    :key="action.name"
+                    type="button"
+                    :class="['menu-item', action.confirm?.danger && 'danger']"
+                    role="menuitem"
+                    @click="pressRow(action, doc.id)"
+                  >
+                    {{ actionLabel(action) }}
+                  </button>
+                  <button
                     v-if="collection.permissions.delete"
                     type="button"
                     class="menu-item danger"
@@ -1960,6 +2001,16 @@ async function deleteSelected(query = '') {
           <FolderInput :size="15" aria-hidden="true" />
           {{ t('folders.moveTo') }}
         </button>
+        <button
+          v-for="action in bulkActions"
+          :key="action.name"
+          type="button"
+          :class="['bulk-btn', action.confirm?.danger && 'danger']"
+          :disabled="busy || actions.busy.value"
+          @click="pressBulk(action)"
+        >
+          {{ actionLabel(action) }}
+        </button>
         <button v-if="collection.permissions.delete && !collection.confirmDelete" type="button" class="bulk-btn danger" :disabled="busy" @click="confirming = true">
           <Trash2 :size="15" aria-hidden="true" />
           {{ t('list.deleteSelected') }}
@@ -2028,6 +2079,13 @@ async function deleteSelected(query = '') {
       @saved="onDrawerSaved"
       @deleted="onDrawerDeleted"
       @close="closeDrawer"
+    />
+    <ActionDialog
+      :pending="actions.pending.value"
+      :errors="actions.errors.value"
+      :busy="actions.busy.value"
+      @submit="actions.submit"
+      @cancel="actions.cancel"
     />
     <template v-if="transfers">
       <TransferDialog

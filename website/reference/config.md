@@ -285,6 +285,7 @@ Admins see, run and pause them on Settings → Jobs. [Jobs](/guide/jobs)
 | `access` | `{ read?, create?, update?, delete? }` | logged in | [Access control](/guide/access-control) |
 | `hooks` | `CollectionHooks` | — | See [hooks](#hooks). |
 | `admin` | `CollectionAdmin` | — | See [admin components](#admin-components). |
+| `actions` | `CollectionAction[]` | — | Buttons that run your code on a document: `{ name, label, on?, when?, access?, default?, fields?, confirm?, primary?, run }`. [Actions](/guide/actions) |
 
 <!-- api: VersionsConfig -->
 ### versions
