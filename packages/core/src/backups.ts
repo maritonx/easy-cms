@@ -557,6 +557,9 @@ async function runBackup(cms: EasyCMS, record: RawDocument): Promise<void> {
         .join('; ')
       throw new Error(why || 'No destination took the backup')
     }
+    // The oldest go first (this one counted as the newest), so a backup shown as done never
+    // has more than `keep` before it in a place.
+    await pruneBackups(cms, copies)
     row = await update(cms, row, {
       state: 'done',
       filename: name,
@@ -564,8 +567,6 @@ async function runBackup(cms: EasyCMS, record: RawDocument): Promise<void> {
       finishedAt: new Date().toISOString(),
       copies,
     })
-    // The oldest go, so each place keeps its `keep` newest backups.
-    await pruneBackups(cms)
     cms.logger.info(`Backup ${name} written (${data.byteLength} bytes)`)
   } catch (error) {
     const message = ((error as Error).message || String(error)).slice(0, 500)
@@ -585,7 +586,11 @@ async function runBackup(cms: EasyCMS, record: RawDocument): Promise<void> {
  * Keeps each place's newest backups (its own `keep`, else the main one), deleting the files of
  * older ones there; a record goes when no place holds it. Failed records stay 30 days.
  */
-async function pruneBackups(cms: EasyCMS): Promise<void> {
+async function pruneBackups(
+  cms: EasyCMS,
+  /** A backup about to be marked done: counted first in each place it is in. */
+  newest?: Record<string, BackupCopy>,
+): Promise<void> {
   const settings = await backupSettings(cms)
   const keepOf = new Map<string, number>([['server', settings.keep]])
   for (const d of settings.destinations) keepOf.set(d.connection, d.keep ?? settings.keep)
@@ -597,6 +602,8 @@ async function pruneBackups(cms: EasyCMS): Promise<void> {
     page: 1,
   })
   const counts = new Map<string, number>()
+  for (const [place, copy] of Object.entries(newest ?? {}))
+    if (copy.state === 'done' || copy.state === 'retrying') counts.set(place, 1)
   for (const row of docs) {
     const copies = copiesOf(row)
     let changed = false
