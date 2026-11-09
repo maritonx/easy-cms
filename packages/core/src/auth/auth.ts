@@ -388,7 +388,7 @@ export class Auth {
       locale: this.localeOf(options.locale),
       expiresAt: new Date(expiresAt),
     })
-    await this.cms.sendEmail({ to: String(user.email), ...content })
+    await this.cms.sendEmail({ to: String(user.email), ...content, tag: 'verify-email' })
   }
 
   /**
@@ -694,7 +694,7 @@ export class Auth {
         user: await this.toAuthUser(user),
         locale: this.localeOf(args.locale),
       })
-      await this.cms.sendEmail({ to: String(user.email), ...content })
+      await this.cms.sendEmail({ to: String(user.email), ...content, tag: 'password-changed' })
     }
     return { ...session, purpose: found.purpose }
   }
@@ -750,7 +750,11 @@ export class Auth {
       locale: this.localeOf(options.locale),
       ...(sso ? { sso } : { expiresAt: new Date(expiresAt) }),
     })
-    await this.cms.sendEmail({ to: String(user.email), ...content })
+    await this.cms.sendEmail({
+      to: String(user.email),
+      ...content,
+      tag: purpose === 'invite' ? 'invite' : 'password-reset',
+    })
   }
 
   private localeOf(locale: string | undefined): string {

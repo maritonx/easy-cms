@@ -24,6 +24,7 @@ import { secretsOf, signedWith, signPreviewToken, verifyPreviewToken } from './a
 import { runDueBackups } from './backups.js'
 import {
   EMAIL_DELIVERIES,
+  EMAIL_LOG,
   INTERNAL_COLLECTIONS,
   JOB_RUNS,
   MEDIA,
@@ -67,7 +68,13 @@ import {
   type Reference,
   validateFields,
 } from './document.js'
-import { type EmailMessage, type EmailQueue, Mailer, type QueuedEmail } from './email.js'
+import {
+  type EmailLogStore,
+  type EmailMessage,
+  type EmailQueue,
+  Mailer,
+  type QueuedEmail,
+} from './email.js'
 import {
   ConfigError,
   EasyCMSError,
@@ -488,6 +495,7 @@ export class EasyCMS<C extends Config = Config> {
       config.email,
       logger,
       config.collections.some((c) => c.slug === EMAIL_DELIVERIES) ? this.emailQueue() : undefined,
+      config.collections.some((c) => c.slug === EMAIL_LOG) ? this.emailLogStore() : undefined,
     )
     this.webhooks.onGiveUp = ({ url, event, error, attempts }) =>
       this.systemEvent('delivery.failed', { kind: 'webhook', url, event, error, attempts })
@@ -2183,6 +2191,51 @@ export class EasyCMS<C extends Config = Config> {
     return this.mailer.flush()
   }
 
+  /** The log of emails sent (`email-log`), for Settings → Email. */
+  private emailLogStore(): EmailLogStore {
+    const collection = EMAIL_LOG
+    return {
+      add: async (entry) => {
+        const now = new Date().toISOString()
+        return (
+          await this.db.create({
+            collection,
+            data: { ...entry, createdAt: now, updatedAt: now } as unknown as Data,
+          })
+        ).id
+      },
+      update: async (id, patch) => {
+        const row = await this.db.findById({ collection, id })
+        if (!row) return
+        const { id: _id, ...rest } = row
+        await this.db.update({
+          collection,
+          id,
+          data: { ...rest, ...patch, updatedAt: new Date().toISOString() } as unknown as Data,
+        })
+      },
+    }
+  }
+
+  /** Deletes log entries of emails older than `emailLog.keepDays` (30). */
+  private async pruneEmailLog(now: Date): Promise<void> {
+    if (!this.config.collections.some((c) => c.slug === EMAIL_LOG)) return
+    const keepDays =
+      (this.config.emailLog === false ? undefined : this.config.emailLog?.keepDays) ?? 30
+    const before = new Date(now.getTime() - keepDays * 86_400_000).toISOString()
+    for (let round = 0; round < 20; round++) {
+      const { docs } = await this.db.find({
+        collection: EMAIL_LOG,
+        where: { createdAt: { lt: before } },
+        sort: ['createdAt'],
+        limit: 500,
+        page: 1,
+      })
+      for (const row of docs) await this.db.delete({ collection: EMAIL_LOG, id: row.id })
+      if (docs.length < 500) return
+    }
+  }
+
   /** Emails queued until sent, stored in `email-deliveries`. */
   private emailQueue(): EmailQueue {
     const collection = EMAIL_DELIVERIES
@@ -2424,6 +2477,9 @@ export class EasyCMS<C extends Config = Config> {
       await this.rateLimiter
         ?.clear(now)
         .catch((error) => this.logger.error(`Rate limits: ${(error as Error).message}`, { error }))
+      await this.pruneEmailLog(now).catch((error) =>
+        this.logger.error(`Email log: ${(error as Error).message}`, { error }),
+      )
       const result = {
         scheduled,
         webhooks: await this.retryWebhooks(now),

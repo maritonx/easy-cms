@@ -1,6 +1,7 @@
-import type { ID } from '../access.js'
+import type { ID, Where } from '../access.js'
+import { EMAIL_LOG } from '../builtins.js'
 import { isEmail } from '../document.js'
-import type { EmailSetting } from '../email.js'
+import type { EmailLogEntry, EmailSetting } from '../email.js'
 import { TooManyRequestsError, ValidationError } from '../errors.js'
 import type { EasyCMS } from '../local-api.js'
 
@@ -114,5 +115,62 @@ export async function sendTestEmail(
     return logsOnly(cms) ? { ok: true, logged: true } : { ok: true }
   } catch (error) {
     return { ok: false, error: message(error) }
+  }
+}
+
+/** Settings → Email's log of emails sent (`GET <api>/admin/email/log`). */
+export interface AdminEmailLog {
+  /** `emailLog` isn't `false` and there is an `email` adapter. */
+  enabled: boolean
+  keepDays: number
+  docs: (EmailLogEntry & { id: ID; createdAt: string })[]
+  page: number
+  totalPages: number
+  totalDocs: number
+  /** The kinds of email in the log, for the filter. */
+  tags: string[]
+}
+
+const LOG_PAGE = 50
+
+/** The log, newest first: `state`, `tag` and `q` (recipient or subject) narrow it; 50 a page. */
+export async function adminEmailLog(cms: EasyCMS, url: URL): Promise<AdminEmailLog> {
+  const enabled = cms.config.collections.some((c) => c.slug === EMAIL_LOG)
+  const keepDays = (cms.config.emailLog === false ? undefined : cms.config.emailLog?.keepDays) ?? 30
+  if (!enabled)
+    return { enabled, keepDays, docs: [], page: 1, totalPages: 0, totalDocs: 0, tags: [] }
+  const state = url.searchParams.get('state')
+  const tag = url.searchParams.get('tag')
+  const q = url.searchParams.get('q')?.trim()
+  const page = Math.max(1, Number.parseInt(url.searchParams.get('page') ?? '1', 10) || 1)
+  const where: Where[] = []
+  if (state === 'sent' || state === 'pending' || state === 'failed')
+    where.push({ state: { equals: state } })
+  if (tag) where.push({ tag: { equals: tag } })
+  if (q) where.push({ or: [{ to: { like: q } }, { subject: { like: q } }] })
+  const found = await cms.db.find({
+    collection: EMAIL_LOG,
+    ...(where.length ? { where: { and: where } } : {}),
+    sort: ['-createdAt'],
+    limit: LOG_PAGE,
+    page,
+  })
+  const recent = await cms.db.find({
+    collection: EMAIL_LOG,
+    sort: ['-createdAt'],
+    limit: 500,
+    page: 1,
+  })
+  const tags = [
+    ...new Set(recent.docs.map((d) => d.tag).filter((t): t is string => typeof t === 'string')),
+  ].sort()
+  return {
+    enabled,
+    keepDays,
+    docs: found.docs as unknown as AdminEmailLog['docs'],
+    page,
+    totalPages: found.totalPages,
+    totalDocs: found.totalDocs,
+    tags,
   }
 }

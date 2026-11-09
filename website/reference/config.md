@@ -44,6 +44,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `onRequest` | `OnRequest \| OnRequest[]`: `({ headers, url, user, cms }) => { context?, user? }` | — | Runs on each API request once its user is known: returns the request's `context` (e.g. its tenant) and may change the user (their role there, `scoped`). Usually set by a plugin. A list runs in order: each gets the user the one before returned, and their `context` objects are merged. [Multi-tenant](/guide/multi-tenant#how-it-works) |
 | `apiKeys` | `boolean` | `false` | API keys under Settings, for scripts and other apps. [API keys](/guide/api-keys) |
 | `email` | `EmailAdapter` | — | Sends email for plugins, e.g. `smtp()` or `consoleEmail()`. [Email](/guide/email) |
+| `emailLog` | `false \| { keepDays? }` | `{ keepDays: 30 }` | The log of emails sent in Settings → Email, without their content. [Email log](/guide/email#the-email-log) |
 | `backups` | `BackupsConfig` | by hand only | Database backups on a schedule. See [backups](#backups). |
 | `audit` | `boolean \| AuditConfig` | off | The audit log: who changed what, sign-ins, admin actions. See [audit](#audit). |
 | `countCacheSeconds` | `number` | `5` | Seconds a list's total (`totalDocs`, `totalPages`) is reused for the same query; the documents are always current. `0`: count every time. [Counting](/guide/local-api#find-results) |

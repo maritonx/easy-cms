@@ -1042,6 +1042,11 @@ export interface Config {
    */
   readonly email?: EmailAdapter
   /**
+   * Keeps a log of every email sent, for Settings → Email: recipients, subject, kind and how it
+   * went, never the content. Kept 30 days by default; `false` keeps none.
+   */
+  readonly emailLog?: false | { readonly keepDays?: number }
+  /**
    * Database backups, made on a schedule and from the admin (Settings → Backups). Without
    * `every`, admins can still back up by hand.
    */

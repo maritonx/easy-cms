@@ -148,9 +148,10 @@ export function membersEndpoints(options: Options): Endpoint[] {
           // doesn't tell who has an account.
           let invited = false
           if (cms.auth.canSendPasswordLinks(url.origin)) {
-            await cms.sendEmail(
-              await addedEmail(cms, options.tenantsSlug, tenant, email, url.origin),
-            )
+            await cms.sendEmail({
+              ...(await addedEmail(cms, options.tenantsSlug, tenant, email, url.origin)),
+              tag: 'member-added',
+            })
             invited = true
           }
           return Response.json(

@@ -2,6 +2,7 @@
 import type { AdminEmail, EmailCheck } from '@easy-cms/core'
 import { ChevronRight, PlugZap, Send } from '@lucide/vue'
 import { computed, onMounted, ref, useId } from 'vue'
+import EmailLog from '../components/EmailLog.vue'
 import PanelSkeleton from '../components/PanelSkeleton.vue'
 import { ApiError, api } from '../lib/api'
 import { locale, t } from '../lib/i18n'
@@ -199,6 +200,7 @@ const docs = computed(() => `https://easycms.dev${locale.value === 'th' ? '/th' 
         </RouterLink>
       </section>
     </div>
+    <EmailLog v-if="email?.configured" />
   </template>
 </template>
 

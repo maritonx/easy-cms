@@ -42,6 +42,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `onRequest` | `OnRequest \| OnRequest[]`: `({ headers, url, user, cms }) => { context?, user? }` | — | ทำงานทุก request ของ API เมื่อรู้ผู้ใช้แล้ว: คืน `context` ของ request (เช่น tenant) และเปลี่ยนผู้ใช้ได้ (บทบาทใน tenant นั้น, `scoped`) ปกติ plugin เป็นผู้ตั้ง ถ้าเป็นรายการจะทำงานตามลำดับ แต่ละตัวได้ผู้ใช้ที่ตัวก่อนหน้าคืนมา และรวม `context` ของทุกตัวเข้าด้วยกัน [Multi-tenant](/th/guide/multi-tenant#how-it-works) |
 | `apiKeys` | `boolean` | `false` | API key ใต้ตั้งค่า สำหรับสคริปต์และแอปอื่น [API keys](/th/guide/api-keys) |
 | `email` | `EmailAdapter` | — | ส่งอีเมลให้ plugin เช่น `smtp()` หรือ `consoleEmail()` [อีเมล](/th/guide/email) |
+| `emailLog` | `false \| { keepDays? }` | `{ keepDays: 30 }` | บันทึกอีเมลที่ส่งในหน้าตั้งค่า → Email โดยไม่เก็บเนื้อหา [บันทึกอีเมล](/th/guide/email#the-email-log) |
 | `backups` | `BackupsConfig` | กดทำเองเท่านั้น | backup ฐานข้อมูลตามรอบ ดู [backups](#backups) |
 | `audit` | `boolean \| AuditConfig` | ปิด | audit log: ใครแก้อะไร การเข้าสู่ระบบ การจัดการระบบ ดู [audit](#audit) |
 | `countCacheSeconds` | `number` | `5` | กี่วินาทีที่ใช้ผลนับของ list (`totalDocs`, `totalPages`) ซ้ำสำหรับ query เดียวกัน ตัวเอกสารเป็นปัจจุบันเสมอ `0`: นับทุกครั้ง [การนับ](/th/guide/local-api#find-results) |

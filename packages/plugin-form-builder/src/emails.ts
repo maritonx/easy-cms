@@ -113,6 +113,8 @@ export function buildEmails(context: EmailContext): EmailMessage[] {
       subject,
       html,
       text,
+      // The email log (Settings → Email) groups them by form.
+      tag: `form:${String(form.slug ?? form.title ?? form.id ?? '')}`,
     })
   }
   return out

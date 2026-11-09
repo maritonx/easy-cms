@@ -41,7 +41,7 @@ import {
   listDeliveries,
   retryFailedDeliveries,
 } from './admin-deliveries.js'
-import { adminEmail, sendTestEmail, verifyEmail } from './admin-email.js'
+import { adminEmail, adminEmailLog, sendTestEmail, verifyEmail } from './admin-email.js'
 import { adminJobs, hasJobsPage, retryOutbox, retryScheduled, updateJob } from './admin-jobs.js'
 import { readAdminModule } from './admin-modules.js'
 import { adminSchema } from './admin-schema.js'
@@ -747,6 +747,11 @@ async function route(
     if (action === undefined) {
       if (method !== 'GET') throw methodNotAllowed(ctx, 'GET')
       return { body: adminEmail(cms) }
+    }
+    // The emails sent: who, what kind, how it went (never their content).
+    if (action === 'log') {
+      if (method !== 'GET') throw methodNotAllowed(ctx, 'GET')
+      return { body: await adminEmailLog(cms, ctx.url) }
     }
     if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
     if (action === 'verify') return { body: await verifyEmail(cms) }

@@ -2522,6 +2522,15 @@ test.describe('logged in as admin', () => {
     await login.getByRole('button', { name: 'Send the link' }).click()
     await expect(login.getByText(/If an account has the email someone@e2e\.test/)).toBeVisible()
     await visitor.close()
+
+    // Settings → Email lists the invitation: who, what kind, sent; never the link in it.
+    await page.goto('/admin/email')
+    const emails = page.getByRole('region', { name: 'Emails sent' })
+    await emails.getByRole('combobox', { name: 'Kind' }).selectOption('invite')
+    const row = emails.getByRole('row').filter({ hasText: 'invitee@e2e.test' }).first()
+    await expect(row).toContainText('Invitation')
+    await expect(row).toContainText('Sent')
+    await expect(emails).not.toContainText('reset-password?token=')
   })
 
   test('gives roles permissions without code in Settings → Roles (auth.rbac)', async ({ page }) => {

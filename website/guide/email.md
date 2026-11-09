@@ -98,7 +98,8 @@ await cms.sendEmail({
 ```
 
 `to`, `cc` and `bcc` take one address or a list; `from` and `replyTo` are optional. Escape
-anything that comes from visitors before you put it in `html`.
+anything that comes from visitors before you put it in `html`. `tag` (e.g. `'comment'`) names the
+kind of email in the [log](#the-email-log); it isn't sent.
 
 ## Queued and retried
 
@@ -114,6 +115,25 @@ pick up what didn't finish.
 
 The table is created only when `email` is set: add it with a migration
 (`easy-cms migrate:create email`).
+
+## The email log {#the-email-log}
+
+**Settings → Email** lists every email sent in the last 30 days, newest first: when, to whom (the
+number of blind copies, not who), the subject, its kind and how it went (sent, waiting with how many
+tries, or not sent with why). Search by recipient or subject, or show one state or kind. Only admins
+of the whole site see it.
+
+It never keeps what an email said: password links and invitations sign people in, and forms carry
+what visitors typed. Kinds come from `tag`: Easy CMS's own are `password-reset`, `invite`,
+`password-changed`, `verify-email`, `member-added`, `order:confirmation`, `order:new`, `order:paid`
+and `form:<form>`.
+
+```ts
+emailLog: { keepDays: 90 }, // default 30; `false` keeps no log
+```
+
+The log is the internal `email-log` table, made when `email` is set: add it with a migration
+(see [Upgrading](./upgrading)). Test emails from Settings → Email aren't in it.
 
 ## Your own adapter
 
