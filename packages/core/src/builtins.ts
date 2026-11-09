@@ -22,6 +22,7 @@ export const BULK_OPERATIONS = 'bulk-operations'
 export const SAVED_VIEWS = 'saved-views'
 export const CONNECTIONS = 'connections'
 export const AI_USAGE = 'ai-usage'
+export const EMAIL_LOG = 'email-log'
 export const ADMIN_SETTINGS = 'admin-settings'
 
 /** Collections Easy CMS uses internally. Not exposed over REST or in the admin UI. */
@@ -43,6 +44,7 @@ export const INTERNAL_COLLECTIONS: ReadonlySet<string> = new Set([
   SAVED_VIEWS,
   CONNECTIONS,
   AI_USAGE,
+  EMAIL_LOG,
   ADMIN_SETTINGS,
 ])
 
@@ -621,6 +623,28 @@ export const adminSettingsCollection: CollectionConfig = {
   fields: [
     { name: 'key', type: 'text', required: true, unique: true },
     { name: 'value', type: 'json' },
+  ],
+}
+
+/**
+ * Every email sent (Settings → Email): who, what kind and how it went, never its content (links
+ * in it sign people in). Kept `emailLog.keepDays` (30).
+ */
+export const emailLogCollection: CollectionConfig = {
+  slug: EMAIL_LOG,
+  access: { read: nobody, create: nobody, update: nobody, delete: nobody },
+  fields: [
+    { name: 'to', type: 'text', required: true },
+    { name: 'cc', type: 'text' },
+    { name: 'bcc', type: 'number' },
+    { name: 'subject', type: 'text' },
+    { name: 'tag', type: 'text', index: true },
+    // sent | pending | failed
+    { name: 'state', type: 'text', required: true, index: true },
+    { name: 'attempts', type: 'number' },
+    { name: 'error', type: 'text' },
+    { name: 'adapter', type: 'text' },
+    { name: 'sentAt', type: 'text' },
   ],
 }
 

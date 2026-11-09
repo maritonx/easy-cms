@@ -13,7 +13,39 @@ export interface EmailMessage {
   readonly subject: string
   readonly html?: string
   readonly text?: string
+  /**
+   * What kind of email it is, e.g. `password-reset` or `form:contact`: shown and filtered in the
+   * admin's email log. Not sent.
+   */
+  readonly tag?: string
 }
+
+/** One email in the log (Settings → Email): who, what and how it went, never its content. */
+export interface EmailLogEntry {
+  to: string
+  cc: string | null
+  /** How many were blind-copied; who isn't kept. */
+  bcc: number
+  subject: string
+  tag: string | null
+  state: 'sent' | 'pending' | 'failed'
+  attempts: number
+  error: string | null
+  /** The email adapter's name, e.g. `smtp`. */
+  adapter: string
+  sentAt: string | null
+}
+
+/** Where the log is kept (`email-log`). */
+export interface EmailLogStore {
+  add(entry: EmailLogEntry): Promise<ID>
+  update(id: ID, patch: Partial<EmailLogEntry>): Promise<void>
+}
+
+/** The log's key inside a queued email's JSON; not sent. */
+const LOG_KEY = '$log'
+const list = (value: string | readonly string[] | undefined) =>
+  value === undefined ? [] : [value].flat()
 
 /**
  * Sends email for Easy CMS and its plugins (form notifications, and more later). Set one in
@@ -117,7 +149,22 @@ export class Mailer {
     private readonly adapter: EmailAdapter | undefined,
     private readonly logger: Logger,
     private readonly queue?: EmailQueue,
+    private readonly log?: EmailLogStore,
   ) {}
+
+  /** Writes to the log; a failure there never stops the email. */
+  private async logged<T>(write: () => Promise<T>): Promise<T | undefined> {
+    try {
+      return await write()
+    } catch (error) {
+      this.logger.error(`Could not write the email log: ${(error as Error).message}`, { error })
+      return undefined
+    }
+  }
+  private note(id: unknown, patch: Partial<EmailLogEntry>) {
+    if (this.log && id !== undefined && id !== null)
+      return this.logged(() => (this.log as EmailLogStore).update(id as ID, patch))
+  }
 
   /** Told when an email is given up on (`delivery.failed`). */
   onGiveUp: ((detail: { to: string; error: string; attempts: number }) => void) | undefined
@@ -138,7 +185,23 @@ export class Mailer {
       )
       return
     }
-    const body = JSON.stringify(message)
+    const logId = this.log
+      ? await this.logged(() =>
+          (this.log as EmailLogStore).add({
+            to: list(message.to).join(', '),
+            cc: list(message.cc).join(', ') || null,
+            bcc: list(message.bcc).length,
+            subject: message.subject,
+            tag: message.tag ?? null,
+            state: 'pending',
+            attempts: 0,
+            error: null,
+            adapter: (this.adapter as EmailAdapter).name ?? 'email',
+            sentAt: null,
+          }),
+        )
+      : undefined
+    const body = JSON.stringify(logId === undefined ? message : { ...message, [LOG_KEY]: logId })
     let id: ID | undefined
     try {
       id = await this.queue?.add({
@@ -173,9 +236,16 @@ export class Mailer {
         nextAttemptAt: later(now, CLAIM),
       })
       if (!claimed) continue
-      const error = await this.attempt(JSON.parse(queued.message) as EmailMessage)
+      const parsed = JSON.parse(queued.message) as EmailMessage & { [LOG_KEY]?: ID }
+      const error = await this.attempt(parsed)
       if (!error) {
         await this.queue.remove(id)
+        await this.note(parsed[LOG_KEY], {
+          state: 'sent',
+          attempts,
+          error: null,
+          sentAt: new Date().toISOString(),
+        })
         sent++
         continue
       }
@@ -193,6 +263,11 @@ export class Mailer {
         state: delay === undefined ? 'failed' : 'pending',
         error,
       })
+      await this.note(parsed[LOG_KEY], {
+        state: delay === undefined ? 'failed' : 'pending',
+        attempts,
+        error,
+      })
     }
     return { sent, failed }
   }
@@ -200,7 +275,13 @@ export class Mailer {
   /** One attempt now for a saved email (the admin's Retry): `undefined` when sent, else the error. */
   async sendNow(message: string): Promise<string | undefined> {
     if (!this.adapter) return 'email is not set up (`email` in the config)'
-    return this.attempt(JSON.parse(message) as EmailMessage)
+    const parsed = JSON.parse(message) as EmailMessage & { [LOG_KEY]?: ID }
+    const error = await this.attempt(parsed)
+    await this.note(
+      parsed[LOG_KEY],
+      error ? { error } : { state: 'sent', error: null, sentAt: new Date().toISOString() },
+    )
+    return error
   }
 
   private track(delivery: Promise<void>) {
@@ -213,15 +294,19 @@ export class Mailer {
   }
 
   private async deliver(message: EmailMessage, body: string, id: ID | undefined) {
+    const logId = (JSON.parse(body) as { [LOG_KEY]?: ID })[LOG_KEY]
     const error = await this.attempt(message)
     if (!error) {
       if (id !== undefined) await this.queue?.remove(id)
+      await this.note(logId, { state: 'sent', attempts: 1, sentAt: new Date().toISOString() })
       return
     }
     if (id === undefined || !this.queue) {
       this.logger.error(`Email "${message.subject}" failed: ${error}`)
+      await this.note(logId, { state: 'failed', attempts: 1, error })
       return
     }
+    await this.note(logId, { state: 'pending', attempts: 1, error })
     this.logger.warn(`Email "${message.subject}" failed, retrying later: ${error}`)
     await this.queue.update(id, {
       message: body,
@@ -237,8 +322,10 @@ export class Mailer {
     const adapter = this.adapter as EmailAdapter
     const from = message.from ?? adapter.from
     if (!from) return 'no sender: set `from` on the message or the email adapter'
+    // What the log and the admin use stays here.
+    const { tag: _tag, [LOG_KEY]: _log, ...email } = message as EmailMessage & { [LOG_KEY]?: ID }
     try {
-      await adapter.send({ ...message, from })
+      await adapter.send({ ...email, from })
       return undefined
     } catch (error) {
       return (error as Error).message || String(error)

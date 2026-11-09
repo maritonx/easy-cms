@@ -382,6 +382,7 @@ export function ecommercePlugin<const Cur extends string = 'THB'>(
     write: OrderEmailFn | false | undefined,
     to: string | readonly string[],
     order: OrderDoc,
+    tag: string,
   ) => {
     if (!write || !cms.config.email) return
     const currency =
@@ -390,7 +391,7 @@ export function ecommercePlugin<const Cur extends string = 'THB'>(
     const adapter = methods.get(String(order.paymentMethod))
     const instructions = adapter?.instructions ? labelText(adapter.instructions, locale) : null
     const content = await write({ order, locale, currency, instructions, cms })
-    await cms.sendEmail({ to: typeof to === 'string' ? to : [...to], ...content })
+    await cms.sendEmail({ to: typeof to === 'string' ? to : [...to], ...content, tag })
   }
 
   const shop: Shop = {
@@ -415,12 +416,25 @@ export function ecommercePlugin<const Cur extends string = 'THB'>(
             emails.orderConfirmation ?? orderConfirmation,
             order.email,
             order,
+            'order:confirmation',
           )
           if (emails.notify)
-            await sendOrderEmail(cms, emails.newOrder ?? newOrder, emails.notify, order)
+            await sendOrderEmail(
+              cms,
+              emails.newOrder ?? newOrder,
+              emails.notify,
+              order,
+              'order:new',
+            )
         }
         if (event === 'paid')
-          await sendOrderEmail(cms, emails.paymentReceived ?? paymentReceived, order.email, order)
+          await sendOrderEmail(
+            cms,
+            emails.paymentReceived ?? paymentReceived,
+            order.email,
+            order,
+            'order:paid',
+          )
       } catch (error) {
         cms.logger.error(
           `Shop: email for order ${order.orderNumber}: ${(error as Error).message}`,

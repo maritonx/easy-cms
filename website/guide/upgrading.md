@@ -31,6 +31,8 @@ Invalid Easy CMS config (1 problem):
   `npx easy-cms migrate:create` and commit the migration, then `npx easy-cms migrate` where you
   deploy; a production server refuses to start until the migration is applied. Backups made before
   are shown as kept on the server.
+- **Apps with `email` keep a log of emails sent** (Settings → Email): a new `email-log` table,
+  in the same migration. `emailLog: false` keeps none; see [the email log](./email#the-email-log).
 - **OAuth integrations take their app's keys in the admin** (Integrations → the provider → App keys);
   environment variables such as `META_APP_ID` still win.
 

@@ -135,6 +135,7 @@ export { slugify } from './document.js'
 export {
   consoleEmail,
   type EmailAdapter,
+  type EmailLogEntry,
   type EmailMessage,
   type EmailSetting,
 } from './email.js'
@@ -222,7 +223,7 @@ export type {
   DeliveryKind,
   DeliveryState,
 } from './rest/admin-deliveries.js'
-export type { AdminEmail, EmailCheck } from './rest/admin-email.js'
+export type { AdminEmail, AdminEmailLog, EmailCheck } from './rest/admin-email.js'
 export type {
   AdminJob,
   AdminJobs,

@@ -82,6 +82,7 @@ export function validateConfig(config: Config): ConfigIssue[] {
   validateLogs(config, add)
   validateCountCache(config, add)
   validateOutbox(config, add)
+  validateEmailLog(config, add)
   validateSearch(config, add)
   validateTelemetry(config, add)
   validateMaxPage(config, add)
@@ -888,6 +889,15 @@ function validateMaxPage(config: Config, add: Add) {
   const max: unknown = config.maxPage
   if (max !== undefined && !(Number.isInteger(max) && (max as number) >= 1))
     add('maxPage', 'must be a whole number, 1 or more')
+}
+
+function validateEmailLog(config: Config, add: Add) {
+  const value: unknown = config.emailLog
+  if (value === undefined || value === false) return
+  const keepDays = (value as { keepDays?: unknown } | null)?.keepDays
+  if (typeof value !== 'object' || value === null) add('emailLog', 'must be false or { keepDays }')
+  else if (keepDays !== undefined && !(Number.isInteger(keepDays) && (keepDays as number) >= 1))
+    add('emailLog.keepDays', 'must be a whole number of days, 1 or more')
 }
 
 function validateOutbox(config: Config, add: Add) {
