@@ -46,6 +46,7 @@ describe('resolveConfig', () => {
       'sessions',
       'login-attempts',
       'database-backups',
+      'admin-settings',
       'bulk-operations',
       'saved-views',
     ])

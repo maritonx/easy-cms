@@ -67,14 +67,15 @@ Posts go to Pages you manage through a **Meta app** of your own:
    and add **Facebook Login for Business**.
 2. In its settings, add the redirect URI
    `https://example.com/api/cms/admin/integrations/facebook-page/callback` (your `serverURL`).
-3. Set the app's id and secret on the server:
+3. In **Settings → Integrations → Facebook Page → App keys**, paste the app's id and secret (the
+   card shows the redirect URI to copy). Or set them on the server, which wins:
 
 ```bash
 META_APP_ID=1234567890
 META_APP_SECRET=…
 ```
 
-Then **Settings → Integrations → Facebook Page → Connect with Facebook Page**: Facebook asks you to log
+Then **Connect with Facebook Page**: Facebook asks you to log
 in and allow the app to manage your Pages; back in the admin, choose the Page. Each Page you connect is
 one channel. The admin gets a Page token that doesn't expire unless you take the app's access back, or
 change your Facebook password: then the card shows the error, and you connect the Page again.

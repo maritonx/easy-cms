@@ -131,8 +131,13 @@ export function sqlite(options: SQLiteAdapterOptions): DatabaseAdapter {
         },
         close: async () => client.close(),
       }
-      return connectDatabase(sqliteDialect, connection, args, options)
+      // A remote database (Turso) can't write a file here: backups copy it instead (`backupAdapter`).
+      const { backupSQL: _local, ...remote } = sqliteDialect
+      const dialect: Dialect = options.url.startsWith('file:') ? sqliteDialect : remote
+      return connectDatabase(dialect, connection, args, options)
     },
+    // Remote databases are backed up into a local SQLite file, table by table.
+    ...(options.url.startsWith('file:') ? {} : { backupAdapter: sqlite }),
     bundle: {
       get traceInclude() {
         traceInclude ??= nativeBinaries()

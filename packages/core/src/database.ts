@@ -234,6 +234,11 @@ export interface DatabaseAdapter {
   init(args: DatabaseInitArgs): Promise<Database>
   /** Hints for bundlers (Nitro, Next.js output tracing) about files static analysis cannot find. */
   readonly bundle?: BundleHints
+  /**
+   * The SQLite adapter backups are copied into when the database can't copy itself to a file,
+   * e.g. a remote libSQL (Turso) database. `backups.sqlite` wins.
+   */
+  readonly backupAdapter?: (options: { url: string; tablePrefix?: string }) => DatabaseAdapter
 }
 
 export interface BundleHints {

@@ -27,7 +27,7 @@ import { notify } from '../lib/toast'
  * drawer with its accounts (`?open=<id>`).
  */
 
-type Category = 'social' | 'ai' | 'notifications' | 'automation'
+type Category = 'social' | 'ai' | 'notifications' | 'automation' | 'backups'
 interface Field {
   name: string
   label?: Label
@@ -69,6 +69,14 @@ interface Integration {
   /** Accepted before the first connection (AI providers' privacy). */
   consent?: { text: Label; policy?: string }
   consented?: { at: string; by: string } | null
+  /** OAuth: the app's keys at the provider, entered before connecting. */
+  app?: {
+    fields: Field[]
+    envFields: string[]
+    values: Record<string, string>
+    complete: boolean
+    redirectUri: string
+  }
 }
 interface Overview {
   integrations: Integration[]
@@ -81,7 +89,14 @@ const route = useRoute()
 const router = useRouter()
 const data = ref<Overview | null>(null)
 const error = ref('')
-const CATEGORIES: (Category | 'code')[] = ['social', 'ai', 'notifications', 'automation', 'code']
+const CATEGORIES: (Category | 'code')[] = [
+  'social',
+  'ai',
+  'notifications',
+  'automation',
+  'backups',
+  'code',
+]
 const category = computed(() => {
   const value = route.query.category
   return typeof value === 'string' && (CATEGORIES as string[]).includes(value) ? value : null
@@ -254,6 +269,40 @@ const errors = ref<Record<string, string>>({})
 const busy = ref(false)
 /** The integration whose consent is shown before connecting. */
 const consenting = ref<string | null>(null)
+// The OAuth app's keys (client id and secret): open until set, then folded away.
+const appForm = ref<Record<string, string>>({})
+const appErrors = ref<Record<string, string>>({})
+const appOpen = ref(false)
+const appSaving = ref(false)
+watch(
+  () => openIntegration.value?.id,
+  () => {
+    const app = openIntegration.value?.app
+    appForm.value = Object.fromEntries(
+      (app?.fields ?? []).map((f) => [f.name, f.secret ? '' : (app?.values[f.name] ?? '')]),
+    )
+    appErrors.value = {}
+    appOpen.value = !!app && !app.complete
+  },
+  { immediate: true },
+)
+async function saveApp(integration: Integration) {
+  appSaving.value = true
+  appErrors.value = {}
+  try {
+    await api('PUT', `/admin/integrations/${integration.id}/app`, { values: appForm.value })
+    notify('success', t('integrations.appSaved'))
+    appOpen.value = false
+    await load()
+  } catch (e) {
+    if (e instanceof ApiError && e.errors.length)
+      for (const item of e.errors) appErrors.value[item.field ?? ''] = item.message
+    else notify('error', (e as Error).message)
+  } finally {
+    appSaving.value = false
+  }
+}
+
 async function accept(integration: Integration) {
   try {
     await api('POST', `/admin/integrations/${integration.id}/consent`)
@@ -576,6 +625,43 @@ const fieldLabel = (field: Field) => label(field.label, field.name)
             </p>
             <p v-if="integration.consented" class="muted small">{{ t('integrations.consentedBy', { who: integration.consented.by, date: formatDate(integration.consented.at) }) }}</p>
 
+            <section v-if="integration.app" class="app-keys" :aria-labelledby="`app-${integration.id}`">
+              <h3 :id="`app-${integration.id}`">{{ t('integrations.appKeys') }}</h3>
+              <template v-if="!appOpen">
+                <p class="muted small">
+                  <CheckCircle2 v-if="integration.app.complete" :size="13" aria-hidden="true" />
+                  {{ integration.app.complete ? t('integrations.appSet') : t('integrations.appMissing') }}
+                  <button v-if="integration.app.envFields.length < integration.app.fields.length" type="button" class="btn btn-sm btn-ghost" @click="appOpen = true">{{ t('integrations.edit') }}</button>
+                </p>
+              </template>
+              <form v-else class="connect" novalidate @submit.prevent="saveApp(integration)">
+                <p class="muted small">{{ t('integrations.appHint') }}</p>
+                <label class="field">
+                  <span class="field-label">{{ t('integrations.redirectUri') }}</span>
+                  <span class="copy-row">
+                    <code>{{ integration.app.redirectUri }}</code>
+                    <button type="button" class="btn btn-sm btn-icon" :aria-label="t('integrations.copy')" :title="t('integrations.copy')" @click="copy(integration.app.redirectUri)"><Copy :size="14" aria-hidden="true" /></button>
+                  </span>
+                </label>
+                <label v-for="field in integration.app.fields" :key="field.name" class="field">
+                  <span class="field-label">{{ label(field.label ?? field.name, field.name) }}<span v-if="field.required" class="field-required" aria-hidden="true">*</span></span>
+                  <input
+                    v-model="appForm[field.name]"
+                    class="input"
+                    :type="field.secret ? 'password' : 'text'"
+                    autocomplete="off"
+                    :disabled="integration.app.envFields.includes(field.name)"
+                    :placeholder="integration.app.envFields.includes(field.name) ? t('integrations.fromEnv') : field.secret && integration.app.values[field.name] ? integration.app.values[field.name] : ''"
+                  />
+                  <span v-if="appErrors[field.name]" class="field-error" role="alert">{{ appErrors[field.name] }}</span>
+                </label>
+                <div class="actions end">
+                  <button v-if="integration.app.complete" type="button" class="btn btn-ghost" @click="appOpen = false">{{ t('common.cancel') }}</button>
+                  <button type="submit" class="btn btn-primary" :disabled="appSaving">{{ t('integrations.save') }}</button>
+                </div>
+              </form>
+            </section>
+
             <section :aria-labelledby="`conn-${integration.id}`">
               <h3 :id="`conn-${integration.id}`">{{ t('integrations.connections') }}</h3>
               <ul v-if="integration.connections.length" class="connections">
@@ -664,7 +750,7 @@ const fieldLabel = (field: Field) => label(field.label, field.name)
                 </button>
               </div>
             </form>
-            <button v-else-if="integration.enabled && consenting !== integration.id" type="button" class="btn add" @click="startAdding(integration)">
+            <button v-else-if="integration.enabled && consenting !== integration.id" type="button" class="btn add" :disabled="!!integration.app && !integration.app.complete" @click="startAdding(integration)">
               <Plus :size="14" aria-hidden="true" /> {{ t('integrations.add') }}
             </button>
           </div>
@@ -685,6 +771,18 @@ const fieldLabel = (field: Field) => label(field.label, field.name)
 </template>
 
 <style scoped>
+.app-keys {
+  margin-bottom: 1rem;
+}
+.copy-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.copy-row code {
+  overflow-wrap: anywhere;
+  font-size: 0.8125rem;
+}
 .intro {
   margin: 0 0 1rem;
 }

@@ -2405,6 +2405,18 @@ test.describe('logged in as admin', () => {
     const latest = page.getByRole('region', { name: 'Backups' }).getByRole('listitem').first()
     await expect(latest).toContainText('Done', { timeout: 20_000 })
     await expect(latest).toContainText(/\.db\.gz/)
+    // Where it is: this server (no destination connected in the examples).
+    await expect(latest).toContainText('This server: kept')
+    // The settings the config doesn't set are changed here (#395).
+    const settings = page.getByRole('region', { name: 'Settings' })
+    const keep = settings.getByRole('spinbutton', { name: 'Keep' })
+    if (await keep.isEnabled()) {
+      await keep.fill('5')
+      await settings.getByRole('button', { name: 'Save settings' }).click()
+      await expect(page.getByRole('status')).toHaveText('Backup settings saved')
+      await page.reload()
+      await expect(keep).toHaveValue('5')
+    } else await expect(settings.getByText('Set in the code').first()).toBeVisible()
     const href = await latest.getByRole('link', { name: 'Download' }).getAttribute('href')
     const file = await page.request.get(href as string)
     expect(file.status()).toBe(200)

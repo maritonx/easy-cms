@@ -13,7 +13,13 @@ import { type Session, SIGNUP_HONEYPOT } from '../auth/auth.js'
 import { cookieValue, hostCookie, SESSION_COOKIE } from '../auth/cookie.js'
 import { passwordFor, SSO_COOKIE } from '../auth/sso.js'
 import { safeEqual } from '../auth/tokens.js'
-import { deleteBackup, downloadBackup, listBackups, startBackup } from '../backups.js'
+import {
+  deleteBackup,
+  downloadBackup,
+  listBackups,
+  saveBackupSettings,
+  startBackup,
+} from '../backups.js'
 import { INTERNAL_COLLECTIONS, MEDIA, USERS } from '../builtins.js'
 import { bulkIds, bulkOperations, bulkProgress, cancelBulk, startBulk } from '../bulk.js'
 import type { CollectionConfig, Config, GlobalConfig } from '../config.js'
@@ -709,6 +715,11 @@ async function route(
       }
       throw methodNotAllowed(ctx, 'GET, POST')
     }
+    // Settings → Backups: when, how many, and where they go.
+    if (id === 'settings' && action === undefined) {
+      if (method !== 'PUT') throw methodNotAllowed(ctx, 'PUT')
+      return { body: await saveBackupSettings(cms, await readJson(ctx.request), ctx.user) }
+    }
     const parsed = parseId(id)
     if (parsed === undefined) throw new HttpError('Not found', 404)
     if (action === 'download') {
@@ -966,9 +977,19 @@ async function route(
     const integrations = cms.integrations
     if (id === undefined) {
       if (method !== 'GET') throw methodNotAllowed(ctx, 'GET')
-      return { body: await integrations.overview() }
+      return {
+        body: await integrations.overview(
+          `${cms.config.serverURL ?? ctx.url.origin}${cms.config.routes.api}/admin/integrations`,
+        ),
+      }
     }
     const callbackUrl = `${cms.config.serverURL ?? ctx.url.origin}${cms.config.routes.api}/admin/integrations/${id}/callback`
+    // An OAuth app's keys (client id and secret): admins of the whole site only.
+    if (part === 'app' && cid === undefined) {
+      if (method !== 'PUT') throw methodNotAllowed(ctx, 'PUT')
+      if (!isSystemAdmin(user)) throw new ForbiddenError()
+      return { body: await integrations.setApp(id, await readJson(ctx.request), user) }
+    }
     if (part === undefined) {
       if (method !== 'PUT') throw methodNotAllowed(ctx, 'PUT')
       const body = (await readJson(ctx.request)) as { enabled?: unknown }

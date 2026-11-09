@@ -10,7 +10,7 @@ import type { EasyCMS } from './local-api.js'
 // Integrations (#311): plugins declare outside providers (`integrations` in the config), and
 // admins connect accounts to them on the Integrations page. Secrets are encrypted at rest.
 
-export type IntegrationCategory = 'social' | 'ai' | 'notifications' | 'automation'
+export type IntegrationCategory = 'social' | 'ai' | 'notifications' | 'automation' | 'backups'
 
 /**
  * A provider's logo: SVG paths, e.g. from simple-icons. Without `fill`, a path takes `color` (the
@@ -68,6 +68,17 @@ export interface IntegrationOAuthResult {
   }[]
 }
 
+/**
+ * Where an integration keeps backups (Settings → Backups): files by name in the connected account.
+ * Throw an error with `permanent: true` when trying again won't help (a revoked token).
+ */
+export interface BackupDestination {
+  /** Stores a file; may return a link that opens it at the provider. */
+  put(name: string, data: Uint8Array): Promise<{ link?: string } | undefined>
+  get(name: string): Promise<Uint8Array | null>
+  delete(name: string): Promise<void>
+}
+
 /** An outside provider a plugin connects to (`integrations` in the config). */
 export interface IntegrationConfig {
   /** Lowercase letters, digits and `-`, e.g. `telegram`. */
@@ -91,10 +102,23 @@ export interface IntegrationConfig {
   readonly env?: Readonly<Record<string, string>>
   /** For `kind: 'oauth'`: the provider's sign-in page, and turning its code into tokens. */
   readonly oauth?: {
-    readonly authorizeUrl: (args: { redirectUri: string; state: string }) => string
+    /**
+     * The app's own keys at the provider (a client id and secret), entered once in the admin
+     * (secrets encrypted) or set in the environment, which wins. Passed as `app` below.
+     */
+    readonly app?: {
+      readonly fields: readonly IntegrationField[]
+      readonly env?: Readonly<Record<string, string>>
+    }
+    readonly authorizeUrl: (args: {
+      redirectUri: string
+      state: string
+      app: Readonly<Record<string, string>>
+    }) => string
     readonly exchange: (args: {
       code: string
       redirectUri: string
+      app: Readonly<Record<string, string>>
     }) => Promise<IntegrationOAuthResult> | IntegrationOAuthResult
   }
   /** Checks the values without posting anything; `name` is the connection's. */
@@ -107,6 +131,11 @@ export interface IntegrationConfig {
    * site: an admin accepts it, and who did is audit-logged.
    */
   readonly consent?: { readonly text: Label; readonly policy?: string }
+  /** A place backups can go (category `backups`): its connections are offered in Settings → Backups. */
+  readonly backups?: (
+    values: Readonly<Record<string, string>>,
+    args: { cms: EasyCMS },
+  ) => BackupDestination | Promise<BackupDestination>
 }
 
 /** A connection as plugins read it: its values, secrets decrypted. */
@@ -225,6 +254,17 @@ export interface AdminIntegration {
   /** Asked before the first connection; `consented` says who accepted it. */
   consent?: { text: Label; policy?: string }
   consented?: { at: string; by: string } | null
+  /**
+   * OAuth: the app's keys at the provider, set before connecting. `values` has secrets masked;
+   * `redirectUri` is what the provider's console needs.
+   */
+  app?: {
+    fields: AdminIntegrationField[]
+    envFields: string[]
+    values: Record<string, string>
+    complete: boolean
+    redirectUri: string
+  }
 }
 
 /** What the code configures: shown, not changed, on the Integrations page. */
@@ -317,6 +357,68 @@ export class Integrations {
     }
     return out
   }
+  /** The OAuth app's keys: the environment's, else what an admin entered. */
+  private async appValues(def: IntegrationConfig): Promise<Record<string, string>> {
+    const app = def.oauth?.app
+    if (!app) return {}
+    const [row] = await this.rows(def.id, 'integration')
+    const stored = ((row?.values as Data | null)?.app ?? {}) as Record<string, string>
+    let secret: Record<string, string> = {}
+    if (row?.secret) {
+      try {
+        secret = decryptValues(this.secrets, String(row.secret)).values
+      } catch {
+        secret = {}
+      }
+    }
+    const out: Record<string, string> = { ...stored, ...secret }
+    for (const [field, name] of Object.entries(app.env ?? {})) {
+      const value = process.env[name]
+      if (value) out[field] = value
+    }
+    return out
+  }
+  /** Whether the OAuth app's required keys are all there. */
+  private appComplete(def: IntegrationConfig, values: Record<string, string>): boolean {
+    return (def.oauth?.app?.fields ?? []).every((f) => !f.required || !!values[f.name])
+  }
+
+  /**
+   * Saves the OAuth app's keys: empty secrets keep the ones saved; those set in the
+   * environment can't be changed here. Audit-logged.
+   */
+  async setApp(id: string, body: unknown, user: AuthUser) {
+    const def = this.definition(id)
+    const app = def.oauth?.app
+    if (!app) throw new QueryError(`${id} has no app keys`)
+    const input = (typeof body === 'object' && body !== null ? body : {}) as Record<string, unknown>
+    const given = (input.values ?? {}) as Record<string, unknown>
+    const env = new Set(
+      Object.entries(app.env ?? {})
+        .filter(([, name]) => process.env[name])
+        .map(([field]) => field),
+    )
+    const [row] = await this.rows(id, 'integration')
+    const before = await this.appValues(def)
+    const plain: Record<string, string> = {}
+    const secret: Record<string, string> = {}
+    const errors: { field: string; message: string }[] = []
+    for (const field of app.fields) {
+      if (env.has(field.name)) continue
+      const raw = typeof given[field.name] === 'string' ? (given[field.name] as string).trim() : ''
+      const value = raw || (field.secret ? (before[field.name] ?? '') : '')
+      if (field.required && !value) errors.push({ field: field.name, message: 'is required' })
+      if (value) (field.secret ? secret : plain)[field.name] = value
+    }
+    if (errors.length) throw new ValidationError('connections', errors)
+    await this.saveIntegration(id, {
+      values: { ...((row?.values ?? {}) as Data), app: plain },
+      secret: Object.keys(secret).length ? encryptValues(this.config.secret, secret) : null,
+    })
+    await this.audit(user, 'app', id)
+    return { saved: true }
+  }
+
   /** Every field is in the environment: an "Environment" connection. */
   private envComplete(def: IntegrationConfig): boolean {
     const env = this.envValues(def)
@@ -424,7 +526,7 @@ export class Integrations {
 
   // --- The admin's page ------------------------------------------------------------------------
 
-  async overview(): Promise<{
+  async overview(redirectBase = ''): Promise<{
     integrations: AdminIntegration[]
     configured: ConfiguredService[]
     catalog: typeof OFFICIAL_PLUGINS
@@ -500,6 +602,7 @@ export class Integrations {
             }))
           : connections,
         ...(def.consent ? { consent: def.consent, consented: await this.consented(def.id) } : {}),
+        ...(def.oauth?.app ? { app: await this.adminApp(def, redirectBase) } : {}),
       })
     }
     const installed = new Set(this.config.installedPlugins.map((p) => p.name))
@@ -508,6 +611,26 @@ export class Integrations {
       configured: this.configured(),
       catalog: OFFICIAL_PLUGINS.filter((p) => !installed.has(p.name)),
       staleSecrets: stale,
+    }
+  }
+
+  /** The OAuth app's keys as the admin shows them: secrets masked. */
+  private async adminApp(def: IntegrationConfig, redirectBase: string) {
+    const app = def.oauth?.app
+    const values = await this.appValues(def)
+    const fields = app?.fields ?? []
+    return {
+      fields: fields.map(({ lookup: _lookup, ...field }) => field),
+      envFields: Object.entries(app?.env ?? {})
+        .filter(([, name]) => process.env[name])
+        .map(([field]) => field),
+      values: Object.fromEntries(
+        Object.entries(values).map(([k, v]) =>
+          fields.find((f) => f.name === k)?.secret ? [k, mask(v)] : [k, v],
+        ),
+      ),
+      complete: this.appComplete(def, values),
+      redirectUri: `${redirectBase}/${def.id}/callback`,
     }
   }
 
@@ -796,13 +919,16 @@ export class Integrations {
     if (def.kind !== 'oauth' || !def.oauth)
       throw new QueryError(`${id} connects with pasted values`)
     await this.checkConsent(def)
+    const app = await this.appValues(def)
+    if (!this.appComplete(def, app))
+      throw new QueryError(`Enter the app's keys for ${String(def.label)} first`)
     const state = signState(this.config.secret, {
       i: id,
       u: String(user.id),
       n: name,
       exp: Date.now() + PENDING_MS,
     })
-    return { url: def.oauth.authorizeUrl({ redirectUri, state }) }
+    return { url: def.oauth.authorizeUrl({ redirectUri, state, app }) }
   }
 
   /**
@@ -816,7 +942,7 @@ export class Integrations {
       throw new ForbiddenError(
         'This connection link has expired: start again from the Integrations page',
       )
-    const result = await def.oauth.exchange({ code, redirectUri })
+    const result = await def.oauth.exchange({ code, redirectUri, app: await this.appValues(def) })
     const name = typeof state.n === 'string' && state.n ? state.n : String(def.label)
     if (result.accounts && result.accounts.length > 0) {
       if (result.accounts.length === 1) {

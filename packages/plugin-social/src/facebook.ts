@@ -2,17 +2,18 @@ import { ChannelError, type SocialChannel, type SocialMessage } from './channel.
 import { FACEBOOK } from './logos.js'
 
 // Facebook Pages through the Graph API, without an SDK (#313). The Meta app's id and secret come
-// from META_APP_ID and META_APP_SECRET; FACEBOOK_GRAPH_URL and FACEBOOK_DIALOG_URL point tests at
+// entered in the admin, or from META_APP_ID and META_APP_SECRET; FACEBOOK_GRAPH_URL and FACEBOOK_DIALOG_URL point tests at
 // a stand-in, FACEBOOK_GRAPH_VERSION picks another API version.
 
 const version = () => process.env.FACEBOOK_GRAPH_VERSION ?? 'v26.0'
 const graph = () =>
   `${(process.env.FACEBOOK_GRAPH_URL ?? 'https://graph.facebook.com').replace(/\/+$/, '')}/${version()}`
-const app = () => {
-  const id = process.env.META_APP_ID
-  const secret = process.env.META_APP_SECRET
+/** The Meta app's id and secret, entered in the admin or set as META_APP_ID and META_APP_SECRET. */
+const app = (values: Readonly<Record<string, string>>) => {
+  const id = values.appId
+  const secret = values.appSecret
   if (!id || !secret)
-    throw new Error('Set META_APP_ID and META_APP_SECRET (your Meta app) to connect Facebook Pages')
+    throw new Error('Enter your Meta app’s id and secret to connect Facebook Pages')
   return { id, secret }
 }
 
@@ -55,15 +56,27 @@ export const facebook: SocialChannel = {
     category: 'social',
     icon: FACEBOOK,
     description: {
-      en: 'Posts to Facebook Pages you manage. Needs a Meta app: set META_APP_ID and META_APP_SECRET.',
-      th: 'โพสต์ไปยังเพจ Facebook ที่คุณดูแล ต้องมี Meta app: ตั้ง META_APP_ID และ META_APP_SECRET',
+      en: 'Posts to Facebook Pages you manage, through a Meta app of your own.',
+      th: 'โพสต์ไปยังเพจ Facebook ที่คุณดูแล ผ่าน Meta app ของคุณเอง',
     },
     docs: 'https://easycms.dev/docs/social#facebook-page',
     plugin: '@easy-cms/plugin-social',
     kind: 'oauth',
     oauth: {
-      authorizeUrl: ({ redirectUri, state }) => {
-        const { id } = app()
+      app: {
+        fields: [
+          { name: 'appId', label: { en: 'App ID', th: 'App ID' }, required: true },
+          {
+            name: 'appSecret',
+            label: { en: 'App secret', th: 'App secret' },
+            secret: true,
+            required: true,
+          },
+        ],
+        env: { appId: 'META_APP_ID', appSecret: 'META_APP_SECRET' },
+      },
+      authorizeUrl: ({ redirectUri, state, app: keys }) => {
+        const { id } = app(keys)
         const dialog = (process.env.FACEBOOK_DIALOG_URL ?? 'https://www.facebook.com').replace(
           /\/+$/,
           '',
@@ -79,8 +92,8 @@ export const facebook: SocialChannel = {
       },
       // The code → a user token → a long-lived one → the Pages it manages, each with a Page token
       // that doesn't expire (until the user takes it back).
-      exchange: async ({ code, redirectUri }) => {
-        const { id, secret } = app()
+      exchange: async ({ code, redirectUri, app: keys }) => {
+        const { id, secret } = app(keys)
         const short = await call('/oauth/access_token', {
           params: { client_id: id, client_secret: secret, redirect_uri: redirectUri, code },
         })
