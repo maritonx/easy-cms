@@ -169,6 +169,7 @@ export {
 } from './framework.js'
 export type * from './infer.js'
 export type {
+  BackupDestination,
   IntegrationCategory,
   IntegrationConfig,
   IntegrationConnection,

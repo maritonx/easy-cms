@@ -2,6 +2,7 @@ import { CORE_AI_FEATURES } from './ai.js'
 import { apiKeysCollection } from './api-keys.js'
 import { type AuditConfig, DEFAULT_AUDIT_KEEP, DEFAULT_FAILED_LOGINS } from './audit.js'
 import {
+  adminSettingsCollection,
   aiUsageCollection,
   auditLogsCollection,
   bulkOperationsCollection,
@@ -160,6 +161,7 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
       ...(config.outbox ? [outboxCollection] : []),
       ...(config.rateLimit ? [rateLimitsCollection] : []),
       databaseBackupsCollection,
+      adminSettingsCollection,
       bulkOperationsCollection,
       savedViewsCollection,
       ...(resolvedIntegrations(config).length > 0 ? [connectionsCollection] : []),

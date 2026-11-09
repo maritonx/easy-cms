@@ -2073,8 +2073,10 @@ function validateIntegrations(config: Config, add: Add) {
     else if (ids.has(item.id)) add(`${at}.id`, `two integrations are named "${item.id}"`)
     else ids.add(item.id)
     if (!isLabel(item.label)) add(`${at}.label`, 'must be a string or { en, th }')
-    if (!['social', 'ai', 'notifications', 'automation'].includes(item.category as string))
-      add(`${at}.category`, "must be 'social', 'ai', 'notifications' or 'automation'")
+    if (
+      !['social', 'ai', 'notifications', 'automation', 'backups'].includes(item.category as string)
+    )
+      add(`${at}.category`, "must be 'social', 'ai', 'notifications', 'automation' or 'backups'")
     if (item.kind === 'fields') {
       if (!Array.isArray(item.fields) || item.fields.length === 0)
         add(`${at}.fields`, 'needs at least one field to fill')

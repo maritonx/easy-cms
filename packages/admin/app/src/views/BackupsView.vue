@@ -1,7 +1,15 @@
 <script setup lang="ts">
 import type { AdminBackup, AdminBackups } from '@easy-cms/core'
-import { ChevronRight, DatabaseBackup, Download, Trash2, TriangleAlert } from '@lucide/vue'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import {
+  ChevronRight,
+  DatabaseBackup,
+  Download,
+  ExternalLink,
+  Trash2,
+  TriangleAlert,
+} from '@lucide/vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { RouterLink } from 'vue-router'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import PanelSkeleton from '../components/PanelSkeleton.vue'
 import { ApiError, api } from '../lib/api'
@@ -74,7 +82,73 @@ const schedule = computed(() => {
   if (!s?.frequency) return t('backups.manualOnly')
   return t(s.frequency === 'daily' ? 'backups.everyDay' : 'backups.everyWeek', { at: s.at })
 })
-const local = computed(() => data.value?.settings.storage === 'local')
+const local = computed(
+  () =>
+    data.value?.settings.storage === 'local' &&
+    data.value.settings.server &&
+    data.value.settings.destinations.length === 0,
+)
+
+// The settings form (#395): what the config sets is shown, not changed.
+const form = ref({
+  frequency: '' as '' | 'daily' | 'weekly',
+  at: '03:00',
+  keep: 7,
+  server: true,
+  destinations: {} as Record<string, { on: boolean; keep: string }>,
+})
+const formErrors = ref<Record<string, string>>({})
+const saving = ref(false)
+watch(data, (value) => {
+  if (!value) return
+  const chosen = new Map(value.settings.destinations.map((d) => [d.connection, d.keep]))
+  form.value = {
+    frequency: value.settings.frequency ?? '',
+    at: value.settings.at,
+    keep: value.settings.keep,
+    server: value.settings.server,
+    destinations: Object.fromEntries(
+      value.places.map((p) => [
+        p.id,
+        { on: chosen.has(p.id), keep: chosen.get(p.id) ? String(chosen.get(p.id)) : '' },
+      ]),
+    ),
+  }
+})
+const locked = (field: 'frequency' | 'at' | 'keep') =>
+  data.value?.settings.locked.includes(field) ?? false
+const unencrypted = computed(
+  () => !data.value?.settings.encrypted && Object.values(form.value.destinations).some((d) => d.on),
+)
+async function saveSettings() {
+  saving.value = true
+  formErrors.value = {}
+  try {
+    await api('PUT', '/admin/backups/settings', {
+      frequency: form.value.frequency || null,
+      at: form.value.at,
+      keep: Number(form.value.keep),
+      server: form.value.server,
+      destinations: Object.entries(form.value.destinations)
+        .filter(([, d]) => d.on)
+        .map(([connection, d]) => ({ connection, keep: d.keep ? Number(d.keep) : null })),
+    })
+    notify('success', t('backups.settingsSaved'))
+    await load()
+  } catch (e) {
+    if (e instanceof ApiError && e.errors.length)
+      for (const item of e.errors) formErrors.value[item.field ?? ''] = item.message
+    else notify('error', (e as Error).message)
+  } finally {
+    saving.value = false
+  }
+}
+const placeLabel = (id: string) =>
+  id === 'server'
+    ? t('backups.thisServer')
+    : (data.value?.places.find((p) => p.id === id)?.label ?? id)
+const copyList = (backup: AdminBackup) =>
+  Object.entries(backup.copies ?? {}).filter(([, c]) => c.state !== 'removed')
 const docs = computed(
   () => `https://easycms.dev${locale.value === 'th' ? '/th' : ''}/docs/backups#from-the-admin`,
 )
@@ -126,16 +200,63 @@ const STATES = {
       <div class="grid">
         <section class="card panel" aria-labelledby="settings-heading">
           <h2 id="settings-heading">{{ t('backups.settings') }}</h2>
+          <form class="settings-form" novalidate @submit.prevent="saveSettings">
+            <div class="row">
+              <label>
+                <span>{{ t('backups.schedule') }}</span>
+                <select v-model="form.frequency" class="input" :disabled="locked('frequency')">
+                  <option value="">{{ t('backups.manualOnly') }}</option>
+                  <option value="daily">{{ t('backups.daily') }}</option>
+                  <option value="weekly">{{ t('backups.weekly') }}</option>
+                </select>
+                <small v-if="locked('frequency')" class="muted">{{ t('backups.setInCode') }}</small>
+              </label>
+              <label>
+                <span>{{ t('backups.time') }}</span>
+                <input v-model="form.at" type="time" class="input" :disabled="locked('at') || !form.frequency" />
+                <small v-if="formErrors.at" class="field-error">{{ formErrors.at }}</small>
+                <small v-else-if="locked('at')" class="muted">{{ t('backups.setInCode') }}</small>
+              </label>
+              <label>
+                <span>{{ t('backups.keep') }}</span>
+                <input v-model.number="form.keep" type="number" min="1" max="1000" class="input" :disabled="locked('keep')" />
+                <small v-if="formErrors.keep" class="field-error">{{ formErrors.keep }}</small>
+                <small v-else-if="locked('keep')" class="muted">{{ t('backups.setInCode') }}</small>
+              </label>
+            </div>
+            <fieldset>
+              <legend>{{ t('backups.where') }}</legend>
+              <label class="place">
+                <input v-model="form.server" type="checkbox" />
+                <span>{{ t('backups.thisServer') }} <span class="muted">({{ data.settings.storage }}<template v-if="data.settings.dir">, <code>{{ data.settings.dir }}/</code></template>)</span></span>
+              </label>
+              <label v-for="place in data.places" :key="place.id" class="place">
+                <input v-model="form.destinations[place.id]!.on" type="checkbox" />
+                <span>{{ place.label }}</span>
+                <input
+                  v-if="form.destinations[place.id]?.on"
+                  v-model="form.destinations[place.id]!.keep"
+                  type="number"
+                  min="1"
+                  max="1000"
+                  class="input keep-input"
+                  :placeholder="String(form.keep)"
+                  :aria-label="t('backups.keepAt', { place: place.label })"
+                />
+              </label>
+              <p v-if="data.places.length === 0" class="muted small">
+                {{ t('backups.noPlaces') }}
+                <RouterLink to="/integrations?category=backups">{{ t('backups.connectPlace') }}</RouterLink>
+              </p>
+              <small v-if="formErrors.server" class="field-error">{{ formErrors.server }}</small>
+            </fieldset>
+            <p v-if="unencrypted" class="warning" role="note">
+              <TriangleAlert :size="16" aria-hidden="true" />
+              <span>{{ t('backups.unencrypted') }}</span>
+            </p>
+            <button type="submit" class="btn btn-primary btn-sm" :disabled="saving">{{ t('backups.saveSettings') }}</button>
+          </form>
           <dl>
-            <dt>{{ t('backups.schedule') }}</dt>
-            <dd>{{ schedule }}</dd>
-            <dt>{{ t('backups.keep') }}</dt>
-            <dd>{{ t('backups.keepCount', { count: data.settings.keep }) }}</dd>
-            <dt>{{ t('backups.storage') }}</dt>
-            <dd>
-              {{ data.settings.storage }}
-              <code v-if="data.settings.dir">{{ data.settings.dir }}/</code>
-            </dd>
             <dt>{{ t('status.database') }}</dt>
             <dd>{{ data.settings.database }}</dd>
           </dl>
@@ -163,6 +284,17 @@ const STATES = {
                 <template v-if="backup.size !== null"> · {{ formatBytes(backup.size) }}</template>
               </span>
               <span v-if="backup.filename" class="filename"><code>{{ backup.filename }}</code></span>
+              <span v-if="backup.state === 'done'" class="copies">
+                <span v-for="[place, copy] in copyList(backup)" :key="place" :class="['copy', `copy-${copy.state}`]">
+                  {{ placeLabel(place) }}:
+                  <template v-if="copy.state === 'done'">{{ t('backups.copyDone') }}</template>
+                  <template v-else-if="copy.state === 'retrying'">{{ t('backups.copyRetrying', { time: formatDate(copy.nextAt ?? null) }) }}</template>
+                  <template v-else>{{ t('backups.copyFailed', { error: copy.error ?? '' }) }}</template>
+                  <a v-if="copy.link" :href="copy.link" target="_blank" rel="noopener" :aria-label="t('backups.openAt', { place: placeLabel(place) })">
+                    <ExternalLink :size="12" aria-hidden="true" />
+                  </a>
+                </span>
+              </span>
               <span v-if="backup.error" class="error">{{ backup.error }}</span>
               <span v-if="backup.downloadedBy" class="muted small">
                 {{ t('backups.downloadedBy', { who: backup.downloadedBy, date: formatDate(backup.downloadedAt) }) }}
@@ -199,6 +331,58 @@ const STATES = {
 </template>
 
 <style scoped>
+.settings-form {
+  display: grid;
+  gap: 0.9rem;
+  margin-bottom: 1rem;
+}
+.settings-form .row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.75rem;
+}
+.settings-form label {
+  display: grid;
+  gap: 0.3rem;
+}
+.settings-form fieldset {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.settings-form legend {
+  margin-bottom: 0.4rem;
+  font-weight: 600;
+}
+.settings-form .place {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.keep-input {
+  width: 5.5rem;
+  margin-left: auto;
+}
+.settings-form button {
+  justify-self: start;
+}
+.copies {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  font-size: 0.8125rem;
+}
+.copy-done {
+  color: var(--success, var(--text-muted));
+}
+.copy-retrying {
+  color: var(--warning, var(--text-muted));
+}
+.copy-failed {
+  color: var(--danger);
+}
 .crumbs {
   display: flex;
   align-items: center;

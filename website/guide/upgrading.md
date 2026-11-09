@@ -24,6 +24,16 @@ Invalid Easy CMS config (1 problem):
   • admin.siteUrl: is now `siteURL`
 ```
 
+## 1.41 {#v1-41}
+
+- **Backups get settings in the admin and destinations**: a new
+  `admin-settings` table and a `copies` column on `database-backups`. Run
+  `npx easy-cms migrate:create` and commit the migration, then `npx easy-cms migrate` where you
+  deploy; a production server refuses to start until the migration is applied. Backups made before
+  are shown as kept on the server.
+- **OAuth integrations take their app's keys in the admin** (Integrations → the provider → App keys);
+  environment variables such as `META_APP_ID` still win.
+
 ## 1.3 {#v1-3}
 
 - **Apps with `jobs`** (in the config or from a plugin, such as the shop's) get a `job-runs`
