@@ -1,6 +1,6 @@
 {
   "name": "@easy-cms/plugin-ai",
-  "version": "1.39.1",
+  "version": "1.40.0",
   "description": "AI for Easy CMS: connect Claude, GPT, Gemini or an OpenAI-compatible provider on the Integrations page, for the admin's AI features",
   "license": "MIT",
   "type": "module",
