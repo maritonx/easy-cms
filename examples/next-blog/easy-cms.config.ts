@@ -5,6 +5,7 @@ import { sqlite } from '@easy-cms/db-sqlite'
 import { smtp } from '@easy-cms/email-smtp'
 import { color } from '@easy-cms/fields'
 import { aiPlugin } from '@easy-cms/plugin-ai'
+import { backupsPlugin } from '@easy-cms/plugin-backups'
 import { formBuilderPlugin } from '@easy-cms/plugin-form-builder'
 import { graphqlPlugin } from '@easy-cms/plugin-graphql'
 import { mcpPlugin } from '@easy-cms/plugin-mcp'
@@ -371,6 +372,8 @@ export default defineConfig({
     notifyPlugin(),
     // AI providers for the admin's AI features (Settings → Integrations, AI).
     aiPlugin(),
+    // Backup destinations (Settings → Integrations → Backups): Google Drive and S3-compatible.
+    backupsPlugin(),
     // Social posts (Content): Share on a post writes one, sent to webhooks (Make, n8n…) set up in
     // Settings → Integrations.
     socialPlugin({

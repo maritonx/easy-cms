@@ -1853,6 +1853,51 @@ test.describe('logged in as admin', () => {
     await shot(page, 'actions-roles')
   })
 
+  test('sends backups to Google Drive, set up in the admin (#395)', async ({ page }) => {
+    test.skip(test.info().project.name !== 'next', 'The Next.js example has the backups plugin')
+    await page.goto('/admin/integrations?category=backups')
+    await page.getByRole('button', { name: 'Connect Google Drive' }).click()
+    const card = page.getByRole('dialog', { name: 'Google Drive' })
+    // The app's keys first, with the redirect URI to give Google.
+    const keys = card.getByRole('region', { name: 'App keys' })
+    await expect(keys).toContainText('/api/cms/admin/integrations/google-drive/callback')
+    await keys.getByLabel(/^Client ID/).fill('e2e-client')
+    await keys.getByLabel(/^Client secret/).fill('e2e-secret')
+    await keys.getByRole('button', { name: 'Save' }).click()
+    await expect(page.getByRole('status')).toHaveText('App keys saved')
+    await expect(keys).toContainText('Entered.')
+    // What leaves the site, accepted once; then Google's sign-in (the mock says yes at once).
+    await card.getByRole('button', { name: 'Connect an account' }).click()
+    const consent = card.getByRole('group', { name: 'Before connecting' })
+    await expect(consent).toContainText('sent to Google Drive')
+    await consent.getByRole('button', { name: 'Accept and connect' }).click()
+    await card.getByRole('button', { name: 'Connect with Google Drive' }).click()
+    await expect(page.getByRole('status')).toContainText('connected')
+    await page.getByRole('button', { name: 'Manage Google Drive' }).click()
+    await expect(card.getByText('owner@e2e.test')).toBeVisible()
+    await card.getByRole('button', { name: 'Close' }).click()
+
+    // Settings → Backups: the drive as a place, then a backup sent there.
+    await page.goto('/admin/backups')
+    const settings = page.getByRole('region', { name: 'Settings' })
+    await settings.getByRole('checkbox', { name: 'Google Drive · Google Drive' }).check()
+    await expect(settings.getByRole('note')).toContainText('unencrypted')
+    await settings.getByRole('button', { name: 'Save settings' }).click()
+    await expect(page.getByRole('status')).toHaveText('Backup settings saved')
+    await page.getByRole('button', { name: 'Back up now' }).click()
+    const latest = page.getByRole('region', { name: 'Backups' }).getByRole('listitem').first()
+    await expect(latest).toContainText('Google Drive · Google Drive: kept', { timeout: 20_000 })
+    await expect(
+      latest.getByRole('link', { name: 'Open at Google Drive · Google Drive' }),
+    ).toHaveAttribute('href', /^https:\/\/drive\.e2e\.test\/file-\d+$/)
+    const uploaded = (await (await page.request.get('http://localhost:3115/files')).json()) as {
+      name: string
+      size: number
+    }[]
+    expect(uploaded.at(-1)?.name).toMatch(/\.db\.gz$/)
+    expect(uploaded.at(-1)?.size).toBeGreaterThan(0)
+  })
+
   test('shows one group at a time, follows the page, and folds the panel away', async ({
     page,
   }) => {

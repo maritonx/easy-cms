@@ -90,8 +90,56 @@ keep more).
 - Without `encryptionKey` the page warns while backups leave the server: they hold the whole
   database, users' emails and password hashes included.
 
-A plugin's integration says it keeps backups with `backups(values) => ({ put, get, delete })`; a
-failure that trying again won't fix throws an error with `permanent: true`.
+```bash [pm]
+npm install @easy-cms/plugin-backups
+```
+
+```ts
+import { backupsPlugin } from '@easy-cms/plugin-backups'
+
+export default defineConfig({
+  backups: { encryptionKey: process.env.EASY_CMS_BACKUP_KEY }, // strongly advised
+  plugins: [backupsPlugin()],
+})
+```
+
+#### Google Drive {#google-drive}
+
+Backups go to a folder Easy CMS makes in your Drive (**Easy CMS backups – your site**), through a
+Google Cloud app of your own. It asks only for `drive.file`: it sees the files it made, nothing else.
+
+1. In the [Google Cloud console](https://console.cloud.google.com), make a project and enable the
+   **Google Drive API**.
+2. **Google Auth Platform**: set the audience to **External**, fill in the app's name and email,
+   then **Publish app** so it is **In production**. An app left in *Testing* signs out after 7 days,
+   and backups stop. `drive.file` needs no review by Google.
+3. **Clients → Create client → Web application**, with the redirect URI shown in **Settings →
+   Integrations → Google Drive → App keys**:
+   `https://example.com/api/cms/admin/integrations/google-drive/callback`.
+4. Paste the client ID and secret under **App keys** (or set `GOOGLE_CLIENT_ID` and
+   `GOOGLE_CLIENT_SECRET`, which win), accept what is sent to Google, and **Connect**.
+
+**Test** checks the connection and that the folder is still there (not in the bin). Taking the app's
+access back in your Google account stops backups at once; the card says to connect again.
+
+#### S3-compatible storage {#s3-compatible}
+
+Any S3 API with a **private** bucket: connecting writes and deletes a small file to check the keys.
+
+| | Endpoint | Region | Keys |
+|---|---|---|---|
+| Cloudflare R2 | `https://<account id>.r2.cloudflarestorage.com` | `auto` | R2 → Manage API tokens → *Object Read & Write* for the bucket |
+| Backblaze B2 | `https://s3.<region>.backblazeb2.com` | e.g. `us-west-004` | Application Keys → read and write to the bucket |
+| AWS S3 | empty | the bucket's | An IAM user with `s3:PutObject`, `GetObject`, `DeleteObject` on the bucket |
+| Wasabi | `https://s3.<region>.wasabisys.com` | the bucket's | Access keys with access to the bucket |
+
+`Folder in the bucket` (e.g. `backups/`) keeps them apart from anything else in it. R2 keeps 10 GB
+free, so a long history costs little: set its own **keep** higher.
+
+#### Your own destination
+
+A plugin's integration says it keeps backups with `backups(values, { app }) => ({ put, get, delete })`;
+a failure that trying again won't fix throws an error with `permanent: true`.
 
 ### Restoring a backup from the admin
 

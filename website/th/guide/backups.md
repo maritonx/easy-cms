@@ -78,7 +78,51 @@ plugin เพิ่มที่เก็บ backup ได้ เชื่อม�
 - ถ้าไม่ตั้ง `encryptionKey` หน้านี้จะเตือนเมื่อ backup ถูกส่งออกจากเซิร์ฟเวอร์ เพราะมีข้อมูลทั้งฐานข้อมูล รวมอีเมลและ
   hash ของรหัสผ่านของผู้ใช้
 
-integration ของ plugin บอกว่าเก็บ backup ได้ด้วย `backups(values) => ({ put, get, delete })` ข้อผิดพลาดที่ลองใหม่ก็ไม่ช่วย
+```bash [pm]
+npm install @easy-cms/plugin-backups
+```
+
+```ts
+import { backupsPlugin } from '@easy-cms/plugin-backups'
+
+export default defineConfig({
+  backups: { encryptionKey: process.env.EASY_CMS_BACKUP_KEY }, // แนะนำอย่างยิ่ง
+  plugins: [backupsPlugin()],
+})
+```
+
+#### Google Drive {#google-drive}
+
+backup ไปอยู่ในโฟลเดอร์ที่ Easy CMS สร้างใน Drive ของคุณ (**Easy CMS backups – เว็บของคุณ**) ผ่านแอป Google Cloud ของคุณเอง
+ขอสิทธิ์แค่ `drive.file` คือเห็นเฉพาะไฟล์ที่แอปสร้างเอง ไม่เห็นไฟล์อื่น
+
+1. ใน [Google Cloud console](https://console.cloud.google.com) สร้างโปรเจกต์ แล้วเปิด **Google Drive API**
+2. **Google Auth Platform**: ตั้ง audience เป็น **External** ใส่ชื่อแอปและอีเมล แล้วกด **Publish app** ให้เป็น **In production**
+   แอปที่ค้างอยู่ใน *Testing* จะหลุดการเชื่อมต่อใน 7 วันและ backup จะหยุด ส่วน `drive.file` ไม่ต้องให้ Google ตรวจแอป
+3. **Clients → Create client → Web application** ใส่ redirect URI ที่แสดงใน **ตั้งค่า → การเชื่อมต่อ → Google Drive → Key ของแอป**:
+   `https://example.com/api/cms/admin/integrations/google-drive/callback`
+4. วาง Client ID และ secret ใน **Key ของแอป** (หรือตั้ง `GOOGLE_CLIENT_ID` และ `GOOGLE_CLIENT_SECRET` ซึ่งชนะ) ยอมรับข้อความเรื่อง
+   ข้อมูลที่ส่งไป Google แล้วกด **เชื่อม**
+
+**ทดสอบ** ตรวจการเชื่อมต่อและตรวจว่าโฟลเดอร์ยังอยู่ (ไม่อยู่ในถังขยะ) ถ้าถอนสิทธิ์แอปในบัญชี Google backup จะหยุดทันที และการ์ดจะบอกให้เชื่อมใหม่
+
+#### storage แบบ S3-compatible {#s3-compatible}
+
+S3 API ใดก็ได้ที่มี bucket **ส่วนตัว** ตอนเชื่อมจะเขียนแล้วลบไฟล์เล็กเพื่อตรวจ key
+
+| | Endpoint | Region | Key |
+|---|---|---|---|
+| Cloudflare R2 | `https://<account id>.r2.cloudflarestorage.com` | `auto` | R2 → Manage API tokens → *Object Read & Write* ของ bucket |
+| Backblaze B2 | `https://s3.<region>.backblazeb2.com` | เช่น `us-west-004` | Application Keys → อ่านและเขียน bucket |
+| AWS S3 | ว่าง | ของ bucket | IAM user ที่มี `s3:PutObject`, `GetObject`, `DeleteObject` ของ bucket |
+| Wasabi | `https://s3.<region>.wasabisys.com` | ของ bucket | Access key ที่เข้าถึง bucket ได้ |
+
+`โฟลเดอร์ใน bucket` (เช่น `backups/`) แยก backup ออกจากไฟล์อื่น R2 ให้ฟรี 10 GB เก็บย้อนหลังนานได้โดยแทบไม่มีค่าใช้จ่าย ตั้ง **จำนวนที่เก็บ**
+ของที่นี่ให้มากกว่าได้
+
+#### ปลายทางของคุณเอง {#your-own-destination}
+
+integration ของ plugin บอกว่าเก็บ backup ได้ด้วย `backups(values, { app }) => ({ put, get, delete })` ข้อผิดพลาดที่ลองใหม่ก็ไม่ช่วย
 ให้ throw error ที่มี `permanent: true`
 
 ### กู้คืนจาก backup ของหน้า admin {#restoring-a-backup-from-the-admin}

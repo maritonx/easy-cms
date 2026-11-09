@@ -211,7 +211,7 @@ async function destinationFor(cms: EasyCMS, place: string): Promise<BackupDestin
   if (!def?.backups) throw permanent(`${integration} no longer keeps backups`)
   const conn = await cms.integrations.get(integration, { name })
   if (!conn) throw permanent(`The connection "${name}" is gone`)
-  return def.backups(conn.values, { cms })
+  return def.backups(conn.values, { cms, app: await cms.integrations.app(integration) })
 }
 
 /** A backup's copies; older records were only on the server. */
