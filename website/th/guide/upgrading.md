@@ -27,6 +27,8 @@ Invalid Easy CMS config (1 problem):
 - **Backups ตั้งค่าในหน้า admin ได้และส่งไปปลายทางได้**: มีตารางใหม่ `admin-settings` และ column `copies` ใน
   `database-backups` รัน `npx easy-cms migrate:create` แล้ว commit migration จากนั้นรัน `npx easy-cms migrate` ที่ที่ deploy
   เซิร์ฟเวอร์ production จะไม่ start จนกว่าจะรัน migration แล้ว backup ที่ทำก่อนหน้าจะแสดงว่าเก็บอยู่บนเซิร์ฟเวอร์
+- **แอปที่ตั้ง `email` จะเก็บบันทึกอีเมลที่ส่ง** (ตั้งค่า → Email): ตารางใหม่ `email-log` อยู่ใน migration เดียวกัน
+  `emailLog: false` ไม่เก็บบันทึก ดู[บันทึกอีเมล](./email#the-email-log)
 - **integration แบบ OAuth กรอก key ของแอปในหน้า admin ได้** (การเชื่อมต่อ → ผู้ให้บริการ → Key ของแอป) ส่วน env เช่น
   `META_APP_ID` ยังชนะ
 

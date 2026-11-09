@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Settings → Email: the emails sent (#email-log), newest first, by state, kind or recipient. Who,
+// Settings → Email: the emails sent, newest first, by state, kind or recipient. Who,
 // what and how it went; never the content, whose links sign people in.
 import type { AdminEmailLog } from '@easy-cms/core'
 import { ChevronLeft, ChevronRight, Search } from '@lucide/vue'
