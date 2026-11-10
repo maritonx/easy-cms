@@ -1,5 +1,12 @@
 # @easy-cms/auth-oauth
 
+## 1.42.0
+
+### Patch Changes
+
+- Updated dependencies [020e266]
+  - @easy-cms/core@1.42.0
+
 ## 1.41.0
 
 ### Patch Changes
