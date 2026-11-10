@@ -121,8 +121,17 @@ const fakeS3 = (async (input: Request | string | URL, init?: RequestInit) => {
 }) as typeof fetch
 
 const dirs: string[] = []
-afterEach(() => {
-  for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true })
+const opened: { destroy(): Promise<void> }[] = []
+afterEach(async () => {
+  // Closed first: Windows won't delete a folder whose SQLite file is open.
+  for (const cms of opened.splice(0)) await cms.destroy().catch(() => {})
+  for (const dir of dirs.splice(0)) {
+    try {
+      rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
+    } catch {
+      // Windows may still hold the file; the OS cleans temp.
+    }
+  }
 })
 beforeEach(() => {
   hits.length = 0
@@ -178,6 +187,7 @@ async function open() {
     }
     throw new Error('the backup did not finish')
   }
+  opened.push(cms)
   return { cms, call, backUp }
 }
 
