@@ -2411,24 +2411,30 @@ test.describe('logged in as admin', () => {
     await expect(latest).toContainText(/\.db\.gz/)
     // Where it is: this server (no destination connected in the examples).
     await expect(latest).toContainText('This server: kept')
-    // When and where in one line; changed in a drawer, what the config sets shown locked (#395).
+    // When and where in one line; changed in a drawer, where the config's values are defaults.
     const summary = page.getByRole('region', { name: 'Settings' })
     await expect(summary.getByRole('list', { name: 'Where they go' })).toContainText('This server')
     await shot(page, 'backups-page')
     await summary.getByRole('button', { name: 'Edit' }).click()
     const drawer = page.getByRole('dialog', { name: 'Backup settings' })
-    await shot(page, 'backups-drawer')
+    // The examples set `backups` in the code, unlocked: their values are where the admin starts.
+    await expect(drawer).toContainText('The default from the code')
+    await expect(drawer).toContainText('Keeps the default from the code')
     const keep = drawer.getByRole('spinbutton', { name: 'Keep', exact: true })
-    if (await keep.count()) {
-      await keep.fill('5')
-      await drawer.getByRole('button', { name: 'Save settings' }).click()
-      await expect(page.getByRole('status')).toHaveText('Backup settings saved')
-      await expect(drawer).toBeHidden()
-      await expect(summary).toContainText('This server · 5')
-    } else {
-      await expect(drawer).toContainText('Set in the code')
-      await drawer.getByRole('button', { name: 'Cancel' }).click()
-    }
+    await keep.fill('5')
+    await expect(drawer).toContainText('The code keeps 7')
+    await shot(page, 'backups-drawer')
+    await drawer.getByRole('button', { name: 'Save settings' }).click()
+    await expect(page.getByRole('status')).toHaveText('Backup settings saved')
+    await expect(drawer).toBeHidden()
+    await expect(summary).toContainText('This server · 5')
+    // And back to the code's.
+    await summary.getByRole('button', { name: 'Edit' }).click()
+    await drawer.getByRole('button', { name: "Use the code's" }).click()
+    await expect(keep).toHaveValue('7')
+    await drawer.getByRole('button', { name: 'Save settings' }).click()
+    await expect(drawer).toBeHidden()
+    await expect(summary).toContainText('This server · 7')
     // How to restore it: the file's own commands to copy.
     await latest.getByRole('button', { name: 'More for this backup' }).click()
     await page.getByRole('menuitem', { name: 'How to restore' }).click()

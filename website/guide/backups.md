@@ -30,8 +30,9 @@ Setting a new one signs everyone out and invalidates preview links.
 
 Admins find **Settings → Backups** in the admin: **Back up now**, the list of backups with who
 made them and where each one is, **Download** and **Delete**, and the settings: when backups run
-(every day or week, at a time), how many to keep, and **where they go**. What the config sets wins
-and shows as set in the code:
+(every day or week, at a time), how many to keep, and **where they go**. What the config sets is
+the default: an admin can change it, and **Use the code's** sets it back. `locked: true` keeps the
+config's values, shown as set in the code:
 
 ```ts
 import { sqlite } from '@easy-cms/db-sqlite'
@@ -40,6 +41,7 @@ backups: {
   frequency: 'daily',   // or 'weekly'; leave out for backups by hand only
   at: '03:00',           // in `timeZone` (the server's by default; see Jobs)
   keep: 7,               // older ones are deleted
+  // locked: true,       // the admin can't change frequency, at and keep
   // dir: 'backups',     // default; never served publicly
   // storage: s3Storage({ bucket: 'my-private-backups' }), // instead of the server's disk
   // encryptionKey: process.env.EASY_CMS_BACKUP_KEY,       // encrypt the files: see below

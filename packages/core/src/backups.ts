@@ -70,7 +70,7 @@ export interface BackupCopy {
   link?: string
 }
 
-/** The settings saved from the admin (Settings → Backups); what the config sets wins. */
+/** The settings saved from the admin (Settings → Backups): only what differs from the code's. */
 interface SavedSettings {
   frequency?: 'daily' | 'weekly' | null
   at?: string
@@ -79,7 +79,10 @@ interface SavedSettings {
   destinations?: { connection: string; keep?: number | null }[]
 }
 
-/** Backup settings in effect: the config's, else the admin's, else the defaults. */
+type SettingField = 'frequency' | 'at' | 'keep'
+const FIELDS: SettingField[] = ['frequency', 'at', 'keep']
+
+/** Backup settings in effect: the admin's, else the config's, else the defaults. */
 export interface BackupSettings {
   frequency: 'daily' | 'weekly' | null
   at: string
@@ -87,32 +90,49 @@ export interface BackupSettings {
   /** Kept on this server's backup storage (the folder, or `backups.storage`). */
   server: boolean
   destinations: { connection: string; keep: number | null }[]
-  /** Set in the config, so the admin can't change them. */
-  locked: ('frequency' | 'at' | 'keep')[]
+  /** What applies when the admin hasn't changed it: the config's, else the defaults. */
+  defaults: { frequency: 'daily' | 'weekly' | null; at: string; keep: number }
+  /** Set in the config: the defaults the admin starts from. */
+  inCode: SettingField[]
+  /** Set in the config with `locked: true`, so the admin can't change them. */
+  locked: SettingField[]
 }
 
 const SETTINGS_KEY = 'backups'
 /** A destination that failed is tried again after these waits, then given up on. */
 const RETRY_MINUTES = [1, 5, 30]
 
+function codeDefaults(cms: EasyCMS) {
+  const config = cms.config.backups
+  const defaults: BackupSettings['defaults'] = {
+    frequency: config?.frequency ?? null,
+    at: config?.at ?? DEFAULT_BACKUP_TIME,
+    keep: config?.keep ?? DEFAULT_BACKUP_KEEP,
+  }
+  const inCode = FIELDS.filter((f) => config?.[f] !== undefined)
+  return { defaults, inCode, locked: config?.locked ? inCode : [] }
+}
+
 /** The settings in effect. */
 export async function backupSettings(cms: EasyCMS): Promise<BackupSettings> {
-  const config = cms.config.backups
   const saved = ((await getSetting<SavedSettings>(cms, SETTINGS_KEY).catch(() => undefined)) ??
     {}) as SavedSettings
-  const locked: BackupSettings['locked'] = []
-  if (config?.frequency !== undefined) locked.push('frequency')
-  if (config?.at !== undefined) locked.push('at')
-  if (config?.keep !== undefined) locked.push('keep')
+  const { defaults, inCode, locked } = codeDefaults(cms)
+  const pick = <F extends SettingField>(f: F): BackupSettings['defaults'][F] =>
+    locked.includes(f) || saved[f] === undefined
+      ? defaults[f]
+      : (saved[f] as BackupSettings['defaults'][F])
   return {
-    frequency: config?.frequency ?? saved.frequency ?? null,
-    at: config?.at ?? saved.at ?? DEFAULT_BACKUP_TIME,
-    keep: config?.keep ?? saved.keep ?? DEFAULT_BACKUP_KEEP,
+    frequency: pick('frequency'),
+    at: pick('at'),
+    keep: pick('keep'),
     server: saved.server ?? true,
     destinations: (saved.destinations ?? []).map((d) => ({
       connection: d.connection,
       keep: d.keep ?? null,
     })),
+    defaults,
+    inCode,
     locked,
   }
 }
@@ -125,9 +145,15 @@ export async function saveBackupSettings(
   body: unknown,
   user: AuthUser,
 ): Promise<BackupSettings> {
-  const input = (typeof body === 'object' && body !== null ? body : {}) as Record<string, unknown>
+  const input = { ...(typeof body === 'object' && body !== null ? body : {}) } as Record<
+    string,
+    unknown
+  >
   const errors: { field: string; message: string }[] = []
   const next: SavedSettings = {}
+  const { defaults, locked } = codeDefaults(cms)
+  // What the config locks is the config's: ignored, as the admin shows it without a field.
+  for (const f of locked) delete input[f]
   if (input.frequency !== undefined) {
     if (input.frequency !== null && input.frequency !== 'daily' && input.frequency !== 'weekly')
       errors.push({ field: 'frequency', message: 'must be daily, weekly or empty' })
@@ -170,7 +196,12 @@ export async function saveBackupSettings(
       message: 'Keep backups somewhere: this server or a destination',
     })
   if (errors.length) throw new ValidationError(DATABASE_BACKUPS, errors)
-  const saved = { ...((await getSetting<SavedSettings>(cms, SETTINGS_KEY)) ?? {}), ...next }
+  const saved: SavedSettings = {
+    ...((await getSetting<SavedSettings>(cms, SETTINGS_KEY)) ?? {}),
+    ...next,
+  }
+  // The same as the code's is no change: it follows the code when that changes.
+  for (const f of FIELDS) if (saved[f] === defaults[f]) delete saved[f]
   await setSetting(cms, SETTINGS_KEY, saved)
   await cms.audit.record({
     action: 'backups.settings',
@@ -306,7 +337,11 @@ export interface AdminBackups {
     /** Kept on this server's backup storage. */
     server: boolean
     destinations: { connection: string; keep: number | null }[]
-    /** Set in the config: shown, not changed. */
+    /** What applies when the admin hasn't changed it: the config's, else the defaults. */
+    defaults: { frequency: 'daily' | 'weekly' | null; at: string; keep: number }
+    /** Set in the config: the defaults the admin starts from. */
+    inCode: ('frequency' | 'at' | 'keep')[]
+    /** Set in the config with `locked: true`: shown, not changed. */
     locked: ('frequency' | 'at' | 'keep')[]
     /** Files are encrypted (`backups.encryptionKey`). */
     encrypted: boolean
@@ -437,6 +472,8 @@ export async function listBackups(cms: EasyCMS): Promise<AdminBackups> {
       unavailable: backupUnavailable(cms),
       server: settings.server,
       destinations: settings.destinations,
+      defaults: settings.defaults,
+      inCode: settings.inCode,
       locked: settings.locked,
       encrypted: !!config?.encryptionKey,
     },

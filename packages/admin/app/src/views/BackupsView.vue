@@ -93,6 +93,32 @@ const schedule = computed(() => {
 const locked = (field: 'frequency' | 'at' | 'keep') =>
   data.value?.settings.locked.includes(field) ?? false
 const scheduleLocked = computed(() => locked('frequency') || locked('at'))
+/** The code's schedule, said the way the summary says it. */
+const codeSchedule = computed(() => {
+  const d = data.value?.settings.defaults
+  if (!d?.frequency) return t('backups.manualOnly')
+  return t(d.frequency === 'daily' ? 'backups.everyDay' : 'backups.everyWeek', { at: d.at })
+})
+const scheduleInCode = computed(() =>
+  ['frequency', 'at'].some((f) => data.value?.settings.inCode.includes(f as 'frequency')),
+)
+/** The drawer's schedule is the code's: the same frequency, and the same time when it runs. */
+const scheduleIsCode = computed(() => {
+  const d = data.value?.settings.defaults
+  if (!d) return true
+  return (form.value.frequency || null) === d.frequency && (!d.frequency || form.value.at === d.at)
+})
+const keepIsCode = computed(() => Number(form.value.keep) === data.value?.settings.defaults.keep)
+function useCodeSchedule() {
+  const d = data.value?.settings.defaults
+  if (!d) return
+  form.value.frequency = d.frequency ?? ''
+  form.value.at = d.at
+}
+function useCodeKeep() {
+  const d = data.value?.settings.defaults
+  if (d) form.value.keep = d.keep
+}
 const placeLabel = (id: string) =>
   id === 'server'
     ? t('backups.thisServer')
@@ -144,7 +170,7 @@ const alerts = computed(() => {
   return out
 })
 
-// The settings drawer: what the config sets is shown, not changed.
+// The settings drawer: what the config sets is the default; what it locks is shown, not changed.
 const drawer = ref<HTMLDialogElement>()
 const editing = ref(false)
 const form = ref({
@@ -400,6 +426,10 @@ const STATES = {
                   <input v-model="form.at" type="time" class="input time" />
                 </label>
               </div>
+              <small v-if="!scheduleLocked && scheduleInCode" class="muted small code-default">
+                <template v-if="scheduleIsCode">{{ t('backups.codeDefault') }}</template>
+                <template v-else>{{ t('backups.inCodeValue', { value: codeSchedule }) }} · <button type="button" class="link" @click="useCodeSchedule">{{ t('backups.useCode') }}</button></template>
+              </small>
               <small v-if="formErrors.at" class="field-error">{{ formErrors.at }}</small>
             </fieldset>
             <fieldset>
@@ -430,6 +460,10 @@ const STATES = {
                   {{ t('backups.files') }}
                 </span>
               </label>
+              <small v-if="!locked('keep') && data.settings.inCode.includes('keep')" class="muted small code-default">
+                <template v-if="keepIsCode">{{ t('backups.keepCodeDefault') }}</template>
+                <template v-else>{{ t('backups.keepInCode', { n: data.settings.defaults.keep }) }} · <button type="button" class="link" @click="useCodeKeep">{{ t('backups.useCode') }}</button></template>
+              </small>
               <RouterLink to="/integrations?category=backups" class="connect"><Plus :size="14" aria-hidden="true" /> {{ t('backups.connectPlace') }}</RouterLink>
               <small v-if="formErrors.keep" class="field-error">{{ formErrors.keep }}</small>
               <small v-if="formErrors.server" class="field-error">{{ formErrors.server }}</small>
@@ -616,6 +650,14 @@ const STATES = {
 .empty {
   margin: 0;
   padding: 0.5rem 1.1rem 1rem;
+}
+.code-default {
+  display: block;
+  margin-top: 0.35rem;
+}
+.code-default .link {
+  padding: 0;
+  font-size: inherit;
 }
 .list ul {
   margin: 0;

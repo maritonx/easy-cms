@@ -124,6 +124,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `frequency` | `'daily' \| 'weekly'` | — | backup อัตโนมัติ ถ้าไม่ตั้ง admin กดทำเองได้ |
 | `at` | `string` | `03:00` | เวลา `HH:MM` ตามเขตเวลาของ server |
 | `keep` | `number` | `7` | จำนวน backup ที่สำเร็จที่จะเก็บ ชุดที่เก่ากว่าจะถูกลบ |
+| `locked` | `boolean` | `false` | ล็อก `frequency`, `at` และ `keep` ที่ตั้งไว้ไม่ให้เปลี่ยนในหน้า admin ถ้าไม่ล็อก ค่าเหล่านี้เป็นค่าเริ่มต้นที่ admin เปลี่ยนได้ [Backup](/th/guide/backups#from-the-admin) |
 | `dir` | `string` | `backups` | โฟลเดอร์ของที่เก็บในเครื่อง ไม่เปิดเป็น URL สาธารณะ |
 | `storage` | `StorageAdapter` | ดิสก์ในเครื่อง | เช่น `s3Storage()` กับ bucket ส่วนตัว ถ้าให้ URL สาธารณะจะมีคำเตือน |
 | `encryptionKey` | `string` | — | เข้ารหัสไฟล์ backup (AES-256-GCM) อย่างน้อย 32 ตัวอักษร เช่น `process.env.EASY_CMS_BACKUP_KEY` [Backup](/th/guide/backups#from-the-admin) |

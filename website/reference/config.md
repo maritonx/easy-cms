@@ -126,6 +126,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `frequency` | `'daily' \| 'weekly'` | — | Back up automatically. Without it, admins back up by hand. |
 | `at` | `string` | `03:00` | When, as `HH:MM` in the server's time zone. |
 | `keep` | `number` | `7` | Finished backups to keep; older ones are deleted. |
+| `locked` | `boolean` | `false` | `frequency`, `at` and `keep` set here can't be changed in the admin. Otherwise they are defaults an admin can change. [Backups](/guide/backups#from-the-admin) |
 | `dir` | `string` | `backups` | Folder for the default local storage. Never served publicly. |
 | `storage` | `StorageAdapter` | local disk | E.g. `s3Storage()` with a private bucket. Public URLs log a warning. |
 | `encryptionKey` | `string` | — | Encrypts the backup files (AES-256-GCM). At least 32 characters, e.g. `process.env.EASY_CMS_BACKUP_KEY`. [Backups](/guide/backups#from-the-admin) |
