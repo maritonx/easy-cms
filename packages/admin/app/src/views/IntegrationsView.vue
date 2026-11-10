@@ -19,7 +19,7 @@ import { useRoute, useRouter } from 'vue-router'
 import AiSettings from '../components/AiSettings.vue'
 import IntegrationIcon from '../components/IntegrationIcon.vue'
 import { ApiError, api } from '../lib/api'
-import { formatDate, label, t } from '../lib/i18n'
+import { formatDate, label, locale, t } from '../lib/i18n'
 import { notify } from '../lib/toast'
 
 /**
@@ -27,7 +27,7 @@ import { notify } from '../lib/toast'
  * drawer with its accounts (`?open=<id>`).
  */
 
-type Category = 'social' | 'ai' | 'notifications' | 'automation' | 'backups'
+type Category = 'social' | 'ai' | 'notifications' | 'automation' | 'backups' | 'email'
 interface Field {
   name: string
   label?: Label
@@ -51,6 +51,10 @@ interface Connection {
   values: Record<string, string>
   /** AI providers: this month. */
   usage?: { requests: number; input: number; output: number }
+  /** Email providers: it sends the site's email. */
+  active?: boolean
+  /** Email providers: where the provider posts delivery events. */
+  webhookUrl?: string
 }
 interface Integration {
   id: string
@@ -77,12 +81,19 @@ interface Integration {
     complete: boolean
     redirectUri: string
   }
+  /** Email providers: whether it has a webhook, and how to add it. */
+  email?: { webhook: boolean; webhookSetup?: Label }
 }
 interface Overview {
   integrations: Integration[]
   configured: { id: string; kind: string; name: string }[]
   catalog: { name: string; category: string; description: Label; docs: string }[]
   staleSecrets: number
+  /** With email providers: the connection that sends (`null`: the config's, named by `code`). */
+  email?: {
+    active: { integration: string; connection: number | string } | null
+    code: string | null
+  }
 }
 
 const route = useRoute()
@@ -95,6 +106,7 @@ const CATEGORIES: (Category | 'code')[] = [
   'notifications',
   'automation',
   'backups',
+  'email',
   'code',
 ]
 const category = computed(() => {
@@ -118,6 +130,8 @@ function statusOf(integration: Integration): {
   if (!integration.enabled) return { kind: 'off', text: t('integrations.statusOff') }
   if (integration.connections.some((c) => c.lastError))
     return { kind: 'error', text: t('integrations.statusProblem') }
+  if (integration.connections.some((c) => c.active))
+    return { kind: 'ok', text: t('integrations.statusSends') }
   if (integration.connections.length)
     return {
       kind: 'ok',
@@ -156,6 +170,7 @@ type Row =
   | { kind: 'integration'; key: string; integration: Integration }
   | { kind: 'ai'; key: string }
   | { kind: 'code'; key: string; service: Overview['configured'][number] }
+  | { kind: 'email-code'; key: string }
 /** The list: by category, filtered by the chips and the search. */
 const groups = computed(() => {
   const out: { category: Category | 'code'; rows: Row[] }[] = []
@@ -169,6 +184,13 @@ const groups = computed(() => {
       }
     } else {
       if (c === 'ai' && ai.value && matches(t('ai.row'), 'AI')) rows.push({ kind: 'ai', key: 'ai' })
+      // The config's email, the default the providers replace.
+      if (
+        c === 'email' &&
+        data.value?.email &&
+        matches(t('integrations.emailCode'), data.value.email.code ?? '')
+      )
+        rows.push({ kind: 'email-code', key: 'email-code' })
       for (const integration of data.value?.integrations ?? [])
         if (
           integration.category === c &&
@@ -406,6 +428,36 @@ async function test(integration: Integration, connection: Connection) {
     notify('error', (e as Error).message)
   }
 }
+/**
+ * Sends the site's email with a connection (#404): a test email to the admin goes first, and
+ * nothing changes when it fails.
+ */
+const using = ref<string | null>(null)
+async function useForEmail(integration: Integration, connection: Connection) {
+  using.value = String(connection.id)
+  try {
+    const result = await api<{ sentTo?: string }>('PUT', '/admin/email/provider', {
+      integration: integration.id,
+      connection: connection.id,
+      locale: locale.value,
+    })
+    notify(
+      'success',
+      t('integrations.emailUsed', { name: connection.name, to: result.sentTo ?? '' }),
+    )
+    await load()
+  } catch (e) {
+    notify('error', e instanceof ApiError ? (e.errors[0]?.message ?? e.message) : String(e))
+  } finally {
+    using.value = null
+  }
+}
+async function useCodeEmail() {
+  const code = data.value?.email?.code
+  if (!window.confirm(code ? t('email.confirmUseCode', { name: code }) : t('email.confirmUseNone')))
+    return
+  await run(() => api('PUT', '/admin/email/provider', {}), t('email.usingCode'))
+}
 const makeDefault = (integration: Integration, connection: Connection) =>
   run(
     () =>
@@ -561,7 +613,17 @@ const fieldLabel = (field: Field) => label(field.label, field.name)
               <span class="status status-ai">{{ t('ai.featuresOn', { on: ai?.features.filter((f) => f.enabled).length ?? 0, all: ai?.features.length ?? 0 }) }}</span>
               <button type="button" class="btn btn-sm act" :aria-label="t('integrations.manageName', { name: t('ai.row') })" @click="open('ai')">{{ t('integrations.manage') }}</button>
             </li>
-            <li v-else class="row">
+            <li v-else-if="row.kind === 'email-code'" class="row">
+              <span class="logo muted" aria-hidden="true"><Code2 :size="18" /></span>
+              <div class="what">
+                <strong>{{ t('integrations.emailCode') }}</strong>
+                <span class="desc">{{ data.email?.code ? t('integrations.emailCodeDesc', { name: data.email.code }) : t('integrations.emailCodeNone') }}</span>
+              </div>
+              <span v-if="!data.email?.active && data.email?.code" class="status status-ok"><CheckCircle2 :size="14" aria-hidden="true" /> {{ t('integrations.statusSends') }}</span>
+              <span v-else-if="!data.email?.active" class="status status-none">{{ t('integrations.emailNothing') }}</span>
+              <button v-else type="button" class="btn btn-sm act" @click="useCodeEmail">{{ data.email?.code ? t('email.useCode') : t('email.useNone') }}</button>
+            </li>
+            <li v-else-if="row.kind === 'code'" class="row">
               <span class="logo muted" aria-hidden="true"><Code2 :size="18" /></span>
               <div class="what">
                 <strong>{{ t(`integrations.kind.${row.service.kind}` as never) }}</strong>
@@ -668,21 +730,31 @@ const fieldLabel = (field: Field) => label(field.label, field.name)
                 <li v-for="connection in integration.connections" :key="String(connection.id)" class="connection">
                   <div class="who">
                     <strong>{{ connection.name }}</strong>
-                    <span v-if="connection.isDefault" class="badge"><Star :size="11" aria-hidden="true" /> {{ t('integrations.default') }}</span>
+                    <span v-if="connection.active" class="badge badge-on"><CheckCircle2 :size="11" aria-hidden="true" /> {{ t('integrations.sendsEmail') }}</span>
+                    <span v-else-if="connection.isDefault && !integration.email" class="badge"><Star :size="11" aria-hidden="true" /> {{ t('integrations.default') }}</span>
                     <span v-if="connection.env" class="badge">{{ t('integrations.fromEnv') }}</span>
                     <span v-if="connection.account" class="muted small">{{ connection.account }}</span>
                   </div>
                   <div class="meta small">
                     <span v-if="connection.lastError" class="error"><CircleAlert :size="13" aria-hidden="true" /> {{ connection.lastError }}</span>
                     <span v-else-if="connection.lastUsedAt" class="muted"><CheckCircle2 :size="13" aria-hidden="true" /> {{ t('integrations.lastUsed', { date: formatDate(connection.lastUsedAt) }) }}</span>
+                    <span v-if="connection.webhookUrl" class="webhook">
+                      <span class="field-label">{{ t('integrations.webhookUrl') }}</span>
+                      <span class="copy-row">
+                        <code>{{ connection.webhookUrl }}</code>
+                        <button type="button" class="btn btn-sm btn-icon" :aria-label="t('integrations.copyWebhook', { name: connection.name })" :title="t('integrations.copy')" @click="copy(connection.webhookUrl)"><Copy :size="14" aria-hidden="true" /></button>
+                      </span>
+                      <span v-if="integration.email?.webhookSetup" class="muted">{{ label(integration.email.webhookSetup, '') }}</span>
+                    </span>
                     <span v-if="connection.usage" class="muted">{{ t('ai.usage', { requests: connection.usage.requests.toLocaleString(), tokens: (connection.usage.input + connection.usage.output).toLocaleString() }) }}</span>
                   </div>
                   <div class="actions">
+                    <button v-if="integration.email && !connection.active && integration.enabled" type="button" class="btn btn-sm btn-primary" :disabled="using !== null" :aria-label="t('integrations.useForEmailName', { name: connection.name })" @click="useForEmail(integration, connection)">{{ using === String(connection.id) ? t('integrations.usingForEmail') : t('integrations.useForEmail') }}</button>
                     <button v-if="integration.testable" type="button" class="btn btn-sm" @click="test(integration, connection)">{{ t('integrations.test') }}</button>
                     <template v-if="!connection.env">
-                      <button v-if="!connection.isDefault" type="button" class="btn btn-sm btn-ghost" @click="makeDefault(integration, connection)">{{ t('integrations.makeDefault') }}</button>
+                      <button v-if="!connection.isDefault && !integration.email" type="button" class="btn btn-sm btn-ghost" @click="makeDefault(integration, connection)">{{ t('integrations.makeDefault') }}</button>
                       <button type="button" class="btn btn-sm btn-ghost" @click="startEditing(integration, connection)">{{ t('integrations.edit') }}</button>
-                      <button type="button" class="btn btn-sm btn-ghost danger" :aria-label="t('integrations.disconnectName', { name: connection.name })" @click="disconnect(integration, connection)"><Trash2 :size="14" aria-hidden="true" /> {{ t('integrations.disconnect') }}</button>
+                      <button type="button" class="btn btn-sm btn-ghost danger" :disabled="connection.active" :title="connection.active ? t('integrations.sendsEmailKeep') : undefined" :aria-label="t('integrations.disconnectName', { name: connection.name })" @click="disconnect(integration, connection)"><Trash2 :size="14" aria-hidden="true" /> {{ t('integrations.disconnect') }}</button>
                     </template>
                   </div>
                 </li>
@@ -1117,6 +1189,25 @@ const fieldLabel = (field: Field) => label(field.label, field.name)
   border-radius: 999px;
   background: var(--accent-soft);
   font-size: 0.75rem;
+}
+.badge-on {
+  background: var(--success-soft, var(--accent-soft));
+  color: var(--success, inherit);
+}
+.meta .webhook {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.25rem;
+  width: 100%;
+  margin-top: 0.25rem;
+}
+.meta .webhook .copy-row {
+  display: flex;
+}
+.meta .webhook code {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .error {
   color: var(--danger);

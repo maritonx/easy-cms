@@ -86,6 +86,85 @@ export default defineConfig({
 })
 ```
 
+## Email providers in the admin {#providers}
+
+With `@easy-cms/plugin-email`, admins connect **Resend**, **Postmark** or **Brevo** (and any
+**SMTP** server, with `smtpProvider`) in **Settings → Integrations → Email** and choose which one
+sends the site's email. The config's `email`, if you set one, stays the default: **Use the
+code's** goes back to it.
+
+```bash [pm]
+npm install @easy-cms/plugin-email
+```
+
+```ts
+import { smtp, smtpProvider } from '@easy-cms/email-smtp'
+import { emailPlugin, emailProviders } from '@easy-cms/plugin-email'
+
+export default defineConfig({
+  email: smtp(), // optional: the default until an admin chooses a provider
+  plugins: [emailPlugin({ providers: [...emailProviders, smtpProvider] })],
+})
+```
+
+1. **Connect**: an API key (or the SMTP server's host, user and password) and the sender, an
+   address on a domain you verified with the provider. The key is checked first, and kept
+   encrypted.
+2. **Send email with it**: a test email goes to you with that connection. Only when it arrives
+   at the provider does the site switch to it, so a domain the provider hasn't verified changes
+   nothing. Every server follows within a minute.
+3. The connection that sends can't be removed or turned off: choose another, or the code's, first.
+
+Only admins of the whole site choose, and the audit log keeps who did. Emails waiting to be
+retried go with the provider in use when they are retried.
+
+| Provider | What to fill in | Webhook |
+|---|---|---|
+| Resend {#resend} | API key (`re_…`), and the webhook's signing secret (`whsec_…`) | `email.delivered`, `email.bounced`, `email.complained`, signed (Svix) |
+| Postmark {#postmark} | Server API token, message stream (default `outbound`) | Delivery, Bounce, Spam Complaint |
+| Brevo {#brevo} | API key (`xkeysib-…`) | Delivered, Hard bounce, Soft bounce, Complaint |
+| SMTP | Host, port, user, password | — |
+
+### What happened after sending {#delivery-events}
+
+Each connection of Resend, Postmark and Brevo shows a **webhook URL**: add it at the provider with
+the events in the table. The secret part of the URL names the connection (it changes with
+`secret`), and Resend's requests are also checked against the signing secret. The email log then
+shows each email as **delivered**, **bounced** or **reported as spam**, and can show only those.
+A bounce that may pass (a full mailbox) isn't kept.
+
+### The suppression list {#suppressions}
+
+An address that bounced for good, or whose owner reported spam, goes on the list under **Settings →
+Email**, and gets no more email: the log shows those as **not sent**. Admins can add addresses
+and take them off. Emails people ask for (a password reset, an invitation, an email check) still
+go to an address that reported spam, but not to one that bounced: it can't receive them.
+
+The list is the internal `email-suppressions` table, made with email (see [Upgrading](./upgrading)).
+`email.bounced` and `email.complained` are [system events](./webhooks#when-something-fails): with
+`@easy-cms/plugin-notify`, tick them for a chat to hear about them.
+
+### Your own provider {#your-own-provider}
+
+```ts
+import { defineEmailProvider } from '@easy-cms/plugin-email'
+
+export const myProvider = defineEmailProvider({
+  id: 'my-provider',
+  label: 'My provider',
+  fields: [{ name: 'apiKey', label: 'API key', required: true, secret: true }],
+  create: (values) => ({
+    async send(message) {
+      // values.apiKey, values.from…; return the provider's id for the email
+      return { id: '…' }
+    },
+  }),
+  // Optional: check the key, and read the provider's webhook.
+  test: async (values) => ({ ok: true }),
+  events: (request, values) => [{ id: '…', type: 'bounced', address: 'a@x.co' }],
+})
+```
+
 ## Sending from your code
 
 ```ts
@@ -113,7 +192,7 @@ every minute on a long-running server, or from your cron (`GET <api>/jobs/run`).
 On serverless hosts, call `await cms.flushEmails()` before the function returns, or let the cron
 pick up what didn't finish.
 
-The table is created only when `email` is set: add it with a migration
+The table is created only when `email` is set (or `@easy-cms/plugin-email` is installed): add it with a migration
 (`easy-cms migrate:create email`).
 
 ## The email log {#the-email-log}

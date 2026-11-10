@@ -2086,9 +2086,19 @@ function validateIntegrations(config: Config, add: Add) {
     else ids.add(item.id)
     if (!isLabel(item.label)) add(`${at}.label`, 'must be a string or { en, th }')
     if (
-      !['social', 'ai', 'notifications', 'automation', 'backups'].includes(item.category as string)
+      !['social', 'ai', 'notifications', 'automation', 'backups', 'email'].includes(
+        item.category as string,
+      )
     )
-      add(`${at}.category`, "must be 'social', 'ai', 'notifications', 'automation' or 'backups'")
+      add(
+        `${at}.category`,
+        "must be 'social', 'ai', 'notifications', 'automation', 'backups' or 'email'",
+      )
+    if (item.category === 'email') {
+      const email = (item.email ?? {}) as Record<string, unknown>
+      if (typeof email.create !== 'function')
+        add(`${at}.email`, 'needs email.create(values): use defineEmailProvider()')
+    }
     if (item.kind === 'fields') {
       if (!Array.isArray(item.fields) || item.fields.length === 0)
         add(`${at}.fields`, 'needs at least one field to fill')

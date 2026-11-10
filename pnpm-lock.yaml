@@ -96,6 +96,9 @@ importers:
       '@easy-cms/plugin-backups':
         specifier: workspace:^
         version: link:../../packages/plugin-backups
+      '@easy-cms/plugin-email':
+        specifier: workspace:^
+        version: link:../../packages/plugin-email
       '@easy-cms/plugin-form-builder':
         specifier: workspace:^
         version: link:../../packages/plugin-form-builder
@@ -643,6 +646,18 @@ importers:
       vue:
         specifier: ^3.5.43
         version: 3.5.45(typescript@6.0.3)
+
+  packages/plugin-email:
+    devDependencies:
+      '@easy-cms/core':
+        specifier: workspace:^
+        version: link:../core
+      '@easy-cms/db-sqlite':
+        specifier: workspace:^
+        version: link:../db-sqlite
+      simple-icons:
+        specifier: 16.36.0
+        version: 16.36.0
 
   packages/plugin-form-builder:
     dependencies:
@@ -9388,7 +9403,7 @@ snapshots:
       obug: 3.0.0
       std-env: 4.3.0
       tinyrainbow: 3.2.0
-      vitest: 5.1.0(@edge-runtime/vm@5.0.0)(@opentelemetry/api@1.10.0)(@types/node@26.6.5)(@vitest/coverage-v8@5.1.0)(happy-dom@21.0.4)(vite@8.3.7(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
+      vitest: 5.1.0(@edge-runtime/vm@5.0.0)(@opentelemetry/api@1.10.0)(@types/node@22.20.5)(@vitest/coverage-v8@5.1.0)(happy-dom@21.0.4)(vite@8.3.7(@types/node@22.20.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
 
   '@vitest/istanbul-lib-coverage@2.1.0': {}
 
@@ -9413,6 +9428,7 @@ snapshots:
       magic-string: 1.4.5
     optionalDependencies:
       vite: 8.3.7(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1)
+    optional: true
 
   '@vitest/spy@5.1.0': {}
 
@@ -13050,6 +13066,7 @@ snapshots:
       happy-dom: 21.0.4
     transitivePeerDependencies:
       - msw
+    optional: true
 
   vscode-jsonrpc@10.0.0: {}
 

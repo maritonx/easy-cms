@@ -2,7 +2,7 @@ import { createHash, createHmac } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
-import { expect, type Page, type Route, test } from '@playwright/test'
+import { expect, type Page, type Route, request, test } from '@playwright/test'
 import sharp from 'sharp'
 
 const ADMIN = { email: 'admin@e2e.test', password: 'admin-password-1' }
@@ -1857,6 +1857,80 @@ test.describe('logged in as admin', () => {
     await shot(page, 'actions-roles')
   })
 
+  test('sends email with a provider chosen in the admin, and keeps bounces off (#404)', async ({
+    page,
+  }) => {
+    test.skip(test.info().project.name !== 'next', 'The Next.js example has the email plugin')
+    await page.goto('/admin/integrations?category=email')
+    // The config's email is the default, shown among the providers.
+    const code = page.getByRole('listitem').filter({ hasText: 'From the code' })
+    await expect(code).toContainText('console · the default when no provider here sends')
+    await expect(code).toContainText('Sends email')
+    await page.getByRole('button', { name: 'Connect Resend' }).click()
+    const card = page.getByRole('dialog', { name: 'Resend' })
+    await card.getByLabel(/^API key/).fill('re_e2e')
+    await card.getByLabel(/^Send as/).fill('Blog <blog@e2e.test>')
+    await card.getByRole('button', { name: 'Save' }).click()
+    await expect(page.getByRole('status')).toContainText('Resend')
+    // A test email to the admin first, then it sends the site's email.
+    await card.getByRole('button', { name: 'Send email with Resend' }).click()
+    await expect(
+      page.getByRole('status').filter({ hasText: 'A test email went to' }),
+    ).toContainText(`${ADMIN.email}: the site now sends email with Resend`)
+    await expect(card).toContainText('Sends email')
+    await expect(card.getByRole('button', { name: 'Disconnect Resend' })).toBeDisabled()
+    const sent = (await (await page.request.get('http://localhost:3116/sent')).json()) as {
+      to: string[]
+      from: string
+    }[]
+    expect(sent.at(-1)).toMatchObject({ to: [ADMIN.email], from: 'Blog <blog@e2e.test>' })
+    // The webhook URL to give Resend, and a bounce posted to it.
+    const webhook =
+      (await card.locator('code').filter({ hasText: '/webhook/' }).textContent()) ?? ''
+    expect(webhook).toContain('/api/cms/admin/integrations/resend/webhook/')
+    await shot(page, 'email-provider')
+    // From Resend: no session, so no cookie.
+    const outside = await request.newContext()
+    const posted = await outside.post(webhook, {
+      data: {
+        type: 'email.bounced',
+        data: {
+          email_id: 're-unknown',
+          to: ['bounced@e2e.test'],
+          bounce: { type: 'Permanent', message: 'No such mailbox' },
+        },
+      },
+    })
+    expect(await posted.json()).toEqual({ received: 1, recorded: 1 })
+    await outside.dispose()
+    await card.getByRole('button', { name: 'Close' }).click()
+
+    // Settings → Email: what sends, and the address kept off.
+    await fromMenu(page, 'Settings', 'Email', true)
+    const summary = page.getByRole('region', { name: 'Settings in use' })
+    await expect(summary).toContainText('Sends with')
+    await expect(summary).toContainText('Resend · Resend')
+    await expect(summary).toContainText('Chosen in the admin')
+    await expect(summary).toContainText('from Blog <blog@e2e.test>')
+    // The bounce shows on the tabs: one blocked address.
+    const blockedTab = page.getByRole('tab', { name: /^Blocked addresses/ })
+    await expect(blockedTab).toContainText('1')
+    await blockedTab.click()
+    await expect(page).toHaveURL(/tab=blocked/)
+    const list = page.getByRole('tabpanel', { name: /^Blocked addresses/ })
+    await expect(list).toContainText('bounced@e2e.test')
+    await expect(list).toContainText('No such mailbox')
+    await shot(page, 'email-suppressions')
+    page.once('dialog', (dialog) => void dialog.accept())
+    await list.getByRole('button', { name: 'Remove bounced@e2e.test' }).click()
+    await expect(page.getByRole('status')).toHaveText('bounced@e2e.test gets email again')
+    // Back to the code's, as the rest of the suite expects.
+    page.once('dialog', (dialog) => void dialog.accept())
+    await page.getByRole('button', { name: 'Use the code’s' }).click()
+    await expect(summary).toContainText('console')
+    await expect(summary).toContainText('From the code')
+  })
+
   test('sends backups to Google Drive, set up in the admin (#395)', async ({ page }) => {
     test.skip(test.info().project.name !== 'next', 'The Next.js example has the backups plugin')
     await page.goto('/admin/integrations?category=backups')
@@ -2501,15 +2575,26 @@ test.describe('logged in as admin', () => {
     // Settings → Email: the adapter in use (console in the examples) and a test email.
     await fromMenu(page, 'Settings', 'Email', true)
     await expect(page.getByRole('heading', { level: 1, name: 'Email' })).toBeVisible()
-    await expect(page.getByRole('region', { name: 'Settings in use' })).toContainText('console')
+    const emailSummary = page.getByRole('region', { name: 'Settings in use' })
+    await expect(emailSummary).toContainText('console')
     // The examples print emails to the log: the admin warns that nothing is sent.
     await expect(
-      page.getByText(/^Emails are not sent: they are printed to the server log/),
+      page.getByText(/^Not really sent: emails are printed to the server log/),
     ).toBeVisible()
-    await page.getByRole('button', { name: 'Send test email' }).click()
+    // What the adapter tells about itself, folded away.
+    await emailSummary.getByRole('button', { name: 'Details' }).click()
+    await expect(emailSummary).toContainText('Adapter')
+    await shot(page, 'email-page')
+    // The test, in a dialog.
+    await emailSummary.getByRole('button', { name: 'Send test email' }).click()
+    const test = page.getByRole('dialog', { name: 'Send a test email' })
+    await test.getByRole('button', { name: 'Send', exact: true }).click()
+    await expect(test.getByRole('status')).toBeVisible()
+    await shot(page, 'email-test')
     await expect(
       page.getByRole('status').filter({ hasText: /^Not sent to .*: printed to the server log/ }),
     ).toBeVisible()
+    await test.getByRole('button', { name: 'Close' }).click()
 
     // Saved emails and webhook deliveries, under Settings (email is set up in the examples).
     await fromMenu(page, 'Settings', 'Deliveries')
@@ -2612,7 +2697,7 @@ test.describe('logged in as admin', () => {
 
     // Settings → Email lists the invitation: who, what kind, sent; never the link in it.
     await page.goto('/admin/email')
-    const emails = page.getByRole('region', { name: 'Emails sent' })
+    const emails = page.getByRole('tabpanel', { name: /^Emails sent/ })
     await emails.getByRole('combobox', { name: 'Kind' }).selectOption('invite')
     const row = emails.getByRole('row').filter({ hasText: 'invitee@e2e.test' }).first()
     await expect(row).toContainText('Invitation')

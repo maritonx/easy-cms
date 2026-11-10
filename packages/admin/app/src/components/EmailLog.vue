@@ -9,8 +9,13 @@ import { api, toQuery } from '../lib/api'
 import { formatDate, t } from '../lib/i18n'
 import { session } from '../lib/session'
 
+/** `blocked`: the suppression list is kept, so bounced and skipped rows link to it. */
+defineProps<{ blocked?: boolean }>()
+const emit = defineEmits<{ blocked: [address: string] }>()
+
 const log = ref<AdminEmailLog | null>(null)
-const state = ref('')
+/** One filter for how it went: the send's state, or what the provider said after. */
+const status = ref('')
 const tag = ref('')
 const q = ref('')
 const page = ref(1)
@@ -21,7 +26,11 @@ async function load() {
     log.value = await api<AdminEmailLog>(
       'GET',
       `/admin/email/log${toQuery({
-        ...(state.value ? { state: state.value } : {}),
+        ...(status.value in DELIVERIES
+          ? { delivery: status.value }
+          : status.value
+            ? { state: status.value }
+            : {}),
         ...(tag.value ? { tag: tag.value } : {}),
         ...(q.value.trim() ? { q: q.value.trim() } : {}),
         ...(page.value > 1 ? { page: String(page.value) } : {}),
@@ -33,7 +42,7 @@ async function load() {
   }
 }
 onMounted(load)
-watch([state, tag], () => {
+watch([status, tag], () => {
   page.value = 1
   void load()
 })
@@ -49,6 +58,20 @@ function go(to: number) {
   page.value = to
   void load()
 }
+
+/** The first address of a log entry's `to`, as the blocked list keeps it. */
+function firstAddress(to: string): string {
+  const first = to.split(',')[0] ?? ''
+  const match = /<([^<>]+)>/.exec(first)
+  return (match ? (match[1] ?? '') : first).trim().toLowerCase()
+}
+/** The badge: what the provider said, else how sending went. */
+const badgeOf = (entry: AdminEmailLog['docs'][number]) =>
+  entry.delivery
+    ? { key: DELIVERIES[entry.delivery], tone: `delivery-${entry.delivery}` }
+    : { key: STATES[entry.state], tone: `state-${entry.state}` }
+const blockable = (entry: AdminEmailLog['docs'][number]) =>
+  entry.state === 'skipped' || entry.delivery === 'bounced' || entry.delivery === 'complained'
 
 /** Known kinds by name; others (a plugin's) as they are. */
 const TAGS: Record<string, Parameters<typeof t>[0]> = {
@@ -72,12 +95,18 @@ const STATES = {
   sent: 'emailLog.sent',
   pending: 'emailLog.pending',
   failed: 'emailLog.failed',
+  skipped: 'emailLog.skipped',
+} as const
+/** What the provider said happened after sending (#404). */
+const DELIVERIES = {
+  delivered: 'emailLog.delivered',
+  bounced: 'emailLog.bounced',
+  complained: 'emailLog.complained',
 } as const
 </script>
 
 <template>
-  <section class="card list" aria-labelledby="email-log-heading">
-    <h2 id="email-log-heading">{{ t('emailLog.title') }}</h2>
+  <div class="card list">
     <p v-if="error" class="field-error">{{ error }}</p>
     <template v-else-if="log">
       <p v-if="!log.enabled" class="muted">{{ t('emailLog.off') }}</p>
@@ -88,11 +117,17 @@ const STATES = {
             <Search :size="15" aria-hidden="true" />
             <input v-model="q" type="search" class="input" :placeholder="t('emailLog.search')" :aria-label="t('emailLog.search')" />
           </label>
-          <select v-model="state" class="input" :aria-label="t('emailLog.state')">
+          <select v-model="status" class="input" :aria-label="t('emailLog.state')">
             <option value="">{{ t('emailLog.allStates') }}</option>
+            <option v-if="log.deliveries" value="delivered">{{ t('emailLog.delivered') }}</option>
             <option value="sent">{{ t('emailLog.sent') }}</option>
             <option value="pending">{{ t('emailLog.pending') }}</option>
             <option value="failed">{{ t('emailLog.failed') }}</option>
+            <template v-if="log.deliveries">
+              <option value="bounced">{{ t('emailLog.bounced') }}</option>
+              <option value="complained">{{ t('emailLog.complained') }}</option>
+            </template>
+            <option value="skipped">{{ t('emailLog.skipped') }}</option>
           </select>
           <select v-model="tag" class="input" :aria-label="t('emailLog.kind')">
             <option value="">{{ t('emailLog.allKinds') }}</option>
@@ -107,25 +142,27 @@ const STATES = {
                 <th scope="col">{{ t('emailLog.when') }}</th>
                 <th scope="col">{{ t('emailLog.to') }}</th>
                 <th scope="col">{{ t('emailLog.subject') }}</th>
-                <th scope="col">{{ t('emailLog.kind') }}</th>
                 <th scope="col">{{ t('emailLog.state') }}</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="entry in log.docs" :key="String(entry.id)">
-                <td class="nowrap">{{ formatDate(entry.sentAt ?? entry.createdAt) }}</td>
+                <td class="when">{{ formatDate(entry.sentAt ?? entry.createdAt) }}</td>
                 <td class="to">
                   {{ entry.to }}
                   <span v-if="entry.cc" class="muted small">cc {{ entry.cc }}</span>
                   <span v-if="entry.bcc" class="muted small">{{ t('emailLog.bcc', { count: entry.bcc }) }}</span>
                 </td>
-                <td>{{ entry.subject }}</td>
-                <td class="nowrap">{{ tagLabel(entry.tag) }}</td>
-                <td>
-                  <span :class="['badge', `state-${entry.state}`]">{{ t(STATES[entry.state]) }}</span>
+                <td class="subject">
+                  {{ entry.subject }}
+                  <span v-if="entry.tag" class="kind">{{ tagLabel(entry.tag) }}</span>
+                </td>
+                <td class="state">
+                  <span :class="['badge', badgeOf(entry).tone]" :title="entry.deliveryAt ? formatDate(entry.deliveryAt) : undefined">{{ t(badgeOf(entry).key) }}</span>
                   <span v-if="entry.state === 'pending' && entry.attempts" class="muted small"> {{ t('emailLog.attempt', { count: entry.attempts }) }}</span>
-                  <span v-if="entry.error && entry.state !== 'sent'" class="error small">{{ entry.error }}</span>
-                  <RouterLink v-if="entry.state !== 'sent' && session.schema?.deliveries?.email" to="/deliveries?kind=email" class="small">{{ t('emailLog.retry') }}</RouterLink>
+                  <span v-if="entry.error && (entry.state !== 'sent' || entry.delivery === 'bounced')" :class="entry.state === 'skipped' ? 'muted small' : 'error small'">{{ entry.error }}</span>
+                  <button v-if="blocked && blockable(entry)" type="button" class="link small" @click="emit('blocked', firstAddress(entry.to))">{{ t('emailLog.showBlocked') }}</button>
+                  <RouterLink v-if="(entry.state === 'pending' || entry.state === 'failed') && session.schema?.deliveries?.email" to="/deliveries?kind=email" class="small">{{ t('emailLog.retry') }}</RouterLink>
                 </td>
               </tr>
             </tbody>
@@ -138,7 +175,7 @@ const STATES = {
         </nav>
       </template>
     </template>
-  </section>
+  </div>
 </template>
 
 <style scoped>
@@ -146,9 +183,17 @@ const STATES = {
   margin-top: 1.25rem;
   padding: 1.25rem;
 }
-h2 {
-  margin: 0 0 0.35rem;
-  font-size: 1rem;
+.list > :first-child {
+  margin-top: 0;
+}
+.link {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--brand);
+  font: inherit;
+  cursor: pointer;
 }
 .filters {
   display: flex;
@@ -165,8 +210,97 @@ h2 {
 .search .input {
   flex: 1;
 }
+.filters select.input {
+  flex: 0 1 12rem;
+  width: auto;
+}
+.list {
+  container-type: inline-size;
+}
 .table-wrap {
   overflow-x: auto;
+}
+.when {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.kind {
+  display: block;
+  color: var(--faint);
+  font-size: 0.8rem;
+}
+.badge {
+  display: inline-block;
+  padding: 0 0.5rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  line-height: 1.4rem;
+  white-space: nowrap;
+}
+/* From waiting to sent to delivered, and what went wrong in red. */
+.state-pending {
+  background: var(--warning-soft);
+  color: var(--warning-text);
+}
+.state-sent {
+  background: var(--success-soft);
+  color: var(--ok);
+}
+.delivery-delivered {
+  background: var(--success-soft);
+  color: var(--ok);
+  font-weight: 600;
+}
+.delivery-delivered::before {
+  content: '✓ ';
+}
+.state-failed,
+.delivery-bounced,
+.delivery-complained {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.state-skipped {
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+/* Narrow: each email a block, recipient and state first. */
+@container (max-width: 34rem) {
+  table,
+  tbody {
+    display: block;
+  }
+  thead {
+    display: none;
+  }
+  tr {
+    display: grid;
+    grid-template-areas: 'to state' 'subject subject' 'when when';
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.1rem 0.5rem;
+    padding: 0.65rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 0;
+    border: 0;
+  }
+  .to {
+    grid-area: to;
+    font-weight: 600;
+  }
+  .state {
+    grid-area: state;
+    text-align: right;
+  }
+  .subject {
+    grid-area: subject;
+  }
+  .when {
+    grid-area: when;
+    font-size: 0.8rem;
+  }
 }
 table {
   width: 100%;
@@ -198,12 +332,8 @@ td a {
 .error {
   color: var(--danger);
 }
-.state-sent {
-  color: var(--success, var(--text-muted));
-}
-.state-failed {
-  color: var(--danger);
-}
+
+
 .pager {
   display: flex;
   align-items: center;

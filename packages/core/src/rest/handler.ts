@@ -753,11 +753,51 @@ async function route(
   if (first === 'admin' && second === 'email') {
     if (!ctx.user) throw new UnauthorizedError()
     if (!isSystemAdmin(ctx.user)) throw new ForbiddenError()
-    const [, , action, extra] = segments
+    const [, , action, extra, more] = segments
+    if (action === 'suppressions' && extra !== undefined && more === undefined) {
+      if (method !== 'DELETE') throw methodNotAllowed(ctx, 'DELETE')
+      const id = parseId(extra)
+      if (id === undefined) throw new HttpError('Not found', 404)
+      return { body: await cms.emailProviders.remove(ctx.user, id) }
+    }
     if (extra !== undefined) throw new HttpError('Not found', 404)
     if (action === undefined) {
       if (method !== 'GET') throw methodNotAllowed(ctx, 'GET')
-      return { body: adminEmail(cms) }
+      return { body: await adminEmail(cms) }
+    }
+    // The provider that sends (#404): a connection, after a test email to the admin, or the code's.
+    if (action === 'provider') {
+      if (method !== 'PUT') throw methodNotAllowed(ctx, 'PUT')
+      const body = (await readJson(ctx.request)) as {
+        integration?: unknown
+        connection?: unknown
+        locale?: unknown
+      }
+      const connection = body.connection === 'env' ? 'env' : parseId(String(body.connection ?? ''))
+      const choice =
+        typeof body.integration === 'string' && body.integration && connection !== undefined
+          ? { integration: body.integration, connection }
+          : null
+      return {
+        body: await cms.emailProviders.use(
+          ctx.user,
+          choice,
+          typeof body.locale === 'string' ? body.locale : undefined,
+        ),
+      }
+    }
+    // Addresses that get no email: bounced, reported spam, or added here.
+    if (action === 'suppressions') {
+      const page = Math.max(1, Number.parseInt(ctx.url.searchParams.get('page') ?? '1', 10) || 1)
+      if (method === 'GET')
+        return {
+          body: await cms.emailProviders.list(ctx.url.searchParams.get('q') ?? undefined, page),
+        }
+      if (method === 'POST') {
+        const body = (await readJson(ctx.request)) as { address?: unknown }
+        return { status: 201, body: await cms.emailProviders.add(ctx.user, body.address) }
+      }
+      throw methodNotAllowed(ctx, 'GET, POST')
     }
     // The emails sent: who, what kind, how it went (never their content).
     if (action === 'log') {
@@ -967,6 +1007,18 @@ async function route(
   }
 
   // Saved webhook deliveries and emails, for admins and roles given them: list, retry, delete.
+  // An email provider's webhook (#404): delivery events, from the provider, no session. The
+  // token in the URL names the connection; providers that sign their requests are checked too.
+  if (first === 'admin' && second === 'integrations' && segments[3] === 'webhook') {
+    const [, , id, , token, extra] = segments
+    if (!id || !token || extra !== undefined) throw new HttpError('Not found', 404)
+    if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
+    const body = await ctx.request.text()
+    return {
+      body: await cms.emailProviders.receive(id, token, { headers: ctx.request.headers, body }),
+    }
+  }
+
   // Settings → Integrations (#311): plugins' integrations and the accounts connected to them.
   if (first === 'admin' && second === 'integrations') {
     if (!ctx.user) throw new UnauthorizedError()

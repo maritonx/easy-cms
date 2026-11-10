@@ -1,0 +1,51 @@
+{
+  "name": "@easy-cms/plugin-email",
+  "version": "1.41.0",
+  "description": "Email providers for Easy CMS: Resend, Postmark and Brevo (or SMTP), connected and chosen in the admin, with delivery events and a suppression list",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "prepack": "node ../../scripts/check-publish.mjs"
+  },
+  "peerDependencies": {
+    "@easy-cms/core": "workspace:^"
+  },
+  "devDependencies": {
+    "@easy-cms/core": "workspace:^",
+    "@easy-cms/db-sqlite": "workspace:^",
+    "simple-icons": "16.36.0"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maritonx/easy-cms.git",
+    "directory": "packages/plugin-email"
+  },
+  "keywords": [
+    "easy-cms",
+    "easy-cms-plugin",
+    "email",
+    "resend",
+    "postmark",
+    "brevo"
+  ]
+}

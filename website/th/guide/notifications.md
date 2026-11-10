@@ -49,6 +49,7 @@ plugin เพิ่ม collection `notify-messages` (คิวของมัน
 | `delivery.failed` | webhook หรืออีเมลที่ส่งไม่สำเร็จหลังลองซ้ำครบแล้ว |
 | `backup.failed` | สาเหตุที่[สำรองข้อมูล](./backups)ไม่สำเร็จ |
 | `integration.failed` | การเชื่อมต่อที่ใช้งานไม่ได้ (ไม่รวมช่องทางแจ้งเตือนเอง) |
+| `email.bounced`, `email.complained` | อีเมลที่ตีกลับถาวรหรือถูกแจ้งเป็นสแปม จาก [webhook ของผู้ให้บริการอีเมล](./email#delivery-events) ส่งเฉพาะแชตที่เลือก event นี้ |
 | `social.failed` | ช่องทางของ[โพสต์โซเชียล](./social)ที่เลิกลองแล้ว พร้อมสาเหตุ |
 
 event เหล่านี้คือ [event ข้อผิดพลาด](./webhooks#when-something-fails) ที่ webhook รับได้ด้วย

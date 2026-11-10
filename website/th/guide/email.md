@@ -79,6 +79,79 @@ export default defineConfig({
 })
 ```
 
+## ผู้ให้บริการอีเมลในหน้า admin {#providers}
+
+เมื่อใช้ `@easy-cms/plugin-email` admin เชื่อมต่อ **Resend**, **Postmark** หรือ **Brevo** (และเซิร์ฟเวอร์
+**SMTP** ใดก็ได้ด้วย `smtpProvider`) ได้ที่ **ตั้งค่า → Integrations → อีเมล** แล้วเลือกว่าจะใช้บัญชีไหนส่งอีเมลของเว็บ
+ค่า `email` ใน config (ถ้าตั้งไว้) ยังเป็นค่าเริ่มต้น กด **ใช้ค่าจากโค้ด** เพื่อกลับไปใช้ค่านั้น
+
+```bash [pm]
+npm install @easy-cms/plugin-email
+```
+
+```ts
+import { smtp, smtpProvider } from '@easy-cms/email-smtp'
+import { emailPlugin, emailProviders } from '@easy-cms/plugin-email'
+
+export default defineConfig({
+  email: smtp(), // ไม่บังคับ: ใช้จนกว่า admin จะเลือกผู้ให้บริการ
+  plugins: [emailPlugin({ providers: [...emailProviders, smtpProvider] })],
+})
+```
+
+1. **เชื่อมต่อ**: กรอก API key (หรือ host, user และรหัสผ่านของเซิร์ฟเวอร์ SMTP) และผู้ส่ง ซึ่งต้องอยู่บนโดเมนที่ยืนยันกับผู้ให้บริการแล้ว
+   ระบบตรวจ key ก่อน และเก็บแบบเข้ารหัส
+2. **ใช้ส่งอีเมล**: ระบบส่งอีเมลทดสอบถึงคุณด้วยบัญชีนั้น เว็บจะเปลี่ยนไปใช้ก็ต่อเมื่อผู้ให้บริการรับอีเมลแล้วเท่านั้น
+   ถ้าโดเมนยังไม่ได้ยืนยันก็จะไม่มีอะไรเปลี่ยน ทุกเซิร์ฟเวอร์เปลี่ยนตามภายใน 1 นาที
+3. บัญชีที่ใช้ส่งอยู่ลบหรือปิดไม่ได้ ต้องเลือกบัญชีอื่นหรือค่าจากโค้ดก่อน
+
+เฉพาะ admin ของทั้งเว็บที่เลือกได้ และ audit log บันทึกว่าใครเปลี่ยน อีเมลที่รอส่งซ้ำจะส่งด้วยผู้ให้บริการที่ใช้อยู่ตอนส่งซ้ำ
+
+| ผู้ให้บริการ | สิ่งที่ต้องกรอก | Webhook |
+|---|---|---|
+| Resend {#resend} | API key (`re_…`) และ signing secret ของ webhook (`whsec_…`) | `email.delivered`, `email.bounced`, `email.complained` พร้อมลายเซ็น (Svix) |
+| Postmark {#postmark} | Server API token, message stream (ค่าเริ่มต้น `outbound`) | Delivery, Bounce, Spam Complaint |
+| Brevo {#brevo} | API key (`xkeysib-…`) | Delivered, Hard bounce, Soft bounce, Complaint |
+| SMTP | Host, port, user, รหัสผ่าน | — |
+
+### ผลหลังส่ง {#delivery-events}
+
+แต่ละบัญชีของ Resend, Postmark และ Brevo มี **URL ของ webhook** ให้นำไปเพิ่มที่ผู้ให้บริการพร้อม event ตามตาราง
+ส่วนลับใน URL ระบุบัญชี (เปลี่ยนเมื่อเปลี่ยน `secret`) และคำขอจาก Resend ตรวจกับ signing secret ด้วย
+บันทึกอีเมลจะแสดงว่าแต่ละฉบับ **ถึงแล้ว**, **ตีกลับ** หรือ **ถูกแจ้งเป็นสแปม** และกรองตามผลได้
+การตีกลับชั่วคราว (เช่น กล่องจดหมายเต็ม) ไม่ถูกบันทึก
+
+### รายการระงับ {#suppressions}
+
+ที่อยู่ที่ตีกลับถาวร หรือเจ้าของแจ้งสแปม จะอยู่ในรายการที่ **ตั้งค่า → อีเมล** และไม่ได้รับอีเมลอีก บันทึกอีเมลแสดงว่า **ไม่ได้ส่ง**
+admin เพิ่มและเอาที่อยู่ออกได้ อีเมลที่ผู้ใช้ขอเอง (รีเซ็ตรหัสผ่าน คำเชิญ ยืนยันอีเมล) ยังส่งถึงที่อยู่ที่เคยแจ้งสแปม
+แต่ไม่ส่งถึงที่อยู่ที่ตีกลับ เพราะรับไม่ได้อยู่แล้ว
+
+รายการนี้คือตารางภายใน `email-suppressions` ที่สร้างพร้อมอีเมล (ดู [การอัปเกรด](./upgrading))
+`email.bounced` และ `email.complained` เป็น [system event](./webhooks#when-something-fails) ถ้าใช้ `@easy-cms/plugin-notify`
+ให้เลือก event เหล่านี้ในแชตที่ต้องการรับแจ้ง
+
+### เขียนผู้ให้บริการเอง {#your-own-provider}
+
+```ts
+import { defineEmailProvider } from '@easy-cms/plugin-email'
+
+export const myProvider = defineEmailProvider({
+  id: 'my-provider',
+  label: 'My provider',
+  fields: [{ name: 'apiKey', label: 'API key', required: true, secret: true }],
+  create: (values) => ({
+    async send(message) {
+      // values.apiKey, values.from… คืนรหัสอีเมลของผู้ให้บริการ
+      return { id: '…' }
+    },
+  }),
+  // ไม่บังคับ: ตรวจ key และอ่าน webhook ของผู้ให้บริการ
+  test: async (values) => ({ ok: true }),
+  events: (request, values) => [{ id: '…', type: 'bounced', address: 'a@x.co' }],
+})
+```
+
 ## ส่งจากโค้ดของคุณ {#sending-from-your-code}
 
 ```ts
@@ -103,7 +176,7 @@ admin ดูอีเมลที่ส่งไม่สำเร็จได�
 
 บน serverless ให้เรียก `await cms.flushEmails()` ก่อนฟังก์ชันจะจบ หรือปล่อยให้ cron ส่งฉบับที่ยังค้างอยู่
 
-ตารางนี้ถูกสร้างเฉพาะเมื่อตั้ง `email` ให้สร้าง migration ด้วย (`easy-cms migrate:create email`)
+ตารางนี้ถูกสร้างเฉพาะเมื่อตั้ง `email` (หรือติดตั้ง `@easy-cms/plugin-email`) ให้สร้าง migration ด้วย (`easy-cms migrate:create email`)
 
 ## บันทึกอีเมล {#the-email-log}
 

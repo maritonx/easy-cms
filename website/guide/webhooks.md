@@ -71,6 +71,8 @@ Easy CMS sends events of its own when something fails, for a webhook (or a
 | `delivery.failed` | A webhook or an email was given up on after its retries | `{ kind: 'webhook' \| 'email', url or to, event?, error, attempts }` |
 | `backup.failed` | A [backup](./backups) failed | `{ backup, error }` |
 | `integration.failed` | A connection's test or use failed ([Integrations](./integrations)) | `{ integration, name, error }` |
+| `email.bounced` | An email bounced for good ([Email providers](./email#delivery-events)) | `{ to, subject, reason, integration }` |
+| `email.complained` | An email was reported as spam | `{ to, subject, reason, integration }` |
 
 ```ts
 webhooks: [{ url: 'https://alerts.example.com/hook', events: ['backup.failed', 'delivery.failed'], secret }]

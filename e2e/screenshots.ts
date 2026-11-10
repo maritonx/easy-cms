@@ -174,7 +174,7 @@ async function main() {
         await shot('forms-overview')
 
         await page.goto(`${ORIGIN}/admin/backups`)
-        await page.locator('#settings-heading').waitFor()
+        await page.locator('#list-heading').waitFor()
         await shot('backups')
 
         await page.goto(`${ORIGIN}/admin/roles?role=editor`)
@@ -182,7 +182,7 @@ async function main() {
         await shot('roles')
 
         await page.goto(`${ORIGIN}/admin/email`)
-        await page.locator('#settings-heading').waitFor()
+        await page.locator('#email-summary').waitFor()
         await shot('email-settings')
 
         await page.goto(`${ORIGIN}/admin/collections/redirects?edit=${ids.redirect}`)

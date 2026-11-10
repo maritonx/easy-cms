@@ -24,6 +24,16 @@ Invalid Easy CMS config (1 problem):
   • admin.siteUrl: is now `siteURL`
 ```
 
+## 1.42 {#v1-42}
+
+- **Apps with email get a suppression list and delivery results**: a new
+  `email-suppressions` table and three columns on `email-log`. Run `npx easy-cms migrate:create`
+  and commit the migration, then `npx easy-cms migrate` where you deploy.
+- **Email adapters may return the provider's id** from `send()` (`{ id }`): webhooks name emails by
+  it. Returning nothing still works.
+- **Email providers chosen in the admin**: with `@easy-cms/plugin-email`, the config's `email` is
+  the default an admin can replace; see [email providers](./email#providers).
+
 ## 1.41 {#v1-41}
 
 - **Backups get settings in the admin and destinations**: a new

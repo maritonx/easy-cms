@@ -1,4 +1,4 @@
-import type { EmailAdapter } from '@easy-cms/core'
+import { defineEmailProvider, type EmailAdapter } from '@easy-cms/core'
 import nodemailer, { type Transporter } from 'nodemailer'
 
 export interface SmtpOptions {
@@ -100,7 +100,7 @@ export function smtp(options: SmtpOptions = {}): EmailAdapter {
     async send(message) {
       const list = (value: string | readonly string[] | undefined) =>
         value === undefined ? undefined : typeof value === 'string' ? value : [...value]
-      await transport().sendMail({
+      const info = await transport().sendMail({
         from: message.from,
         to: list(message.to),
         cc: list(message.cc),
@@ -110,7 +110,57 @@ export function smtp(options: SmtpOptions = {}): EmailAdapter {
         ...(message.html ? { html: message.html } : {}),
         ...(message.text ? { text: message.text } : {}),
       })
+      return typeof info?.messageId === 'string' ? { id: info.messageId } : undefined
     },
   }
   return adapter
+}
+
+/**
+ * SMTP as a provider an admin connects in Integrations → Email (with `emailPlugin()` from
+ * `@easy-cms/plugin-email`): host, port, user and password typed in the admin, not the code.
+ *
+ * ```ts
+ * emailPlugin({ providers: [...emailProviders, smtpProvider] })
+ * ```
+ */
+export const smtpProvider = defineEmailProvider({
+  id: 'smtp',
+  label: 'SMTP',
+  description: {
+    en: 'Any mail server: Gmail, Microsoft 365, your host’s',
+    th: 'เซิร์ฟเวอร์อีเมลใดก็ได้ เช่น Gmail, Microsoft 365 หรือของโฮสต์',
+  },
+  icon: 'mail',
+  docs: 'https://easycms.dev/docs/email#smtp',
+  plugin: '@easy-cms/email-smtp',
+  fields: [
+    { name: 'host', label: 'Host', placeholder: 'smtp.gmail.com', required: true },
+    { name: 'port', label: 'Port', placeholder: '587' },
+    { name: 'user', label: { en: 'User', th: 'ชื่อผู้ใช้' } },
+    { name: 'password', label: { en: 'Password', th: 'รหัสผ่าน' }, secret: true },
+  ],
+  create: (values) => fromValues(values),
+  async test(values) {
+    try {
+      const adapter = fromValues(values)
+      await adapter.verify?.()
+      return { ok: true, account: values.user || values.host || '' }
+    } catch (error) {
+      return { ok: false, message: (error as Error).message }
+    }
+  },
+})
+
+/** The adapter for a connection's values: nothing from the environment. */
+function fromValues(values: Readonly<Record<string, string>>): EmailAdapter {
+  const port = Number(values.port || 587)
+  return smtp({
+    host: values.host ?? '',
+    port: Number.isFinite(port) ? port : 587,
+    // Empty: no login, rather than SMTP_USER from the environment.
+    user: values.user ?? '',
+    password: values.password ?? '',
+    ...(values.from ? { from: values.from } : {}),
+  })
 }

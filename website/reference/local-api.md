@@ -112,6 +112,7 @@ to apply them, as the REST API does.
 | `flushOutbox()` | — | With `outbox: true`: waits until the outbox ran what saves left so far; call before a serverless function returns. What fails stays queued for its retry. |
 | `sendEmail(message)` | — | Queues an email for the config's `email` adapter and sends it in the background. [Email](/guide/email) |
 | `flushEmails()` | — | Waits for emails being sent; call before a serverless function returns. |
+| `emailAdapter()` | `EmailAdapter \| undefined` | The adapter that sends now: the email provider an admin chose, else the config's `email`. [Email providers](/guide/email#providers) |
 
 ### Search
 
@@ -134,6 +135,7 @@ to apply them, as the REST API does.
 The `cms` object also has `config` (the resolved config), `auth` (login and session checks),
 `auth.sso` (signing in with `auth.providers`), `audit` (with `audit`: `audit.record({ action, target, doc })` writes an entry), `roles` (with `auth.rbac`: `roles.allows(user, { collection }, operation)` says what a user's role
 allows), `integrations` (connections: `integrations.get(id)`, [Integrations](/guide/integrations)),
+`emailProviders` (with email providers: `emailProviders.suppress(address, reason, detail, source)` keeps an address off the site's email, [Email providers](/guide/email#providers)),
 `ai` (with `@easy-cms/plugin-ai`, else `null`: `ai.generate({ feature, prompt })`, [AI](/guide/ai)), `db`,
 `storage`, `logger` and `cwd`.
 

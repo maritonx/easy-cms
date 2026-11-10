@@ -10,6 +10,8 @@ export const SYSTEM_EVENTS = [
   'delivery.failed',
   'backup.failed',
   'integration.failed',
+  'email.bounced',
+  'email.complained',
 ] as const
 
 export const WEBHOOK_EVENTS = [

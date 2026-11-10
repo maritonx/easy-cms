@@ -1,7 +1,7 @@
 import type { ID, Where } from '../access.js'
-import { EMAIL_LOG } from '../builtins.js'
+import { EMAIL_LOG, EMAIL_SUPPRESSIONS } from '../builtins.js'
 import { isEmail } from '../document.js'
-import type { EmailLogEntry, EmailSetting } from '../email.js'
+import type { EmailAdapter, EmailLogEntry, EmailSetting } from '../email.js'
 import { TooManyRequestsError, ValidationError } from '../errors.js'
 import type { EasyCMS } from '../local-api.js'
 
@@ -17,6 +17,21 @@ export interface AdminEmail {
   settings: EmailSetting[]
   /** The adapter can check its connection without sending (`verify()`). */
   canVerify: boolean
+  /**
+   * With email providers (`@easy-cms/plugin-email`): the connection an admin chose to send with
+   * (`null`: the config's `email`, named by `code`).
+   */
+  providers?: {
+    active: { integration: string; connection: ID | 'env'; label: string } | null
+    code: string | null
+  }
+  /** The suppression list is kept. */
+  suppressions: boolean
+  /**
+   * For the page's tabs: addresses on the suppression list, and emails of the last 7 days that
+   * failed, bounced or were reported as spam.
+   */
+  counts: { blocked: number; problems: number }
 }
 
 /**
@@ -32,11 +47,9 @@ const WINDOW = 10 * 60_000
 const sentAt = new WeakMap<EasyCMS, Map<string, number[]>>()
 
 /** The adapter prints emails to the log instead of sending them (`delivery: log`). */
-function logsOnly(cms: EasyCMS) {
+function logsOnly(adapter: EmailAdapter | undefined) {
   try {
-    return (cms.config.email?.describe?.() ?? []).some(
-      (s) => s.key === 'delivery' && s.value === 'log',
-    )
+    return (adapter?.describe?.() ?? []).some((s) => s.key === 'delivery' && s.value === 'log')
   } catch {
     return false
   }
@@ -45,9 +58,61 @@ function logsOnly(cms: EasyCMS) {
 const message = (error: unknown) =>
   error instanceof Error ? error.message || error.name : String(error)
 
-export function adminEmail(cms: EasyCMS): AdminEmail {
-  const adapter = cms.config.email
-  if (!adapter) return { configured: false, name: null, from: null, settings: [], canVerify: false }
+/** Rows of a table matching `where`, or 0 without the table. */
+async function count(cms: EasyCMS, collection: string, where?: Where): Promise<number> {
+  if (!cms.config.collections.some((c) => c.slug === collection)) return 0
+  const found = await cms.db.find({
+    collection,
+    ...(where ? { where } : {}),
+    sort: ['id'],
+    limit: 1,
+    page: 1,
+  })
+  return found.totalDocs
+}
+
+export async function adminEmail(cms: EasyCMS): Promise<AdminEmail> {
+  const adapter = await cms.emailAdapter().catch(() => undefined)
+  const suppressions = cms.config.collections.some((c) => c.slug === EMAIL_SUPPRESSIONS)
+  const since = new Date(Date.now() - 7 * 86_400_000).toISOString()
+  const counts = {
+    blocked: await count(cms, EMAIL_SUPPRESSIONS),
+    problems: await count(cms, EMAIL_LOG, {
+      and: [
+        { createdAt: { gte: since } },
+        {
+          or: [{ state: { equals: 'failed' } }, { delivery: { in: ['bounced', 'complained'] } }],
+        },
+      ],
+    }),
+  }
+  let providers: AdminEmail['providers']
+  if (cms.emailProviders.definitions.length > 0) {
+    const active = await cms.emailProviders.active()
+    let label: string | null = null
+    if (active) {
+      const def = cms.emailProviders.definitions.find((d) => d.id === active.integration)
+      const name = (await cms.integrations.byId(active.integration, active.connection))?.name
+      const title =
+        typeof def?.label === 'string' ? def.label : (def?.label.en ?? active.integration)
+      label = name ? `${title} · ${name}` : title
+    }
+    providers = {
+      active: active && label ? { ...active, label } : null,
+      code: cms.config.email ? (cms.config.email.name ?? 'custom') : null,
+    }
+  }
+  if (!adapter)
+    return {
+      configured: false,
+      name: null,
+      from: null,
+      settings: [],
+      canVerify: false,
+      ...(providers ? { providers } : {}),
+      suppressions,
+      counts,
+    }
   let settings: EmailSetting[] = []
   try {
     settings = [...(adapter.describe?.() ?? [])].map((s) => ({
@@ -64,12 +129,15 @@ export function adminEmail(cms: EasyCMS): AdminEmail {
     from: adapter.from ?? null,
     settings,
     canVerify: typeof adapter.verify === 'function',
+    ...(providers ? { providers } : {}),
+    suppressions,
+    counts,
   }
 }
 
 /** Connects (and logs in) without sending. */
 export async function verifyEmail(cms: EasyCMS): Promise<EmailCheck> {
-  const adapter = cms.config.email
+  const adapter = await cms.emailAdapter()
   if (!adapter?.verify)
     return { ok: false, error: 'This email adapter cannot check its connection' }
   try {
@@ -87,7 +155,7 @@ export async function sendTestEmail(
   to: unknown,
   locale: unknown,
 ): Promise<EmailCheck> {
-  const adapter = cms.config.email
+  const adapter = await cms.emailAdapter()
   if (!adapter) return { ok: false, error: 'Email is not set up (`email` in the config)' }
   const address = typeof to === 'string' && to.trim() ? to.trim() : user.email
   if (!isEmail(address))
@@ -112,7 +180,7 @@ export async function sendTestEmail(
     : `This email was sent from Settings → Email in ${site} to test the settings.\n\nSent by: ${user.email}\nAdapter: ${adapter.name ?? 'custom'}\nFrom: ${from}\nTime: ${time}`
   try {
     await adapter.send({ to: address, subject, text, from })
-    return logsOnly(cms) ? { ok: true, logged: true } : { ok: true }
+    return logsOnly(adapter) ? { ok: true, logged: true } : { ok: true }
   } catch (error) {
     return { ok: false, error: message(error) }
   }
@@ -129,6 +197,8 @@ export interface AdminEmailLog {
   totalDocs: number
   /** The kinds of email in the log, for the filter. */
   tags: string[]
+  /** Delivery events come in: the log can be narrowed by them. */
+  deliveries: boolean
 }
 
 const LOG_PAGE = 50
@@ -138,14 +208,26 @@ export async function adminEmailLog(cms: EasyCMS, url: URL): Promise<AdminEmailL
   const enabled = cms.config.collections.some((c) => c.slug === EMAIL_LOG)
   const keepDays = (cms.config.emailLog === false ? undefined : cms.config.emailLog?.keepDays) ?? 30
   if (!enabled)
-    return { enabled, keepDays, docs: [], page: 1, totalPages: 0, totalDocs: 0, tags: [] }
+    return {
+      enabled,
+      keepDays,
+      docs: [],
+      page: 1,
+      totalPages: 0,
+      totalDocs: 0,
+      tags: [],
+      deliveries: false,
+    }
   const state = url.searchParams.get('state')
   const tag = url.searchParams.get('tag')
   const q = url.searchParams.get('q')?.trim()
   const page = Math.max(1, Number.parseInt(url.searchParams.get('page') ?? '1', 10) || 1)
   const where: Where[] = []
-  if (state === 'sent' || state === 'pending' || state === 'failed')
+  if (state === 'sent' || state === 'pending' || state === 'failed' || state === 'skipped')
     where.push({ state: { equals: state } })
+  const delivery = url.searchParams.get('delivery')
+  if (delivery === 'delivered' || delivery === 'bounced' || delivery === 'complained')
+    where.push({ delivery: { equals: delivery } })
   if (tag) where.push({ tag: { equals: tag } })
   if (q) where.push({ or: [{ to: { like: q } }, { subject: { like: q } }] })
   const found = await cms.db.find({
@@ -172,5 +254,6 @@ export async function adminEmailLog(cms: EasyCMS, url: URL): Promise<AdminEmailL
     totalPages: found.totalPages,
     totalDocs: found.totalDocs,
     tags,
+    deliveries: cms.emailProviders.definitions.some((d) => d.email?.events),
   }
 }

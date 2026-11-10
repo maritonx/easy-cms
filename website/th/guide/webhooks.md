@@ -69,6 +69,8 @@ Easy CMS ส่ง event ของตัวเองเมื่อมีบา�
 | `delivery.failed` | webhook หรืออีเมลส่งไม่สำเร็จหลังลองซ้ำครบแล้ว | `{ kind: 'webhook' \| 'email', url หรือ to, event?, error, attempts }` |
 | `backup.failed` | การ[สำรองข้อมูล](./backups)ล้มเหลว | `{ backup, error }` |
 | `integration.failed` | การทดสอบหรือการใช้การเชื่อมต่อล้มเหลว ([การเชื่อมต่อ](./integrations)) | `{ integration, name, error }` |
+| `email.bounced` | อีเมลตีกลับถาวร ([ผู้ให้บริการอีเมล](./email#delivery-events)) | `{ to, subject, reason, integration }` |
+| `email.complained` | อีเมลถูกแจ้งเป็นสแปม | `{ to, subject, reason, integration }` |
 
 ```ts
 webhooks: [{ url: 'https://alerts.example.com/hook', events: ['backup.failed', 'delivery.failed'], secret }]
