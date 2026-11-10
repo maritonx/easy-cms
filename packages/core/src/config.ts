@@ -928,7 +928,10 @@ export function definePlugin<const T extends PluginTypes = Record<never, never>>
   return plugin
 }
 
-/** Database backups (Settings → Backups): one compressed SQLite file each. */
+/**
+ * Database backups (Settings → Backups): one compressed SQLite file each. `frequency`, `at` and
+ * `keep` are defaults an admin can change in Settings → Backups, unless `locked`.
+ */
 export interface BackupsConfig {
   /** Back up automatically every day or week. Default: only by hand. */
   readonly frequency?: 'daily' | 'weekly'
@@ -936,6 +939,8 @@ export interface BackupsConfig {
   readonly at?: string
   /** How many finished backups to keep; older ones are deleted. Default 7. */
   readonly keep?: number
+  /** `frequency`, `at` and `keep`, where set here, can't be changed in the admin. Default `false`. */
+  readonly locked?: boolean
   /** Folder for the default local storage, from the project root. Default `backups`. Never served publicly. */
   readonly dir?: string
   /** Where backups are stored instead, e.g. `s3Storage()` with a private bucket. */

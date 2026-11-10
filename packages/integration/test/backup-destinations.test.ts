@@ -259,8 +259,45 @@ describe('backup destinations', () => {
 describe('backup settings in the code', () => {
   beforeEach(() => setup({ frequency: 'weekly', keep: 4 }))
 
-  it('wins over the admin, and says so', async () => {
+  it('are defaults the admin changes, and follows again when set back', async () => {
+    expect((await list()).settings).toMatchObject({
+      frequency: 'weekly',
+      keep: 4,
+      at: '03:00',
+      defaults: { frequency: 'weekly', keep: 4, at: '03:00' },
+      inCode: ['frequency', 'keep'],
+      locked: [],
+    })
     await call('/admin/backups/settings', 'PUT', { frequency: 'daily', keep: 9, at: '01:00' })
+    expect((await list()).settings).toMatchObject({ frequency: 'daily', keep: 9, at: '01:00' })
+    // Manual only is a choice of its own, not "unset".
+    await call('/admin/backups/settings', 'PUT', { frequency: null, keep: 4, at: '03:00' })
+    expect((await list()).settings).toMatchObject({ frequency: null, keep: 4 })
+    await call('/admin/backups/settings', 'PUT', { frequency: 'weekly', keep: 4, at: '03:00' })
+    // Back to the code's values: nothing of the admin's left, so a new default in the code applies.
+    const saved = await cms.db.find({
+      collection: 'admin-settings',
+      sort: ['id'],
+      limit: 0,
+      page: 1,
+    })
+    const row = saved.docs.find((d) => d.key === 'backups')
+    expect(row?.value).not.toHaveProperty('frequency')
+    expect(row?.value).not.toHaveProperty('keep')
+    expect(row?.value).not.toHaveProperty('at')
+  })
+})
+
+describe('backup settings locked in the code', () => {
+  beforeEach(() => setup({ frequency: 'weekly', keep: 4, locked: true }))
+
+  it('win over the admin, and say so', async () => {
+    const saved = await call('/admin/backups/settings', 'PUT', {
+      frequency: 'daily',
+      keep: 9,
+      at: '01:00',
+    })
+    expect(saved.status).toBe(200)
     expect((await list()).settings).toMatchObject({
       frequency: 'weekly',
       keep: 4,

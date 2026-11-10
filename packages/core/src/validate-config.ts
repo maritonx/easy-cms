@@ -1023,7 +1023,7 @@ function validateBackups(config: Config, add: Add, push: (issue: ConfigIssue) =>
     add('backups', 'must be an object', "e.g. backups: { frequency: 'daily', keep: 7 }")
     return
   }
-  const { frequency, at, keep, dir, storage, sqlite, encryptionKey } = backups as Record<
+  const { frequency, at, keep, dir, storage, sqlite, encryptionKey, locked } = backups as Record<
     string,
     unknown
   >
@@ -1042,6 +1042,8 @@ function validateBackups(config: Config, add: Add, push: (issue: ConfigIssue) =>
     add('backups.at', 'must be a time like "03:00"')
   if (keep !== undefined && !(Number.isInteger(keep) && (keep as number) >= 1))
     add('backups.keep', 'must be a whole number, 1 or more')
+  if (locked !== undefined && typeof locked !== 'boolean')
+    add('backups.locked', 'must be true or false')
   if (dir !== undefined && (typeof dir !== 'string' || dir.trim() === ''))
     add('backups.dir', 'must be a folder name')
   if (

@@ -1,5 +1,6 @@
 import type { ID } from '../access.js'
 import { type AuthUser, isSystemAdmin } from '../access.js'
+import { backupSettings } from '../backups.js'
 import {
   EMAIL_DELIVERIES,
   JOB_RUNS,
@@ -152,7 +153,7 @@ export async function adminJobs(cms: EasyCMS, user: AuthUser): Promise<AdminJobs
     ...(has(config, WEBHOOK_DELIVERIES) ? (['webhooks'] as const) : []),
     ...(has(config, EMAIL_DELIVERIES) ? (['emails'] as const) : []),
     ...(has(config, OUTBOX) ? (['outbox'] as const) : []),
-    ...(config.backups?.frequency ? (['backups'] as const) : []),
+    ...((await backupSettings(cms)).frequency ? (['backups'] as const) : []),
     ...(config.audit ? (['audit'] as const) : []),
   ]
   const head = {
