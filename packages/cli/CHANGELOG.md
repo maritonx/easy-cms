@@ -1,5 +1,13 @@
 # easy-cms
 
+## 1.42.1
+
+### Patch Changes
+
+- Updated dependencies [eede511]
+  - @easy-cms/core@1.42.1
+  - @easy-cms/admin@1.42.1
+
 ## 1.42.0
 
 ### Patch Changes
