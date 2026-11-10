@@ -105,7 +105,7 @@ describe('seoMeta', () => {
       locale: 'en',
       url: (d, locale) => `/${locale}/posts/${d.slug}`,
       type: 'article',
-      author: 'Kanawoot',
+      author: 'Kanawut',
     })
     expect(meta.canonical).toBe('https://blog.test/en/posts/hello')
     expect(meta.alternates).toEqual({
@@ -121,7 +121,7 @@ describe('seoMeta', () => {
       ogLocaleAlternate: ['th'],
       articlePublishedTime: '2026-09-01T00:00:00.000Z',
       articleModifiedTime: '2026-09-02T00:00:00.000Z',
-      articleAuthor: ['Kanawoot'],
+      articleAuthor: ['Kanawut'],
     })
     expect(meta.next).toMatchObject({
       robots: { index: false },
@@ -131,7 +131,7 @@ describe('seoMeta', () => {
         locale: 'en',
         alternateLocale: ['th'],
         publishedTime: '2026-09-01T00:00:00.000Z',
-        authors: ['Kanawoot'],
+        authors: ['Kanawut'],
       },
     })
     expect(meta.jsonLd).toEqual({
@@ -142,7 +142,7 @@ describe('seoMeta', () => {
       image: ['https://blog.test/api/cms/media/file/cover.jpg'],
       datePublished: '2026-09-01T00:00:00.000Z',
       dateModified: '2026-09-02T00:00:00.000Z',
-      author: { '@type': 'Person', name: 'Kanawoot' },
+      author: { '@type': 'Person', name: 'Kanawut' },
       mainEntityOfPage: 'https://blog.test/en/posts/hello',
       url: 'https://blog.test/en/posts/hello',
       inLanguage: 'en',
