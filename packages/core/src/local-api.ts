@@ -2203,6 +2203,38 @@ export class EasyCMS<C extends Config = Config> {
     return this.mailer.flush()
   }
 
+  /** Work a request started that goes on after its response, e.g. a backup. */
+  private readonly background = new Set<Promise<unknown>>()
+
+  /**
+   * Keeps track of work that goes on after a response (a backup): `settle()` waits for it, and
+   * the API handler asks a serverless host to keep the function running until it is done.
+   */
+  inBackground(task: Promise<unknown>): void {
+    const tracked = task
+      .catch((error) =>
+        this.logger.error(`Background work failed: ${(error as Error).message}`, { error }),
+      )
+      .finally(() => this.background.delete(tracked))
+    this.background.add(tracked)
+  }
+
+  /** Work goes on after the response: background tasks or emails being sent. */
+  get busy(): boolean {
+    return this.background.size > 0 || this.mailer.busy
+  }
+
+  /**
+   * Waits for what goes on after a response (backups, emails being sent), e.g. before a
+   * serverless function returns. The API handlers do it with the host's `waitUntil`.
+   */
+  async settle(): Promise<void> {
+    while (this.background.size > 0 || this.mailer.busy) {
+      await Promise.allSettled([...this.background])
+      await this.mailer.flush()
+    }
+  }
+
   /** The log of emails sent (`email-log`), for Settings → Email. */
   private emailLogStore(): EmailLogStore {
     const collection = EMAIL_LOG
@@ -2422,6 +2454,7 @@ export class EasyCMS<C extends Config = Config> {
   async destroy(): Promise<void> {
     if (this.schedulerTimer) clearInterval(this.schedulerTimer)
     await this.running
+    await Promise.allSettled([...this.background])
     await this.outbox?.flush()
     await this.searchIndex?.flush()
     await this.webhooks.flush()

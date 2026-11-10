@@ -133,6 +133,31 @@ describe('backups in the admin', () => {
     expect((await list()).backups.filter((b) => b.trigger === 'scheduled')).toHaveLength(1)
   })
 
+  it('makes a backup the process never started, a few minutes on, when jobs run', async () => {
+    // A serverless function stopped before it could start: the record stays pending.
+    const asked = new Date(Date.now() - 3 * 60_000).toISOString()
+    const row = await cms.db.create({
+      collection: 'database-backups',
+      data: {
+        state: 'pending',
+        trigger: 'manual',
+        filename: null,
+        size: null,
+        startedAt: null,
+        finishedAt: null,
+        error: null,
+        author: null,
+        downloadedBy: null,
+        downloadedAt: null,
+        createdAt: asked,
+        updatedAt: asked,
+      },
+    })
+    await cms.runJobs(new Date())
+    const done = (await list()).backups.find((b) => b.id === row.id)
+    expect(done).toMatchObject({ state: 'done' })
+  })
+
   it('tells admins on the dashboard when the scheduled backup failed', async () => {
     const stamp = new Date().toISOString()
     await cms.db.create({

@@ -12,7 +12,7 @@ export default defineConfig([
     dts: { ...dts, entry: ['src/index.ts', 'src/config.ts', 'src/live-preview.ts'] },
     clean: true,
     target: 'node22',
-    external: ['next', 'next/headers.js'],
+    external: ['next', 'next/headers.js', 'next/server.js'],
   },
   {
     // A Client Component module: Next.js needs the directive at the top of the built file.

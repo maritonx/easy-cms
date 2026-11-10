@@ -11,6 +11,7 @@ import {
   resolveConfig,
   sharedEasyCMS,
 } from '@easy-cms/core'
+import { platformWaitUntil } from '@easy-cms/core/internal'
 
 type Handler = (request: Request) => Promise<Response>
 
@@ -51,7 +52,20 @@ export type RouteHandlerOptions = ApiHandlerOptions
  * ```
  */
 export function createRouteHandlers(config: Config, options: RouteHandlerOptions = {}) {
-  const handle: Handler = createApiHandler(config, options)
+  let after: After | undefined
+  const api = createApiHandler(config, {
+    // Work after the response (a backup, emails) with Next.js's `after`, which a serverless host
+    // keeps the function running for. Called while the request is still handled.
+    waitUntil: (task) => {
+      if (after) after(() => task)
+      else platformWaitUntil()?.(task)
+    },
+    ...options,
+  })
+  const handle: Handler = async (request) => {
+    after = await loadAfter()
+    return api(request)
+  }
   return {
     GET: handle,
     HEAD: handle,
@@ -61,6 +75,23 @@ export function createRouteHandlers(config: Config, options: RouteHandlerOptions
     DELETE: handle,
     OPTIONS: handle,
   }
+}
+
+/**
+ * Next.js's `after` (`unstable_after` in 15.0), loaded when first needed like `next/headers`;
+ * `undefined` without it.
+ */
+type After = (task: () => Promise<unknown>) => void
+let nextAfter: Promise<After | undefined> | undefined
+function loadAfter(): Promise<After | undefined> {
+  nextAfter ??= import('next/server.js').then(
+    (server) => {
+      const found = server as unknown as { after?: After; unstable_after?: After }
+      return found.after ?? found.unstable_after
+    },
+    () => undefined,
+  )
+  return nextAfter
 }
 
 /**

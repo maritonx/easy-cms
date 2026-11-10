@@ -323,6 +323,11 @@ export class Mailer {
     this.track(this.deliver(message, body, id))
   }
 
+  /** Emails are being sent right now. */
+  get busy(): boolean {
+    return this.pending.size > 0
+  }
+
   /** Waits for emails being sent, e.g. before a serverless function returns. */
   async flush(): Promise<void> {
     while (this.pending.size > 0) await Promise.allSettled([...this.pending])

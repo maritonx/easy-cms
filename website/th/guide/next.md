@@ -47,6 +47,7 @@ export const { GET, HEAD } = createAdminRouteHandlers(config)
 | `basePath` | `routes.api` | ตำแหน่งที่ API อยู่ |
 | `getClientIp` | — | `(request) => string \| undefined`: IP ของ client สำหรับจำกัดอัตราการเข้าสู่ระบบและ audit log ใช้ก่อน `trustProxy` |
 | `trustProxy` | `false` | ใช้ที่อยู่ตัวสุดท้ายใน `X-Forwarded-For` (ดูด้านล่าง) และเชื่อ `X-Forwarded-Host` ในการตรวจ origin ของ CSRF บน Vercel และ Netlify ไม่ต้องตั้ง |
+| `waitUntil` | `after` ของ Next.js | `(task, request) => void`: ให้ฟังก์ชันรันต่อสำหรับงานหลังตอบ request (backup, อีเมล) |
 
 ## การอ่านเนื้อหา {#reading-content}
 

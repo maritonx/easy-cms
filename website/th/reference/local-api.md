@@ -110,6 +110,8 @@ Local API เชื่อผู้เรียกและข้ามกฎส�
 | `flushOutbox()` | — | เมื่อ `outbox: true`: รอให้ outbox รันงานที่การบันทึกทิ้งไว้จนถึงตอนนี้ เรียกก่อนฟังก์ชัน serverless จะจบ งานที่ล้มยังอยู่ในคิวรอ retry |
 | `sendEmail(message)` | — | เข้าคิวอีเมลให้ adapter `email` ใน config แล้วส่งเบื้องหลัง [อีเมล](/th/guide/email) |
 | `flushEmails()` | — | รอให้อีเมลที่กำลังส่งเสร็จ เรียกก่อนฟังก์ชัน serverless จะจบ |
+| `settle()` | — | รองานที่ทำต่อหลังตอบ request (backup, อีเมลที่กำลังส่ง) เช่น ก่อนฟังก์ชัน serverless จะจบ API handler ทำให้แล้วผ่าน `waitUntil` ของโฮสต์ |
+| `inBackground(promise)` | — | จดงานที่ทำต่อหลังตอบ request ไว้ให้ `settle()` และ `busy` (`true` ระหว่างที่ยังมีงาน) |
 | `emailAdapter()` | `EmailAdapter \| undefined` | adapter ที่ใช้ส่งตอนนี้ คือผู้ให้บริการที่ admin เลือก ถ้าไม่ได้เลือกจะใช้ `email` ใน config [ผู้ให้บริการอีเมล](/th/guide/email#providers) |
 
 ### ค้นหา {#search}
