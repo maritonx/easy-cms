@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import type { AdminEmail, EmailCheck } from '@easy-cms/core'
-import { ChevronRight, PlugZap, Send } from '@lucide/vue'
+import { ChevronRight, PlugZap, RotateCcw, Send } from '@lucide/vue'
 import { computed, onMounted, ref, useId } from 'vue'
 import EmailLog from '../components/EmailLog.vue'
+import EmailSuppressions from '../components/EmailSuppressions.vue'
 import PanelSkeleton from '../components/PanelSkeleton.vue'
 import { ApiError, api } from '../lib/api'
 import { locale, t } from '../lib/i18n'
 import { useDelayedLoading } from '../lib/loading'
 import { session } from '../lib/session'
+import { notify } from '../lib/toast'
 
 /** Settings → Email (admins): the settings in use, a connection check and a test email. */
 const email = ref<AdminEmail | null>(null)
@@ -20,13 +22,32 @@ const busy = ref<'verify' | 'test' | null>(null)
 const verifyResult = ref<EmailCheck | null>(null)
 const testResult = ref<(EmailCheck & { to: string }) | null>(null)
 
-onMounted(async () => {
+async function load() {
   try {
     email.value = await api<AdminEmail>('GET', '/admin/email')
   } catch (e) {
     failed.value = e instanceof ApiError ? (e.errors[0]?.message ?? e.message) : String(e)
   }
-})
+}
+onMounted(load)
+
+/** Back to the config's `email` from the provider chosen on the Integrations page (#404). */
+const reverting = ref(false)
+async function useCode() {
+  const code = email.value?.providers?.code
+  if (!window.confirm(code ? t('email.confirmUseCode', { name: code }) : t('email.confirmUseNone')))
+    return
+  reverting.value = true
+  try {
+    await api('PUT', '/admin/email/provider', {})
+    notify('success', t('email.usingCode'))
+    await load()
+  } catch (e) {
+    notify('error', e instanceof ApiError ? (e.errors[0]?.message ?? e.message) : String(e))
+  } finally {
+    reverting.value = false
+  }
+}
 
 const KEYS: Record<string, Parameters<typeof t>[0]> = {
   host: 'email.host',
@@ -114,8 +135,14 @@ const docs = computed(() => `https://easycms.dev${locale.value === 'th' ? '/th' 
 
     <section v-else-if="!email.configured" class="card panel">
       <h2>{{ t('email.notSetUp') }}</h2>
-      <p>{{ t('email.notSetUpText') }}</p>
-      <a :href="docs" target="_blank" rel="noopener">{{ t('email.howToSetUp') }}</a>
+      <template v-if="email.providers">
+        <p>{{ t('email.chooseProviderText') }}</p>
+        <RouterLink to="/integrations?category=email" class="btn btn-primary">{{ t('email.chooseProvider') }}</RouterLink>
+      </template>
+      <template v-else>
+        <p>{{ t('email.notSetUpText') }}</p>
+        <a :href="docs" target="_blank" rel="noopener">{{ t('email.howToSetUp') }}</a>
+      </template>
     </section>
 
     <div v-else class="grid">
@@ -125,6 +152,14 @@ const docs = computed(() => `https://easycms.dev${locale.value === 'th' ? '/th' 
           {{ t('email.logOnly') }}
           <a :href="docs" target="_blank" rel="noopener">{{ t('email.howToSetUp') }}</a>
         </p>
+        <div v-if="email.providers" class="sends" role="group" :aria-label="t('email.sendsWith')">
+          <span class="muted small">{{ t('email.sendsWith') }}</span>
+          <strong>{{ email.providers.active ? email.providers.active.label : t('email.codeDefault', { name: email.providers.code ?? '' }) }}</strong>
+          <span class="sends-actions">
+            <RouterLink to="/integrations?category=email" class="small">{{ t('email.changeProvider') }}</RouterLink>
+            <button v-if="email.providers.active" type="button" class="btn btn-sm btn-ghost" :disabled="reverting" @click="useCode"><RotateCcw :size="14" aria-hidden="true" /> {{ email.providers.code ? t('email.useCode') : t('email.useNone') }}</button>
+          </span>
+        </div>
         <dl>
           <dt>{{ t('email.adapter') }}</dt>
           <dd>{{ email.name }}</dd>
@@ -140,7 +175,7 @@ const docs = computed(() => `https://easycms.dev${locale.value === 'th' ? '/th' 
             <dd :class="{ muted: !email.from }">{{ email.from ?? t('email.notSet') }}</dd>
           </template>
         </dl>
-        <p class="note muted">
+        <p v-if="!email.providers" class="note muted">
           {{ t('email.change') }}
           <a :href="docs" target="_blank" rel="noopener">{{ t('email.howToSetUp') }}</a>
         </p>
@@ -201,6 +236,7 @@ const docs = computed(() => `https://easycms.dev${locale.value === 'th' ? '/th' 
       </section>
     </div>
     <EmailLog v-if="email?.configured" />
+    <EmailSuppressions v-if="email?.suppressions" />
   </template>
 </template>
 
@@ -231,6 +267,22 @@ const docs = computed(() => `https://easycms.dev${locale.value === 'th' ? '/th' 
 .panel {
   padding: 1rem 1.1rem 1.1rem;
   min-width: 0;
+}
+.sends {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.6rem;
+  margin: -0.25rem 0 0.85rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 8px);
+}
+.sends-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
 }
 .panel h2 {
   margin: 0 0 0.75rem;

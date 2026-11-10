@@ -2,7 +2,7 @@ import { createHash, createHmac } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
-import { expect, type Page, type Route, test } from '@playwright/test'
+import { expect, type Page, type Route, request, test } from '@playwright/test'
 import sharp from 'sharp'
 
 const ADMIN = { email: 'admin@e2e.test', password: 'admin-password-1' }
@@ -1855,6 +1855,72 @@ test.describe('logged in as admin', () => {
     await page.goto('/admin/roles?role=editor')
     await expect(page.getByRole('checkbox', { name: 'Posts: Open on the site' })).not.toBeChecked()
     await shot(page, 'actions-roles')
+  })
+
+  test('sends email with a provider chosen in the admin, and keeps bounces off (#404)', async ({
+    page,
+  }) => {
+    test.skip(test.info().project.name !== 'next', 'The Next.js example has the email plugin')
+    await page.goto('/admin/integrations?category=email')
+    // The config's email is the default, shown among the providers.
+    const code = page.getByRole('listitem').filter({ hasText: 'From the code' })
+    await expect(code).toContainText('console · the default when no provider here sends')
+    await expect(code).toContainText('Sends email')
+    await page.getByRole('button', { name: 'Connect Resend' }).click()
+    const card = page.getByRole('dialog', { name: 'Resend' })
+    await card.getByLabel(/^API key/).fill('re_e2e')
+    await card.getByLabel(/^Send as/).fill('Blog <blog@e2e.test>')
+    await card.getByRole('button', { name: 'Save' }).click()
+    await expect(page.getByRole('status')).toContainText('Resend')
+    // A test email to the admin first, then it sends the site's email.
+    await card.getByRole('button', { name: 'Send email with Resend' }).click()
+    await expect(
+      page.getByRole('status').filter({ hasText: 'A test email went to' }),
+    ).toContainText(`${ADMIN.email}: the site now sends email with Resend`)
+    await expect(card).toContainText('Sends email')
+    await expect(card.getByRole('button', { name: 'Disconnect Resend' })).toBeDisabled()
+    const sent = (await (await page.request.get('http://localhost:3116/sent')).json()) as {
+      to: string[]
+      from: string
+    }[]
+    expect(sent.at(-1)).toMatchObject({ to: [ADMIN.email], from: 'Blog <blog@e2e.test>' })
+    // The webhook URL to give Resend, and a bounce posted to it.
+    const webhook =
+      (await card.locator('code').filter({ hasText: '/webhook/' }).textContent()) ?? ''
+    expect(webhook).toContain('/api/cms/admin/integrations/resend/webhook/')
+    await shot(page, 'email-provider')
+    // From Resend: no session, so no cookie.
+    const outside = await request.newContext()
+    const posted = await outside.post(webhook, {
+      data: {
+        type: 'email.bounced',
+        data: {
+          email_id: 're-unknown',
+          to: ['bounced@e2e.test'],
+          bounce: { type: 'Permanent', message: 'No such mailbox' },
+        },
+      },
+    })
+    expect(await posted.json()).toEqual({ received: 1, recorded: 1 })
+    await outside.dispose()
+    await card.getByRole('button', { name: 'Close' }).click()
+
+    // Settings → Email: what sends, and the address kept off.
+    await fromMenu(page, 'Settings', 'Email', true)
+    await expect(page.getByRole('group', { name: 'Sends with' })).toContainText('Resend · Resend')
+    const list = page.getByRole('region', { name: 'Addresses that get no email' })
+    await expect(list).toContainText('bounced@e2e.test')
+    await expect(list).toContainText('No such mailbox')
+    await shot(page, 'email-suppressions')
+    page.once('dialog', (dialog) => void dialog.accept())
+    await list.getByRole('button', { name: 'Remove bounced@e2e.test' }).click()
+    await expect(page.getByRole('status')).toHaveText('bounced@e2e.test gets email again')
+    // Back to the code's, as the rest of the suite expects.
+    page.once('dialog', (dialog) => void dialog.accept())
+    await page.getByRole('button', { name: 'Use the code’s' }).click()
+    await expect(page.getByRole('group', { name: 'Sends with' })).toContainText(
+      'The default from the code (console)',
+    )
   })
 
   test('sends backups to Google Drive, set up in the admin (#395)', async ({ page }) => {

@@ -3,6 +3,8 @@ import type { AuthUser, ID } from './access.js'
 import { secretsOf, signedWith, signValue } from './auth/tokens.js'
 import { CONNECTIONS } from './builtins.js'
 import type { ResolvedConfig } from './config.js'
+import type { EmailAdapter } from './email.js'
+import type { EmailEvent, EmailWebhookRequest } from './email-providers.js'
 import { ForbiddenError, NotFoundError, QueryError, ValidationError } from './errors.js'
 import type { Label } from './fields.js'
 import type { EasyCMS } from './local-api.js'
@@ -10,7 +12,13 @@ import type { EasyCMS } from './local-api.js'
 // Integrations (#311): plugins declare outside providers (`integrations` in the config), and
 // admins connect accounts to them on the Integrations page. Secrets are encrypted at rest.
 
-export type IntegrationCategory = 'social' | 'ai' | 'notifications' | 'automation' | 'backups'
+export type IntegrationCategory =
+  | 'social'
+  | 'ai'
+  | 'notifications'
+  | 'automation'
+  | 'backups'
+  | 'email'
 
 /**
  * A provider's logo: SVG paths, e.g. from simple-icons. Without `fill`, a path takes `color` (the
@@ -137,6 +145,23 @@ export interface IntegrationConfig {
     /** `app`: the OAuth app's keys, e.g. to refresh a token. */
     args: { cms: EasyCMS; app: Readonly<Record<string, string>> },
   ) => BackupDestination | Promise<BackupDestination>
+  /**
+   * Sends email (category `email`, usually from `defineEmailProvider`): an admin can choose a
+   * connection to send the site's email instead of the config's `email`.
+   */
+  readonly email?: {
+    readonly create: (
+      values: Readonly<Record<string, string>>,
+      args: { cms: EasyCMS },
+    ) => EmailAdapter
+    /** Delivery events from the provider's webhook; throw when the request isn't its own. */
+    readonly events?: (
+      request: EmailWebhookRequest,
+      values: Readonly<Record<string, string>>,
+    ) => readonly EmailEvent[] | Promise<readonly EmailEvent[]>
+    /** How to add the webhook at the provider. */
+    readonly webhookSetup?: Label
+  }
 }
 
 /** A connection as plugins read it: its values, secrets decrypted. */
@@ -232,6 +257,10 @@ export interface AdminConnection {
   values: Record<string, string>
   /** AI providers (#357): requests and tokens this month. */
   usage?: { requests: number; input: number; output: number }
+  /** Email providers: it sends the site's email. */
+  active?: boolean
+  /** Email providers with a webhook: where the provider posts delivery events. */
+  webhookUrl?: string
 }
 
 /** A field as the admin gets it: without its functions. */
@@ -266,6 +295,8 @@ export interface AdminIntegration {
     complete: boolean
     redirectUri: string
   }
+  /** Email providers: how to add the webhook at the provider, when it has one. */
+  email?: { webhook: boolean; webhookSetup?: Label }
 }
 
 /** What the code configures: shown, not changed, on the Integrations page. */
@@ -314,6 +345,15 @@ export const OFFICIAL_PLUGINS: readonly {
       th: 'backup ไป Google Drive, Cloudflare R2, Backblaze B2 หรือ S3',
     },
     docs: 'https://easycms.dev/docs/backups#destinations',
+  },
+  {
+    name: '@easy-cms/plugin-email',
+    category: 'email',
+    description: {
+      en: 'Send with Resend, Postmark or Brevo, chosen in the admin, with bounces kept off',
+      th: 'ส่งอีเมลด้วย Resend, Postmark หรือ Brevo เลือกในหน้า admin และกันที่อยู่ที่ตีกลับ',
+    },
+    docs: 'https://easycms.dev/docs/email#providers',
   },
   {
     name: '@easy-cms/plugin-ecommerce',
@@ -513,6 +553,40 @@ export class Integrations {
     return out
   }
 
+  /** A connection by its id (`env`: the environment's), values decrypted; `null` when gone or off. */
+  async byId(id: string, cid: ID | 'env'): Promise<IntegrationConnection | null> {
+    const def = this.definition(id)
+    if (!(await this.enabled(id))) return null
+    const env = this.envValues(def)
+    if (cid === 'env')
+      return this.envComplete(def) ? { name: ENV_NAME, values: env, env: true } : null
+    const row = (await this.rows(id, 'connection')).find((r) => String(r.id) === String(cid))
+    if (!row) return null
+    return { name: String(row.name), values: { ...this.decrypt(row), ...env }, env: false }
+  }
+
+  /** Every connection with its id (`env` for the environment's), values decrypted. */
+  async connectionsOf(id: string): Promise<(IntegrationConnection & { id: ID | 'env' })[]> {
+    const def = this.definition(id)
+    const env = this.envValues(def)
+    const out: (IntegrationConnection & { id: ID | 'env' })[] = this.envComplete(def)
+      ? [{ id: 'env', name: ENV_NAME, values: env, env: true }]
+      : []
+    for (const row of await this.rows(id, 'connection')) {
+      try {
+        out.push({
+          id: row.id as ID,
+          name: String(row.name),
+          values: { ...this.decrypt(row), ...env },
+          env: false,
+        })
+      } catch {
+        // Sealed with a secret that is gone: it can't be used.
+      }
+    }
+    return out
+  }
+
   /** The connection was used: its card says when, and an earlier error is gone. */
   async markUsed(id: string, name?: string) {
     await this.mark(id, name, { lastUsedAt: new Date().toISOString(), lastError: null })
@@ -546,11 +620,14 @@ export class Integrations {
     configured: ConfiguredService[]
     catalog: typeof OFFICIAL_PLUGINS
     staleSecrets: number
+    /** With email providers: the one in use (`null`: the config's `email`, named by `code`). */
+    email?: { active: { integration: string; connection: ID | 'env' } | null; code: string | null }
   }> {
     const integrations: AdminIntegration[] = []
     const usage = (await this.cms.ai?.usageByConnection()) ?? new Map()
     const aiProviders = new Set(this.config.ai?.providers.map((p) => p.integration) ?? [])
     const current = keyId(keyOf(this.config.secret))
+    const activeEmail = await this.cms.emailProviders.active()
     let stale = 0
     for (const def of this.definitions) {
       const rows = await this.rows(def.id, 'connection')
@@ -618,7 +695,24 @@ export class Integrations {
           : connections,
         ...(def.consent ? { consent: def.consent, consented: await this.consented(def.id) } : {}),
         ...(def.oauth?.app ? { app: await this.adminApp(def, redirectBase) } : {}),
+        ...(def.email
+          ? {
+              email: {
+                webhook: typeof def.email.events === 'function',
+                ...(def.email.webhookSetup ? { webhookSetup: def.email.webhookSetup } : {}),
+              },
+            }
+          : {}),
       })
+      if (def.email) {
+        const card = integrations[integrations.length - 1] as AdminIntegration
+        for (const c of card.connections) {
+          c.active =
+            activeEmail?.integration === def.id && String(activeEmail.connection) === String(c.id)
+          if (def.email.events)
+            c.webhookUrl = this.cms.emailProviders.webhookUrl(redirectBase, def.id, c.id)
+        }
+      }
     }
     const installed = new Set(this.config.installedPlugins.map((p) => p.name))
     return {
@@ -626,6 +720,14 @@ export class Integrations {
       configured: this.configured(),
       catalog: OFFICIAL_PLUGINS.filter((p) => !installed.has(p.name)),
       staleSecrets: stale,
+      ...(this.definitions.some((d) => d.email)
+        ? {
+            email: {
+              active: activeEmail,
+              code: this.config.email ? (this.config.email.name ?? 'custom') : null,
+            },
+          }
+        : {}),
     }
   }
 
@@ -653,7 +755,9 @@ export class Integrations {
   private configured(): ConfiguredService[] {
     const out: ConfiguredService[] = []
     const { config } = this
-    if (config.email) out.push({ id: 'email', kind: 'email', name: config.email.name ?? 'email' })
+    // With email providers, the config's is shown among them, as the default.
+    if (config.email && !this.definitions.some((d) => d.email))
+      out.push({ id: 'email', kind: 'email', name: config.email.name ?? 'email' })
     out.push({ id: 'storage', kind: 'storage', name: config.upload.storage?.name ?? 'disk' })
     if (config.search)
       out.push({ id: 'search', kind: 'search', name: config.search.name ?? 'search' })
@@ -785,6 +889,7 @@ export class Integrations {
   /** Removes the connection and its secrets; the oldest left becomes the default. */
   async disconnect(id: string, cid: ID, user: AuthUser) {
     const row = await this.row(id, cid)
+    await this.cms.emailProviders.guard(id, cid)
     await this.cms.db.delete({ collection: CONNECTIONS, id: cid })
     if (row.isDefault === true) {
       const [oldest] = await this.rows(id, 'connection')
@@ -802,6 +907,7 @@ export class Integrations {
   /** Turns the integration on or off; its connections are kept. */
   async setEnabled(id: string, enabled: boolean, user: AuthUser) {
     this.definition(id)
+    if (!enabled) await this.cms.emailProviders.guard(id)
     await this.saveIntegration(id, { enabled })
     await this.audit(user, enabled ? 'enable' : 'disable', id)
     return { enabled }

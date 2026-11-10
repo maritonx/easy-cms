@@ -11,6 +11,7 @@ import {
 import { LOGIN_ATTEMPTS, SESSIONS, USERS } from '../builtins.js'
 import type { PasswordPolicy } from '../config.js'
 import type { RawDocument } from '../database.js'
+import { hasEmail } from '../email-providers.js'
 import {
   ForbiddenError,
   NotFoundError,
@@ -598,7 +599,7 @@ export class Auth {
 
   /** Whether "forgot password" and invitations work: `email` is set and links have an origin. */
   canSendPasswordLinks(origin?: string): boolean {
-    return this.config.email !== undefined && this.passwordLinkBase(origin) !== null
+    return hasEmail(this.config) && this.passwordLinkBase(origin) !== null
   }
 
   /**

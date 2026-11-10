@@ -22,6 +22,14 @@ Invalid Easy CMS config (1 problem):
   • admin.siteUrl: is now `siteURL`
 ```
 
+## 1.42 {#v1-42}
+
+- **เว็บที่ส่งอีเมลมีรายการระงับและผลหลังส่ง**: ตารางใหม่ `email-suppressions` และคอลัมน์ใหม่ 3 คอลัมน์ใน `email-log`
+  รัน `npx easy-cms migrate:create` แล้ว commit migration จากนั้นรัน `npx easy-cms migrate` ที่เซิร์ฟเวอร์
+- **email adapter คืนรหัสอีเมลของผู้ให้บริการจาก `send()` ได้** (`{ id }`) webhook ใช้รหัสนี้ระบุอีเมล ถ้าไม่คืนอะไรก็ยังใช้ได้
+- **เลือกผู้ให้บริการอีเมลในหน้า admin**: เมื่อใช้ `@easy-cms/plugin-email` ค่า `email` ใน config เป็นค่าเริ่มต้นที่ admin เปลี่ยนได้
+  ดู [ผู้ให้บริการอีเมล](./email#providers)
+
 ## 1.41 {#v1-41}
 
 - **Backups ตั้งค่าในหน้า admin ได้และส่งไปปลายทางได้**: มีตารางใหม่ `admin-settings` และ column `copies` ใน

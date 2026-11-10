@@ -80,6 +80,7 @@ describe('email settings in the admin', () => {
         { key: 'password', value: 'set', source: 'SMTP_PASSWORD' },
       ],
       canVerify: true,
+      suppressions: true,
     })
   })
 
@@ -160,6 +161,7 @@ describe('email settings in the admin', () => {
         from: null,
         settings: [],
         canVerify: false,
+        suppressions: false,
       })
     } finally {
       await plain.destroy()

@@ -53,6 +53,7 @@ admin.
 | `backup.failed` | Why a [backup](./backups) failed |
 | `integration.failed` | A connection that stopped working (not the notification channels themselves) |
 | `social.failed` | A [social post](./social)'s channel given up on, and why |
+| `email.bounced`, `email.complained` | An email that bounced for good or was reported as spam, from an [email provider's webhook](./email#delivery-events). Only to chats that tick them. |
 
 These are the [failure events](./webhooks#when-something-fails) webhooks can get too.
 

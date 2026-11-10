@@ -134,7 +134,8 @@ export async function adminStatus(cms: EasyCMS): Promise<AdminStatus> {
   if (backups) attention.push(backups)
   attention.push(...(await cms.audit.attention()))
 
-  if (!config.email) attention.push({ id: 'no-email' })
+  const email = await cms.emailAdapter().catch(() => undefined)
+  if (!email) attention.push({ id: 'no-email' })
   if (!config.serverURL && process.env.NODE_ENV === 'production')
     attention.push({ id: 'no-server-url' })
 
@@ -143,7 +144,7 @@ export async function adminStatus(cms: EasyCMS): Promise<AdminStatus> {
       version: VERSION,
       database: config.db.name,
       storage: config.upload.storage?.name ?? 'local',
-      email: config.email ? (config.email.name ?? 'custom') : null,
+      email: email ? (email.name ?? 'custom') : null,
       search: config.search ? (config.search.name ?? 'custom') : null,
       telemetry: !!config.telemetry,
       plugins: config.installedPlugins.map((p) => ({ ...p })),

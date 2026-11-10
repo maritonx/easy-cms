@@ -11,6 +11,7 @@ import {
   databaseBackupsCollection,
   emailDeliveriesCollection,
   emailLogCollection,
+  emailSuppressionsCollection,
   internalCollections,
   jobRunsCollection,
   outboxCollection,
@@ -25,6 +26,7 @@ import {
   withUsers,
 } from './builtins.js'
 import { type Config, PLUGIN_API_VERSION, type ResolvedConfig } from './config.js'
+import { hasEmail } from './email-providers.js'
 import { ConfigError } from './errors.js'
 import { applyFieldTypes, fieldTypeModules } from './field-types.js'
 import type { Field } from './fields.js'
@@ -157,8 +159,9 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
       ...(usesSchedule(config) ? [scheduledJobsCollection] : []),
       ...((config.webhooks?.length ?? 0) > 0 ? [webhookDeliveriesCollection] : []),
       ...(config.apiKeys ? [apiKeysCollection] : []),
-      ...(config.email ? [emailDeliveriesCollection] : []),
-      ...(config.email && config.emailLog !== false ? [emailLogCollection] : []),
+      ...(hasEmail(config) ? [emailDeliveriesCollection] : []),
+      ...(hasEmail(config) && config.emailLog !== false ? [emailLogCollection] : []),
+      ...(hasEmail(config) ? [emailSuppressionsCollection] : []),
       ...((config.jobs?.length ?? 0) > 0 ? [jobRunsCollection] : []),
       ...(config.outbox ? [outboxCollection] : []),
       ...(config.rateLimit ? [rateLimitsCollection] : []),

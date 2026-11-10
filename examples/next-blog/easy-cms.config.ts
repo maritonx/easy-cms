@@ -2,10 +2,11 @@ import { oidc } from '@easy-cms/auth-oauth'
 import { consoleEmail, defineConfig } from '@easy-cms/core'
 import { postgres } from '@easy-cms/db-postgres'
 import { sqlite } from '@easy-cms/db-sqlite'
-import { smtp } from '@easy-cms/email-smtp'
+import { smtp, smtpProvider } from '@easy-cms/email-smtp'
 import { color } from '@easy-cms/fields'
 import { aiPlugin } from '@easy-cms/plugin-ai'
 import { backupsPlugin } from '@easy-cms/plugin-backups'
+import { emailPlugin, emailProviders } from '@easy-cms/plugin-email'
 import { formBuilderPlugin } from '@easy-cms/plugin-form-builder'
 import { graphqlPlugin } from '@easy-cms/plugin-graphql'
 import { mcpPlugin } from '@easy-cms/plugin-mcp'
@@ -374,6 +375,9 @@ export default defineConfig({
     aiPlugin(),
     // Backup destinations (Settings → Integrations → Backups): Google Drive and S3-compatible.
     backupsPlugin(),
+    // Email providers (Settings → Integrations → Email): Resend, Postmark, Brevo or SMTP, chosen
+    // in the admin instead of `email` above, with bounces kept off the list.
+    emailPlugin({ providers: [...emailProviders, smtpProvider] }),
     // Social posts (Content): Share on a post writes one, sent to webhooks (Make, n8n…) set up in
     // Settings → Integrations.
     socialPlugin({

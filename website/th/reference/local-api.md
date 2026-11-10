@@ -110,6 +110,7 @@ Local API เชื่อผู้เรียกและข้ามกฎส�
 | `flushOutbox()` | — | เมื่อ `outbox: true`: รอให้ outbox รันงานที่การบันทึกทิ้งไว้จนถึงตอนนี้ เรียกก่อนฟังก์ชัน serverless จะจบ งานที่ล้มยังอยู่ในคิวรอ retry |
 | `sendEmail(message)` | — | เข้าคิวอีเมลให้ adapter `email` ใน config แล้วส่งเบื้องหลัง [อีเมล](/th/guide/email) |
 | `flushEmails()` | — | รอให้อีเมลที่กำลังส่งเสร็จ เรียกก่อนฟังก์ชัน serverless จะจบ |
+| `emailAdapter()` | `EmailAdapter \| undefined` | adapter ที่ใช้ส่งตอนนี้ คือผู้ให้บริการที่ admin เลือก ถ้าไม่ได้เลือกจะใช้ `email` ใน config [ผู้ให้บริการอีเมล](/th/guide/email#providers) |
 
 ### ค้นหา {#search}
 
@@ -131,7 +132,7 @@ Local API เชื่อผู้เรียกและข้ามกฎส�
 
 object `cms` ยังมี `config` (config ที่ resolve แล้ว), `auth` (การ login และตรวจ session),
 `auth.sso` (การเข้าสู่ระบบด้วย `auth.providers`), `audit` (เมื่อเปิด `audit`: `audit.record({ action, target, doc })` เขียนรายการ), `roles` (เมื่อเปิด `auth.rbac`: `roles.allows(user, { collection }, operation)` บอกว่า role ของผู้ใช้อนุญาตอะไร),
-`integrations` (การเชื่อมต่อ: `integrations.get(id)` [การเชื่อมต่อ](/th/guide/integrations)), `ai` (เมื่อมี
+`integrations` (การเชื่อมต่อ: `integrations.get(id)` [การเชื่อมต่อ](/th/guide/integrations)), `emailProviders` (เมื่อมีผู้ให้บริการอีเมล: `emailProviders.suppress(address, reason, detail, source)` ระงับการส่งอีเมลถึงที่อยู่ [ผู้ให้บริการอีเมล](/th/guide/email#providers)), `ai` (เมื่อมี
 `@easy-cms/plugin-ai` ไม่อย่างนั้นเป็น `null`: `ai.generate({ feature, prompt })` [AI](/th/guide/ai)),
 `db`, `storage`, `logger` และ `cwd`
 

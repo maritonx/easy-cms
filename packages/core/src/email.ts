@@ -28,13 +28,36 @@ export interface EmailLogEntry {
   bcc: number
   subject: string
   tag: string | null
-  state: 'sent' | 'pending' | 'failed'
+  /** `skipped`: every recipient is on the suppression list (Settings → Email). */
+  state: 'sent' | 'pending' | 'failed' | 'skipped'
   attempts: number
   error: string | null
-  /** The email adapter's name, e.g. `smtp`. */
+  /** The email adapter's name, e.g. `smtp`, or the integration's, e.g. `resend`. */
   adapter: string
   sentAt: string | null
+  /** The provider's id for the email (`send()`'s `id`): its delivery events name it. */
+  providerId?: string | null
+  /** What the provider said happened after sending, from its webhook. */
+  delivery?: EmailDelivery | null
+  deliveryAt?: string | null
 }
+
+/** What happened to an email after it was sent, as the provider tells it. */
+export type EmailDelivery = 'delivered' | 'bounced' | 'complained'
+
+/** Why an address gets no email: it bounced for good, its owner reported spam, or an admin said so. */
+export type SuppressionReason = 'bounced' | 'complained' | 'manual'
+
+/**
+ * Emails a person asked for, sent even when they once reported spam (but not when the address
+ * bounced: it can't receive them).
+ */
+export const ASKED_FOR_TAGS: readonly string[] = [
+  'password-reset',
+  'invite',
+  'verify-email',
+  'password-changed',
+]
 
 /** Where the log is kept (`email-log`). */
 export interface EmailLogStore {
@@ -62,7 +85,11 @@ export interface EmailAdapter {
   readonly apiVersion?: number
   /** The sender when a message has none, e.g. `Easy CMS <no-reply@example.com>`. */
   readonly from?: string | undefined
-  send(message: EmailMessage & { readonly from: string }): Promise<void>
+  /**
+   * Sends one email. Return the provider's id for it, if it has one: delivery events from the
+   * provider's webhook name the email by it.
+   */
+  send(message: EmailMessage & { readonly from: string }): Promise<void | { readonly id?: string }>
   /**
    * The settings in use, shown to admins on Settings → Email. Never return secrets: say whether
    * a password is set, not what it is.
@@ -144,13 +171,24 @@ const later = (from: Date, ms: number) => new Date(from.getTime() + ms).toISOStr
 /** Sends email in the background: saved first, sent, and retried from the queue if it fails. */
 export class Mailer {
   private readonly pending = new Set<Promise<void>>()
+  private readonly current: () => Promise<EmailAdapter | undefined>
 
+  /**
+   * `adapter`: the one to send with, or a function giving the one in use at each send (the one
+   * an admin chose, else the config's).
+   */
   constructor(
-    private readonly adapter: EmailAdapter | undefined,
+    adapter: EmailAdapter | undefined | (() => Promise<EmailAdapter | undefined>),
     private readonly logger: Logger,
     private readonly queue?: EmailQueue,
     private readonly log?: EmailLogStore,
-  ) {}
+    /** The addresses of these that get no email, and why. */
+    private readonly suppressed?: (
+      addresses: readonly string[],
+    ) => Promise<ReadonlyMap<string, SuppressionReason>>,
+  ) {
+    this.current = typeof adapter === 'function' ? adapter : async () => adapter
+  }
 
   /** Writes to the log; a failure there never stops the email. */
   private async logged<T>(write: () => Promise<T>): Promise<T | undefined> {
@@ -169,8 +207,54 @@ export class Mailer {
   /** Told when an email is given up on (`delivery.failed`). */
   onGiveUp: ((detail: { to: string; error: string; attempts: number }) => void) | undefined
 
-  get configured(): boolean {
-    return this.adapter !== undefined
+  /** The adapter that sends now. */
+  adapter(): Promise<EmailAdapter | undefined> {
+    return this.current()
+  }
+
+  /**
+   * The message without the recipients on the suppression list (`null`: none left to send to),
+   * and why the first one left out was.
+   */
+  private async withoutSuppressed(
+    message: EmailMessage,
+  ): Promise<{ message: EmailMessage | null; skipped: string | null }> {
+    if (!this.suppressed) return { message, skipped: null }
+    const all = [...list(message.to), ...list(message.cc), ...list(message.bcc)]
+    let found: ReadonlyMap<string, SuppressionReason>
+    try {
+      found = await this.suppressed(all.map(addressOf))
+    } catch (error) {
+      // The list can't be read: send, rather than lose the email.
+      this.logger.error(`Could not read the suppression list: ${(error as Error).message}`, {
+        error,
+      })
+      return { message, skipped: null }
+    }
+    if (found.size === 0) return { message, skipped: null }
+    const asked = message.tag !== undefined && ASKED_FOR_TAGS.includes(message.tag)
+    let skipped: string | null = null
+    const keep = (value: string | readonly string[] | undefined) =>
+      list(value).filter((to) => {
+        const reason = found.get(addressOf(to))
+        if (!reason || (reason === 'complained' && asked)) return true
+        skipped ??= `${addressOf(to)} is on the suppression list (${reason})`
+        return false
+      })
+    const to = keep(message.to)
+    if (to.length === 0) return { message: null, skipped }
+    const cc = keep(message.cc)
+    const bcc = keep(message.bcc)
+    const { cc: _cc, bcc: _bcc, ...rest } = message
+    return {
+      message: {
+        ...rest,
+        to,
+        ...(cc.length ? { cc } : {}),
+        ...(bcc.length ? { bcc } : {}),
+      },
+      skipped,
+    }
   }
 
   /**
@@ -178,13 +262,35 @@ export class Mailer {
    * for the sending too. Without an `email` adapter in the config, the email is skipped with a
    * warning.
    */
-  async send(message: EmailMessage): Promise<void> {
-    if (!this.adapter) {
+  async send(original: EmailMessage): Promise<void> {
+    const adapter = await this.current()
+    if (!adapter) {
       this.logger.warn(
-        `Email "${message.subject}" not sent: set \`email\` in the config (e.g. consoleEmail() in development)`,
+        `Email "${original.subject}" not sent: set \`email\` in the config (e.g. consoleEmail() in development), or choose a provider on the Integrations page`,
       )
       return
     }
+    const checked = await this.withoutSuppressed(original)
+    if (!checked.message) {
+      this.logger.warn(`Email "${original.subject}" not sent: ${checked.skipped}`)
+      if (this.log)
+        await this.logged(() =>
+          (this.log as EmailLogStore).add({
+            to: list(original.to).join(', '),
+            cc: list(original.cc).join(', ') || null,
+            bcc: list(original.bcc).length,
+            subject: original.subject,
+            tag: original.tag ?? null,
+            state: 'skipped',
+            attempts: 0,
+            error: checked.skipped,
+            adapter: adapter.name ?? 'email',
+            sentAt: null,
+          }),
+        )
+      return
+    }
+    const message = checked.message
     const logId = this.log
       ? await this.logged(() =>
           (this.log as EmailLogStore).add({
@@ -196,7 +302,7 @@ export class Mailer {
             state: 'pending',
             attempts: 0,
             error: null,
-            adapter: (this.adapter as EmailAdapter).name ?? 'email',
+            adapter: adapter.name ?? 'email',
             sentAt: null,
           }),
         )
@@ -224,7 +330,7 @@ export class Mailer {
 
   /** Sends queued emails that are due for another attempt. Runs with scheduled jobs. */
   async retry(now: Date = new Date()): Promise<{ sent: number; failed: number }> {
-    if (!this.queue || !this.adapter) return { sent: 0, failed: 0 }
+    if (!this.queue || !(await this.current())) return { sent: 0, failed: 0 }
     let sent = 0
     let failed = 0
     for (const { id, ...queued } of await this.queue.due(now, 50)) {
@@ -237,7 +343,7 @@ export class Mailer {
       })
       if (!claimed) continue
       const parsed = JSON.parse(queued.message) as EmailMessage & { [LOG_KEY]?: ID }
-      const error = await this.attempt(parsed)
+      const { error, sent: done } = await this.attempt(parsed)
       if (!error) {
         await this.queue.remove(id)
         await this.note(parsed[LOG_KEY], {
@@ -245,6 +351,7 @@ export class Mailer {
           attempts,
           error: null,
           sentAt: new Date().toISOString(),
+          ...done,
         })
         sent++
         continue
@@ -274,12 +381,12 @@ export class Mailer {
 
   /** One attempt now for a saved email (the admin's Retry): `undefined` when sent, else the error. */
   async sendNow(message: string): Promise<string | undefined> {
-    if (!this.adapter) return 'email is not set up (`email` in the config)'
+    if (!(await this.current())) return 'email is not set up (`email` in the config)'
     const parsed = JSON.parse(message) as EmailMessage & { [LOG_KEY]?: ID }
-    const error = await this.attempt(parsed)
+    const { error, sent } = await this.attempt(parsed)
     await this.note(
       parsed[LOG_KEY],
-      error ? { error } : { state: 'sent', error: null, sentAt: new Date().toISOString() },
+      error ? { error } : { state: 'sent', error: null, sentAt: new Date().toISOString(), ...sent },
     )
     return error
   }
@@ -295,10 +402,15 @@ export class Mailer {
 
   private async deliver(message: EmailMessage, body: string, id: ID | undefined) {
     const logId = (JSON.parse(body) as { [LOG_KEY]?: ID })[LOG_KEY]
-    const error = await this.attempt(message)
+    const { error, sent } = await this.attempt(message)
     if (!error) {
       if (id !== undefined) await this.queue?.remove(id)
-      await this.note(logId, { state: 'sent', attempts: 1, sentAt: new Date().toISOString() })
+      await this.note(logId, {
+        state: 'sent',
+        attempts: 1,
+        sentAt: new Date().toISOString(),
+        ...sent,
+      })
       return
     }
     if (id === undefined || !this.queue) {
@@ -317,18 +429,36 @@ export class Mailer {
     })
   }
 
-  /** `undefined` when sent, else the error. */
-  private async attempt(message: EmailMessage): Promise<string | undefined> {
-    const adapter = this.adapter as EmailAdapter
+  /**
+   * Sends with the adapter in use now (an admin may have chosen another since the email was
+   * queued): the error, or what the log keeps of the send.
+   */
+  private async attempt(
+    message: EmailMessage,
+  ): Promise<{ error?: string; sent?: Partial<EmailLogEntry> }> {
+    let adapter: EmailAdapter | undefined
+    try {
+      adapter = await this.current()
+    } catch (error) {
+      return { error: (error as Error).message || String(error) }
+    }
+    if (!adapter) return { error: 'email is not set up' }
     const from = message.from ?? adapter.from
-    if (!from) return 'no sender: set `from` on the message or the email adapter'
+    if (!from) return { error: 'no sender: set `from` on the message or the email adapter' }
     // What the log and the admin use stays here.
     const { tag: _tag, [LOG_KEY]: _log, ...email } = message as EmailMessage & { [LOG_KEY]?: ID }
     try {
-      await adapter.send({ ...email, from })
-      return undefined
+      const result = await adapter.send({ ...email, from })
+      const providerId = result && typeof result.id === 'string' ? result.id : null
+      return { sent: { adapter: adapter.name ?? 'email', ...(providerId ? { providerId } : {}) } }
     } catch (error) {
-      return (error as Error).message || String(error)
+      return { error: (error as Error).message || String(error) }
     }
   }
+}
+
+/** The address of `Name <address>`, lowercased: how the suppression list keeps it. */
+export function addressOf(value: string): string {
+  const match = /<([^<>]+)>\s*$/.exec(value)
+  return (match ? (match[1] as string) : value).trim().toLowerCase()
 }

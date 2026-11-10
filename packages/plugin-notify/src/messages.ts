@@ -11,7 +11,11 @@ export const NOTIFY_EVENTS = [
   'backup.failed',
   'integration.failed',
   'social.failed',
+  'email.bounced',
+  'email.complained',
 ] as const
+/** Sent only to chats that tick them (#404): a mailing can bounce many. */
+export const OPT_IN_EVENTS = ['email.bounced', 'email.complained'] as const
 export type NotifyEvent = (typeof NOTIFY_EVENTS)[number]
 
 export const EVENT_LABELS: Record<NotifyEvent, { en: string; th: string }> = {
@@ -22,6 +26,8 @@ export const EVENT_LABELS: Record<NotifyEvent, { en: string; th: string }> = {
   'backup.failed': { en: 'A backup failed', th: 'การสำรองข้อมูลล้มเหลว' },
   'integration.failed': { en: 'An integration failed', th: 'การเชื่อมต่อล้มเหลว' },
   'social.failed': { en: 'A social post failed', th: 'โพสต์โซเชียลไม่สำเร็จ' },
+  'email.bounced': { en: 'An email bounced', th: 'อีเมลตีกลับ' },
+  'email.complained': { en: 'An email was reported as spam', th: 'อีเมลถูกแจ้งเป็นสแปม' },
 }
 
 /** A message for people: a title, some lines, and a page of the admin. */
@@ -60,6 +66,7 @@ const T = {
     post: 'Post',
     channel: 'Channel',
     to: 'To',
+    subject: 'Subject',
     attempts: 'Attempts',
     connection: 'Connection',
     publish: 'publish',
@@ -80,6 +87,7 @@ const T = {
     post: 'โพสต์',
     channel: 'ช่องทาง',
     to: 'ถึง',
+    subject: 'หัวข้อ',
     attempts: 'จำนวนครั้ง',
     connection: 'การเชื่อมต่อ',
     publish: 'เผยแพร่',
@@ -175,6 +183,13 @@ function describe(message: EventMessage, language: Language): Omit<Notice, 'open
           ...line(t.error, d.error),
         ],
         path: '/integrations',
+      }
+    case 'email.bounced':
+    case 'email.complained':
+      return {
+        title,
+        lines: [...line(t.to, d.to), ...line(t.subject, d.subject), ...line(t.error, d.reason)],
+        path: '/email',
       }
   }
 }

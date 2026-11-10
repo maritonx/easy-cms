@@ -133,12 +133,23 @@ export { ADAPTER_API_VERSION } from './database.js'
 export { warnDeprecated } from './deprecation.js'
 export { slugify } from './document.js'
 export {
+  addressOf,
   consoleEmail,
   type EmailAdapter,
+  type EmailDelivery,
   type EmailLogEntry,
   type EmailMessage,
   type EmailSetting,
+  type SuppressionReason,
 } from './email.js'
+export {
+  type ActiveEmail,
+  defineEmailProvider,
+  type EmailEvent,
+  type EmailProvider,
+  type EmailWebhookRequest,
+  hasEmail,
+} from './email-providers.js'
 export {
   ActionError,
   ConfigError,

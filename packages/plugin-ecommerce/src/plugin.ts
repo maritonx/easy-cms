@@ -384,7 +384,7 @@ export function ecommercePlugin<const Cur extends string = 'THB'>(
     order: OrderDoc,
     tag: string,
   ) => {
-    if (!write || !cms.config.email) return
+    if (!write || !(await cms.emailAdapter())) return
     const currency =
       currencies.find((c) => c.code === order.currency) ?? (currencies[0] as Currency)
     const locale = order.locale === 'th' ? 'th' : 'en'

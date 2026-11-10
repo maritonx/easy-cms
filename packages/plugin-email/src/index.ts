@@ -1,0 +1,5 @@
+export { defineEmailProvider, type EmailEvent, type EmailProvider } from '@easy-cms/core'
+export { brevo } from './brevo.js'
+export { type EmailPluginOptions, emailPlugin, emailProviders } from './plugin.js'
+export { postmark } from './postmark.js'
+export { resend, verifySvix } from './resend.js'

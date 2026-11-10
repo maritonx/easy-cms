@@ -23,6 +23,7 @@ export const SAVED_VIEWS = 'saved-views'
 export const CONNECTIONS = 'connections'
 export const AI_USAGE = 'ai-usage'
 export const EMAIL_LOG = 'email-log'
+export const EMAIL_SUPPRESSIONS = 'email-suppressions'
 export const ADMIN_SETTINGS = 'admin-settings'
 
 /** Collections Easy CMS uses internally. Not exposed over REST or in the admin UI. */
@@ -45,6 +46,7 @@ export const INTERNAL_COLLECTIONS: ReadonlySet<string> = new Set([
   CONNECTIONS,
   AI_USAGE,
   EMAIL_LOG,
+  EMAIL_SUPPRESSIONS,
   ADMIN_SETTINGS,
 ])
 
@@ -645,6 +647,29 @@ export const emailLogCollection: CollectionConfig = {
     { name: 'error', type: 'text' },
     { name: 'adapter', type: 'text' },
     { name: 'sentAt', type: 'text' },
+    // The provider's id for it: its webhook's delivery events name the email by it.
+    { name: 'providerId', type: 'text', index: true },
+    // delivered | bounced | complained
+    { name: 'delivery', type: 'text', index: true },
+    { name: 'deliveryAt', type: 'text' },
+  ],
+}
+
+/**
+ * Addresses that get no email (Settings → Email): they bounced for good or reported spam, as the
+ * provider's webhook said, or an admin added them. Kept until an admin removes them.
+ */
+export const emailSuppressionsCollection: CollectionConfig = {
+  slug: EMAIL_SUPPRESSIONS,
+  access: { read: nobody, create: nobody, update: nobody, delete: nobody },
+  fields: [
+    // Lowercased.
+    { name: 'address', type: 'text', required: true, unique: true },
+    // bounced | complained | manual
+    { name: 'reason', type: 'text', required: true },
+    { name: 'detail', type: 'text' },
+    // The integration that reported it, or the admin who added it.
+    { name: 'source', type: 'text' },
   ],
 }
 

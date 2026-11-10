@@ -12,6 +12,7 @@ import { session } from '../lib/session'
 const log = ref<AdminEmailLog | null>(null)
 const state = ref('')
 const tag = ref('')
+const delivery = ref('')
 const q = ref('')
 const page = ref(1)
 const error = ref('')
@@ -23,6 +24,7 @@ async function load() {
       `/admin/email/log${toQuery({
         ...(state.value ? { state: state.value } : {}),
         ...(tag.value ? { tag: tag.value } : {}),
+        ...(delivery.value ? { delivery: delivery.value } : {}),
         ...(q.value.trim() ? { q: q.value.trim() } : {}),
         ...(page.value > 1 ? { page: String(page.value) } : {}),
       })}`,
@@ -33,7 +35,7 @@ async function load() {
   }
 }
 onMounted(load)
-watch([state, tag], () => {
+watch([state, tag, delivery], () => {
   page.value = 1
   void load()
 })
@@ -72,6 +74,13 @@ const STATES = {
   sent: 'emailLog.sent',
   pending: 'emailLog.pending',
   failed: 'emailLog.failed',
+  skipped: 'emailLog.skipped',
+} as const
+/** What the provider said happened after sending (#404). */
+const DELIVERIES = {
+  delivered: 'emailLog.delivered',
+  bounced: 'emailLog.bounced',
+  complained: 'emailLog.complained',
 } as const
 </script>
 
@@ -93,6 +102,11 @@ const STATES = {
             <option value="sent">{{ t('emailLog.sent') }}</option>
             <option value="pending">{{ t('emailLog.pending') }}</option>
             <option value="failed">{{ t('emailLog.failed') }}</option>
+            <option value="skipped">{{ t('emailLog.skipped') }}</option>
+          </select>
+          <select v-if="log.deliveries" v-model="delivery" class="input" :aria-label="t('emailLog.delivery')">
+            <option value="">{{ t('emailLog.allDeliveries') }}</option>
+            <option v-for="(key, value) in DELIVERIES" :key="value" :value="value">{{ t(key) }}</option>
           </select>
           <select v-model="tag" class="input" :aria-label="t('emailLog.kind')">
             <option value="">{{ t('emailLog.allKinds') }}</option>
@@ -123,9 +137,10 @@ const STATES = {
                 <td class="nowrap">{{ tagLabel(entry.tag) }}</td>
                 <td>
                   <span :class="['badge', `state-${entry.state}`]">{{ t(STATES[entry.state]) }}</span>
+                  <span v-if="entry.delivery" :class="['badge', `delivery-${entry.delivery}`]" :title="entry.deliveryAt ? formatDate(entry.deliveryAt) : undefined">{{ t(DELIVERIES[entry.delivery]) }}</span>
                   <span v-if="entry.state === 'pending' && entry.attempts" class="muted small"> {{ t('emailLog.attempt', { count: entry.attempts }) }}</span>
-                  <span v-if="entry.error && entry.state !== 'sent'" class="error small">{{ entry.error }}</span>
-                  <RouterLink v-if="entry.state !== 'sent' && session.schema?.deliveries?.email" to="/deliveries?kind=email" class="small">{{ t('emailLog.retry') }}</RouterLink>
+                  <span v-if="entry.error && (entry.state !== 'sent' || entry.delivery === 'bounced')" :class="entry.state === 'skipped' ? 'muted small' : 'error small'">{{ entry.error }}</span>
+                  <RouterLink v-if="(entry.state === 'pending' || entry.state === 'failed') && session.schema?.deliveries?.email" to="/deliveries?kind=email" class="small">{{ t('emailLog.retry') }}</RouterLink>
                 </td>
               </tr>
             </tbody>
@@ -165,6 +180,10 @@ h2 {
 .search .input {
   flex: 1;
 }
+.filters select.input {
+  flex: 0 1 12rem;
+  width: auto;
+}
 .table-wrap {
   overflow-x: auto;
 }
@@ -201,8 +220,16 @@ td a {
 .state-sent {
   color: var(--success, var(--text-muted));
 }
-.state-failed {
+.state-failed,
+.delivery-bounced,
+.delivery-complained {
   color: var(--danger);
+}
+.state-skipped {
+  color: var(--text-muted);
+}
+.delivery-delivered {
+  color: var(--success, var(--text-muted));
 }
 .pager {
   display: flex;

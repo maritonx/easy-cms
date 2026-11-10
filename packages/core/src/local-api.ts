@@ -69,12 +69,14 @@ import {
   validateFields,
 } from './document.js'
 import {
+  type EmailAdapter,
   type EmailLogStore,
   type EmailMessage,
   type EmailQueue,
   Mailer,
   type QueuedEmail,
 } from './email.js'
+import { EmailProviders, hasEmail } from './email-providers.js'
 import {
   ConfigError,
   EasyCMSError,
@@ -433,6 +435,8 @@ export class EasyCMS<C extends Config = Config> {
   readonly folders: MediaFolders
   /** Accounts connected to plugins' integrations (`integrations`, Settings → Integrations). */
   readonly integrations: Integrations
+  /** Email providers chosen in the admin, their webhooks and the suppression list (#404). */
+  readonly emailProviders: EmailProviders
   /** AI for the admin's features (#357): `null` without an AI plugin (`ai` in the config). */
   readonly ai: Ai | null
   private readonly versions: VersionStore
@@ -475,6 +479,7 @@ export class EasyCMS<C extends Config = Config> {
     )
     this.audit = new AuditLog(this as unknown as EasyCMS)
     this.integrations = new Integrations(this as unknown as EasyCMS)
+    this.emailProviders = new EmailProviders(this as unknown as EasyCMS)
     this.ai = config.ai ? new Ai(this as unknown as EasyCMS, config.ai) : null
     // `listeners` in the config (plugins' notifications…): as with `cms.on`.
     for (const listener of config.listeners ?? []) {
@@ -492,10 +497,12 @@ export class EasyCMS<C extends Config = Config> {
         : undefined,
     )
     this.mailer = new Mailer(
-      config.email,
+      // The connection an admin chose (#404), else the config's.
+      config.integrations.some((i) => i.email) ? () => this.emailProviders.adapter() : config.email,
       logger,
       config.collections.some((c) => c.slug === EMAIL_DELIVERIES) ? this.emailQueue() : undefined,
       config.collections.some((c) => c.slug === EMAIL_LOG) ? this.emailLogStore() : undefined,
+      hasEmail(config) ? (addresses) => this.emailProviders.suppressed(addresses) : undefined,
     )
     this.webhooks.onGiveUp = ({ url, event, error, attempts }) =>
       this.systemEvent('delivery.failed', { kind: 'webhook', url, event, error, attempts })
@@ -2177,8 +2184,13 @@ export class EasyCMS<C extends Config = Config> {
     return this.webhooks.flush()
   }
 
+  /** The email adapter that sends now: the one an admin chose, else the config's `email`. */
+  emailAdapter(): Promise<EmailAdapter | undefined> {
+    return this.mailer.adapter()
+  }
+
   /**
-   * Sends an email with the config's `email` adapter, e.g. from a hook or plugin. Resolves once
+   * Sends an email with the config's `email` adapter (or the provider an admin chose), e.g. from a hook or plugin. Resolves once
    * the email is queued; it is sent in the background and retried from the queue if sending
    * fails. Without `email` in the config, the email is skipped with a warning.
    */
@@ -2200,7 +2212,14 @@ export class EasyCMS<C extends Config = Config> {
         return (
           await this.db.create({
             collection,
-            data: { ...entry, createdAt: now, updatedAt: now } as unknown as Data,
+            data: {
+              providerId: null,
+              delivery: null,
+              deliveryAt: null,
+              ...entry,
+              createdAt: now,
+              updatedAt: now,
+            } as unknown as Data,
           })
         ).id
       },

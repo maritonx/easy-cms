@@ -19,7 +19,7 @@ describe('smtp', () => {
         text: 'Hello',
         html: '<p>Hello</p>',
       }),
-    ).resolves.toBeUndefined()
+    ).resolves.toEqual({ id: expect.any(String) })
   })
 
   it('needs a host when it sends, not before', async () => {

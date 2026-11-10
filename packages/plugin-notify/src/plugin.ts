@@ -15,6 +15,7 @@ import {
   NOTIFY_EVENTS,
   type Notice,
   noticeOf,
+  OPT_IN_EVENTS,
   texts,
 } from './messages.js'
 import { telegram } from './telegram.js'
@@ -177,6 +178,9 @@ export function notifyPlugin(options: NotifyPluginOptions = {}) {
         for (const conn of await cms.integrations.all(channel.integration.id)) {
           const wanted = (conn.values.events ?? '').split(',').filter(Boolean)
           if (wanted.length > 0 && !wanted.includes(message.event)) continue
+          // Bounces and spam reports only when ticked: there can be many.
+          if (wanted.length === 0 && (OPT_IN_EVENTS as readonly string[]).includes(message.event))
+            continue
           const notice = noticeOf(message, languageOf(conn))
           if (!notice) continue
           await enqueue(
@@ -286,7 +290,10 @@ export function notifyPlugin(options: NotifyPluginOptions = {}) {
           label: { en: 'Events', th: 'เหตุการณ์' },
           type: 'multiselect',
           options: NOTIFY_EVENTS.map((value) => ({ value, label: EVENT_LABELS[value] })),
-          description: { en: 'None ticked: all of them.', th: 'ถ้าไม่เลือก: ทั้งหมด' },
+          description: {
+            en: 'None ticked: all but bounced and spam-reported emails.',
+            th: 'ถ้าไม่เลือก: ทั้งหมด ยกเว้นอีเมลตีกลับและถูกแจ้งสแปม',
+          },
         },
       ],
       async test(values, args) {

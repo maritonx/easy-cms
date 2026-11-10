@@ -31,6 +31,9 @@ const ANTHROPIC = 'http://localhost:3113'
 /** Google sign-in and Drive for the Next.js example's backup destination (`backups-mock.ts`). */
 const GOOGLE = 'http://localhost:3115'
 
+/** Resend for the Next.js example's email provider (`email-mock.ts`). */
+const RESEND = 'http://localhost:3116'
+
 /** Webhooks for the Next.js example's social posts (`social-mock.ts`). */
 const SOCIAL = 'http://localhost:3114'
 
@@ -127,6 +130,8 @@ export default defineConfig({
         GOOGLE_AUTH_URL: `${GOOGLE}/auth`,
         GOOGLE_TOKEN_URL: `${GOOGLE}/token`,
         GOOGLE_API_URL: GOOGLE,
+        // Resend through the mock email-mock.ts (#404).
+        RESEND_API_URL: RESEND,
         // Single sign-on on standalone, where the schema is pushed. Nuxt and Next.js run from the
         // examples' migrations, which are made without a provider.
         ...(app.name !== 'standalone'
@@ -160,6 +165,12 @@ export default defineConfig({
       name: 'google',
       command: `node backups-mock.ts ${new URL(GOOGLE).port}`,
       url: GOOGLE,
+      reuseExistingServer: false,
+    },
+    {
+      name: 'resend',
+      command: `node email-mock.ts ${new URL(RESEND).port}`,
+      url: RESEND,
       reuseExistingServer: false,
     },
     {
