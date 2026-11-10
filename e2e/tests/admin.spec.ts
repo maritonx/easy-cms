@@ -1309,6 +1309,10 @@ test.describe('logged in as admin', () => {
     await page.getByRole('button', { name: 'Connect Status webhook' }).click()
     const card = page.getByRole('dialog', { name: 'Status webhook' })
     await expect(page).toHaveURL(/open=status-webhook/)
+    // On and off is a switch.
+    const onOff = card.getByRole('switch', { name: 'Turn on Status webhook' })
+    await expect(onOff).toBeChecked()
+    if (SHOTS) await card.locator('header').screenshot({ path: `${SHOTS}/integrations-switch.png` })
     // Nothing connected yet: the form is open.
     await card.getByRole('textbox', { name: 'URL' }).fill('not a url')
     await card.getByLabel('Token').fill('token-0001')
@@ -2407,16 +2411,31 @@ test.describe('logged in as admin', () => {
     await expect(latest).toContainText(/\.db\.gz/)
     // Where it is: this server (no destination connected in the examples).
     await expect(latest).toContainText('This server: kept')
-    // The settings the config doesn't set are changed here (#395).
-    const settings = page.getByRole('region', { name: 'Settings' })
-    const keep = settings.getByRole('spinbutton', { name: 'Keep' })
-    if (await keep.isEnabled()) {
+    // When and where in one line; changed in a drawer, what the config sets shown locked (#395).
+    const summary = page.getByRole('region', { name: 'Settings' })
+    await expect(summary.getByRole('list', { name: 'Where they go' })).toContainText('This server')
+    await shot(page, 'backups-page')
+    await summary.getByRole('button', { name: 'Edit' }).click()
+    const drawer = page.getByRole('dialog', { name: 'Backup settings' })
+    await shot(page, 'backups-drawer')
+    const keep = drawer.getByRole('spinbutton', { name: 'Keep', exact: true })
+    if (await keep.count()) {
       await keep.fill('5')
-      await settings.getByRole('button', { name: 'Save settings' }).click()
+      await drawer.getByRole('button', { name: 'Save settings' }).click()
       await expect(page.getByRole('status')).toHaveText('Backup settings saved')
-      await page.reload()
-      await expect(keep).toHaveValue('5')
-    } else await expect(settings.getByText('Set in the code').first()).toBeVisible()
+      await expect(drawer).toBeHidden()
+      await expect(summary).toContainText('This server · 5')
+    } else {
+      await expect(drawer).toContainText('Set in the code')
+      await drawer.getByRole('button', { name: 'Cancel' }).click()
+    }
+    // How to restore it: the file's own commands to copy.
+    await latest.getByRole('button', { name: 'More for this backup' }).click()
+    await page.getByRole('menuitem', { name: 'How to restore' }).click()
+    const restore = page.getByRole('dialog', { name: /^Restore the backup of/ })
+    await expect(restore).toContainText(/gunzip .+\.db\.gz/)
+    await shot(page, 'backups-restore')
+    await restore.getByRole('button', { name: 'Close' }).click()
     const href = await latest.getByRole('link', { name: 'Download' }).getAttribute('href')
     const file = await page.request.get(href as string)
     expect(file.status()).toBe(200)
