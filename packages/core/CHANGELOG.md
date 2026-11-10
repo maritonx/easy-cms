@@ -1,5 +1,21 @@
 # @easy-cms/core
 
+## 1.41.0
+
+### Minor Changes
+
+- 5390273: Backups set up in the admin, and sent to destinations (#395). Settings → Backups now changes when backups run, how many to keep and where they go (what the config sets wins): this server, and destinations that plugins add through Integrations (`backups` on an integration: `put`, `get`, `delete`), each with its own number to keep. A destination that fails is tried again after 1, 5 and 30 minutes, then `backup.failed`; downloads come from any place that has the file; the page warns while backups leave the server unencrypted. OAuth integrations take their app's keys (client id and secret) in the admin, with the redirect URI to copy; environment variables still win, and the Facebook Page channel uses it. Turso and other remote libSQL databases are backed up by copying them into a local SQLite file.
+  
+  Needs a migration: a new `admin-settings` table and a `copies` column on `database-backups` (see Upgrading → 1.41).
+- 45216de: `backups.frequency`, `at` and `keep` in the config are defaults an admin can change in Settings → Backups, where **Use the code's** sets one back; `backups.locked: true` keeps them as the config sets them. Settings → Jobs lists the backups job when the admin schedules backups, too.
+- 51c7646: A log of emails sent, in Settings → Email: when, to whom (blind copies only counted), the subject, its kind and how it went (sent, waiting with its tries, or not sent with why), searchable and filtered by state and kind, for admins of the whole site. It never keeps an email's content, whose links sign people in. Kept 30 days (`emailLog: { keepDays }`, or `emailLog: false` for none). `EmailMessage.tag` names an email's kind and isn't sent; Easy CMS's own emails and the shop's, forms' and teams' are tagged.
+  
+  Needs a migration: a new `email-log` table for apps with `email` (see Upgrading → 1.41).
+
+### Patch Changes
+
+- d50e7b5: `@easy-cms/plugin-backups`: backup destinations connected in Settings → Integrations → Backups (#395). **Google Drive** through a Google Cloud app of your own (keys entered in the admin or `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`), the `drive.file` scope, a folder of its own and resumable uploads; a token Google took back fails at once and says so. **S3-compatible storage** (Cloudflare R2, Backblaze B2, AWS S3, Wasabi) through `@easy-cms/storage-s3`, checked by writing and deleting a small file. Core passes the OAuth app's keys to an integration's `test` and `backups` (`app`), and lists the plugin among the official ones.
+
 ## 1.40.0
 
 ### Minor Changes
