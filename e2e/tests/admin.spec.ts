@@ -1866,8 +1866,8 @@ test.describe('logged in as admin', () => {
     await keys.getByRole('button', { name: 'Save' }).click()
     await expect(page.getByRole('status')).toHaveText('App keys saved')
     await expect(keys).toContainText('Entered.')
-    // What leaves the site, accepted once; then Google's sign-in (the mock says yes at once).
-    await card.getByRole('button', { name: 'Connect an account' }).click()
+    // What leaves the site, accepted once (asked at once: nothing is connected yet); then
+    // Google's sign-in (the mock says yes at once).
     const consent = card.getByRole('group', { name: 'Before connecting' })
     await expect(consent).toContainText('sent to Google Drive')
     await consent.getByRole('button', { name: 'Accept and connect' }).click()
@@ -2454,7 +2454,7 @@ test.describe('logged in as admin', () => {
     await expect(latest).toContainText('This server: kept')
     // The settings the config doesn't set are changed here (#395).
     const settings = page.getByRole('region', { name: 'Settings' })
-    const keep = settings.getByRole('spinbutton', { name: 'Keep' })
+    const keep = settings.getByRole('spinbutton', { name: /^Keep/ })
     if (await keep.isEnabled()) {
       await keep.fill('5')
       await settings.getByRole('button', { name: 'Save settings' }).click()
