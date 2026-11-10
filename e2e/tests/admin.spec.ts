@@ -1907,8 +1907,17 @@ test.describe('logged in as admin', () => {
 
     // Settings → Email: what sends, and the address kept off.
     await fromMenu(page, 'Settings', 'Email', true)
-    await expect(page.getByRole('group', { name: 'Sends with' })).toContainText('Resend · Resend')
-    const list = page.getByRole('region', { name: 'Addresses that get no email' })
+    const summary = page.getByRole('region', { name: 'Settings in use' })
+    await expect(summary).toContainText('Sends with')
+    await expect(summary).toContainText('Resend · Resend')
+    await expect(summary).toContainText('Chosen in the admin')
+    await expect(summary).toContainText('from Blog <blog@e2e.test>')
+    // The bounce shows on the tabs: one blocked address.
+    const blockedTab = page.getByRole('tab', { name: /^Blocked addresses/ })
+    await expect(blockedTab).toContainText('1')
+    await blockedTab.click()
+    await expect(page).toHaveURL(/tab=blocked/)
+    const list = page.getByRole('tabpanel', { name: /^Blocked addresses/ })
     await expect(list).toContainText('bounced@e2e.test')
     await expect(list).toContainText('No such mailbox')
     await shot(page, 'email-suppressions')
@@ -1918,9 +1927,8 @@ test.describe('logged in as admin', () => {
     // Back to the code's, as the rest of the suite expects.
     page.once('dialog', (dialog) => void dialog.accept())
     await page.getByRole('button', { name: 'Use the code’s' }).click()
-    await expect(page.getByRole('group', { name: 'Sends with' })).toContainText(
-      'The default from the code (console)',
-    )
+    await expect(summary).toContainText('console')
+    await expect(summary).toContainText('From the code')
   })
 
   test('sends backups to Google Drive, set up in the admin (#395)', async ({ page }) => {
@@ -2567,15 +2575,26 @@ test.describe('logged in as admin', () => {
     // Settings → Email: the adapter in use (console in the examples) and a test email.
     await fromMenu(page, 'Settings', 'Email', true)
     await expect(page.getByRole('heading', { level: 1, name: 'Email' })).toBeVisible()
-    await expect(page.getByRole('region', { name: 'Settings in use' })).toContainText('console')
+    const emailSummary = page.getByRole('region', { name: 'Settings in use' })
+    await expect(emailSummary).toContainText('console')
     // The examples print emails to the log: the admin warns that nothing is sent.
     await expect(
-      page.getByText(/^Emails are not sent: they are printed to the server log/),
+      page.getByText(/^Not really sent: emails are printed to the server log/),
     ).toBeVisible()
-    await page.getByRole('button', { name: 'Send test email' }).click()
+    // What the adapter tells about itself, folded away.
+    await emailSummary.getByRole('button', { name: 'Details' }).click()
+    await expect(emailSummary).toContainText('Adapter')
+    await shot(page, 'email-page')
+    // The test, in a dialog.
+    await emailSummary.getByRole('button', { name: 'Send test email' }).click()
+    const test = page.getByRole('dialog', { name: 'Send a test email' })
+    await test.getByRole('button', { name: 'Send', exact: true }).click()
+    await expect(test.getByRole('status')).toBeVisible()
+    await shot(page, 'email-test')
     await expect(
       page.getByRole('status').filter({ hasText: /^Not sent to .*: printed to the server log/ }),
     ).toBeVisible()
+    await test.getByRole('button', { name: 'Close' }).click()
 
     // Saved emails and webhook deliveries, under Settings (email is set up in the examples).
     await fromMenu(page, 'Settings', 'Deliveries')
@@ -2678,7 +2697,7 @@ test.describe('logged in as admin', () => {
 
     // Settings → Email lists the invitation: who, what kind, sent; never the link in it.
     await page.goto('/admin/email')
-    const emails = page.getByRole('region', { name: 'Emails sent' })
+    const emails = page.getByRole('tabpanel', { name: /^Emails sent/ })
     await emails.getByRole('combobox', { name: 'Kind' }).selectOption('invite')
     const row = emails.getByRole('row').filter({ hasText: 'invitee@e2e.test' }).first()
     await expect(row).toContainText('Invitation')

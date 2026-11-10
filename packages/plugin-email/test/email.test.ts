@@ -273,6 +273,8 @@ describe('choosing a provider in the admin', () => {
     expect(list.docs).toMatchObject([
       { address: 'reader@x.co', reason: 'bounced', source: 'resend' },
     ])
+    // The page's tabs count them.
+    expect((await call('/admin/email')).body.counts).toEqual({ blocked: 1, problems: 1 })
 
     // The address gets nothing more, not even a password reset.
     hits.length = 0

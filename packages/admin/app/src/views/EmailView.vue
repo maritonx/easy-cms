@@ -1,7 +1,17 @@
 <script setup lang="ts">
 import type { AdminEmail, EmailCheck } from '@easy-cms/core'
-import { ChevronRight, PlugZap, RotateCcw, Send } from '@lucide/vue'
-import { computed, onMounted, ref, useId } from 'vue'
+import {
+  ChevronDown,
+  ChevronRight,
+  Mail,
+  PlugZap,
+  RotateCcw,
+  Send,
+  TriangleAlert,
+  X,
+} from '@lucide/vue'
+import { computed, nextTick, onMounted, ref, useId, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import EmailLog from '../components/EmailLog.vue'
 import EmailSuppressions from '../components/EmailSuppressions.vue'
 import PanelSkeleton from '../components/PanelSkeleton.vue'
@@ -11,7 +21,10 @@ import { useDelayedLoading } from '../lib/loading'
 import { session } from '../lib/session'
 import { notify } from '../lib/toast'
 
-/** Settings → Email (admins): the settings in use, a connection check and a test email. */
+/**
+ * Settings → Email (admins): what sends, in one line, with a test in a dialog; then the emails
+ * sent and the blocked addresses in tabs (`?tab=blocked`).
+ */
 const email = ref<AdminEmail | null>(null)
 /** A skeleton while the page loads (only when it is slow). */
 const showSkeleton = useDelayedLoading(() => !email.value)
@@ -114,6 +127,65 @@ const logsOnly = computed(
 )
 
 const docs = computed(() => `https://easycms.dev${locale.value === 'th' ? '/th' : ''}/docs/email`)
+
+/** The adapter's name, or the provider an admin chose. */
+const sender = computed(() => {
+  const value = email.value
+  if (!value) return ''
+  if (value.providers?.active) return value.providers.active.label
+  return value.name ?? value.providers?.code ?? ''
+})
+const fromAddress = computed(
+  () => email.value?.settings.find((s) => s.key === 'from')?.value ?? email.value?.from ?? null,
+)
+const details = ref(false)
+
+// Tabs: the emails sent, and the addresses that get none.
+const route = useRoute()
+const router = useRouter()
+type Tab = 'sent' | 'blocked'
+const tab = computed<Tab>(() =>
+  route.query.tab === 'blocked' && email.value?.suppressions ? 'blocked' : 'sent',
+)
+const blockedQuery = ref(typeof route.query.q === 'string' ? route.query.q : '')
+function setTab(value: Tab) {
+  void router.replace({ query: value === 'blocked' ? { tab: 'blocked' } : {} })
+}
+/** A bounced or skipped email's address, found in the blocked list. */
+function showBlocked(address: string) {
+  blockedQuery.value = address
+  setTab('blocked')
+}
+function onTabKey(event: KeyboardEvent) {
+  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+  event.preventDefault()
+  const next: Tab =
+    event.key === 'Home'
+      ? 'sent'
+      : event.key === 'End'
+        ? 'blocked'
+        : tab.value === 'sent'
+          ? 'blocked'
+          : 'sent'
+  setTab(next)
+  void nextTick(() => document.getElementById(`tab-${next}`)?.focus())
+}
+
+// The test, in a dialog.
+const testDialog = ref<HTMLDialogElement>()
+function openTest() {
+  verifyResult.value = null
+  testResult.value = null
+  testDialog.value?.showModal()
+  // Straight to the address.
+  void nextTick(() => document.getElementById(toId)?.focus())
+}
+watch(
+  () => route.query.tab,
+  () => {
+    if (route.query.tab !== 'blocked') blockedQuery.value = ''
+  },
+)
 </script>
 
 <template>
@@ -145,75 +217,87 @@ const docs = computed(() => `https://easycms.dev${locale.value === 'th' ? '/th' 
       </template>
     </section>
 
-    <div v-else class="grid">
-      <section class="card panel" aria-labelledby="settings-heading">
-        <h2 id="settings-heading">{{ t('email.settings') }}</h2>
-        <p v-if="logsOnly" class="notice notice-warning">
-          {{ t('email.logOnly') }}
-          <a :href="docs" target="_blank" rel="noopener">{{ t('email.howToSetUp') }}</a>
-        </p>
-        <div v-if="email.providers" class="sends" role="group" :aria-label="t('email.sendsWith')">
-          <span class="muted small">{{ t('email.sendsWith') }}</span>
-          <strong>{{ email.providers.active ? email.providers.active.label : t('email.codeDefault', { name: email.providers.code ?? '' }) }}</strong>
-          <span class="sends-actions">
-            <RouterLink to="/integrations?category=email" class="small">{{ t('email.changeProvider') }}</RouterLink>
-            <button v-if="email.providers.active" type="button" class="btn btn-sm btn-ghost" :disabled="reverting" @click="useCode"><RotateCcw :size="14" aria-hidden="true" /> {{ email.providers.code ? t('email.useCode') : t('email.useNone') }}</button>
-          </span>
-        </div>
-        <dl>
-          <dt>{{ t('email.adapter') }}</dt>
-          <dd>{{ email.name }}</dd>
-          <template v-for="s in email.settings" :key="s.key">
-            <dt>{{ labelOf(s.key) }}</dt>
-            <dd>
-              <span :class="{ muted: s.value === null }">{{ shown(s.key, s.value) }}</span>
-              <code v-if="s.source" class="source">{{ s.source }}</code>
-            </dd>
-          </template>
-          <template v-if="!email.settings.some((s) => s.key === 'from')">
-            <dt>{{ t('email.from') }}</dt>
-            <dd :class="{ muted: !email.from }">{{ email.from ?? t('email.notSet') }}</dd>
-          </template>
-        </dl>
-        <p v-if="!email.providers" class="note muted">
-          {{ t('email.change') }}
-          <a :href="docs" target="_blank" rel="noopener">{{ t('email.howToSetUp') }}</a>
-        </p>
-      </section>
-
-      <section class="card panel" aria-labelledby="test-heading">
-        <h2 id="test-heading">{{ t('email.test') }}</h2>
-        <div v-if="email.canVerify" class="block">
-          <p class="muted">{{ t('email.verifyText') }}</p>
-          <button type="button" class="btn" :disabled="!!busy" @click="verify">
-            <PlugZap :size="16" aria-hidden="true" />
-            {{ busy === 'verify' ? t('email.checking') : t('email.verify') }}
-          </button>
-          <div v-if="verifyResult" class="result" :class="verifyResult.ok ? 'ok' : 'bad'" role="status">
-            <strong>{{ verifyResult.ok ? t('email.verifyOk') : t('email.verifyFailed') }}</strong>
-            <template v-if="!verifyResult.ok">
-              <code>{{ verifyResult.error }}</code>
-              <span v-if="hintFor(verifyResult.error)">{{ hintFor(verifyResult.error) }}</span>
-            </template>
+    <template v-else>
+      <section id="email-summary" class="card summary" :aria-label="t('email.settings')">
+        <div class="line">
+          <span class="icon" aria-hidden="true"><Mail :size="18" /></span>
+          <div class="what">
+            <span class="top">
+              <span class="muted small">{{ t('email.sendsWith') }}</span>
+              <strong class="name">{{ sender }}</strong>
+              <span v-if="email.providers" :class="['chip', { admin: email.providers.active }]">{{ email.providers.active ? t('email.sourceAdmin') : t('email.sourceCode') }}</span>
+            </span>
+            <span v-if="fromAddress" class="muted small from">{{ t('email.fromShort', { from: fromAddress }) }}</span>
+          </div>
+          <div class="actions">
+            <button type="button" class="btn btn-sm btn-primary" @click="openTest"><Send :size="14" aria-hidden="true" /> {{ t('email.sendTest') }}</button>
+            <RouterLink v-if="email.providers" to="/integrations?category=email" class="btn btn-sm">{{ t('email.changeShort') }}</RouterLink>
+            <button v-if="email.providers?.active" type="button" class="btn btn-sm btn-ghost" :disabled="reverting" @click="useCode"><RotateCcw :size="14" aria-hidden="true" /> {{ email.providers.code ? t('email.useCode') : t('email.useNone') }}</button>
+            <button type="button" class="btn btn-sm btn-ghost" :aria-expanded="details" aria-controls="email-details" @click="details = !details">{{ t('email.details') }} <ChevronDown :size="14" :class="{ flip: details }" aria-hidden="true" /></button>
           </div>
         </div>
+        <p v-if="logsOnly" class="warning" role="note">
+          <TriangleAlert :size="15" aria-hidden="true" />
+          <span>{{ t('email.logOnly') }} · <a :href="docs" target="_blank" rel="noopener">{{ t('email.howToSetUp') }}</a></span>
+        </p>
+        <div v-show="details" id="email-details" class="details">
+          <dl>
+            <dt>{{ t('email.adapter') }}</dt>
+            <dd>{{ email.name }}</dd>
+            <template v-for="s in email.settings" :key="s.key">
+              <dt>{{ labelOf(s.key) }}</dt>
+              <dd>
+                <span :class="{ muted: s.value === null }">{{ shown(s.key, s.value) }}</span>
+                <code v-if="s.source" class="source">{{ s.source }}</code>
+              </dd>
+            </template>
+            <template v-if="!email.settings.some((s) => s.key === 'from')">
+              <dt>{{ t('email.from') }}</dt>
+              <dd :class="{ muted: !email.from }">{{ email.from ?? t('email.notSet') }}</dd>
+            </template>
+          </dl>
+          <p v-if="!email.providers" class="note muted">
+            {{ t('email.change') }}
+            <a :href="docs" target="_blank" rel="noopener">{{ t('email.howToSetUp') }}</a>
+          </p>
+        </div>
+      </section>
 
+      <div class="tabcard">
+      <div v-if="email.suppressions" class="tabs" role="tablist" :aria-label="t('email.lists')" @keydown="onTabKey">
+        <button id="tab-sent" type="button" role="tab" :aria-selected="tab === 'sent'" aria-controls="panel-sent" :tabindex="tab === 'sent' ? 0 : -1" :class="{ on: tab === 'sent' }" @click="setTab('sent')">
+          {{ t('emailLog.title') }}
+          <span v-if="email.counts.problems" class="count bad" :title="t('email.problems', { count: email.counts.problems })">{{ email.counts.problems }}<span class="sr-only"> {{ t('email.problems', { count: email.counts.problems }) }}</span></span>
+        </button>
+        <button id="tab-blocked" type="button" role="tab" :aria-selected="tab === 'blocked'" aria-controls="panel-blocked" :tabindex="tab === 'blocked' ? 0 : -1" :class="{ on: tab === 'blocked' }" @click="setTab('blocked')">
+          {{ t('suppressions.title') }}
+          <span v-if="email.counts.blocked" class="count">{{ email.counts.blocked }}</span>
+        </button>
+      </div>
+      <div v-if="!email.suppressions || tab === 'sent'" id="panel-sent" :role="email.suppressions ? 'tabpanel' : undefined" aria-labelledby="tab-sent" class="panel-tab">
+        <EmailLog :blocked="email.suppressions" @blocked="showBlocked" />
+      </div>
+      <div v-else id="panel-blocked" role="tabpanel" aria-labelledby="tab-blocked" class="panel-tab">
+        <EmailSuppressions :query="blockedQuery" @changed="load" />
+      </div>
+      </div>
+
+      <dialog ref="testDialog" class="dialog card" aria-labelledby="test-heading" @click="($event.target as HTMLElement) === testDialog && testDialog?.close()">
+        <header class="dialog-head">
+          <h2 id="test-heading">{{ t('email.testTitle') }}</h2>
+          <button type="button" class="btn btn-ghost btn-sm btn-icon" :aria-label="t('integrations.close')" @click="testDialog?.close()"><X :size="18" aria-hidden="true" /></button>
+        </header>
         <form class="block" @submit.prevent="sendTest">
           <label :for="toId" class="field-label">{{ t('email.sendTo') }}</label>
           <div class="row">
             <input :id="toId" v-model="to" class="input" type="email" autocomplete="email" required />
             <button type="submit" class="btn btn-primary" :disabled="!!busy || !to.trim()">
               <Send :size="16" aria-hidden="true" />
-              {{ busy === 'test' ? t('email.sending') : t('email.sendTest') }}
+              {{ busy === 'test' ? t('email.sending') : t('email.send') }}
             </button>
           </div>
           <p class="muted hint">{{ t('email.testText') }}</p>
-          <div
-            v-if="testResult"
-            class="result"
-            :class="!testResult.ok ? 'bad' : testResult.logged ? 'warn' : 'ok'"
-            role="status"
-          >
+          <div v-if="testResult" class="result" :class="!testResult.ok ? 'bad' : testResult.logged ? 'warn' : 'ok'" role="status">
             <template v-if="testResult.ok && testResult.logged">
               <strong>{{ t('email.loggedTo', { to: testResult.to }) }}</strong>
               <span>{{ t('email.loggedHelp') }}</span>
@@ -229,14 +313,23 @@ const docs = computed(() => `https://easycms.dev${locale.value === 'th' ? '/th' 
             </template>
           </div>
         </form>
-
-        <RouterLink v-if="session.schema?.deliveries?.email" to="/deliveries?kind=email" class="more">
-          {{ t('email.deliveries') }} →
-        </RouterLink>
-      </section>
-    </div>
-    <EmailLog v-if="email?.configured" />
-    <EmailSuppressions v-if="email?.suppressions" />
+        <div v-if="email.canVerify" class="block">
+          <p class="muted">{{ t('email.verifyText') }}</p>
+          <button type="button" class="btn" :disabled="!!busy" @click="verify">
+            <PlugZap :size="16" aria-hidden="true" />
+            {{ busy === 'verify' ? t('email.checking') : t('email.verify') }}
+          </button>
+          <div v-if="verifyResult" class="result" :class="verifyResult.ok ? 'ok' : 'bad'" role="status">
+            <strong>{{ verifyResult.ok ? t('email.verifyOk') : t('email.verifyFailed') }}</strong>
+            <template v-if="!verifyResult.ok">
+              <code>{{ verifyResult.error }}</code>
+              <span v-if="hintFor(verifyResult.error)">{{ hintFor(verifyResult.error) }}</span>
+            </template>
+          </div>
+        </div>
+        <RouterLink v-if="session.schema?.deliveries?.email" to="/deliveries?kind=email" class="more">{{ t('email.deliveries') }} →</RouterLink>
+      </dialog>
+    </template>
   </template>
 </template>
 
@@ -258,62 +351,195 @@ const docs = computed(() => `https://easycms.dev${locale.value === 'th' ? '/th' 
 .page-header p {
   margin: 0.3rem 0 0;
 }
-.grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
-  align-items: start;
-}
 .panel {
   padding: 1rem 1.1rem 1.1rem;
-  min-width: 0;
-}
-.sends {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.25rem 0.6rem;
-  margin: -0.25rem 0 0.85rem;
-  padding: 0.6rem 0.75rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius, 8px);
-}
-.sends-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-left: auto;
 }
 .panel h2 {
   margin: 0 0 0.75rem;
   font-size: 0.95rem;
   font-weight: 600;
 }
-dl {
+.summary {
+  padding: 0.75rem 1rem;
+}
+.line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 0.9rem;
+}
+.icon {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 0.45rem 1rem;
-  margin: 0;
-  font-size: 0.9rem;
+  flex: none;
+  place-items: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--brand);
 }
-dt {
-  color: var(--faint);
+.what {
+  display: flex;
+  flex: 1 1 16rem;
+  flex-direction: column;
+  min-width: 0;
 }
-dd {
+.what .top {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 0.25rem 0.6rem;
+  gap: 0.15rem 0.5rem;
+}
+.name {
+  font-size: 1rem;
+}
+.chip {
+  padding: 0 0.5rem;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  line-height: 1.25rem;
+}
+.chip.admin {
+  background: var(--accent-soft);
+  color: var(--brand);
+}
+.from {
+  overflow-wrap: anywhere;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+.flip {
+  transform: rotate(180deg);
+}
+.warning {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.75rem 0 0;
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--radius-sm);
+  background: var(--warning-soft);
+  color: var(--warning-text);
+  font-size: 0.875rem;
+}
+.warning svg {
+  margin-top: 0.15rem;
+}
+.details {
+  margin-top: 0.8rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--border);
+}
+dl {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 0.45rem 1rem;
+  margin: 0;
+  font-size: 0.875rem;
+}
+dt {
+  color: var(--text-muted);
+}
+dd {
   margin: 0;
   overflow-wrap: anywhere;
 }
 .source {
+  margin-left: 0.4rem;
   color: var(--faint);
   font-size: 0.75rem;
 }
 .note {
   margin: 0.9rem 0 0;
   font-size: 0.85rem;
+}
+.tabcard {
+  margin-top: 1.25rem;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 10px);
+  background: var(--surface);
+}
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0 0.75rem;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border);
+}
+.tabs button {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: -1px;
+  padding: 0.8rem 0.75rem 0.7rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+.tabs button:hover {
+  color: var(--text);
+}
+.tabs button.on {
+  border-bottom-color: var(--brand);
+  color: var(--text);
+  font-weight: 600;
+}
+.tabs button:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: -2px;
+}
+.count {
+  min-width: 1.25rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  line-height: 1.25rem;
+  text-align: center;
+}
+.count.bad {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.panel-tab :deep(.list) {
+  margin-top: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.dialog {
+  width: min(32rem, calc(100vw - 2rem));
+  padding: 1.25rem;
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+.dialog::backdrop {
+  background: rgb(0 0 0 / 35%);
+}
+.dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+.dialog-head h2 {
+  margin: 0;
+  font-size: 1.05rem;
 }
 .block + .block {
   margin-top: 1.1rem;
@@ -370,10 +596,5 @@ dd {
   display: inline-block;
   margin-top: 1rem;
   font-size: 0.875rem;
-}
-@media (max-width: 1000px) {
-  .grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 </style>

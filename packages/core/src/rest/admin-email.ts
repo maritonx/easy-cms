@@ -27,6 +27,11 @@ export interface AdminEmail {
   }
   /** The suppression list is kept. */
   suppressions: boolean
+  /**
+   * For the page's tabs: addresses on the suppression list, and emails of the last 7 days that
+   * failed, bounced or were reported as spam.
+   */
+  counts: { blocked: number; problems: number }
 }
 
 /**
@@ -53,9 +58,34 @@ function logsOnly(adapter: EmailAdapter | undefined) {
 const message = (error: unknown) =>
   error instanceof Error ? error.message || error.name : String(error)
 
+/** Rows of a table matching `where`, or 0 without the table. */
+async function count(cms: EasyCMS, collection: string, where?: Where): Promise<number> {
+  if (!cms.config.collections.some((c) => c.slug === collection)) return 0
+  const found = await cms.db.find({
+    collection,
+    ...(where ? { where } : {}),
+    sort: ['id'],
+    limit: 1,
+    page: 1,
+  })
+  return found.totalDocs
+}
+
 export async function adminEmail(cms: EasyCMS): Promise<AdminEmail> {
   const adapter = await cms.emailAdapter().catch(() => undefined)
   const suppressions = cms.config.collections.some((c) => c.slug === EMAIL_SUPPRESSIONS)
+  const since = new Date(Date.now() - 7 * 86_400_000).toISOString()
+  const counts = {
+    blocked: await count(cms, EMAIL_SUPPRESSIONS),
+    problems: await count(cms, EMAIL_LOG, {
+      and: [
+        { createdAt: { gte: since } },
+        {
+          or: [{ state: { equals: 'failed' } }, { delivery: { in: ['bounced', 'complained'] } }],
+        },
+      ],
+    }),
+  }
   let providers: AdminEmail['providers']
   if (cms.emailProviders.definitions.length > 0) {
     const active = await cms.emailProviders.active()
@@ -81,6 +111,7 @@ export async function adminEmail(cms: EasyCMS): Promise<AdminEmail> {
       canVerify: false,
       ...(providers ? { providers } : {}),
       suppressions,
+      counts,
     }
   let settings: EmailSetting[] = []
   try {
@@ -100,6 +131,7 @@ export async function adminEmail(cms: EasyCMS): Promise<AdminEmail> {
     canVerify: typeof adapter.verify === 'function',
     ...(providers ? { providers } : {}),
     suppressions,
+    counts,
   }
 }
 

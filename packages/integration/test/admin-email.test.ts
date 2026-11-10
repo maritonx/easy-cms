@@ -81,6 +81,7 @@ describe('email settings in the admin', () => {
       ],
       canVerify: true,
       suppressions: true,
+      counts: { blocked: 0, problems: 0 },
     })
   })
 
@@ -162,6 +163,7 @@ describe('email settings in the admin', () => {
         settings: [],
         canVerify: false,
         suppressions: false,
+        counts: { blocked: 0, problems: 0 },
       })
     } finally {
       await plain.destroy()

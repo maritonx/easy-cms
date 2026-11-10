@@ -189,7 +189,7 @@ function describe(message: EventMessage, language: Language): Omit<Notice, 'open
       return {
         title,
         lines: [...line(t.to, d.to), ...line(t.subject, d.subject), ...line(t.error, d.reason)],
-        path: '/email',
+        path: '/email?tab=blocked',
       }
   }
 }

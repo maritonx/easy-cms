@@ -7,6 +7,9 @@ import { ApiError, api, toQuery } from '../lib/api'
 import { formatDate, t } from '../lib/i18n'
 import { notify } from '../lib/toast'
 
+const props = defineProps<{ query?: string }>()
+const emit = defineEmits<{ changed: [] }>()
+
 interface Suppressed {
   id: number | string
   address: string
@@ -21,7 +24,7 @@ const list = ref<{
   totalPages: number
   totalDocs: number
 } | null>(null)
-const q = ref('')
+const q = ref(props.query ?? '')
 const page = ref(1)
 const error = ref('')
 const address = ref('')
@@ -43,6 +46,12 @@ async function load() {
   }
 }
 onMounted(load)
+watch(
+  () => props.query,
+  (value) => {
+    if (value !== undefined && value !== q.value) q.value = value
+  },
+)
 let timer: ReturnType<typeof setTimeout> | undefined
 watch(q, () => {
   clearTimeout(timer)
@@ -66,6 +75,7 @@ async function add() {
     notify('success', t('suppressions.added', { address: added.address }))
     address.value = ''
     await load()
+    emit('changed')
   } catch (e) {
     addError.value = e instanceof ApiError ? (e.errors[0]?.message ?? e.message) : String(e)
   } finally {
@@ -78,6 +88,7 @@ async function remove(row: Suppressed) {
     await api('DELETE', `/admin/email/suppressions/${row.id}`)
     notify('success', t('suppressions.removed', { address: row.address }))
     await load()
+    emit('changed')
   } catch (e) {
     notify('error', (e as Error).message)
   }
@@ -91,8 +102,7 @@ const REASONS = {
 </script>
 
 <template>
-  <section class="card list" aria-labelledby="suppressions-heading">
-    <h2 id="suppressions-heading">{{ t('suppressions.title') }}</h2>
+  <div class="card list">
     <p class="muted small">{{ t('suppressions.lead') }}</p>
     <p v-if="error" class="field-error">{{ error }}</p>
     <template v-else-if="list">
@@ -127,7 +137,7 @@ const REASONS = {
         <button type="button" class="btn btn-sm btn-icon" :disabled="page >= list.totalPages" :aria-label="t('list.next')" @click="go(page + 1)"><ChevronRight :size="16" aria-hidden="true" /></button>
       </nav>
     </template>
-  </section>
+  </div>
 </template>
 
 <style scoped>
@@ -135,9 +145,8 @@ const REASONS = {
   margin-top: 1.25rem;
   padding: 1.25rem;
 }
-h2 {
-  margin: 0 0 0.35rem;
-  font-size: 1rem;
+.list > :first-child {
+  margin-top: 0;
 }
 .filters {
   display: flex;
