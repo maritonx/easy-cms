@@ -55,6 +55,8 @@ export const DEFAULT_BACKUP_KEEP = 7
 const DEFAULT_DIR = 'backups'
 /** A backup still pending or running after this long was interrupted (a stopped process). */
 const STALE = 30 * 60_000
+/** A backup never started this long after it was asked for is made by the scheduled jobs. */
+const PENDING_STALE = 2 * 60_000
 const PERIOD = { daily: 86_400_000, weekly: 7 * 86_400_000 } as const
 
 export type BackupState = 'pending' | 'running' | 'done' | 'failed'
@@ -526,8 +528,11 @@ export async function startBackup(
       updatedAt: stamp,
     },
   })
-  void runBackup(cms, row).catch((error) =>
-    cms.logger.error(`Backup failed: ${(error as Error).message}`, { error }),
+  // Tracked: a serverless host keeps the function running until the backup is done.
+  cms.inBackground(
+    runBackup(cms, row).catch((error) =>
+      cms.logger.error(`Backup failed: ${(error as Error).message}`, { error }),
+    ),
   )
   return toAdmin(row)
 }
@@ -725,6 +730,11 @@ export async function runDueBackups(cms: EasyCMS, now: Date = new Date()): Promi
   })
   for (const row of docs) {
     const age = now.getTime() - Date.parse(String(row.updatedAt ?? row.createdAt))
+    // Never started (the process stopped before it could): made here a few minutes on.
+    if (row.state === 'pending' && age >= PENDING_STALE) {
+      await runBackup(cms, row).catch(() => {})
+      continue
+    }
     if (age < STALE) continue
     if (row.state === 'pending') await runBackup(cms, row).catch(() => {})
     else

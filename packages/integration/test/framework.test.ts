@@ -1,4 +1,5 @@
 import { createApiHandler, defineConfig, sharedEasyCMS } from '@easy-cms/core'
+import { sqlite } from '@easy-cms/db-sqlite'
 import { describe, expect, it } from 'vitest'
 import { db, SECRET, tempProject } from './helpers.js'
 
@@ -67,6 +68,74 @@ describe('framework kit', () => {
     })
     expect((await cms.auth.userFromHeaders(cookie))?.email).toBe('a@x.co')
     expect(await cms.auth.userFromHeaders(new Headers({ cookie: 'ecms-session=nope' }))).toBeNull()
+    await cms.destroy()
+  })
+})
+
+describe('work after the response (serverless hosts)', () => {
+  // A field of its own per test: shared instances are found by config.
+  const backupConfig = (field: string) =>
+    defineConfig({
+      secret: SECRET,
+      db: db(),
+      backups: { sqlite },
+      collections: [
+        { slug: 'notes', access: { read: () => true }, fields: [{ name: field, type: 'text' }] },
+      ],
+    })
+  const backUp = async (api: (request: Request) => Promise<Response>, token: string) =>
+    api(
+      new Request('http://cms.test/api/cms/admin/backups', {
+        method: 'POST',
+        headers: { authorization: `Bearer ${token}` },
+      }),
+    )
+
+  it('hands a backup to the host’s waitUntil, which keeps the function until it is done', async () => {
+    const cwd = tempProject()
+    const cfg = backupConfig('first')
+    const cms = await sharedEasyCMS(cfg, { cwd })
+    await cms.create('users', { email: 'a@x.co', password: 'password123', role: 'admin' })
+    const { token } = await cms.auth.login({ email: 'a@x.co', password: 'password123' })
+    const kept: Promise<unknown>[] = []
+    const api = createApiHandler(cfg, { waitUntil: (task) => kept.push(task) })
+    const started = await backUp(api, token)
+    expect(started.status).toBe(202)
+    // The response is out, the backup isn't done: the host waits for it.
+    expect(kept).toHaveLength(1)
+    await kept[0]
+    expect(cms.busy).toBe(false)
+    const [row] = (
+      await cms.db.find({ collection: 'database-backups', sort: ['id'], limit: 1, page: 1 })
+    ).docs
+    expect(row?.state).toBe('done')
+    await cms.destroy()
+  })
+
+  it('finds Vercel’s waitUntil without being told', async () => {
+    const cwd = tempProject()
+    const cfg = backupConfig('second')
+    const cms = await sharedEasyCMS(cfg, { cwd })
+    await cms.create('users', { email: 'b@x.co', password: 'password123', role: 'admin' })
+    const { token } = await cms.auth.login({ email: 'b@x.co', password: 'password123' })
+    const kept: Promise<unknown>[] = []
+    const key = Symbol.for('@vercel/request-context')
+    ;(globalThis as Record<symbol, unknown>)[key] = {
+      get: () => ({ waitUntil: (task: Promise<unknown>) => kept.push(task) }),
+    }
+    try {
+      expect((await backUp(createApiHandler(cfg), token)).status).toBe(202)
+      expect(kept).toHaveLength(1)
+      await kept[0]
+    } finally {
+      delete (globalThis as Record<symbol, unknown>)[key]
+    }
+    // Nothing goes on after a plain read: nothing to wait for.
+    const read = await createApiHandler(cfg, { waitUntil: (task) => kept.push(task) })(
+      new Request('http://cms.test/api/cms/notes'),
+    )
+    expect(read.status).toBe(200)
+    expect(kept).toHaveLength(1)
     await cms.destroy()
   })
 })

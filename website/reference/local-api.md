@@ -112,6 +112,8 @@ to apply them, as the REST API does.
 | `flushOutbox()` | — | With `outbox: true`: waits until the outbox ran what saves left so far; call before a serverless function returns. What fails stays queued for its retry. |
 | `sendEmail(message)` | — | Queues an email for the config's `email` adapter and sends it in the background. [Email](/guide/email) |
 | `flushEmails()` | — | Waits for emails being sent; call before a serverless function returns. |
+| `settle()` | — | Waits for work that goes on after a response (a backup, emails being sent), e.g. before a serverless function returns. The API handlers do it with the host's `waitUntil`. |
+| `inBackground(promise)` | — | Keeps track of work that goes on after a response, for `settle()` and `busy` (`true` while any goes on). |
 | `emailAdapter()` | `EmailAdapter \| undefined` | The adapter that sends now: the email provider an admin chose, else the config's `email`. [Email providers](/guide/email#providers) |
 
 ### Search

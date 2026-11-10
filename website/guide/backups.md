@@ -71,6 +71,10 @@ backups: {
   long-running server, or from your cron calling `<api>/jobs/run`. One runs at a time; one a
   process stopped in the middle is finished by the next run. The dashboard tells admins when the
   last scheduled backup failed, or when none finished in two periods.
+- **On serverless hosts** (Vercel, Netlify), a backup goes on after the admin's request has its
+  answer: the API handler asks the host to keep the function running until it is done (Next.js's
+  `after`, Nitro's `waitUntil`, or Vercel's and Netlify's own). One that never started is made by
+  the next jobs run, two minutes on.
 - **Downloads** go through the server, for admins only, and the list shows who downloaded each
   backup last. Keep downloaded files as safe as the database.
 - Upgrading to Easy CMS 0.32 adds the `database-backups` table: create a migration

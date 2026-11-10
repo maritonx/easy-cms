@@ -57,6 +57,26 @@ export interface ApiHandlerOptions {
    * and Netlify are recognized without it.
    */
   readonly trustProxy?: boolean
+  /**
+   * Keeps a serverless function running for work that goes on after the response (a backup,
+   * emails being sent), e.g. Next.js's `after`. Default: Vercel's and Netlify's own, found
+   * without it; elsewhere the process keeps running anyway.
+   */
+  readonly waitUntil?: (task: Promise<unknown>, request: Request) => void
+}
+
+/** The host's `waitUntil` for this request: Vercel's (as `@vercel/functions` finds it) or Netlify's. */
+export function platformWaitUntil(): ((task: Promise<unknown>) => void) | undefined {
+  const vercel = (globalThis as Record<symbol, unknown>)[Symbol.for('@vercel/request-context')] as
+    | { get?: () => { waitUntil?: (task: Promise<unknown>) => void } | undefined }
+    | undefined
+  const fromVercel = vercel?.get?.()?.waitUntil
+  if (typeof fromVercel === 'function') return fromVercel
+  const netlify = (globalThis as { Netlify?: { context?: { waitUntil?: unknown } } }).Netlify
+  const fromNetlify = netlify?.context?.waitUntil
+  return typeof fromNetlify === 'function'
+    ? (fromNetlify as (task: Promise<unknown>) => void).bind(netlify?.context)
+    : undefined
 }
 
 /**
@@ -121,6 +141,12 @@ export function createApiHandler(
       })
       handlers.set(cms, handler)
     }
-    return handler(request)
+    const response = await handler(request)
+    // A backup or emails go on after the response: the host keeps the function for them.
+    if (cms.busy) {
+      if (options.waitUntil) options.waitUntil(cms.settle(), request)
+      else platformWaitUntil()?.(cms.settle())
+    }
+    return response
   }
 }
