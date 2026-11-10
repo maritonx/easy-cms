@@ -28,6 +28,9 @@ const TELEGRAM = 'http://localhost:3112'
 /** Anthropic's API for the Next.js example's AI connections (`ai-mock.ts`). */
 const ANTHROPIC = 'http://localhost:3113'
 
+/** Google sign-in and Drive for the Next.js example's backup destination (`backups-mock.ts`). */
+const GOOGLE = 'http://localhost:3115'
+
 /** Webhooks for the Next.js example's social posts (`social-mock.ts`). */
 const SOCIAL = 'http://localhost:3114'
 
@@ -120,6 +123,10 @@ export default defineConfig({
         FACEBOOK_DIALOG_URL: `${SOCIAL}/dialog`,
         LINE_API_URL: `${SOCIAL}/line`,
         X_API_URL: `${SOCIAL}/x`,
+        // Google Drive through the mock backups-mock.ts (#395).
+        GOOGLE_AUTH_URL: `${GOOGLE}/auth`,
+        GOOGLE_TOKEN_URL: `${GOOGLE}/token`,
+        GOOGLE_API_URL: GOOGLE,
         // Single sign-on on standalone, where the schema is pushed. Nuxt and Next.js run from the
         // examples' migrations, which are made without a provider.
         ...(app.name !== 'standalone'
@@ -147,6 +154,12 @@ export default defineConfig({
       name: 'anthropic',
       command: `node ai-mock.ts ${new URL(ANTHROPIC).port}`,
       url: ANTHROPIC,
+      reuseExistingServer: false,
+    },
+    {
+      name: 'google',
+      command: `node backups-mock.ts ${new URL(GOOGLE).port}`,
+      url: GOOGLE,
       reuseExistingServer: false,
     },
     {

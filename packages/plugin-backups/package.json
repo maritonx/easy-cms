@@ -1,0 +1,54 @@
+{
+  "name": "@easy-cms/plugin-backups",
+  "version": "1.40.0",
+  "description": "Backup destinations for Easy CMS: Google Drive and S3-compatible storage (Cloudflare R2, Backblaze B2, AWS S3), connected in the admin",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "prepack": "node ../../scripts/check-publish.mjs"
+  },
+  "peerDependencies": {
+    "@easy-cms/core": "workspace:^"
+  },
+  "dependencies": {
+    "@easy-cms/storage-s3": "workspace:^"
+  },
+  "devDependencies": {
+    "@easy-cms/core": "workspace:^",
+    "@easy-cms/db-sqlite": "workspace:^",
+    "simple-icons": "16.36.0"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maritonx/easy-cms.git",
+    "directory": "packages/plugin-backups"
+  },
+  "keywords": [
+    "easy-cms",
+    "easy-cms-plugin",
+    "backups",
+    "google-drive",
+    "s3",
+    "r2"
+  ]
+}

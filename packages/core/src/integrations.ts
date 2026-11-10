@@ -124,7 +124,7 @@ export interface IntegrationConfig {
   /** Checks the values without posting anything; `name` is the connection's. */
   readonly test?: (
     values: Readonly<Record<string, string>>,
-    args: { cms: EasyCMS; name?: string },
+    args: { cms: EasyCMS; name?: string; app: Readonly<Record<string, string>> },
   ) => Promise<IntegrationTestResult> | IntegrationTestResult
   /**
    * Asked before the first connection (#357), e.g. that text sent to an AI provider leaves the
@@ -134,7 +134,8 @@ export interface IntegrationConfig {
   /** A place backups can go (category `backups`): its connections are offered in Settings → Backups. */
   readonly backups?: (
     values: Readonly<Record<string, string>>,
-    args: { cms: EasyCMS },
+    /** `app`: the OAuth app's keys, e.g. to refresh a token. */
+    args: { cms: EasyCMS; app: Readonly<Record<string, string>> },
   ) => BackupDestination | Promise<BackupDestination>
 }
 
@@ -285,8 +286,8 @@ export const OFFICIAL_PLUGINS: readonly {
     name: '@easy-cms/plugin-social',
     category: 'social',
     description: {
-      en: 'Post to Facebook, LINE and webhooks from the admin',
-      th: 'โพสต์ไป Facebook, LINE และ webhook จาก admin',
+      en: 'Post to Facebook, LINE, X and webhooks from the admin',
+      th: 'โพสต์ไป Facebook, LINE, X และ webhook จาก admin',
     },
     docs: 'https://easycms.dev/docs/social',
   },
@@ -304,6 +305,15 @@ export const OFFICIAL_PLUGINS: readonly {
       th: 'Claude, GPT และ Gemini สำหรับ alt text, SEO และแปลภาษา',
     },
     docs: 'https://easycms.dev/docs/ai',
+  },
+  {
+    name: '@easy-cms/plugin-backups',
+    category: 'backups',
+    description: {
+      en: 'Backups to Google Drive, Cloudflare R2, Backblaze B2 or S3',
+      th: 'backup ไป Google Drive, Cloudflare R2, Backblaze B2 หรือ S3',
+    },
+    docs: 'https://easycms.dev/docs/backups#destinations',
   },
   {
     name: '@easy-cms/plugin-ecommerce',
@@ -378,6 +388,11 @@ export class Integrations {
     }
     return out
   }
+  /** The OAuth app's keys for a plugin (the environment's win), e.g. to refresh a token. */
+  async app(id: string): Promise<Record<string, string>> {
+    return this.appValues(this.definition(id))
+  }
+
   /** Whether the OAuth app's required keys are all there. */
   private appComplete(def: IntegrationConfig, values: Record<string, string>): boolean {
     return (def.oauth?.app?.fields ?? []).every((f) => !f.required || !!values[f.name])
@@ -721,7 +736,9 @@ export class Integrations {
     const name = await this.uniqueName(id, String(input.name ?? ''))
     const values = this.cleanValues(def, input.values)
     this.checkFields(def, values, false)
-    const result = def.test ? await def.test(values, { cms: this.cms, name }) : null
+    const result = def.test
+      ? await def.test(values, { cms: this.cms, name, app: await this.appValues(def) })
+      : null
     if (result && !result.ok)
       throw new ValidationError(CONNECTIONS, [
         { field: 'values', message: result.message ?? 'the provider refused these values' },
@@ -856,7 +873,7 @@ export class Integrations {
     const name = cid === 'env' ? ENV_NAME : String((await this.row(id, cid)).name)
     let result: IntegrationTestResult
     try {
-      result = await def.test(values, { cms: this.cms, name })
+      result = await def.test(values, { cms: this.cms, name, app: await this.appValues(def) })
     } catch (error) {
       result = { ok: false, message: (error as Error).message }
     }

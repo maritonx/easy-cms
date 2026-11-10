@@ -93,6 +93,9 @@ importers:
       '@easy-cms/plugin-ai':
         specifier: workspace:^
         version: link:../../packages/plugin-ai
+      '@easy-cms/plugin-backups':
+        specifier: workspace:^
+        version: link:../../packages/plugin-backups
       '@easy-cms/plugin-form-builder':
         specifier: workspace:^
         version: link:../../packages/plugin-form-builder
@@ -578,6 +581,22 @@ importers:
         version: 3.5.45(typescript@6.0.3)
 
   packages/plugin-ai:
+    devDependencies:
+      '@easy-cms/core':
+        specifier: workspace:^
+        version: link:../core
+      '@easy-cms/db-sqlite':
+        specifier: workspace:^
+        version: link:../db-sqlite
+      simple-icons:
+        specifier: 16.36.0
+        version: 16.36.0
+
+  packages/plugin-backups:
+    dependencies:
+      '@easy-cms/storage-s3':
+        specifier: workspace:^
+        version: link:../storage-s3
     devDependencies:
       '@easy-cms/core':
         specifier: workspace:^
