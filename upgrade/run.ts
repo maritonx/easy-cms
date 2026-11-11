@@ -91,13 +91,16 @@ const cli = (project: string, ...args: string[]) =>
 /** Empties the Postgres database, with the `postgres` driver db-postgres uses. */
 async function resetPostgres() {
   const require = createRequire(join(packages, 'db-postgres', 'package.json'))
-  const postgres = require('postgres') as (
+  type Postgres = (
     url: string,
     options: object,
   ) => {
     unsafe(query: string): Promise<unknown>
     end(): Promise<void>
   }
+  // postgres 3 exports the function; 4 is an ES module, required as its namespace.
+  const loaded = require('postgres') as Postgres | { default: Postgres }
+  const postgres = typeof loaded === 'function' ? loaded : loaded.default
   const sql = postgres(process.env.POSTGRES_URL as string, { max: 1, onnotice: () => {} })
   try {
     await sql.unsafe('DROP SCHEMA public CASCADE; CREATE SCHEMA public')
