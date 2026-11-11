@@ -24,6 +24,13 @@ const appKeys = (prefix: string, shared: string) => ({
   shared,
 })
 
+/** A URL without its trailing slashes (a loop: a regex on admin input could backtrack). */
+function withoutSlash(url: string): string {
+  let end = url.length
+  while (end > 0 && url[end - 1] === '/') end--
+  return url.slice(0, end)
+}
+
 function keys(app: Readonly<Record<string, string>>) {
   if (!app.clientId || !app.clientSecret)
     throw new Error("enter the app's Client ID and Client secret first")
@@ -121,7 +128,7 @@ export const githubSignIn: IntegrationConfig = {
     providerId: 'github',
     single: true,
     create: (values, { app }) => {
-      const web = values.server?.replace(/\/+$/, '')
+      const web = values.server ? withoutSlash(values.server) : undefined
       return github({ ...keys(app), ...(web ? { server: { web, api: `${web}/api/v3` } } : {}) })
     },
   },
@@ -180,7 +187,7 @@ export const oidcSignIn: IntegrationConfig = {
     try {
       const url = new URL(
         '.well-known/openid-configuration',
-        `${values.issuer?.replace(/\/+$/, '')}/`,
+        `${withoutSlash(values.issuer ?? '')}/`,
       )
       const response = await fetch(url, { signal: AbortSignal.timeout(10_000) })
       if (!response.ok) return { ok: false, message: `${url} answered ${response.status}` }
