@@ -51,6 +51,12 @@ export type {
   AuthProviderRequest,
 } from './auth/providers.js'
 export type {
+  ActiveProvider,
+  SignInConnection,
+  SignInProviders,
+  SignInSetting,
+} from './auth/sign-in-providers.js'
+export type {
   AdminSso,
   SingleSignOn,
   SsoOutcome,
@@ -182,6 +188,7 @@ export {
 export type * from './infer.js'
 export type {
   BackupDestination,
+  IntegrationApp,
   IntegrationCategory,
   IntegrationConfig,
   IntegrationConnection,

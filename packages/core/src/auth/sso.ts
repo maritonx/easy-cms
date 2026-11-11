@@ -7,6 +7,7 @@ import { ForbiddenError, NotFoundError, QueryError, ValidationError } from '../e
 import type { EasyCMS } from '../local-api.js'
 import type { Session } from './auth.js'
 import type { AuthProvider, AuthProviderProfile } from './providers.js'
+import type { SignInConnection } from './sign-in-providers.js'
 import { type Secrets, safeEqual, secretsOf } from './tokens.js'
 
 /** The cookie that carries a sign-in through the provider and back. */
@@ -27,6 +28,8 @@ export interface AdminSso {
     /** Give this to the provider as the redirect (callback) URL. */
     callbackURL: string | null
     details: Record<string, string>
+    /** `code`: `auth.providers`; `admin`: turned on in Settings → Integrations. */
+    source: 'code' | 'admin'
   })[]
   /** Who may sign in with a password: everyone, only admins, or only break-glass accounts. */
   password: 'everyone' | 'admins' | 'breakGlass'
@@ -60,6 +63,7 @@ export type SsoOutcome =
   | 'unverified'
   | 'inactive'
   | 'taken'
+  | 'tested'
 
 interface Pending {
   /** Provider id. */
@@ -71,6 +75,8 @@ interface Pending {
   r: string
   /** Linking an account to this signed-in user, instead of signing in. */
   u?: string
+  /** Testing a sign-in connection (`integration:connection`) for this signed-in admin. */
+  t?: string
   /** Expires at (ms). */
   e: number
 }
@@ -116,12 +122,14 @@ export class SingleSignOn {
     return this.cms.config
   }
 
+  /** Providers in the config, or sign-in integrations to turn on in the admin. */
   get enabled(): boolean {
-    return this.config.auth.providers.length > 0
+    return this.cms.signIn.possible
   }
 
-  providers(): SsoProviderRef[] {
-    return this.config.auth.providers.map((p) => ({
+  /** The login page's buttons. */
+  async providers(): Promise<SsoProviderRef[]> {
+    return (await this.cms.signIn.providers()).map((p) => ({
       id: p.id,
       name: p.name,
       icon: p.icon ?? 'key',
@@ -156,9 +164,17 @@ export class SingleSignOn {
    */
   async start(
     providerId: string,
-    options: { origin?: string; redirect?: string | null; user?: AuthUser },
+    options: {
+      origin?: string
+      redirect?: string | null
+      user?: AuthUser
+      /** Tests a connection that may not be on yet, for this admin (`user`): nobody signs in. */
+      test?: SignInConnection
+    },
   ): Promise<{ url: string; cookie: string }> {
-    const provider = this.provider(providerId)
+    const provider = options.test
+      ? await this.cms.signIn.build(options.test)
+      : await this.provider(providerId)
     const redirectUri = this.callbackURL(provider.id, options.origin)
     if (!redirectUri)
       throw new QueryError('Signing in with providers needs `serverURL` in production')
@@ -168,7 +184,13 @@ export class SingleSignOn {
       v: random(),
       n: random(),
       r: this.adminPage(options.redirect),
-      ...(options.user ? { u: String(options.user.id) } : {}),
+      ...(options.user && !options.test ? { u: String(options.user.id) } : {}),
+      ...(options.test && options.user
+        ? {
+            t: `${options.test.integration}:${options.test.connection}`,
+            u: String(options.user.id),
+          }
+        : {}),
       e: Date.now() + PENDING_TTL,
     }
     const url = await provider.authorizationURL({
@@ -192,22 +214,30 @@ export class SingleSignOn {
     const admin = this.config.admin.path.replace(/\/+$/, '')
     const pending = unseal(secretsOf(this.config), options.cookie)
     let email: string | null = null
-    const back = async (page: 'login' | 'account', outcome: SsoOutcome) => {
+    const back = async (page: 'login' | 'account' | 'integrations', outcome: SsoOutcome) => {
       await this.cms.audit.record({
         action: 'sso.failed',
         target: 'auth',
         ...(page === 'login' ? { user: null, email } : {}),
         detail: { provider: providerId, outcome },
       })
-      return { redirect: `${admin}/${page}?sso=${outcome}` } as const
+      const extra =
+        page === 'integrations' && pending?.t ? `&integration=${pending.t.split(':')[0]}` : ''
+      return { redirect: `${admin}/${page}?sso=${outcome}${extra}` } as const
     }
-    const page = pending?.u ? 'account' : 'login'
+    const page = pending?.t ? 'integrations' : pending?.u ? 'account' : 'login'
     if (!pending || pending.p !== providerId) return await back(page, 'expired')
     const state = options.url.searchParams.get('state') ?? ''
     if (!safeEqual(state, pending.s)) return await back(page, 'expired')
     if (options.url.searchParams.has('error')) return await back(page, 'cancelled')
 
-    const provider = this.provider(providerId)
+    const test = pending.t ? this.testOf(pending.t) : null
+    let provider: AuthProvider
+    try {
+      provider = test ? await this.cms.signIn.build(test) : await this.provider(providerId)
+    } catch {
+      return await back(page, 'expired')
+    }
     const redirectUri = this.callbackURL(provider.id, options.origin)
     let profile: AuthProviderProfile
     try {
@@ -227,6 +257,19 @@ export class SingleSignOn {
     }
     const subject = String(profile.subject)
     email = profile.email?.trim().toLowerCase() || null
+
+    // Testing a connection: it worked when the provider said who signed in. Nobody signs in.
+    if (test) {
+      if (!options.user || String(options.user.id) !== pending.u)
+        return await back('integrations', 'failed')
+      await this.cms.signIn.passed(test, email, options.user)
+      const query = new URLSearchParams({
+        sso: 'tested',
+        integration: test.integration,
+        ...(email ? { email } : {}),
+      })
+      return { redirect: `${admin}/integrations?${query}` }
+    }
 
     // Linking an account to the signed-in user.
     if (pending.u) {
@@ -282,7 +325,7 @@ export class SingleSignOn {
         data: { ...rest, email, lastUsedAt: new Date().toISOString() },
       })
     }
-    const session = await this.cms.auth.createSession(user.id)
+    const session = await this.cms.auth.createSession(user.id, { method: provider.id })
     await this.cms.audit.record({
       action: 'sso.login',
       target: 'auth',
@@ -295,6 +338,8 @@ export class SingleSignOn {
   /** A user's outside accounts. */
   async identities(userId: ID): Promise<UserIdentity[]> {
     if (!this.enabled) return []
+    const names = new Map(this.config.auth.providers.map((p) => [p.id, p.name]))
+    for (const p of await this.cms.signIn.providers()) names.set(p.id, p.name)
     const { docs } = await this.cms.db.find({
       collection: USER_IDENTITIES,
       where: { user: { equals: userId } },
@@ -305,8 +350,7 @@ export class SingleSignOn {
     return docs.map((row) => ({
       id: row.id,
       provider: String(row.provider),
-      name:
-        this.config.auth.providers.find((p) => p.id === row.provider)?.name ?? String(row.provider),
+      name: names.get(String(row.provider)) ?? String(row.provider),
       email: typeof row.email === 'string' ? row.email : null,
       createdAt: String(row.createdAt),
       lastUsedAt: typeof row.lastUsedAt === 'string' ? row.lastUsedAt : null,
@@ -347,15 +391,16 @@ export class SingleSignOn {
       await this.cms.db.delete({ collection: USER_IDENTITIES, id: identity.id })
   }
 
-  settings(origin?: string): AdminSso {
+  async settings(origin?: string): Promise<AdminSso> {
     const { providerSignUp } = this.config.auth
     return {
-      providers: this.config.auth.providers.map((p) => ({
+      providers: (await this.cms.signIn.active()).map(({ provider: p, source }) => ({
         id: p.id,
         name: p.name,
         icon: p.icon ?? 'key',
         callbackURL: this.callbackURL(p.id, origin),
         details: { ...(p.describe?.() ?? {}) },
+        source: source === 'code' ? 'code' : 'admin',
       })),
       password: passwordFor(this.config.auth.password),
       ...(typeof this.config.auth.password === 'object'
@@ -374,10 +419,16 @@ export class SingleSignOn {
 
   // -------------------------------------------------------------------------
 
-  private provider(id: string): AuthProvider {
-    const provider = this.config.auth.providers.find((p) => p.id === id)
+  private async provider(id: string): Promise<AuthProvider> {
+    const provider = await this.cms.signIn.provider(id)
     if (!provider) throw new NotFoundError('auth providers', id)
     return provider
+  }
+
+  /** The connection a test is for, from `integration:connection`. */
+  private testOf(value: string): SignInConnection {
+    const at = value.indexOf(':')
+    return { integration: value.slice(0, at), connection: value.slice(at + 1) }
   }
 
   /** Only pages of the admin: anything else (another site) goes to the admin's home. */

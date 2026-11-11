@@ -56,6 +56,7 @@ npx easy-cms <command> [--config <file>] [--cwd <dir>]
 | [`search:reindex [collection]`](#search-reindex) | สร้าง index ค้นหาใหม่จากฐานข้อมูล |
 | [`audit:resign`](#audit-resign) | หลังเปลี่ยน secret: เซ็น audit log ด้วยตัวใหม่ |
 | [`secrets:rotate`](#secrets-rotate) | หลังเปลี่ยน secret: เข้ารหัสการเชื่อมต่อใน Integrations ด้วยตัวใหม่ |
+| [`reset-sign-in`](#reset-sign-in) | ให้การเข้าสู่ระบบกลับไปใช้ผู้ให้บริการจาก config สำหรับผู้ดูแลระบบที่เข้าไม่ได้ |
 | [`serve`](#serve) | รัน CMS เป็น server ของตัวเอง |
 
 ตัวเลือกที่ใช้ได้กับทุกคำสั่ง: `--config <file>` (ค่าเริ่มต้น `easy-cms.config.ts`), `--cwd <dir>`
@@ -176,6 +177,16 @@ npx easy-cms secrets:rotate
 
 ใช้หลัง[หมุน secret](./security#rotating-the-secret) เข้ารหัสการเชื่อมต่อใน[หน้าการเชื่อมต่อ](./integrations)ที่ยังใช้ secret ตัวใดใน
 `previousSecrets` ใหม่ด้วย `secret` ปัจจุบัน จึงลบ secret เก่าออกได้ การเชื่อมต่อแต่ละรายการก็ถูกเข้ารหัสใหม่ตอนถูกใช้ด้วย
+
+### reset-sign-in {#reset-sign-in}
+
+```bash [pm]
+npx easy-cms reset-sign-in
+```
+
+ลบผู้ให้บริการเข้าสู่ระบบที่ผู้ดูแลระบบเปิดหรือปิดไว้ใน Integrations → เข้าสู่ระบบ ให้กลับไปเข้าสู่ระบบตามที่ config ตั้งไว้ ใช้เมื่อ
+ผู้ดูแลระบบเข้าไม่ได้แล้ว เช่น client secret ของผู้ให้บริการหมดอายุ คนที่เข้าด้วยผู้ให้บริการที่เปิดจากหน้า admin จะออกจากระบบ
+และบันทึกลง audit log ดู [ตั้งในหน้า admin](./sso#in-the-admin)
 
 ### audit:resign {#audit-resign}
 

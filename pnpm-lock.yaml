@@ -365,6 +365,9 @@ importers:
       '@easy-cms/core':
         specifier: workspace:^
         version: link:../core
+      simple-icons:
+        specifier: 16.36.0
+        version: 16.36.0
 
   packages/cli:
     dependencies:

@@ -22,6 +22,16 @@ Invalid Easy CMS config (1 problem):
   • admin.siteUrl: is now `siteURL`
 ```
 
+## 1.43 {#v1-43}
+
+- **session บันทึกว่าเข้าสู่ระบบด้วยวิธีไหน** (`password` หรือ id ของผู้ให้บริการ) เมื่อปิดผู้ให้บริการ คนที่เข้าด้วยวิธีนั้นจะออกจากระบบ
+  ตาราง `sessions` มีคอลัมน์ `method` เพิ่ม ให้รัน `npx easy-cms migrate:create` แล้ว commit migration จากนั้นรัน
+  `npx easy-cms migrate` ที่เซิร์ฟเวอร์ที่ deploy session ที่มีอยู่ก่อนหน้ายังใช้ได้ตามเดิม
+- **ตั้งผู้ให้บริการเข้าสู่ระบบในหน้า admin** เมื่อใช้ `signInPlugin()` จาก `@easy-cms/auth-oauth` ผู้ดูแลระบบเปิดผู้ให้บริการได้ที่
+  Integrations → เข้าสู่ระบบ ส่วน `auth.providers` ยังเป็นค่าเริ่มต้น และ `auth.locked: true` ใช้เฉพาะของโค้ด ดู
+  [ตั้งในหน้า admin](./sso#in-the-admin)
+- **backup ไป Google Drive และการเข้าสู่ระบบด้วย Google ใช้ app key ร่วมกัน** key ที่เคยกรอกให้ Drive ไว้จะใช้กับทั้งสองอย่าง
+
 ## 1.42 {#v1-42}
 
 - **เว็บที่ส่งอีเมลมีรายการระงับและผลหลังส่ง**: ตารางใหม่ `email-suppressions` และคอลัมน์ใหม่ 3 คอลัมน์ใน `email-log`

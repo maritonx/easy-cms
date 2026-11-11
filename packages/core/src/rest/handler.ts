@@ -590,7 +590,7 @@ async function route(
             passwordReset: cms.auth.canSendPasswordLinks(ctx.url.origin),
             // Buttons to sign in with outside accounts; `password: false`: only some use one
             // (`passwordFor`: admins, or break-glass accounts), behind a folded form.
-            providers: cms.auth.sso.providers(),
+            providers: await cms.auth.sso.providers(),
             password: cms.config.auth.password === true,
             passwordFor: passwordFor(cms.config.auth.password),
             // The first admin needs the setup code (`EASY_CMS_SETUP_CODE`).
@@ -820,7 +820,37 @@ async function route(
     if (!ctx.user) throw new UnauthorizedError()
     if (!isSystemAdmin(ctx.user)) throw new ForbiddenError()
     if (method !== 'GET') throw methodNotAllowed(ctx, 'GET')
-    return { body: cms.auth.sso.settings(ctx.url.origin) }
+    return { body: await cms.auth.sso.settings(ctx.url.origin) }
+  }
+
+  // Sign-in providers turned on and off in the admin (ADR-0066): a connection of a sign-in
+  // integration (after a passed test), or a provider of the config.
+  if (first === 'admin' && second === 'sign-in' && third === undefined) {
+    if (!ctx.user) throw new UnauthorizedError()
+    if (!isSystemAdmin(ctx.user) || ctx.user.apiKey) throw new ForbiddenError()
+    if (method !== 'PUT') throw methodNotAllowed(ctx, 'PUT')
+    const body = (await readJson(ctx.request)) as {
+      integration?: unknown
+      connection?: unknown
+      code?: unknown
+      on?: unknown
+    }
+    if (typeof body.on !== 'boolean')
+      throw new ValidationError('sign-in', [{ field: 'on', message: 'must be true or false' }])
+    if (typeof body.code === 'string' && body.code)
+      return { body: await cms.signIn.set(ctx.user, { code: body.code, on: body.on }) }
+    const connection = parseId(String(body.connection ?? ''))
+    if (typeof body.integration !== 'string' || !body.integration || connection === undefined)
+      throw new ValidationError('sign-in', [
+        { field: 'connection', message: 'name an integration and its connection, or code' },
+      ])
+    return {
+      body: await cms.signIn.set(ctx.user, {
+        integration: body.integration,
+        connection,
+        on: body.on,
+      }),
+    }
   }
 
   // Settings → Audit log (`audit`), for admins and roles given it: entries, CSV, the check.
@@ -1610,7 +1640,7 @@ async function route(
       String(ctx.user.id) === String(doc.id) &&
       ctx.via === 'cookie'
     ) {
-      setSessionCookies(cms, ctx, await cms.auth.createSession(doc.id))
+      setSessionCookies(cms, ctx, await cms.auth.createSession(doc.id, { method: 'password' }))
     }
     return { body: doc }
   }
@@ -2233,6 +2263,31 @@ async function ssoRoute(
 
   const pendingCookie = (value: string, maxAge: number) =>
     cookie(ctx, SSO_COOKIE, value, { httpOnly: true, maxAge })
+  // Testing a sign-in connection (ADR-0066): an admin signs in at the provider and comes back
+  // to Integrations with the email it gave. Nobody is signed in by it.
+  if (second === 'test' && third === undefined) {
+    if (method !== 'POST') throw methodNotAllowed(ctx, 'POST')
+    if (!ctx.user) throw new UnauthorizedError()
+    if (!isSystemAdmin(ctx.user) || ctx.user.apiKey) throw new ForbiddenError()
+    const body = (await readJson(ctx.request)) as { integration?: unknown; connection?: unknown }
+    const connection = parseId(String(body.connection ?? ''))
+    if (typeof body.integration !== 'string' || connection === undefined)
+      throw new ValidationError('sign-in', [
+        { field: 'connection', message: 'name an integration and its connection' },
+      ])
+    const test = { integration: body.integration, connection }
+    const provider = await cms.signIn.build(test).catch((error: Error) => {
+      throw new ValidationError('sign-in', [{ field: 'connection', message: error.message }])
+    })
+    const started = await sso.start(provider.id, {
+      origin: ctx.url.origin,
+      redirect: null,
+      user: ctx.user,
+      test,
+    })
+    ctx.headers.append('set-cookie', pendingCookie(started.cookie, 600))
+    return { body: { url: started.url } }
+  }
   if (third === 'login') {
     if (method !== 'GET') throw methodNotAllowed(ctx, 'GET')
     const started = await sso.start(second, {

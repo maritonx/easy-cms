@@ -24,6 +24,18 @@ Invalid Easy CMS config (1 problem):
   • admin.siteUrl: is now `siteURL`
 ```
 
+## 1.43 {#v1-43}
+
+- **Sessions record how they started** (`password` or a provider's id), so turning a provider off
+  signs out the people who used it: a new `method` column on `sessions`. Run
+  `npx easy-cms migrate:create` and commit the migration, then `npx easy-cms migrate` where you
+  deploy. Sessions started before are kept.
+- **Sign-in providers in the admin**: with `signInPlugin()` from `@easy-cms/auth-oauth`, admins turn
+  providers on in Integrations → Sign-in; `auth.providers` stay the default. `auth.locked: true`
+  keeps only them. See [single sign-on in the admin](./sso#in-the-admin).
+- **Google Drive backups and signing in with Google share their app keys**: keys entered for Drive
+  before are used for both.
+
 ## 1.42 {#v1-42}
 
 - **Apps with email get a suppression list and delivery results**: a new

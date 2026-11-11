@@ -73,6 +73,7 @@ Commands:
   search:reindex [slug]   Build the search index again from the database
   audit:resign            After a new secret: sign the audit log with it
   secrets:rotate          After a new secret: encrypt the Integrations' connections with it
+  reset-sign-in           Sign-in back to the config's providers, for admins locked out
   backup <file>           Copy the database to a SQLite file while the CMS runs
   backup:decrypt <file>   Decrypt a backup made with backups.encryptionKey
   copy --from <config>    Copy all content from another config's database into this one
@@ -145,6 +146,12 @@ for a cron job where no server process keeps running. Servers do this every minu
 Builds the search index (\`search\` in the config) again from the published documents of every
 collection with \`search\`, or of one: after adding \`search\` to a collection or changing its
 fields, or when indexing failed. An in-memory index (memorySearch) is built when the server starts.
+`,
+  'reset-sign-in': `Usage: easy-cms reset-sign-in [options]
+
+Forgets the sign-in providers admins turned on or off in Settings → Integrations, so people sign
+in as the config sets it (\`auth.providers\`, \`auth.password\`). For an admin who can't sign in any
+more. Sessions started with providers turned on in the admin end. Recorded in the audit log.
 `,
   serve: `Usage: easy-cms serve [--port <n>] [--host <host>] [--watch] [--trust-proxy] [options]
 
@@ -304,6 +311,20 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
             `${invalid.length} entries match no secret (changed after they were written), left as they are: #${invalid.slice(0, 20).join(', #')}${invalid.length > 20 ? ', …' : ''}`,
           )
           return 1
+        }
+        case 'reset-sign-in': {
+          const { was } = await cms.signIn.reset(null)
+          if (was.on.length === 0 && was.off.length === 0) {
+            io.out("Sign-in is as the config sets it: admins hadn't changed it.")
+            return 0
+          }
+          const providers = cms.config.auth.providers.map((p) => p.name)
+          io.out(
+            `Sign-in is back to the config's: ${was.on.length} provider(s) turned on in the admin are off${
+              was.off.length ? `, and ${was.off.join(', ')} are on again` : ''
+            }. People sign in with ${[...(cms.config.auth.password === true ? ['a password'] : ['a password (admins)']), ...providers].join(', ')}.`,
+          )
+          return 0
         }
         case 'secrets:rotate': {
           if (cms.config.integrations.length === 0) {

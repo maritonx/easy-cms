@@ -109,6 +109,8 @@ export const googleDrive: IntegrationConfig = {
         },
       ],
       env: { clientId: 'GOOGLE_CLIENT_ID', clientSecret: 'GOOGLE_CLIENT_SECRET' },
+      // One Google Cloud app for backups and signing in with Google (@easy-cms/auth-oauth).
+      shared: 'google',
     },
     authorizeUrl: ({ redirectUri, state, app }) => {
       const query = new URLSearchParams({

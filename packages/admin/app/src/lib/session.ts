@@ -147,6 +147,9 @@ export async function logout(): Promise<void> {
   session.user = null
   session.schema = null
   forgetUserData()
+  // The login page's sign-in buttons and password options: read when the admin was opened
+  // signed in, they were never loaded.
+  await loadSession().catch(() => {})
 }
 
 /**

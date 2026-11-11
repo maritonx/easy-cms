@@ -107,6 +107,52 @@ On their **Account** page, people see the outside accounts they sign in with, ca
 provider (**Link GitHub**) and unlink one. The last way into an account can't be unlinked. Admins see
 and unlink a user's accounts on the user's page. Deleting a user forgets their linked accounts.
 
+## In the admin
+
+Admins can also turn providers on in **Settings → Integrations → Sign-in**, without a deploy. The
+providers in the config stay the default: they show there too, and an admin can turn them off.
+
+```ts
+import { signInPlugin } from '@easy-cms/auth-oauth'
+
+export default defineConfig({
+  serverURL: 'https://cms.example.com',
+  plugins: [signInPlugin()], // Google, Microsoft, GitHub and OpenID Connect
+  // auth: { providers: [google()] } still works, as the default
+})
+```
+
+Create a migration after adding it (`npx easy-cms migrate:create sign-in`): it adds the
+`user-identities` table if the config had no providers.
+
+1. **Connect.** Open Google, Microsoft, GitHub or OpenID Connect and enter the app's keys
+   (client ID and secret; secrets are encrypted in the database). Copy the **redirect URL** shown
+   there to the provider's console. Google keeps one set of keys for signing in and
+   [Google Drive backups](./backups#google-drive): one Google Cloud app, entered once.
+2. **Test sign-in.** You sign in at the provider and come back to Integrations with the email it
+   gave. Nobody is signed in by a test. Changing the keys or the connection needs a new test.
+3. **Use for sign-in.** The login page gets the button. A connection with the id of a provider in
+   the config (`google`) takes its place, so the redirect URL doesn't change.
+
+Turning a provider off signs out the people who signed in with it. While a connection signs people
+in, it can't be changed or removed: turn it off first. Every change is in the audit log.
+
+**Admins can't lock themselves out.** A change is refused when afterwards no active admin could sign
+in: with a password, or with an account linked to a provider that stays on. If it happens anyway
+(an expired client secret, a provider's outage), run this where the app runs:
+
+```sh
+npx easy-cms reset-sign-in
+```
+
+It forgets what admins turned on and off: sign-in is as the config sets it again.
+
+To keep sign-in as the code sets it, with no changes from the admin:
+
+```ts
+auth: { providers: [google()], locked: true }
+```
+
 ## Setting up providers
 
 ### Google
@@ -163,7 +209,8 @@ The provider's `/.well-known/openid-configuration` is read for its endpoints. It
 `email` and `email_verified` (the `email` scope).
 
 The `id` can't be one of the sign-in actions under `/auth/` (`login`, `logout`, `me`, `init`,
-`signup`, `verify-email`, `forgot-password`, `reset-password`, `first-register`) or `identities`.
+`signup`, `verify-email`, `forgot-password`, `reset-password`, `first-register`), `identities`
+or `test`.
 
 ## How it is kept safe
 
@@ -173,7 +220,10 @@ The `id` can't be one of the sign-in actions under `/auth/` (`login`, `logout`, 
 - After signing in, people only go back to pages of the admin.
 - Linking an account needs the session and its CSRF token, and an account already linked to
   someone else can't be linked again.
-- Client secrets stay in environment variables, never in the database or backups.
+- Client secrets stay in environment variables, or, entered in the admin, encrypted with
+  `secret` in the database (`easy-cms secrets:rotate` after a new secret).
+- Providers turned on in the admin need a passed test first, and only admins of the whole site
+  change them.
 
 ## Next steps
 

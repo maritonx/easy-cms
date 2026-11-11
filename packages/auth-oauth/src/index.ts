@@ -290,3 +290,12 @@ export function github(
     describe: () => ({ server: web, clientId }),
   }
 }
+
+export {
+  githubSignIn,
+  googleSignIn,
+  microsoftSignIn,
+  oidcSignIn,
+  type SignInPluginOptions,
+  signInPlugin,
+} from './plugin.js'

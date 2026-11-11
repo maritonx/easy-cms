@@ -28,7 +28,8 @@
     "@easy-cms/core": "workspace:^"
   },
   "devDependencies": {
-    "@easy-cms/core": "workspace:^"
+    "@easy-cms/core": "workspace:^",
+    "simple-icons": "16.36.0"
   },
   "engines": {
     "node": ">=22.12"

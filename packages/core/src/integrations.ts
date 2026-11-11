@@ -1,5 +1,6 @@
 import { createCipheriv, createDecipheriv, createHash, hkdfSync, randomBytes } from 'node:crypto'
 import type { AuthUser, ID } from './access.js'
+import type { AuthProvider } from './auth/providers.js'
 import { secretsOf, signedWith, signValue } from './auth/tokens.js'
 import { CONNECTIONS } from './builtins.js'
 import type { ResolvedConfig } from './config.js'
@@ -19,6 +20,7 @@ export type IntegrationCategory =
   | 'automation'
   | 'backups'
   | 'email'
+  | 'sign-in'
 
 /**
  * A provider's logo: SVG paths, e.g. from simple-icons. Without `fill`, a path takes `color` (the
@@ -87,6 +89,18 @@ export interface BackupDestination {
   delete(name: string): Promise<void>
 }
 
+/** An app's own keys at a provider (a client id and secret), entered once in the admin. */
+export interface IntegrationApp {
+  readonly fields: readonly IntegrationField[]
+  /** Environment variables by field: set, they win over the admin. */
+  readonly env?: Readonly<Record<string, string>>
+  /**
+   * Integrations with the same `shared` name keep one set of keys, e.g. `google` for Google Drive
+   * backups and signing in with Google: one Google Cloud app, entered once.
+   */
+  readonly shared?: string
+}
+
 /** An outside provider a plugin connects to (`integrations` in the config). */
 export interface IntegrationConfig {
   /** Lowercase letters, digits and `-`, e.g. `telegram`. */
@@ -114,10 +128,7 @@ export interface IntegrationConfig {
      * The app's own keys at the provider (a client id and secret), entered once in the admin
      * (secrets encrypted) or set in the environment, which wins. Passed as `app` below.
      */
-    readonly app?: {
-      readonly fields: readonly IntegrationField[]
-      readonly env?: Readonly<Record<string, string>>
-    }
+    readonly app?: IntegrationApp
     readonly authorizeUrl: (args: {
       redirectUri: string
       state: string
@@ -145,6 +156,23 @@ export interface IntegrationConfig {
     /** `app`: the OAuth app's keys, e.g. to refresh a token. */
     args: { cms: EasyCMS; app: Readonly<Record<string, string>> },
   ) => BackupDestination | Promise<BackupDestination>
+  /** App keys without an OAuth connection (`kind: 'fields'`), e.g. a sign-in provider's. */
+  readonly app?: IntegrationApp
+  /**
+   * Signs people in to the admin (category `sign-in`): a connection an admin turns on adds a
+   * button to the login page, beside the config's `auth.providers`.
+   */
+  readonly signIn?: {
+    /** The provider from a connection's values and the app's keys. */
+    readonly create: (
+      values: Readonly<Record<string, string>>,
+      args: { cms: EasyCMS; app: Readonly<Record<string, string>> },
+    ) => AuthProvider
+    /** Its provider id when every connection has the same, e.g. `google`. */
+    readonly providerId?: string
+    /** At most one connection, e.g. a site has one Google app. */
+    readonly single?: boolean
+  }
   /**
    * Sends email (category `email`, usually from `defineEmailProvider`): an admin can choose a
    * connection to send the site's email instead of the config's `email`.
@@ -261,6 +289,14 @@ export interface AdminConnection {
   active?: boolean
   /** Email providers with a webhook: where the provider posts delivery events. */
   webhookUrl?: string
+  /** Sign-in providers: its id, the redirect URL to give the provider, and its last test. */
+  signIn?: {
+    providerId: string | null
+    callbackURL: string | null
+    on: boolean
+    tested: { at: string; email: string | null } | null
+    error?: string
+  }
 }
 
 /** A field as the admin gets it: without its functions. */
@@ -294,6 +330,8 @@ export interface AdminIntegration {
     values: Record<string, string>
     complete: boolean
     redirectUri: string
+    /** Integrations that use the same keys (`shared`). */
+    sharedWith?: Label[]
   }
   /** Email providers: how to add the webhook at the provider, when it has one. */
   email?: { webhook: boolean; webhookSetup?: Label }
@@ -363,6 +401,10 @@ export const OFFICIAL_PLUGINS: readonly {
   },
 ]
 
+/** An integration's app keys: its own (`app`) or its OAuth app's. */
+export const appOf = (def: IntegrationConfig): IntegrationApp | undefined =>
+  def.app ?? def.oauth?.app
+
 const mask = (value: string) => (value.length > 4 ? `••••${value.slice(-4)}` : '••••')
 
 /** The connections of plugins' integrations: kept, read and tested by Easy CMS. */
@@ -407,11 +449,29 @@ export class Integrations {
     }
     return out
   }
-  /** The OAuth app's keys: the environment's, else what an admin entered. */
+  /** The row that keeps an integration's app keys: its own, or its `shared` set's. */
+  private appRow(def: IntegrationConfig): string {
+    const shared = appOf(def)?.shared
+    return shared ? `app:${shared}` : def.id
+  }
+  /** The app's keys row; for a shared set never saved yet, keys an integration saved alone. */
+  private async appRowData(def: IntegrationConfig): Promise<Data | undefined> {
+    const [row] = await this.rows(this.appRow(def), 'integration')
+    const shared = appOf(def)?.shared
+    if ((row?.values as Data | undefined)?.app || !shared) return row
+    for (const other of this.definitions) {
+      if (appOf(other)?.shared !== shared) continue
+      const [own] = await this.rows(other.id, 'integration')
+      if ((own?.values as Data | undefined)?.app) return own
+    }
+    return row
+  }
+
+  /** The app's keys: the environment's, else what an admin entered. */
   private async appValues(def: IntegrationConfig): Promise<Record<string, string>> {
-    const app = def.oauth?.app
+    const app = appOf(def)
     if (!app) return {}
-    const [row] = await this.rows(def.id, 'integration')
+    const row = await this.appRowData(def)
     const stored = ((row?.values as Data | null)?.app ?? {}) as Record<string, string>
     let secret: Record<string, string> = {}
     if (row?.secret) {
@@ -435,7 +495,7 @@ export class Integrations {
 
   /** Whether the OAuth app's required keys are all there. */
   private appComplete(def: IntegrationConfig, values: Record<string, string>): boolean {
-    return (def.oauth?.app?.fields ?? []).every((f) => !f.required || !!values[f.name])
+    return (appOf(def)?.fields ?? []).every((f) => !f.required || !!values[f.name])
   }
 
   /**
@@ -444,7 +504,7 @@ export class Integrations {
    */
   async setApp(id: string, body: unknown, user: AuthUser) {
     const def = this.definition(id)
-    const app = def.oauth?.app
+    const app = appOf(def)
     if (!app) throw new QueryError(`${id} has no app keys`)
     const input = (typeof body === 'object' && body !== null ? body : {}) as Record<string, unknown>
     const given = (input.values ?? {}) as Record<string, unknown>
@@ -453,7 +513,6 @@ export class Integrations {
         .filter(([, name]) => process.env[name])
         .map(([field]) => field),
     )
-    const [row] = await this.rows(id, 'integration')
     const before = await this.appValues(def)
     const plain: Record<string, string> = {}
     const secret: Record<string, string> = {}
@@ -466,8 +525,9 @@ export class Integrations {
       if (value) (field.secret ? secret : plain)[field.name] = value
     }
     if (errors.length) throw new ValidationError('connections', errors)
-    await this.saveIntegration(id, {
-      values: { ...((row?.values ?? {}) as Data), app: plain },
+    const [own] = await this.rows(this.appRow(def), 'integration')
+    await this.saveIntegration(this.appRow(def), {
+      values: { ...((own?.values ?? {}) as Data), app: plain },
       secret: Object.keys(secret).length ? encryptValues(this.config.secret, secret) : null,
     })
     await this.audit(user, 'app', id)
@@ -622,12 +682,19 @@ export class Integrations {
     staleSecrets: number
     /** With email providers: the one in use (`null`: the config's `email`, named by `code`). */
     email?: { active: { integration: string; connection: ID | 'env' } | null; code: string | null }
+    /** With sign-in providers: the config's, whether each is on, and `auth.locked`. */
+    signIn?: {
+      locked: boolean
+      code: { id: string; name: string; icon: string; on: boolean; callbackURL: string | null }[]
+    }
   }> {
     const integrations: AdminIntegration[] = []
     const usage = (await this.cms.ai?.usageByConnection()) ?? new Map()
     const aiProviders = new Set(this.config.ai?.providers.map((p) => p.integration) ?? [])
     const current = keyId(keyOf(this.config.secret))
     const activeEmail = await this.cms.emailProviders.active()
+    const signInSetting = await this.cms.signIn.setting()
+    const origin = redirectBase ? new URL(redirectBase, 'http://x').origin : undefined
     let stale = 0
     for (const def of this.definitions) {
       const rows = await this.rows(def.id, 'connection')
@@ -694,7 +761,7 @@ export class Integrations {
             }))
           : connections,
         ...(def.consent ? { consent: def.consent, consented: await this.consented(def.id) } : {}),
-        ...(def.oauth?.app ? { app: await this.adminApp(def, redirectBase) } : {}),
+        ...(appOf(def) ? { app: await this.adminApp(def, redirectBase) } : {}),
         ...(def.email
           ? {
               email: {
@@ -704,6 +771,29 @@ export class Integrations {
             }
           : {}),
       })
+      if (def.signIn) {
+        const card = integrations[integrations.length - 1] as AdminIntegration
+        for (const c of card.connections) {
+          if (c.id === 'env') continue
+          const ref = { integration: def.id, connection: c.id }
+          let providerId: string | null = def.signIn.providerId ?? null
+          let error: string | undefined
+          try {
+            providerId = (await this.cms.signIn.build(ref)).id
+          } catch (e) {
+            error = (e as Error).message
+          }
+          c.signIn = {
+            providerId,
+            callbackURL: providerId ? this.cms.auth.sso.callbackURL(providerId, origin) : null,
+            on: signInSetting.on.some(
+              (o) => o.integration === def.id && String(o.connection) === String(c.id),
+            ),
+            tested: await this.cms.signIn.tested(ref),
+            ...(error ? { error } : {}),
+          }
+        }
+      }
       if (def.email) {
         const card = integrations[integrations.length - 1] as AdminIntegration
         for (const c of card.connections) {
@@ -728,12 +818,31 @@ export class Integrations {
             },
           }
         : {}),
+      ...(this.definitions.some((d) => d.signIn)
+        ? {
+            signIn: {
+              locked: this.cms.signIn.locked,
+              code: this.config.auth.providers.map((p) => ({
+                id: p.id,
+                name: p.name,
+                icon: p.icon ?? 'key',
+                on: !signInSetting.off.includes(p.id),
+                callbackURL: this.cms.auth.sso.callbackURL(p.id, origin),
+              })),
+            },
+          }
+        : {}),
     }
   }
 
   /** The OAuth app's keys as the admin shows them: secrets masked. */
   private async adminApp(def: IntegrationConfig, redirectBase: string) {
-    const app = def.oauth?.app
+    const app = appOf(def)
+    const sharedWith = app?.shared
+      ? this.definitions
+          .filter((d) => d !== def && appOf(d)?.shared === app.shared)
+          .map((d) => d.label)
+      : []
     const values = await this.appValues(def)
     const fields = app?.fields ?? []
     return {
@@ -747,7 +856,14 @@ export class Integrations {
         ),
       ),
       complete: this.appComplete(def, values),
-      redirectUri: `${redirectBase}/${def.id}/callback`,
+      redirectUri:
+        def.signIn?.providerId !== undefined
+          ? (this.cms.auth.sso.callbackURL(
+              def.signIn.providerId,
+              redirectBase ? new URL(redirectBase, 'http://x').origin : undefined,
+            ) ?? '')
+          : `${redirectBase}/${def.id}/callback`,
+      ...(sharedWith.length ? { sharedWith } : {}),
     }
   }
 
@@ -761,8 +877,10 @@ export class Integrations {
     out.push({ id: 'storage', kind: 'storage', name: config.upload.storage?.name ?? 'disk' })
     if (config.search)
       out.push({ id: 'search', kind: 'search', name: config.search.name ?? 'search' })
-    for (const provider of config.auth.providers ?? [])
-      out.push({ id: `sign-in:${provider.id}`, kind: 'sign-in', name: provider.id })
+    // With sign-in providers to choose, the config's are shown among them.
+    if (!this.definitions.some((d) => d.signIn))
+      for (const provider of config.auth.providers ?? [])
+        out.push({ id: `sign-in:${provider.id}`, kind: 'sign-in', name: provider.id })
     if (config.installedPlugins.some((p) => p.name === '@easy-cms/plugin-ecommerce'))
       out.push({ id: 'payments', kind: 'payments', name: 'Stripe' })
     return out
@@ -836,6 +954,10 @@ export class Integrations {
     const def = this.definition(id)
     if (def.kind !== 'fields') throw new QueryError(`${id} connects with its Connect button`)
     await this.checkConsent(def)
+    if (def.signIn?.single && (await this.rows(id, 'connection')).length > 0)
+      throw new ValidationError(CONNECTIONS, [
+        { field: 'values', message: 'is connected already: change that connection instead' },
+      ])
     const input = (body ?? {}) as Data
     const name = await this.uniqueName(id, String(input.name ?? ''))
     const values = this.cleanValues(def, input.values)
@@ -867,6 +989,7 @@ export class Integrations {
     const next: Data = { ...row, updatedAt: new Date().toISOString() }
     if (input.name !== undefined) next.name = await this.uniqueName(id, String(input.name), cid)
     if (input.values !== undefined) {
+      await this.cms.signIn.guard(id, cid)
       const values = { ...this.decrypt(row), ...this.cleanValues(def, input.values) }
       this.checkFields(def, values, false)
       Object.assign(next, this.seal(def, values), { lastError: null })
@@ -890,6 +1013,7 @@ export class Integrations {
   async disconnect(id: string, cid: ID, user: AuthUser) {
     const row = await this.row(id, cid)
     await this.cms.emailProviders.guard(id, cid)
+    await this.cms.signIn.guard(id, cid)
     await this.cms.db.delete({ collection: CONNECTIONS, id: cid })
     if (row.isDefault === true) {
       const [oldest] = await this.rows(id, 'connection')
@@ -907,7 +1031,10 @@ export class Integrations {
   /** Turns the integration on or off; its connections are kept. */
   async setEnabled(id: string, enabled: boolean, user: AuthUser) {
     this.definition(id)
-    if (!enabled) await this.cms.emailProviders.guard(id)
+    if (!enabled) {
+      await this.cms.emailProviders.guard(id)
+      await this.cms.signIn.guard(id)
+    }
     await this.saveIntegration(id, { enabled })
     await this.audit(user, enabled ? 'enable' : 'disable', id)
     return { enabled }

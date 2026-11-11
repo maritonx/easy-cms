@@ -167,6 +167,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `roles` | `string[]` | `['admin', 'editor']` | Must include `admin`. With `rbac`, the roles that always exist. [Users & auth](/guide/auth) |
 | `rbac` | `boolean` | `false` | Roles and their permissions from the admin (Settings → Roles), on top of access rules. [Roles](/guide/roles) |
 | `providers` | `AuthProvider[]` | `[]` | Signing in to the admin with outside accounts, e.g. `[google()]` from `@easy-cms/auth-oauth`. [Single sign-on](/guide/sso) |
+| `locked` | `boolean` | `false` | Sign-in as the code sets it: admins can't turn on providers in Integrations → Sign-in or turn off `providers`. [In the admin](/guide/sso#in-the-admin) |
 | `providerSignUp` | `{ domains, role? }` | — | With `providers`: people from these email domains get an account on their first sign-in, with `role` (not `admin`). |
 | `password` | `boolean \| { breakGlass }` | `true` | `false`: only admins sign in with a password; `{ breakGlass: [emails] }`: only those accounts ([single sign-on for everyone](/guide/sso#single-sign-on-for-everyone)). Everyone else uses `providers`. |
 | `setupCode` | `string` | `EASY_CMS_SETUP_CODE` | The code the first admin must enter on `/admin`, so nobody else claims a fresh site. Without one, no code is asked, and in production the server warns while no admin exists. [One-click deploy](/guide/one-click-deploy) |

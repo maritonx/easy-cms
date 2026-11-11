@@ -427,6 +427,8 @@ export const internalCollections: readonly CollectionConfig[] = [
       { name: 'tokenHash', type: 'text', required: true, unique: true },
       { name: 'user', type: 'relationship', to: USERS, required: true },
       { name: 'expiresAt', type: 'date', required: true, index: true },
+      // How it started: `password`, a sign-in provider's id, or empty (before 1.43, other ways).
+      { name: 'method', type: 'text', index: true },
     ],
   },
   {
@@ -673,7 +675,7 @@ export const emailSuppressionsCollection: CollectionConfig = {
   ],
 }
 
-/** Outside accounts users sign in with (`auth.providers`); added only when there are providers. */
+/** Outside accounts users sign in with: added with `auth.providers` or sign-in integrations. */
 export const userIdentitiesCollection: CollectionConfig = {
   slug: USER_IDENTITIES,
   access: { read: nobody, create: nobody, update: nobody, delete: nobody },

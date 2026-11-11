@@ -479,6 +479,12 @@ function validateAuth(config: Config, add: Add) {
   if (auth.setupCode !== undefined && typeof auth.setupCode !== 'string')
     add('auth.setupCode', 'must be a string')
   const providers: unknown = auth.providers
+  // Providers in the code, or sign-in integrations to turn on in the admin.
+  const signsIn =
+    (Array.isArray(providers) && providers.length > 0) ||
+    (config.integrations ?? []).some((i) => (i as { signIn?: unknown }).signIn)
+  if (auth.locked !== undefined && typeof auth.locked !== 'boolean')
+    add('auth.locked', 'must be true or false')
   if (providers !== undefined) {
     if (!Array.isArray(providers)) {
       add(
@@ -537,17 +543,12 @@ function validateAuth(config: Config, add: Add) {
         (!auth.rbac && !(auth.roles ?? ['admin', 'editor']).includes(signUp.role)))
     )
       add('auth.providerSignUp.role', 'must be one of auth.roles')
-    if (!Array.isArray(providers) || providers.length === 0)
-      add('auth.providerSignUp', 'needs auth.providers')
+    if (!signsIn) add('auth.providerSignUp', 'needs auth.providers or a sign-in plugin')
   }
-  if (
-    auth.password !== undefined &&
-    auth.password !== true &&
-    (!Array.isArray(providers) || providers.length === 0)
-  )
+  if (auth.password !== undefined && auth.password !== true && !signsIn)
     add(
       'auth.password',
-      'turning passwords off needs auth.providers',
+      'turning passwords off needs auth.providers or a sign-in plugin',
       'otherwise nobody else could sign in',
     )
   if (auth.roles !== undefined) {
@@ -1823,7 +1824,7 @@ const RESERVED_ENDPOINT_ROOTS = new Set([
 ])
 
 /** `/auth/<id>/…` of providers can't be `/auth/<action>`. */
-const RESERVED_PROVIDER_IDS = new Set([
+export const RESERVED_PROVIDER_IDS: ReadonlySet<string> = new Set([
   'login',
   'logout',
   'me',
@@ -1834,6 +1835,7 @@ const RESERVED_PROVIDER_IDS = new Set([
   'reset-password',
   'first-register',
   'identities',
+  'test',
 ])
 
 function validateCommands(config: Config, add: Add) {
@@ -2086,14 +2088,19 @@ function validateIntegrations(config: Config, add: Add) {
     else ids.add(item.id)
     if (!isLabel(item.label)) add(`${at}.label`, 'must be a string or { en, th }')
     if (
-      !['social', 'ai', 'notifications', 'automation', 'backups', 'email'].includes(
+      !['social', 'ai', 'notifications', 'automation', 'backups', 'email', 'sign-in'].includes(
         item.category as string,
       )
     )
       add(
         `${at}.category`,
-        "must be 'social', 'ai', 'notifications', 'automation', 'backups' or 'email'",
+        "must be 'social', 'ai', 'notifications', 'automation', 'backups', 'email' or 'sign-in'",
       )
+    if (item.category === 'sign-in') {
+      const signIn = (item.signIn ?? {}) as Record<string, unknown>
+      if (typeof signIn.create !== 'function')
+        add(`${at}.signIn`, 'needs signIn.create(values, { app }) returning an auth provider')
+    }
     if (item.category === 'email') {
       const email = (item.email ?? {}) as Record<string, unknown>
       if (typeof email.create !== 'function')

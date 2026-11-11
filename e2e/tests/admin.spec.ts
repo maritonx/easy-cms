@@ -2995,6 +2995,62 @@ test.describe('single sign-on', () => {
     )
   })
 
+  test('turns a provider on in the admin after a test sign-in (ADR-0066)', async ({ page }) => {
+    await login(page, ADMIN)
+    await page.goto('/admin/integrations?category=sign-in')
+    // The config's provider is shown, on.
+    const code = page.getByRole('listitem').filter({ hasText: 'From the code (auth.providers)' })
+    await expect(code).toContainText('Signs people in')
+    await page.getByRole('button', { name: 'Connect OpenID Connect' }).click()
+    const card = page.getByRole('dialog', { name: 'OpenID Connect' })
+    await card.getByLabel(/^Name/).fill('Okta')
+    await card.getByLabel(/^Button text/).fill('Okta')
+    await card.getByLabel(/^Id/).fill('okta')
+    await card.getByLabel(/^Issuer/).fill('http://localhost:3110')
+    await card.getByLabel(/^Client ID/).fill('easy-cms-test')
+    await card.getByLabel(/^Client secret/).fill('test-secret')
+    await card.getByRole('button', { name: 'Save' }).click()
+    await expect(card).toContainText('Not tested yet')
+    const origin = new URL(page.url()).origin
+    await expect(card).toContainText(`${origin}/api/cms/auth/okta/callback`)
+    await expect(card.getByRole('button', { name: 'Use Okta for sign-in' })).toBeDisabled()
+
+    // The test: at the provider and back, with the email it gave. Nobody signs in by it.
+    await card.getByRole('button', { name: 'Test signing in with Okta' }).click()
+    await page.getByLabel('Email').fill('someone@okta.test')
+    await page.getByRole('button', { name: 'Continue' }).click()
+    await expect(page.getByRole('status')).toContainText('the provider said someone@okta.test')
+    const back = page.getByRole('dialog', { name: 'OpenID Connect' })
+    await expect(back).toContainText('Tested with someone@okta.test')
+    await shot(page, 'sign-in-integrations')
+    await back.getByRole('button', { name: 'Use Okta for sign-in' }).click()
+    await expect(page.getByRole('status').filter({ hasText: 'now signs people in' })).toBeVisible()
+    await expect(back).toContainText('Signs people in')
+    await expect(back.getByRole('button', { name: 'Disconnect Okta' })).toBeDisabled()
+    await back.getByRole('button', { name: 'Close' }).click()
+
+    // The login page has its button.
+    await logOut(page)
+    await expect(page.getByRole('link', { name: 'Sign in with Okta' })).toBeVisible()
+
+    // Turned off again: the button goes.
+    await login(page, ADMIN)
+    await page.goto('/admin/integrations?category=sign-in&open=oidc-sign-in')
+    page.once('dialog', (dialog) => void dialog.accept())
+    await page
+      .getByRole('dialog', { name: 'OpenID Connect' })
+      .getByRole('button', { name: 'Turn off signing in with Okta' })
+      .click()
+    await expect(page.getByRole('status').filter({ hasText: 'is off' })).toBeVisible()
+    await page
+      .getByRole('dialog', { name: 'OpenID Connect' })
+      .getByRole('button', { name: 'Close' })
+      .click()
+    await logOut(page)
+    await expect(page.getByRole('link', { name: 'Sign in with SSO' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Sign in with Okta' })).toHaveCount(0)
+  })
+
   test('shows admins the callback URL to give the provider', async ({ page }) => {
     await login(page, ADMIN)
     await fromMenu(page, 'Settings', 'Single sign-on')
