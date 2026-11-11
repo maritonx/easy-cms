@@ -1,5 +1,13 @@
 # @easy-cms/db-sqlite
 
+## 1.43.0
+
+### Patch Changes
+
+- Updated dependencies [b1f8284]
+  - @easy-cms/core@1.43.0
+  - @easy-cms/drizzle@1.43.0
+
 ## 1.42.1
 
 ### Patch Changes
