@@ -136,6 +136,7 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
       rbac: config.auth?.rbac === true,
       providers: config.auth?.providers ?? [],
       providerSignUp: config.auth?.providerSignUp ?? { domains: [] },
+      locked: config.auth?.locked === true,
       password:
         typeof config.auth?.password === 'object'
           ? { breakGlass: config.auth.password.breakGlass.map((email) => email.toLowerCase()) }
@@ -172,7 +173,11 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
       ...(resolvedIntegrations(config).length > 0 ? [connectionsCollection] : []),
       ...(config.ai ? [aiUsageCollection] : []),
       ...(config.auth?.rbac ? [rolesCollection] : []),
-      ...((config.auth?.providers?.length ?? 0) > 0 ? [userIdentitiesCollection] : []),
+      // Providers in the code, or sign-in integrations an admin can turn on.
+      ...((config.auth?.providers?.length ?? 0) > 0 ||
+      resolvedIntegrations(config).some((i) => i.signIn)
+        ? [userIdentitiesCollection]
+        : []),
       ...(config.audit ? [auditLogsCollection] : []),
     ],
     globals: config.globals ?? [],

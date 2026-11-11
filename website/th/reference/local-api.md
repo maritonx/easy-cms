@@ -134,7 +134,7 @@ Local API เชื่อผู้เรียกและข้ามกฎส�
 
 object `cms` ยังมี `config` (config ที่ resolve แล้ว), `auth` (การ login และตรวจ session),
 `auth.sso` (การเข้าสู่ระบบด้วย `auth.providers`), `audit` (เมื่อเปิด `audit`: `audit.record({ action, target, doc })` เขียนรายการ), `roles` (เมื่อเปิด `auth.rbac`: `roles.allows(user, { collection }, operation)` บอกว่า role ของผู้ใช้อนุญาตอะไร),
-`integrations` (การเชื่อมต่อ: `integrations.get(id)` [การเชื่อมต่อ](/th/guide/integrations)), `emailProviders` (เมื่อมีผู้ให้บริการอีเมล: `emailProviders.suppress(address, reason, detail, source)` ระงับการส่งอีเมลถึงที่อยู่ [ผู้ให้บริการอีเมล](/th/guide/email#providers)), `ai` (เมื่อมี
+`integrations` (การเชื่อมต่อ: `integrations.get(id)` [การเชื่อมต่อ](/th/guide/integrations)), `emailProviders` (เมื่อมีผู้ให้บริการอีเมล: `emailProviders.suppress(address, reason, detail, source)` ระงับการส่งอีเมลถึงที่อยู่ [ผู้ให้บริการอีเมล](/th/guide/email#providers)), `signIn` (ผู้ให้บริการเข้าสู่ระบบ: `signIn.providers()` คือรายการที่ใช้เข้าสู่ระบบได้ตอนนี้ ทั้งจาก config และที่เปิดในหน้า admin ส่วน `signIn.reset(null)` กลับไปใช้ของ config [ตั้งในหน้า admin](/th/guide/sso#in-the-admin)), `ai` (เมื่อมี
 `@easy-cms/plugin-ai` ไม่อย่างนั้นเป็น `null`: `ai.generate({ feature, prompt })` [AI](/th/guide/ai)),
 `db`, `storage`, `logger` และ `cwd`
 

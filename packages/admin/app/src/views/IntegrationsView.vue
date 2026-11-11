@@ -6,6 +6,7 @@ import {
   Code2,
   Copy,
   ExternalLink,
+  Lock,
   Package,
   Plus,
   Search,
@@ -27,7 +28,7 @@ import { notify } from '../lib/toast'
  * drawer with its accounts (`?open=<id>`).
  */
 
-type Category = 'social' | 'ai' | 'notifications' | 'automation' | 'backups' | 'email'
+type Category = 'social' | 'ai' | 'notifications' | 'automation' | 'backups' | 'email' | 'sign-in'
 interface Field {
   name: string
   label?: Label
@@ -55,6 +56,14 @@ interface Connection {
   active?: boolean
   /** Email providers: where the provider posts delivery events. */
   webhookUrl?: string
+  /** Sign-in providers: its id, the redirect URL for the provider, on, the last test. */
+  signIn?: {
+    providerId: string | null
+    callbackURL: string | null
+    on: boolean
+    tested: { at: string; email: string | null } | null
+    error?: string
+  }
 }
 interface Integration {
   id: string
@@ -80,6 +89,8 @@ interface Integration {
     values: Record<string, string>
     complete: boolean
     redirectUri: string
+    /** Integrations that use the same keys. */
+    sharedWith?: Label[]
   }
   /** Email providers: whether it has a webhook, and how to add it. */
   email?: { webhook: boolean; webhookSetup?: Label }
@@ -94,6 +105,11 @@ interface Overview {
     active: { integration: string; connection: number | string } | null
     code: string | null
   }
+  /** With sign-in providers: the config's, each on or off, and `auth.locked`. */
+  signIn?: {
+    locked: boolean
+    code: { id: string; name: string; icon: string; on: boolean; callbackURL: string | null }[]
+  }
 }
 
 const route = useRoute()
@@ -107,6 +123,7 @@ const CATEGORIES: (Category | 'code')[] = [
   'automation',
   'backups',
   'email',
+  'sign-in',
   'code',
 ]
 const category = computed(() => {
@@ -132,6 +149,8 @@ function statusOf(integration: Integration): {
     return { kind: 'error', text: t('integrations.statusProblem') }
   if (integration.connections.some((c) => c.active))
     return { kind: 'ok', text: t('integrations.statusSends') }
+  if (integration.connections.some((c) => c.signIn?.on))
+    return { kind: 'ok', text: t('integrations.signsIn') }
   if (integration.connections.length)
     return {
       kind: 'ok',
@@ -171,6 +190,7 @@ type Row =
   | { kind: 'ai'; key: string }
   | { kind: 'code'; key: string; service: Overview['configured'][number] }
   | { kind: 'email-code'; key: string }
+  | { kind: 'sign-in-code'; key: string; provider: NonNullable<Overview['signIn']>['code'][number] }
 /** The list: by category, filtered by the chips and the search. */
 const groups = computed(() => {
   const out: { category: Category | 'code'; rows: Row[] }[] = []
@@ -191,6 +211,11 @@ const groups = computed(() => {
         matches(t('integrations.emailCode'), data.value.email.code ?? '')
       )
         rows.push({ kind: 'email-code', key: 'email-code' })
+      // The config's sign-in providers, on unless an admin turned them off.
+      if (c === 'sign-in')
+        for (const provider of data.value?.signIn?.code ?? [])
+          if (matches(provider.name, t('integrations.emailCode')))
+            rows.push({ kind: 'sign-in-code', key: `sign-in-code:${provider.id}`, provider })
       for (const integration of data.value?.integrations ?? [])
         if (
           integration.category === c &&
@@ -216,7 +241,10 @@ const catalog = computed(() =>
 /** Headings between categories only when everything shows. */
 const grouped = computed(() => !category.value && !query.value.trim())
 const counts = computed(() => {
-  const out: Record<string, number> = { code: data.value?.configured.length ?? 0 }
+  const out: Record<string, number> = {
+    code: data.value?.configured.length ?? 0,
+    'sign-in': data.value?.signIn?.code.length ?? 0,
+  }
   for (const i of data.value?.integrations ?? []) out[i.category] = (out[i.category] ?? 0) + 1
   return out
 })
@@ -458,6 +486,51 @@ async function useCodeEmail() {
     return
   await run(() => api('PUT', '/admin/email/provider', {}), t('email.usingCode'))
 }
+/**
+ * Signing in (ADR-0066): an admin tests a connection at the provider (and comes back here), then
+ * turns it on. The config's providers turn off and on too. The server refuses a change after which
+ * no admin could sign in.
+ */
+async function testSignIn(integration: Integration, connection: Connection) {
+  try {
+    const { url } = await api<{ url: string }>('POST', '/auth/test', {
+      integration: integration.id,
+      connection: connection.id,
+    })
+    window.location.assign(url)
+  } catch (e) {
+    notify('error', e instanceof ApiError ? (e.errors[0]?.message ?? e.message) : String(e))
+  }
+}
+async function setSignIn(body: Record<string, unknown>, done: string) {
+  try {
+    const result = await api<{ sessionsEnded: number }>('PUT', '/admin/sign-in', body)
+    notify(
+      'success',
+      result.sessionsEnded
+        ? `${done} ${t('integrations.signInEnded', { count: result.sessionsEnded })}`
+        : done,
+    )
+    await load()
+  } catch (e) {
+    notify('error', e instanceof ApiError ? (e.errors[0]?.message ?? e.message) : String(e))
+  }
+}
+function signInConnection(integration: Integration, connection: Connection, on: boolean) {
+  const name = label(integration.label, integration.id)
+  if (!on && !window.confirm(t('integrations.signInConfirmOff', { name }))) return
+  void setSignIn(
+    { integration: integration.id, connection: connection.id, on },
+    t(on ? 'integrations.signInOn' : 'integrations.signInOff', { name }),
+  )
+}
+function signInCode(provider: { id: string; name: string }, on: boolean) {
+  if (!on && !window.confirm(t('integrations.signInConfirmOff', { name: provider.name }))) return
+  void setSignIn(
+    { code: provider.id, on },
+    t(on ? 'integrations.signInOn' : 'integrations.signInOff', { name: provider.name }),
+  )
+}
 const makeDefault = (integration: Integration, connection: Connection) =>
   run(
     () =>
@@ -499,6 +572,25 @@ onMounted(async () => {
   // Back from a provider's sign-in page.
   const q = route.query
   const integration = typeof q.integration === 'string' ? q.integration : null
+  // Back from testing a sign-in connection at its provider.
+  if (integration && typeof q.sso === 'string') {
+    if (q.sso === 'tested')
+      notify(
+        'success',
+        typeof q.email === 'string'
+          ? t('integrations.signInTested', { email: q.email })
+          : t('integrations.signInTestedNoEmail'),
+      )
+    else
+      notify(
+        'error',
+        q.sso === 'cancelled' || q.sso === 'expired'
+          ? t(`sso.error.${q.sso}` as never)
+          : t('integrations.signInTestFailed'),
+      )
+    void router.replace({ query: { open: integration } })
+    return
+  }
   if (integration && typeof q.error === 'string') notify('error', q.error)
   else if (integration && q.connected) notify('success', t('integrations.connected'))
   else if (integration && typeof q.pending === 'string') {
@@ -623,6 +715,17 @@ const fieldLabel = (field: Field) => label(field.label, field.name)
               <span v-else-if="!data.email?.active" class="status status-none">{{ t('integrations.emailNothing') }}</span>
               <button v-else type="button" class="btn btn-sm act" @click="useCodeEmail">{{ data.email?.code ? t('email.useCode') : t('email.useNone') }}</button>
             </li>
+            <li v-else-if="row.kind === 'sign-in-code'" class="row">
+              <span class="logo muted" aria-hidden="true"><Code2 :size="18" /></span>
+              <div class="what">
+                <strong>{{ row.provider.name }}</strong>
+                <span class="desc">{{ t('integrations.signInCodeDesc') }}</span>
+              </div>
+              <span v-if="row.provider.on" class="status status-ok"><CheckCircle2 :size="14" aria-hidden="true" /> {{ t('integrations.signsIn') }}</span>
+              <span v-else class="status status-off">{{ t('integrations.statusOff') }}</span>
+              <span v-if="data.signIn?.locked" class="status status-code" :title="t('integrations.signInLocked')"><Lock :size="13" aria-hidden="true" /> {{ t('integrations.statusCode') }}</span>
+              <button v-else type="button" class="btn btn-sm act" :aria-label="t(row.provider.on ? 'integrations.signInTurnOffName' : 'integrations.signInTurnOnName', { name: row.provider.name })" @click="signInCode(row.provider, !row.provider.on)">{{ t(row.provider.on ? 'integrations.signInTurnOff' : 'integrations.signInTurnOn') }}</button>
+            </li>
             <li v-else-if="row.kind === 'code'" class="row">
               <span class="logo muted" aria-hidden="true"><Code2 :size="18" /></span>
               <div class="what">
@@ -693,11 +796,13 @@ const fieldLabel = (field: Field) => label(field.label, field.name)
                 <p class="muted small">
                   <CheckCircle2 v-if="integration.app.complete" :size="13" aria-hidden="true" />
                   {{ integration.app.complete ? t('integrations.appSet') : t('integrations.appMissing') }}
+                  <template v-if="integration.app.sharedWith?.length"> · {{ t('integrations.appShared', { names: integration.app.sharedWith.map((n) => label(n, '')).join(', ') }) }}</template>
                   <button v-if="integration.app.envFields.length < integration.app.fields.length" type="button" class="btn btn-sm btn-ghost" @click="appOpen = true">{{ t('integrations.edit') }}</button>
                 </p>
               </template>
               <form v-else class="connect" novalidate @submit.prevent="saveApp(integration)">
                 <p class="muted small">{{ t('integrations.appHint') }}</p>
+                <p v-if="integration.app.sharedWith?.length" class="muted small">{{ t('integrations.appShared', { names: integration.app.sharedWith.map((n) => label(n, '')).join(', ') }) }}</p>
                 <label class="field">
                   <span class="field-label">{{ t('integrations.redirectUri') }}</span>
                   <span class="copy-row">
@@ -731,7 +836,8 @@ const fieldLabel = (field: Field) => label(field.label, field.name)
                   <div class="who">
                     <strong>{{ connection.name }}</strong>
                     <span v-if="connection.active" class="badge badge-on"><CheckCircle2 :size="11" aria-hidden="true" /> {{ t('integrations.sendsEmail') }}</span>
-                    <span v-else-if="connection.isDefault && !integration.email" class="badge"><Star :size="11" aria-hidden="true" /> {{ t('integrations.default') }}</span>
+                    <span v-if="connection.signIn?.on" class="badge badge-on"><CheckCircle2 :size="11" aria-hidden="true" /> {{ t('integrations.signsIn') }}</span>
+                    <span v-else-if="connection.isDefault && !integration.email && !connection.signIn" class="badge"><Star :size="11" aria-hidden="true" /> {{ t('integrations.default') }}</span>
                     <span v-if="connection.env" class="badge">{{ t('integrations.fromEnv') }}</span>
                     <span v-if="connection.account" class="muted small">{{ connection.account }}</span>
                   </div>
@@ -746,15 +852,34 @@ const fieldLabel = (field: Field) => label(field.label, field.name)
                       </span>
                       <span v-if="integration.email?.webhookSetup" class="muted">{{ label(integration.email.webhookSetup, '') }}</span>
                     </span>
+                    <template v-if="connection.signIn">
+                      <span v-if="connection.signIn.error" class="error"><CircleAlert :size="13" aria-hidden="true" /> {{ connection.signIn.error }}</span>
+                      <span v-else-if="connection.signIn.tested" class="muted"><CheckCircle2 :size="13" aria-hidden="true" /> {{ t('integrations.signInTestedOn', { email: connection.signIn.tested.email ?? '—', date: formatDate(connection.signIn.tested.at) }) }}</span>
+                      <span v-else class="muted">{{ t('integrations.signInUntested') }}</span>
+                      <span v-if="connection.signIn.callbackURL" class="webhook">
+                        <span class="field-label">{{ t('integrations.redirectUri') }}</span>
+                        <span class="copy-row">
+                          <code>{{ connection.signIn.callbackURL }}</code>
+                          <button type="button" class="btn btn-sm btn-icon" :aria-label="t('integrations.copyRedirect', { name: connection.name })" :title="t('integrations.copy')" @click="copy(connection.signIn.callbackURL)"><Copy :size="14" aria-hidden="true" /></button>
+                        </span>
+                      </span>
+                    </template>
                     <span v-if="connection.usage" class="muted">{{ t('ai.usage', { requests: connection.usage.requests.toLocaleString(), tokens: (connection.usage.input + connection.usage.output).toLocaleString() }) }}</span>
                   </div>
                   <div class="actions">
                     <button v-if="integration.email && !connection.active && integration.enabled" type="button" class="btn btn-sm btn-primary" :disabled="using !== null" :aria-label="t('integrations.useForEmailName', { name: connection.name })" @click="useForEmail(integration, connection)">{{ using === String(connection.id) ? t('integrations.usingForEmail') : t('integrations.useForEmail') }}</button>
+                    <template v-if="connection.signIn && !data?.signIn?.locked && integration.enabled">
+                      <button v-if="connection.signIn.on" type="button" class="btn btn-sm" :aria-label="t('integrations.signInTurnOffName', { name: connection.name })" @click="signInConnection(integration, connection, false)">{{ t('integrations.signInTurnOff') }}</button>
+                      <template v-else>
+                        <button type="button" :class="['btn', 'btn-sm', { 'btn-primary': !connection.signIn.tested }]" :disabled="!!connection.signIn.error" :aria-label="t('integrations.signInTestName', { name: connection.name })" @click="testSignIn(integration, connection)">{{ t('integrations.signInTest') }}</button>
+                        <button type="button" :class="['btn', 'btn-sm', { 'btn-primary': !!connection.signIn.tested }]" :disabled="!connection.signIn.tested" :title="connection.signIn.tested ? undefined : t('integrations.signInTestFirst')" :aria-label="t('integrations.signInTurnOnName', { name: connection.name })" @click="signInConnection(integration, connection, true)">{{ t('integrations.signInTurnOn') }}</button>
+                      </template>
+                    </template>
                     <button v-if="integration.testable" type="button" class="btn btn-sm" @click="test(integration, connection)">{{ t('integrations.test') }}</button>
                     <template v-if="!connection.env">
-                      <button v-if="!connection.isDefault && !integration.email" type="button" class="btn btn-sm btn-ghost" @click="makeDefault(integration, connection)">{{ t('integrations.makeDefault') }}</button>
-                      <button type="button" class="btn btn-sm btn-ghost" @click="startEditing(integration, connection)">{{ t('integrations.edit') }}</button>
-                      <button type="button" class="btn btn-sm btn-ghost danger" :disabled="connection.active" :title="connection.active ? t('integrations.sendsEmailKeep') : undefined" :aria-label="t('integrations.disconnectName', { name: connection.name })" @click="disconnect(integration, connection)"><Trash2 :size="14" aria-hidden="true" /> {{ t('integrations.disconnect') }}</button>
+                      <button v-if="!connection.isDefault && !integration.email && !connection.signIn" type="button" class="btn btn-sm btn-ghost" @click="makeDefault(integration, connection)">{{ t('integrations.makeDefault') }}</button>
+                      <button type="button" class="btn btn-sm btn-ghost" :disabled="connection.signIn?.on" :title="connection.signIn?.on ? t('integrations.signInKeep') : undefined" @click="startEditing(integration, connection)">{{ t('integrations.edit') }}</button>
+                      <button type="button" class="btn btn-sm btn-ghost danger" :disabled="connection.active || connection.signIn?.on" :title="connection.active ? t('integrations.sendsEmailKeep') : connection.signIn?.on ? t('integrations.signInKeep') : undefined" :aria-label="t('integrations.disconnectName', { name: connection.name })" @click="disconnect(integration, connection)"><Trash2 :size="14" aria-hidden="true" /> {{ t('integrations.disconnect') }}</button>
                     </template>
                   </div>
                 </li>

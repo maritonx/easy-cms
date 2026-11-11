@@ -20,6 +20,7 @@ import { AuditLog, auditContext } from './audit.js'
 import { Auth, asMember } from './auth/auth.js'
 import { COMMON_PASSWORDS } from './auth/common-passwords.js'
 import { hashPassword, MIN_PASSWORD_LENGTH, verifyPassword } from './auth/password.js'
+import { SignInProviders } from './auth/sign-in-providers.js'
 import { secretsOf, signedWith, signPreviewToken, verifyPreviewToken } from './auth/tokens.js'
 import { runDueBackups } from './backups.js'
 import {
@@ -437,6 +438,8 @@ export class EasyCMS<C extends Config = Config> {
   readonly integrations: Integrations
   /** Email providers chosen in the admin, their webhooks and the suppression list (#404). */
   readonly emailProviders: EmailProviders
+  /** Sign-in providers: the config's and those turned on in the admin. */
+  readonly signIn: SignInProviders
   /** AI for the admin's features (#357): `null` without an AI plugin (`ai` in the config). */
   readonly ai: Ai | null
   private readonly versions: VersionStore
@@ -480,6 +483,7 @@ export class EasyCMS<C extends Config = Config> {
     this.audit = new AuditLog(this as unknown as EasyCMS)
     this.integrations = new Integrations(this as unknown as EasyCMS)
     this.emailProviders = new EmailProviders(this as unknown as EasyCMS)
+    this.signIn = new SignInProviders(this as unknown as EasyCMS)
     this.ai = config.ai ? new Ai(this as unknown as EasyCMS, config.ai) : null
     // `listeners` in the config (plugins' notifications…): as with `cms.on`.
     for (const listener of config.listeners ?? []) {

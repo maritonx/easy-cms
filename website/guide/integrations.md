@@ -7,7 +7,8 @@ without editing environment variables.
 
 ## The page
 
-- **Categories** filter it: Social & messaging, AI, Notifications, Automation, and **Set in code**,
+- **Categories** filter it: Social & messaging, AI, Notifications, Automation, Backups, Email,
+  [Sign-in](./sso#in-the-admin), and **Set in code**,
   which shows the email, storage, search, sign-in and payment adapters the config sets (read-only).
 - **A card per provider** a plugin added: turn it on or off, connect accounts, **Test** them, make
   one the default, edit or **Disconnect** them. Turned off, plugins can't use it; its accounts stay.

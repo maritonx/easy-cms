@@ -32,6 +32,22 @@ export default defineConfig({
 
 The redirect (callback) URL to give the provider is `<serverURL>/api/cms/auth/<id>/callback`, e.g. `https://cms.example.com/api/cms/auth/google/callback`.
 
+### Or turned on in the admin
+
+`signInPlugin()` lets admins turn Google, Microsoft, GitHub and OpenID Connect providers on in
+Settings → Integrations → Sign-in, after a test sign-in; `auth.providers` stay the default.
+
+```ts
+import { signInPlugin } from '@easy-cms/auth-oauth'
+
+export default defineConfig({
+  serverURL: 'https://cms.example.com',
+  plugins: [signInPlugin()],
+})
+```
+
+`npx easy-cms reset-sign-in` goes back to the config's providers if admins can't sign in.
+
 ## Links
 
 [Single sign-on](https://easycms.dev/docs/sso) · [Documentation](https://easycms.dev/docs) ([ภาษาไทย](https://easycms.dev/th/docs)) · [GitHub](https://github.com/maritonx/easy-cms)

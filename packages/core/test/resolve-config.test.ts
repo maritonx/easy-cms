@@ -29,6 +29,7 @@ describe('resolveConfig', () => {
       rbac: false,
       providers: [],
       providerSignUp: { domains: [] },
+      locked: false,
       password: true,
       setupCode: '',
       tokenExpiration: 7 * 24 * 60 * 60,

@@ -95,6 +95,51 @@ auth: {
 เชื่อมได้ แต่ยกเลิกทางเข้าสุดท้ายของบัญชีไม่ได้ ผู้ดูแลระบบเห็นและยกเลิกบัญชีของผู้ใช้ได้ในหน้าของผู้ใช้คนนั้น การลบผู้ใช้
 จะลบบัญชีที่เชื่อมไว้ด้วย
 
+## ตั้งในหน้า admin {#in-the-admin}
+
+ผู้ดูแลระบบเปิดผู้ให้บริการได้เองที่ **ตั้งค่า → Integrations → เข้าสู่ระบบ** โดยไม่ต้อง deploy ใหม่ ผู้ให้บริการที่ตั้งใน
+config ยังเป็นค่าเริ่มต้น และแสดงในหน้านั้นด้วย ผู้ดูแลระบบปิดได้
+
+```ts
+import { signInPlugin } from '@easy-cms/auth-oauth'
+
+export default defineConfig({
+  serverURL: 'https://cms.example.com',
+  plugins: [signInPlugin()], // Google, Microsoft, GitHub และ OpenID Connect
+  // auth: { providers: [google()] } ยังใช้ได้ เป็นค่าเริ่มต้น
+})
+```
+
+หลังเพิ่ม plugin ให้สร้าง migration (`npx easy-cms migrate:create sign-in`) ซึ่งจะเพิ่มตาราง `user-identities`
+ถ้า config ยังไม่มีผู้ให้บริการ
+
+1. **เชื่อมต่อ** เปิด Google, Microsoft, GitHub หรือ OpenID Connect แล้วกรอก key ของแอป (client ID และ secret
+   ซึ่ง secret จะถูกเข้ารหัสในฐานข้อมูล) คัดลอก **redirect URL** ที่แสดงไปใส่ใน console ของผู้ให้บริการ Google ใช้ key
+   ชุดเดียวกันสำหรับการเข้าสู่ระบบและ [backup ไป Google Drive](./backups#google-drive) คือแอป Google Cloud แอปเดียว
+   กรอกครั้งเดียว
+2. **ทดสอบเข้าสู่ระบบ** คุณเข้าสู่ระบบที่ผู้ให้บริการ แล้วกลับมาที่หน้า Integrations พร้อมอีเมลที่ผู้ให้บริการส่งกลับมา การทดสอบ
+   ไม่ได้ทำให้ใครเข้าสู่ระบบ ถ้าเปลี่ยน key หรือค่าของการเชื่อมต่อ ต้องทดสอบใหม่
+3. **ใช้เข้าสู่ระบบ** หน้าเข้าสู่ระบบจะมีปุ่มเพิ่มขึ้น ถ้าการเชื่อมต่อใช้ id เดียวกับผู้ให้บริการใน config (`google`) จะใช้แทนตัวนั้น
+   redirect URL จึงไม่เปลี่ยน
+
+การปิดผู้ให้บริการจะทำให้คนที่เข้าด้วยวิธีนั้นออกจากระบบ ระหว่างที่การเชื่อมต่อใช้เข้าสู่ระบบอยู่ จะแก้หรือลบไม่ได้ ต้องปิดก่อน
+ทุกการเปลี่ยนแปลงถูกบันทึกใน audit log
+
+**ผู้ดูแลระบบล็อกตัวเองออกไม่ได้** ระบบไม่ยอมให้บันทึกการเปลี่ยนที่ทำให้ไม่มีผู้ดูแลระบบคนไหนเข้าได้ ทั้งด้วยรหัสผ่าน หรือด้วยบัญชีที่
+เชื่อมกับผู้ให้บริการที่ยังเปิดอยู่ ถ้าเกิดขึ้นจริง (client secret หมดอายุ หรือผู้ให้บริการล่ม) ให้รันคำสั่งนี้ที่เซิร์ฟเวอร์ของแอป
+
+```sh
+npx easy-cms reset-sign-in
+```
+
+คำสั่งนี้ลบสิ่งที่ผู้ดูแลระบบเปิดหรือปิดไว้ การเข้าสู่ระบบจะกลับไปเป็นแบบที่ config ตั้งไว้
+
+ถ้าต้องการให้การเข้าสู่ระบบเป็นไปตามโค้ดเท่านั้น และไม่ให้แก้จากหน้า admin:
+
+```ts
+auth: { providers: [google()], locked: true }
+```
+
 ## ตั้งค่าผู้ให้บริการ {#setting-up-providers}
 
 ### Google {#google}
@@ -148,7 +193,7 @@ oidc({
 `email_verified` (scope `email`)
 
 `id` ห้ามซ้ำกับ action ของการเข้าสู่ระบบใต้ `/auth/` (`login`, `logout`, `me`, `init`, `signup`,
-`verify-email`, `forgot-password`, `reset-password`, `first-register`) หรือ `identities`
+`verify-email`, `forgot-password`, `reset-password`, `first-register`), `identities` หรือ `test`
 
 ## ความปลอดภัย {#how-it-is-kept-safe}
 
@@ -156,7 +201,9 @@ oidc({
   อายุสั้น และตรวจ ID token ด้วย key ของผู้ให้บริการ ([oauth4webapi](https://github.com/panva/oauth4webapi))
 - หลังเข้าสู่ระบบ ระบบพากลับได้เฉพาะหน้าใน admin
 - การเชื่อมบัญชีต้องใช้ session และ CSRF token และบัญชีที่ผูกกับคนอื่นอยู่แล้วจะผูกซ้ำไม่ได้
-- client secret อยู่ใน environment variable ไม่ถูกเก็บในฐานข้อมูลหรือไฟล์ backup
+- client secret อยู่ใน environment variable หรือถ้ากรอกในหน้า admin จะถูกเข้ารหัสด้วย `secret` ในฐานข้อมูล
+  (หลังเปลี่ยน secret ให้รัน `easy-cms secrets:rotate`)
+- ผู้ให้บริการที่เปิดจากหน้า admin ต้องทดสอบผ่านก่อน และเฉพาะผู้ดูแลระบบของทั้งเว็บที่เปลี่ยนได้
 
 ## ขั้นต่อไป {#next-steps}
 

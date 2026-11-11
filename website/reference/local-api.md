@@ -138,6 +138,7 @@ The `cms` object also has `config` (the resolved config), `auth` (login and sess
 `auth.sso` (signing in with `auth.providers`), `audit` (with `audit`: `audit.record({ action, target, doc })` writes an entry), `roles` (with `auth.rbac`: `roles.allows(user, { collection }, operation)` says what a user's role
 allows), `integrations` (connections: `integrations.get(id)`, [Integrations](/guide/integrations)),
 `emailProviders` (with email providers: `emailProviders.suppress(address, reason, detail, source)` keeps an address off the site's email, [Email providers](/guide/email#providers)),
+`signIn` (sign-in providers: `signIn.providers()` lists those signing people in now, the config's and those turned on in the admin; `signIn.reset(null)` goes back to the config's, [In the admin](/guide/sso#in-the-admin)),
 `ai` (with `@easy-cms/plugin-ai`, else `null`: `ai.generate({ feature, prompt })`, [AI](/guide/ai)), `db`,
 `storage`, `logger` and `cwd`.
 

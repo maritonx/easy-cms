@@ -58,6 +58,7 @@ npx easy-cms <command> [--config <file>] [--cwd <dir>]
 | [`search:reindex [collection]`](#search-reindex) | Build the search index again from the database. |
 | [`audit:resign`](#audit-resign) | After a new secret: sign the audit log with it. |
 | [`secrets:rotate`](#secrets-rotate) | After a new secret: encrypt the Integrations' connections with it. |
+| [`reset-sign-in`](#reset-sign-in) | Sign-in back to the config's providers, for admins locked out. |
 | [`serve`](#serve) | Run the CMS as its own server. |
 
 Options for every command: `--config <file>` (default `easy-cms.config.ts`), `--cwd <dir>`
@@ -189,6 +190,17 @@ npx easy-cms secrets:rotate
 After [rotating the secret](./security#rotating-the-secret): encrypts the [Integrations](./integrations)'
 connections still using one of `previousSecrets` with the current `secret`, so the old one can be
 removed. Connections are also encrypted again one by one as they are used.
+
+### reset-sign-in
+
+```bash [pm]
+npx easy-cms reset-sign-in
+```
+
+Forgets the sign-in providers admins turned on or off in Integrations → Sign-in, so people sign in
+as the config sets it: for an admin who can't sign in any more, e.g. after a provider's client
+secret expired. People signed in with providers turned on in the admin are signed out. Recorded in
+the audit log. See [single sign-on in the admin](./sso#in-the-admin).
 
 ### audit:resign
 

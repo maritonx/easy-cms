@@ -70,6 +70,7 @@ const docs = computed(() => `https://easycms.dev${locale.value === 'th' ? '/th' 
           <ProviderIcon :icon="p.icon" />
           {{ p.name }}
           <code class="id">{{ p.id }}</code>
+          <RouterLink v-if="p.source === 'admin'" class="badge" :to="{ path: '/integrations', query: { category: 'sign-in' } }">{{ t('sso.fromAdmin') }}</RouterLink>
         </h2>
         <dl>
           <dt>{{ t('sso.callback') }}</dt>

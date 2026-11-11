@@ -718,6 +718,11 @@ export interface AuthConfig {
    */
   readonly password?: boolean | PasswordPolicy
   /**
+   * Keeps sign-in as the code sets it: admins can't turn on providers from Integrations or turn
+   * off `providers`. Default `false`.
+   */
+  readonly locked?: boolean
+  /**
    * A code the first admin must enter to create their account, so nobody else can claim a
    * freshly deployed site. Default: the `EASY_CMS_SETUP_CODE` environment variable; without it,
    * no code is asked.

@@ -189,12 +189,13 @@ export class Auth {
         email,
         detail: { reason: 'passwords are off' },
       })
+      const names = (await this.cms.signIn.providers()).map((p) => p.name)
       throw new UnauthorizedError(
-        `Sign in with ${this.config.auth.providers.map((p) => p.name).join(' or ')}`,
+        names.length ? `Sign in with ${names.join(' or ')}` : 'Sign in with a provider',
       )
     }
     await this.deleteExpiredSessions(user.id)
-    const session = await this.startSession(user)
+    const session = await this.startSession(user, 'password')
     // A break-glass account bypasses single sign-on and its MFA: recorded as such, for the
     // dashboard and whoever reviews the log.
     await this.cms.audit.record({
@@ -234,7 +235,7 @@ export class Auth {
       ...(args.name ? { name: args.name } : {}),
     })
     const raw = (await this.db.findById({ collection: USERS, id: user.id })) as RawDocument
-    const session = await this.startSession(raw)
+    const session = await this.startSession(raw, 'password')
     await this.cms.audit.record({
       action: 'setup',
       target: 'auth',
@@ -330,7 +331,7 @@ export class Auth {
       await this.mailVerifyLink(user, args)
       return { verify: true }
     }
-    return { ...(await this.startSession(user)), verify: false }
+    return { ...(await this.startSession(user, 'password')), verify: false }
   }
 
   /** Confirms a member's email from the link, and signs them in. */
@@ -367,6 +368,7 @@ export class Auth {
     }
     const session = await this.startSession(
       (await this.db.findById({ collection: USERS, id: user.id })) as RawDocument,
+      'password',
     )
     await this.cms.audit.record({ action: 'email.verified', target: 'auth', user: session.user })
     return session
@@ -564,10 +566,10 @@ export class Auth {
   }
 
   /** Starts a new session for a user, e.g. after they changed their own password. */
-  async createSession(userId: ID): Promise<Session> {
+  async createSession(userId: ID, options: { method?: string } = {}): Promise<Session> {
     const user = await this.db.findById({ collection: USERS, id: userId })
     if (!user || user.active === false) throw new UnauthorizedError()
-    return this.startSession(user)
+    return this.startSession(user, options.method)
   }
 
   /** Signs a user out everywhere. */
@@ -681,7 +683,7 @@ export class Auth {
     await this.clearFailures(key)
     const user = (await this.db.findById({ collection: USERS, id: found.user.id })) as RawDocument
     // Sign this browser in, then send the notice.
-    const session = await this.startSession(user)
+    const session = await this.startSession(user, 'password')
     await this.cms.audit.record({
       action: 'password.reset',
       target: 'auth',
@@ -734,7 +736,7 @@ export class Auth {
     // Without passwords, an invitation sends people to sign in with a provider instead.
     const sso = this.sso.passwordAllowed(user)
       ? undefined
-      : this.config.auth.providers.map((p) => p.name)
+      : (await this.cms.signIn.providers()).map((p) => p.name)
     const member = this.config.auth.members.roles.includes(String(user.role))
     const url = sso
       ? `${base}${this.config.admin.path}/login`
@@ -811,7 +813,8 @@ export class Auth {
 
   // -------------------------------------------------------------------------
 
-  private async startSession(user: RawDocument): Promise<Session> {
+  /** `method`: how it started (`password`, a provider's id), so ending a way in ends its sessions. */
+  private async startSession(user: RawDocument, method?: string): Promise<Session> {
     const token = newToken()
     const now = new Date()
     const expiresAt = new Date(
@@ -823,6 +826,7 @@ export class Auth {
         tokenHash: hashToken(token),
         user: user.id,
         expiresAt,
+        method: method ?? null,
         createdAt: now.toISOString(),
         updatedAt: now.toISOString(),
       },

@@ -695,7 +695,7 @@ export async function adminSchema(
       : {}),
     views,
     rbac: cms.roles.enabled,
-    providers: cms.auth.sso.providers(),
+    providers: await cms.auth.sso.providers(),
     ...(views.deliveries
       ? {
           deliveries: {
