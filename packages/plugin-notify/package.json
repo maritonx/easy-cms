@@ -1,6 +1,6 @@
 {
   "name": "@easy-cms/plugin-notify",
-  "version": "1.42.1",
+  "version": "1.43.0",
   "description": "Notifications for Easy CMS admins: Telegram messages when a form is submitted, an order comes in or something fails",
   "license": "MIT",
   "type": "module",
