@@ -147,6 +147,18 @@ Builds the search index (\`search\` in the config) again from the published docu
 collection with \`search\`, or of one: after adding \`search\` to a collection or changing its
 fields, or when indexing failed. An in-memory index (memorySearch) is built when the server starts.
 `,
+  'audit:resign': `Usage: easy-cms audit:resign [options]
+
+After rotating the secret: signs the audit log's entries again with the current \`secret\`, so
+\`previousSecrets\` can go. Entries that match no secret (changed after they were written) are left
+as they are and listed, and the command exits with 1.
+`,
+  'secrets:rotate': `Usage: easy-cms secrets:rotate [options]
+
+After rotating the secret: encrypts the Integrations' connections and app keys that still use one of
+\`previousSecrets\` with the current \`secret\`, so the old one can be removed. Connections are also
+encrypted again one by one as they are used.
+`,
   'reset-sign-in': `Usage: easy-cms reset-sign-in [options]
 
 Forgets the sign-in providers admins turned on or off in Settings → Integrations, so people sign

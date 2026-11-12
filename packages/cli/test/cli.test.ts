@@ -66,6 +66,34 @@ describe('easy-cms CLI (FR-INS-06..08)', () => {
     expect((await cli('migrate', '--help')).out).toContain('Usage: easy-cms migrate')
   })
 
+  it('knows every command it lists', async () => {
+    const help = (await cli('--help')).out
+    const commands = [...help.matchAll(/^ {2}([a-z][a-z:-]*)\s/gm)].map((m) => m[1] as string)
+    expect(commands).toContain('secrets:rotate')
+    for (const command of commands) {
+      const shown = await cli(command, '--help')
+      expect(shown, command).toMatchObject({
+        code: 0,
+        out: expect.stringContaining(`easy-cms ${command}`),
+      })
+    }
+  })
+
+  it('runs secrets:rotate, audit:resign and reset-sign-in', async () => {
+    const dir = project()
+    await cli('migrate:create', 'init', '--cwd', dir)
+    await cli('migrate', '--cwd', dir)
+    expect(await cli('secrets:rotate', '--cwd', dir)).toMatchObject({
+      code: 0,
+      out: 'No integrations in the config: nothing to encrypt again.',
+    })
+    expect((await cli('audit:resign', '--cwd', dir)).err).not.toContain('Unknown command')
+    expect(await cli('reset-sign-in', '--cwd', dir)).toMatchObject({
+      code: 0,
+      out: "Sign-in is as the config sets it: admins hadn't changed it.",
+    })
+  })
+
   it('fails with a non-zero code on bad input', async () => {
     expect((await cli()).code).toBe(1)
     expect(await cli('nope')).toMatchObject({
