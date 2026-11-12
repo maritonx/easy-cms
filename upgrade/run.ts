@@ -19,6 +19,10 @@ import { join } from 'node:path'
 /** Releases to upgrade from, oldest first; the latest release on npm is added. */
 const OLD_VERSIONS = ['0.10.0', '0.20.0', '0.35.0', '0.48.0']
 const DATABASES = ['sqlite', 'postgres', 'pglite'] as const
+/** A release this new may still be spreading on npm: the one before it is used. */
+const SETTLE_MS = 60 * 60_000
+/** Longest a step (an install, a migration) may take. */
+const STEP_TIMEOUT_MS = 5 * 60_000
 type Database = (typeof DATABASES)[number]
 
 /**
@@ -54,20 +58,32 @@ const env = { ...process.env, NODE_ENV: 'production', UPGRADE_DB: db }
 /** The newest release whose packages are all on npm: today's users upgrade from it. */
 function latestRelease(): string {
   const published = RELEASE_PACKAGES.map((name) => {
-    const result = spawnSync('npm', ['view', name, 'versions', '--json'], {
-      encoding: 'utf8',
-      shell: process.platform === 'win32',
-    })
-    if (result.status !== 0) throw new Error(`npm view ${name} versions failed: ${result.stderr}`)
-    return new Set(JSON.parse(result.stdout) as string[])
+    return new Set(npmJson<string[]>(name, 'versions'))
   })
   const [cli, ...rest] = published as [Set<string>, ...Set<string>[]]
-  const release = [...cli]
+  const releases = [...cli]
     .filter((v) => /^\d+\.\d+\.\d+$/.test(v) && rest.every((versions) => versions.has(v)))
     .sort((a, b) => a.localeCompare(b, 'en', { numeric: true }))
-    .at(-1)
+  // Installing a release npm is still spreading hung this job for hours, twice right after a
+  // publish (1.42.0, 1.43.0): the newest one that has been out for a while.
+  const times = npmJson<Record<string, string>>('easy-cms', 'time')
+  const settled = releases.filter((v) => Date.now() - Date.parse(times[v] ?? '') >= SETTLE_MS)
+  const release = settled.at(-1) ?? releases.at(-1)
   if (!release) throw new Error('No release of easy-cms has all its packages on npm')
+  if (release !== releases.at(-1))
+    console.log(`${releases.at(-1)} is too new: upgrading from ${release}`)
   return release
+}
+
+/** A field of a package on npm, as `npm view <name> <field> --json` gives it. */
+function npmJson<T>(name: string, field: string): T {
+  const result = spawnSync('npm', ['view', name, field, '--json'], {
+    encoding: 'utf8',
+    shell: process.platform === 'win32',
+    timeout: 60_000,
+  })
+  if (result.status !== 0) throw new Error(`npm view ${name} ${field} failed: ${result.stderr}`)
+  return JSON.parse(result.stdout) as T
 }
 
 function run(command: string, args: string[], cwd: string) {
@@ -77,7 +93,11 @@ function run(command: string, args: string[], cwd: string) {
     env,
     stdio: 'inherit',
     shell: process.platform === 'win32',
+    // An install or migration takes seconds; one that hangs fails here, not hours later.
+    timeout: STEP_TIMEOUT_MS,
   })
+  if (result.error && (result.error as NodeJS.ErrnoException).code === 'ETIMEDOUT')
+    throw new Error(`${command} ${args.join(' ')} took over ${STEP_TIMEOUT_MS / 60_000} minutes`)
   if (result.status !== 0) throw new Error(`${command} ${args.join(' ')} exited ${result.status}`)
 }
 
