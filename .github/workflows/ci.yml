@@ -245,6 +245,8 @@ jobs:
     # Databases made by older releases (and the latest), migrated and read by this commit.
     name: upgrade (${{ matrix.db }})
     runs-on: ubuntu-24.04
+    # Usually 2 minutes; each step also has its own limit in upgrade/run.ts.
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
