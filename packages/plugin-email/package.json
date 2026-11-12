@@ -1,6 +1,6 @@
 {
   "name": "@easy-cms/plugin-email",
-  "version": "1.43.0",
+  "version": "1.43.1",
   "description": "Email providers for Easy CMS: Resend, Postmark and Brevo (or SMTP), connected and chosen in the admin, with delivery events and a suppression list",
   "license": "MIT",
   "type": "module",
