@@ -3059,4 +3059,78 @@ test.describe('single sign-on', () => {
       `${origin}/api/cms/auth/sso/callback`,
     )
   })
+
+  test('lets admins choose who signs in, over the config (#409)', async ({ page }) => {
+    await login(page, ADMIN)
+    await fromMenu(page, 'Settings', 'Single sign-on')
+    const who = page.getByRole('region', { name: 'Who can sign in' })
+    const newPeople = who.getByRole('group', { name: /New people/ })
+    await expect(newPeople).toContainText('From the code')
+
+    // Here every role was given everything, other accounts included: none is offered.
+    await newPeople.getByLabel(/get an account the first time they sign in/).check()
+    await expect(newPeople.getByRole('alert')).toContainText('Every role can change other accounts')
+    await expect(newPeople.getByRole('button', { name: 'Save' })).toBeDisabled()
+    // A role that only writes posts.
+    const me = (await (await page.request.get('/api/cms/auth/me')).json()) as { csrfToken: string }
+    const made = await page.request.post('/api/cms/admin/roles', {
+      headers: { 'x-csrf-token': me.csrfToken, origin: new URL(page.url()).origin },
+      data: {
+        key: 'writer',
+        name: 'Writer',
+        permissions: { collections: { posts: ['read', 'create', 'update'] } },
+      },
+    })
+    expect(made.status()).toBe(201)
+    await page.reload()
+
+    // Anyone can get a gmail.com address: refused.
+    await newPeople.getByLabel(/get an account the first time they sign in/).check()
+    await newPeople.getByLabel('Email domains').fill('gmail.com')
+    await newPeople.getByRole('button', { name: 'Save' }).click()
+    await expect(page.getByRole('status')).toContainText('anyone can get an address at gmail.com')
+
+    await newPeople.getByLabel('Email domains').fill('newcomers.test')
+    await newPeople.getByRole('button', { name: 'Save' }).click()
+    await expect(page.getByRole('status').filter({ hasText: 'Saved' })).toBeVisible()
+    await expect(newPeople).toContainText('Changed here')
+    await shot(page, 'sso-who')
+
+    // Someone from that domain gets an account the first time they sign in.
+    await logOut(page)
+    await page.getByRole('link', { name: 'Sign in with SSO' }).click()
+    await page.getByLabel('Email').fill('first@newcomers.test')
+    await page.getByRole('button', { name: 'Continue' }).click()
+    await expect(page).toHaveURL(/\/admin\/?$/)
+
+    // Back to the config's: nobody signs themselves up.
+    await logOut(page)
+    await login(page, ADMIN)
+    await fromMenu(page, 'Settings', 'Single sign-on')
+    await newPeople.getByRole('button', { name: 'Use the code’s value' }).click()
+    await expect(newPeople).toContainText('From the code')
+    await logOut(page)
+    await page.getByRole('link', { name: 'Sign in with SSO' }).click()
+    await page.getByLabel('Email').fill('second@newcomers.test')
+    await page.getByRole('button', { name: 'Continue' }).click()
+    await expect(page.getByRole('alert')).toContainText('There is no account for that email here')
+  })
+
+  test('says who loses their password before turning passwords off (#409)', async ({ page }) => {
+    await login(page, ADMIN)
+    await fromMenu(page, 'Settings', 'Single sign-on')
+    const passwords = page
+      .getByRole('region', { name: 'Who can sign in' })
+      .getByRole('group', { name: /Passwords/ })
+    await passwords.getByLabel(/Only admins/).check()
+    let asked = ''
+    page.once('dialog', (dialog) => {
+      asked = dialog.message()
+      void dialog.dismiss()
+    })
+    await passwords.getByRole('button', { name: 'Save' }).click()
+    await expect.poll(() => asked).toMatch(/account\(s\) will no longer sign in with a password/)
+    // Not saved: still the config's.
+    await expect(passwords).toContainText('From the code')
+  })
 })

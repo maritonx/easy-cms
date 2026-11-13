@@ -37,6 +37,7 @@ export const AUDIT_ACTIONS = [
   'sign-in.provider',
   'sign-in.test',
   'sign-in.reset',
+  'sign-in.rules',
   'email.suppress',
   'email.unsuppress',
   'delivery.retry',

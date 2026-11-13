@@ -2,7 +2,7 @@
 
 - **สถานะ:** Accepted
 - **วันที่:** 2026-11-10
-- **เกี่ยวข้อง:** [ADR-0065](0065-code-first-application-engine.md), [ADR-0004](0004-code-first-content-model.md)
+- **เกี่ยวข้อง:** [ADR-0065](0065-code-first-application-engine.md), [ADR-0004](0004-code-first-content-model.md), [ADR-0068](0068-sign-in-rules-in-admin.md) (กฎว่าใครเข้าสู่ระบบได้)
 
 ## บริบท
 

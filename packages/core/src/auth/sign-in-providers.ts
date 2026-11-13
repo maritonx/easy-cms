@@ -7,6 +7,7 @@ import type { EasyCMS } from '../local-api.js'
 import { hash } from '../runtime/crypto.js'
 import { RESERVED_PROVIDER_IDS } from '../validate-config.js'
 import type { AuthProvider } from './providers.js'
+import { SignInRules } from './sign-in-rules.js'
 
 // Sign-in providers chosen in the admin (ADR-0066): connections of `sign-in` integrations an admin
 // turns on, beside or instead of the config's `auth.providers`, which stay the default.
@@ -50,8 +51,12 @@ const keyOf = (c: SignInConnection) => `${c.integration}:${c.connection}`
 /** The sign-in providers of a site: the config's and those turned on in the admin. */
 export class SignInProviders {
   private cached: { at: number; active: ActiveProvider[] } | null = null
+  /** Who may sign in: with a password, and by signing themselves up (#409). */
+  readonly rules: SignInRules
 
-  constructor(private readonly cms: EasyCMS) {}
+  constructor(private readonly cms: EasyCMS) {
+    this.rules = new SignInRules(cms)
+  }
 
   /** The integrations that sign people in. */
   get definitions(): IntegrationConfig[] {
@@ -263,10 +268,10 @@ export class SignInProviders {
   }
 
   /**
-   * Back to the config's providers: forgets what admins turned on and off (`easy-cms
-   * reset-sign-in`, for an admin who can't sign in). Audit-logged.
+   * Back to the config's providers and rules: forgets what admins turned on and off, and who they
+   * let sign in (`easy-cms reset-sign-in`, for an admin who can't sign in). Audit-logged.
    */
-  async reset(user: AuthUser | null): Promise<{ was: SignInSetting }> {
+  async reset(user: AuthUser | null): Promise<{ was: SignInSetting; rules: boolean }> {
     const was = await this.setting()
     const ids = await this.idsOf(was)
     await setSetting(this.cms, SETTING, null)
@@ -279,7 +284,8 @@ export class SignInProviders {
       user,
       detail: { turnedOn: was.on.map(keyOf), turnedOff: was.off, sessionsEnded: ended },
     })
-    return { was }
+    const rules = await this.rules.reset(user)
+    return { was, rules: Object.keys(rules.was).length > 0 }
   }
 
   /** Another connection on, other than `c`, with the same provider id. */
@@ -321,7 +327,8 @@ export class SignInProviders {
       page: 1,
     })
     const active = admins.filter((a) => a.active !== false)
-    if (active.some((a) => !!a.passwordHash && this.cms.auth.sso.passwordAllowed(a))) return true
+    for (const a of active)
+      if (a.passwordHash && (await this.cms.auth.sso.passwordAllowed(a))) return true
     if (providers.size === 0 || active.length === 0) return false
     const { totalDocs } = await this.cms.db.find({
       collection: USER_IDENTITIES,

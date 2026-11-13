@@ -165,9 +165,10 @@ encrypted again one by one as they are used.
 `,
   'reset-sign-in': `Usage: easy-cms reset-sign-in [options]
 
-Forgets the sign-in providers admins turned on or off in Settings → Integrations, so people sign
-in as the config sets it (\`auth.providers\`, \`auth.password\`). For an admin who can't sign in any
-more. Sessions started with providers turned on in the admin end. Recorded in the audit log.
+Forgets the sign-in providers admins turned on or off in Settings → Integrations, and who they let
+sign in (passwords, signing up) in Settings → Single sign-on, so people sign in as the config sets
+it (\`auth.providers\`, \`auth.password\`, \`auth.providerSignUp\`). For an admin who can't sign in
+any more. Sessions started with providers turned on in the admin end. Recorded in the audit log.
 `,
   build: `Usage: easy-cms build --target workers [options]
 
@@ -362,16 +363,29 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
           return 1
         }
         case 'reset-sign-in': {
-          const { was } = await cms.signIn.reset(null)
-          if (was.on.length === 0 && was.off.length === 0) {
+          const { was, rules } = await cms.signIn.reset(null)
+          if (was.on.length === 0 && was.off.length === 0 && !rules) {
             io.out("Sign-in is as the config sets it: admins hadn't changed it.")
             return 0
           }
           const providers = cms.config.auth.providers.map((p) => p.name)
+          const password = cms.config.auth.password
+          const changed = [
+            ...(was.on.length
+              ? [`${was.on.length} provider(s) turned on in the admin are off`]
+              : []),
+            ...(was.off.length ? [`${was.off.join(', ')} are on again`] : []),
+            ...(rules ? ["who may use a password and sign up is the config's again"] : []),
+          ]
           io.out(
-            `Sign-in is back to the config's: ${was.on.length} provider(s) turned on in the admin are off${
-              was.off.length ? `, and ${was.off.join(', ')} are on again` : ''
-            }. People sign in with ${[...(cms.config.auth.password === true ? ['a password'] : ['a password (admins)']), ...providers].join(', ')}.`,
+            `Sign-in is back to the config's: ${changed.join(', ')}. People sign in with ${[
+              ...(password === true
+                ? ['a password']
+                : password === false
+                  ? ['a password (admins)']
+                  : ['a password (break-glass accounts)']),
+              ...providers,
+            ].join(', ')}.`,
           )
           return 0
         }

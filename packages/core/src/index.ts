@@ -57,6 +57,15 @@ export type {
   SignInSetting,
 } from './auth/sign-in-providers.js'
 export type {
+  PasswordPolicyNow,
+  PasswordRule,
+  SignInRules,
+  SignInRulesChange,
+  SignInRulesImpact,
+  SignInRulesNow,
+  SignUpRule,
+} from './auth/sign-in-rules.js'
+export type {
   AdminSso,
   SingleSignOn,
   SsoOutcome,

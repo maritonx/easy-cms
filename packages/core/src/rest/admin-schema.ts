@@ -8,7 +8,7 @@ import {
 import { evaluateAccess, FieldAccessChecker } from '../access-control.js'
 import { placesOf, roleAllows } from '../actions.js'
 import { API_KEYS } from '../api-keys.js'
-import { passwordFor, type SsoProviderRef } from '../auth/sso.js'
+import type { SsoProviderRef } from '../auth/sso.js'
 import {
   EMAIL_DELIVERIES,
   INTERNAL_COLLECTIONS,
@@ -266,8 +266,8 @@ export interface AdminSchema {
   /** Admins can email users links to set their password (needs `email` and `serverURL`). */
   passwordLinks: boolean
   /**
-   * Who may have a password (`auth.password`); with `breakGlass`, the accounts, for admins of the
-   * whole system: others get no password field.
+   * Who may have a password (`auth.password`, or as an admin set it); with `breakGlass`, the
+   * accounts' emails, for admins of the whole system: others get no password field.
    */
   passwordFor: 'everyone' | 'admins' | 'breakGlass'
   breakGlass?: string[]
@@ -667,10 +667,18 @@ export async function adminSchema(
     ...(cms.config.timeZone ? { timeZone: cms.config.timeZone } : {}),
     switcher: cms.config.admin.switcher || null,
     passwordLinks: cms.auth.canSendPasswordLinks(origin),
-    passwordFor: passwordFor(cms.config.auth.password),
-    ...(typeof cms.config.auth.password === 'object' && isSystemAdmin(user)
-      ? { breakGlass: [...cms.config.auth.password.breakGlass] }
-      : {}),
+    ...(await (async () => {
+      const { password } = await cms.signIn.rules.current()
+      if (password.kind !== 'breakGlass' || !isSystemAdmin(user))
+        return { passwordFor: password.kind }
+      const accounts = await cms.signIn.rules.breakGlassAccounts()
+      return {
+        passwordFor: password.kind,
+        breakGlass: [
+          ...new Set([...password.emails, ...accounts.map((a) => a.email.toLowerCase())]),
+        ],
+      }
+    })()),
     nav: buildNav(cms, adminCollections, adminGlobals, adminPages, views),
     commands: cms.config.admin.commands.map((c) => JSON.parse(JSON.stringify(c))),
     localization: localization

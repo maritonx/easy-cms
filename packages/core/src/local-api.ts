@@ -1683,7 +1683,10 @@ export class EasyCMS<C extends Config = Config> {
       return out as RawDocument
     }
 
-    if (config.slug === USERS) await this.guardLastAdmin(parsed, existing, prepared)
+    if (config.slug === USERS) {
+      await this.guardLastAdmin(parsed, existing, prepared)
+      await this.signIn.rules.guardUser(parsed, existing, { ...existing, ...prepared })
+    }
     if (password !== undefined) {
       await this.guardPassword({ ...existing, ...prepared })
       prepared.passwordHash = await hashPassword(password)
@@ -1773,8 +1776,10 @@ export class EasyCMS<C extends Config = Config> {
         parsed === undefined ? null : await this.db.findById({ collection, id: parsed })
       if (!existing || parsed === undefined) throw new NotFoundError(collection, id)
       await this.checkDocumentAccess(config, 'delete', guard, parsed, undefined)
-      if (config.slug === USERS)
+      if (config.slug === USERS) {
         await this.guardLastAdmin(parsed, existing, { ...existing, active: false })
+        await this.signIn.rules.guardUser(parsed, existing, null)
+      }
       const base = this.hookArgs(config, guard)
       for (const hook of config.hooks?.beforeDelete ?? []) await hook({ ...base, id: parsed })
       if (config.slug === USERS) {
@@ -4090,7 +4095,11 @@ export class EasyCMS<C extends Config = Config> {
    * they couldn't use it. The first account, made before anyone can sign in with a provider, may.
    */
   private async guardPassword(user: Data) {
-    if (typeof this.config.auth.password !== 'object' || this.auth.sso.passwordAllowed(user)) return
+    if (
+      (await this.signIn.rules.current()).password.kind !== 'breakGlass' ||
+      (await this.auth.sso.passwordAllowed(user))
+    )
+      return
     if (!(await this.auth.hasUsers())) return
     throw new ValidationError(USERS, [
       {

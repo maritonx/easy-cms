@@ -10,7 +10,8 @@ import { API_KEYS, type ApiKeyPermissions } from '../api-keys.js'
 import { auditContext } from '../audit.js'
 import { type Session, SIGNUP_HONEYPOT } from '../auth/auth.js'
 import { cookieValue, hostCookie, SESSION_COOKIE } from '../auth/cookie.js'
-import { passwordFor, SSO_COOKIE } from '../auth/sso.js'
+import type { SignInRulesChange } from '../auth/sign-in-rules.js'
+import { SSO_COOKIE } from '../auth/sso.js'
 import { safeEqual } from '../auth/tokens.js'
 import {
   deleteBackup,
@@ -576,8 +577,8 @@ async function route(
         return {
           body: {
             user: ctx.user,
-            // Whether this user may set and use a password (`auth.password`).
-            ...(ctx.user ? { password: cms.auth.sso.passwordAllowed(ctx.user) } : {}),
+            // Whether this user may set and use a password (`auth.password`, or the admin's).
+            ...(ctx.user ? { password: await cms.auth.sso.passwordAllowed(ctx.user) } : {}),
             ...(csrfToken ? { csrfToken } : {}),
           },
         }
@@ -591,8 +592,10 @@ async function route(
             // Buttons to sign in with outside accounts; `password: false`: only some use one
             // (`passwordFor`: admins, or break-glass accounts), behind a folded form.
             providers: await cms.auth.sso.providers(),
-            password: cms.config.auth.password === true,
-            passwordFor: passwordFor(cms.config.auth.password),
+            ...(await (async () => {
+              const { password } = await cms.signIn.rules.current()
+              return { password: password.kind === 'everyone', passwordFor: password.kind }
+            })()),
             // The first admin needs the setup code (`EASY_CMS_SETUP_CODE`).
             setupCode: cms.config.auth.setupCode !== '',
           },
@@ -851,6 +854,22 @@ async function route(
         on: body.on,
       }),
     }
+  }
+
+  // Who may sign in, set in the admin (#409): who uses a password, and who signs themselves up.
+  // `?dryRun=1` says what a change would do (accounts losing their password, sessions ended).
+  if (first === 'admin' && second === 'sign-in' && third === 'rules' && segments.length === 3) {
+    if (!ctx.user) throw new UnauthorizedError()
+    if (!isSystemAdmin(ctx.user) || ctx.user.apiKey) throw new ForbiddenError()
+    if (method !== 'PUT') throw methodNotAllowed(ctx, 'PUT')
+    const body = (await readJson(ctx.request)) as { password?: unknown; signUp?: unknown }
+    const change: SignInRulesChange = {}
+    if (body.password !== undefined)
+      change.password = body.password as NonNullable<SignInRulesChange['password']>
+    if (body.signUp !== undefined)
+      change.signUp = body.signUp as NonNullable<SignInRulesChange['signUp']> | null
+    const dryRun = ctx.url.searchParams.get('dryRun') === '1'
+    return { body: await cms.signIn.rules.set(ctx.user, change, { dryRun }) }
   }
 
   // Settings → Audit log (`audit`), for admins and roles given it: entries, CSV, the check.

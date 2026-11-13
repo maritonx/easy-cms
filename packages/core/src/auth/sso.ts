@@ -10,6 +10,7 @@ import { trimChar } from '../trim.js'
 import type { Session } from './auth.js'
 import type { AuthProvider, AuthProviderProfile } from './providers.js'
 import type { SignInConnection } from './sign-in-providers.js'
+import { passwordAllowedBy, type SignUpRule } from './sign-in-rules.js'
 import { type Secrets, safeEqual, secretsOf } from './tokens.js'
 
 /** The cookie that carries a sign-in through the provider and back. */
@@ -35,10 +36,28 @@ export interface AdminSso {
   })[]
   /** Who may sign in with a password: everyone, only admins, or only break-glass accounts. */
   password: 'everyone' | 'admins' | 'breakGlass'
-  /** The accounts that may still use a password (`auth.password: { breakGlass }`). */
+  /** The emails of the accounts that may still use a password. */
   breakGlass?: string[]
+  /** Those accounts. */
+  breakGlassAccounts?: { id: ID; email: string; role: string }[]
+  /** Accounts that can be chosen for break-glass: admins with a password, and those chosen. */
+  breakGlassCandidates: { id: ID; email: string; role: string }[]
   /** Email domains whose people get an account when they first sign in. */
   signUp: { domains: string[]; role: string } | null
+  /** Where each rule comes from: the config, or an admin (#409). */
+  sources: { password: 'code' | 'admin'; signUp: 'code' | 'admin' }
+  /** The config's rules, which "Use the code's value" goes back to. */
+  code: {
+    password: 'everyone' | 'admins' | 'breakGlass'
+    breakGlass?: string[]
+    signUp: { domains: string[]; role: string } | null
+  }
+  /** `auth.locked`: the rules can't be changed in the admin. */
+  locked: boolean
+  /** Problems with the config's rules (e.g. sign-up open to gmail.com). */
+  warnings: string[]
+  /** Roles people who sign themselves up may get: not `admin`, nor roles that change accounts. */
+  signUpRoles: { key: string; name: string }[]
   /** Without `serverURL`, sign-in only works in development. */
   serverURL: boolean
 }
@@ -139,19 +158,17 @@ export class SingleSignOn {
   }
 
   /**
-   * Whether a user may sign in with a password: everyone, only admins (`auth.password: false`), or
-   * only break-glass accounts (`{ breakGlass }`).
+   * Whether a user may sign in with a password: everyone, only admins, or only break-glass
+   * accounts, as the config (`auth.password`) or an admin (#409) sets it.
    */
-  passwordAllowed(user: { readonly [key: string]: unknown }): boolean {
-    const policy = this.config.auth.password
-    if (policy === true) return true
-    if (policy === false) return user.role === 'admin'
-    return typeof user.email === 'string' && policy.breakGlass.includes(user.email.toLowerCase())
+  async passwordAllowed(user: { readonly [key: string]: unknown }): Promise<boolean> {
+    return passwordAllowedBy((await this.cms.signIn.rules.current()).password, user)
   }
 
   /** Whether a user signs in with a password only as a break-glass account. */
-  isBreakGlass(user: { readonly [key: string]: unknown }): boolean {
-    return typeof this.config.auth.password === 'object' && this.passwordAllowed(user)
+  async isBreakGlass(user: { readonly [key: string]: unknown }): Promise<boolean> {
+    const { password } = await this.cms.signIn.rules.current()
+    return password.kind === 'breakGlass' && passwordAllowedBy(password, user)
   }
 
   /** `<serverURL><api>/auth/<id>/callback`, or `null` without `serverURL` in production. */
@@ -371,7 +388,7 @@ export class SingleSignOn {
     if (!own && (!isSystemAdmin(actor) || actor.apiKey)) throw new ForbiddenError()
     const user = await this.cms.db.findById({ collection: USERS, id: row.user as ID })
     const others = (await this.identities(row.user as ID)).length - 1
-    const password = !!user?.passwordHash && this.passwordAllowed(user)
+    const password = !!user?.passwordHash && (await this.passwordAllowed(user))
     if (others === 0 && !password)
       throw new ValidationError(USER_IDENTITIES, [
         { field: 'provider', message: 'is the only way left to sign in to this account' },
@@ -394,7 +411,11 @@ export class SingleSignOn {
   }
 
   async settings(origin?: string): Promise<AdminSso> {
-    const { providerSignUp } = this.config.auth
+    const rules = this.cms.signIn.rules
+    const now = await rules.current()
+    const code = rules.codePassword()
+    const codeSignUp = rules.codeSignUp()
+    const accounts = await rules.breakGlassAccounts()
     return {
       providers: (await this.cms.signIn.active()).map(({ provider: p, source }) => ({
         id: p.id,
@@ -404,17 +425,24 @@ export class SingleSignOn {
         details: { ...(p.describe?.() ?? {}) },
         source: source === 'code' ? 'code' : 'admin',
       })),
-      password: passwordFor(this.config.auth.password),
-      ...(typeof this.config.auth.password === 'object'
-        ? { breakGlass: [...this.config.auth.password.breakGlass] }
+      password: now.password.kind,
+      ...(now.password.kind === 'breakGlass'
+        ? {
+            breakGlass: [...new Set([...now.password.emails, ...accounts.map((a) => a.email)])],
+            breakGlassAccounts: accounts,
+          }
         : {}),
-      signUp:
-        providerSignUp.domains.length > 0
-          ? {
-              domains: [...providerSignUp.domains],
-              role: providerSignUp.role ?? this.defaultRole(),
-            }
-          : null,
+      signUp: now.signUp,
+      sources: { password: now.passwordSource, signUp: now.signUpSource },
+      code: {
+        password: code.kind,
+        ...(code.kind === 'breakGlass' ? { breakGlass: [...code.emails] } : {}),
+        signUp: codeSignUp,
+      },
+      locked: rules.locked,
+      warnings: await rules.warnings(),
+      signUpRoles: await rules.signUpRoles(),
+      breakGlassCandidates: await rules.breakGlassCandidates(),
       serverURL: !!this.config.serverURL,
     }
   }
@@ -476,14 +504,15 @@ export class SingleSignOn {
     return docs[0] ?? null
   }
 
-  /** A new account for people from `providerSignUp.domains`. */
+  /** A new account for people from the sign-up domains (`auth.providerSignUp`, or the admin's). */
   private async signUp(email: string, name: string | undefined): Promise<RawDocument | null> {
-    const { domains, role } = this.config.auth.providerSignUp
+    const rule: SignUpRule | null = (await this.cms.signIn.rules.current()).signUp
+    if (!rule) return null
     const domain = email.slice(email.lastIndexOf('@') + 1)
-    if (!domains.some((d) => d.toLowerCase() === domain)) return null
+    if (!rule.domains.some((d) => d.toLowerCase() === domain)) return null
     const created = await this.cms.create(USERS, {
       email,
-      role: role ?? this.defaultRole(),
+      role: rule.role,
       active: true,
       ...(name ? { name } : {}),
     })
@@ -494,10 +523,5 @@ export class SingleSignOn {
   /** A site member (`auth.members`): matched by email, like any shop or site account. */
   private isMember(user: RawDocument): boolean {
     return (this.config.auth.members?.roles ?? []).includes(String(user.role))
-  }
-
-  private defaultRole(): string {
-    const roles = this.config.auth.roles
-    return roles.includes('editor') ? 'editor' : (roles[roles.length - 1] as string)
   }
 }
