@@ -1,6 +1,6 @@
 {
   "name": "@easy-cms/plugin-backups",
-  "version": "1.45.0",
+  "version": "1.46.0",
   "description": "Backup destinations for Easy CMS: Google Drive and S3-compatible storage (Cloudflare R2, Backblaze B2, AWS S3), connected in the admin",
   "license": "MIT",
   "type": "module",
