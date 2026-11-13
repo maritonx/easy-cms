@@ -1300,7 +1300,7 @@ const en = {
   'status.auditTampered': '{count} audit log entries were changed',
   'status.auditTamperedDetail': 'The check on {date} found entries edited in the database.',
   'sso.title': 'Single sign-on',
-  'sso.lead': 'Signing in with outside accounts. Set in the config (auth.providers).',
+  'sso.lead': 'Signing in with outside accounts, and who can sign in.',
   'sso.signInWith': 'Sign in with {name}',
   'sso.or': 'or with a password',
   'sso.orProvider': 'or instead',
@@ -1359,8 +1359,32 @@ const en = {
   'sso.signUpNone':
     'Only users who already have an account: they link the provider on their Account page first (or are matched by verified email, with linkByEmail)',
   'sso.noServerUrl': 'serverURL is not set: signing in with providers works only in development.',
-  'sso.configNote': 'Providers, sign-up domains and passwords are set in the config.',
+  'sso.configNote':
+    'The config’s values are the default. Changes here apply to every server within 30 seconds and are recorded in the audit log.',
   'sso.howTo': 'How to set up Google, Microsoft and GitHub',
+  'sso.fromCode': 'From the code',
+  'sso.changedInAdmin': 'Changed here',
+  'sso.useCode': 'Use the code’s value',
+  'sso.lockedRules': 'Set in the code (auth.locked): it can’t be changed here.',
+  'sso.passwordBreakGlassChoice':
+    'Only break-glass accounts: single sign-on for everyone else, admins included',
+  'sso.breakGlassPick':
+    'Break-glass accounts: admins with a password, kept for when the provider is down.',
+  'sso.breakGlassFromCode': 'In the config: {emails}. Choose accounts here to change them.',
+  'sso.save': 'Save',
+  'sso.saved': 'Saved',
+  'sso.confirmPassword':
+    '{lost} account(s) will no longer sign in with a password, and {sessions} session(s) will end. Save?',
+  'sso.signUpOn': 'People from these domains get an account the first time they sign in',
+  'sso.signUpDomainsLabel': 'Email domains',
+  'sso.signUpDomainsHint':
+    'Separated by commas, e.g. example.com. Not public ones such as gmail.com.',
+  'sso.signUpRole': 'Their role',
+  'sso.signUpNoEffect': 'No effect now: no provider is on.',
+  'sso.signUpNoRole':
+    'Every role can change other accounts, too much for people who sign themselves up. Make a role that can’t first.',
+  'sso.signUpRolesLink': 'Settings → Roles',
+  'audit.action.sign-in.rules': 'Who can sign in changed',
   'users.transferNone': 'Nobody (no owner)',
   'users.transferBulk': 'The selected users own {count} documents.',
 } as const
@@ -2625,7 +2649,7 @@ const th: Record<MessageKey, string> = {
   'status.auditTampered': 'audit log ถูกแก้ {count} รายการ',
   'status.auditTamperedDetail': 'การตรวจเมื่อ {date} พบรายการที่ถูกแก้ในฐานข้อมูล',
   'sso.title': 'Single sign-on',
-  'sso.lead': 'เข้าสู่ระบบด้วยบัญชีภายนอก ตั้งค่าใน config (auth.providers)',
+  'sso.lead': 'เข้าสู่ระบบด้วยบัญชีภายนอก และใครเข้าสู่ระบบได้',
   'sso.signInWith': 'เข้าสู่ระบบด้วย {name}',
   'sso.or': 'หรือใช้รหัสผ่าน',
   'sso.orProvider': 'หรือแทนการตั้งรหัสผ่าน',
@@ -2681,8 +2705,28 @@ const th: Record<MessageKey, string> = {
   'sso.signUpNone':
     'เฉพาะผู้ใช้ที่มีบัญชีอยู่แล้ว: link provider ที่หน้าบัญชีของตัวเองก่อน (หรือจับคู่ด้วยอีเมลที่ยืนยันแล้ว เมื่อตั้ง linkByEmail)',
   'sso.noServerUrl': 'ยังไม่ได้ตั้ง serverURL การเข้าสู่ระบบด้วยผู้ให้บริการจึงใช้ได้เฉพาะตอนพัฒนา',
-  'sso.configNote': 'ผู้ให้บริการ โดเมนที่สมัครได้ และรหัสผ่าน ตั้งค่าใน config',
+  'sso.configNote':
+    'ค่าใน config เป็นค่าเริ่มต้น การเปลี่ยนที่นี่มีผลกับทุกเซิร์ฟเวอร์ภายใน 30 วินาที และบันทึกลง audit log',
   'sso.howTo': 'วิธีตั้งค่า Google, Microsoft และ GitHub',
+  'sso.fromCode': 'จากโค้ด',
+  'sso.changedInAdmin': 'เปลี่ยนที่นี่',
+  'sso.useCode': 'ใช้ค่าจากโค้ด',
+  'sso.lockedRules': 'ตั้งไว้ในโค้ด (auth.locked) เปลี่ยนที่นี่ไม่ได้',
+  'sso.passwordBreakGlassChoice': 'เฉพาะบัญชีฉุกเฉิน: คนอื่นทั้งหมดรวมถึงผู้ดูแลระบบเข้าผ่าน single sign-on',
+  'sso.breakGlassPick': 'บัญชีฉุกเฉิน: ผู้ดูแลระบบที่มีรหัสผ่าน เก็บไว้ใช้ตอนผู้ให้บริการล่ม',
+  'sso.breakGlassFromCode': 'ใน config: {emails} เลือกบัญชีที่นี่เพื่อเปลี่ยน',
+  'sso.save': 'บันทึก',
+  'sso.saved': 'บันทึกแล้ว',
+  'sso.confirmPassword':
+    '{lost} บัญชีจะเข้าสู่ระบบด้วยรหัสผ่านไม่ได้อีก และ {sessions} session จะถูกตัด บันทึกหรือไม่?',
+  'sso.signUpOn': 'คนจากโดเมนเหล่านี้ได้บัญชีเมื่อเข้าสู่ระบบครั้งแรก',
+  'sso.signUpDomainsLabel': 'โดเมนอีเมล',
+  'sso.signUpDomainsHint': 'คั่นด้วยจุลภาค เช่น example.com ใช้โดเมนสาธารณะอย่าง gmail.com ไม่ได้',
+  'sso.signUpRole': 'role ที่ได้',
+  'sso.signUpNoEffect': 'ตอนนี้ยังไม่มีผล: ไม่มีผู้ให้บริการที่เปิดอยู่',
+  'sso.signUpNoRole': 'ทุก role แก้บัญชีคนอื่นได้ ซึ่งมากเกินไปสำหรับคนที่สมัครเอง ให้สร้าง role ที่แก้ไม่ได้ก่อน',
+  'sso.signUpRolesLink': 'ตั้งค่า → Roles',
+  'audit.action.sign-in.rules': 'เปลี่ยนว่าใครเข้าสู่ระบบได้',
   'users.transferNone': 'ไม่โอน (ไม่มีเจ้าของ)',
   'users.transferBulk': 'ผู้ใช้ที่เลือกเป็นเจ้าของเอกสาร {count} รายการ',
 }

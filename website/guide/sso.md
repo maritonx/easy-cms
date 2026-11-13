@@ -90,10 +90,10 @@ auth: {
 - **Everyone else signs in with the provider**, admins too. Their passwords are refused at sign-in
   and by the API, they can't set one (the admin hides the field), and invitations and "forgot
   password" work as with `false`.
-- **The change takes effect at start.** When `auth.password` differs from the last start, the
-  sessions of accounts that may no longer use a password end, and the
-  [audit log](./audit-log) records the change (`auth.password.policy`). People sign in once more
-  with the provider.
+- **The change takes effect at start**, or at once when an admin makes it
+  ([in the admin](#who-can-sign-in)). The password sessions of accounts that may no longer use a
+  password end, and the [audit log](./audit-log) records the change (`auth.password.policy`).
+  People sign in once more with the provider.
 - **Each break-glass sign-in is recorded** as `login.breakGlass`, and the dashboard shows it for a
   day ([health checks](./health-checks#break-glass-sign-ins)).
 - **Keep one that works.** Create the account with `easy-cms admin:create`, keep its password in
@@ -146,6 +146,27 @@ npx easy-cms reset-sign-in
 ```
 
 It forgets what admins turned on and off: sign-in is as the config sets it again.
+
+### Who can sign in {#who-can-sign-in}
+
+In **Settings → Single sign-on**, admins also choose who uses a password and who signs themselves up,
+over `auth.password` and `auth.providerSignUp`. The config's values stay the default: each rule
+says whether it comes from the code or was changed there, and **Use the code's value** goes back.
+Changes apply to every server within 30 seconds and are in the audit log (`sign-in.rules`).
+
+- **Passwords:** everyone, only admins, or only break-glass accounts. Break-glass accounts are
+  chosen from admins with a password. Before saving, the admin is told how many accounts lose
+  their password and how many sessions end. Saving is refused when afterwards no admin, or the
+  admin saving, could sign in: link a provider on your account page first.
+- **The last admin on the break-glass list** can't be deleted, deactivated or made something else
+  while no other admin on it has a password.
+- **New people:** email domains whose people get an account the first time they sign in, and their
+  role. Domains anyone can get an address at (gmail.com, outlook.com and the like) are refused, and
+  so are roles that can change other accounts. The same in `auth.providerSignUp` is warned about at
+  start and on that page, and will be refused from 2.0. Without a provider on, the rule has no
+  effect.
+
+`easy-cms reset-sign-in` forgets these too.
 
 To keep sign-in as the code sets it, with no changes from the admin:
 
