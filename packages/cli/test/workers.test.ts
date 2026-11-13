@@ -10,8 +10,14 @@ import { ADMIN_ASSETS, createWorker, type WorkerEnv } from '../src/workers.js'
 const TMP = join(import.meta.dirname, '.tmp')
 const dirs: string[] = []
 afterEach(() => {
-  for (const dir of dirs.splice(0))
-    rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
+  for (const dir of dirs.splice(0)) {
+    try {
+      rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
+    } catch {
+      // Windows keeps the Worker's SQLite file open (a Worker never closes its CMS): the OS's
+      // temp cleaner takes it.
+    }
+  }
 })
 
 const memory = (): StorageAdapter => {

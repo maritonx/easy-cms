@@ -25,7 +25,7 @@ export function createStandaloneHandler<C extends Config>(
   } = {},
 ): Handler {
   const config = cms.config
-  const adminPath = `/${config.admin.path.replace(/^\/+|\/+$/g, '')}`
+  const adminPath = `/${trimSlashes(config.admin.path)}`
   const clientIps = new WeakMap<Request, string | undefined>()
   const getClientIp = (request: Request) => clientIps.get(request)
   const api = createRestHandler(cms, { getClientIp, trustProxy: options.trustProxy === true })
@@ -49,4 +49,13 @@ export function createStandaloneHandler<C extends Config>(
       return new Response(null, { status: 302, headers: { location: `${adminPath}/` } })
     return Response.json({ message: 'Not found' }, { status: 404 })
   }
+}
+
+/** `path` without slashes at either end. A loop, not a regex: no slow cases on many slashes. */
+function trimSlashes(path: string): string {
+  let start = 0
+  let end = path.length
+  while (start < end && path[start] === '/') start++
+  while (end > start && path[end - 1] === '/') end--
+  return path.slice(start, end)
 }

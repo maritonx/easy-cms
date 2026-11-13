@@ -3,13 +3,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import type { AddressInfo } from 'node:net'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
-import {
-  type Config,
-  createEasyCMS,
-  type EasyCMS,
-  type Logger,
-  type ResolvedConfig,
-} from '@easy-cms/core'
+import { createEasyCMS, type Logger, type ResolvedConfig } from '@easy-cms/core'
 import { forwardedClientIp } from '@easy-cms/core/internal'
 import { createStandaloneHandler, type StandaloneOptions } from './handler.js'
 
