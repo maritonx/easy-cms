@@ -6,7 +6,7 @@
 **ควรอ่านก่อน:** [Migration และการ deploy](../deployment)
 :::
 
-Easy CMS รันได้ทุกที่ที่รัน server ด้วย Node.js 22.12 ขึ้นไปได้ สิ่งที่ต้องมีคือที่เก็บ **ฐานข้อมูล** และที่เก็บ
+Easy CMS รันได้ทุกที่ที่รัน server ด้วย Node.js 22.12 ขึ้นไปได้ และบน [Bun และ Deno](../standalone#bun-and-deno) สิ่งที่ต้องมีคือที่เก็บ **ฐานข้อมูล** และที่เก็บ
 **ไฟล์อัปโหลด** ซึ่งแต่ละโฮสต์อาจมีให้หรือไม่มีก็ได้ ไม่รองรับ edge runtime (Cloudflare Workers, Vercel Edge Functions)
 
 ## เลือกโฮสต์ {#which-host}
