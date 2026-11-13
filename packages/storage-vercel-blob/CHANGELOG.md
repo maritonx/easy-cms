@@ -1,5 +1,11 @@
 # @easy-cms/storage-vercel-blob
 
+## 1.45.0
+
+### Patch Changes
+
+- @easy-cms/core@1.45.0
+
 ## 1.44.0
 
 ### Patch Changes
