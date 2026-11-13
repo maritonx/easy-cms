@@ -92,11 +92,14 @@ export function forwardedClientIp(value: string | null | undefined): string | un
   return last || undefined
 }
 
-/** The client's address on hosting platforms that set it themselves: Vercel, Netlify. */
+/** The client's address on hosting platforms that set it themselves: Vercel, Netlify, Cloudflare. */
 export function platformClientIp(headers: Headers): string | undefined {
   if (process.env.VERCEL)
     return headers.get('x-real-ip') ?? forwardedClientIp(headers.get('x-forwarded-for'))
   if (process.env.NETLIFY) return headers.get('x-nf-client-connection-ip') ?? undefined
+  // Cloudflare Workers, which put the client's address in CF-Connecting-IP.
+  if (globalThis.navigator?.userAgent === 'Cloudflare-Workers')
+    return headers.get('cf-connecting-ip') ?? undefined
   return undefined
 }
 

@@ -1,4 +1,3 @@
-import { createJiti } from 'jiti'
 import type { Config, ResolvedConfig } from './config.js'
 import { resolveConfig } from './resolve-config.js'
 import { fileExists, resolvePath } from './runtime/node/files.js'
@@ -32,6 +31,9 @@ export function findConfigFile(cwd: string = process.cwd()): string | undefined 
  * Build tools use this to read hints (e.g. `db.bundle`) when env vars may be missing.
  */
 export async function importConfig(file: string): Promise<Config | undefined> {
+  // Loaded when used: jiti needs Node at import time, and runtimes without a disk never load a
+  // config file (ADR-0067).
+  const { createJiti } = await import('jiti')
   const jiti = createJiti(import.meta.url, { moduleCache: false, interopDefault: false })
   const mod = await jiti.import<{ default?: Config }>(file)
   return mod.default
@@ -49,6 +51,7 @@ export async function loadConfig(options: LoadConfigOptions = {}): Promise<Resol
     )
   }
 
+  const { createJiti } = await import('jiti')
   const jiti = createJiti(import.meta.url, { moduleCache: false, interopDefault: false })
   const mod = await jiti.import<{ default?: Config }>(file)
   if (!mod.default) {

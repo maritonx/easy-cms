@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { type Config, ConfigError, createEasyCMS, SchemaError, silentLogger } from '@easy-cms/core'
 import { describe, expect, it } from 'vitest'
@@ -197,6 +197,30 @@ describe('migration files (FR-INS-06/07, FR-DAT-03)', () => {
 
   it('refuses to start in production without migrations', async () => {
     await expect(open(v1, tempProject(), 'verify')).rejects.toThrow(/No migrations found/)
+  })
+
+  it('starts without migration files when the database is at the config (ADR-0067)', async () => {
+    // Cloudflare Workers has no disk: the migrations table says where the database is.
+    const cwd = tempProject()
+    const tool = await cli(v1, cwd)
+    await tool.db.createMigration({ name: 'init' })
+    await tool.db.migrate()
+    await tool.destroy()
+    rmSync(join(cwd, 'easy-cms'), { recursive: true })
+    const prod = await open(v1, cwd, 'verify')
+    await prod.create('posts', { title: 'ok' })
+    await prod.destroy()
+    const error = await open(v2, cwd, 'verify').catch((e) => e)
+    expect(error).toBeInstanceOf(SchemaError)
+    expect(error.message).toMatch(
+      /config changed since the database's last migration.*migrate:create/s,
+    )
+  })
+
+  it('refuses a pushed database without migration files', async () => {
+    const cwd = tempProject()
+    await (await open(v1, cwd)).destroy()
+    await expect(open(v1, cwd, 'verify')).rejects.toThrow(/No migrations found/)
   })
 
   it('refuses to start with pending migrations', async () => {
