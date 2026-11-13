@@ -43,18 +43,25 @@ createServer((req, res) => {
           usage: { input_tokens: 20, output_tokens: 20 },
         })
       }
+      // Asked to write in Thai about a page in Thai (the docs' Thai screenshots): answered in Thai.
+      const thai = request.system?.includes('in Thai') && /[\u0E00-\u0E7F]/.test(prompt)
       // Each feature's prompt (#358) gets an answer of its own.
       const text = request.system?.includes('alt text')
         ? 'A mountain lake at sunrise'
         : request.system?.includes('social media post')
           ? 'Hello from Playwright: our end-to-end test has something to say.'
-          : request.system?.includes('search engines')
+          : request.system?.includes('search engines') && thai
             ? JSON.stringify({
-                title: 'Covers that speak: writing alt text with AI',
-                description:
-                  'How Easy CMS writes alt text for images, and why it matters to readers.',
+                title: 'ภาพที่พูดได้: เขียน alt text ด้วย AI',
+                description: 'Easy CMS เขียน alt text ให้ทุกภาพอย่างไร และทำไมผู้อ่านจึงต้องการ',
               })
-            : 'OK'
+            : request.system?.includes('search engines')
+              ? JSON.stringify({
+                  title: 'Covers that speak: writing alt text with AI',
+                  description:
+                    'How Easy CMS writes alt text for images, and why it matters to readers.',
+                })
+              : 'OK'
       return send(200, {
         model: request.model,
         content: [{ type: 'text', text }],

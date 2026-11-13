@@ -5,6 +5,7 @@
 - **เวอร์ชันปัจจุบัน:** 1.2.0
 - **เป้าหมาย 1.0:** 1.0.0 วันที่ 2026-12-15 — **ออกแล้ว 2026-10-17** (RC 1.0.0-rc.0 วันเดียวกัน)
 - **เป้าหมาย 1.x:** open source ที่องค์กร self-host ได้อย่างมั่นใจ ดู [1.x](#one-x)
+- **ตำแหน่งและ roadmap หกระดับ:** TypeScript backend ครบในตัวพร้อม admin ดู [ADR-0069](adr/0069-typescript-backend-six-levels.md) และ roadmap บนเว็บ [easycms.dev/roadmap](https://easycms.dev/roadmap)
 - **ติดตามงาน:** GitHub Milestones ของ `maritonx/easy-cms` (หนึ่ง issue ต่อหนึ่งงาน, issue เขียนเป็นภาษาอังกฤษ)
 - **การออกเวอร์ชันใน 1.x:** ออกทันทีที่ merge (บั๊กเป็น patch, ฟีเจอร์เป็น minor) milestone ของ 1.x จึงตั้งชื่อตามหัวข้อ ไม่ผูกกับเลขเวอร์ชัน (ตกลง 2026-10-18)
 
