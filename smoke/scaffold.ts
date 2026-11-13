@@ -150,11 +150,11 @@ const exec: Record<typeof PM, [string, string[]]> = {
   yarn: ['yarn', []],
   bun: ['bunx', []],
 }
-// On Bun or Deno: the installed CLI, run by that runtime (its `#!/usr/bin/env node` would pick Node).
-const bin = join(project, 'node_modules', 'easy-cms', 'bin', 'easy-cms.js')
+// On Bun or Deno: the installed CLI as the docs say to run it (guide/standalone#bun-and-deno);
+// its `#!/usr/bin/env node` would otherwise pick Node.
 const onRuntime: Record<'bun' | 'deno', [string, string[]]> = {
-  bun: ['bun', ['--bun', bin]],
-  deno: ['deno', ['run', '-A', bin]],
+  bun: ['bunx', ['--bun', 'easy-cms']],
+  deno: ['deno', ['run', '-A', 'npm:easy-cms']],
 }
 const cli = (args: string[]): [string, string[]] => {
   const [command, prefix] = RUNTIME === 'node' ? exec[PM] : onRuntime[RUNTIME]

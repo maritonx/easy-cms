@@ -29,7 +29,8 @@ npx create-easy-cms [dir] [--db sqlite|postgres] [--pm npm|pnpm|yarn|bun] [--sta
 
 คำสั่งนี้ติดตั้งและแสดงขั้นต่อไปด้วย package manager ตัวนั้น (`pnpm exec easy-cms …`, `yarn easy-cms …`,
 `bunx easy-cms …`) ถ้าเป็น Yarn 2 ขึ้นไปจะเขียน `.yarnrc.yml` ที่ตั้ง `nodeLinker: node-modules` ให้
-เพราะยังไม่รองรับ Plug'n'Play ส่วน Bun ใช้ติดตั้งแพ็กเกจได้ แต่ตัว CMS ยังรันบน Node.js
+เพราะยังไม่รองรับ Plug'n'Play การติดตั้งด้วย Bun ยังรัน CMS บน Node.js ถ้าจะรันบน Bun หรือ Deno ดู
+[Bun และ Deno](./standalone#bun-and-deno)
 
 ดูขั้นต่อจากนี้ได้ที่ [เริ่มใช้งาน](./getting-started)
 

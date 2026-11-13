@@ -7,7 +7,8 @@ live.
 **Before this page:** [Migrations & deployment](../deployment).
 :::
 
-Easy CMS runs wherever Node.js 22.12 or newer runs a server. It needs two things a host may or
+Easy CMS runs wherever Node.js 22.12 or newer runs a server, and on
+[Bun and Deno](../standalone#bun-and-deno). It needs two things a host may or
 may not give you: a place for the **database** and a place for **uploaded files**. Edge runtimes
 (Cloudflare Workers, Vercel Edge Functions) are not supported.
 

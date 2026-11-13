@@ -89,6 +89,23 @@ NODE_ENV=production npx easy-cms serve --trust-proxy
 A Dockerfile, Compose with Postgres or SQLite, a VPS with systemd, and other hosts:
 see [Deploy](./deploy/).
 
+## Bun and Deno {#bun-and-deno}
+
+The CLI and the server also run on Bun and Deno. `easy-cms` starts with `#!/usr/bin/env node`, so
+name the runtime:
+
+```sh
+bunx --bun easy-cms migrate
+bunx --bun easy-cms serve
+
+deno run -A npm:easy-cms migrate
+deno run -A npm:easy-cms serve
+```
+
+Every pull request checks both: a new project's migrations, an admin, the server, signing in,
+an upload, and creating, changing, reading and deleting a post. Cloudflare Workers come later
+(ADR-0067).
+
 ## Use your own server
 
 `createStandaloneHandler(cms)` from `easy-cms` returns the same `(Request) => Response` handler,
