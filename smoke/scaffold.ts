@@ -1,6 +1,9 @@
 // Creates a standalone Easy CMS project the way a user would, with one package manager, from
-// the smoke-test registry, and checks that it works: migrations, an admin, the server.
+// the smoke-test registry, and checks that it works: migrations, an admin, the server, and its
+// REST API (smoke/api.ts).
 //   node smoke/scaffold.ts <npm|pnpm|yarn|bun> [registry]
+// With SMOKE_RUNTIME=bun or deno, the CLI and the server run on that runtime instead of Node
+// (ADR-0067), as `bun --bun easy-cms …` and `deno run -A npm:easy-cms …` would.
 // Against a release on npmjs instead (#82), e.g. the release candidate:
 //   SMOKE_TAG=rc SMOKE_VERSION=1.0.0-rc.0 node smoke/scaffold.ts npm https://registry.npmjs.org
 import { type ChildProcess, spawn } from 'node:child_process'
@@ -9,10 +12,15 @@ import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { stripVTControlCharacters } from 'node:util'
+import { checkApi } from './api.ts'
 
 const PM = process.argv[2] as 'npm' | 'pnpm' | 'yarn' | 'bun'
 const REGISTRY = process.argv[3] ?? 'http://localhost:4873'
 if (!['npm', 'pnpm', 'yarn', 'bun'].includes(PM)) throw new Error('usage: scaffold.ts <pm>')
+// biome-ignore lint/suspicious/noUndeclaredEnvVars: set by whoever runs the smoke test, not Turborepo
+const RUNTIME = (process.env.SMOKE_RUNTIME ?? 'node') as 'node' | 'bun' | 'deno'
+if (!['node', 'bun', 'deno'].includes(RUNTIME)) throw new Error(`unknown runtime ${RUNTIME}`)
+const NAME = RUNTIME === 'node' ? PM : `${PM}, ${RUNTIME}`
 const windows = process.platform === 'win32'
 
 const root = mkdtempSync(join(tmpdir(), `easy-cms-smoke-${PM}-`))
@@ -77,7 +85,7 @@ function report(error: unknown) {
   // biome-ignore lint/suspicious/noUndeclaredEnvVars: set by GitHub Actions, not a Turborepo input
   if (process.env.GITHUB_ACTIONS)
     console.log(
-      `::error title=smoke (${PM})::${message.replace(/%/g, '%25').replace(/\r?\n/g, '%0A')}`,
+      `::error title=smoke (${NAME})::${message.replace(/%/g, '%25').replace(/\r?\n/g, '%0A')}`,
     )
   process.exit(1)
 }
@@ -142,10 +150,17 @@ const exec: Record<typeof PM, [string, string[]]> = {
   yarn: ['yarn', []],
   bun: ['bunx', []],
 }
-const cms = (...args: string[]) => {
-  const [command, prefix] = exec[PM]
-  return run(command, [...prefix, 'easy-cms', ...args], project)
+// On Bun or Deno: the installed CLI, run by that runtime (its `#!/usr/bin/env node` would pick Node).
+const bin = join(project, 'node_modules', 'easy-cms', 'bin', 'easy-cms.js')
+const onRuntime: Record<'bun' | 'deno', [string, string[]]> = {
+  bun: ['bun', ['--bun', bin]],
+  deno: ['deno', ['run', '-A', bin]],
 }
+const cli = (args: string[]): [string, string[]] => {
+  const [command, prefix] = RUNTIME === 'node' ? exec[PM] : onRuntime[RUNTIME]
+  return [command, [...prefix, ...(RUNTIME === 'node' ? ['easy-cms'] : []), ...args]]
+}
+const cms = (...args: string[]) => run(...cli(args), project)
 await cms('migrate:create', 'init')
 await cms('migrate')
 await cms('admin:create', '--email', 'admin@smoke.test')
@@ -166,8 +181,10 @@ const start: Record<typeof PM, [string, string[]]> = {
   yarn: ['yarn', ['start', '--port', port]],
   bun: ['bun', ['run', 'start', '--port', port]],
 }
-console.log(`\n$ ${start[PM][0]} ${start[PM][1].join(' ')}`)
-const server: ChildProcess = spawn(start[PM][0], start[PM][1], {
+// `start` is `easy-cms serve`; on Bun or Deno, the same command on that runtime.
+const [startCommand, startArgs] = RUNTIME === 'node' ? start[PM] : cli(['serve', '--port', port])
+console.log(`\n$ ${startCommand} ${startArgs.join(' ')}`)
+const server: ChildProcess = spawn(startCommand, startArgs, {
   cwd: project,
   env: { ...env, NODE_ENV: 'production' },
   stdio: 'inherit',
@@ -204,7 +221,12 @@ try {
     hasUsers?: boolean
   }
   if (init.hasUsers !== true) throw new Error(`expected the admin: ${JSON.stringify(init)}`)
-  console.log(`\n✓ ${PM}: created, installed, migrated and served`)
+  await checkApi(
+    `http://localhost:${port}`,
+    'admin@smoke.test',
+    env.EASY_CMS_ADMIN_PASSWORD as string,
+  )
+  console.log(`\n✓ ${NAME}: created, installed, migrated, served and used`)
 } finally {
   stop()
 }
