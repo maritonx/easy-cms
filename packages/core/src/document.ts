@@ -17,6 +17,7 @@ import type { Localization } from './localization.js'
 import { blockFields, blockNodes, blockOf } from './rich-text-blocks.js'
 import { docLinkMarks, linkTarget } from './rich-text-links.js'
 import { randomUUID } from './runtime/crypto.js'
+import { trimChar } from './trim.js'
 
 type Data = Record<string, unknown>
 
@@ -50,11 +51,13 @@ const isEmpty = (value: unknown) => value === undefined || value === null || val
  * so Thai titles stay readable: "สวัสดี World!" → "สวัสดี-world".
  */
 export function slugify(text: string): string {
-  return text
-    .normalize('NFKC')
-    .toLowerCase()
-    .replace(/[^\p{L}\p{M}\p{N}]+/gu, '-')
-    .replace(/^-+|-+$/g, '')
+  return trimChar(
+    text
+      .normalize('NFKC')
+      .toLowerCase()
+      .replace(/[^\p{L}\p{M}\p{N}]+/gu, '-'),
+    '-',
+  )
 }
 
 /** Fills in `defaultValue` for fields that are missing, including inside groups and array rows. */

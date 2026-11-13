@@ -12,6 +12,7 @@ import { aesGcmDecrypt, aesGcmEncrypt, hash, randomBytes } from './runtime/crypt
 import { joinPath, makeTempDir, readBytes, removePath } from './runtime/node/files.js'
 import { diskStorage, type StorageAdapter } from './storage.js'
 import { lastSlot } from './time-of-day.js'
+import { trimChar } from './trim.js'
 
 /** Start of an encrypted backup file (`backups.encryptionKey`): magic, IV, ciphertext, tag. */
 const MAGIC = utf8('ECMSBAK1')
@@ -405,12 +406,13 @@ export async function writeBackupFile<C extends Config>(
 }
 
 const slug = (text: string) =>
-  text
-    .normalize('NFKD')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 40) || 'easy-cms'
+  trimChar(
+    text
+      .normalize('NFKD')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-'),
+    '-',
+  ).slice(0, 40) || 'easy-cms'
 
 /** `<site>-YYYY-MM-DD-HHmm.db.gz`, in the server's time zone. */
 function filenameFor(cms: EasyCMS, date: Date): string {
