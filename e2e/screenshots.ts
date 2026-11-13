@@ -1,6 +1,7 @@
 // Screenshots of the admin for the docs site: `pnpm docs:screenshots` (after `pnpm build`).
 // Starts the Nuxt example on a temporary database, adds sample content in Thai and English,
 // and saves every shot in both languages and both themes to website/public/screenshots.
+// The AI shots come from the Next.js example (it has the AI plugin) with the mock Anthropic API.
 import { type ChildProcess, spawn } from 'node:child_process'
 import { createHash, createHmac, randomBytes } from 'node:crypto'
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
@@ -16,6 +17,11 @@ const ORIGIN = `http://localhost:${PORT}`
 const API = `${ORIGIN}/api/cms`
 const OUT = fileURLToPath(new URL('../website/public/screenshots/', import.meta.url))
 const EXAMPLE = fileURLToPath(new URL('../examples/nuxt-blog/', import.meta.url))
+// The Next.js example and the mock Anthropic API (ai-mock.ts), for the AI shots.
+const NEXT_PORT = 3211
+const NEXT_ORIGIN = `http://localhost:${NEXT_PORT}`
+const NEXT_EXAMPLE = fileURLToPath(new URL('../examples/next-blog/', import.meta.url))
+const AI_MOCK = 'http://localhost:3212'
 // A throwaway account on a throwaway database.
 const ADMIN = {
   email: 'editor@example.com',
@@ -25,6 +31,8 @@ const ADMIN = {
 
 const scratch = mkdtempSync(join(tmpdir(), 'easy-cms-shots-'))
 let server: ChildProcess | undefined
+let nextServer: ChildProcess | undefined
+let aiMock: ChildProcess | undefined
 let oidc: MockProvider | undefined
 
 /** The CMS's secret, to sign an invitation link like its email would have it. */
@@ -64,29 +72,10 @@ async function main() {
   try {
     for (const locale of ['en', 'th'] as const) {
       for (const theme of ['light', 'dark'] as const) {
-        const context = await browser.newContext({
-          viewport: { width: 1440, height: 900 },
-          colorScheme: theme,
-        })
-        await context.addInitScript(
-          ([l, t]) => {
-            localStorage.setItem('easy-cms-locale', l as string)
-            localStorage.setItem('easy-cms-theme', t as string)
-            // Content in the same language as the admin.
-            localStorage.setItem('easy-cms-content-locale', l as string)
-          },
-          [locale, theme],
-        )
+        const context = await newContext(browser, locale, theme)
         const page = await context.newPage()
         await login(page)
-        const shot = async (name: string) => {
-          await page.waitForTimeout(400)
-          const png = await page.screenshot()
-          await sharp(png)
-            .webp({ quality: 80 })
-            .toFile(join(OUT, `${name}-${locale}-${theme}.webp`))
-          console.log(`  ${name}-${locale}-${theme}.webp`)
-        }
+        const shot = (name: string) => save(page, `${name}-${locale}-${theme}`)
         const t = locale === 'th' ? TH : EN
 
         await page.goto(`${ORIGIN}/admin/`)
@@ -240,10 +229,146 @@ async function main() {
         await context.close()
       }
     }
+    await aiShots(browser)
   } finally {
     await browser.close()
   }
 }
+
+type Browser = Awaited<ReturnType<typeof chromium.launch>>
+
+/** A window in one language and theme, with content in the same language as the admin. */
+async function newContext(browser: Browser, locale: 'en' | 'th', theme: 'light' | 'dark') {
+  const context = await browser.newContext({
+    viewport: { width: 1440, height: 900 },
+    colorScheme: theme,
+  })
+  await context.addInitScript(
+    ([l, t]) => {
+      localStorage.setItem('easy-cms-locale', l as string)
+      localStorage.setItem('easy-cms-theme', t as string)
+      // Content in the same language as the admin.
+      localStorage.setItem('easy-cms-content-locale', l as string)
+    },
+    [locale, theme],
+  )
+  return context
+}
+
+async function save(page: Page, file: string) {
+  await page.waitForTimeout(400)
+  const png = await page.screenshot()
+  await sharp(png)
+    .webp({ quality: 80 })
+    .toFile(join(OUT, `${file}.webp`))
+  console.log(`  ${file}.webp`)
+}
+
+/**
+ * The AI shots, on the Next.js example: Integrations with Anthropic (Claude) connected through the
+ * mock API, and a post's SEO title and description written by AI, in the form for review.
+ */
+async function aiShots(browser: Browser) {
+  aiMock = spawn('node', ['ai-mock.ts', new URL(AI_MOCK).port], {
+    cwd: fileURLToPath(new URL('.', import.meta.url)),
+    stdio: 'ignore',
+  })
+  nextServer = spawn('pnpm', ['exec', 'next', 'dev', '--port', String(NEXT_PORT)], {
+    cwd: NEXT_EXAMPLE,
+    stdio: 'ignore',
+    env: {
+      ...process.env,
+      EASY_CMS_SECRET: SECRET,
+      DATABASE_URL: '',
+      PGLITE_DIR: join(scratch, 'next-pglite'),
+      NEXT_TELEMETRY_DISABLED: '1',
+      ANTHROPIC_API_URL: AI_MOCK,
+    },
+  })
+  await waitFor(AI_MOCK)
+  await waitFor(`${NEXT_ORIGIN}/api/cms/auth/init`)
+  const call = await client(NEXT_ORIGIN)
+  const post = await call('POST', '/posts?locale=th', {
+    title: 'ภาพที่พูดได้: alt text ให้ทุกภาพ',
+    excerpt: 'ทำไมทุกภาพต้องมีคำอธิบาย และหน้า admin ช่วยเขียนให้อย่างไร',
+    body: doc(
+      paragraph('โปรแกรมอ่านหน้าจออ่าน alt text ออกเสียง และเครื่องมือค้นหาก็อ่านด้วย'),
+      paragraph('Easy CMS เขียนให้ได้ และคุณตรวจก่อนบันทึก'),
+    ),
+  })
+  await call('PATCH', `/posts/${post.id}?locale=en`, {
+    title: 'Covers that speak: alt text for every image',
+    excerpt: 'Why every image needs words, and how the admin writes them for you.',
+    body: doc(
+      paragraph('Screen readers read alt text aloud. Search engines read it too.'),
+      paragraph('Easy CMS can write it for you, and you check it before saving.'),
+    ),
+  })
+
+  // Connect Anthropic once, in English, through the admin (the mock API answers).
+  const setup = await newContext(browser, 'en', 'light')
+  const page = await setup.newPage()
+  await login(page, NEXT_ORIGIN)
+  await page.goto(`${NEXT_ORIGIN}/admin/integrations?category=ai`)
+  await page.getByRole('button', { name: 'Connect Anthropic (Claude)' }).click()
+  const card = page.getByRole('dialog', { name: 'Anthropic (Claude)' })
+  await card
+    .getByRole('group', { name: 'Before connecting' })
+    .getByRole('button', { name: 'Accept and connect' })
+    .click()
+  // The key the mock API accepts.
+  await card.getByLabel('API key').fill('sk-ant-e2e')
+  await card.getByRole('button', { name: 'Find Model' }).click()
+  await card
+    .getByRole('group', { name: 'Found for Model' })
+    .getByRole('button', { name: 'Claude E2E (claude-e2e-1)' })
+    .click()
+  await card.getByRole('button', { name: 'Save' }).click()
+  await page.getByRole('status').filter({ hasText: 'connected' }).waitFor()
+  await card.getByRole('button', { name: 'Close' }).click()
+  await page.getByRole('button', { name: 'Manage AI settings' }).click()
+  await page
+    .getByRole('dialog', { name: 'AI settings' })
+    .getByRole('combobox', { name: 'Main connection' })
+    .selectOption('anthropic:Anthropic (Claude)')
+  await page.getByRole('status').filter({ hasText: 'AI settings saved' }).waitFor()
+  await setup.close()
+
+  for (const locale of ['en', 'th'] as const) {
+    for (const theme of ['light', 'dark'] as const) {
+      const context = await newContext(browser, locale, theme)
+      const page = await context.newPage()
+      await login(page, NEXT_ORIGIN)
+      const shot = (name: string) => save(page, `${name}-${locale}-${theme}`)
+      const write = locale === 'th' ? 'เขียน title และ description ด้วย AI' : WRITE_WITH_AI
+
+      // Every category, the AI provider connected.
+      await page.goto(`${NEXT_ORIGIN}/admin/integrations`)
+      await page.waitForLoadState('networkidle')
+      await shot('integrations')
+
+      // The SEO title and description written by AI, in the form for review with Undo beside.
+      await page.goto(`${NEXT_ORIGIN}/admin/collections/posts/${post.id}`)
+      await page.waitForLoadState('networkidle')
+      await page.getByRole('tab', { name: 'SEO' }).click()
+      await page.getByRole('button', { name: write }).click()
+      await page
+        .getByRole('button', { name: locale === 'th' ? 'เลิกทำ' : 'Undo', exact: true })
+        .waitFor()
+      // Below the editor's header, with the fields and Undo in view.
+      await page
+        .getByRole('button', { name: write })
+        .evaluate((b) => b.scrollIntoView({ block: 'center' }))
+      await page.mouse.move(700, 400)
+      await page.mouse.wheel(0, -330)
+      await shot('ai')
+
+      await context.close()
+    }
+  }
+}
+
+const WRITE_WITH_AI = 'Write title and description with AI'
 
 const EN = {
   preview: 'Search result preview',
@@ -285,12 +410,12 @@ const TH = {
   whoCanUse: 'ใครใช้ได้บ้าง',
 }
 
-async function login(page: Page) {
-  await page.goto(`${ORIGIN}/admin/login`)
+async function login(page: Page, origin = ORIGIN) {
+  await page.goto(`${origin}/admin/login`)
   await page.locator('input[type="email"]').fill(ADMIN.email)
   await page.locator('input[type="password"]').fill(ADMIN.password)
   await page.locator('button[type="submit"]').click()
-  await page.waitForURL(`${ORIGIN}/admin/`)
+  await page.waitForURL(`${origin}/admin/`)
 }
 
 async function waitFor(url: string) {
@@ -305,10 +430,11 @@ async function waitFor(url: string) {
 }
 
 /** A REST client logged in as the first admin. */
-async function client() {
-  const register = await fetch(`${API}/auth/first-register`, {
+async function client(origin = ORIGIN) {
+  const api = `${origin}/api/cms`
+  const register = await fetch(`${api}/auth/first-register`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', origin: ORIGIN },
+    headers: { 'content-type': 'application/json', origin },
     body: JSON.stringify(ADMIN),
   })
   if (!register.ok) throw new Error(`first-register: ${register.status} ${await register.text()}`)
@@ -317,10 +443,10 @@ async function client() {
     .getSetCookie()
     .map((c) => c.split(';')[0])
     .join('; ')
-  const headers = { cookie, 'x-csrf-token': csrfToken, origin: ORIGIN }
+  const headers = { cookie, 'x-csrf-token': csrfToken, origin }
   return async (method: string, path: string, body?: unknown) => {
     const form = body instanceof FormData
-    const response = await fetch(`${API}${path}`, {
+    const response = await fetch(`${api}${path}`, {
       method,
       headers: form ? headers : { ...headers, 'content-type': 'application/json' },
       ...(body === undefined ? {} : { body: form ? body : JSON.stringify(body) }),
@@ -671,6 +797,8 @@ try {
   await main()
 } finally {
   server?.kill()
+  nextServer?.kill()
+  aiMock?.kill()
   await oidc?.close()
   rmSync(scratch, { recursive: true, force: true })
 }

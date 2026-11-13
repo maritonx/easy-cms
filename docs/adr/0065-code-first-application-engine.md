@@ -2,6 +2,7 @@
 
 - **สถานะ:** Accepted
 - **วันที่:** 2026-11-08
+- **คำโปรย:** แทนโดย [ADR-0069](0069-typescript-backend-six-levels.md) (TypeScript backend ครบในตัว, roadmap หกระดับ) การตัดสินใจอื่นยังใช้
 - **เกี่ยวข้อง:** [ADR-0004](0004-code-first-content-model.md) (ยืนยัน), [ADR-0018](0018-plugin-endpoints-admin-components.md), [ADR-0030](0030-plugin-pages-and-dashboard.md), [ADR-0064](0064-calendar-view.md)
 
 ## บริบท
