@@ -233,6 +233,25 @@ Runs Easy CMS without Nuxt or Next.js: the admin at `/admin`, the REST API at `/
 In production (`NODE_ENV=production`) pending migrations stop the server from starting. See
 [Standalone server](./standalone).
 
+### build
+
+```bash [pm]
+npx easy-cms build --target workers
+```
+
+Writes what Wrangler needs to deploy the standalone server (admin and REST API) as a Cloudflare
+Worker:
+
+- `.easy-cms/workers/`: the Worker's entry and the admin app. Written again on every build.
+- `wrangler.jsonc`, when the project has none. It sets `nodejs_compat`, the `ASSETS` binding,
+  Cron Triggers every minute for the jobs, and aliases for packages that can't run on Workers
+  (`sharp`). Once written it is yours.
+
+A Worker has no disk: the config needs `upload.storage` (e.g. `s3Storage()` with an R2 bucket) and
+a database over HTTP (e.g. Turso). Images aren't resized there. Run `easy-cms migrate` against the
+same database from your machine or CI, then `npx wrangler deploy`. Cloudflare Workers support is
+new: each pull request doesn't test it yet ([ADR-0067](https://github.com/maritonx/easy-cms/blob/main/docs/adr/0067-multi-runtime.md)).
+
 ### Commands from plugins
 
 Plugins can add commands, e.g. `easy-cms nested:rebuild` from the [nested pages](./nested-docs)

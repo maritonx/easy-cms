@@ -58,6 +58,64 @@ async function cli(...argv: string[]) {
   return { code, out: out.join('\n'), err: err.join('\n') }
 }
 
+describe('easy-cms build --target workers (ADR-0067)', () => {
+  const withStorage = (dir: string) =>
+    writeFileSync(
+      join(dir, 'easy-cms.config.ts'),
+      `import { defineConfig } from '@easy-cms/core'
+import { sqlite } from '@easy-cms/db-sqlite'
+
+export default defineConfig({
+  secret: '${'s'.repeat(32)}',
+  db: sqlite({ url: 'libsql://cms.example.turso.io' }),
+  upload: {
+    storage: { name: 'r2', apiVersion: 1, async put() {}, async get() { return null }, async delete() {} },
+  },
+  collections: [{ slug: 'posts', fields: [{ name: 'title', type: 'text' }] }],
+})
+`,
+    )
+
+  it('writes the Worker, the admin app and wrangler.jsonc', async () => {
+    const dir = project()
+    withStorage(dir)
+    writeFileSync(join(dir, 'package.json'), '{"name":"@acme/My CMS"}')
+    const built = await cli('build', '--target', 'workers', '--cwd', dir)
+    expect(built).toMatchObject({ code: 0, out: expect.stringContaining('Wrote wrangler.jsonc') })
+    const workers = join(dir, '.easy-cms', 'workers')
+    expect(readFileSync(join(workers, 'worker.ts'), 'utf8')).toContain(
+      "import config from '../../easy-cms.config.ts'\n\nexport default createWorker(config)",
+    )
+    expect(readFileSync(join(workers, 'unavailable.js'), 'utf8')).toContain('not available')
+    expect(readdirSync(join(workers, 'assets', '_easy-cms', 'admin'))).toContain('shell.html')
+    const wrangler = JSON.parse(
+      readFileSync(join(dir, 'wrangler.jsonc'), 'utf8').replace(/^\/\/.*$/gm, ''),
+    )
+    expect(wrangler).toMatchObject({
+      name: 'my-cms',
+      main: '.easy-cms/workers/worker.ts',
+      compatibility_flags: ['nodejs_compat'],
+      assets: { directory: '.easy-cms/workers/assets', binding: 'ASSETS', run_worker_first: true },
+      alias: { sharp: './.easy-cms/workers/unavailable.js' },
+      triggers: { crons: ['* * * * *'] },
+      vars: { NODE_ENV: 'production' },
+    })
+
+    // The project's own once written.
+    writeFileSync(join(dir, 'wrangler.jsonc'), '{ "name": "mine" }')
+    const again = await cli('build', '--target', 'workers', '--cwd', dir)
+    expect(again).toMatchObject({ code: 0, out: expect.stringContaining('Kept your wrangler') })
+    expect(readFileSync(join(dir, 'wrangler.jsonc'), 'utf8')).toBe('{ "name": "mine" }')
+  })
+
+  it('needs a target, and upload.storage', async () => {
+    const dir = project()
+    expect((await cli('build', '--cwd', dir)).code).toBe(1)
+    const noStorage = await cli('build', '--target', 'workers', '--cwd', dir)
+    expect(noStorage).toMatchObject({ code: 1, err: expect.stringContaining('upload.storage') })
+  })
+})
+
 describe('easy-cms CLI (FR-INS-06..08)', () => {
   it('shows help', async () => {
     const help = await cli('--help')

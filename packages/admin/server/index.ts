@@ -1,5 +1,5 @@
 import { readFile, stat } from 'node:fs/promises'
-import { dirname, extname, join, normalize, sep } from 'node:path'
+import { dirname, extname, join, normalize, posix, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 export interface AdminHandlerOptions {
@@ -15,6 +15,12 @@ export interface AdminHandlerOptions {
   readonly siteURL?: string
   /** Directory with the built app. Defaults to the one shipped in this package. */
   readonly appDir?: string
+  /**
+   * Reads a file of the built app (a path inside it, e.g. `assets/index-abc.js`), `undefined`
+   * when there is none. Instead of `appDir` where there is no disk: on Cloudflare Workers, from
+   * the Worker's static assets.
+   */
+  readonly readFile?: (path: string) => Promise<Uint8Array | undefined>
   /**
    * Redirect `/admin` to `/admin/`. Default true. Turn off for frameworks that strip trailing
    * slashes (Next.js); the app works at either URL because of its `<base href>`.
@@ -33,7 +39,16 @@ export type AdminHandler = (request: Request) => Promise<Response>
  * The built admin app shipped with this package. Computed from this file's path rather than
  * `new URL(..., import.meta.url)`, which bundlers rewrite into asset imports.
  */
-export const APP_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'app')
+export const APP_DIR = appDirOf(import.meta.url)
+
+function appDirOf(url: string | undefined): string {
+  // A bundled Worker has no file URL here; it reads the app with `readFile` instead.
+  try {
+    return join(dirname(fileURLToPath(url as string)), '..', 'app')
+  } catch {
+    return ''
+  }
+}
 
 const TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -103,7 +118,7 @@ const trimSlashes = (path: string) => `/${path.replace(/^\/+|\/+$/g, '')}`
 /** Injects `<base href>` and the settings the app reads at startup into the shell HTML. */
 export function renderShell(
   source: string,
-  options: Omit<AdminHandlerOptions, 'appDir'> = {},
+  options: Omit<AdminHandlerOptions, 'appDir' | 'readFile'> = {},
 ): string {
   const basePath = trimSlashes(options.basePath ?? '/admin')
   const settings = JSON.stringify({
@@ -161,12 +176,23 @@ export function adminHandlerFor(
 export function createAdminHandler(options: AdminHandlerOptions = {}): AdminHandler {
   const basePath = trimSlashes(options.basePath ?? '/admin')
   const appDir = options.appDir ?? APP_DIR
+  /** A file of the app, read from `appDir` unless `readFile` is given. */
+  const readApp =
+    options.readFile ??
+    (async (path: string) => {
+      const file = join(appDir, path)
+      const info = await stat(file).catch(() => undefined)
+      return info?.isFile() ? new Uint8Array(await readFile(file)) : undefined
+    })
   let shell: Promise<string> | undefined
   // Outside production the shell is read on each request, so a rebuilt admin is picked up.
   const cache = process.env.NODE_ENV === 'production'
   const html = () => {
     const read = () =>
-      readFile(join(appDir, SHELL_FILE), 'utf8').then((source) => renderShell(source, options))
+      readApp(SHELL_FILE).then((data) => {
+        if (!data) throw new Error(`The admin app has no ${SHELL_FILE}: build @easy-cms/admin`)
+        return renderShell(new TextDecoder().decode(data), options)
+      })
     if (!cache) return read()
     shell ??= read()
     return shell
@@ -194,18 +220,15 @@ export function createAdminHandler(options: AdminHandlerOptions = {}): AdminHand
     } catch {
       return new Response('Bad request', { status: 400, headers })
     }
-    const file = normalize(join(appDir, relative))
-
     // Static files: only inside the app directory, never the shell directly (it needs injection).
-    if (
-      relative !== '' &&
-      relative !== SHELL_FILE &&
-      file.startsWith(appDir + sep) &&
-      extname(file) !== ''
-    ) {
-      const info = await stat(file).catch(() => undefined)
-      if (info?.isFile()) {
-        headers.set('content-type', TYPES[extname(file)] ?? 'application/octet-stream')
+    const path = posix.normalize(relative)
+    const inside = options.readFile
+      ? !path.startsWith('../') && path !== '..' && !path.startsWith('/')
+      : normalize(join(appDir, relative)).startsWith(appDir + sep)
+    if (relative !== '' && relative !== SHELL_FILE && inside && extname(path) !== '') {
+      const data = await readApp(path)
+      if (data) {
+        headers.set('content-type', TYPES[extname(path)] ?? 'application/octet-stream')
         // Vite puts content hashes in asset names, so they never change.
         headers.set(
           'cache-control',
@@ -213,7 +236,7 @@ export function createAdminHandler(options: AdminHandlerOptions = {}): AdminHand
             ? 'public, max-age=31536000, immutable'
             : 'public, max-age=3600',
         )
-        const body = request.method === 'HEAD' ? null : await readFile(file)
+        const body = request.method === 'HEAD' ? null : (data as Uint8Array<ArrayBuffer>)
         return new Response(body, { status: 200, headers })
       }
       if (relative.startsWith('assets/')) return new Response('Not found', { status: 404, headers })

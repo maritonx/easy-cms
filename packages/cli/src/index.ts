@@ -16,12 +16,15 @@ import {
   warnDeprecated,
 } from '@easy-cms/core'
 import {
+  CONFIG_FILE_NAMES,
   copyDatabase,
   decryptBackup,
+  findConfigFile,
   generateTypes,
   logFormat,
   writeBackupFile,
 } from '@easy-cms/core/internal'
+import { buildWorkers, WORKERS_DIR } from './build-workers.js'
 import { startServer } from './serve.js'
 
 export interface IO {
@@ -69,6 +72,7 @@ Commands:
   generate:types          Write TypeScript types for your collections and globals
   admin:create            Create an admin user (also: create-admin)
   serve                   Run the CMS as its own server (admin + REST API)
+  build --target workers  Write what Wrangler needs to deploy to Cloudflare Workers
   jobs:run                Run due scheduled publishes, jobs, webhook and email retries (also: run-scheduled)
   search:reindex [slug]   Build the search index again from the database
   audit:resign            After a new secret: sign the audit log with it
@@ -165,6 +169,19 @@ Forgets the sign-in providers admins turned on or off in Settings → Integratio
 in as the config sets it (\`auth.providers\`, \`auth.password\`). For an admin who can't sign in any
 more. Sessions started with providers turned on in the admin end. Recorded in the audit log.
 `,
+  build: `Usage: easy-cms build --target workers [options]
+
+Writes what Wrangler needs to deploy the CMS as a Cloudflare Worker, the standalone server's
+admin and REST API: the Worker's entry and the admin app in .easy-cms/workers/ (written again on
+every build), and wrangler.jsonc when the project has none. Then:
+
+  npx wrangler secret put EASY_CMS_SECRET    and the database's URL and token
+  npx easy-cms migrate                       from your machine or CI, against that database
+  npx wrangler deploy
+
+A Worker has no disk: the config needs upload.storage (e.g. s3Storage() with R2) and a database
+over HTTP (e.g. Turso). Images aren't resized there (no sharp).
+`,
   serve: `Usage: easy-cms serve [--port <n>] [--host <host>] [--watch] [--trust-proxy] [options]
 
 Runs Easy CMS without Nuxt or Next.js: the admin at /admin, the REST API at /api/cms and
@@ -227,6 +244,26 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
     const load = () => loadConfig({ cwd, ...(values.config ? { configFile: values.config } : {}) })
     if (command === 'serve') return await serve(values, cwd, logger, load, io)
     const config = await load()
+    if (command === 'build') {
+      if (values.target !== 'workers') {
+        io.err('Which target? Only workers for now: easy-cms build --target workers\n')
+        return 1
+      }
+      const configFile = values.config ? resolve(cwd, values.config) : findConfigFile(cwd)
+      if (!configFile) {
+        io.err(`No config file in ${cwd} (${CONFIG_FILE_NAMES.join(', ')}).`)
+        return 1
+      }
+      const result = await buildWorkers({ cwd, configFile, config })
+      io.out(`Wrote ${WORKERS_DIR}/ (the Worker and the admin app).`)
+      io.out(
+        result.wroteWrangler
+          ? 'Wrote wrangler.jsonc: check its name, then set secrets with `npx wrangler secret put`.'
+          : 'Kept your wrangler config: it needs nodejs_compat, the ASSETS binding and the alias in `easy-cms build --help`.',
+      )
+      io.out('Next: npx easy-cms migrate (against the same database), then npx wrangler deploy')
+      return 0
+    }
     if (command === 'generate:types') {
       const out = values.out ?? 'easy-cms-types.ts'
       const file = isAbsolute(out) ? out : resolve(cwd, out)
@@ -530,6 +567,7 @@ const OPTIONS = {
   host: { type: 'string' },
   watch: { type: 'boolean' },
   'trust-proxy': { type: 'boolean' },
+  target: { type: 'string' },
   help: { type: 'boolean', short: 'h' },
 } as const
 
