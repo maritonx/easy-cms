@@ -1,4 +1,3 @@
-import { createCipheriv, createDecipheriv, createHash, hkdfSync, randomBytes } from 'node:crypto'
 import type { AuthUser, ID } from './access.js'
 import type { AuthProvider } from './auth/providers.js'
 import { secretsOf, signedWith, signValue } from './auth/tokens.js'
@@ -9,6 +8,8 @@ import type { EmailEvent, EmailWebhookRequest } from './email-providers.js'
 import { ForbiddenError, NotFoundError, QueryError, ValidationError } from './errors.js'
 import type { Label } from './fields.js'
 import type { EasyCMS } from './local-api.js'
+import { decode, encode, fromBase64Url, text, toBase64Url, utf8 } from './runtime/bytes.js'
+import { aesGcmDecrypt, aesGcmEncrypt, hash, hkdf, randomBytes } from './runtime/crypto.js'
 
 // Integrations (#311): plugins declare outside providers (`integrations` in the config), and
 // admins connect accounts to them on the Integrations page. Secrets are encrypted at rest.
@@ -207,23 +208,21 @@ const PENDING_MS = 10 * 60 * 1000
 
 // --- Encryption ---------------------------------------------------------------------------------
 
-const keyOf = (secret: string) =>
-  Buffer.from(hkdfSync('sha256', secret, '', 'easy-cms:connections', 32))
-const keyId = (key: Buffer) => createHash('sha256').update(key).digest('hex').slice(0, 12)
+const keyOf = (secret: string) => hkdf(secret, '', 'easy-cms:connections', 32)
+const keyId = (key: Uint8Array) => hash('sha256', key, 'hex').slice(0, 12)
 
 /** AES-256-GCM with a key derived from the secret; the result names the key it used. */
 export function encryptValues(secret: string, values: Readonly<Record<string, string>>): string {
   const key = keyOf(secret)
   const iv = randomBytes(12)
-  const cipher = createCipheriv('aes-256-gcm', key, iv)
-  const data = Buffer.concat([cipher.update(JSON.stringify(values), 'utf8'), cipher.final()])
+  const sealed = aesGcmEncrypt(key, iv, utf8(JSON.stringify(values)))
   const box = {
     k: keyId(key),
-    iv: iv.toString('base64'),
-    t: cipher.getAuthTag().toString('base64'),
-    d: data.toString('base64'),
+    iv: encode(iv, 'base64'),
+    t: encode(sealed.tag, 'base64'),
+    d: encode(sealed.data, 'base64'),
   }
-  return Buffer.from(JSON.stringify(box)).toString('base64url')
+  return toBase64Url(box)
 }
 
 /** The values, and whether they were encrypted with an older secret. */
@@ -231,28 +230,22 @@ export function decryptValues(
   secrets: readonly string[],
   sealed: string,
 ): { values: Record<string, string>; old: boolean } {
-  const box = JSON.parse(Buffer.from(sealed, 'base64url').toString('utf8')) as Record<
-    string,
-    string
-  >
+  const box = fromBase64Url<Record<string, string>>(sealed)
   for (const [i, secret] of secrets.entries()) {
     const key = keyOf(secret)
     if (keyId(key) !== box.k) continue
-    const decipher = createDecipheriv('aes-256-gcm', key, Buffer.from(String(box.iv), 'base64'))
-    decipher.setAuthTag(Buffer.from(String(box.t), 'base64'))
-    const text = Buffer.concat([
-      decipher.update(Buffer.from(String(box.d), 'base64')),
-      decipher.final(),
-    ]).toString('utf8')
-    return { values: JSON.parse(text) as Record<string, string>, old: i > 0 }
+    const plain = aesGcmDecrypt(key, decode(String(box.iv), 'base64'), {
+      data: decode(String(box.d), 'base64'),
+      tag: decode(String(box.t), 'base64'),
+    })
+    return { values: JSON.parse(text(plain)) as Record<string, string>, old: i > 0 }
   }
   throw new Error('A connection was encrypted with a secret that is no longer configured')
 }
 
 const keyIdOf = (sealed: unknown) => {
   try {
-    return (JSON.parse(Buffer.from(String(sealed), 'base64url').toString('utf8')) as { k?: string })
-      .k
+    return fromBase64Url<{ k?: string }>(String(sealed)).k
   } catch {
     return undefined
   }
@@ -261,13 +254,13 @@ const keyIdOf = (sealed: unknown) => {
 // --- Signed OAuth state -------------------------------------------------------------------------
 
 function signState(secret: string, payload: Data): string {
-  const body = Buffer.from(JSON.stringify(payload)).toString('base64url')
+  const body = toBase64Url(payload)
   return `${body}.${signValue(secret, `integration:${body}`)}`
 }
 function readState(secrets: readonly string[], state: string): Data | null {
   const [body, signature] = state.split('.')
   if (!body || !signature || !signedWith(secrets, `integration:${body}`, signature)) return null
-  const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as Data
+  const payload = fromBase64Url<Data>(body)
   return typeof payload.exp === 'number' && payload.exp > Date.now() ? payload : null
 }
 

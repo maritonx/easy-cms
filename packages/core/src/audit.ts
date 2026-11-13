@@ -1,5 +1,3 @@
-import { AsyncLocalStorage } from 'node:async_hooks'
-import { createHmac } from 'node:crypto'
 import type { AuthUser, ID, RequestContext, Where } from './access.js'
 import { secretsOf } from './auth/tokens.js'
 import { AUDIT_LOGS, INTERNAL_COLLECTIONS } from './builtins.js'
@@ -9,6 +7,8 @@ import type { PaginatedDocs, RawDocument } from './database.js'
 import { QueryError } from './errors.js'
 import type { Field } from './fields.js'
 import type { EasyCMS } from './local-api.js'
+import { createContext } from './runtime/context.js'
+import { hmac } from './runtime/crypto.js'
 
 /** Audit log settings (`audit`). */
 export interface AuditConfig {
@@ -54,7 +54,7 @@ export interface AuditContext {
   /** A run of the background jobs, in its log lines. */
   readonly runId?: string
 }
-export const auditContext = new AsyncLocalStorage<AuditContext>()
+export const auditContext = createContext<AuditContext>()
 
 /** A field that changed: values before and after, unless they are not kept. */
 export interface AuditChange {
@@ -533,7 +533,7 @@ export class AuditLog {
     const values: unknown[] = SIGNED.map((key) => row[key] ?? null)
     if (typeof row.scope === 'string' && row.scope) values.push(row.scope)
     const payload = stable(values)
-    return createHmac('sha256', secret).update(`audit:${payload}`).digest('base64url')
+    return hmac(secret, `audit:${payload}`, 'base64url')
   }
 
   private async lastVerification(): Promise<{ at: string; invalid: number } | null> {

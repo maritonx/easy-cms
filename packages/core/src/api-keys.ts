@@ -1,6 +1,7 @@
-import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
 import { type Access, type AuthUser, isSystemAdmin, type RequestContext } from './access.js'
 import type { CollectionConfig } from './config.js'
+import { decode, encode } from './runtime/bytes.js'
+import { hash, randomBytes, safeEqual } from './runtime/crypto.js'
 
 export const API_KEYS = 'api-keys'
 
@@ -45,14 +46,14 @@ export function isApiKey(token: string): boolean {
 }
 
 export function newApiKey(): { key: string; prefix: string; hash: string } {
-  const prefix = randomBytes(4).toString('hex')
-  const secret = randomBytes(32).toString('base64url')
+  const prefix = encode(randomBytes(4), 'hex')
+  const secret = encode(randomBytes(32), 'base64url')
   return { key: `ecms_${prefix}_${secret}`, prefix, hash: hashSecret(secret) }
 }
 
 /** The secret is random and long, so a fast hash is enough (no password stretching needed). */
 function hashSecret(secret: string): string {
-  return createHash('sha256').update(secret).digest('hex')
+  return hash('sha256', secret, 'hex')
 }
 
 export function parseApiKey(token: string): { prefix: string; secret: string } | null {
@@ -62,9 +63,7 @@ export function parseApiKey(token: string): { prefix: string; secret: string } |
 
 export function secretMatches(secret: string, hash: unknown): boolean {
   if (typeof hash !== 'string') return false
-  const a = Buffer.from(hashSecret(secret), 'hex')
-  const b = Buffer.from(hash, 'hex')
-  return a.length === b.length && timingSafeEqual(a, b)
+  return safeEqual(decode(hashSecret(secret), 'hex'), decode(hash, 'hex'))
 }
 
 /**

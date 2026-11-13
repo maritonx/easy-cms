@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto'
 import {
   type AuthUser,
   type ID,
@@ -39,6 +38,7 @@ import { type HealthCheck, healthResponse } from '../health.js'
 import type { EasyCMS } from '../local-api.js'
 import { isJsonLogger } from '../logger.js'
 import { EXTENSIONS, PRIVATE_KEY, withCharset } from '../media.js'
+import { randomUUID } from '../runtime/crypto.js'
 import { routeOf } from '../telemetry.js'
 import {
   deleteDelivery,

@@ -1,4 +1,3 @@
-import { createHash, createHmac, randomBytes, randomUUID } from 'node:crypto'
 import type { AuthUser, ID, RequestContext, Where } from './access.js'
 import {
   andWhere,
@@ -127,10 +126,12 @@ import { MediaFolders, PUBLIC_FILES } from './media-folders.js'
 import { Outbox, type OutboxEntry, type OutboxStep } from './outbox.js'
 import { DEFAULT_DEPTH, type Loader, MAX_DEPTH, populate } from './populate.js'
 import { RateLimiter } from './rate-limit.js'
-import { fetchRemoteFile, RemoteFileError } from './remote-file.js'
 import { resolveConfig } from './resolve-config.js'
 import { cacheTags } from './rest/http-cache.js'
 import { Roles } from './roles.js'
+import { encode, fromBase64Url, toBase64Url } from './runtime/bytes.js'
+import { hash, hmac, randomBytes, randomUUID } from './runtime/crypto.js'
+import { fetchRemoteFile, RemoteFileError } from './runtime/node/remote-file.js'
 import { SearchIndex } from './search.js'
 import { type DirectUpload, diskStorage, type StorageAdapter } from './storage.js'
 import { Telemetry } from './telemetry.js'
@@ -776,7 +777,7 @@ export class EasyCMS<C extends Config = Config> {
       ])
     }
 
-    const random = randomBytes(4).toString('hex')
+    const random = encode(randomBytes(4), 'hex')
     // A file in a private folder goes to the private storage, under a private name.
     const isPrivate = await this.folders.isPrivate(folderOf(MEDIA, data))
     const storage = this.storageFor(isPrivate)
@@ -851,7 +852,7 @@ export class EasyCMS<C extends Config = Config> {
       ])
     const isPrivate = await this.folders.isPrivate(folder)
     const storage = this.storageFor(isPrivate)
-    const key = withPrivacy(storageKey(name, type, randomBytes(4).toString('hex')), isPrivate)
+    const key = withPrivacy(storageKey(name, type, encode(randomBytes(4), 'hex')), isPrivate)
     const upload = storage.uploadURL
       ? await storage.uploadURL(key, { contentType: type, size, expiresIn: UPLOAD_URL_SECONDS })
       : null
@@ -961,9 +962,8 @@ export class EasyCMS<C extends Config = Config> {
 
   /** A value with its HMAC (`secret`), for `purpose` only: `<base64url JSON>.<signature>`. */
   private sign(purpose: string, value: unknown): string {
-    const payload = Buffer.from(JSON.stringify(value)).toString('base64url')
-    const mac = createHmac('sha256', this.config.secret).update(`${purpose}:${payload}`)
-    return `${payload}.${mac.digest('base64url')}`
+    const payload = toBase64Url(value)
+    return `${payload}.${hmac(this.config.secret, `${purpose}:${payload}`, 'base64url')}`
   }
 
   /** The value of a token made by `sign`, or `undefined` when it isn't genuine. */
@@ -972,7 +972,7 @@ export class EasyCMS<C extends Config = Config> {
     if (!payload || !signature) return undefined
     if (!signedWith(secretsOf(this.config), `${purpose}:${payload}`, signature)) return undefined
     try {
-      return JSON.parse(Buffer.from(payload, 'base64url').toString()) as T
+      return fromBase64Url<T>(payload)
     } catch {
       return undefined
     }
@@ -1120,9 +1120,7 @@ export class EasyCMS<C extends Config = Config> {
   }
 
   private mediaSignature(key: string, expires: number): string {
-    return createHmac('sha256', this.config.secret)
-      .update(`media:${key}:${expires}`)
-      .digest('base64url')
+    return hmac(this.config.secret, `media:${key}:${expires}`, 'base64url')
   }
 
   /**
@@ -4577,12 +4575,12 @@ function cursorQuery(
   draft: boolean,
 ): string {
   const key = JSON.stringify([collection, where ?? null, sort, locale ?? null, draft])
-  return createHash('sha256').update(key).digest('base64url').slice(0, 16)
+  return hash('sha256', key, 'base64url').slice(0, 16)
 }
 
 /** A cursor: the last row's keys and its query, as base64url JSON. Not secret, only a position. */
 function writeCursor(keys: readonly unknown[], query: string): string {
-  return Buffer.from(JSON.stringify({ k: keys, q: query })).toString('base64url')
+  return toBase64Url({ k: keys, q: query })
 }
 
 /** The keys to continue after: `null` for `''`, the first page. */
@@ -4590,7 +4588,7 @@ function readCursor(cursor: string, query: string): unknown[] | null {
   if (cursor === '') return null
   let parsed: unknown
   try {
-    parsed = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'))
+    parsed = fromBase64Url(cursor)
   } catch {
     throw new QueryError('cursor is not a cursor from this API')
   }

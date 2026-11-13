@@ -1,10 +1,11 @@
-import { createHmac, randomBytes } from 'node:crypto'
 import { type AuthUser, type ID, isSystemAdmin } from '../access.js'
 import { USER_IDENTITIES, USERS } from '../builtins.js'
 import type { PasswordPolicy } from '../config.js'
 import type { RawDocument } from '../database.js'
 import { ForbiddenError, NotFoundError, QueryError, ValidationError } from '../errors.js'
 import type { EasyCMS } from '../local-api.js'
+import { encode, fromBase64Url, toBase64Url } from '../runtime/bytes.js'
+import { hmac, randomBytes } from '../runtime/crypto.js'
 import type { Session } from './auth.js'
 import type { AuthProvider, AuthProviderProfile } from './providers.js'
 import type { SignInConnection } from './sign-in-providers.js'
@@ -81,14 +82,14 @@ interface Pending {
   e: number
 }
 
-const random = () => randomBytes(32).toString('base64url')
+const random = () => encode(randomBytes(32), 'base64url')
 
 function sign(secret: string, payload: string) {
-  return createHmac('sha256', secret).update(`sso:${payload}`).digest('base64url')
+  return hmac(secret, `sso:${payload}`, 'base64url')
 }
 
 function seal(secret: string, pending: Pending): string {
-  const payload = Buffer.from(JSON.stringify(pending)).toString('base64url')
+  const payload = toBase64Url(pending)
   return `${payload}.${sign(secret, payload)}`
 }
 
@@ -100,7 +101,7 @@ function unseal(secrets: Secrets, value: string | undefined): Pending | null {
   const signature = value.slice(dot + 1)
   if (![secrets].flat().some((secret) => safeEqual(signature, sign(secret, payload)))) return null
   try {
-    const pending = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as Pending
+    const pending = fromBase64Url<Pending>(payload)
     return typeof pending.e === 'number' && pending.e > Date.now() ? pending : null
   } catch {
     return null

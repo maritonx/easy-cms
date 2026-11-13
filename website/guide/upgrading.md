@@ -24,6 +24,13 @@ Invalid Easy CMS config (1 problem):
   • admin.siteUrl: is now `siteURL`
 ```
 
+## 1.44 {#v1-44}
+
+- **Passwords are hashed in 32 MB instead of 128 MB** (scrypt N=2¹⁵, r=8, p=3, as strong by
+  OWASP's measure), so a Cloudflare Worker can check them later. Nothing to do: older hashes still
+  work and are replaced when each person next signs in. A password reset link sent before that
+  sign-in stops working.
+
 ## 1.43 {#v1-43}
 
 - **Sessions record how they started** (`password` or a provider's id), so turning a provider off

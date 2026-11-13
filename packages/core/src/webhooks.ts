@@ -1,7 +1,7 @@
-import { createHmac, randomUUID } from 'node:crypto'
 import type { ID } from './access.js'
 import { USERS } from './builtins.js'
 import type { Logger } from './logger.js'
+import { hmac, randomUUID } from './runtime/crypto.js'
 import { signWebhook } from './webhook-signature.js'
 
 /** Events Easy CMS sends itself when something fails (#356). */
@@ -304,8 +304,7 @@ export class Webhooks {
       const timestamp = Math.floor(Date.now() / 1000)
       headers['x-easy-cms-timestamp'] = String(timestamp)
       headers['x-easy-cms-signature-v2'] = signWebhook(hook.secret, delivery, timestamp, body)
-      headers['x-easy-cms-signature'] =
-        `sha256=${createHmac('sha256', hook.secret).update(body).digest('hex')}`
+      headers['x-easy-cms-signature'] = `sha256=${hmac(hook.secret, body, 'hex')}`
     }
     try {
       const response = await this.fetcher(hook.url, {

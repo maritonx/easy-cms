@@ -2,7 +2,7 @@
 // SMTP…) whose connections can send the site's email instead of the config's `email`, which stays
 // the default. Their webhooks say what happened to each email, and bounces and spam reports keep
 // an address off the suppression list.
-import { createHmac, timingSafeEqual } from 'node:crypto'
+
 import type { AuthUser, ID, Where } from './access.js'
 import { isSystemAdmin } from './access.js'
 import { getSetting, setSetting } from './admin-settings.js'
@@ -20,6 +20,7 @@ import type {
   IntegrationTestResult,
 } from './integrations.js'
 import type { EasyCMS } from './local-api.js'
+import { hmac, safeEqual } from './runtime/crypto.js'
 
 /** What a provider's webhook says happened to an email it sent. */
 export interface EmailEvent {
@@ -288,10 +289,7 @@ export class EmailProviders {
     connection: ID | 'env',
     secret = this.cms.config.secret,
   ): string {
-    return createHmac('sha256', secret)
-      .update(`email-webhook:${integration}:${connection}`)
-      .digest('base64url')
-      .slice(0, 32)
+    return hmac(secret, `email-webhook:${integration}:${connection}`, 'base64url').slice(0, 32)
   }
 
   /** The URL a provider posts delivery events to, for a connection. */
@@ -301,11 +299,10 @@ export class EmailProviders {
 
   /** Which connection a webhook token belongs to (tokens of earlier secrets still work). */
   private async connectionOf(integration: string, token: string) {
-    const given = Buffer.from(token)
     for (const connection of await this.cms.integrations.connectionsOf(integration))
       for (const secret of secretsOf(this.cms.config)) {
-        const expected = Buffer.from(this.webhookToken(integration, connection.id, secret))
-        if (expected.length === given.length && timingSafeEqual(expected, given)) return connection
+        if (safeEqual(this.webhookToken(integration, connection.id, secret), token))
+          return connection
       }
     return null
   }

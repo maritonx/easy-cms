@@ -5,6 +5,7 @@ import { ForbiddenError, QueryError, TooManyRequestsError, ValidationError } fro
 import type { Field, Label } from './fields.js'
 import type { IntegrationConnection, IntegrationTestResult } from './integrations.js'
 import type { EasyCMS } from './local-api.js'
+import { encode } from './runtime/bytes.js'
 import { lastSlot } from './time-of-day.js'
 
 // AI (#357): providers (a plugin's integrations) answer prompts for the admin's features. Core
@@ -429,7 +430,7 @@ export class Ai {
       throw new ValidationError(AI_USAGE, [
         { field: 'images', message: 'is larger than 4 MB; add an image size of about 1024 pixels' },
       ])
-    return { data: Buffer.from(file.body).toString('base64'), mediaType }
+    return { data: encode(file.body, 'base64'), mediaType }
   }
 
   /** For the admin's AI buttons: whether they work, and how many requests are left today. */

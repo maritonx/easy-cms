@@ -1,7 +1,8 @@
 // HTTP caching of public reads (`httpCache`, ADR-0054): published content read without a login or
 // a key, for a CDN or proxy in front. Everything else stays `no-store`.
-import { createHash } from 'node:crypto'
+
 import type { CollectionConfig, GlobalConfig, HttpCacheTimes, ResolvedConfig } from '../config.js'
+import { hash } from '../runtime/crypto.js'
 
 /**
  * The cache tags public reads carry and `httpCache.purge` receives: `ecms` for all content,
@@ -55,7 +56,7 @@ export function cacheableResponse(
   )
   headers.set('cache-tag', tags.join(','))
   headers.set('surrogate-key', tags.join(' '))
-  const etag = `W/"${createHash('sha1').update(body).digest('base64url')}"`
+  const etag = `W/"${hash('sha1', body, 'base64url')}"`
   headers.set('etag', etag)
   if (matches(request.headers.get('if-none-match'), etag))
     return new Response(null, { status: 304, headers })

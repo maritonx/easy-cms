@@ -1,10 +1,10 @@
-import { createHash } from 'node:crypto'
 import { type AuthUser, type ID, isSystemAdmin } from '../access.js'
 import { getSetting, setSetting } from '../admin-settings.js'
 import { SESSIONS, USER_IDENTITIES, USERS } from '../builtins.js'
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors.js'
 import type { IntegrationConfig } from '../integrations.js'
 import type { EasyCMS } from '../local-api.js'
+import { hash } from '../runtime/crypto.js'
 import { RESERVED_PROVIDER_IDS } from '../validate-config.js'
 import type { AuthProvider } from './providers.js'
 
@@ -140,9 +140,7 @@ export class SignInProviders {
   private async hashOf(c: SignInConnection): Promise<string> {
     const connection = await this.cms.integrations.byId(c.integration, c.connection)
     const app = await this.cms.integrations.app(c.integration)
-    return createHash('sha256')
-      .update(JSON.stringify([connection?.values ?? null, app]))
-      .digest('base64url')
+    return hash('sha256', JSON.stringify([connection?.values ?? null, app]), 'base64url')
   }
 
   private async tests(): Promise<Record<string, SignInTest>> {
