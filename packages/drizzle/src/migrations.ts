@@ -339,10 +339,21 @@ export class Migrator {
   async verify() {
     await this.ensureTable()
     const files = await this.files()
-    const appliedNames = new Set((await this.applied()).map((r) => r.name))
+    const applied = await this.applied()
+    const appliedNames = new Set(applied.map((r) => r.name))
 
     const last = files.at(-1)
     if (!last) {
+      // No migration files to read, e.g. on Cloudflare Workers, which has no disk (ADR-0067):
+      // the database's last migration says whether it matches the config.
+      // (A development push after it is ignored, as with files.)
+      const latest = applied.filter((r) => r.name !== DEV_PUSH).at(-1)
+      if (latest) {
+        if (latest.hash === this.options.schema.hash) return
+        throw new SchemaError(
+          `The config changed since the database's last migration (${latest.name}).\n    → run \`easy-cms migrate:create <name>\`, then \`easy-cms migrate\``,
+        )
+      }
       throw new SchemaError(
         `No migrations found in ${this.options.dir}.\n    → run \`easy-cms migrate:create init\` and deploy the generated files`,
       )
