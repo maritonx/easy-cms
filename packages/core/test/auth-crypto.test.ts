@@ -1,4 +1,6 @@
+import { randomBytes, scryptSync } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
+import { needsRehash } from '../src/auth/password.js'
 import {
   csrfMatches,
   csrfToken,
@@ -27,6 +29,32 @@ describe('passwords', () => {
   it('normalizes unicode before hashing', async () => {
     const hash = await hashPassword('café')
     expect(await verifyPassword('café', hash)).toBe(true)
+  })
+
+  it('hashes in 32 MB (N=2^15, r=8, p=3), so a Cloudflare Worker can check it', async () => {
+    const hash = await hashPassword('pässword')
+    expect(hash).toMatch(/^scrypt\$32768\$8\$3\$/)
+    expect(needsRehash(hash)).toBe(false)
+  })
+
+  it('verifies hashes made before 1.44, which a sign-in replaces', async () => {
+    // 1.43 and earlier: N=2^17, r=8, p=1.
+    const salt = randomBytes(16)
+    const key = scryptSync('pässword'.normalize('NFKC'), salt, 64, {
+      N: 2 ** 17,
+      r: 8,
+      p: 1,
+      maxmem: 256 * 1024 * 1024,
+    })
+    const old = ['scrypt', 2 ** 17, 8, 1, salt.toString('base64url'), key.toString('base64url')]
+    expect(await verifyPassword('pässword', old.join('$'))).toBe(true)
+    expect(await verifyPassword('password', old.join('$'))).toBe(false)
+    expect(needsRehash(old.join('$'))).toBe(true)
+  })
+
+  it('refuses hashes that ask for more memory than 1.43 used', async () => {
+    expect(await verifyPassword('x', 'scrypt$262144$8$1$c2FsdA$a2V5')).toBe(false)
+    expect(await verifyPassword('x', 'scrypt$-1$8$1$c2FsdA$a2V5')).toBe(false)
   })
 
   it('never matches malformed hashes', async () => {

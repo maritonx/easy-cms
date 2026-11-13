@@ -24,7 +24,7 @@ import type { EasyCMS } from '../local-api.js'
 import { checkFormToken, formToken, verifyTurnstile } from '../spam.js'
 import { cookieValue, SESSION_COOKIE } from './cookie.js'
 import { DEFAULT_PASSWORD_EMAILS } from './emails.js'
-import { fakeVerify, verifyPassword } from './password.js'
+import { fakeVerify, hashPassword, needsRehash, verifyPassword } from './password.js'
 import { SingleSignOn } from './sso.js'
 import {
   csrfMatches,
@@ -193,6 +193,19 @@ export class Auth {
       throw new UnauthorizedError(
         names.length ? `Sign in with ${names.join(' or ')}` : 'Sign in with a provider',
       )
+    }
+    // A hash made with older parameters is replaced while the password is at hand.
+    if (hash && needsRehash(hash)) {
+      const { id: _id, ...rest } = user
+      await this.db
+        .update({
+          collection: USERS,
+          id: user.id,
+          data: { ...rest, passwordHash: await hashPassword(password) },
+        })
+        .catch((error: unknown) =>
+          this.cms.logger.warn(`Could not update a password hash: ${(error as Error).message}`),
+        )
     }
     await this.deleteExpiredSessions(user.id)
     const session = await this.startSession(user, 'password')

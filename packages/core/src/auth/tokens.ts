@@ -1,17 +1,18 @@
-import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
+import { encode, fromBase64Url, toBase64Url } from '../runtime/bytes.js'
+import { hash, hmac as mac, randomBytes, safeEqual } from '../runtime/crypto.js'
 
 /** A new random session token (sent to the client, never stored). */
 export function newToken(): string {
-  return randomBytes(32).toString('base64url')
+  return encode(randomBytes(32), 'base64url')
 }
 
 /** What the database stores instead of the token. */
 export function hashToken(token: string): string {
-  return createHash('sha256').update(token).digest('hex')
+  return hash('sha256', token, 'hex')
 }
 
 function hmac(secret: string, value: string): string {
-  return createHmac('sha256', secret).update(value).digest('base64url')
+  return mac(secret, value, 'base64url')
 }
 
 /** `value`'s signature with the secret, checked with `signedWith`. */
@@ -59,11 +60,7 @@ export function csrfMatches(secrets: Secrets, token: string, given: string): boo
   return signedWith(secrets, `csrf:${token}`, given)
 }
 
-export function safeEqual(a: string, b: string): boolean {
-  const left = Buffer.from(a)
-  const right = Buffer.from(b)
-  return left.length === right.length && timingSafeEqual(left, right)
-}
+export { safeEqual }
 
 /** What a preview token opens: one document of a collection, or one global. */
 export type PreviewTarget =
@@ -81,13 +78,11 @@ export function signPreviewToken(
   /** Who made it: the token reads with their access. */
   user?: string,
 ): string {
-  const payload = Buffer.from(
-    JSON.stringify({
-      ...('global' in target ? { g: target.global } : { c: target.collection, i: target.id }),
-      e: expiresAt,
-      ...(user !== undefined ? { u: user } : {}),
-    }),
-  ).toString('base64url')
+  const payload = toBase64Url({
+    ...('global' in target ? { g: target.global } : { c: target.collection, i: target.id }),
+    e: expiresAt,
+    ...(user !== undefined ? { u: user } : {}),
+  })
   return `${payload}.${hmac(secret, `preview:${payload}`)}`
 }
 
@@ -102,7 +97,7 @@ export function verifyPreviewToken(
   const payload = token.slice(0, dot)
   if (!signedWith(secrets, `preview:${payload}`, token.slice(dot + 1))) return null
   try {
-    const data = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'))
+    const data = fromBase64Url<Record<string, unknown>>(payload)
     if (typeof data.e !== 'number' || data.e <= now) return null
     const user = typeof data.u === 'string' ? { user: data.u } : {}
     if (typeof data.g === 'string') return { global: data.g, expiresAt: data.e, ...user }
@@ -125,10 +120,11 @@ export type PasswordPurpose = 'reset' | 'invite' | 'verify'
  * changes, so each link works once without being stored.
  */
 export function passwordFingerprint(passwordHash: unknown): string {
-  return createHash('sha256')
-    .update(typeof passwordHash === 'string' ? passwordHash : 'no-password')
-    .digest('base64url')
-    .slice(0, 22)
+  return hash(
+    'sha256',
+    typeof passwordHash === 'string' ? passwordHash : 'no-password',
+    'base64url',
+  ).slice(0, 22)
 }
 
 /** A link token to set a user's password: `<payload>.<signature>`, the payload base64url JSON. */
@@ -136,9 +132,7 @@ export function signPasswordToken(
   secret: string,
   args: { userId: string; purpose: PasswordPurpose; expiresAt: number; fingerprint: string },
 ): string {
-  const payload = Buffer.from(
-    JSON.stringify({ u: args.userId, p: args.purpose, e: args.expiresAt }),
-  ).toString('base64url')
+  const payload = toBase64Url({ u: args.userId, p: args.purpose, e: args.expiresAt })
   return `${payload}.${hmac(secret, `password:${payload}:${args.fingerprint}`)}`
 }
 
@@ -150,7 +144,7 @@ export function readPasswordToken(
   if (dot <= 0) return null
   const payload = token.slice(0, dot)
   try {
-    const data = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'))
+    const data = fromBase64Url<Record<string, unknown>>(payload)
     if (typeof data.u !== 'string' || typeof data.e !== 'number') return null
     if (data.p !== 'reset' && data.p !== 'invite' && data.p !== 'verify') return null
     return { userId: data.u, purpose: data.p, expiresAt: data.e, payload }

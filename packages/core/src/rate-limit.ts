@@ -1,10 +1,10 @@
-import { createHmac } from 'node:crypto'
 import type { AuthUser, ID } from './access.js'
 import type { ApiKeyContext } from './api-keys.js'
 import { RATE_LIMITS } from './builtins.js'
 import type { RateLimitConfig } from './config.js'
 import type { Database } from './database.js'
 import type { Logger } from './logger.js'
+import { hmac } from './runtime/crypto.js'
 
 /** How often an instance adds what it counted to the database and reads the totals back. */
 const SYNC_MS = 5000
@@ -88,7 +88,7 @@ export class RateLimiter {
       return undefined
     }
     // No IP is stored: an HMAC of it, which can't be turned back without the secret.
-    const hashed = createHmac('sha256', this.secret).update(`rate:${ip}`).digest('base64url')
+    const hashed = hmac(this.secret, `rate:${ip}`, 'base64url')
     return ['anonymous', hashed.slice(0, 22), anonymous]
   }
 

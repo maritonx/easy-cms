@@ -50,6 +50,34 @@
           }
         }
       }
+    },
+    {
+      "includes": ["packages/core/src/**", "!packages/core/src/runtime/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["node:*"],
+                    "message": "Core runs on more than Node (ADR-0067): import from src/runtime/ instead."
+                  }
+                ]
+              }
+            },
+            "noRestrictedGlobals": {
+              "level": "error",
+              "options": {
+                "deniedGlobals": {
+                  "Buffer": "Core runs on more than Node (ADR-0067): use src/runtime/bytes.ts instead."
+                }
+              }
+            }
+          }
+        }
+      }
     }
   ],
   "markdown": {

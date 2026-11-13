@@ -98,7 +98,7 @@ AI assistant ► /api/cms/mcp ──┘                     └──► Webhook
 ### 2.4 ข้อจำกัด
 - **C-1** ผู้พัฒนามีคนเดียวและทำเป็นงานเสริม (~10–15 ชม./สัปดาห์)
 - **C-2** License MIT, dependency ทุกตัวต้องมี license ที่เข้ากันได้กับ MIT
-- **C-3** ไม่รองรับ Edge runtime
+- **C-3** runtime อื่นนอกจาก Node (Bun, Deno, Cloudflare Workers) รองรับเมื่อมี smoke test ใน CI แล้วเท่านั้น ([ADR-0067](adr/0067-multi-runtime.md))
 - **C-4** ต้องมี server-side runtime: SPA หรือเว็บ static ต้องใช้โหมด standalone เป็น backend
 - **C-5** Package ทุกตัวใช้เวอร์ชันเดียวกัน (Changesets fixed group)
 

@@ -193,6 +193,14 @@
 | [#327](https://github.com/maritonx/easy-cms/issues/327) | Relationships to several collections | area:core, area:admin, area:adapters | `to: ['posts', 'pages']` กรองด้วย `relationTo` ได้ populate และสิทธิ์แยกตาม collection type เป็น union |
 | [#328](https://github.com/maritonx/easy-cms/issues/328) | Rich text: blocks between paragraphs | area:core, area:admin | การ์ดเอกสารและ callout ในเนื้อหา validate และ populate ได้ แสดงด้วย renderer ของผู้ใช้ |
 
+### M12 — `Multi-runtime` (ไม่กำหนดวัน) {#m12}
+
+จากการคุยเรื่องหลาย runtime (2026-11-13, [ADR-0067](adr/0067-multi-runtime.md)): ตัว CMS ทั้งหมด (แอดมิน, API, การบันทึก) รันได้บน Bun, Deno และ Cloudflare Workers ไม่ใช่แค่การอ่าน ซึ่งขยายจาก M11
+1. `src/runtime/` + lint + เทสของ build + พารามิเตอร์ scrypt ที่ใช้ 32 MB (1.44)
+2. smoke test ของ Bun และ Deno ใน CI
+3. Cloudflare Workers แบบ standalone: export conditions, Turso/Hyperdrive, Workers Assets, Cron Triggers, smoke test ด้วย workerd + `sqld` + MinIO
+4. ภายหลัง: Nuxt บน Cloudflare, Next (OpenNext), D1, adapter `images`
+
 ### M11 — `Edge reads` (ไม่กำหนดวัน) {#m11}
 
 จากการคุยเรื่อง Edge Runtime (2026-11-02): รองรับทั้ง Vercel และ Cloudflare เฉพาะ**การอ่านเนื้อหา**

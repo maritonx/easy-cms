@@ -1,8 +1,7 @@
-import { existsSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { createJiti } from 'jiti'
 import type { Config, ResolvedConfig } from './config.js'
 import { resolveConfig } from './resolve-config.js'
+import { fileExists, resolvePath } from './runtime/node/files.js'
 
 export const CONFIG_FILE_NAMES = [
   'easy-cms.config.ts',
@@ -22,8 +21,8 @@ export interface LoadConfigOptions {
 export function findConfigFile(cwd: string = process.cwd()): string | undefined {
   for (const name of CONFIG_FILE_NAMES) {
     // turbopackIgnore: a runtime lookup; without it Next traces the whole project into the build.
-    const path = resolve(/* turbopackIgnore: true */ cwd, name)
-    if (existsSync(/* turbopackIgnore: true */ path)) return path
+    const path = resolvePath(/* turbopackIgnore: true */ cwd, name)
+    if (fileExists(path)) return path
   }
   return undefined
 }
@@ -41,9 +40,9 @@ export async function importConfig(file: string): Promise<Config | undefined> {
 /** Loads `easy-cms.config.ts` (or `.mts`/`.js`/`.mjs`) and resolves it. */
 export async function loadConfig(options: LoadConfigOptions = {}): Promise<ResolvedConfig> {
   const cwd = options.cwd ?? process.cwd()
-  const file = options.configFile ? resolve(cwd, options.configFile) : findConfigFile(cwd)
+  const file = options.configFile ? resolvePath(cwd, options.configFile) : findConfigFile(cwd)
 
-  if (!file || !existsSync(file)) {
+  if (!file || !fileExists(file)) {
     const looked = options.configFile ?? CONFIG_FILE_NAMES.join(', ')
     throw new Error(
       `Easy CMS config not found in ${cwd} (looked for ${looked}).\n    → create one with create-easy-cms (\`npm create easy-cms\`, or pnpm, yarn or bun create easy-cms)`,

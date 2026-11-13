@@ -1,8 +1,6 @@
-import { createHash } from 'node:crypto'
-import { readFile } from 'node:fs/promises'
-import { createRequire } from 'node:module'
-import { join } from 'node:path'
 import type { EasyCMS } from '../local-api.js'
+import { hash } from '../runtime/crypto.js'
+import { entryFile, joinPath, readText, resolveModule } from '../runtime/node/files.js'
 
 /**
  * Finds the file of an admin module (`admin.modules`): a package export or a path relative to
@@ -13,12 +11,12 @@ export function resolveAdminModule(
   specifier: string,
   cwd: string = process.cwd(),
 ): string | undefined {
-  const bases = [join(cwd, 'package.json')]
-  const entry = process.argv[1]
+  const bases = [joinPath(cwd, 'package.json')]
+  const entry = entryFile()
   if (entry && !specifier.startsWith('.')) bases.push(entry)
   for (const base of bases) {
     try {
-      return createRequire(base).resolve(specifier)
+      return resolveModule(specifier, base)
     } catch {
       // Try the next base.
     }
@@ -63,7 +61,7 @@ export async function readAdminModule(
 ): Promise<AdminModuleFile | undefined> {
   const file = files(cms)[index]
   if (!file) return undefined
-  const body = await readFile(file, 'utf8').catch(() => undefined)
+  const body = await readText(file)
   if (body === undefined) return undefined
-  return { body, etag: `"${createHash('sha1').update(body).digest('base64url')}"` }
+  return { body, etag: `"${hash('sha1', body, 'base64url')}"` }
 }

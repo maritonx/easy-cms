@@ -1,5 +1,5 @@
-import { createHmac, timingSafeEqual } from 'node:crypto'
 import { UnauthorizedError } from './errors.js'
+import { hmac, safeEqual } from './runtime/crypto.js'
 import type { WebhookPayload } from './webhooks.js'
 
 /** How old a delivery's timestamp may be, by default, before `verifyWebhook` refuses it. */
@@ -16,7 +16,7 @@ export function signWebhook(
   timestamp: number,
   body: string,
 ): string {
-  return `v1=${createHmac('sha256', secret).update(`${delivery}.${timestamp}.${body}`).digest('hex')}`
+  return `v1=${hmac(secret, `${delivery}.${timestamp}.${body}`, 'hex')}`
 }
 
 export interface VerifyWebhookOptions {
@@ -35,9 +35,7 @@ function header(headers: HeaderSource, name: string): string | undefined {
 }
 
 function equal(a: string, b: string): boolean {
-  const left = Buffer.from(a)
-  const right = Buffer.from(b)
-  return left.length === right.length && timingSafeEqual(left, right)
+  return safeEqual(a, b)
 }
 
 /**

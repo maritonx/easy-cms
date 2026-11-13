@@ -1,3 +1,5 @@
+import { containsAscii } from './runtime/bytes.js'
+
 /** File types Easy CMS recognizes from their contents (FR-UPL-03). */
 export const EXTENSIONS: Readonly<Record<string, string>> = {
   'image/png': 'png',
@@ -60,8 +62,7 @@ const startsWith = (data: Uint8Array, bytes: number[], offset = 0) =>
 const ascii = (data: Uint8Array, start: number, end: number) =>
   String.fromCharCode(...data.subarray(start, end))
 
-const contains = (data: Uint8Array, text: string) =>
-  Buffer.from(data.buffer, data.byteOffset, data.byteLength).includes(text, 0, 'latin1')
+const contains = (data: Uint8Array, text: string) => containsAscii(data, text)
 
 /**
  * A zip's type: Office (OOXML) by the part every such file has, OpenDocument by its `mimetype`

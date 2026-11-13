@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from 'node:crypto'
+import { hmac, safeEqual } from './runtime/crypto.js'
 
 /**
  * Spam protection for public forms (the form builder's, sign-up): a signed token that proves
@@ -9,8 +9,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto'
 /** Tokens older than this are refused: the page was left open for a day. */
 const MAX_AGE = 24 * 3_600_000
 
-const sign = (secret: string, value: string) =>
-  createHmac('sha256', secret).update(value).digest('base64url')
+const sign = (secret: string, value: string) => hmac(secret, value, 'base64url')
 
 /** A token that proves the form `purpose` names was loaded at `now`: `<time>.<signature>`. */
 export function formToken(secret: string, purpose: string, now = Date.now()): string {
@@ -32,11 +31,9 @@ export function checkFormToken(
   const [time, signature] = token.split('.')
   const issued = Number(time)
   if (!Number.isFinite(issued) || !signature) return 'invalid'
-  const given = Buffer.from(signature)
-  const genuine = [secrets].flat().some((secret) => {
-    const expected = Buffer.from(sign(secret, `${purpose}:${issued}`))
-    return expected.length === given.length && timingSafeEqual(expected, given)
-  })
+  const genuine = [secrets]
+    .flat()
+    .some((secret) => safeEqual(sign(secret, `${purpose}:${issued}`), signature))
   if (!genuine) return 'invalid'
   if (now - issued < minTime) return 'too-fast'
   if (now - issued > MAX_AGE) return 'expired'

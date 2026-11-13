@@ -6,7 +6,7 @@ import {
   hostAllowed,
   isPrivateAddress,
   remoteFileName,
-} from '../src/remote-file.js'
+} from '../src/runtime/node/remote-file.js'
 
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3])
 

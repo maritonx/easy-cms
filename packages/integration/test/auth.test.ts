@@ -1,3 +1,4 @@
+import { randomBytes, scryptSync } from 'node:crypto'
 import {
   createEasyCMS,
   defineConfig,
@@ -53,7 +54,7 @@ describe('users collection (FR-CFG-06, FR-AUTH-02/06)', () => {
   it('stores a scrypt hash, never the password', async () => {
     const { cms } = await withUser()
     const rows = await rawQuery(cms.cwd, `SELECT password_hash FROM ${table(cms.cwd, 'users')}`)
-    expect(String(rows[0]?.password_hash)).toMatch(/^scrypt\$131072\$8\$1\$/)
+    expect(String(rows[0]?.password_hash)).toMatch(/^scrypt\$32768\$8\$3\$/)
     expect(String(rows[0]?.password_hash)).not.toContain(PASSWORD)
     await cms.destroy()
   })
@@ -96,6 +97,45 @@ describe('users collection (FR-CFG-06, FR-AUTH-02/06)', () => {
     await expect(cms.update('users', user.id, { password: 'iloveyou' })).rejects.toThrow(
       ValidationError,
     )
+    await cms.destroy()
+  })
+
+  it('replaces a password hash from 1.43 at sign-in (ADR-0067)', async () => {
+    const { cms, user } = await withUser()
+    // 1.43 and earlier hashed with N=2^17, r=8, p=1 (128 MB).
+    const salt = randomBytes(16)
+    const key = scryptSync(PASSWORD.normalize('NFKC'), salt, 64, {
+      N: 2 ** 17,
+      r: 8,
+      p: 1,
+      maxmem: 256 * 1024 * 1024,
+    })
+    const old = `scrypt$131072$8$1$${salt.toString('base64url')}$${key.toString('base64url')}`
+    const rowOf = async () =>
+      (
+        await cms.db.find({
+          collection: 'users',
+          where: { id: { equals: user.id } },
+          sort: [],
+          limit: 1,
+          page: 1,
+        })
+      ).docs[0] as Record<string, unknown>
+    const { id: _id, ...row } = await rowOf()
+    await cms.db.update({ collection: 'users', id: user.id, data: { ...row, passwordHash: old } })
+    const hashOf = async () => (await rowOf()).passwordHash
+    await cms.auth.login({ email: 'ann@example.com', password: PASSWORD })
+    const now = String(await hashOf())
+    expect(now).toMatch(/^scrypt\$32768\$8\$3\$/)
+    await expect(
+      cms.auth.login({ email: 'ann@example.com', password: PASSWORD }),
+    ).resolves.toBeTruthy()
+    // Nothing changes at the next sign-in.
+    expect(await hashOf()).toBe(now)
+    // Only the hash changed.
+    const { passwordHash: _hash, id: _same, ...after } = await rowOf()
+    const { passwordHash: _old, ...before } = row
+    expect(after).toEqual(before)
     await cms.destroy()
   })
 

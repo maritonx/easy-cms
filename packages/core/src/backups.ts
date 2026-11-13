@@ -1,9 +1,3 @@
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto'
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { promisify } from 'node:util'
-import { gzip } from 'node:zlib'
 import type { AuthUser, ID } from './access.js'
 import { getSetting, setSetting } from './admin-settings.js'
 import { DATABASE_BACKUPS, USERS } from './builtins.js'
@@ -13,38 +7,38 @@ import type { RawDocument } from './database.js'
 import { EasyCMSError, NotFoundError, ValidationError } from './errors.js'
 import type { BackupDestination } from './integrations.js'
 import type { EasyCMS } from './local-api.js'
+import { concat, gzip, sameBytes, utf8 } from './runtime/bytes.js'
+import { aesGcmDecrypt, aesGcmEncrypt, hash, randomBytes } from './runtime/crypto.js'
+import { joinPath, makeTempDir, readBytes, removePath } from './runtime/node/files.js'
 import { diskStorage, type StorageAdapter } from './storage.js'
 import { lastSlot } from './time-of-day.js'
 
-const gzipAsync = promisify(gzip)
-
 /** Start of an encrypted backup file (`backups.encryptionKey`): magic, IV, ciphertext, tag. */
-const MAGIC = Buffer.from('ECMSBAK1')
+const MAGIC = utf8('ECMSBAK1')
 const IV_BYTES = 12
 const TAG_BYTES = 16
 
-const keyOf = (encryptionKey: string) => createHash('sha256').update(encryptionKey).digest()
+const keyOf = (encryptionKey: string) => hash('sha256', encryptionKey)
 
 /** Encrypts a backup file with AES-256-GCM. */
 export function encryptBackup(data: Uint8Array, encryptionKey: string): Uint8Array {
   const iv = randomBytes(IV_BYTES)
-  const cipher = createCipheriv('aes-256-gcm', keyOf(encryptionKey), iv)
-  const body = Buffer.concat([cipher.update(data), cipher.final()])
-  return new Uint8Array(Buffer.concat([MAGIC, iv, body, cipher.getAuthTag()]))
+  const sealed = aesGcmEncrypt(keyOf(encryptionKey), iv, data)
+  return concat([MAGIC, iv, sealed.data, sealed.tag])
 }
 
 /** Decrypts a file from `encryptBackup`; throws for another key or a changed file. */
 export function decryptBackup(data: Uint8Array, encryptionKey: string): Uint8Array {
-  const buffer = Buffer.from(data)
-  if (buffer.length < MAGIC.length + IV_BYTES + TAG_BYTES || !buffer.subarray(0, 8).equals(MAGIC))
+  if (
+    data.byteLength < MAGIC.length + IV_BYTES + TAG_BYTES ||
+    !sameBytes(data.subarray(0, MAGIC.length), MAGIC)
+  )
     throw new EasyCMSError('Not an encrypted Easy CMS backup', 400)
-  const iv = buffer.subarray(MAGIC.length, MAGIC.length + IV_BYTES)
-  const tag = buffer.subarray(buffer.length - TAG_BYTES)
-  const body = buffer.subarray(MAGIC.length + IV_BYTES, buffer.length - TAG_BYTES)
-  const decipher = createDecipheriv('aes-256-gcm', keyOf(encryptionKey), iv)
-  decipher.setAuthTag(tag)
+  const iv = data.subarray(MAGIC.length, MAGIC.length + IV_BYTES)
+  const tag = data.subarray(data.byteLength - TAG_BYTES)
+  const body = data.subarray(MAGIC.length + IV_BYTES, data.byteLength - TAG_BYTES)
   try {
-    return new Uint8Array(Buffer.concat([decipher.update(body), decipher.final()]))
+    return aesGcmDecrypt(keyOf(encryptionKey), iv, { data: body, tag })
   } catch {
     throw new EasyCMSError('The backup could not be decrypted: wrong key, or a changed file', 400)
   }
@@ -406,7 +400,7 @@ export async function writeBackupFile<C extends Config>(
   } finally {
     await target.destroy()
     for (const suffix of ['', '-wal', '-shm'])
-      await rm(`${scratch}${suffix}`, { force: true }).catch(() => {})
+      await removePath(`${scratch}${suffix}`).catch(() => {})
   }
 }
 
@@ -551,12 +545,12 @@ async function runBackup(cms: EasyCMS, record: RawDocument): Promise<void> {
   })
   if (!claimed) return
   let row: RawDocument = { ...record, ...changes }
-  const dir = await mkdtemp(join(tmpdir(), 'easy-cms-backup-'))
+  const dir = await makeTempDir('easy-cms-backup-')
   try {
-    const file = join(dir, 'backup.db')
+    const file = joinPath(dir, 'backup.db')
     await writeBackupFile(cms, file)
     const encryptionKey = cms.config.backups?.encryptionKey
-    const gzipped = new Uint8Array(await gzipAsync(await readFile(file)))
+    const gzipped = await gzip(await readBytes(file))
     const data = encryptionKey ? encryptBackup(gzipped, encryptionKey) : gzipped
     const settings = await backupSettings(cms)
     const filename = `${filenameFor(cms, started)}${encryptionKey ? '.enc' : ''}`
@@ -620,7 +614,7 @@ async function runBackup(cms: EasyCMS, record: RawDocument): Promise<void> {
     cms.systemEvent('backup.failed', { backup: row.id, error: message })
     throw error
   } finally {
-    await rm(dir, { recursive: true, force: true })
+    await removePath(dir)
   }
 }
 

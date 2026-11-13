@@ -28,7 +28,7 @@ License MIT, ดูแลโดยนักพัฒนาคนเดียว�
 
 **ไม่ใช่เป้าหมาย**
 - UI สำหรับสร้าง content type แบบลากวาง (คงแนวทาง code-first)
-- Edge runtime, MySQL (ยังไม่มีแผน)
+- MySQL (ยังไม่มีแผน)
 - บริการ SaaS / hosting
 
 ## 3. ผู้ใช้
@@ -297,7 +297,9 @@ easy-cms <plugin command>      # คำสั่งจาก `commands` ใน c
 
 ## 13. Runtime และ Security
 
-- **Runtime:** Node ≥ 22.12 (Node 20 EOL แล้วตั้งแต่ 2026-04) บน Linux, macOS, Windows, Bun แบบ best-effort, **ไม่รองรับ Edge**
+- **Runtime:** Node ≥ 22.12 (Node 20 EOL แล้วตั้งแต่ 2026-04) บน Linux, macOS, Windows
+  - Bun, Deno และ Cloudflare Workers ทยอยรองรับตาม [ADR-0067](adr/0067-multi-runtime.md): runtime ไหนมี smoke test ใน CI แล้วจึงนับว่ารองรับ
+  - core import `node:*` ได้เฉพาะใน `src/runtime/`
 - **Security baseline:**
   - ป้องกัน CSRF สำหรับ Admin/REST/endpoint ของ plugin ที่ใช้ cookie auth
   - Rate limit ตอน login

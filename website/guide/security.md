@@ -10,7 +10,7 @@ What Easy CMS protects for you, what stays your job, and a checklist before goin
 
 ### Accounts and sessions
 
-- **Passwords** are hashed with scrypt (N=2¹⁷) and never returned by any API. They must be at
+- **Passwords** are hashed with scrypt (N=2¹⁵, r=8, p=3: 32 MB) and never returned by any API. They must be at
   least 8 characters, and not one of the ~2,000 most common passwords (such as `password1` or
   `iloveyou`).
 - **Session tokens** are random, signed with `EASY_CMS_SECRET`, and stored only as hashes, so a

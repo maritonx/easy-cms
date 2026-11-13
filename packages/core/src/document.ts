@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto'
 import type { ID } from './access.js'
 import { matchesCondition } from './conditions.js'
 import type { FieldError } from './errors.js'
@@ -17,6 +16,7 @@ import {
 import type { Localization } from './localization.js'
 import { blockFields, blockNodes, blockOf } from './rich-text-blocks.js'
 import { docLinkMarks, linkTarget } from './rich-text-links.js'
+import { randomUUID } from './runtime/crypto.js'
 
 type Data = Record<string, unknown>
 
