@@ -30,8 +30,8 @@ Adds Easy CMS to a project:
 
 It installs and prints the next steps with that package manager (`pnpm exec easy-cms …`,
 `yarn easy-cms …`, `bunx easy-cms …`). With Yarn 2 or later it writes `.yarnrc.yml` with
-`nodeLinker: node-modules`: Plug'n'Play is not supported. Bun installs the packages; the CMS
-still runs on Node.js.
+`nodeLinker: node-modules`: Plug'n'Play is not supported. Installing with Bun still runs the CMS
+on Node.js; to run it on Bun or Deno, see [Bun and Deno](./standalone#bun-and-deno).
 
 See [Getting started](./getting-started) for what happens next.
 
