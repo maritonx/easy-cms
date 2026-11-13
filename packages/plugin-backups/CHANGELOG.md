@@ -1,5 +1,12 @@
 # @easy-cms/plugin-backups
 
+## 1.45.0
+
+### Patch Changes
+
+- @easy-cms/core@1.45.0
+  - @easy-cms/storage-s3@1.45.0
+
 ## 1.44.0
 
 ### Patch Changes
