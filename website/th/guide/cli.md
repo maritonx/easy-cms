@@ -219,6 +219,23 @@ npx easy-cms serve --watch          # ตอนพัฒนา: โหลดใ�
 บน production (`NODE_ENV=production`) ถ้ามี migration ค้าง server จะไม่เริ่มทำงาน
 ดู [Standalone server](./standalone)
 
+### build {#build}
+
+```bash [pm]
+npx easy-cms build --target workers
+```
+
+เขียนสิ่งที่ Wrangler ต้องใช้ deploy standalone server (หน้า admin และ REST API) เป็น Cloudflare Worker:
+
+- `.easy-cms/workers/`: entry ของ Worker และไฟล์ของหน้า admin เขียนใหม่ทุกครั้งที่ build
+- `wrangler.jsonc` ถ้าโปรเจกต์ยังไม่มี ตั้ง `nodejs_compat`, binding `ASSETS`, Cron Triggers ทุกนาทีสำหรับ jobs
+  และ alias ของแพ็กเกจที่รันบน Workers ไม่ได้ (`sharp`) เขียนครั้งเดียว หลังจากนั้นเป็นของคุณ
+
+Worker ไม่มีดิสก์ config จึงต้องมี `upload.storage` (เช่น `s3Storage()` กับ bucket ของ R2) และฐานข้อมูลที่ต่อผ่าน HTTP
+(เช่น Turso) และจะไม่ย่อรูป รัน `easy-cms migrate` กับฐานข้อมูลเดียวกันจากเครื่องของคุณหรือ CI แล้วจึง
+`npx wrangler deploy` การรองรับ Cloudflare Workers ยังใหม่ และ pull request ยังไม่ได้ทดสอบทุกครั้ง
+([ADR-0067](https://github.com/maritonx/easy-cms/blob/main/docs/adr/0067-multi-runtime.md))
+
 ### คำสั่งจาก plugin {#commands-from-plugins}
 
 Plugin เพิ่มคำสั่งเองได้ เช่น `easy-cms nested:rebuild` จาก plugin [หน้าย่อย](./nested-docs)

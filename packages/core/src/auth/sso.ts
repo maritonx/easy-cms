@@ -6,6 +6,7 @@ import { ForbiddenError, NotFoundError, QueryError, ValidationError } from '../e
 import type { EasyCMS } from '../local-api.js'
 import { encode, fromBase64Url, toBase64Url } from '../runtime/bytes.js'
 import { hmac, randomBytes } from '../runtime/crypto.js'
+import { trimChar } from '../trim.js'
 import type { Session } from './auth.js'
 import type { AuthProvider, AuthProviderProfile } from './providers.js'
 import type { SignInConnection } from './sign-in-providers.js'
@@ -212,7 +213,7 @@ export class SingleSignOn {
     providerId: string,
     options: { url: URL; cookie: string | undefined; origin?: string; user: AuthUser | null },
   ): Promise<{ redirect: string; session?: Session }> {
-    const admin = this.config.admin.path.replace(/\/+$/, '')
+    const admin = trimChar(this.config.admin.path, '/', { start: false })
     const pending = unseal(secretsOf(this.config), options.cookie)
     let email: string | null = null
     const back = async (page: 'login' | 'account' | 'integrations', outcome: SsoOutcome) => {

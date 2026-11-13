@@ -19,6 +19,36 @@ const get = (path: string, method = 'GET') =>
   handler(new Request(`http://x.test${path}`, { method }))
 
 describe('createAdminHandler', () => {
+  it('reads the app with readFile where there is no disk (Cloudflare Workers, ADR-0067)', async () => {
+    const files: Record<string, string> = {
+      'shell.html': '<html><head></head><body>app</body></html>',
+      'assets/app-1.js': 'console.log(1)',
+    }
+    const asked: string[] = []
+    const fromAssets = createAdminHandler({
+      basePath: '/cms',
+      readFile: async (path) => {
+        asked.push(path)
+        return files[path] === undefined ? undefined : new TextEncoder().encode(files[path])
+      },
+    })
+    const at = (path: string) => fromAssets(new Request(`http://x.test${path}`))
+    const shell = await at('/cms/collections/posts')
+    expect(await shell.text()).toContain('<base href="/cms/">')
+    const js = await at('/cms/assets/app-1.js')
+    expect([js.status, js.headers.get('content-type'), await js.text()]).toEqual([
+      200,
+      'text/javascript; charset=utf-8',
+      'console.log(1)',
+    ])
+    expect((await at('/cms/assets/missing.js')).status).toBe(404)
+    // Nothing outside the app is asked for.
+    // assets/../../secret.txt once decoded: the shell, not a file outside the app.
+    const outside = await at('/cms/assets%2F..%2F..%2Fsecret.txt')
+    expect(await outside.text()).toContain('<base href="/cms/">')
+    expect(asked).not.toContainEqual(expect.stringContaining('..'))
+  })
+
   it('serves the shell with settings for every app route', async () => {
     for (const path of ['/cms/', '/cms/collections/posts', '/cms/collections/posts/12']) {
       const res = await get(path)
