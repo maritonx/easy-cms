@@ -6,8 +6,9 @@
 **ควรอ่านก่อน:** [Migration และการ deploy](../deployment)
 :::
 
-Easy CMS รันได้ทุกที่ที่รัน server ด้วย Node.js 22.12 ขึ้นไปได้ และบน [Bun และ Deno](../standalone#bun-and-deno) สิ่งที่ต้องมีคือที่เก็บ **ฐานข้อมูล** และที่เก็บ
-**ไฟล์อัปโหลด** ซึ่งแต่ละโฮสต์อาจมีให้หรือไม่มีก็ได้ ไม่รองรับ edge runtime (Cloudflare Workers, Vercel Edge Functions)
+Easy CMS รันได้ทุกที่ที่รัน server ด้วย Node.js 22.12 ขึ้นไปได้ บน [Bun และ Deno](../standalone#bun-and-deno) และ standalone server บน
+[Cloudflare Workers](./cloudflare-workers) สิ่งที่ต้องมีคือที่เก็บ **ฐานข้อมูล** และที่เก็บ **ไฟล์อัปโหลด** ซึ่งแต่ละโฮสต์อาจมีให้
+หรือไม่มีก็ได้ ไม่รองรับ edge runtime อื่น (Vercel Edge Functions)
 
 ## เลือกโฮสต์ {#which-host}
 
@@ -15,13 +16,14 @@ Easy CMS รันได้ทุกที่ที่รัน server ด้ว
 |---|---|---|---|---|
 | [Vercel](./vercel) | Postgres แบบ hosted (Neon) หรือ Turso | Vercel Blob หรือ S3 | cron เรียก `jobs/run` | เว็บ Next.js, preview deployment |
 | [Netlify](./netlify) | Netlify Database หรือ Postgres แบบ hosted | Netlify Blobs หรือ S3 | scheduled function เรียก `jobs/run` | เว็บ Next.js บน Netlify |
+| [Cloudflare Workers](./cloudflare-workers) | Turso | R2 | Cron Triggers ทุกนาที | standalone server บน edge |
 | [Docker](./docker) | Postgres ใน container หรือ SQLite บน volume | volume หรือ S3 | server รันเองทุกนาที | server หรือแพลตฟอร์มใดก็ได้ที่รัน container |
 | [VPS](./vps) | SQLite บน disk หรือ Postgres | disk | server รันเองทุกนาที | server เครื่องเดียวที่คุณดูแลเอง ค่าใช้จ่ายต่ำสุด |
 | [โฮสต์อื่นๆ](./other-hosts) | ขึ้นกับโฮสต์ | ขึ้นกับโฮสต์ | ขึ้นกับโฮสต์ | Railway, Render, Fly.io, Coolify… |
 
 โฮสต์สองแบบทำงานต่างกัน:
 
-- **Serverless** (Vercel, Netlify): ไม่มี disk ที่เก็บไฟล์ได้ถาวร และไม่มี process ที่รันค้างไว้ ต้องใช้ฐานข้อมูลและที่เก็บไฟล์แบบ
+- **Serverless** (Vercel, Netlify, Cloudflare Workers): ไม่มี disk ที่เก็บไฟล์ได้ถาวร และไม่มี process ที่รันค้างไว้ ต้องใช้ฐานข้อมูลและที่เก็บไฟล์แบบ
   hosted และเรียก endpoint ของงานตามเวลาจาก cron
 - **รันต่อเนื่อง** (Docker, VPS, แพลตฟอร์มส่วนใหญ่): server ตัวเดียวที่รันอยู่ตลอด เก็บ SQLite และไฟล์อัปโหลดไว้บน disk
   ถาวรได้ และ server รัน[งานตามเวลา](../drafts#scheduled-publishing)เองทุกนาที
@@ -52,5 +54,6 @@ Easy CMS รันได้ทุกที่ที่รัน server ด้ว
 ## ขั้นต่อไป {#next-steps}
 
 - [Deploy ด้วยคลิกเดียว](../one-click-deploy): เว็บ starter บน Vercel หรือ Netlify ในไม่กี่คลิก
-- [Vercel](./vercel), [Netlify](./netlify), [Docker](./docker) หรือ [VPS](./vps): ทีละขั้นตอน
+- [Vercel](./vercel), [Netlify](./netlify), [Cloudflare Workers](./cloudflare-workers), [Docker](./docker)
+  หรือ [VPS](./vps): ทีละขั้นตอน
 - [สถาปัตยกรรมสำหรับ production](./production): หลาย instance บน Postgres และ S3 และอะไรที่ใช้ได้แค่ instance เดียว

@@ -86,7 +86,8 @@ npx easy-cms migrate
 NODE_ENV=production npx easy-cms serve --trust-proxy
 ```
 
-Dockerfile, Compose กับ Postgres หรือ SQLite, VPS กับ systemd และโฮสต์อื่นๆ ดู [การ Deploy](./deploy/)
+Dockerfile, Compose กับ Postgres หรือ SQLite, VPS กับ systemd, Cloudflare Workers และโฮสต์อื่นๆ ดู
+[การ Deploy](./deploy/)
 
 ## Bun และ Deno {#bun-and-deno}
 
@@ -101,7 +102,7 @@ deno run -A npm:easy-cms serve
 ```
 
 ทุก pull request ทดสอบทั้งสองตัว: migration ของโปรเจกต์ใหม่, สร้าง admin, เปิด server, login, อัปโหลดไฟล์
-และสร้าง แก้ อ่าน ลบโพสต์ ส่วน Cloudflare Workers จะตามมาภายหลัง (ADR-0067)
+และสร้าง แก้ อ่าน ลบโพสต์ ส่วน Cloudflare Workers ดู [Deploy บน Cloudflare Workers](./deploy/cloudflare-workers)
 
 ## ใช้ server ของคุณเอง {#use-your-own-server}
 

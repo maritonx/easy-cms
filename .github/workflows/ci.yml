@@ -42,9 +42,9 @@ jobs:
             fi
           fi
           echo "full=$full" >> "$GITHUB_OUTPUT"
-          # Every package manager on main; on pull requests, one on each OS. Bun and Deno as runtimes on
-          # both (ADR-0067: a runtime is supported once this passes on it).
-          runtimes='{"os":"ubuntu-24.04","pm":"bun","runtime":"bun"},{"os":"ubuntu-24.04","pm":"npm","runtime":"deno"}'
+          # Every package manager on main; on pull requests, one on each OS. Bun, Deno and Cloudflare
+          # Workers as runtimes on both (ADR-0067: a runtime is supported once this passes on it).
+          runtimes='{"os":"ubuntu-24.04","pm":"bun","runtime":"bun"},{"os":"ubuntu-24.04","pm":"npm","runtime":"deno"},{"os":"ubuntu-24.04","pm":"npm","runtime":"workers"}'
           all='[{"os":"ubuntu-24.04","pm":"npm"},{"os":"ubuntu-24.04","pm":"pnpm"},{"os":"ubuntu-24.04","pm":"yarn","yarn":"stable"},{"os":"ubuntu-24.04","pm":"yarn","yarn":"1.22.22"},{"os":"ubuntu-24.04","pm":"bun"},{"os":"windows-latest","pm":"npm"},{"os":"windows-latest","pm":"pnpm"},'"$runtimes"']'
           some='[{"os":"ubuntu-24.04","pm":"pnpm"},{"os":"windows-latest","pm":"npm"},'"$runtimes"']'
           echo "smoke=$([[ -n "$PR" ]] && echo "$some" || echo "$all")" >> "$GITHUB_OUTPUT"
@@ -458,6 +458,22 @@ jobs:
           npx -y verdaccio@6 --config smoke/verdaccio.yaml --listen 4873 > smoke/.registry/verdaccio.log 2>&1 &
           for i in $(seq 1 90); do curl -sf http://localhost:4873/-/ping > /dev/null && exit 0; sleep 2; done
           cat smoke/.registry/verdaccio.log; exit 1
+      # A Worker has no disk: a database over HTTP (sqld, what Turso runs) and an S3 bucket.
+      - if: matrix.runtime == 'workers'
+        name: Start sqld and an S3 server
+        run: |
+          docker run -d -p 8080:8080 ghcr.io/tursodatabase/libsql-server:v0.24.33
+          docker run -d -p 9000:9000 -e RUSTFS_ACCESS_KEY=ecmsaccess -e RUSTFS_SECRET_KEY=ecmssecret123 rustfs/rustfs:1.0.0
+          for port in 8080 9000; do
+            for i in $(seq 1 30); do curl -s -o /dev/null "localhost:$port" && continue 2; sleep 1; done
+            echo "nothing on $port"; exit 1
+          done
+          {
+            echo DATABASE_URL=http://127.0.0.1:8080
+            echo S3_ENDPOINT=http://127.0.0.1:9000
+            echo AWS_ACCESS_KEY_ID=ecmsaccess
+            echo AWS_SECRET_ACCESS_KEY=ecmssecret123
+          } >> "$GITHUB_ENV"
       - run: node smoke/publish.ts
       - run: node smoke/scaffold.ts ${{ matrix.pm }}
         env:

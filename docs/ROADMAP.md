@@ -198,7 +198,7 @@
 จากการคุยเรื่องหลาย runtime (2026-11-13, [ADR-0067](adr/0067-multi-runtime.md)): ตัว CMS ทั้งหมด (แอดมิน, API, การบันทึก) รันได้บน Bun, Deno และ Cloudflare Workers ไม่ใช่แค่การอ่าน ซึ่งขยายจาก M11
 1. `src/runtime/` + lint + เทสของ build + พารามิเตอร์ scrypt ที่ใช้ 32 MB (1.44)
 2. smoke test ของ Bun และ Deno ใน CI
-3. Cloudflare Workers แบบ standalone: export conditions, Turso/Hyperdrive, Workers Assets, Cron Triggers, smoke test ด้วย workerd + `sqld` + MinIO
+3. Cloudflare Workers แบบ standalone: `easy-cms build --target workers`, Turso, Workers Assets, Cron Triggers, smoke test ด้วย `wrangler dev` (workerd) + `sqld` + S3 (rustfs) ทุก pull request; Hyperdrive ยังไม่ได้ทำ
 4. ภายหลัง: Nuxt บน Cloudflare, Next (OpenNext), D1, adapter `images`
 
 ### M11 — `Edge reads` (ไม่กำหนดวัน) {#m11}

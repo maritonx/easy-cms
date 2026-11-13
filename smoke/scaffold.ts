@@ -4,13 +4,19 @@
 //   node smoke/scaffold.ts <npm|pnpm|yarn|bun> [registry]
 // With SMOKE_RUNTIME=bun or deno, the CLI and the server run on that runtime instead of Node
 // (ADR-0067), as `bun --bun easy-cms …` and `deno run -A npm:easy-cms …` would.
+// With SMOKE_RUNTIME=workers (npm only), the project becomes a Cloudflare Worker the way the
+// guide says (guide/deploy/cloudflare-workers) and runs in `wrangler dev`: workerd, on this
+// machine. It needs a database over HTTP and an S3 bucket: DATABASE_URL (e.g. sqld), S3_ENDPOINT,
+// AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.
 // Against a release on npmjs instead (#82), e.g. the release candidate:
 //   SMOKE_TAG=rc SMOKE_VERSION=1.0.0-rc.0 node smoke/scaffold.ts npm https://registry.npmjs.org
 import { type ChildProcess, spawn } from 'node:child_process'
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { stripVTControlCharacters } from 'node:util'
 import { checkApi } from './api.ts'
 
@@ -18,8 +24,12 @@ const PM = process.argv[2] as 'npm' | 'pnpm' | 'yarn' | 'bun'
 const REGISTRY = process.argv[3] ?? 'http://localhost:4873'
 if (!['npm', 'pnpm', 'yarn', 'bun'].includes(PM)) throw new Error('usage: scaffold.ts <pm>')
 // biome-ignore lint/suspicious/noUndeclaredEnvVars: set by whoever runs the smoke test, not Turborepo
-const RUNTIME = (process.env.SMOKE_RUNTIME ?? 'node') as 'node' | 'bun' | 'deno'
-if (!['node', 'bun', 'deno'].includes(RUNTIME)) throw new Error(`unknown runtime ${RUNTIME}`)
+const RUNTIME = (process.env.SMOKE_RUNTIME ?? 'node') as 'node' | 'bun' | 'deno' | 'workers'
+if (!['node', 'bun', 'deno', 'workers'].includes(RUNTIME))
+  throw new Error(`unknown runtime ${RUNTIME}`)
+if (RUNTIME === 'workers' && PM !== 'npm') throw new Error('SMOKE_RUNTIME=workers runs with npm')
+// Next to a Worker, the CLI runs on Node: migrate, admin:create and build, as on your machine.
+const CLI_RUNTIME = RUNTIME === 'workers' ? 'node' : RUNTIME
 const NAME = RUNTIME === 'node' ? PM : `${PM}, ${RUNTIME}`
 const windows = process.platform === 'win32'
 
@@ -157,10 +167,11 @@ const onRuntime: Record<'bun' | 'deno', [string, string[]]> = {
   deno: ['deno', ['run', '-A', 'npm:easy-cms']],
 }
 const cli = (args: string[]): [string, string[]] => {
-  const [command, prefix] = RUNTIME === 'node' ? exec[PM] : onRuntime[RUNTIME]
-  return [command, [...prefix, ...(RUNTIME === 'node' ? ['easy-cms'] : []), ...args]]
+  const [command, prefix] = CLI_RUNTIME === 'node' ? exec[PM] : onRuntime[CLI_RUNTIME]
+  return [command, [...prefix, ...(CLI_RUNTIME === 'node' ? ['easy-cms'] : []), ...args]]
 }
 const cms = (...args: string[]) => run(...cli(args), project)
+if (RUNTIME === 'workers') await prepareWorker()
 await cms('migrate:create', 'init')
 await cms('migrate')
 await cms('admin:create', '--email', 'admin@smoke.test')
@@ -181,16 +192,33 @@ const start: Record<typeof PM, [string, string[]]> = {
   yarn: ['yarn', ['start', '--port', port]],
   bun: ['bun', ['run', 'start', '--port', port]],
 }
-// `start` is `easy-cms serve`; on Bun or Deno, the same command on that runtime.
-const [startCommand, startArgs] = RUNTIME === 'node' ? start[PM] : cli(['serve', '--port', port])
+// `start` is `easy-cms serve`; on Bun or Deno, the same command on that runtime. A Worker: built,
+// then `wrangler dev` (production: wrangler.jsonc's vars).
+if (RUNTIME === 'workers') await cms('build', '--target', 'workers')
+const [startCommand, startArgs] =
+  RUNTIME === 'workers'
+    ? ['npx', ['wrangler', 'dev', '--port', port, '--test-scheduled']]
+    : RUNTIME === 'node'
+      ? start[PM]
+      : cli(['serve', '--port', port])
 console.log(`\n$ ${startCommand} ${startArgs.join(' ')}`)
+/** What the server printed: a Worker's errors in `scheduled` show only there. */
+let serverOutput = ''
 const server: ChildProcess = spawn(startCommand, startArgs, {
   cwd: project,
-  env: { ...env, NODE_ENV: 'production' },
-  stdio: 'inherit',
+  env: { ...env, NODE_ENV: 'production', WRANGLER_SEND_METRICS: 'false' },
+  stdio: ['inherit', 'pipe', 'pipe'],
   shell: windows,
   detached: !windows,
 })
+for (const [from, to] of [
+  [server.stdout, process.stdout],
+  [server.stderr, process.stderr],
+] as const)
+  from?.on('data', (chunk: Buffer) => {
+    to.write(chunk)
+    serverOutput += String(chunk)
+  })
 // A server that stops by itself (a crash, a port in use) fails the check at once, with its code.
 let exited: number | null | undefined
 server.on('exit', (code) => {
@@ -226,8 +254,81 @@ try {
     'admin@smoke.test',
     env.EASY_CMS_ADMIN_PASSWORD as string,
   )
+  if (RUNTIME === 'workers') await checkWorker(`http://localhost:${port}`)
   console.log(`\n✓ ${NAME}: created, installed, migrated, served and used`)
 } finally {
   stop()
 }
 process.exit(0)
+
+/**
+ * A Worker has no disk: uploads go to an S3 bucket (R2 in production), and the database is
+ * reached over HTTP. What the deploy guide has a user add: @easy-cms/storage-s3, Wrangler, the
+ * config's `upload.storage`, and the variables in .env (read by the CLI and by `wrangler dev`).
+ */
+async function prepareWorker() {
+  const need = ['DATABASE_URL', 'S3_ENDPOINT', 'AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY']
+  const missing = need.filter((name) => !env[name])
+  if (missing.length) throw new Error(`SMOKE_RUNTIME=workers needs ${missing.join(', ')}`)
+  await run('npm', ['install', `@easy-cms/storage-s3@${expected}`, 'wrangler@4'], project)
+
+  const configFile = join(project, 'easy-cms.config.ts')
+  const config = readFileSync(configFile, 'utf8')
+  const anchor = `  admin: { locale: 'en' },\n`
+  if (!config.includes(anchor)) throw new Error(`no "${anchor.trim()}" in easy-cms.config.ts`)
+  writeFileSync(
+    configFile,
+    `import { s3Storage } from '@easy-cms/storage-s3'\n${config.replace(
+      anchor,
+      `${anchor}  upload: {\n    storage: s3Storage({ bucket: process.env.S3_BUCKET ?? '', endpoint: process.env.S3_ENDPOINT }),\n  },\n`,
+    )}`,
+  )
+
+  const bucket = `smoke-${Date.now()}`
+  const vars: Record<string, string> = {
+    ...Object.fromEntries(need.map((name) => [name, env[name] as string])),
+    S3_BUCKET: bucket,
+  }
+  const dotenv = join(project, '.env')
+  writeFileSync(
+    dotenv,
+    `${readFileSync(dotenv, 'utf8')}${Object.entries(vars)
+      .map(([name, value]) => `${name}=${value}\n`)
+      .join('')}`,
+  )
+
+  // The bucket, with the S3 client that @easy-cms/storage-s3 installed.
+  const require = createRequire(join(project, 'package.json'))
+  const { AwsClient } = (await import(pathToFileURL(require.resolve('aws4fetch')).href)) as {
+    AwsClient: new (options: Record<string, string>) => { fetch: typeof fetch }
+  }
+  const s3 = new AwsClient({
+    accessKeyId: vars.AWS_ACCESS_KEY_ID,
+    secretAccessKey: vars.AWS_SECRET_ACCESS_KEY,
+    service: 's3',
+    region: 'us-east-1',
+  })
+  const created = await s3.fetch(`${vars.S3_ENDPOINT}/${bucket}`, { method: 'PUT' })
+  if (!created.ok) throw new Error(`creating the bucket: ${created.status} ${await created.text()}`)
+  console.log(`✓ added @easy-cms/storage-s3 and Wrangler, and the bucket ${bucket}`)
+}
+
+/** The admin app from the ASSETS binding, and Cron Triggers running the jobs. */
+async function checkWorker(origin: string) {
+  const admin = await fetch(`${origin}/admin/`)
+  const shell = await admin.text()
+  const script = shell.match(/<script[^>]+src="([^"]+)"/)?.[1]
+  if (!admin.ok || !script) throw new Error(`/admin/: ${admin.status} ${shell.slice(0, 300)}`)
+  const asset = await fetch(new URL(script, `${origin}/admin/`))
+  if (!asset.ok) throw new Error(`the admin's ${script}: ${asset.status}`)
+  console.log('✓ served the admin from the ASSETS binding')
+
+  const before = serverOutput.length
+  const scheduled = await fetch(`${origin}/__scheduled?cron=*+*+*+*+*`)
+  if (!scheduled.ok) throw new Error(`the scheduled event: ${scheduled.status}`)
+  // Its jobs run in ctx.waitUntil: an error there is only printed.
+  await new Promise((resolve) => setTimeout(resolve, 2000))
+  const printed = serverOutput.slice(before)
+  if (/error|uncaught/i.test(printed)) throw new Error(`the scheduled event failed:\n${printed}`)
+  console.log('✓ ran the Cron Trigger')
+}

@@ -233,8 +233,7 @@ npx easy-cms build --target workers
 
 Worker ไม่มีดิสก์ config จึงต้องมี `upload.storage` (เช่น `s3Storage()` กับ bucket ของ R2) และฐานข้อมูลที่ต่อผ่าน HTTP
 (เช่น Turso) และจะไม่ย่อรูป รัน `easy-cms migrate` กับฐานข้อมูลเดียวกันจากเครื่องของคุณหรือ CI แล้วจึง
-`npx wrangler deploy` การรองรับ Cloudflare Workers ยังใหม่ และ pull request ยังไม่ได้ทดสอบทุกครั้ง
-([ADR-0067](https://github.com/maritonx/easy-cms/blob/main/docs/adr/0067-multi-runtime.md))
+`npx wrangler deploy` ทีละขั้นตอนดู [Deploy บน Cloudflare Workers](./deploy/cloudflare-workers)
 
 ### คำสั่งจาก plugin {#commands-from-plugins}
 

@@ -81,8 +81,9 @@ const user = await cms.auth.userFromHeaders(request.headers)
 
 ## ควรรู้ {#good-to-know}
 
-- **ฝั่ง server เท่านั้น** Easy CMS ทำงานบน Node.js 22.12 ขึ้นไป ไม่รองรับ edge runtime บน edge ให้อ่าน
-  เนื้อหาด้วย [REST client](./rest-api#reading-from-edge-runtimes)
+- **ฝั่ง server เท่านั้น** ในแอปของคุณ Easy CMS ทำงานบน Node.js 22.12 ขึ้นไป ไม่รองรับ edge runtime บน edge
+  ให้อ่านเนื้อหาด้วย [REST client](./rest-api#reading-from-edge-runtimes) ส่วน standalone server รันบน
+  [Cloudflare Workers](./deploy/cloudflare-workers) ได้ด้วย
 - **ไฟล์ของหน้า admin** อ่านจาก `@easy-cms/admin` บนดิสก์ ถ้า framework bundle โค้ดฝั่ง server ให้ตั้ง `@easy-cms/admin`
   (และ driver ของฐานข้อมูล) เป็น external เพื่อให้ไฟล์อยู่ที่เดิม หรือส่ง `appDir` ให้ `adminHandlerFor`
 - **เครื่องหมาย / ท้าย URL:** หน้า admin redirect `/admin` ไปที่ `/admin/` ถ้า framework ตัด / ท้าย URL ออก ให้ส่ง
