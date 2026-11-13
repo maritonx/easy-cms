@@ -249,8 +249,8 @@ Worker:
 
 A Worker has no disk: the config needs `upload.storage` (e.g. `s3Storage()` with an R2 bucket) and
 a database over HTTP (e.g. Turso). Images aren't resized there. Run `easy-cms migrate` against the
-same database from your machine or CI, then `npx wrangler deploy`. Cloudflare Workers support is
-new: each pull request doesn't test it yet ([ADR-0067](https://github.com/maritonx/easy-cms/blob/main/docs/adr/0067-multi-runtime.md)).
+same database from your machine or CI, then `npx wrangler deploy`. Step by step:
+[Deploy on Cloudflare Workers](./deploy/cloudflare-workers).
 
 ### Commands from plugins
 

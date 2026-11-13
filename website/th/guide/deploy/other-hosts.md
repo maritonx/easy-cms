@@ -12,7 +12,7 @@
 ## โฮสต์ใดๆ ต้องมี {#what-any-host-needs}
 
 - **Node.js 22.12 ขึ้นไป** แพลตฟอร์มส่วนใหญ่อ่าน `engines` ใน `package.json`:
-  `"engines": { "node": ">=22.12" }` ไม่รองรับ edge runtime
+  `"engines": { "node": ">=22.12" }` ถ้าจะใช้ edge ดู [Cloudflare Workers](./cloudflare-workers)
 - **Build แล้ว migrate แล้วจึง start** build ด้วย `next build`, `nuxi build` หรือไม่ต้อง build สำหรับ standalone server
   ก่อน start ให้รัน `easy-cms migrate` แล้ว start ด้วย `next start`, `node .output/server/index.mjs` หรือ
   `easy-cms serve` หลายแพลตฟอร์มมีคำสั่งก่อน deploy (pre-deploy หรือ release) สำหรับ migration ถ้าไม่มีให้ start ด้วย

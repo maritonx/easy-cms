@@ -13,7 +13,7 @@ platform's documentation; we haven't run every one of them ourselves.
 ## What any host needs
 
 - **Node.js 22.12 or newer.** Most platforms read `engines` in `package.json`:
-  `"engines": { "node": ">=22.12" }`. Edge runtimes are not supported.
+  `"engines": { "node": ">=22.12" }`. For the edge, see [Cloudflare Workers](./cloudflare-workers).
 - **Build, then migrate, then start.** Build with `next build`, `nuxi build`, or nothing for the
   standalone server; before starting, run `easy-cms migrate`; then start with `next start`,
   `node .output/server/index.mjs` or `easy-cms serve`. Many platforms have a pre-deploy or release

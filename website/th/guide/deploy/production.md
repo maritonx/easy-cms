@@ -80,7 +80,7 @@ migrate ครั้งเดียวต่อ release ก่อนเริ่
 - หลาย region และ read replica
 - ฐานข้อมูลอื่นนอกจาก Postgres และ SQLite
 - ใช้ connection pool หรือ transaction ร่วมกับแอปของคุณ ([แยกฐานข้อมูลจากแอป](../database-isolation))
-- Edge runtime (Cloudflare Workers, Vercel Edge Functions)
+- Edge runtime อื่นนอกจาก [Cloudflare Workers](./cloudflare-workers) (Vercel Edge Functions)
 
 ## สิ่งที่ CI ตรวจ {#what-ci-checks}
 
@@ -90,6 +90,7 @@ migrate ครั้งเดียวต่อ release ก่อนเริ่
 | integration suite ผ่าน PgBouncer แบบ transaction mode ด้วย role ที่มี schema ของตัวเอง | `pgbouncer` |
 | integration suite บน Postgres 17 | `postgres` |
 | Docker image อย่างเป็นทางการ build และเริ่มได้ | `docker` |
+| โปรเจกต์ใหม่เป็น Cloudflare Worker ใน `wrangler dev` บน `sqld` และ S3: REST, ไฟล์อัปโหลด, หน้า admin, Cron Triggers | `smoke (npm on workers)` |
 
 ## ขั้นต่อไป {#next-steps}
 

@@ -8,9 +8,10 @@ live.
 :::
 
 Easy CMS runs wherever Node.js 22.12 or newer runs a server, and on
-[Bun and Deno](../standalone#bun-and-deno). It needs two things a host may or
-may not give you: a place for the **database** and a place for **uploaded files**. Edge runtimes
-(Cloudflare Workers, Vercel Edge Functions) are not supported.
+[Bun and Deno](../standalone#bun-and-deno), and the standalone server on
+[Cloudflare Workers](./cloudflare-workers). It needs two things a host may or may not give you: a
+place for the **database** and a place for **uploaded files**. Other edge runtimes (Vercel Edge
+Functions) are not supported.
 
 ## Which host
 
@@ -18,13 +19,14 @@ may not give you: a place for the **database** and a place for **uploaded files*
 |---|---|---|---|---|
 | [Vercel](./vercel) | Hosted Postgres (Neon) or Turso | Vercel Blob or S3 | A cron calling `jobs/run` | Next.js sites, preview deployments |
 | [Netlify](./netlify) | Netlify Database or hosted Postgres | Netlify Blobs or S3 | A scheduled function calling `jobs/run` | Next.js sites on Netlify |
+| [Cloudflare Workers](./cloudflare-workers) | Turso | R2 | Cron Triggers, every minute | The standalone server at the edge |
 | [Docker](./docker) | Postgres in a container, or SQLite on a volume | A volume, or S3 | Run by the server every minute | Any server or platform that runs containers |
 | [VPS](./vps) | SQLite on the disk, or Postgres | The disk | Run by the server every minute | One server you control, the lowest cost |
 | [Other hosts](./other-hosts) | Depends on the host | Depends on the host | Depends on the host | Railway, Render, Fly.io, Coolify… |
 
 Two kinds of host behave differently:
 
-- **Serverless** (Vercel, Netlify): no disk that survives and no process that keeps running. Use a
+- **Serverless** (Vercel, Netlify, Cloudflare Workers): no disk that survives and no process that keeps running. Use a
   hosted database and file storage, and call the jobs endpoint from a cron.
 - **Long-running** (Docker, a VPS, most platforms): one server that keeps running. SQLite and
   uploads can stay on a persistent disk, and the server runs
@@ -56,6 +58,7 @@ Two kinds of host behave differently:
 ## Next steps
 
 - [One-click deploy](../one-click-deploy): a starter site on Vercel or Netlify in a few clicks.
-- [Vercel](./vercel), [Netlify](./netlify), [Docker](./docker) or [a VPS](./vps): step by step.
+- [Vercel](./vercel), [Netlify](./netlify), [Cloudflare Workers](./cloudflare-workers),
+  [Docker](./docker) or [a VPS](./vps): step by step.
 - [Reference architecture](./production): several instances on Postgres and S3, and what is
   single-instance only.

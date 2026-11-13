@@ -454,6 +454,13 @@
           }
         },
         {
+          "path": "guide/deploy/cloudflare-workers",
+          "title": {
+            "en": "Cloudflare Workers",
+            "th": "Cloudflare Workers"
+          }
+        },
+        {
           "path": "guide/deploy/docker",
           "title": {
             "en": "Docker",

@@ -88,7 +88,7 @@ disk, copy the folder into the bucket.
 - Databases other than Postgres and SQLite
 - Sharing a connection pool, or a transaction, with your app
   ([Database isolation](../database-isolation))
-- Edge runtimes (Cloudflare Workers, Vercel Edge Functions)
+- Edge runtimes other than [Cloudflare Workers](./cloudflare-workers) (Vercel Edge Functions)
 
 ## What CI checks
 
@@ -98,6 +98,7 @@ disk, copy the folder into the bucket.
 | The integration suites through PgBouncer in transaction mode, as a role with a schema of its own | `pgbouncer` |
 | The integration suites on Postgres 17 | `postgres` |
 | The official Docker image, built and started | `docker` |
+| A new project as a Cloudflare Worker in `wrangler dev`, on `sqld` and S3: REST, uploads, the admin, Cron Triggers | `smoke (npm on workers)` |
 
 ## Next steps
 

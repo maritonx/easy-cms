@@ -86,8 +86,8 @@ npx easy-cms migrate
 NODE_ENV=production npx easy-cms serve --trust-proxy
 ```
 
-A Dockerfile, Compose with Postgres or SQLite, a VPS with systemd, and other hosts:
-see [Deploy](./deploy/).
+A Dockerfile, Compose with Postgres or SQLite, a VPS with systemd, Cloudflare Workers and other
+hosts: see [Deploy](./deploy/).
 
 ## Bun and Deno {#bun-and-deno}
 
@@ -103,8 +103,8 @@ deno run -A npm:easy-cms serve
 ```
 
 Every pull request checks both: a new project's migrations, an admin, the server, signing in,
-an upload, and creating, changing, reading and deleting a post. Cloudflare Workers come later
-(ADR-0067).
+an upload, and creating, changing, reading and deleting a post. For Cloudflare Workers, see
+[Deploy on Cloudflare Workers](./deploy/cloudflare-workers).
 
 ## Use your own server
 
