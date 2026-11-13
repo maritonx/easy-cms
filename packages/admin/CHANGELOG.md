@@ -1,5 +1,11 @@
 # @easy-cms/admin
 
+## 1.46.1
+
+### Patch Changes
+
+- 18777b0: The docs and the website have screenshots of the AI writing a post's SEO title and description, and of the Integrations page, in English and Thai.
+
 ## 1.46.0
 
 ### Minor Changes
