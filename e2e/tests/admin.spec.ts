@@ -455,6 +455,34 @@ test.describe('logged in as admin', () => {
     expect(body.posts).toContainEqual(expect.objectContaining({ title: 'Hello from Playwright' }))
   })
 
+  test('updates a visitor’s live list as the admin publishes in another tab (realtime)', async ({
+    page,
+    browser,
+  }) => {
+    test.skip(test.info().project.name !== 'next', 'The Next.js example has the live page')
+    // A visitor in their own browser window, without the admin's session.
+    const visitorContext = await browser.newContext()
+    const visitor = await visitorContext.newPage()
+    try {
+      await visitor.goto('/live')
+      const list = visitor.getByTestId('live-posts')
+      await expect(list.getByRole('link', { name: 'Hello from Playwright' })).toBeVisible()
+
+      await page.goto('/admin/collections/posts?q=Hello')
+      await page.getByRole('link', { name: 'Hello from Playwright' }).click()
+      await page.getByRole('button', { name: 'Unpublish' }).click()
+      await expect(page.getByRole('status')).toHaveText('Unpublished')
+      // Gone from the visitor's list, with no reload.
+      await expect(list.getByRole('link', { name: 'Hello from Playwright' })).toHaveCount(0)
+
+      await page.getByRole('button', { name: 'Publish', exact: true }).click()
+      await expect(badge(page, 'Published')).toBeVisible()
+      await expect(list.getByRole('link', { name: 'Hello from Playwright' })).toBeVisible()
+    } finally {
+      await visitorContext.close()
+    }
+  })
+
   test('edits a draft while the published version stays live, and restores history (FR-VER)', async ({
     page,
   }) => {

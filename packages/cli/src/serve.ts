@@ -45,7 +45,14 @@ export async function sendWebResponse(res: ServerResponse, response: Response): 
     res.end()
     return
   }
-  await pipeline(Readable.fromWeb(response.body as import('node:stream/web').ReadableStream), res)
+  try {
+    await pipeline(Readable.fromWeb(response.body as import('node:stream/web').ReadableStream), res)
+  } catch (error) {
+    // The client left mid-stream (a realtime stream closed, a download cancelled): the pipeline
+    // cancelled the body, nothing failed.
+    if ((error as { code?: string }).code === 'ERR_STREAM_PREMATURE_CLOSE') return
+    throw error
+  }
 }
 
 function header(req: IncomingMessage, name: string): string | undefined {

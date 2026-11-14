@@ -65,7 +65,7 @@ export class VersionStore {
     snapshot: Record<string, unknown>
     author: ID | null
     max: number
-    outbox?: OutboxRow | undefined
+    outbox?: OutboxRow | readonly OutboxRow[] | undefined
   }): Promise<VersionSummary> {
     const { parent, doc } = args
     const previous = await this.db.find({

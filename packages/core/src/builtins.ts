@@ -17,6 +17,7 @@ export const ROLES = 'user-roles'
 export const USER_IDENTITIES = 'user-identities'
 export const AUDIT_LOGS = 'audit-logs'
 export const OUTBOX = 'outbox'
+export const REALTIME_EVENTS = 'realtime-events'
 export const RATE_LIMITS = 'rate-limits'
 export const BULK_OPERATIONS = 'bulk-operations'
 export const SAVED_VIEWS = 'saved-views'
@@ -40,6 +41,7 @@ export const INTERNAL_COLLECTIONS: ReadonlySet<string> = new Set([
   USER_IDENTITIES,
   AUDIT_LOGS,
   OUTBOX,
+  REALTIME_EVENTS,
   RATE_LIMITS,
   BULK_OPERATIONS,
   SAVED_VIEWS,
@@ -766,6 +768,30 @@ export const outboxCollection: CollectionConfig = {
     // pending | running | failed
     { name: 'state', type: 'text', required: true, index: true },
     { name: 'error', type: 'text' },
+  ],
+}
+
+/**
+ * What changed in collections with `realtime: true`, for subscribers (ADR-0070); added only when
+ * one has it. The id orders the events and is the stream's `Last-Event-ID`. Each row is written
+ * in the transaction of its save, and kept `realtime.retentionHours` for clients that reconnect.
+ */
+export const realtimeEventsCollection: CollectionConfig = {
+  slug: REALTIME_EVENTS,
+  access: { read: nobody, create: nobody, update: nobody, delete: nobody },
+  fields: [
+    { name: 'collection', type: 'text', required: true },
+    { name: 'docId', type: 'text', required: true },
+    // create | update | delete | publish | unpublish
+    { name: 'event', type: 'text', required: true },
+    // Only the pending draft changed (drafts kept as versions): for those who read drafts.
+    { name: 'draft', type: 'boolean' },
+    // Published before or after the change (always, without drafts): who reads only published
+    // documents may have seen it, or may see it now.
+    { name: 'published', type: 'boolean' },
+    // JSON: the stored document before an update or delete, never sent: who could see it then
+    // gets `leave` or `delete`, nobody else.
+    { name: 'before', type: 'textarea' },
   ],
 }
 

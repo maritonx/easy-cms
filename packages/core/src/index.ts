@@ -126,6 +126,7 @@ export type {
   PluginInfo,
   PluginTypes,
   PreviewURL,
+  RealtimeConfig,
   ResolvedConfig,
   RoutesConfig,
   SidebarPanel,
@@ -223,10 +224,12 @@ export {
   type IncrementOptions,
   type LivePreview,
   type ReadOptions,
+  type RealtimeSubscription,
   type ScheduledPublish,
   type SearchOptions,
   type SearchResults,
   type SlugOf,
+  type SubscribeOptions,
   type UpdateOptions,
 } from './local-api.js'
 export {
@@ -241,6 +244,7 @@ export type {
   FolderLevel,
   FolderPermissions,
 } from './media-folders.js'
+export type { RealtimeChange, RealtimeEvent, RealtimeMessage } from './realtime.js'
 export { resolveConfig } from './resolve-config.js'
 export type {
   AdminDeliveries,

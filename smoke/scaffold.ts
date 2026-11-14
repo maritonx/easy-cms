@@ -276,12 +276,17 @@ async function prepareWorker() {
   const config = readFileSync(configFile, 'utf8')
   const anchor = `  admin: { locale: 'en' },\n`
   if (!config.includes(anchor)) throw new Error(`no "${anchor.trim()}" in easy-cms.config.ts`)
+  // Posts with realtime (ADR-0070): on Workers each stream reads the events table itself.
+  const posts = `      slug: 'posts',\n`
+  if (!config.includes(posts)) throw new Error(`no "${posts.trim()}" in easy-cms.config.ts`)
   writeFileSync(
     configFile,
-    `import { s3Storage } from '@easy-cms/storage-s3'\n${config.replace(
-      anchor,
-      `${anchor}  upload: {\n    storage: s3Storage({ bucket: process.env.S3_BUCKET ?? '', endpoint: process.env.S3_ENDPOINT }),\n  },\n`,
-    )}`,
+    `import { s3Storage } from '@easy-cms/storage-s3'\n${config
+      .replace(
+        anchor,
+        `${anchor}  upload: {\n    storage: s3Storage({ bucket: process.env.S3_BUCKET ?? '', endpoint: process.env.S3_ENDPOINT }),\n  },\n`,
+      )
+      .replace(posts, `${posts}      realtime: true,\n`)}`,
   )
 
   const bucket = `smoke-${Date.now()}`
@@ -331,4 +336,54 @@ async function checkWorker(origin: string) {
   const printed = serverOutput.slice(before)
   if (/error|uncaught/i.test(printed)) throw new Error(`the scheduled event failed:\n${printed}`)
   console.log('✓ ran the Cron Trigger')
+
+  await checkRealtime(origin)
+}
+
+/** A visitor's realtime stream gets a post published through REST (ADR-0070). */
+async function checkRealtime(origin: string) {
+  const api = `${origin}/api/cms`
+  const controller = new AbortController()
+  const stream = await fetch(`${api}/realtime?s=posts`, {
+    headers: { accept: 'text/event-stream' },
+    signal: controller.signal,
+  })
+  if (!stream.ok || !stream.body) throw new Error(`/realtime: ${stream.status}`)
+  const reader = stream.body.pipeThrough(new TextDecoderStream()).getReader()
+  let text = ''
+  const until = async (pattern: RegExp) => {
+    const timer = setTimeout(() => controller.abort(), 20_000)
+    try {
+      while (!pattern.test(text)) {
+        const { value, done } = await reader.read()
+        if (done) break
+        text += value
+      }
+    } catch {
+      // Aborted: reported below.
+    } finally {
+      clearTimeout(timer)
+    }
+    if (!pattern.test(text)) throw new Error(`no ${pattern} in the stream:\n${text}`)
+  }
+  await until(/event: ready/)
+  const login = await fetch(`${api}/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin },
+    body: JSON.stringify({ email: 'admin@smoke.test', password: env.EASY_CMS_ADMIN_PASSWORD }),
+  })
+  const { csrfToken } = (await login.json()) as { csrfToken: string }
+  const cookie = login.headers
+    .getSetCookie()
+    .map((c) => c.split(';')[0])
+    .join('; ')
+  const created = await fetch(`${api}/posts`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin, cookie, 'x-csrf-token': csrfToken },
+    body: JSON.stringify({ title: 'Live on a Worker', status: 'published' }),
+  })
+  if (!created.ok) throw new Error(`creating a post: ${created.status} ${await created.text()}`)
+  await until(/event: create\ndata: .*Live on a Worker/)
+  controller.abort()
+  console.log('✓ streamed a save to a realtime subscriber')
 }

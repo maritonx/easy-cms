@@ -13,6 +13,7 @@ const env = (name: string) => {
 export default defineConfig({
   secret: env('EASY_CMS_SECRET'),
   cronSecret: env('CRON_SECRET'),
+  realtime: { pollMs: 200 },
   db: postgres({ url: env('POSTGRES_URL'), max: 5 }),
   upload: {
     storage: s3Storage({
@@ -28,6 +29,7 @@ export default defineConfig({
       slug: 'posts',
       drafts: true,
       schedule: true,
+      realtime: true,
       access: { read: () => true },
       fields: [{ name: 'title', type: 'text' }],
     },

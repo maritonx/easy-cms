@@ -231,7 +231,16 @@ export function routeOf(path: string | null, root: boolean): string {
   if (root) return path
   const parts = path.split('/').filter(Boolean)
   const [first] = parts
-  const fixed = new Set(['auth', 'admin', 'jobs', 'search', 'healthz', 'readyz', 'api-keys'])
+  const fixed = new Set([
+    'auth',
+    'admin',
+    'jobs',
+    'search',
+    'realtime',
+    'healthz',
+    'readyz',
+    'api-keys',
+  ])
   const word = /^[a-z][a-z.-]{0,39}$/
   const route = parts.map((part, i) => {
     if (i === 0) return fixed.has(part) || part === 'globals' ? part : ':collection'

@@ -16,6 +16,7 @@ import {
   jobRunsCollection,
   outboxCollection,
   rateLimitsCollection,
+  realtimeEventsCollection,
   savedViewsCollection,
   scheduledJobsCollection,
   userIdentitiesCollection,
@@ -165,6 +166,9 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
       ...(hasEmail(config) ? [emailSuppressionsCollection] : []),
       ...((config.jobs?.length ?? 0) > 0 ? [jobRunsCollection] : []),
       ...(config.outbox ? [outboxCollection] : []),
+      ...((config.collections ?? []).some((c) => c.realtime === true)
+        ? [realtimeEventsCollection]
+        : []),
       ...(config.rateLimit ? [rateLimitsCollection] : []),
       databaseBackupsCollection,
       adminSettingsCollection,

@@ -51,6 +51,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `maxPage` | `number` | no limit | The deepest `page` the REST API serves to API clients (the signed-in admin keeps its pages); deeper requests get `400`, pointing to `cursor`. [Cursors](/guide/local-api#find-results) |
 | `httpCache` | `HttpCacheConfig` | off (`no-store`) | Lets a CDN cache public reads of published content, with cache tags to purge by. See [httpCache](#httpcache). |
 | `outbox` | `boolean` | `false` | Runs after hooks, webhooks and `httpCache.purge` from an outbox written in the save's transaction, after the response, retried until they succeed. Hooks must be safe to run more than once. [Outbox](/guide/hooks#outbox) |
+| `realtime` | `RealtimeConfig` | see the guide | Options for collections with `realtime: true`: `{ retentionHours: 24, pollMs: 1000, heartbeatMs: 25000, maxPerUser: 10, maxConnections: 1000 }`. [Realtime](/guide/realtime#options) |
 | `telemetry` | `boolean \| { traces?, metrics? }` | off | OpenTelemetry spans and metrics through `@opentelemetry/api`, sent wherever the app's SDK sends them. [Observability](/guide/observability) |
 | `search` | `SearchAdapter` | — | Relevance-ranked search of the collections that have `search`, e.g. `memorySearch()`. [Search](/guide/search) |
 | `logs` | `LogsConfig` | readable lines | `{ format: 'json' }` for one JSON object per line, with request ids. See [logs](#logs). |
@@ -285,6 +286,7 @@ Admins see, run and pause them on Settings → Jobs. [Jobs](/guide/jobs)
 | `httpCache` | `false \| { sMaxAge?, staleWhileRevalidate? }` | the config's | This collection's [httpCache](#httpcache) times, or `false` to keep its reads `no-store`. |
 | `search` | `{ fields: string[] }` | — | Indexes published documents for the config's `search` adapter: the fields to index, most important first. [Search](/guide/search) |
 | `preview` | `({ doc, locale }) => string \| null` | — | The page showing a document, for [live preview](/guide/live-preview). |
+| `realtime` | `boolean` | `false` | Apps may subscribe to this collection's changes: `GET <api>/realtime`, the client's `subscribe()` and `useLive()`, `cms.subscribe()`. Needs a migration for the `realtime-events` table. [Realtime](/guide/realtime) |
 | `access` | `{ read?, create?, update?, delete? }` | logged in | [Access control](/guide/access-control) |
 | `hooks` | `CollectionHooks` | — | See [hooks](#hooks). |
 | `admin` | `CollectionAdmin` | — | See [admin components](#admin-components). |

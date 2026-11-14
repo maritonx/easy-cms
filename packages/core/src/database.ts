@@ -90,9 +90,10 @@ export interface CreateMigrationResult {
 }
 
 /**
- * A row written with a document, in the same transaction (`outbox: true` in the config): a write
- * that commits leaves it, one that doesn't leaves nothing. Not written when an `update` with
- * `where` doesn't match.
+ * A row written with a document, in the same transaction (`outbox: true` in the config, and
+ * collections with `realtime: true`): a write that commits leaves it, one that doesn't leaves
+ * nothing. Not written when an `update` with `where` doesn't match. A write may get several, in
+ * an array (since 1.47), written in their order after the document.
  */
 export interface OutboxRow {
   /** The collection the row goes to. */
@@ -130,7 +131,7 @@ export interface Database {
   create(args: {
     collection: string
     data: Record<string, unknown>
-    outbox?: OutboxRow | undefined
+    outbox?: OutboxRow | readonly OutboxRow[] | undefined
   }): Promise<RawDocument>
   /**
    * `data` holds the whole document after merging. Runs in one transaction. With `where`, only
@@ -141,14 +142,14 @@ export interface Database {
     collection: string
     id: ID
     data: Record<string, unknown>
-    outbox?: OutboxRow | undefined
+    outbox?: OutboxRow | readonly OutboxRow[] | undefined
   }): Promise<RawDocument>
   update(args: {
     collection: string
     id: ID
     data: Record<string, unknown>
     where: Where
-    outbox?: OutboxRow | undefined
+    outbox?: OutboxRow | readonly OutboxRow[] | undefined
   }): Promise<RawDocument | null>
   /**
    * Adds `by` to a top-level number field in one statement, safe against concurrent calls; an
@@ -163,16 +164,22 @@ export interface Database {
     min?: number | undefined
     max?: number | undefined
   }): Promise<number | null>
-  delete(args: { collection: string; id: ID; outbox?: OutboxRow | undefined }): Promise<void>
+  delete(args: {
+    collection: string
+    id: ID
+    outbox?: OutboxRow | readonly OutboxRow[] | undefined
+  }): Promise<void>
   findGlobal(args: { slug: string }): Promise<Record<string, unknown> | null>
   updateGlobal(args: {
     slug: string
     data: Record<string, unknown>
-    outbox?: OutboxRow | undefined
+    outbox?: OutboxRow | readonly OutboxRow[] | undefined
   }): Promise<Record<string, unknown>>
   /**
-   * True when `create`, `update`, `delete` and `updateGlobal` take `outbox`, a row written in
-   * the same transaction. Required by `outbox: true` in the config.
+   * True when `create`, `update`, `delete` and `updateGlobal` take `outbox`, rows written in
+   * the same transaction. Required by `outbox: true` in the config. Without it, realtime events
+   * are written right after the save instead (ADR-0070). Several rows come as an array only when
+   * a config has both `outbox: true` and a collection with `realtime: true`.
    */
   readonly outbox?: boolean | undefined
   /**

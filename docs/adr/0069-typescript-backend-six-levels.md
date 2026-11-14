@@ -2,7 +2,7 @@
 
 - **สถานะ:** Accepted
 - **วันที่:** 2026-11-13
-- **เกี่ยวข้อง:** [ADR-0065](0065-code-first-application-engine.md) (แทนเฉพาะเรื่องคำโปรย), [ADR-0004](0004-code-first-content-model.md), [ADR-0067](0067-multi-runtime.md), [ROADMAP](../ROADMAP.md)
+- **เกี่ยวข้อง:** [ADR-0065](0065-code-first-application-engine.md) (แทนเฉพาะเรื่องคำโปรย), [ADR-0004](0004-code-first-content-model.md), [ADR-0067](0067-multi-runtime.md), [ADR-0070](0070-realtime.md) (realtime ของระดับ 2), [ROADMAP](../ROADMAP.md)
 
 ## บริบท
 
@@ -23,7 +23,7 @@
   | ระดับ | ชื่อ | สถานะ | ใช้ได้วันนี้ | ถัดไป |
   |---|---|---|---|---|
   | 1 | Headless CMS | ครบ | collection, field, ฉบับร่าง, หลายภาษา, คลังสื่อ, REST และ GraphQL | — |
-  | 2 | Backend as a service | กำลังทำ | auth, single sign-on, สิทธิ์, ไฟล์, API keys | realtime |
+  | 2 | Backend as a service | กำลังทำ | auth, single sign-on, สิทธิ์, ไฟล์, API keys | realtime ([ADR-0070](0070-realtime.md)) |
   | 3 | App framework | ครบ | hooks, endpoints, หน้าและแผง dashboard ของตัวเอง, component ของ field, actions, ปฏิทิน | — |
   | 4 | Business engine | กำลังทำ | ร้านค้า, หลาย tenant, ฟอร์ม | Kanban, template CRM และ Booking |
   | 5 | Durable workflows | กำลังทำ | job queue, การลองใหม่ | workflow หลายขั้นที่ใช้เวลานาน |

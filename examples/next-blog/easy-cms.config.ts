@@ -140,6 +140,8 @@ export default defineConfig({
       ],
       // Live preview in the admin: the page that shows a post.
       preview: ({ doc }) => (doc.slug ? `/posts/${doc.slug}` : null),
+      // Apps may subscribe to changes: /live keeps its list up to date (ADR-0070).
+      realtime: true,
       // Roles limited to their own posts (Settings → Roles) go by the author.
       admin: { order: 1, icon: 'newspaper', ownerField: 'author' },
       useAsTitle: 'title',
