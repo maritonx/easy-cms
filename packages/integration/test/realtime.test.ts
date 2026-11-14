@@ -210,6 +210,36 @@ describe('realtime (ADR-0070)', () => {
     expect(without.config.collections.some((c) => c.slug === 'realtime-events')).toBe(false)
   })
 
+  it('writes the event and the outbox row in one transaction when both are on', async () => {
+    const both = await open(
+      defineConfig({
+        secret: SECRET,
+        db: db(),
+        outbox: true,
+        collections: [
+          {
+            slug: 'posts',
+            realtime: true,
+            hooks: { afterChange: [() => {}] },
+            fields: [{ name: 'title', type: 'text', unique: true }],
+          },
+        ],
+      }),
+    )
+    cleanups.push(() => both.destroy())
+    await both.create('posts', { title: 'One' })
+    // A save that fails writes neither.
+    await expect(both.create('posts', { title: 'One' })).rejects.toThrow()
+    await both.flushOutbox()
+    const events = await both.db.find({
+      collection: 'realtime-events',
+      sort: ['id'],
+      limit: 0,
+      page: 1,
+    })
+    expect(events.docs.map((r) => r.event)).toEqual(['create'])
+  })
+
   it('streams create, update, publish, unpublish and delete to a visitor as it reads them', async () => {
     ctx = await setup()
     const s = ctx.open('s=posts')
