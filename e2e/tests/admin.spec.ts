@@ -459,7 +459,10 @@ test.describe('logged in as admin', () => {
     page,
     browser,
   }) => {
-    test.skip(test.info().project.name !== 'next', 'The Next.js example has the live page')
+    test.skip(
+      test.info().project.name === 'standalone',
+      'The Nuxt and Next.js examples have the live page',
+    )
     // A visitor in their own browser window, without the admin's session.
     const visitorContext = await browser.newContext()
     const visitor = await visitorContext.newPage()
