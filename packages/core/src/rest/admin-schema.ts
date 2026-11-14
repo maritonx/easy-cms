@@ -194,6 +194,8 @@ export interface AdminCollection {
   views?: CollectionView[]
   /** No Export CSV (`admin.export: false`, #89). */
   noExport?: boolean
+  /** Changes reach the list and edit page live (`realtime: true`, ADR-0070). */
+  realtime?: boolean
   /** The list's Calendar mode (`admin.calendar`): the fields placing and colouring documents. */
   calendar?: { start: string; end?: string; color?: string }
   permissions: {
@@ -548,6 +550,7 @@ async function collection(
   if (config.admin?.list?.sort) result.defaultSort = config.admin.list.sort
   if (config.admin?.views?.length) result.views = JSON.parse(JSON.stringify(config.admin.views))
   if (config.admin?.export === false) result.noExport = true
+  if (config.realtime === true) result.realtime = true
   if (config.admin?.calendar) result.calendar = { ...config.admin.calendar }
   if (config.admin?.confirmDelete) result.confirmDelete = { ...config.admin.confirmDelete }
   const owner = cms.roles.ownerOf(config.slug)

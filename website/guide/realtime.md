@@ -115,6 +115,14 @@ It reads the stream with `fetch`, so the browser's session cookie and the client
 (`Authorization: Bearer`) work. It reconnects by itself with backoff, and resumes where it was.
 It stops when the API refuses the subscription (`400`, `401`, `403` or `404`).
 
+A stream's subscriptions are fixed. To change them, close it and subscribe again from where it got
+to, so nothing in between is missed:
+
+```ts
+const next = cms.subscribe(newSubscriptions, handlers, { lastEventId: stream.lastEventId })
+stream.close()
+```
+
 ## The stream
 
 `GET <api>/realtime?s=<subscription>[&s=…]` answers `text/event-stream`. Each `s` is a path under
@@ -214,7 +222,28 @@ export default defineConfig({
   Others write it right after the save, and the server says so at startup.
 - Each event reads the document once per subscriber (visitors with the same subscription share
   one read), so many subscribers to a busy collection cost reads.
-- Globals, the admin's own live updates and custom channels aren't part of realtime yet.
+- Globals and custom channels aren't part of realtime yet.
+
+## In the admin
+
+Collections with `realtime: true` are live in the admin too; others work as before, and open no
+stream.
+
+- **List:** a "Live" dot beside the heading (grey, "Reconnecting…", while the stream is down).
+  Rows on screen change in place as they're saved; a row deleted elsewhere is greyed out and
+  tagged "Deleted". New documents, and ones that leave what the list shows, don't move rows under
+  your cursor: "3 changes — Show" loads the list again, with its page, sort, filters and
+  selection.
+- **Edit page and drawer:** another save of the document loads by itself when you have no
+  unsaved changes ("Updated from the latest save"). With unsaved changes, "This document was
+  saved elsewhere" offers **Load new version (discard mine)** or **Keep mine**; saving after that
+  asks before overwriting. Your own saves on the page don't count. It doesn't say who saved: it
+  may be someone else or you in another tab.
+- **Deleted, or no longer yours to see:** a banner says so and Save is off; what you typed stays
+  on the page to copy.
+- Each browser tab opens one stream for all of it, so a user's limit of 10 (`maxPerUser`) is
+  about ten admin tabs per server. Two saves at the very same moment can still overwrite each
+  other: the server doesn't refuse stale saves yet.
 
 ## Next steps
 

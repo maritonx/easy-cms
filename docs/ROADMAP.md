@@ -270,7 +270,8 @@ Kanban → ธีม → พื้นที่ฟอร์ม → CRM → Bookin
 | # | Issue | Labels | เสร็จเมื่อ |
 |---|---|---|---|
 | — | Realtime: subscribe to changes in a collection | area:core, area:docs | `realtime: true`, `GET <api>/realtime` (SSE) ตามสิทธิ์ของผู้ subscribe แต่ละคน, `Last-Event-ID` และ `reset`, `subscribe()`/`live()` ของ client, `useLive()` ของ React และ Vue, `cms.subscribe()`; เทส integration, หลาย instance, e2e และ smoke บน Workers ผ่าน |
-| — | Live updates in the admin: lists and edit pages follow others' saves, who else is editing | area:admin | รายการและหน้าแก้ไขอัปเดตจากการบันทึกของคนอื่น บอกว่าใครแก้เอกสารเดียวกันอยู่ |
+| — | Live updates in the admin: lists and edit pages follow others' saves | area:admin | รายการและหน้าแก้ไขอัปเดตจากการบันทึกของคนอื่น ถามก่อนทับ หนึ่ง connection ต่อแท็บ ([ADR-0071](adr/0071-admin-live-updates.md)) |
+| — | Presence and conflicts in the admin: who else is editing, refusing stale saves | area:core, area:admin | บอกว่าใครแก้เอกสารเดียวกันอยู่, เซิร์ฟเวอร์ตอบ 409 เมื่อบันทึกทับฉบับที่ใหม่กว่า |
 | — | Custom channels, WebSocket and streamed responses | area:core | ส่ง message ของตัวเองผ่าน protocol เดียวกัน, WebSocket ใช้ message เดียวกับ SSE |
 
 ---

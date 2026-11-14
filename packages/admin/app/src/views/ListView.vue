@@ -46,6 +46,7 @@ import FolderMoveDialog from '../components/FolderMoveDialog.vue'
 import FolderNameDialog from '../components/FolderNameDialog.vue'
 import FolderPermissionsDialog from '../components/FolderPermissionsDialog.vue'
 import FolderTree from '../components/FolderTree.vue'
+import LiveDot from '../components/LiveDot.vue'
 import LoadingStatus from '../components/LoadingStatus.vue'
 import MediaThumb from '../components/MediaThumb.vue'
 import PluginElement from '../components/PluginElement.vue'
@@ -103,8 +104,10 @@ import {
   storedPageSize,
   storePageSize,
 } from '../lib/list-pages'
+import { listReaction } from '../lib/live-list'
 import { useDelayedLoading } from '../lib/loading'
 import { crumbsFor, isPinned, togglePin } from '../lib/nav'
+import { type LiveChange, liveStream } from '../lib/realtime'
 import {
   configState,
   createView,
@@ -747,6 +750,8 @@ async function fetchDocs(
   limit: number,
   pageNumber = 1,
   cursor?: string,
+  /** Rows read again (live updates): their live versions and schedules are replaced. */
+  refreshing?: ReadonlySet<string>,
 ): Promise<ListPage & { nextCursor: string | null }> {
   const at =
     cursor === undefined
@@ -774,8 +779,16 @@ async function fetchDocs(
         )
       : Promise.resolve(new Map()),
   ])
-  if (live.size) liveIds.value = new Set([...liveIds.value, ...live])
-  if (jobs.size) schedules.value = new Map([...schedules.value, ...jobs])
+  if (refreshing) {
+    liveIds.value = new Set([...[...liveIds.value].filter((id) => !refreshing.has(id)), ...live])
+    schedules.value = new Map([
+      ...[...schedules.value].filter(([id]) => !refreshing.has(id)),
+      ...jobs,
+    ])
+  } else {
+    if (live.size) liveIds.value = new Set([...liveIds.value, ...live])
+    if (jobs.size) schedules.value = new Map([...schedules.value, ...jobs])
+  }
   return { ...found, docs, page: pageNumber, nextCursor: found.nextCursor ?? null }
 }
 
@@ -905,17 +918,23 @@ function goToPage() {
 
 /** Counts loads: a slower, older one (e.g. before a filter changed) doesn't overwrite a newer one. */
 let loads = 0
-async function load() {
+/** `keepSelection`: "Show" after live changes keeps the rows chosen that are still listed. */
+async function load(options: { keepSelection?: boolean } = {}) {
   if (!collection || calendarMode.value) return
   const current = ++loads
   loading.value = true
   error.value = ''
+  // What changed until now is in what loads; changes from here on count again.
+  pendingIds.value = new Set()
+  pendingReset.value = false
   try {
     missing.value = new Map()
     liveIds.value = new Set()
     schedules.value = new Map()
     const tree = treeMode.value && treeField
     const where = tree ? { [treeField]: { exists: false } } : await listWhere()
+    // Live updates follow what the list shows; a tree shows children too, so all of it.
+    liveWhere.value = tree || !where ? '' : JSON.stringify(where)
     const key = JSON.stringify([where, sort.value, pageSize.value])
     cursors.use(key)
     if (key !== totalKey) {
@@ -939,7 +958,11 @@ async function load() {
       treeTotal.value = null
     }
     result.value = found
-    selected.value = new Set()
+    deletedIds.value = new Set()
+    const listed = new Set(rows.value.map((r) => String(r.doc.id)))
+    selected.value = options.keepSelection
+      ? new Set([...selected.value].filter((id) => listed.has(String(id))))
+      : new Set()
     void loadRelatedTitles(found.docs)
     // Back from a document: where the list (and its table) was scrolled to.
     const scroll = scrollFor(slug, route.fullPath)
@@ -955,11 +978,137 @@ async function load() {
         ? t('common.forbidden')
         : String((e as Error).message)
   } finally {
-    if (current === loads) loading.value = false
+    if (current === loads) {
+      loading.value = false
+      for (const change of duringLoad.splice(0)) onLiveChange(change)
+    }
   }
 }
 
 const loadLive = (docs: Doc[]) => liveIdsOf(slug, docs)
+
+// --- Live updates (`realtime: true`, ADR-0070) --------------------------------------------------
+
+/** The collection's changes reach this list as they are saved. */
+const realtime = collection?.realtime === true
+/**
+ * The `where` of what the list loaded last, as JSON (`''`: everything). The stream follows the
+ * whole collection: a `where` on it couldn't say when a row searched for (`like`) is deleted.
+ * Whether a change is in the list is asked with this `where`.
+ */
+const liveWhere = ref('')
+/** Changes that came while the list loaded: looked at once it has. */
+const duringLoad: LiveChange[] = []
+/** Changes not shown yet: documents that may come into, move in or leave the list. */
+const pendingIds = ref<Set<string>>(new Set())
+/** The stream couldn't resume: the list may be out of date. */
+const pendingReset = ref(false)
+/** Shown rows deleted meanwhile: greyed out until the list loads again. */
+const deletedIds = ref<Set<string>>(new Set())
+const isDeleted = (doc: Doc) => deletedIds.value.has(String(doc.id))
+const liveStatus = liveStream().status
+/** Shown rows to read again, and documents to ask whether they are in the list. */
+const toRefresh = new Set<string>()
+const toMatch = new Set<string>()
+let liveTimer: ReturnType<typeof setTimeout> | undefined
+
+function onLiveChange(change: LiveChange) {
+  if (loading.value) {
+    duringLoad.push(change)
+    return
+  }
+  if (calendarMode.value || !result.value) return
+  const shown = new Set(rows.value.map((r) => String(r.doc.id)))
+  const reaction = listReaction(change, (id) => shown.has(id))
+  const id = String(change.id)
+  if (reaction === 'deleted') {
+    deletedIds.value = new Set([...deletedIds.value, id])
+    if ([...selected.value].some((s) => String(s) === id))
+      selected.value = new Set([...selected.value].filter((s) => String(s) !== id))
+    return
+  }
+  if (reaction === 'ignore') return
+  if (reaction === 'refresh') toRefresh.add(id)
+  // A leave of a shown row: it left. Otherwise, with filters, ask whether it is (still) in.
+  if (reaction === 'pending' && (change.event === 'leave' || !liveWhere.value))
+    pendingIds.value = new Set([...pendingIds.value, id])
+  else if (liveWhere.value) toMatch.add(id)
+  clearTimeout(liveTimer)
+  liveTimer = setTimeout(() => void applyLive(), 100)
+}
+
+/**
+ * Reads changed rows again and puts them in place, as the list reads them; counts the changes
+ * that would add rows or take them out (asked with the list's `where`).
+ */
+async function applyLive() {
+  const refresh = new Set(toRefresh)
+  const match = new Set(toMatch)
+  toRefresh.clear()
+  toMatch.clear()
+  if (!result.value) return
+  const current = loads
+  const where = liveWhere.value
+  try {
+    const [found, matching] = await Promise.all([
+      refresh.size
+        ? fetchDocs({ id: { in: [...refresh].join(',') } }, refresh.size, 1, undefined, refresh)
+        : null,
+      match.size && where
+        ? api<{ docs: Doc[] }>(
+            'GET',
+            `/${slug}${toQuery({
+              where: { and: [JSON.parse(where), { id: { in: [...match].join(',') } }] },
+              limit: match.size,
+              depth: 0,
+              draft: true,
+            })}&count=false`,
+          )
+        : null,
+    ])
+    if (current !== loads || !result.value) return
+    if (found) {
+      const byId = new Map(found.docs.map((d) => [String(d.id), d]))
+      const swap = (list: Doc[]) => list.map((d) => byId.get(String(d.id)) ?? d)
+      result.value = { ...result.value, docs: swap(result.value.docs) }
+      if (children.value.size)
+        children.value = new Map([...children.value].map(([key, list]) => [key, swap(list)]))
+      void loadRelatedTitles(rows.value.map((r) => r.doc))
+    }
+    if (matching) {
+      const shown = new Set(rows.value.map((r) => String(r.doc.id)))
+      const inList = new Set(matching.docs.map((d) => String(d.id)))
+      // Shown and no longer matching, or matching and not shown.
+      const changed = [...match].filter((id) => shown.has(id) !== inList.has(id))
+      if (changed.length) pendingIds.value = new Set([...pendingIds.value, ...changed])
+    }
+  } catch {
+    // The rows stay as they were; the next change or load reads them again.
+  }
+}
+
+/** "N changes — Show": the list again, with its page, sort, filters and selection. */
+async function showChanges() {
+  totalKey = ''
+  await load({ keepSelection: true })
+  tableWrap.value?.focus({ preventScroll: true })
+}
+
+if (realtime) {
+  const stop = liveStream().subscribe(
+    { collection: slug, ...(collection?.drafts ? { draft: true } : {}) },
+    {
+      onEvent: onLiveChange,
+      onReset: () => {
+        pendingReset.value = true
+      },
+    },
+  )
+  onBeforeUnmount(() => {
+    stop()
+    clearTimeout(liveTimer)
+  })
+}
 
 /** A document's status as people read it: published or not, pending changes, scheduled jobs. */
 function shownOf(doc: Doc): ShownStatus {
@@ -1012,7 +1161,7 @@ const listQuery = computed(() =>
       .sort(),
   ),
 )
-watch(listQuery, load)
+watch(listQuery, () => load())
 // A view or a link changed the search: the box follows.
 watch(
   () => route.query.q,
@@ -1442,6 +1591,7 @@ async function deleteSelected(query = '') {
         >
           <component :is="isPinned(`collection:${slug}`) ? PinOff : Pin" :size="16" aria-hidden="true" />
         </button>
+        <LiveDot v-if="realtime" :status="liveStatus" />
         <span v-if="treeTotal !== null" class="count">{{ t(treeTotal === 1 ? 'list.countOne' : 'list.count', { count: treeTotal.toLocaleString() }) }}</span>
         <span v-else-if="total" class="count">{{ t(total.total === 1 && !total.more ? 'list.countOne' : 'list.count', { count: totalText ?? '' }) }}</span>
       </div>
@@ -1673,6 +1823,14 @@ async function deleteSelected(query = '') {
       </button>
     </div>
 
+    <!-- Live changes that would add, move or remove rows: shown when asked (ADR-0070). -->
+    <div v-if="realtime && !calendarMode" class="live-changes" aria-live="polite">
+      <button v-if="pendingIds.size || pendingReset" type="button" class="live-pill" @click="showChanges">
+        {{ pendingIds.size ? t(pendingIds.size === 1 ? 'live.changesOne' : 'live.changes', { count: pendingIds.size.toLocaleString() }) : t('live.changesSome') }}
+        <span aria-hidden="true">—</span>
+        <strong>{{ t('live.show') }}</strong>
+      </button>
+    </div>
     <CalendarView
       v-if="calendarMode && collection.calendar"
       ref="calendarRef"
@@ -1688,7 +1846,7 @@ async function deleteSelected(query = '') {
       @update:view="onCalendarView"
       @update:day="onCalendarDay"
     />
-    <div v-else ref="tableWrap" :class="['card', 'table-wrap', { 'grid-wrap': grid, scroll: !grid, compact: density === 'compact', reloading }]" :aria-busy="loading">
+    <div v-else ref="tableWrap" tabindex="-1" :class="['card', 'table-wrap', { 'grid-wrap': grid, scroll: !grid, compact: density === 'compact', reloading }]" :aria-busy="loading">
       <div v-if="reloading" class="progress-line table-progress" aria-hidden="true"><span /></div>
       <LoadingStatus v-if="firstLoad || reloading" />
       <p v-if="allMatching && total" class="select-matching" role="status">
@@ -1716,7 +1874,7 @@ async function deleteSelected(query = '') {
           <li
             v-for="{ doc } in rows"
             :key="doc.id"
-            :class="['media-card', { selected: selected.has(doc.id), selecting: selected.size > 0 }]"
+            :class="['media-card', { selected: selected.has(doc.id), selecting: selected.size > 0, deleted: isDeleted(doc) }]"
             :draggable="useFolders && collection.permissions.update"
             @dragstart="onRowDragStart($event, doc)"
           >
@@ -1824,14 +1982,15 @@ async function deleteSelected(query = '') {
           <tr
             v-for="{ doc, depth } in rows"
             :key="doc.id"
-            :class="{ selected: selected.has(doc.id) }"
-            :draggable="useFolders && collection.permissions.update"
+            :class="{ selected: selected.has(doc.id), deleted: isDeleted(doc) }"
+            :draggable="useFolders && collection.permissions.update && !isDeleted(doc)"
             @dragstart="onRowDragStart($event, doc)"
           >
             <td class="check">
               <input
                 type="checkbox"
                 :checked="selected.has(doc.id)"
+                :disabled="isDeleted(doc)"
                 :aria-label="t('list.selectRow', { title: titleOf(collection, doc) })"
                 @change="toggle(doc.id)"
               />
@@ -1853,6 +2012,7 @@ async function deleteSelected(query = '') {
                 <RouterLink :to="docLink(doc.id)" class="title-link">{{ titleOf(collection, doc) }}</RouterLink>
               </span>
               <RouterLink v-else :to="docLink(doc.id)" class="title-link">{{ titleOf(collection, doc) }}</RouterLink>
+              <span v-if="isDeleted(doc)" class="badge deleted-tag">{{ t('live.deleted') }}</span>
             </td>
             <td v-for="f in extraColumns" :key="f.name" class="muted value-cell" :data-label="label(f.label, humanize(f.name))">
               <!-- A field type's own cell, e.g. a color swatch. -->
@@ -2612,6 +2772,46 @@ tbody tr:hover td {
 }
 tr.selected td {
   background: var(--accent-soft);
+}
+/* Deleted elsewhere while shown (live updates): greyed out until the list loads again. */
+tr.deleted td,
+.media-card.deleted {
+  opacity: 0.55;
+}
+tr.deleted .title-link {
+  text-decoration: line-through;
+}
+.deleted-tag {
+  margin-inline-start: 0.5rem;
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.live-changes {
+  display: flex;
+  justify-content: center;
+}
+.live-changes:empty {
+  display: none;
+}
+.live-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-block-end: 0.75rem;
+  padding: 0.35rem 0.9rem;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.live-pill:hover {
+  background: var(--surface);
+}
+.table-wrap:focus:not(:focus-visible) {
+  outline: none;
 }
 .check {
   width: 2.75rem;

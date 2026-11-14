@@ -486,6 +486,109 @@ test.describe('logged in as admin', () => {
     }
   })
 
+  test('shows another admin’s saves and deletes live in the list and the edit page (realtime)', async ({
+    page,
+    browser,
+  }) => {
+    test.skip(
+      test.info().project.name !== 'next',
+      'Posts have realtime: true in the Next.js example',
+    )
+    // Admin A is `page`; admin B works in their own browser window.
+    const contextB = await browser.newContext()
+    await contextB.addInitScript(() => localStorage.setItem('easy-cms-locale', 'en'))
+    const b = await contextB.newPage()
+    const errorsB: string[] = []
+    b.on('pageerror', (error) => errorsB.push(error.message))
+    const title = page.getByRole('textbox', { name: 'Title', exact: true })
+    const titleB = b.getByRole('textbox', { name: 'Title', exact: true })
+    try {
+      await login(b, ADMIN)
+      await page.goto('/admin/collections/posts/new')
+      await title.fill('Live target')
+      await page.getByRole('button', { name: 'Publish', exact: true }).click()
+      await expect(page.getByRole('status')).toHaveText('Created')
+      await expect(page).toHaveURL(/\/posts\/\d+$/)
+      const targetUrl = new URL(page.url()).pathname
+
+      // B's list: live, the row there.
+      await b.goto('/admin/collections/posts?q=Live')
+      await expect(b.getByTestId('live-dot')).toHaveAttribute('data-status', 'live')
+      await expect(b.getByRole('link', { name: 'Live target' })).toBeVisible()
+
+      // A saves: B's row changes in place.
+      await title.fill('Live target, renamed')
+      await page.getByRole('button', { name: 'Publish', exact: true }).click()
+      await expect(page.getByRole('status')).toHaveText('Saved')
+      await expect(b.getByRole('link', { name: 'Live target, renamed' })).toBeVisible()
+      // A's own save says nothing on A's page.
+      await expect(page.getByText('Updated from the latest save')).toHaveCount(0)
+
+      // A new post isn't inserted under B's cursor: B is told, and shows it.
+      const second = await page.context().newPage()
+      await second.goto('/admin/collections/posts/new')
+      await second.getByRole('textbox', { name: 'Title', exact: true }).fill('Live second')
+      await second.getByRole('button', { name: 'Save draft' }).click()
+      await expect(second.getByRole('status')).toHaveText('Created')
+      const pill = b.getByRole('button', { name: /1 change.*Show/ })
+      await expect(pill).toBeVisible()
+      await expect(b.getByRole('link', { name: 'Live second' })).toHaveCount(0)
+      await pill.click()
+      await expect(b.getByRole('link', { name: 'Live second' })).toBeVisible()
+      await expect(pill).toHaveCount(0)
+
+      // B's list greys out a row deleted elsewhere.
+      await second.getByRole('button', { name: 'Delete' }).click()
+      await second.getByRole('dialog').getByRole('button', { name: 'Delete' }).click()
+      await expect(second).toHaveURL(/\/admin\/collections\/posts$/)
+      await second.close()
+      const deletedRow = b.getByRole('row', { name: /Live second/ })
+      await expect(deletedRow.getByText('Deleted', { exact: true })).toBeVisible()
+      await expect(deletedRow.getByRole('checkbox')).toBeDisabled()
+
+      // B opens the post: with nothing unsaved, A's save loads silently.
+      await b.goto(targetUrl)
+      await expect(titleB).toHaveValue('Live target, renamed')
+      await title.fill('Live target, third')
+      await page.getByRole('button', { name: 'Publish', exact: true }).click()
+      await expect(page.getByRole('status')).toHaveText('Saved')
+      await expect(titleB).toHaveValue('Live target, third')
+      await expect(b.getByText('Updated from the latest save')).toBeVisible()
+
+      // With unsaved changes, B is asked; keeping theirs, saving asks before overwriting.
+      await titleB.fill('B’s version')
+      await title.fill('A’s version')
+      await page.getByRole('button', { name: 'Publish', exact: true }).click()
+      await expect(page.getByRole('status')).toHaveText('Saved')
+      await expect(b.getByText('This document was saved elsewhere', { exact: true })).toBeVisible()
+      await expect(titleB).toHaveValue('B’s version')
+      await b.getByRole('button', { name: 'Keep mine' }).click()
+      await expect(b.getByText('This document was saved elsewhere', { exact: true })).toHaveCount(0)
+      await b.getByRole('button', { name: 'Publish', exact: true }).click()
+      const confirm = b.getByRole('dialog')
+      await expect(confirm).toContainText('saved elsewhere after you opened it')
+      await confirm.getByRole('button', { name: 'Save mine' }).click()
+      await expect(b.getByRole('status')).toHaveText('Saved')
+      // A had nothing unsaved: B's save shows there.
+      await expect(title).toHaveValue('B’s version')
+      await expect(
+        page.getByText('This document was saved elsewhere', { exact: true }),
+      ).toHaveCount(0)
+
+      // A deletes it: B keeps what they typed, and can't save it.
+      await titleB.fill('B’s last words')
+      await page.getByRole('button', { name: 'Delete' }).click()
+      await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click()
+      await expect(page).toHaveURL(/\/admin\/collections\/posts$/)
+      await expect(b.getByText('This document was deleted')).toBeVisible()
+      await expect(titleB).toHaveValue('B’s last words')
+      await expect(b.getByRole('button', { name: 'Publish', exact: true })).toBeDisabled()
+      expect(errorsB).toEqual([])
+    } finally {
+      await contextB.close()
+    }
+  })
+
   test('edits a draft while the published version stays live, and restores history (FR-VER)', async ({
     page,
   }) => {

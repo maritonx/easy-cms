@@ -6,13 +6,16 @@ import { ApiError, api, type Doc } from '../lib/api'
 import { contentLocale, localeQuery, setContentLocale } from '../lib/content-locale'
 import { initialValues, snapshot, titleOf, toFormValues } from '../lib/fields'
 import { label, singularize, t } from '../lib/i18n'
+import { useLiveDocument } from '../lib/live-document'
 import { useDelayedLoading } from '../lib/loading'
 import { FORM, setPath } from '../lib/plugins'
 import { findCollection, mayHavePassword, session } from '../lib/session'
 import { notify } from '../lib/toast'
 import { missingLocales, TRANSLATION } from '../lib/translation'
+import ConfirmDialog from './ConfirmDialog.vue'
 import DeleteDialog from './DeleteDialog.vue'
 import FormSkeleton from './FormSkeleton.vue'
+import LiveNotice from './LiveNotice.vue'
 import LocaleSwitcher from './LocaleSwitcher.vue'
 import PluginElement from './PluginElement.vue'
 
@@ -83,6 +86,35 @@ function reset(values: Record<string, unknown>) {
   baseline.value = snapshot([values, ''])
 }
 
+/** The document as this drawer reads it. */
+const readDoc = () =>
+  api<Doc>(
+    'GET',
+    `/${props.slug}/${encodeURIComponent(String(props.id))}?depth=0&draft=true${localeQuery({ editing: true })}`,
+  )
+/** Loads in progress: live changes wait for them. */
+const reading = ref(0)
+/** Deleting it here: its own `delete` must not say "deleted" while the drawer closes. */
+const deleting = ref(false)
+// Other saves of this document, as on the edit page (`realtime: true`, ADR-0070).
+const liveDoc = useLiveDocument({
+  slug: props.slug,
+  id: () => props.id,
+  enabled: collection?.realtime === true,
+  draft: !!collection?.drafts,
+  dirty: () => dirty.value,
+  busy: () => saving.value || reading.value > 0 || deleting.value,
+  baseline: () => baseline.value,
+  updatedAt: () => doc.value?.updatedAt,
+  read: readDoc,
+  snapshotOf: (loaded) =>
+    collection ? snapshot([toFormValues(collection.fields, loaded), '']) : '',
+  reload: () => load(),
+})
+const { gone: liveGone, confirmOverwrite } = liveDoc
+/** Saving over a newer version: asked first. */
+const overwriting = ref(false)
+
 async function load() {
   if (!collection) return
   if (props.id === null) {
@@ -91,10 +123,10 @@ async function load() {
     return
   }
   loading.value = true
+  reading.value++
   try {
-    const path = `/${props.slug}/${encodeURIComponent(props.id)}`
     const [loaded, access] = await Promise.all([
-      api<Doc>('GET', `${path}?depth=0&draft=true${localeQuery({ editing: true })}`),
+      readDoc(),
       api<{ update: boolean; delete: boolean }>(
         'GET',
         `/admin/ui/access/${props.slug}/${encodeURIComponent(props.id)}`,
@@ -108,6 +140,7 @@ async function load() {
     notify('error', t('common.error', { message: (e as Error).message }))
   } finally {
     loading.value = false
+    reading.value--
   }
 }
 
@@ -146,8 +179,13 @@ async function switchLocale(next: string) {
   await load()
 }
 
-async function save() {
-  if (!collection || !canSave.value) return
+async function save(overwrite = false) {
+  if (!collection || !canSave.value || liveGone.value) return
+  if (props.id !== null && confirmOverwrite.value && !overwrite) {
+    overwriting.value = true
+    return
+  }
+  overwriting.value = false
   saving.value = true
   errors.value = {}
   const body: Record<string, unknown> = { ...form.value }
@@ -163,6 +201,7 @@ async function save() {
         )
     doc.value = saved
     reset(toFormValues(collection.fields, saved))
+    liveDoc.saved()
     void refreshTranslations()
     notify('success', t(created ? 'edit.created' : 'edit.saved'))
     emit('saved', saved, created)
@@ -187,12 +226,14 @@ async function save() {
 
 async function remove() {
   confirmingDelete.value = false
+  deleting.value = true
   try {
     await api('DELETE', `/${props.slug}/${encodeURIComponent(String(props.id))}`)
     notify('success', t('list.deletedCount', { count: 1 }))
     baseline.value = snapshot([form.value, password.value])
     emit('deleted')
   } catch (e) {
+    deleting.value = false
     notify(
       'error',
       e instanceof ApiError && e.status === 403 ? t('common.forbidden') : (e as Error).message,
@@ -220,7 +261,7 @@ onMounted(() => {
   <!-- At the end of <body>: never inside the page's own form (a relationship field's drawer). -->
   <Teleport to="body">
   <dialog ref="dialog" class="drawer" :aria-labelledby="headingId" @cancel.prevent="close" @click="onClick">
-    <form class="panel" novalidate @submit.prevent.stop="save">
+    <form class="panel" novalidate @submit.prevent.stop="save()">
       <header class="panel-header">
         <h2 :id="headingId">{{ heading }}</h2>
         <div class="header-actions">
@@ -234,6 +275,7 @@ onMounted(() => {
       </header>
 
       <div class="panel-body">
+        <LiveNotice v-if="collection?.realtime && id !== null" :live="liveDoc" />
         <LocaleSwitcher v-if="localized" :missing="untranslated" @change="switchLocale" />
         <FormSkeleton v-if="showSkeleton" :fields="collection?.fields ?? []" />
         <template v-else-if="loading" />
@@ -252,15 +294,22 @@ onMounted(() => {
       </div>
 
       <footer class="panel-footer">
-        <button v-if="canDelete" type="button" class="btn btn-ghost danger" @click="confirmingDelete = true">
+        <button v-if="canDelete && !liveGone" type="button" class="btn btn-ghost danger" @click="confirmingDelete = true">
           <Trash2 :size="15" aria-hidden="true" />
           {{ t('edit.delete') }}
         </button>
         <span class="spacer" />
         <button type="button" class="btn" @click="close">{{ t('common.cancel') }}</button>
-        <button v-if="canSave" type="submit" class="btn btn-primary" :disabled="saving || loading">{{ t('edit.save') }}</button>
+        <button v-if="canSave" type="submit" class="btn btn-primary" :disabled="saving || loading || !!liveGone">{{ t('edit.save') }}</button>
       </footer>
     </form>
+    <ConfirmDialog
+      :open="overwriting"
+      :message="t('live.confirmOverwrite')"
+      :confirm-label="t('live.overwrite')"
+      @confirm="save(true)"
+      @cancel="overwriting = false"
+    />
     <DeleteDialog
       :open="confirmingDelete"
       :collection="collection"

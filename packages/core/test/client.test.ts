@@ -90,6 +90,43 @@ describe('createClient (#336)', () => {
     expect(error).toMatchObject({ status: 403, message: 'Forbidden' })
   })
 
+  it('subscribes after a given event id and says where the stream got to', async () => {
+    const headers: Headers[] = []
+    const cms = createClient<typeof config>({
+      url: 'https://cms.test/api/cms',
+      fetch: async (_input, init) => {
+        headers.push(new Headers(init?.headers))
+        const body = [
+          'id: 7\nevent: ready\ndata: {}\n\n',
+          'id: 8\nevent: update\ndata: {"collection":"posts","id":1,"doc":{"id":1}}\n\n',
+          'id: 9\n: ping\n\n',
+        ].join('')
+        return new Response(body, { headers: { 'content-type': 'text/event-stream' } })
+      },
+    })
+    const events: string[] = []
+    let readyResolve!: () => void
+    const pinged = new Promise<void>((resolve) => {
+      readyResolve = resolve
+    })
+    const handle = cms.subscribe(
+      [{ collection: 'posts' }],
+      {
+        onEvent: (e) => {
+          events.push(`${e.event}:${e.eventId}`)
+          setTimeout(readyResolve, 0)
+        },
+      },
+      { lastEventId: '5' },
+    )
+    expect(handle.lastEventId).toBe('5')
+    await pinged
+    handle.close()
+    expect(headers[0]?.get('last-event-id')).toBe('5')
+    expect(events).toEqual(['update:8'])
+    expect(handle.lastEventId).toBe('9')
+  })
+
   it('types documents from the config or from generated types', () => {
     const { cms } = recording()
     expectTypeOf(cms.find('posts')).resolves.toHaveProperty('totalDocs').toEqualTypeOf<number>()

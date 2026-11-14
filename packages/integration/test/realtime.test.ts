@@ -536,4 +536,59 @@ describe('realtime (ADR-0070)', () => {
     await ctx.cms.update('posts', b.id, { status: 'published', title: 'Back' })
     await until(() => one?.doc?.title === 'Back')
   })
+
+  it('tells the admin which collections are live, and sends staff a live document’s new draft', async () => {
+    ctx = await setup()
+    const schema = (await (
+      await fetch(`${ctx.api}/admin/ui/schema`, { headers: ctx.staff })
+    ).json()) as { collections: { slug: string; realtime?: boolean }[] }
+    expect(schema.collections.find((c) => c.slug === 'posts')?.realtime).toBe(true)
+    expect(schema.collections.find((c) => c.slug === 'plain')?.realtime).toBeUndefined()
+
+    // The admin's edit page follows one document with drafts. A draft's `updatedAt` as read
+    // differs from what the save returned, so the admin compares content, not `updatedAt`.
+    const post = await ctx.cms.create('posts', { title: 'Live', status: 'published' })
+    const s = ctx.open(`s=${encodeURIComponent(`posts/${post.id}?draft=true&depth=0`)}`, ctx.staff)
+    await s.until((m) => m.event === 'ready')
+    const saved = await ctx.cms.update('posts', post.id, { title: 'Pending', status: 'draft' })
+    expect(saved).toMatchObject({ title: 'Pending' })
+    const event = await s.until((m) => m.event === 'update')
+    expect(event.data.doc).toMatchObject({ id: post.id, title: 'Pending', status: 'draft' })
+  })
+
+  it('moves to new subscriptions after the last stream’s position, missing nothing', async () => {
+    ctx = await setup()
+    const client = createClient({
+      url: ctx.api,
+      fetchOptions: { headers: ctx.staff },
+    })
+    const seen: string[] = []
+    let ready = 0
+    const until = async (check: () => boolean) => {
+      const end = Date.now() + 5000
+      while (!check()) {
+        if (Date.now() > end) throw new Error(`Timed out: ${JSON.stringify(seen)}`)
+        await new Promise((r) => setTimeout(r, 20))
+      }
+    }
+    const first = client.subscribe([{ collection: 'posts' }], {
+      onEvent: (e) => seen.push(`posts ${e.event}`),
+      onReady: () => ready++,
+    })
+    cleanups.push(() => first.close())
+    await until(() => ready === 1)
+    await ctx.cms.create('posts', { title: 'A', status: 'published' })
+    await until(() => seen.length === 1)
+    first.close()
+    // Saved while no stream is open.
+    await ctx.cms.create('posts', { title: 'B', status: 'published' })
+    const second = client.subscribe(
+      [{ collection: 'posts' }, { collection: 'notes' }],
+      { onEvent: (e) => seen.push(`${e.collection} ${e.event}`) },
+      { lastEventId: first.lastEventId },
+    )
+    cleanups.push(() => second.close())
+    await until(() => seen.length === 2)
+    expect(seen).toEqual(['posts create', 'posts create'])
+  })
 })
