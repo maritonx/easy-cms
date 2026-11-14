@@ -87,13 +87,15 @@
   - เชื่อผู้เรียกเหมือน Local API อื่น (`overrideAccess` ค่าเริ่มต้น true) และอ่านเฉพาะฉบับ publish ถ้าไม่ส่ง `draft: true` เหมือน `find`
 - **client:** `@easy-cms/core/client` มี `subscribe(subscriptions, { onEvent, onReady, onReset, onError })` อ่านด้วย `fetch` (header ใช้ได้),
   แปลง SSE เอง, เชื่อมต่อใหม่แบบ backoff 1–30 วินาทีพร้อม jitter และ `Last-Event-ID`, หยุดเมื่อได้ 400/401/403/404
+  - ตัวเลือก `{ lastEventId }` เริ่มต่อจาก id นั้น และ handle บอก `lastEventId` ที่ stream ไปถึง
+    ใช้เปลี่ยน subscription (เปิด stream ใหม่) โดยไม่พลาด event ระหว่างนั้น (เพิ่ม 2026-11-14 สำหรับ ADR-0071)
   - `live(collection, query, onChange)`: รายการ (หรือเอกสารเดียวด้วย `id`) โหลดหลัง `ready` ครั้งแรก เก็บ event ระหว่างโหลดไว้แล้วใช้ต่อ โหลดใหม่เมื่อ `reset`
     เรียงตาม `sort` (ค่าเริ่มต้น `-createdAt`) และตัดตาม `limit`
   - `useLive(client, collection, query, initial?)` ของ React (`@easy-cms/next/live`) และ Vue (auto-import ใน `@easy-cms/nuxt`) ห่อ `live()`
 
 ## สิ่งที่ยังไม่ทำ (PR ถัดไป)
 
-- การอัปเดตสดในหน้า admin และ presence (ใครแก้เอกสารเดียวกันอยู่)
+- presence (ใครแก้เอกสารเดียวกันอยู่) การอัปเดตสดในหน้า admin ทำแล้วใน [ADR-0071](0071-admin-live-updates.md)
 - channel ที่กำหนดเอง, WebSocket, response แบบ streaming
 - global
 - `cms.increment()` ไม่เขียน event (เหมือนที่ไม่ส่ง webhook)
