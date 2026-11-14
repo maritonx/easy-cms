@@ -58,6 +58,7 @@ import { exportCsv } from './export-csv.js'
 import { blockSummaries, pickerFilter } from './filter-options.js'
 import { cacheableResponse, cacheTags, cacheTimes } from './http-cache.js'
 import { parseDepth, parseListQuery } from './query.js'
+import { realtimeResponse } from './realtime.js'
 import { createView, deleteView, listViews, setDefaultView, updateView } from './saved-views.js'
 
 /** At most this many scheduled publishes in a calendar's range (#272). */
@@ -369,7 +370,7 @@ const ADMIN_UI_ROUTES = new Set([
 ])
 
 const CORS_METHODS = 'GET, HEAD, POST, PATCH, PUT, DELETE'
-const CORS_HEADERS = `authorization, content-type, ${CSRF_HEADER}`
+const CORS_HEADERS = `authorization, content-type, last-event-id, ${CSRF_HEADER}`
 
 /**
  * CORS headers for the request's origin. Origins in `cors` may make anonymous requests (or send
@@ -1526,6 +1527,19 @@ async function route(
         ...parseDepth(ctx.url),
         ...pageQuery(q, 10),
         ...(collections ? { collections: collections.split(',').filter(Boolean) } : {}),
+      }),
+    }
+  }
+
+  // Realtime (ADR-0070): `GET <api>/realtime?s=<collection>[/<id>][?<query>]`, Server-Sent Events.
+  if (first === 'realtime' && second === undefined && cms.realtime) {
+    if (method !== 'GET') throw methodNotAllowed(ctx, 'GET')
+    return {
+      body: await realtimeResponse(cms, ctx.request, ctx.url, {
+        user: ctx.user,
+        context: ctx.context,
+        token: ctx.via ? ctx.token : undefined,
+        ip: options.getClientIp?.(ctx.request),
       }),
     }
   }
