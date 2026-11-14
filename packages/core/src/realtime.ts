@@ -92,6 +92,16 @@ export type LoadDocument = (
   id: ID,
 ) => Promise<Record<string, unknown> | null>
 
+/**
+ * Whether `reader` could see a document in its stored state `doc` through `subscription`: its
+ * `where`, the reader's read access and drafts, checked in memory. `false` when unsure.
+ */
+export type SawDocument = (
+  subscription: Subscription,
+  reader: Reader,
+  doc: Record<string, unknown>,
+) => Promise<boolean>
+
 /** A stored event. */
 interface StoredEvent {
   readonly id: number
@@ -100,6 +110,15 @@ interface StoredEvent {
   readonly event: RealtimeChange
   readonly draft: boolean
   readonly published: boolean
+  /** The stored document before an update or delete; `undefined` for a create. */
+  readonly before: Record<string, unknown> | undefined
+}
+
+/** Stored without what signs a user in. */
+function withoutHash(doc: Record<string, unknown>): Record<string, unknown> {
+  if (!('passwordHash' in doc)) return doc
+  const { passwordHash: _, ...rest } = doc
+  return rest
 }
 
 /** The row a save writes; for a create, `docId` comes from the written document. */
@@ -109,6 +128,8 @@ export function realtimeRow(change: {
   readonly event: RealtimeChange
   readonly draft: boolean
   readonly published: boolean
+  /** The stored document before an update or delete. Never sent: only checked (`SawDocument`). */
+  readonly before?: Record<string, unknown> | undefined
 }): OutboxRow {
   return {
     collection: REALTIME_EVENTS,
@@ -120,6 +141,7 @@ export function realtimeRow(change: {
         event: change.event,
         draft: change.draft,
         published: change.published,
+        before: change.before ? JSON.stringify(withoutHash(change.before)) : null,
         createdAt: now,
         updatedAt: now,
       }
@@ -154,7 +176,106 @@ const toEvent = (row: RawDocument): StoredEvent => ({
   event: row.event as RealtimeChange,
   draft: row.draft === true,
   published: row.published !== false,
+  before: parseBefore(row.before),
 })
+
+function parseBefore(value: unknown): Record<string, unknown> | undefined {
+  if (typeof value !== 'string' || value === '') return undefined
+  try {
+    const parsed = JSON.parse(value) as unknown
+    return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/** A stored value as `where` compares it: a populated relationship by its id. */
+function comparable(value: unknown): unknown {
+  if (value && typeof value === 'object' && !Array.isArray(value) && 'id' in value)
+    return (value as { id: unknown }).id
+  return value
+}
+
+const same = (a: unknown, b: unknown) =>
+  (a === null || a === undefined) && (b === null || b === undefined)
+    ? true
+    : a !== null && a !== undefined && b !== null && b !== undefined && String(a) === String(b)
+
+/** One operator on a value: `undefined` when it can't tell in memory. */
+function matchesOperator(op: string, value: unknown, expected: unknown): boolean | undefined {
+  switch (op) {
+    case 'equals':
+      return same(value, expected)
+    case 'not_equals':
+      return !same(value, expected)
+    case 'in':
+    case 'not_in': {
+      if (!Array.isArray(expected)) return undefined
+      const found = expected.some((e) => same(value, e))
+      return op === 'in' ? found : !found
+    }
+    case 'exists':
+      return (value !== null && value !== undefined) === (expected !== false)
+    case 'gt':
+    case 'gte':
+    case 'lt':
+    case 'lte': {
+      if (value === null || value === undefined) return false
+      const numbers = typeof value === 'number' && typeof expected === 'number'
+      const order = numbers
+        ? (value as number) - (expected as number)
+        : String(value) < String(expected)
+          ? -1
+          : String(value) > String(expected)
+            ? 1
+            : 0
+      if (op === 'gt') return order > 0
+      if (op === 'gte') return order >= 0
+      if (op === 'lt') return order < 0
+      return order <= 0
+    }
+    default:
+      // `like` and others: the database's own rules.
+      return undefined
+  }
+}
+
+/**
+ * Whether a stored document matches `where`, in memory: `undefined` when it can't tell (`like`,
+ * values in arrays or objects). Paths with `.` read into groups and localized values.
+ */
+export function matchesWhere(where: Where, doc: Record<string, unknown>): boolean | undefined {
+  let result: boolean | undefined = true
+  const all = (value: boolean | undefined) => {
+    if (value === false) result = false
+    else if (value === undefined && result !== false) result = undefined
+  }
+  for (const [key, condition] of Object.entries(where)) {
+    if (condition === undefined) continue
+    if (key === 'and' || key === 'or') {
+      if (!Array.isArray(condition)) return undefined
+      const parts = (condition as Where[]).map((w) => matchesWhere(w, doc))
+      if (key === 'and')
+        all(parts.includes(false) ? false : parts.includes(undefined) ? undefined : true)
+      else all(parts.includes(true) ? true : parts.includes(undefined) ? undefined : false)
+      continue
+    }
+    let value: unknown = doc
+    for (const part of key.split('.'))
+      value =
+        value && typeof value === 'object' && !Array.isArray(value)
+          ? (value as Record<string, unknown>)[part]
+          : undefined
+    value = comparable(value)
+    if (Array.isArray(value) || (value !== null && typeof value === 'object')) {
+      all(undefined)
+      continue
+    }
+    for (const [op, expected] of Object.entries(condition as Record<string, unknown>))
+      all(matchesOperator(op, value, comparable(expected)))
+  }
+  return result
+}
 
 /** Reads events in id order from a position, waiting for gaps (see `GAP_MS`). */
 class Feed {
@@ -343,14 +464,34 @@ export class Subscriber {
     const id = parseId(event.docId) ?? event.docId
     const eventId = String(event.id)
     const base = { eventId, collection: event.collection, id }
-    if (event.event === 'delete') return { event: 'delete', ...base }
+    // Deleted: only who could see it before hears of it.
+    if (event.event === 'delete')
+      return (await this.sawBefore(seen, event)) ? { event: 'delete', ...base } : undefined
     for (const subscription of seen) {
       const doc = await this.load(subscription, event, id, cache)
       if (doc === undefined) return undefined
       if (doc) return { event: event.event, ...base, doc }
     }
-    // Never shown to it: nothing to take back.
-    return event.event === 'create' ? undefined : { event: 'leave', ...base }
+    // Hidden now: `leave` only for who could see it before, so ids it never could stay unknown.
+    return (await this.sawBefore(seen, event)) ? { event: 'leave', ...base } : undefined
+  }
+
+  /**
+   * Whether one of the subscriptions showed the document before the change: its stored state
+   * then, checked against the subscription's `where` and the reader's access now. No stored
+   * state (a create) or unsure: `false`, so nothing is told.
+   */
+  private async sawBefore(subscriptions: readonly Subscription[], event: StoredEvent) {
+    const before = event.before
+    if (!before) return false
+    for (const subscription of subscriptions) {
+      try {
+        if (await this.hub.saw(subscription, this.reader, before)) return true
+      } catch {
+        // Refused access: it can't see it.
+      }
+    }
+    return false
   }
 
   /** The document for one subscription; `undefined` when loading failed (nothing is sent). */
@@ -419,6 +560,7 @@ export class Realtime {
     private readonly db: Database,
     readonly logger: Logger,
     readonly load: LoadDocument,
+    readonly saw: SawDocument,
     config: RealtimeConfig | undefined,
     /** Collections with `realtime: true`. */
     readonly collections: ReadonlySet<string>,

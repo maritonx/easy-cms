@@ -80,6 +80,7 @@ const { docs: posts, ready } = useLive(cms, 'posts', { sort: '-createdAt', limit
   order (default `-createdAt`); with `limit` it keeps at most that many.
 - `delete` and `leave` take it out. `leave` means it no longer shows for this subscriber: a
   visitor's published post was unpublished, or it no longer matches `where` or the user's access.
+  Both come only for documents the subscriber could see before.
 - After a `reset` it loads the list again.
 
 ## Subscribing yourself
@@ -151,8 +152,11 @@ read. Access is checked when the stream opens (a `where` on a field the user can
 `403`, as a list would); a stream whose session ends or API key is revoked closes within a
 minute, and the client reconnects as who it is now.
 
-A `leave` can come for a document the client never had (an update to a post that doesn't match
-its `where`): ignore ids you don't have. It tells only the id, never the document.
+`leave` and `delete` go only to subscribers who could see the document before the change: its
+stored state then matched the subscription (`where`, `id`) and the subscriber's read access now
+(row-level `where`, drafts as it may read them). Nobody learns the id of a document they never
+could read. That check runs in memory: when it can't tell (a `like`, a value in an array) it
+sends nothing, so a client may keep such a document until it loads again.
 
 ## Local API
 

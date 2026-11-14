@@ -332,11 +332,17 @@ describe('realtime (ADR-0070)', () => {
     await news.until((m) => m.event === 'leave' && m.data.id === a.id)
     await ctx.cms.update('posts', b.id, { title: 'B2' })
     await one.until((m) => m.event === 'update' && m.data.id === b.id)
-    // Never matching: no document of it, at most a `leave` (it can't tell the client has none).
-    expect(news.messages.filter((m) => m.data.id === b.id).map((m) => m.event)).toEqual(
-      expect.arrayContaining([]),
-    )
-    expect(news.messages.some((m) => m.data.id === b.id && m.event !== 'leave')).toBe(false)
+    // Never matching: nothing at all about it, not even its id.
+    expect(news.messages.some((m) => m.data.id === b.id)).toBe(false)
+    // Deleting one it never matched: nothing either.
+    const c = await ctx.cms.create('posts', { title: 'C', category: 'sport', status: 'published' })
+    await ctx.cms.delete('posts', c.id)
+    // Matching now, never before: an update with the document.
+    await ctx.cms.update('posts', b.id, { category: 'news' })
+    const joined = await news.until((m) => m.event === 'update' && m.data.id === b.id)
+    expect(joined.data.doc).toMatchObject({ title: 'B2', category: 'news' })
+    expect(news.messages.some((m) => m.data.id === c.id)).toBe(false)
+    await ctx.cms.update('posts', b.id, { category: 'sport' })
     expect(one.messages.some((m) => m.data.id === a.id)).toBe(false)
     // Bracket where, as the REST list takes it, and several subscriptions on one stream.
     const both = ctx.open(
@@ -362,6 +368,26 @@ describe('realtime (ADR-0070)', () => {
     await theirs.until((m) => m.event === 'create' && m.data.id === other.id)
     expect(theirs.messages.some((m) => m.data.id === note.id)).toBe(false)
     expect(mine.messages.some((m) => m.data.id === other.id)).toBe(false)
+    // (1) Hidden by row-level access before and after: nothing, not even its id.
+    await ctx.cms.update('notes', other.id, { text: 'theirs, edited' })
+    await theirs.until((m) => m.event === 'update' && m.data.id === other.id)
+    // (2) Visible before, hidden after: `leave` for the one who saw it, nothing for the other.
+    await ctx.cms.update('notes', note.id, { owner: Number(ctx.other.id) })
+    await mine.until((m) => m.event === 'leave' && m.data.id === note.id)
+    // (3) Never visible, now visible: an update with the document, as before.
+    const moved = await theirs.until((m) => m.event === 'update' && m.data.id === note.id)
+    expect(moved.data.doc).toMatchObject({ text: 'mine' })
+    // (4) Deleted, which only the other user could see: the first hears nothing.
+    await ctx.cms.delete('notes', other.id)
+    await theirs.until((m) => m.event === 'delete' && m.data.id === other.id)
+    await ctx.cms.delete('notes', note.id)
+    await theirs.until((m) => m.event === 'delete' && m.data.id === note.id)
+    await new Promise((r) => setTimeout(r, 200))
+    expect(mine.messages.filter((m) => m.data.id === other.id)).toEqual([])
+    expect(mine.messages.filter((m) => m.data.id === note.id).map((m) => m.event)).toEqual([
+      'create',
+      'leave',
+    ])
     // A visitor may not read notes at all: refused up front.
     const refused = await fetch(`${ctx.api}/realtime?s=notes`)
     expect(refused.status).toBe(401)

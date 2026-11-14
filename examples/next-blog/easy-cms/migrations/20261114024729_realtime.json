@@ -1,6 +1,6 @@
 {
   "dialect": "postgres",
-  "hash": "ccb26b8a14f4df3f",
+  "hash": "a62a2304e7685679",
   "snapshot": {
     "version": "7",
     "dialect": "postgresql",
@@ -3294,6 +3294,12 @@
             "type": "boolean",
             "primaryKey": false,
             "notNull": false
+          },
+          "before": {
+            "name": "before",
+            "type": "text",
+            "primaryKey": false,
+            "notNull": false
           }
         },
         "indexes": {
@@ -4396,7 +4402,7 @@
       "tables": {},
       "columns": {}
     },
-    "id": "b28e98db-9416-47fe-bae1-0da8349c27f4",
+    "id": "5a298d82-2886-4a9a-a230-0590bf7d390e",
     "prevId": "00000000-0000-0000-0000-000000000000",
     "easyCms": {
       "localization": {

@@ -789,6 +789,9 @@ export const realtimeEventsCollection: CollectionConfig = {
     // Published before or after the change (always, without drafts): who reads only published
     // documents may have seen it, or may see it now.
     { name: 'published', type: 'boolean' },
+    // JSON: the stored document before an update or delete, never sent: who could see it then
+    // gets `leave` or `delete`, nobody else.
+    { name: 'before', type: 'textarea' },
   ],
 }
 

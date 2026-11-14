@@ -1,4 +1,4 @@
--- Easy CMS migration 20261114022633_realtime (postgres)
+-- Easy CMS migration 20261114024729_realtime (postgres)
 -- Generated from the config; review before deploying.
 CREATE TABLE "ecms_realtime_events" (
 	"id" serial PRIMARY KEY NOT NULL,
@@ -8,7 +8,8 @@ CREATE TABLE "ecms_realtime_events" (
 	"doc_id" text,
 	"event" text,
 	"draft" boolean,
-	"published" boolean
+	"published" boolean,
+	"before" text
 );
 
 --> statement-breakpoint

@@ -22,11 +22,13 @@
   `{ retentionHours: 24, pollMs: 1000, heartbeatMs: 25000, maxPerUser: 10, maxConnections: 1000 }`
   - เฉพาะ collection ที่เปิดเขียน event, ตาราง `realtime-events` มีเมื่อมีอย่างน้อยหนึ่ง collection เปิด (เหมือน `outbox: true`)
   - เป็นส่วนของ core ไม่ใช่ plugin
-- **ตารางใหม่ `realtime-events`:** `id` (serial), `collection`, `docId`, `event`, `draft`, `published`, `createdAt`
+- **ตารางใหม่ `realtime-events`:** `id` (serial), `collection`, `docId`, `event`, `draft`, `published`, `before`, `createdAt`
   - `event`: `create`, `update`, `delete`, `publish`, `unpublish` แยก publish/unpublish แบบเดียวกับ `changeEvents`
   - `draft`: เปลี่ยนเฉพาะฉบับร่างที่เก็บเป็น version (เอกสารที่ publish อยู่ไม่เปลี่ยน) ส่งเฉพาะคนที่อ่านฉบับร่าง
   - `published`: publish อยู่ก่อนหรือหลังการเปลี่ยน (เสมอถ้าไม่มี drafts) คนที่อ่านเฉพาะฉบับ publish ไม่ได้อะไรถ้าเป็น false
-  - **ไม่เก็บเอกสาร:** ตอนส่งโหลดเอกสารใหม่ให้ผู้ subscribe แต่ละคน ด้วย `cms.find({ where: and(where ของ subscription, id), overrideAccess: false, user, context, draft, depth, locale })`
+  - `before`: JSON ของแถวเอกสารที่เก็บอยู่ก่อน update หรือ delete (ไม่รวม `passwordHash`) ใช้ตรวจว่าใครเห็นมันก่อนการเปลี่ยน
+    ไม่เคยส่งออกไป (ไม่อยู่ใน `data` ของ SSE หรือของ `cms.subscribe`) create ไม่มี
+  - **ไม่ส่งเอกสารจากตาราง:** ตอนส่งโหลดเอกสารใหม่ให้ผู้ subscribe แต่ละคน ด้วย `cms.find({ where: and(where ของ subscription, id), overrideAccess: false, user, context, draft, depth, locale })`
     จึงได้สิทธิ์ระดับ collection (รวม `readWhere`), grant ของ API key, สิทธิ์อ่านระดับ field (`output`) และฉบับร่างเหมือน REST ทุกอย่าง
   - ผู้เยี่ยมชมที่ subscribe แบบเดียวกันและ context เดียวกันใช้การโหลดร่วมกันต่อ event
 - **เขียนใน transaction เดียวกับการบันทึก:** แถวส่งผ่านพารามิเตอร์ `outbox` ของ adapter (ตอนนี้รับ array ได้ เมื่อเปิดทั้ง outbox และ realtime)
@@ -39,11 +41,16 @@
 - **ลบแถวเก่า:** scheduler ทุก 60 วินาที (`runJobs`) ลบแถวที่เก่ากว่า `retentionHours` ทีละ 500 เหมือน prune อื่น และเก็บแถวล่าสุดไว้เสมอ
 - **event ต่อผู้ subscribe:**
   - `create`, `update`, `publish`, `unpublish`: ส่ง `{ collection, id, doc }` เมื่ออ่านได้และตรง `where`
-  - อ่านไม่ได้หรือไม่ตรง `where` แล้ว: ส่ง `leave` (`{ collection, id }`) ให้ client เอาออก ยกเว้น `create` (ไม่เคยเห็น)
-    - server ไม่รู้ว่า client มีเอกสารไหน (โหลดรายการแรกผ่าน REST) `leave` จึงอาจมาสำหรับเอกสารที่ client ไม่มี
-    - ผลคือ id ของเอกสารใน collection ที่อ่านได้แต่ถูกกรองด้วยสิทธิ์ระดับแถวหรือ `where` อาจรั่ว (แค่ id ไม่มีเนื้อหา)
-      และไม่ส่งเลยถ้าเป็นเอกสารที่ไม่เคย publish สำหรับคนที่อ่านเฉพาะฉบับ publish
-  - `delete`: `{ collection, id }` ตามกติกา `draft`/`published` เดียวกัน
+  - อ่านไม่ได้หรือไม่ตรง `where` แล้ว: ส่ง `leave` (`{ collection, id }`) **เฉพาะคนที่เห็นเอกสารนั้นก่อนการเปลี่ยน**
+    (แก้ 2026-11-14 ตามที่เจ้าของโปรเจกต์อนุมัติ: เดิมส่งให้ทุกคนที่อ่าน collection ได้ ซึ่งบอก id ที่สิทธิ์ระดับแถวหรือ `where` ซ่อนไว้)
+    - "เห็นก่อน" = แถว `before` ตรงกับ subscription (collection, id, `where`) และผ่านสิทธิ์อ่านของผู้ subscribe ตอนนี้
+      (`readWhere` รวม grant ของ API key และฉบับร่างตามที่อ่านได้: คนที่อ่านเฉพาะฉบับ publish ต้องเป็น `status: published`)
+    - ตรวจในหน่วยความจำด้วย `matchesWhere` บนแถวที่เก็บ (where จับกับแถวที่เก็บเหมือน `find` แม้มีฉบับร่างค้าง)
+      รองรับ `equals`, `not_equals`, `in`, `not_in`, `gt`/`gte`/`lt`/`lte`, `exists`, `and`/`or`, path ใน group และค่าหลายภาษา, relationship เทียบด้วย id
+    - ไม่แน่ใจ (เช่น `like`, ค่าใน array หรือ hasMany) หรือไม่มี `before` (create, หรือแถวที่เขียนก่อนมีคอลัมน์นี้): ถือว่าไม่เห็น ไม่ส่ง `leave`
+      ข้อเสียคือ client ที่มีเอกสารนั้นอาจค้างไว้จนโหลดใหม่ เลือกฝั่งนี้เพราะไม่รั่ว id
+    - ใช้ได้ทั้ง event สดและตอน replay ด้วย `Last-Event-ID` เพราะ `before` อยู่ในแถว
+  - `delete`: `{ collection, id }` กติกาเดียวกัน: เฉพาะคนที่เห็นเอกสารก่อนลบ
   - คนที่อ่านเฉพาะฉบับ publish ได้ `leave` แทน `unpublish` และไม่เคยได้ฉบับร่าง
   - หนึ่ง event ต่อ connection แม้หลาย subscription เห็น ใช้เอกสารของ subscription แรกที่อ่านได้
 - **auth:** เหมือน REST: session cookie (เบราว์เซอร์) หรือ API key / token ใน `Authorization` ไม่รับ token จาก URL
@@ -97,6 +104,8 @@
 - ✅ ไม่มี event หายหรือ event ที่ไม่มีการบันทึกบน adapter ที่เขียนใน transaction ได้ และ client ที่หลุดไปได้สิ่งที่พลาดกลับมา
 - ⚠️ ทุก instance query ตารางทุก `pollMs` เมื่อมีผู้ subscribe และอ่านเอกสารหนึ่งครั้งต่อผู้ subscribe ต่อ event ผู้ subscribe จำนวนมากบน collection ที่แก้บ่อยมีค่าอ่าน
 - ⚠️ บน Workers ค่า query คูณจำนวน stream
-- ⚠️ `leave` อาจบอก id ของเอกสารที่ผู้ subscribe อ่านไม่ได้ (ไม่มีเนื้อหา)
+- ✅ `leave` และ `delete` ไปถึงเฉพาะคนที่เห็นเอกสารก่อนการเปลี่ยน ไม่บอก id ที่สิทธิ์หรือ `where` ซ่อนไว้
+- ⚠️ แต่ละแถวเก็บเอกสารก่อนการเปลี่ยนไว้ `retentionHours` ตารางจึงโตตามขนาดเอกสาร
+- ⚠️ `where` หรือสิทธิ์ที่ตรวจในหน่วยความจำไม่ได้ (`like`, array) ไม่ได้ `leave` client ค้างเอกสารนั้นจนโหลดใหม่
 - ⚠️ ช่องว่างของ id ที่ไม่ปิด (rollback, sequence ข้ามหลัง Postgres crash) หน่วง event ถัดไปสูงสุด 10 วินาที
 - ⚠️ ตาราง `realtime-events` ต้องมี migration เมื่อเปิด realtime ครั้งแรก

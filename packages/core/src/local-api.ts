@@ -128,6 +128,7 @@ import { Outbox, type OutboxEntry, type OutboxStep } from './outbox.js'
 import { DEFAULT_DEPTH, type Loader, MAX_DEPTH, populate } from './populate.js'
 import { RateLimiter } from './rate-limit.js'
 import {
+  matchesWhere,
   Realtime,
   type RealtimeChange,
   type RealtimeEvent,
@@ -584,6 +585,24 @@ export class EasyCMS<C extends Config = Config> {
               overrideAccess: reader.overrideAccess,
             })
             return (docs[0] as Record<string, unknown> | undefined) ?? null
+          },
+          async (subscription, reader, doc) => {
+            const config = this.collection(subscription.collection)
+            const guard: Guard = {
+              enforce: !reader.overrideAccess,
+              user: reader.user,
+              context: reader.context ?? NO_CONTEXT,
+            }
+            const where = this.whereFor(
+              config,
+              draftWhere(
+                config,
+                subscription.draft,
+                await this.readWhere(config, guard, subscription.where),
+              ),
+              subscription.locale ? { locale: subscription.locale } : {},
+            )
+            return where === undefined || matchesWhere(where, doc) === true
           },
           config.realtime,
           new Set(config.collections.filter((c) => c.realtime === true).map((c) => c.slug)),
@@ -1729,7 +1748,10 @@ export class EasyCMS<C extends Config = Config> {
         docId: parsed,
         previousDoc: current,
       })
-      const realtime = this.realtimeEvent(config, 'draft', draft, { docId: parsed })
+      const realtime = this.realtimeEvent(config, 'draft', draft, {
+        docId: parsed,
+        previous: existing,
+      })
       await this.saveVersion(
         config,
         collectionParent(collection),
@@ -1803,6 +1825,7 @@ export class EasyCMS<C extends Config = Config> {
     const realtime = this.realtimeEvent(config, 'update', data, {
       docId: parsed,
       before: existing.status,
+      previous: existing,
     })
     const rows = this.savedRows(outbox, realtime)
     const doc = options.where
@@ -1886,6 +1909,7 @@ export class EasyCMS<C extends Config = Config> {
       const realtime = this.realtimeEvent(config, 'delete', existing, {
         docId: parsed,
         before: existing.status,
+        previous: existing,
       })
       await this.db.delete({ collection, id: parsed, outbox: this.savedRows(outbox, realtime) })
       await this.realtimeSaved(realtime, parsed)
@@ -3925,7 +3949,7 @@ export class EasyCMS<C extends Config = Config> {
     config: CollectionConfig | GlobalConfig,
     event: 'create' | 'update' | 'draft' | 'delete',
     doc: Data,
-    extra: { docId?: ID; before?: unknown } = {},
+    extra: { docId?: ID; before?: unknown; previous?: Data } = {},
   ): OutboxRow | undefined {
     if (!this.realtime || this.isGlobal(config) || config.realtime !== true) return undefined
     const drafts = config.drafts === true
@@ -3941,6 +3965,7 @@ export class EasyCMS<C extends Config = Config> {
       event: change,
       draft: event === 'draft',
       published: !drafts || after === 'published' || extra.before === 'published',
+      before: extra.previous,
     })
   }
 
