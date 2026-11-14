@@ -17,6 +17,10 @@
       "types": "./dist/live-preview.d.ts",
       "default": "./dist/live-preview.js"
     },
+    "./live": {
+      "types": "./dist/live.d.ts",
+      "default": "./dist/live.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

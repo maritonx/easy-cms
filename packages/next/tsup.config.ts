@@ -9,18 +9,18 @@ export default defineConfig([
     format: ['esm'],
     // All declarations come from this config: the two configs build in parallel, and this one's
     // clean step would delete a declaration file written by the other.
-    dts: { ...dts, entry: ['src/index.ts', 'src/config.ts', 'src/live-preview.ts'] },
+    dts: { ...dts, entry: ['src/index.ts', 'src/config.ts', 'src/live-preview.ts', 'src/live.ts'] },
     clean: true,
     target: 'node22',
     external: ['next', 'next/headers.js', 'next/server.js'],
   },
   {
     // A Client Component module: Next.js needs the directive at the top of the built file.
-    entry: ['src/live-preview.ts'],
+    entry: ['src/live-preview.ts', 'src/live.ts'],
     format: ['esm'],
     dts: false,
     target: 'es2022',
-    external: ['react', '@easy-cms/core/live-preview'],
+    external: ['react', '@easy-cms/core/live-preview', '@easy-cms/core/client'],
     banner: { js: "'use client'" },
   },
 ])

@@ -4,6 +4,7 @@ import {
   defineEventHandler,
   getRequestHeader,
   getRequestIP,
+  type H3Event,
   sendWebResponse,
   toWebRequest,
 } from 'h3'
@@ -43,6 +44,36 @@ export function createHandler(config: Config, options: HandlerOptions) {
     const waitUntil = (event as { waitUntil?: (task: Promise<unknown>) => void }).waitUntil
     if (typeof waitUntil === 'function')
       waitUntils.set(request, (task) => waitUntil.call(event, task))
-    return sendWebResponse(event, await api(request))
+    const response = await api(request)
+    if (response.headers.get('content-type')?.startsWith('text/event-stream'))
+      return sendEventStream(event, response)
+    return sendWebResponse(event, response)
   })
+}
+
+/**
+ * A realtime stream (ADR-0070), written as it comes: h3's `sendWebResponse` streams too, but
+ * keeps reading a stream after the client left, so a stream would never end.
+ */
+async function sendEventStream(event: H3Event, response: Response): Promise<void> {
+  const res = event.node?.res
+  const body = response.body
+  if (!res?.socket || !body) return sendWebResponse(event, response)
+  res.statusCode = response.status
+  response.headers.forEach((value, key) => {
+    res.setHeader(key, value)
+  })
+  res.flushHeaders()
+  const reader = body.getReader()
+  res.on('close', () => void reader.cancel().catch(() => {}))
+  try {
+    for (;;) {
+      const { value, done } = await reader.read()
+      if (done) break
+      res.write(value)
+    }
+  } catch {
+    // The client left.
+  }
+  res.end()
 }

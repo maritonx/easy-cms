@@ -140,6 +140,8 @@ declare module '${SERVER}' {
     ])
     // Client side: live preview for pages shown in the admin's preview frame.
     addImports({ name: 'useLivePreview', from: resolveRuntime('./runtime/live-preview.js') })
+    // Lists and documents kept up to date from realtime (ADR-0070).
+    addImports({ name: 'useLive', from: resolveRuntime('./runtime/live.js') })
     addServerHandler({ route: apiPath, handler: HANDLER })
     addServerHandler({ route: `${apiPath}/**`, handler: HANDLER })
     addServerPlugin(resolveRuntime('./runtime/plugin.js'))
