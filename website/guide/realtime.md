@@ -67,12 +67,14 @@ changes:
 ```vue
 <script setup lang="ts">
 import { createClient } from '@easy-cms/core/client'
-import type config from '~/easy-cms.config'
+import type config from '~~/easy-cms.config'
 
 const cms = createClient<typeof config>({ url: '/api/cms' })
 const { docs: posts, ready } = useLive(cms, 'posts', { sort: '-createdAt', limit: 20 })
 </script>
 ```
+
+The Nuxt example has this page at `/live`.
 
 ### What the list does
 
