@@ -300,16 +300,20 @@ class DrizzleDatabase implements Database {
 
   readonly outbox = true
 
-  /** Writes the `outbox` row of a write, in its transaction. */
-  private async writeOutbox(tx: DrizzleDb, outbox: OutboxRow | undefined, id: ID | null) {
-    if (!outbox) return
-    await insertDocument(tx, this.model(outbox.collection).root, outbox.data(id), false)
+  /** Writes the `outbox` rows of a write (the outbox's, realtime's), in its transaction. */
+  private async writeOutbox(
+    tx: DrizzleDb,
+    outbox: OutboxRow | readonly OutboxRow[] | undefined,
+    id: ID | null,
+  ) {
+    for (const row of [outbox ?? []].flat())
+      await insertDocument(tx, this.model(row.collection).root, row.data(id), false)
   }
 
   async create(args: {
     collection: string
     data: Record<string, unknown>
-    outbox?: OutboxRow | undefined
+    outbox?: OutboxRow | readonly OutboxRow[] | undefined
   }): Promise<RawDocument> {
     const model = this.model(args.collection)
     const id = await this.write<ID>(() =>
@@ -326,21 +330,21 @@ class DrizzleDatabase implements Database {
     collection: string
     id: ID
     data: Record<string, unknown>
-    outbox?: OutboxRow | undefined
+    outbox?: OutboxRow | readonly OutboxRow[] | undefined
   }): Promise<RawDocument>
   update(args: {
     collection: string
     id: ID
     data: Record<string, unknown>
     where: Where
-    outbox?: OutboxRow | undefined
+    outbox?: OutboxRow | readonly OutboxRow[] | undefined
   }): Promise<RawDocument | null>
   async update(args: {
     collection: string
     id: ID
     data: Record<string, unknown>
     where?: Where
-    outbox?: OutboxRow | undefined
+    outbox?: OutboxRow | readonly OutboxRow[] | undefined
   }): Promise<RawDocument | null> {
     const model = this.model(args.collection)
     const condition = args.where ? this.where(args.collection, args.where) : undefined
@@ -398,7 +402,7 @@ class DrizzleDatabase implements Database {
   async delete(args: {
     collection: string
     id: ID
-    outbox?: OutboxRow | undefined
+    outbox?: OutboxRow | readonly OutboxRow[] | undefined
   }): Promise<void> {
     const model = this.model(args.collection)
     await this.write(() =>
@@ -426,7 +430,7 @@ class DrizzleDatabase implements Database {
   async updateGlobal(args: {
     slug: string
     data: Record<string, unknown>
-    outbox?: OutboxRow | undefined
+    outbox?: OutboxRow | readonly OutboxRow[] | undefined
   }): Promise<Record<string, unknown>> {
     const { status, updatedAt, ...data } = args.data
     const table = this.schema.globals

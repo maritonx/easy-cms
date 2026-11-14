@@ -39,6 +39,7 @@ const RESERVED_SLUGS = new Set([
   'api-keys',
   'jobs',
   'outbox',
+  'realtime-events',
   'auth',
   'migrations',
   'access',
@@ -82,6 +83,7 @@ export function validateConfig(config: Config): ConfigIssue[] {
   validateLogs(config, add)
   validateCountCache(config, add)
   validateOutbox(config, add)
+  validateRealtime(config, add)
   validateEmailLog(config, add)
   validateSearch(config, add)
   validateTelemetry(config, add)
@@ -904,6 +906,44 @@ function validateEmailLog(config: Config, add: Add) {
 function validateOutbox(config: Config, add: Add) {
   if (config.outbox !== undefined && typeof config.outbox !== 'boolean')
     add('outbox', 'must be true or false')
+}
+
+function validateRealtime(config: Config, add: Add) {
+  const collections = Array.isArray(config.collections) ? config.collections : []
+  collections.forEach((c, i) => {
+    const value: unknown = (c as { realtime?: unknown } | null)?.realtime
+    if (value !== undefined && typeof value !== 'boolean')
+      add(`collections[${i}].realtime`, 'must be true or false')
+  })
+  const enabled = collections.some((c) => c?.realtime === true)
+  // `<api>/realtime` is the stream; the collection's own list would be unreachable.
+  if (enabled && collections.some((c) => c?.slug === 'realtime'))
+    add(
+      'collections',
+      'a collection named "realtime" clashes with `GET <api>/realtime`',
+      'rename it',
+    )
+  const value: unknown = config.realtime
+  if (value === undefined) return
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    add(
+      'realtime',
+      'must be an object',
+      '{ retentionHours, pollMs, heartbeatMs, maxPerUser, maxConnections }',
+    )
+    return
+  }
+  const options = value as Record<string, unknown>
+  const positive = (key: string, min: number, what: string) => {
+    const n = options[key]
+    if (n !== undefined && !(typeof n === 'number' && Number.isInteger(n) && n >= min))
+      add(`realtime.${key}`, `must be a whole number of ${what}, ${min} or more`)
+  }
+  positive('retentionHours', 1, 'hours')
+  positive('pollMs', 10, 'milliseconds')
+  positive('heartbeatMs', 100, 'milliseconds')
+  positive('maxPerUser', 1, 'connections')
+  positive('maxConnections', 1, 'connections')
 }
 
 function validateTelemetry(config: Config, add: Add) {

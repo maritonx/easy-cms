@@ -271,6 +271,12 @@ export interface CollectionConfig {
   readonly search?: CollectionSearch
   /** Live preview: the page that shows a document, e.g. `({ doc }) => \`/posts/${doc.slug}\``. */
   readonly preview?: PreviewURL
+  /**
+   * Apps may subscribe to this collection's changes (ADR-0070): `GET <api>/realtime`, the
+   * client's `subscribe()` and `useLive()`, and `cms.subscribe()`. Each save also writes a row
+   * of the `realtime-events` table, which needs a migration. Options in the config's `realtime`.
+   */
+  readonly realtime?: boolean
   readonly access?: CollectionAccess
   readonly hooks?: CollectionHooks
   /** How the collection looks in the admin: its menu item, list, edit page and components. */
@@ -747,6 +753,29 @@ export interface PasswordPolicy {
   readonly breakGlass: readonly string[]
 }
 
+/** `realtime` in the config: how long events are kept, and how subscribers are served. */
+export interface RealtimeConfig {
+  /**
+   * Hours events are kept, for clients that reconnect with `Last-Event-ID`. A client away for
+   * longer gets `reset` and loads again. Default 24.
+   */
+  readonly retentionHours?: number
+  /**
+   * How often each server reads new events from the database, in ms: saves on other instances
+   * reach its subscribers within about this long. Default 1000.
+   */
+  readonly pollMs?: number
+  /** A comment sent this often, in ms, so proxies don't close a quiet stream. Default 25000. */
+  readonly heartbeatMs?: number
+  /**
+   * Open streams per signed-in user or API key, or per IP for visitors, on one server. More get
+   * `429`. Default 10.
+   */
+  readonly maxPerUser?: number
+  /** Open streams on one server; more get `503`. Default 1000. */
+  readonly maxConnections?: number
+}
+
 export interface RateLimitConfig {
   /** Seconds each count lasts. Default 60. */
   readonly window?: number
@@ -1098,6 +1127,11 @@ export interface Config {
    * Default `false`: hooks run in the request, after the save.
    */
   readonly outbox?: boolean
+  /**
+   * Options of realtime, for the collections with `realtime: true` (ADR-0070). Without such a
+   * collection it does nothing.
+   */
+  readonly realtime?: RealtimeConfig
   /**
    * Limits requests to the API per client and minute, counted across instances: each visitor's
    * IP, each signed-in user and each API key. Over the limit, the API answers `429` with

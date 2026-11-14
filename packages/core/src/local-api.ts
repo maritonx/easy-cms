@@ -30,6 +30,7 @@ import {
   MEDIA,
   MEDIA_FOLDERS,
   OUTBOX,
+  REALTIME_EVENTS,
   SCHEDULED_JOBS,
   USERS,
   WEBHOOK_DELIVERIES,
@@ -126,6 +127,14 @@ import { MediaFolders, PUBLIC_FILES } from './media-folders.js'
 import { Outbox, type OutboxEntry, type OutboxStep } from './outbox.js'
 import { DEFAULT_DEPTH, type Loader, MAX_DEPTH, populate } from './populate.js'
 import { RateLimiter } from './rate-limit.js'
+import {
+  Realtime,
+  type RealtimeChange,
+  type RealtimeEvent,
+  type RealtimeMessage,
+  realtimeRow,
+  type Subscription,
+} from './realtime.js'
 import { resolveConfig } from './resolve-config.js'
 import { cacheTags } from './rest/http-cache.js'
 import { Roles } from './roles.js'
@@ -246,6 +255,25 @@ export interface ReadOptions extends DepthOptions {
   readonly fallbackLocale?: boolean
 }
 
+/** `cms.subscribe()`: what to follow, and as whom. */
+export interface SubscribeOptions extends ReadOptions {
+  /** Only this document. */
+  readonly id?: ID
+  /** Only documents matching it, as in `find`. */
+  readonly where?: Where
+  /** Resume after this event (an event's `eventId`): what was missed since comes first. */
+  readonly after?: string
+}
+
+/** A subscription of `cms.subscribe()`: its events, in order, until `close()`. */
+export interface RealtimeSubscription<T>
+  extends AsyncIterableIterator<RealtimeEvent<T> | { readonly event: 'reset' }> {
+  /** Resolves once it is following (events of saves before that may not come). */
+  readonly ready: Promise<void>
+  /** Stops it: a loop over it ends. */
+  close(): void
+}
+
 export interface FindOptions extends ReadOptions {
   readonly where?: Where
   /** Field path, `-` prefix for descending. Default `-createdAt`. */
@@ -359,7 +387,13 @@ export async function createEasyCMS<const C extends Config>(
     (resolved.webhooks?.length ?? 0) > 0 ||
     resolved.email !== undefined ||
     resolved.jobs.length > 0 ||
-    resolved.outbox === true
+    resolved.outbox === true ||
+    // Pruning old realtime events.
+    resolved.collections.some((c) => c.slug === REALTIME_EVENTS)
+  if (realtimeWithoutTransactions(resolved, db))
+    logger.warn(
+      `Realtime: "${resolved.db.name}" can't write events in the save's transaction; they are written right after it, so a crash in between loses one.`,
+    )
   if (scheduling && options.scheduler !== false) cms.startScheduler()
   // A new `auth.password` takes effect now: recorded, and sessions that may no longer exist end.
   if (options.schema !== 'skip')
@@ -378,6 +412,10 @@ export async function createEasyCMS<const C extends Config>(
       'No admin exists yet and no setup code is set: whoever opens the admin first becomes the admin. Set EASY_CMS_SETUP_CODE, or create the admin with `easy-cms admin:create`.',
     )
   return cms
+}
+
+function realtimeWithoutTransactions(config: ResolvedConfig, db: Database): boolean {
+  return config.collections.some((c) => c.slug === REALTIME_EVENTS) && db.outbox !== true
 }
 
 /** `db.system.name` of an adapter, as OpenTelemetry names it (`postgresql`, `sqlite`). */
@@ -448,6 +486,8 @@ export class EasyCMS<C extends Config = Config> {
   private readonly mailer: Mailer
   /** With `outbox: true`: runs after hooks and events from rows saves write. */
   private readonly outbox: Outbox | undefined
+  /** @internal With collections that have `realtime: true`: their subscribers (ADR-0070). */
+  readonly realtime: Realtime | undefined
   /** @internal Requests per client (`rateLimit`), for the REST API. */
   readonly rateLimiter: RateLimiter | undefined
   /** With `search`: keeps the index in step with published documents. */
@@ -522,6 +562,31 @@ export class EasyCMS<C extends Config = Config> {
                 () => this.runOutbox(entry, done, mark),
               )
             : this.runOutbox(entry, done, mark),
+        )
+      : undefined
+    this.realtime = config.collections.some((c) => c.slug === REALTIME_EVENTS)
+      ? new Realtime(
+          db,
+          logger,
+          async (subscription, reader, id) => {
+            const { docs } = await this.find(subscription.collection as Slug<C>, {
+              where: andWhere(subscription.where, { id: { equals: id } }) as Where,
+              limit: 1,
+              count: false,
+              draft: subscription.draft,
+              ...(subscription.depth !== undefined ? { depth: subscription.depth } : {}),
+              ...(subscription.locale !== undefined ? { locale: subscription.locale } : {}),
+              ...(subscription.fallbackLocale !== undefined
+                ? { fallbackLocale: subscription.fallbackLocale }
+                : {}),
+              user: reader.user,
+              ...(reader.context ? { context: reader.context } : {}),
+              overrideAccess: reader.overrideAccess,
+            })
+            return (docs[0] as Record<string, unknown> | undefined) ?? null
+          },
+          config.realtime,
+          new Set(config.collections.filter((c) => c.realtime === true).map((c) => c.slug)),
         )
       : undefined
     this.rateLimiter = config.rateLimit
@@ -1664,7 +1729,16 @@ export class EasyCMS<C extends Config = Config> {
         docId: parsed,
         previousDoc: current,
       })
-      await this.saveVersion(config, collectionParent(collection), parsed, draft, guard, outbox)
+      const realtime = this.realtimeEvent(config, 'draft', draft, { docId: parsed })
+      await this.saveVersion(
+        config,
+        collectionParent(collection),
+        parsed,
+        draft,
+        guard,
+        this.savedRows(outbox, realtime),
+      )
+      await this.realtimeSaved(realtime, parsed)
       if (outbox) this.outbox?.kick()
       else {
         await this.notify(config.hooks?.afterChange, 'afterChange', config.slug, {
@@ -1726,10 +1800,16 @@ export class EasyCMS<C extends Config = Config> {
         before: existing.status,
       },
     )
+    const realtime = this.realtimeEvent(config, 'update', data, {
+      docId: parsed,
+      before: existing.status,
+    })
+    const rows = this.savedRows(outbox, realtime)
     const doc = options.where
-      ? await this.db.update({ collection, id: parsed, data, where: options.where, outbox })
-      : await this.db.update({ collection, id: parsed, data, outbox })
+      ? await this.db.update({ collection, id: parsed, data, where: options.where, outbox: rows })
+      : await this.db.update({ collection, id: parsed, data, outbox: rows })
     if (!doc) return null
+    await this.realtimeSaved(realtime, parsed)
     if (moved) await moved.cleanUp()
     if (collection === MEDIA_FOLDERS) {
       this.folders.invalidate()
@@ -1803,7 +1883,12 @@ export class EasyCMS<C extends Config = Config> {
         await this.folders.release(existing)
       }
       const outbox = this.outboxRow(config, 'delete', guard, existing, { docId: parsed })
-      await this.db.delete({ collection, id: parsed, outbox })
+      const realtime = this.realtimeEvent(config, 'delete', existing, {
+        docId: parsed,
+        before: existing.status,
+      })
+      await this.db.delete({ collection, id: parsed, outbox: this.savedRows(outbox, realtime) })
+      await this.realtimeSaved(realtime, parsed)
       if (collection === MEDIA_FOLDERS) {
         this.folders.invalidate()
         // What moved up may now be public (or private).
@@ -2460,6 +2545,7 @@ export class EasyCMS<C extends Config = Config> {
 
   async destroy(): Promise<void> {
     if (this.schedulerTimer) clearInterval(this.schedulerTimer)
+    this.realtime?.close()
     await this.running
     await Promise.allSettled([...this.background])
     await this.outbox?.flush()
@@ -2539,6 +2625,9 @@ export class EasyCMS<C extends Config = Config> {
       await this.pruneEmailLog(now).catch((error) =>
         this.logger.error(`Email log: ${(error as Error).message}`, { error }),
       )
+      await this.realtime
+        ?.prune(now)
+        .catch((error) => this.logger.error(`Realtime: ${(error as Error).message}`, { error }))
       const result = {
         scheduled,
         webhooks: await this.retryWebhooks(now),
@@ -3611,7 +3700,13 @@ export class EasyCMS<C extends Config = Config> {
     const now = new Date().toISOString()
     const row = { ...prepared, createdAt: now, updatedAt: now }
     const outbox = this.outboxRow(config, 'create', hookGuard ?? guard, row)
-    const doc = await this.db.create({ collection, data: row, outbox })
+    const realtime = this.realtimeEvent(config, 'create', row)
+    const doc = await this.db.create({
+      collection,
+      data: row,
+      outbox: this.savedRows(outbox, realtime),
+    })
+    await this.realtimeSaved(realtime, doc.id)
     if (collection === MEDIA_FOLDERS) this.folders.invalidate()
     await this.saveVersion(config, collectionParent(collection), doc.id, doc, guard)
     if (outbox) this.outbox?.kick()
@@ -3822,6 +3917,171 @@ export class EasyCMS<C extends Config = Config> {
     })
   }
 
+  /**
+   * The realtime event of a save of a collection with `realtime: true` (ADR-0070): publish and
+   * unpublish as `changeEvents` tells them; a draft kept as a version only for draft readers.
+   */
+  private realtimeEvent(
+    config: CollectionConfig | GlobalConfig,
+    event: 'create' | 'update' | 'draft' | 'delete',
+    doc: Data,
+    extra: { docId?: ID; before?: unknown } = {},
+  ): OutboxRow | undefined {
+    if (!this.realtime || this.isGlobal(config) || config.realtime !== true) return undefined
+    const drafts = config.drafts === true
+    const after = doc.status
+    let change: RealtimeChange = event === 'draft' ? 'update' : event
+    if (event === 'update' && drafts) {
+      if (after === 'published' && extra.before !== 'published') change = 'publish'
+      else if (after !== 'published' && extra.before === 'published') change = 'unpublish'
+    }
+    return realtimeRow({
+      collection: config.slug,
+      docId: extra.docId,
+      event: change,
+      draft: event === 'draft',
+      published: !drafts || after === 'published' || extra.before === 'published',
+    })
+  }
+
+  /** The rows a save writes in its transaction: the outbox's, and the realtime event's. */
+  private savedRows(
+    outbox: OutboxRow | undefined,
+    realtime: OutboxRow | undefined,
+  ): OutboxRow | OutboxRow[] | undefined {
+    // An adapter without transactions gets the event after the save (`realtimeSaved`).
+    const event = this.db.outbox === true ? realtime : undefined
+    if (outbox && event) return [outbox, event]
+    return outbox ?? event
+  }
+
+  /** After a save committed: its realtime event, if not written with it, and a read of events. */
+  private async realtimeSaved(realtime: OutboxRow | undefined, id: ID): Promise<void> {
+    if (!realtime) return
+    if (this.db.outbox !== true)
+      await this.db
+        .create({ collection: realtime.collection, data: realtime.data(id) })
+        .catch((error) =>
+          this.logger.error(`Realtime: writing an event failed: ${(error as Error).message}`, {
+            error,
+          }),
+        )
+    this.realtime?.kick()
+  }
+
+  /**
+   * Follows changes of a collection with `realtime: true` (ADR-0070), on this instance and every
+   * other on the same database: each event carries the document as `user` reads it (with
+   * `overrideAccess: false`), `delete` and `leave` only its id. Ends with `close()` or `break`.
+   *
+   * ```ts
+   * for await (const change of cms.subscribe('posts', { where: { status: { equals: 'published' } } }))
+   *   console.log(change.event, change.id)
+   * ```
+   */
+  subscribe<S extends Slug<C>>(
+    collection: S,
+    options: SubscribeOptions = {},
+  ): RealtimeSubscription<Doc<C, S>> {
+    const config = this.collection(collection)
+    const realtime = this.realtime
+    if (!realtime || config.realtime !== true)
+      throw new QueryError(`"${collection}" has no realtime: set \`realtime: true\` on it`)
+    const guard = guardOf(options)
+    const id = options.id === undefined ? undefined : parseId(options.id)
+    if (options.id !== undefined && id === undefined)
+      throw new QueryError(`Invalid id "${String(options.id)}"`)
+    const subscription: Subscription = {
+      collection,
+      id,
+      where: options.where,
+      draft: readsDrafts(guard, options.draft),
+      depth: options.depth,
+      locale: options.locale,
+      fallbackLocale: options.fallbackLocale,
+    }
+    type Item = RealtimeEvent<Doc<C, S>> | { readonly event: 'reset' }
+    const queue: Item[] = []
+    let ended = false
+    let failure: unknown
+    let wake: (() => void) | undefined
+    const notify = () => {
+      wake?.()
+      wake = undefined
+    }
+    let markReady: () => void = () => {}
+    const ready = new Promise<void>((resolve) => {
+      markReady = resolve
+    })
+    const opened = (async () => {
+      // Refused access or a bad `where` fail now, as `find` would.
+      const where = andWhere(options.where, id === undefined ? true : { id: { equals: id } })
+      if (guard.enforce)
+        await this.count(collection, {
+          ...(where ? { where } : {}),
+          user: guard.user,
+          context: guard.context,
+          overrideAccess: false,
+          draft: subscription.draft,
+          ...(options.locale ? { locale: options.locale } : {}),
+          max: 0,
+        })
+      return realtime.open({
+        subscriptions: [subscription],
+        reader: { user: guard.user, context: guard.context, overrideAccess: !guard.enforce },
+        after: options.after,
+        send: (message: RealtimeMessage) => {
+          if (message.event === 'ready') markReady()
+          else {
+            queue.push(message as Item)
+            notify()
+          }
+        },
+        onClose: () => {
+          ended = true
+          notify()
+        },
+      })
+    })()
+    opened.catch((error) => {
+      failure = error
+      markReady()
+      notify()
+    })
+    const close = () => {
+      ended = true
+      notify()
+      void opened.then((subscriber) => subscriber.close()).catch(() => {})
+    }
+    const iterator: RealtimeSubscription<Doc<C, S>> = {
+      ready: ready.then(() => {
+        if (failure) throw failure
+      }),
+      close,
+      async next() {
+        for (;;) {
+          const item = queue.shift()
+          if (item) return { value: item, done: false }
+          if (failure) throw failure
+          if (ended) return { value: undefined, done: true }
+          await new Promise<void>((resolve) => {
+            wake = resolve
+          })
+        }
+      },
+      async return() {
+        close()
+        return { value: undefined, done: true }
+      },
+      [Symbol.asyncIterator]() {
+        return this
+      },
+    }
+    // `ready` rejecting with nobody awaiting it isn't an unhandled rejection: `next` throws it.
+    iterator.ready.catch(() => {})
+    return iterator
+  }
+
   /** Runs an outbox entry: what its save would have run right after it, without the outbox. */
   private async runOutbox(
     entry: OutboxEntry,
@@ -3924,7 +4184,7 @@ export class EasyCMS<C extends Config = Config> {
     doc: Data,
     guard: Guard,
     /** Written with the version: for a draft, the version is the save. */
-    outbox?: OutboxRow,
+    outbox?: OutboxRow | readonly OutboxRow[],
   ): Promise<void> {
     const max = versionLimit(config)
     if (max === undefined) return

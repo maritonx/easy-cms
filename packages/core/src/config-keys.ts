@@ -18,7 +18,7 @@ const exactKeys =
 const CONFIG =
   keys(`secret previousSecrets emailLog integrations listeners ai aiFeatures db serverURL cors cronSecret timeZone webhooks events jobs localization routes admin
   upload auth collections globals endpoints cliCommands onRequest fieldTypes apiKeys email backups
-  audit logs countCacheSeconds maxPage httpCache outbox rateLimit search telemetry plugins`)
+  audit logs countCacheSeconds maxPage httpCache outbox realtime rateLimit search telemetry plugins`)
 const ADMIN = keys('path locale brand siteURL nav commands modules pages dashboard switcher')
 const AUTH = keys(`roles rbac tokenExpiration maxLoginAttempts lockWindow trustedOrigins
   resetPasswordExpiration inviteExpiration providers providerSignUp password setupCode members emails`)
@@ -27,9 +27,10 @@ const UPLOAD = keys('dir maxFileSize mimeTypes storage imageSizes fromURL folder
 const BACKUPS = keys('frequency at keep dir storage sqlite encryptionKey')
 const AUDIT = keys('keepDays values failedLogins scope')
 const RATE_LIMIT = keys('window anonymous users apiKeys')
+const REALTIME = keys('retentionHours pollMs heartbeatMs maxPerUser maxConnections')
 const LOGS = keys('format requests')
 const COLLECTION = keys(`slug labels fields useAsTitle drafts versions schedule preview access hooks
-  admin httpCache search actions`)
+  admin httpCache search actions realtime`)
 const ACTION = keys('name label on when access default fields confirm primary run')
 const GLOBAL = keys(
   'slug label fields drafts versions schedule preview access hooks scope admin httpCache',
@@ -181,6 +182,7 @@ export function checkConfigKeys(config: Config, add: Add) {
   check(c.backups, 'backups', 'backups', BACKUPS, add)
   if (isObject(c.audit)) check(c.audit, 'audit', 'audit', AUDIT, add)
   if (isObject(c.rateLimit)) check(c.rateLimit, 'rateLimit', 'rateLimit', RATE_LIMIT, add)
+  if (isObject(c.realtime)) check(c.realtime, 'realtime', 'realtime', REALTIME, add)
   check(c.logs, 'logs', 'logs', LOGS, add)
   for (const [kind, list] of [
     ['collections', c.collections],
