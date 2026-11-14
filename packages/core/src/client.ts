@@ -198,6 +198,20 @@ export interface LiveHandle {
   close(): void
 }
 
+export interface SubscribeOptions {
+  /**
+   * Start after this event id (`Last-Event-ID`), e.g. a previous stream's `lastEventId`: to
+   * change the subscriptions without missing what happened in between.
+   */
+  readonly lastEventId?: string | undefined
+}
+
+/** A stream of `subscribe()`. */
+export interface SubscribeHandle extends LiveHandle {
+  /** Where the stream got to: the last event's id, or the position `ready` and heartbeats gave. */
+  readonly lastEventId: string | undefined
+}
+
 export interface EasyCMSClient<C extends ClientSchema> {
   /** Documents of a collection: `GET /:collection`. */
   find<S extends keyof Collections<C> & string, const Q extends FindQuery = Record<never, never>>(
@@ -224,7 +238,8 @@ export interface EasyCMSClient<C extends ClientSchema> {
   subscribe<const T extends readonly LiveSubscription<C>[]>(
     subscriptions: T,
     handlers: SubscribeHandlers<LiveEvent<C, T[number]['collection']>>,
-  ): LiveHandle
+    options?: SubscribeOptions,
+  ): SubscribeHandle
   /**
    * A list (or one document, with `id`) kept up to date: loaded with `find` (`findById`), then
    * changed by the subscription's events; loaded again after a `reset`. With `limit`, it keeps
@@ -351,7 +366,8 @@ export function createClient<C extends ClientSchema = Record<never, never>>(
   function subscribe(
     subscriptions: readonly LiveSubscription<ClientSchema>[],
     handlers: SubscribeHandlers<LiveEvent<ClientSchema>>,
-  ): LiveHandle {
+    subscribeOptions: SubscribeOptions = {},
+  ): SubscribeHandle {
     const search = new URLSearchParams()
     for (const s of subscriptions) {
       const params = new URLSearchParams()
@@ -365,7 +381,7 @@ export function createClient<C extends ClientSchema = Record<never, never>>(
     }
     const url = `${base}/realtime?${search}`
     const controller = new AbortController()
-    let lastEventId: string | undefined
+    let lastEventId: string | undefined = subscribeOptions.lastEventId
     let delay = 1000
 
     const connect = async (): Promise<void> => {
@@ -461,7 +477,12 @@ export function createClient<C extends ClientSchema = Record<never, never>>(
         delay = Math.min(delay * 2, 30_000)
       }
     })()
-    return { close: () => controller.abort() }
+    return {
+      close: () => controller.abort(),
+      get lastEventId() {
+        return lastEventId
+      },
+    }
   }
 
   function live(
