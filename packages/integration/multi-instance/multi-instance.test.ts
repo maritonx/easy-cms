@@ -10,6 +10,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import { createEasyCMS, type EasyCMS, silentLogger } from '@easy-cms/core'
+import { createClient } from '@easy-cms/core/client'
 import { AwsClient } from 'aws4fetch'
 import sharp from 'sharp'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -256,6 +257,36 @@ describe('two instances behind a load balancer', () => {
     expect(await cms.count('runs')).toBe(1)
     for (const post of posts) {
       expect(await cms.findById('posts', post.id)).toMatchObject({ status: 'published' })
+    }
+  })
+
+  it('streams a save on one instance to a subscriber on the other (realtime)', async () => {
+    const client = createClient({ url: `${b}/api/cms` })
+    const events: { event: string; id: unknown; title?: unknown }[] = []
+    let ready!: () => void
+    const connected = new Promise<void>((resolve) => {
+      ready = resolve
+    })
+    const handle = client.subscribe([{ collection: 'posts' }], {
+      onReady: () => ready(),
+      onEvent: (e) =>
+        events.push({
+          event: e.event,
+          id: e.id,
+          ...('doc' in e ? { title: (e.doc as { title?: unknown }).title } : {}),
+        }),
+    })
+    try {
+      await connected
+      const admin = await browser(a, 'admin@x.co')
+      const created = await api(a, '/posts', json({ title: 'Live', status: 'published' }, admin))
+      const { id } = (await created.json()) as { id: number }
+      const end = Date.now() + 10_000
+      while (!events.some((e) => e.id === id) && Date.now() < end)
+        await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(events.find((e) => e.id === id)).toEqual({ event: 'create', id, title: 'Live' })
+    } finally {
+      handle.close()
     }
   })
 })

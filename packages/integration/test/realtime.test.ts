@@ -62,7 +62,7 @@ async function serve(cms: EasyCMS): Promise<{ api: string; close: () => Promise<
     res.on('close', () => controller.abort())
     const response = await handle(
       new Request(`http://${req.headers.host}${req.url}`, {
-        method: req.method,
+        method: req.method ?? 'GET',
         headers: req.headers as Record<string, string>,
         signal: controller.signal,
       }),
@@ -326,9 +326,9 @@ describe('realtime (ADR-0070)', () => {
     const theirs = ctx.open('s=notes', ctx.editor)
     await mine.until((m) => m.event === 'ready')
     await theirs.until((m) => m.event === 'ready')
-    const note = await ctx.cms.create('notes', { text: 'mine', owner: ctx.admin.id })
+    const note = await ctx.cms.create('notes', { text: 'mine', owner: Number(ctx.admin.id) })
     await mine.until((m) => m.event === 'create' && m.data.id === note.id)
-    const other = await ctx.cms.create('notes', { text: 'theirs', owner: ctx.other.id })
+    const other = await ctx.cms.create('notes', { text: 'theirs', owner: Number(ctx.other.id) })
     await theirs.until((m) => m.event === 'create' && m.data.id === other.id)
     expect(theirs.messages.some((m) => m.data.id === note.id)).toBe(false)
     expect(mine.messages.some((m) => m.data.id === other.id)).toBe(false)
@@ -410,7 +410,8 @@ describe('realtime (ADR-0070)', () => {
     await new Promise((r) => setTimeout(r, 100))
     const c = ctx.open('s=posts', ctx.staff)
     await c.until((m) => m.event === 'ready')
-    expect(ctx.cms.realtime?.connections).toBe(2)
+    const hub = (ctx.cms as unknown as { realtime?: { connections: number } }).realtime
+    expect(hub?.connections).toBe(2)
   })
 
   it('cms.subscribe() gives the same events in process', async () => {
