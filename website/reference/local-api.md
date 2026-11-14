@@ -121,6 +121,7 @@ to apply them, as the REST API does.
 | Method | Returns | |
 |---|---|---|
 | `search(query, { collections?, locale?, limit?, page?, depth?, user?, overrideAccess? })` | `{ hits: { collection, doc }[], total, page, limit, hasNextPage }` | Published documents of collections with `search`, best match first, read with the access options given. `total` counts matches before access rules. [Search](/guide/search) |
+| `subscribe(collection, { where?, id?, draft?, depth?, locale?, after?, user?, overrideAccess? })` | async iterator of `{ event, eventId, collection, id, doc? }`, with `ready` and `close()` | Changes of a collection with `realtime: true`, saved on any instance: `create`, `update`, `publish`, `unpublish` with the document as read with the access options given; `delete` and `leave` with its id. [Realtime](/guide/realtime#local-api) |
 | `reindexSearch(collection?)` | `{ collection, documents }[]` | Builds the search index again from the database, for every searchable collection or one. |
 
 ### Other

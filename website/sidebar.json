@@ -204,6 +204,13 @@
             "en": "Live preview",
             "th": "ตัวอย่างสด (live preview)"
           }
+        },
+        {
+          "path": "guide/realtime",
+          "title": {
+            "en": "Realtime",
+            "th": "Realtime"
+          }
         }
       ]
     },

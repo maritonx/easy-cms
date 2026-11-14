@@ -262,6 +262,17 @@ Kanban → ธีม → พื้นที่ฟอร์ม → CRM → Bookin
 | — | CRM template for create-easy-cms | area:release, area:docs | ลูกค้า ดีลใน Kanban กิจกรรม และ actions สร้างจาก `create-easy-cms` แล้ว e2e ผ่าน |
 | — | Booking template for create-easy-cms | area:release, area:docs | บริการ ช่วงเวลา การจองในปฏิทิน ยืนยัน/ยกเลิกด้วย action รับมัดจำผ่าน Omise |
 
+### M14 — `Realtime` (ไม่กำหนดวัน) {#m14}
+
+ระดับ 2 ของ [ADR-0069](adr/0069-typescript-backend-six-levels.md): แอป subscribe การเปลี่ยนแปลงของ collection
+ออกแบบใน [ADR-0070](adr/0070-realtime.md) ทำทีละชิ้นตามลำดับ
+
+| # | Issue | Labels | เสร็จเมื่อ |
+|---|---|---|---|
+| — | Realtime: subscribe to changes in a collection | area:core, area:docs | `realtime: true`, `GET <api>/realtime` (SSE) ตามสิทธิ์ของผู้ subscribe แต่ละคน, `Last-Event-ID` และ `reset`, `subscribe()`/`live()` ของ client, `useLive()` ของ React และ Vue, `cms.subscribe()`; เทส integration, หลาย instance, e2e และ smoke บน Workers ผ่าน |
+| — | Live updates in the admin: lists and edit pages follow others' saves, who else is editing | area:admin | รายการและหน้าแก้ไขอัปเดตจากการบันทึกของคนอื่น บอกว่าใครแก้เอกสารเดียวกันอยู่ |
+| — | Custom channels, WebSocket and streamed responses | area:core | ส่ง message ของตัวเองผ่าน protocol เดียวกัน, WebSocket ใช้ message เดียวกับ SSE |
+
 ---
 
 ## 3. 1.x: open source ที่องค์กร self-host ได้ {#one-x}

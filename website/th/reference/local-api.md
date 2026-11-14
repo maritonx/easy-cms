@@ -119,6 +119,7 @@ Local API เชื่อผู้เรียกและข้ามกฎส�
 | Method | คืนค่า | |
 |---|---|---|
 | `search(query, { collections?, locale?, limit?, page?, depth?, user?, overrideAccess? })` | `{ hits: { collection, doc }[], total, page, limit, hasNextPage }` | เอกสารที่ publish แล้วของ collection ที่มี `search` เรียงจากตรงที่สุด อ่านตามตัวเลือกสิทธิ์ที่ส่งมา `total` นับก่อนกรองสิทธิ์ [ค้นหา](/th/guide/search) |
+| `subscribe(collection, { where?, id?, draft?, depth?, locale?, after?, user?, overrideAccess? })` | async iterator ของ `{ event, eventId, collection, id, doc? }` มี `ready` และ `close()` | การเปลี่ยนแปลงของ collection ที่มี `realtime: true` ที่บันทึกจาก instance ไหนก็ได้: `create`, `update`, `publish`, `unpublish` พร้อมเอกสารตามสิทธิ์ที่ส่งมา; `delete` และ `leave` มีแค่ id [Realtime](/th/guide/realtime#local-api) |
 | `reindexSearch(collection?)` | `{ collection, documents }[]` | สร้าง index ค้นหาใหม่จากฐานข้อมูล ทุก collection ที่ค้นได้หรือเฉพาะหนึ่ง collection |
 
 ### อื่นๆ {#other}
