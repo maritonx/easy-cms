@@ -21,6 +21,7 @@ import DeleteDialog from '../components/DeleteDialog.vue'
 import ErrorSummary from '../components/ErrorSummary.vue'
 import FormSkeleton from '../components/FormSkeleton.vue'
 import IdentitiesPanel from '../components/IdentitiesPanel.vue'
+import LiveNotice from '../components/LiveNotice.vue'
 import LivePreview from '../components/LivePreview.vue'
 import LocaleSwitcher from '../components/LocaleSwitcher.vue'
 import MediaPreview from '../components/MediaPreview.vue'
@@ -38,6 +39,7 @@ import { contentLocale, localeQuery, setContentLocale } from '../lib/content-loc
 import { initialValues, snapshot, titleOf, toFormValues } from '../lib/fields'
 import { formatBytes, formatDate, label, singularize, t } from '../lib/i18n'
 import { listPath } from '../lib/list-memory'
+import { useLiveDocument } from '../lib/live-document'
 import { useDelayedLoading } from '../lib/loading'
 import { useLocalDraft } from '../lib/local-draft'
 import { FORM, setPath } from '../lib/plugins'
@@ -396,6 +398,15 @@ async function switchLocale(next: string) {
 
 onMounted(() => load())
 
+/** The document as this page reads it. */
+const readDoc = () =>
+  api<Doc>(
+    'GET',
+    `/${slug}/${encodeURIComponent(String(id))}?depth=0&draft=true${localeQuery({ editing: true })}`,
+  )
+/** Loads in progress: live changes wait for them (ADR-0070). */
+const reading = ref(0)
+
 async function load() {
   if (!collection) return
   if (!id) {
@@ -403,12 +414,10 @@ async function load() {
     localDraft.check()
     return
   }
+  reading.value++
   try {
     const [loaded, permissions] = await Promise.all([
-      api<Doc>(
-        'GET',
-        `/${slug}/${encodeURIComponent(id)}?depth=0&draft=true${localeQuery({ editing: true })}`,
-      ),
+      readDoc(),
       api<{ update: boolean; delete: boolean; actions?: string[] }>(
         'GET',
         `/admin/ui/access/${slug}/${encodeURIComponent(id)}`,
@@ -431,8 +440,33 @@ async function load() {
       message.value = { kind: 'error', text: t('common.error', { message: (e as Error).message }) }
   } finally {
     loading.value = false
+    reading.value--
   }
 }
+
+// --- Live updates (`realtime: true`, ADR-0070): other saves of this document ------------------
+
+/** Deleting it here: its own `delete` must not say "deleted" while the page leaves. */
+const deleting = ref(false)
+const liveDoc = useLiveDocument({
+  slug,
+  id: () => id,
+  enabled: collection?.realtime === true,
+  draft: !!collection?.drafts,
+  dirty: () => dirty.value,
+  busy: () => saving.value || reading.value > 0 || deleting.value || actions.busy.value,
+  baseline: () => baseline.value,
+  updatedAt: () => doc.value?.updatedAt,
+  read: readDoc,
+  snapshotOf: (loaded) => (collection ? snapshot(toFormValues(collection.fields, loaded)) : ''),
+  reload: async () => {
+    await load()
+    historyKey.value += 1
+  },
+})
+const { gone: liveGone, confirmOverwrite } = liveDoc
+/** Saving over a newer version: the status the save was for, until confirmed. */
+const overwriting = ref<{ status: 'draft' | 'published' | undefined } | null>(null)
 
 /** Whether a published version is on the site (the draft we edit may be newer). */
 async function isLive(): Promise<boolean> {
@@ -477,8 +511,14 @@ async function action(path: 'unpublish' | 'discard-draft') {
   }
 }
 
-async function save(status?: 'draft' | 'published') {
-  if (!collection) return
+async function save(status?: 'draft' | 'published', overwrite = false) {
+  if (!collection || liveGone.value) return
+  // Saved elsewhere since this page loaded it: ask before overwriting.
+  if (id && confirmOverwrite.value && !overwrite) {
+    overwriting.value = { status }
+    return
+  }
+  overwriting.value = null
   saving.value = true
   errors.value = {}
   message.value = null
@@ -503,6 +543,7 @@ async function save(status?: 'draft' | 'published') {
       : await api<Doc>('POST', `/${slug}?depth=0${localeQuery({ editing: true })}`, body)
     doc.value = saved
     reset(toFormValues(collection.fields, saved))
+    liveDoc.saved()
     localDraft.clear()
     historyKey.value += 1
     void refreshTranslations()
@@ -557,12 +598,14 @@ async function save(status?: 'draft' | 'published') {
 
 async function remove(query = '') {
   confirmingDelete.value = false
+  deleting.value = true
   try {
     await api('DELETE', `/${slug}/${encodeURIComponent(String(id))}${query}`)
     password.value = ''
     baseline.value = snapshot(form.value)
     await router.push(`/collections/${slug}`)
   } catch (e) {
+    deleting.value = false
     message.value = {
       kind: 'error',
       text:
@@ -580,14 +623,21 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
 
 /** ⌘S: saves as the main button would, without publishing a draft or unpublishing. */
 function quickSave() {
-  if (!collection || !canSave.value || saving.value) return
+  if (!collection || !canSave.value || saving.value || liveGone.value) return
   if (!collection.drafts) return void save()
   if (draftOnly.value) return void save('draft')
   return void save(published.value && !(separateDrafts && live.value) ? 'published' : 'draft')
 }
 /** ⌘⇧P: publishes. */
 function quickPublish() {
-  if (collection?.drafts && canSave.value && canPublish.value && !draftOnly.value && !saving.value)
+  if (
+    collection?.drafts &&
+    canSave.value &&
+    canPublish.value &&
+    !draftOnly.value &&
+    !saving.value &&
+    !liveGone.value
+  )
     void save('published')
 }
 onMounted(() => {
@@ -670,7 +720,7 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
           {{ previewing ? t('preview.hide') : t('preview.show') }}
         </button>
         <div v-if="canSave" class="split">
-          <button type="submit" class="btn btn-primary" :class="{ 'split-main': collection.schedule && id && canPublish }" :disabled="saving">
+          <button type="submit" class="btn btn-primary" :class="{ 'split-main': collection.schedule && id && canPublish }" :disabled="saving || !!liveGone">
             {{
               draftOnly
                 ? t('edit.saveDraft')
@@ -715,6 +765,7 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
 
     <div :class="['editor-body', side === 'preview' ? 'with-preview' : hasSidebar && 'with-sidebar']">
       <div class="form-body">
+        <LiveNotice v-if="collection.realtime && id" :live="liveDoc" />
         <div v-if="localDraft.found.value" class="notice notice-warning local-draft" role="status">
           <span>{{ t('form.draftFound', { time: formatDate(localDraft.found.value.at) }) }}</span>
           <button type="button" class="btn btn-sm" @click="localDraft.restore()">{{ t('form.draftRestore') }}</button>
@@ -841,7 +892,7 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
             :reload-key="historyKey"
             @change="(next) => (jobs = next)"
           />
-          <div v-if="canSave || canDelete" class="side-actions">
+          <div v-if="(canSave || canDelete) && !liveGone" class="side-actions">
             <button v-if="collection.schedule && id && canSave && canPublish" type="button" class="btn btn-sm" @click="scheduler?.open()">
               <CalendarClock :size="15" aria-hidden="true" />
               {{ t('schedule.button') }}
@@ -902,7 +953,7 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
           v-if="collection.drafts && !draftOnly && (!published || (separateDrafts && live))"
           type="button"
           class="btn"
-          :disabled="saving"
+          :disabled="saving || !!liveGone"
           @click="save('draft')"
         >
           {{ t('edit.saveDraft') }}
@@ -916,6 +967,13 @@ onBeforeRouteLeave(() => (dirty.value && !saving.value ? window.confirm(t('edit.
       :busy="actions.busy.value"
       @submit="actions.submit"
       @cancel="actions.cancel"
+    />
+    <ConfirmDialog
+      :open="!!overwriting"
+      :message="t('live.confirmOverwrite')"
+      :confirm-label="t('live.overwrite')"
+      @confirm="save(overwriting?.status, true)"
+      @cancel="overwriting = null"
     />
     <ConfirmDialog
       :open="confirmingDiscard"
