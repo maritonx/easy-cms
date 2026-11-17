@@ -196,6 +196,89 @@ describe('easy-cms CLI (FR-INS-06..08)', () => {
     expect(readdirSync(join(dir, 'easy-cms/migrations'))).toHaveLength(2)
   })
 
+  it('creates empty and data migrations, and lists the data steps (#441)', async () => {
+    const dir = project()
+    await cli('migrate:create', 'init', '--cwd', dir)
+    expect(await cli('migrate:create', 'x', '--empty', '--data', '--cwd', dir)).toMatchObject({
+      code: 1,
+      err: expect.stringContaining('Choose one'),
+    })
+    await new Promise((r) => setTimeout(r, 1100)) // names are timestamped to the second
+    expect(await cli('migrate:create', 'by hand', '--empty', '--cwd', dir)).toMatchObject({
+      code: 0,
+      out: expect.stringMatching(/_by_hand\.sql: write its SQL/),
+    })
+    await new Promise((r) => setTimeout(r, 1100))
+    const data = await cli('migrate:create', 'titles', '--data', '--cwd', dir)
+    expect(data.out).toMatch(/_titles\.ts: write its data step/)
+    expect(await cli('migrate', '--cwd', dir)).toMatchObject({
+      code: 0,
+      out: expect.stringContaining('Applied 3 migration(s).'),
+    })
+    const status = (await cli('migrate:status', '--cwd', dir)).out.split('\n')
+    expect(status).toEqual([
+      expect.stringMatching(/✓ applied\s+\d+_init$/),
+      expect.stringMatching(/✓ applied\s+\d+_by_hand$/),
+      expect.stringMatching(/✓ applied\s+\d+_titles {2}\(\+ data\)$/),
+    ])
+    // Seeding a migrated database (a build without NODE_ENV=production) doesn't push onto it.
+    writeFileSync(
+      join(dir, 'easy-cms/seed.ts'),
+      "export default async (cms) => { await cms.create('posts', { title: 'x' }) }\n",
+    )
+    expect((await cli('seed', '--cwd', dir)).code).toBe(0)
+    expect(await cli('migrate', '--cwd', dir)).toMatchObject({
+      code: 0,
+      out: 'No pending migrations.',
+    })
+  })
+
+  it('runs easy-cms/seed.ts, or --file, on every call (#441)', async () => {
+    const dir = project()
+    expect(await cli('seed', '--cwd', dir)).toMatchObject({
+      code: 1,
+      err: expect.stringContaining('create easy-cms/seed.ts'),
+    })
+    mkdirSync(join(dir, 'easy-cms'))
+    writeFileSync(
+      join(dir, 'easy-cms/seed.ts'),
+      `import type { Seed } from '@easy-cms/core'
+
+const seed: Seed = async (cms) => {
+  await cms.create('posts', { title: 'Seeded' })
+}
+export default seed
+`,
+    )
+    expect(await cli('seed', '--cwd', dir)).toMatchObject({
+      code: 0,
+      out: expect.stringContaining('seed.ts'),
+    })
+    await cli('seed', '--cwd', dir)
+    writeFileSync(
+      join(dir, 'count.mjs'),
+      `export default async (cms) => { console.log('posts:', await cms.count('posts')) }\n`,
+    )
+    const logged: string[] = []
+    const log = console.log
+    console.log = (...args: unknown[]) => logged.push(args.join(' '))
+    try {
+      expect((await cli('seed', '--file', 'count.mjs', '--cwd', dir)).code).toBe(0)
+    } finally {
+      console.log = log
+    }
+    expect(logged).toEqual(['posts: 2'])
+    expect(await cli('seed', '--file', 'missing.ts', '--cwd', dir)).toMatchObject({
+      code: 1,
+      err: expect.stringContaining('missing.ts not found'),
+    })
+    writeFileSync(join(dir, 'bad.mjs'), 'export const x = 1\n')
+    expect(await cli('seed', '--file', 'bad.mjs', '--cwd', dir)).toMatchObject({
+      code: 1,
+      err: expect.stringContaining('no default export function'),
+    })
+  })
+
   it('loads .env from the project root', async () => {
     const dir = project()
     const config = join(dir, 'easy-cms.config.ts')

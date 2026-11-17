@@ -42,7 +42,7 @@ export {
 } from './fields.js'
 export { forwardedClientIp, platformClientIp, platformWaitUntil } from './framework.js'
 export { type HealthCheck, healthResponse } from './health.js'
-export { CONFIG_FILE_NAMES, findConfigFile, importConfig } from './load-config.js'
+export { CONFIG_FILE_NAMES, findConfigFile, importConfig, importDefault } from './load-config.js'
 export { isJsonLogger, logFormat } from './logger.js'
 export {
   EXTENSIONS,

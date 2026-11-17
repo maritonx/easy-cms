@@ -233,6 +233,7 @@ export {
   type ScheduledPublish,
   type SearchOptions,
   type SearchResults,
+  type Seed,
   type SlugOf,
   type SubscribeOptions,
   type UpdateOptions,

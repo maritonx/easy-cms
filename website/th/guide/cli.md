@@ -46,8 +46,9 @@ npx easy-cms <command> [--config <file>] [--cwd <dir>]
 | คำสั่ง | |
 |---|---|
 | [`migrate`](#migrate) | รัน migration ที่ยังค้างอยู่ |
-| [`migrate:create <name>`](#migrate-create) | เขียน migration สำหรับการเปลี่ยน config |
+| [`migrate:create <name>`](#migrate-create) | เขียน migration สำหรับการเปลี่ยน config, SQL ที่เขียนเอง (`--empty`) หรือขั้นย้ายข้อมูล (`--data`) |
 | [`migrate:status`](#migrate-status) | แสดงรายการ migration และสถานะว่ารันแล้วหรือยัง |
+| [`seed`](#seed) | รัน `easy-cms/seed.ts` เพื่อใส่เนื้อหาตัวอย่างหรือเนื้อหาเริ่มต้น |
 | [`admin:create`](#admin-create) | สร้างผู้ใช้ |
 | [`generate:types`](#generate-types) | เขียน type ของ TypeScript สำหรับแอปอื่น |
 | [`backup <file>`](#backup) | คัดลอกฐานข้อมูลเป็นไฟล์ SQLite ขณะที่ CMS ทำงานอยู่ |
@@ -73,7 +74,7 @@ npx easy-cms migrate
 ```
 
 รันทุก migration ใน `easy-cms/migrations` ที่ฐานข้อมูลยังไม่ได้รันตามลำดับ แต่ละตัวรันใน transaction
-ของตัวเอง ถ้าล้มจะ rollback และหยุด ให้รันทุกครั้งที่ deploy ก่อนเวอร์ชันใหม่เริ่มทำงาน
+ของตัวเอง [ขั้นย้ายข้อมูล](#data-migrations) รันต่อจาก SQL ของมัน ถ้าล้มจะ rollback และหยุด ให้รันทุกครั้งที่ deploy ก่อนเวอร์ชันใหม่เริ่มทำงาน
 ดู [Migration และการ deploy](./deployment)
 
 ### migrate:create {#migrate-create}
@@ -86,13 +87,84 @@ npx easy-cms migrate:create add-author-bio
 เมื่อมีอะไรเปลี่ยน ถ้ารันใน terminal จะถามว่า field ที่หายไปถูกเปลี่ยนชื่อหรือไม่ เพื่อเก็บข้อมูลไว้แทนการลบทิ้ง
 ตรวจ SQL แล้ว commit ทั้งสองไฟล์
 
+#### SQL ที่เขียนเอง {#empty-migrations}
+
+```bash [pm]
+npx easy-cms migrate:create app-log --empty
+```
+
+เขียนไฟล์ `<timestamp>_app-log.sql` ว่างๆ ให้คุณเขียนเอง เช่น ตารางของแอปคุณ, view, index หรือการเติมข้อมูล
+รันและบันทึกพร้อม migration อื่น ใน transaction ของตัวเอง คั่นแต่ละคำสั่งด้วยบรรทัด `--> statement-breakpoint`
+ไฟล์นี้ไม่รวมการเปลี่ยน config การเปลี่ยน config ยังต้องมี migration ของตัวเอง
+
+```sql
+CREATE TABLE app_log (id integer PRIMARY KEY, note text NOT NULL)
+--> statement-breakpoint
+CREATE INDEX app_log_note ON app_log (note)
+```
+
+ตั้งชื่อตารางโดยไม่ใช้ prefix ของ Easy CMS (`ecms_`) เพราะ Easy CMS ไม่แตะตารางที่ไม่มี prefix ของมัน
+ดู[ตารางของคุณเอง](./escape-hatches#your-own-tables)
+
+#### ย้ายข้อมูล {#data-migrations}
+
+```bash [pm]
+npx easy-cms migrate:create split-name --data
+```
+
+เขียน SQL ของการเปลี่ยน config (ถ้ามี) และ `<timestamp>_split-name.ts` ซึ่งเป็นขั้นย้ายข้อมูลที่รันต่อจาก SQL นั้นใน
+**transaction เดียวกัน** ถ้า throw คอลัมน์ใหม่และทุกแถวที่มันแก้จะ rollback ไปด้วยกัน และ `migrate` จะหยุด
+
+```ts
+import type { DataMigration } from '@easy-cms/core'
+
+const migrate: DataMigration = async (tx) => {
+  const users = await tx.sql`SELECT id, name FROM ecms_users WHERE first_name IS NULL`
+  for (const user of users) {
+    const [first, ...rest] = String(user.name ?? '').split(' ')
+    await tx.sql`UPDATE ecms_users SET first_name = ${first}, last_name = ${rest.join(' ')} WHERE id = ${user.id}`
+  }
+}
+
+export default migrate
+```
+
+`` tx.sql`…` `` ทำงานเหมือน [`cms.sql`](./local-api#raw-sql) ทุกค่าเป็น bound parameter ขั้นย้ายข้อมูลทำงานกับตารางและคอลัมน์
+ตามที่ migration นั้นทิ้งไว้ ไม่ได้อ่าน config จึงยังใช้ได้แม้ config เปลี่ยนภายหลัง commit ไฟล์ `.ts` พร้อม `.sql` และ `.json`
+
 ### migrate:status {#migrate-status}
 
 ```bash [pm]
 npx easy-cms migrate:status
 # ✓ applied  20260925091723_init
-# • pending  20260928040614_seo
+# ✓ applied  20261117080102_split-name  (+ data)
+# • pending  20261118040614_seo
 ```
+
+### seed {#seed}
+
+```bash [pm]
+npx easy-cms seed
+npx easy-cms seed --file scripts/demo-content.ts
+```
+
+รัน `easy-cms/seed.ts` (หรือ `--file`) ซึ่ง export default ฟังก์ชันที่รับ `cms` คือ [Local API](./local-api) โดยไม่ใช้กฎสิทธิ์
+
+```ts
+import type { Seed } from '@easy-cms/core'
+import type config from '../easy-cms.config.ts'
+
+const seed: Seed<typeof config> = async (cms) => {
+  if ((await cms.count('posts')) > 0) return // ใส่ไว้แล้ว
+  await cms.create('posts', { title: 'Hello', status: 'published' })
+}
+
+export default seed
+```
+
+รันทุกครั้งที่เรียก จึงควรเช็กก่อนว่ามีอะไรอยู่แล้ว ตอน development จะ push schema ก่อนเหมือน dev server
+ยกเว้นโปรเจกต์ที่มี migration แล้ว ถ้า `NODE_ENV=production` ให้รัน `easy-cms migrate` ก่อน
+[template แบบ one-click](./one-click-deploy) รันคำสั่งนี้ตอน build เพื่อใส่โพสต์ตัวอย่าง
 
 ### admin:create {#admin-create}
 

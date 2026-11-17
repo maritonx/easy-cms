@@ -81,13 +81,39 @@ export interface KeysetPage {
 export interface MigrationInfo {
   readonly name: string
   readonly applied: boolean
+  /** Has a data step (`<name>.ts`, from `migrate:create --data`). */
+  readonly data?: boolean
 }
 
 export interface CreateMigrationResult {
   readonly name: string
   readonly file: string
   readonly statements: readonly string[]
+  /** The data step to fill in (`--data`). */
+  readonly dataFile?: string
 }
+
+/**
+ * What a migration writes (`migrate:create`): the SQL from the config's changes (`changes`, the
+ * default), an empty SQL file to write yourself (`empty`), or the changes and a `.ts` data step
+ * that runs after them in the same transaction (`data`).
+ */
+export type MigrationKind = 'changes' | 'empty' | 'data'
+
+/** What a data migration gets: SQL in the migration's transaction. */
+export interface MigrationTransaction {
+  /**
+   * Runs SQL in the migration's transaction, as `cms.sql`: each value is a bound parameter.
+   * Returns the rows, if any.
+   */
+  sql(strings: TemplateStringsArray, ...values: unknown[]): Promise<Record<string, unknown>[]>
+}
+
+/**
+ * The default export of a data migration (`easy-cms/migrations/<name>.ts`): runs after the
+ * migration's SQL, in the same transaction; a throw rolls both back and stops `migrate`.
+ */
+export type DataMigration = (tx: MigrationTransaction) => Promise<void> | void
 
 /**
  * A row written with a document, in the same transaction (`outbox: true` in the config, and
@@ -201,8 +227,11 @@ export interface Database {
   query?(strings: readonly string[], values: readonly unknown[]): Promise<Record<string, unknown>[]>
 
   /** Writes a migration file for the difference between the config and the latest migration. `null` when nothing changed. */
-  createMigration(args: { name: string }): Promise<CreateMigrationResult | null>
-  /** Applies pending migrations in order. Returns the names applied. */
+  createMigration(args: {
+    name: string
+    kind?: MigrationKind
+  }): Promise<CreateMigrationResult | null>
+  /** Applies pending migrations in order, each with its data step if any. Returns the names applied. */
   migrate(): Promise<string[]>
   migrationStatus(): Promise<MigrationInfo[]>
   /**

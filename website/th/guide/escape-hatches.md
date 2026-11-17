@@ -30,6 +30,9 @@ Easy CMS ให้ collection, API และ admin จาก config ไฟล์
 | event ของคุณเอง (`order.paid`) ส่งไป webhook และ listener | `events`, `cms.emit()`, `cms.on()` | [Event ของคุณเอง](./webhooks#your-own-events) |
 | ให้หน้าเว็บตามการเปลี่ยนแปลงทันทีที่บันทึก | `realtime: true`, `subscribe()` | [Realtime](./realtime) |
 | คำสั่ง `easy-cms <command>` ของคุณเอง | `cliCommands` | [CLI](./cli#commands-from-plugins) |
+| SQL ของคุณเองใน migration: ตาราง, view, index | `migrate:create --empty` | [CLI](./cli#empty-migrations) |
+| ย้ายข้อมูลระหว่างที่ schema เปลี่ยน | `migrate:create --data` | [CLI](./cli#data-migrations) |
+| เนื้อหาตัวอย่างหรือเนื้อหาเริ่มต้น | `easy-cms seed` | [CLI](./cli#seed) |
 | ชนิด field ที่มีช่องกรอกของตัวเอง | `defineFieldType()` | [ชนิด field ของคุณเอง](./field-types) |
 | หลายอย่างข้างบนรวมเป็นชิ้นเดียว | plugin: `(config) => config` | [เขียน plugin เอง](./plugins#writing-a-plugin) |
 
@@ -42,7 +45,8 @@ Easy CMS สร้างและแก้เฉพาะตารางที�
 
 - **ข้อมูลที่อยากให้ Easy CMS ดูแล** (กฎสิทธิ์, hook, admin, REST): ทำเป็น collection
   `admin: { group: false }` ซ่อนจากเมนู
-- **ตารางที่ใช้แค่ในโค้ดของคุณ:** สร้างด้วย migration ของคุณเองและ query ด้วย `` cms.sql`…` `` (หรือ client ของคุณเอง)
+- **ตารางที่ใช้แค่ในโค้ดของคุณ:** สร้างใน migration ของคุณเอง (`easy-cms migrate:create <name> --empty`)
+  จะได้สร้างพร้อมตารางอื่นทุกที่ที่ deploy แล้ว query ด้วย `` cms.sql`…` `` (หรือ client ของคุณเอง)
   Easy CMS ไม่ใส่กฎสิทธิ์หรือ hook ให้ตารางที่ไม่ใช่ collection
 
 ## ในหน้า admin {#in-the-admin}
@@ -81,7 +85,7 @@ await cms.update('orders', id, { status: 'paid' }, { user, overrideAccess: false
 ## สิ่งที่จะมาถัดไป {#coming-next}
 
 วางแผนไว้ ทำทีละชิ้นตาม [roadmap](https://github.com/maritonx/easy-cms/blob/main/docs/ROADMAP.md#m15):
-migration แบบ SQL และ TypeScript พร้อม `easy-cms seed`, `admin: false` ทุก adapter
+`admin: false` ทุก adapter
 และ `easy-cms build:admin` ที่ compile component ของ admin จาก Vue, React และ Svelte หน้านี้จะเพิ่มแต่ละอย่างเมื่อออกแล้ว
 
 ## ขั้นต่อไป {#next-steps}

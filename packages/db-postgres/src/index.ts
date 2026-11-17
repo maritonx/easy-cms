@@ -207,9 +207,14 @@ function postgresJsConnection(url: string, options: PostgresAdapterOptions): Con
     async query(text, params = []) {
       return [...(await client.unsafe(text, [...params] as never[]))] as Record<string, unknown>[]
     },
-    async transaction(statements) {
+    async transaction(steps) {
       await client.begin(async (tx) => {
-        for (const s of statements) await tx.unsafe(s.sql, [...(s.params ?? [])] as never[])
+        const run = async (text: string, params: readonly unknown[] = []) =>
+          [...(await tx.unsafe(text, [...params] as never[]))] as Record<string, unknown>[]
+        for (const step of steps) {
+          if (typeof step === 'function') await step(run)
+          else await run(step.sql, step.params)
+        }
       })
     },
   }
@@ -241,9 +246,14 @@ async function pgliteConnection(source: string | PGlite, cwd: string): Promise<C
     async query(text, params = []) {
       return (await pg.query(text, [...params])).rows as Record<string, unknown>[]
     },
-    async transaction(statements) {
+    async transaction(steps) {
       await pg.transaction(async (tx) => {
-        for (const s of statements) await tx.query(s.sql, [...(s.params ?? [])])
+        const run = async (text: string, params: readonly unknown[] = []) =>
+          (await tx.query(text, [...params])).rows as Record<string, unknown>[]
+        for (const step of steps) {
+          if (typeof step === 'function') await step(run)
+          else await run(step.sql, step.params)
+        }
       })
     },
   }

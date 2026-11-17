@@ -8,6 +8,7 @@ import type {
   FindArgs,
   ID,
   KeysetPage,
+  MigrationKind,
   OutboxRow,
   PaginatedDocs,
   RawDocument,
@@ -522,8 +523,8 @@ class DrizzleDatabase implements Database {
     return (await this.findGlobal({ slug: args.slug })) as Record<string, unknown>
   }
 
-  createMigration(args: { name: string }) {
-    return this.migrator.create(args.name)
+  createMigration(args: { name: string; kind?: MigrationKind }) {
+    return this.migrator.create(args.name, args.kind)
   }
 
   migrate() {

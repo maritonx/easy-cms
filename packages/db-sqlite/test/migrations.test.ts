@@ -180,10 +180,14 @@ describe('migration files (FR-INS-06/07, FR-DAT-03)', () => {
     expect(first?.statements.join('\n')).toContain('CREATE TABLE `ecms_posts`')
     expect(await tool.db.createMigration({ name: 'again' })).toBeNull()
 
-    expect(await tool.db.migrationStatus()).toEqual([{ name: first?.name, applied: false }])
+    expect(await tool.db.migrationStatus()).toEqual([
+      { name: first?.name, applied: false, data: false },
+    ])
     expect(await tool.db.migrate()).toEqual([first?.name])
     expect(await tool.db.migrate()).toEqual([])
-    expect(await tool.db.migrationStatus()).toEqual([{ name: first?.name, applied: true }])
+    expect(await tool.db.migrationStatus()).toEqual([
+      { name: first?.name, applied: true, data: false },
+    ])
     await tool.destroy()
 
     const files = readdirSync(join(cwd, 'easy-cms/migrations')).sort()
@@ -271,7 +275,9 @@ describe('migration files (FR-INS-06/07, FR-DAT-03)', () => {
     )
 
     await expect(tool.db.migrate()).rejects.toThrow(/failed and was rolled back/)
-    expect(await tool.db.migrationStatus()).toEqual([{ name: created?.name, applied: false }])
+    expect(await tool.db.migrationStatus()).toEqual([
+      { name: created?.name, applied: false, data: false },
+    ])
     await tool.destroy()
     expect(await tables(cwd)).toEqual(['ecms_migrations'])
   })

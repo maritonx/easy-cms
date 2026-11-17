@@ -22,6 +22,13 @@ Invalid Easy CMS config (1 problem):
   • admin.siteUrl: is now `siteURL`
 ```
 
+## 1.51 {#v1-51}
+
+- **migration แบบ SQL และย้ายข้อมูล และ `easy-cms seed`:** `migrate:create --empty` และ `--data` กับคำสั่ง `seed`
+  ที่รัน `easy-cms/seed.ts` ([CLI](./cli#data-migrations)) ไม่ต้องแก้อะไร โปรเจกต์ที่สร้างจาก
+  [template แบบ one-click](./one-click-deploy) ย้าย `scripts/seed.mjs` ไปเป็น `easy-cms/seed.ts` ได้
+  (`export default async (cms) => { … }` ไม่ต้องเปิด CMS เอง) แล้วใช้ `easy-cms migrate && easy-cms seed && next build`
+
 ## 1.44 {#v1-44}
 
 - **hash รหัสผ่านใช้หน่วยความจำ 32 MB แทน 128 MB** (scrypt N=2¹⁵, r=8, p=3 ซึ่ง OWASP ถือว่าแข็งแรงเท่ากัน) เพื่อให้ตรวจบน
