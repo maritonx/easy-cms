@@ -24,7 +24,7 @@ Invalid Easy CMS config (1 problem):
   • admin.siteUrl: is now `siteURL`
 ```
 
-## 1.51 {#v1-51}
+## 1.50 {#v1-50}
 
 - **SQL and data migrations, and `easy-cms seed`:** `migrate:create --empty` and `--data`, and a
   `seed` command for `easy-cms/seed.ts` ([CLI](./cli#data-migrations)). Nothing to change.
