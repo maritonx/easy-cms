@@ -21,6 +21,7 @@ import {
 } from '../errors.js'
 import type { EasyCMS } from '../local-api.js'
 import { checkFormToken, formToken, verifyTurnstile } from '../spam.js'
+import { trimChar } from '../trim.js'
 import { cookieValue, SESSION_COOKIE } from './cookie.js'
 import { DEFAULT_PASSWORD_EMAILS } from './emails.js'
 import { fakeVerify, hashPassword, needsRehash, verifyPassword } from './password.js'
@@ -764,7 +765,7 @@ export class Auth {
     const url = sso
       ? admin
         ? `${base}${this.config.admin.path}/login`
-        : `${(this.config.admin.siteURL || base).replace(/\/+$/, '')}/`
+        : `${trimChar(this.config.admin.siteURL || base, '/', { start: false })}/`
       : member
         ? this.memberLink('resetPassword', token, options.origin)
         : `${base}${this.config.admin.path}/reset-password?token=${encodeURIComponent(token)}`
