@@ -116,6 +116,49 @@ cursor ไม่ได้
 และ `and` / `or` โดย `not_equals` และ `not_in` จะรวมค่าว่างด้วย ยังไม่รองรับการ query ภายใน
 เอกสารที่เชื่อมโยงกัน (`author.name`)
 
+## Transaction {#transactions}
+
+`cms.transaction()` รันการเขียนหลายครั้งเป็นก้อนเดียว: เกิดทั้งหมด หรือไม่เกิดเลย
+
+```ts
+await cms.transaction(async (tx) => {
+  const order = await tx.create('orders', { customer: user.id, total: 120 })
+  await tx.update('products', productId, { stock: product.stock - 1 })
+  tx.emit('order.paid', { order: order.id })
+  if (!(await chargeCard(order))) throw new Error('Card declined') // ยกเลิกการเขียนทั้งสอง
+})
+```
+
+- commit เมื่อฟังก์ชันจบ และ rollback แล้ว throw ต่อเมื่อฟังก์ชัน throw (error ของคุณ, error จากการตรวจข้อมูล
+  หรือการตรวจสิทธิ์ที่ไม่ผ่าน)
+- การอ่านเขียนทุกอย่างระหว่างที่รันเข้าร่วม transaction ไม่ว่าจะผ่าน `tx` หรือโค้ดอื่นที่มันเรียก
+  แม้โค้ดนั้นได้ `cms` มา `cms.transaction()` ที่อยู่ข้างในเข้าร่วมอันนอก
+- กฎสิทธิ์ การตรวจข้อมูล และ hook ทำงานตามปกติ `beforeChange` และ hook `before*` อื่นรันข้างใน
+  ส่วน `afterChange`, `afterDelete`, webhook, listener ของ `cms.on()`, event ของ `cms.emit()`
+  และ event ของ [realtime](./realtime) รอจน commit และถูกทิ้งเมื่อ rollback
+- ไฟล์ที่เขียนลง storage (การอัปโหลด) ไม่ถูก rollback
+- ให้สั้นไว้: บน SQLite การเขียนอื่นต้องรอจนมันจบ
+
+## SQL ดิบ {#raw-sql}
+
+`cms.sql` รัน SQL ที่ Local API ทำไม่ได้ เช่น join และการรวมยอด:
+
+```ts
+const rows = await cms.sql<{ category: string; total: number }>`
+  select category, count(*) as total
+  from ecms_posts
+  where status = ${'published'}
+  group by category`
+```
+
+- ทุก `${}` เป็น parameter ที่ bind ไว้ ไม่ใช่ส่วนหนึ่งของข้อความ SQL ค่าจึงฉีด SQL ไม่ได้
+  ชื่อตารางและคอลัมน์เป็น parameter ไม่ได้ ให้เขียนลงใน SQL
+- คืนแถวที่ได้ ถ้าเรียกใน `cms.transaction()` จะรันใน transaction นั้น
+- **ข้าม Easy CMS:** ไม่มีกฎสิทธิ์ hook การตรวจข้อมูล เวอร์ชัน webhook หรือ event realtime
+  ใช้ Local API กับเนื้อหาเป็นหลัก และใช้ `sql` กับรายงาน ยอดรวม และตารางของคุณเอง
+- ตารางชื่อ `<tablePrefix><collection>` (ค่าเริ่มต้น `ecms_` และ slug เป็น snake_case) คอลัมน์คือชื่อ field แบบ snake_case
+  SQL เป็นของฐานข้อมูลที่ใช้: query ที่เขียนสำหรับ SQLite อาจต้องแก้เมื่อใช้ Postgres
+
 ## Type {#types}
 
 ผลลัพธ์และ input มี type ตาม config ของคุณ: `cms.find('posts')` ให้ `docs` ที่มี `title:

@@ -188,6 +188,17 @@ export interface Database {
    * behind slow reads that hold the others.
    */
   writing?<T>(fn: () => Promise<T>): Promise<T>
+  /**
+   * Runs `fn` in one transaction (`cms.transaction`): every query made while it runs, by any code
+   * in its async context, joins it; it commits when `fn` resolves and rolls back when it throws.
+   * Inside one already, `fn` joins it. Optional: without it, `cms.transaction` is refused.
+   */
+  transaction?<T>(fn: () => Promise<T>): Promise<T>
+  /**
+   * Runs raw SQL (`cms.sql`): `strings` around `values`, each value a bound parameter. In the
+   * transaction when inside one. Optional: without it, `cms.sql` is refused.
+   */
+  query?(strings: readonly string[], values: readonly unknown[]): Promise<Record<string, unknown>[]>
 
   /** Writes a migration file for the difference between the config and the latest migration. `null` when nothing changed. */
   createMigration(args: { name: string }): Promise<CreateMigrationResult | null>

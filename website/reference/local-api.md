@@ -40,6 +40,13 @@ to apply them, as the REST API does.
 | `increment(collection, id, field, by, { min?, max? })` | `number \| null` | Adds `by` to a top-level number field in one statement, safe with concurrent calls, e.g. stock. `null` when the result would pass `min` / `max`; `NotFoundError` when there is no such document. Skips hooks and access. |
 | `delete(collection, id, options?)` | the deleted document | Also deletes its versions and scheduled jobs. Deleting a user with `auth.rbac`: `{ transferTo: id }` gives the documents they own to another user; otherwise they have no owner. |
 
+### Transactions and SQL
+
+| Method | Returns | |
+|---|---|---|
+| `transaction(async (tx) => …)` | what the function returns | Runs the function in one database transaction: every read and write inside joins it, by `tx` or any code it calls. Commits when it resolves, rolls back and rethrows when it throws. `before*` hooks run inside; `after*` hooks, webhooks, `on` listeners, `emit()` events and realtime events wait for the commit and are dropped on a rollback. Inside one already, it joins it. Uploaded files are not rolled back. [Transactions](/guide/local-api#transactions) |
+| `sql` (a tagged template: `` sql`select … ${value}` ``) | rows | Raw SQL; each `${}` is a bound parameter. In the transaction when inside one. No access rules, hooks, validation, versions or events. [Raw SQL](/guide/local-api#raw-sql) |
+
 ### Media
 
 | Method | Returns | |

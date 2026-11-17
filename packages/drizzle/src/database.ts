@@ -15,7 +15,17 @@ import type {
   Where,
 } from '@easy-cms/core'
 import { QueryError } from '@easy-cms/core'
-import { and, asc, count, eq, getTableColumns, getTableName, inArray, sql } from 'drizzle-orm'
+import {
+  and,
+  asc,
+  count,
+  eq,
+  getTableColumns,
+  getTableName,
+  inArray,
+  type SQL,
+  sql,
+} from 'drizzle-orm'
 import type { AnyColumn, AnyTable, Dialect, DrizzleDb, SqlRunner } from './dialect.js'
 import {
   deleteDocument,
@@ -103,6 +113,16 @@ class DrizzleDatabase implements Database {
   private readonly counts = new Map<string, { total: Promise<number>; until: number }>()
   /** Set inside `writing`: queries there use the connections for writes. */
   private readonly writes = new AsyncLocalStorage<true>()
+  /**
+   * Set inside `transaction`: every query made there, by any code, runs in it. `open` turns false
+   * when it ends, so work started inside and still running afterwards uses the connection again.
+   * `queue` keeps its writes one after another: each is a savepoint, which must not interleave.
+   */
+  private readonly tx = new AsyncLocalStorage<{
+    db: DrizzleDb
+    open: boolean
+    queue: Promise<unknown>
+  }>()
 
   constructor(
     private readonly dialect: Dialect,
@@ -121,8 +141,48 @@ class DrizzleDatabase implements Database {
   }
 
   private get db(): DrizzleDb {
+    const tx = this.tx.getStore()
+    if (tx?.open) return tx.db
     const { writeDb } = this.connection
     return writeDb && this.writes.getStore() ? writeDb : this.connection.db
+  }
+
+  async transaction<T>(fn: () => Promise<T>): Promise<T> {
+    // Inside a transaction already: join it.
+    if (this.tx.getStore()?.open) return fn()
+    const db = this.connection.writeDb ?? this.connection.db
+    return this.write(() =>
+      db.transaction(async (handle: DrizzleDb) => {
+        const store = { db: handle, open: true, queue: Promise.resolve() as Promise<unknown> }
+        try {
+          return await this.tx.run(store, fn)
+        } finally {
+          store.open = false
+        }
+      }),
+    )
+  }
+
+  async query(
+    strings: readonly string[],
+    values: readonly unknown[],
+  ): Promise<Record<string, unknown>[]> {
+    const query = sql.empty()
+    strings.forEach((text, i) => {
+      query.append(sql.raw(text))
+      // A value is always a bound parameter, never part of the SQL text.
+      if (i < values.length) query.append(sql`${values[i]}`)
+    })
+    // May write: queued like the other writes (SQLite's single writer, a transaction's savepoints).
+    return this.write(() => this.rows(query))
+  }
+
+  /** The rows a statement returns, on the connection or transaction in use. */
+  private async rows(query: SQL): Promise<Record<string, unknown>[]> {
+    const db = this.db
+    if (this.dialect.name === 'sqlite') return (await db.all(query)) as Record<string, unknown>[]
+    const result = await db.execute(query)
+    return (Array.isArray(result) ? result : result.rows) as Record<string, unknown>[]
   }
 
   writing<T>(fn: () => Promise<T>): Promise<T> {
@@ -283,6 +343,16 @@ class DrizzleDatabase implements Database {
    * done. (Other processes are waited for by the database's busy timeout.)
    */
   private write<T>(run: () => Promise<T>): Promise<T> {
+    const tx = this.tx.getStore()
+    if (tx?.open) {
+      // In a transaction: it holds the database already; one write at a time inside it.
+      const result = tx.queue.then(run)
+      tx.queue = result.then(
+        () => {},
+        () => {},
+      )
+      return result
+    }
     if (!this.dialect.singleWriter) return run()
     const key = this.connection.writeQueue ?? ''
     const result = (writeQueues.get(key) ?? Promise.resolve()).then(run)

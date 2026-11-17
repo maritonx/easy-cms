@@ -20,6 +20,8 @@ accident.
 | You want | Use | |
 |---|---|---|
 | A route of your own: a report, a payment webhook, an import | `endpoints` | [Endpoints](./plugins#endpoints) |
+| Several writes that all happen or none do | `cms.transaction()` | [Transactions](./local-api#transactions) |
+| Joins, totals and queries the Local API can't express | `` cms.sql`…` `` | [Raw SQL](./local-api#raw-sql) |
 | Code that runs when a document is saved, deleted or read | Collection hooks | [Hooks](./hooks) |
 | After-hooks and webhooks that happen only if the save did | `outbox: true` | [Outbox](./hooks#outbox) |
 | To work out the user or a context (a tenant, a site) per request | `onRequest` | [Multi-tenant](./multi-tenant) |
@@ -42,7 +44,8 @@ live in the same database. See [Sharing a database with your app](./databases#sh
 - **Data Easy CMS should look after** (access rules, hooks, the admin, REST): make it a
   collection. `admin: { group: false }` keeps it out of the menu.
 - **Tables only your code uses:** create them with your own migrations and query them with
-  your own client. Easy CMS adds no access rules or hooks to tables that are not collections.
+  `` cms.sql`…` `` (or your own client). Easy CMS adds no access rules or hooks to tables that are
+  not collections.
 
 ## In the admin
 
@@ -75,10 +78,13 @@ await cms.update('orders', id, { status: 'paid' }, { user, overrideAccess: false
 In an endpoint or action, pass `{ user, overrideAccess: false }` whenever the request comes from a
 person, so they can't do there what the admin and REST would refuse them.
 
+`cms.sql` always goes around them, and around hooks, validation and versions too: use it for
+reports and your own tables, and check who is asking before you run it for someone.
+
 ## Coming next
 
 Planned, one at a time, in the [roadmap](https://github.com/maritonx/easy-cms/blob/main/docs/ROADMAP.md#m15):
-transactions and raw SQL (`cms.transaction`, `sql`), `access` on endpoints with `onResponse` and
+`access` on endpoints with `onResponse` and
 `onError`, SQL and TypeScript data migrations with `easy-cms seed`, `admin: false` everywhere,
 and `easy-cms build:admin` to compile Vue, React and Svelte admin components. This page lists
 each when it ships.
