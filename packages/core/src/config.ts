@@ -814,6 +814,58 @@ export type OnRequest = (args: OnRequestArgs) => MaybePromise<
   | undefined
 >
 
+/** What `onResponse` receives. */
+export interface OnResponseArgs {
+  readonly request: Request
+  readonly url: URL
+  /** The response so far: the API's, or what an `onResponse` before this one returned. */
+  readonly response: Response
+  /** The request's user; `null` when anonymous, or before it was known (e.g. a bad API key). */
+  readonly user: AuthUser | null
+  /** The request's context (`onRequest`). */
+  readonly context: RequestContext
+  readonly cms: EasyCMS
+}
+
+/**
+ * Runs on each API response (REST, plugin endpoints, errors included; not health probes or CORS
+ * preflights), e.g. to add headers or log. Return a `Response` to send instead, or nothing to
+ * keep it. Several run in order, each given the one before's response. A failing one is logged and
+ * skipped.
+ */
+export type OnResponse = (args: OnResponseArgs) => MaybePromise<Response | undefined>
+
+/** What `onError` receives. */
+export interface OnErrorArgs {
+  /** What was thrown: an Easy CMS error (`ValidationError`, `ForbiddenError`…) or anything else. */
+  readonly error: unknown
+  /** The status the API answers with: the error's, or 500. */
+  readonly status: number
+  readonly request: Request
+  readonly url: URL
+  readonly user: AuthUser | null
+  readonly context: RequestContext
+  readonly cms: EasyCMS
+}
+
+/**
+ * Runs when an API request fails, before the error response is made: report the error (e.g. to
+ * Sentry), or return a `Response` to send instead of the API's error body. Several run in order;
+ * the first `Response` returned is sent. A failing one is logged and skipped.
+ */
+export type OnError = (args: OnErrorArgs) => MaybePromise<Response | undefined>
+
+/** What an endpoint's `access` receives. */
+export interface EndpointAccessArgs {
+  readonly user: AuthUser | null
+  readonly context: RequestContext
+  readonly request: Request
+  readonly url: URL
+  /** Values of `:name` segments in the endpoint's path. */
+  readonly params: Readonly<Record<string, string>>
+  readonly cms: EasyCMS
+}
+
 /** What an endpoint's handler receives. */
 export interface EndpointRequest {
   readonly request: Request
@@ -897,6 +949,11 @@ export interface Endpoint {
    * root, so plugins also offer a helper to use in the app's own route. Default false.
    */
   readonly root?: boolean
+  /**
+   * Who may call it. `false`: `401` without a user, `403` with one, before the handler runs.
+   * Default: everyone (the handler checks `user` itself).
+   */
+  readonly access?: (args: EndpointAccessArgs) => MaybePromise<boolean>
   /**
    * Returns a `Response`, or a value that is sent as JSON. Throw an Easy CMS error
    * (`UnauthorizedError`, `ForbiddenError`, `ValidationError`, `NotFoundError`) for error responses.
@@ -1064,6 +1121,16 @@ export interface Config {
    * run in order: each gets the user the one before set, and their contexts are merged.
    */
   readonly onRequest?: OnRequest | readonly OnRequest[]
+  /**
+   * Runs on each API response: add headers, log, or return a different `Response`. Several run in
+   * order, each given the one before's response.
+   */
+  readonly onResponse?: OnResponse | readonly OnResponse[]
+  /**
+   * Runs when an API request fails: report the error, or return a `Response` to send instead.
+   * Several run in order; the first `Response` returned is sent.
+   */
+  readonly onError?: OnError | readonly OnError[]
   /**
    * Field types from packages, e.g. `color` from `@easy-cms/fields`: fields then use
    * `type: 'color'`. See `defineFieldType`.

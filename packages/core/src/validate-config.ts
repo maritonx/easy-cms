@@ -1976,7 +1976,7 @@ function validateEndpoints(config: Config, collectionSlugs: ReadonlySet<string>,
       add(path, 'must be an object { path, method, handler }')
       return
     }
-    const { path: route, method, handler, root } = endpoint as Record<string, unknown>
+    const { path: route, method, handler, root, access } = endpoint as Record<string, unknown>
     if (root !== undefined && typeof root !== 'boolean')
       add(`${path}.root`, 'must be true or false')
     const segments = typeof route === 'string' ? route.split('/').slice(1) : []
@@ -2021,6 +2021,8 @@ function validateEndpoints(config: Config, collectionSlugs: ReadonlySet<string>,
       )
     }
     if (typeof handler !== 'function') add(`${path}.handler`, 'must be a function')
+    if (access !== undefined && typeof access !== 'function')
+      add(`${path}.access`, 'must be a function ({ user }) => boolean')
     if (typeof route === 'string' && typeof verb === 'string') {
       // Parameters match anything, so "/a/:x" and "/a/:y" are the same route.
       const key = `${root === true ? 'root ' : ''}${verb} ${route.replace(/:[A-Za-z_][A-Za-z0-9_]*/g, ':')}`

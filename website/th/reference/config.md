@@ -40,6 +40,8 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `endpoints` | `Endpoint[]` | `[]` | ดู [endpoints](#endpoints) |
 | `cliCommands` | `CliCommand[]` | `[]` | คำสั่ง `easy-cms <name>` เช่นจาก plugin: `{ name, description, help?, run({ cms, args, flags, log }) }` [CLI](/th/guide/cli#commands-from-plugins) |
 | `onRequest` | `OnRequest \| OnRequest[]`: `({ headers, url, user, cms }) => { context?, user? }` | — | ทำงานทุก request ของ API เมื่อรู้ผู้ใช้แล้ว: คืน `context` ของ request (เช่น tenant) และเปลี่ยนผู้ใช้ได้ (บทบาทใน tenant นั้น, `scoped`) ปกติ plugin เป็นผู้ตั้ง ถ้าเป็นรายการจะทำงานตามลำดับ แต่ละตัวได้ผู้ใช้ที่ตัวก่อนหน้าคืนมา และรวม `context` ของทุกตัวเข้าด้วยกัน [Multi-tenant](/th/guide/multi-tenant#how-it-works) |
+| `onResponse` | `OnResponse \| OnResponse[]`: `({ request, url, response, user, context, cms }) => Response \| undefined` | — | ทำงานทุก response ของ API (รวม error ไม่รวม health probe และ CORS preflight): เพิ่ม header, เก็บ log หรือคืน `Response` อื่นแทน ถ้าเป็นรายการจะทำงานตามลำดับ แต่ละตัวได้ response ของตัวก่อนหน้า ตัวที่ throw ถูกบันทึก log แล้วข้ามไป [Escape hatches](/th/guide/escape-hatches#on-the-server) |
+| `onError` | `OnError \| OnError[]`: `({ error, status, request, url, user, context, cms }) => Response \| undefined` | — | ทำงานเมื่อ request ของ API ล้มเหลว ก่อนสร้าง response ของ error: ส่ง error ออกไป (เช่น Sentry) หรือคืน `Response` เพื่อส่งแทน ถ้าเป็นรายการจะทำงานตามลำดับ และส่ง `Response` แรกที่ได้ ตัวที่ throw ถูกบันทึก log แล้วข้ามไป [Escape hatches](/th/guide/escape-hatches#on-the-server) |
 | `apiKeys` | `boolean` | `false` | API key ใต้ตั้งค่า สำหรับสคริปต์และแอปอื่น [API keys](/th/guide/api-keys) |
 | `email` | `EmailAdapter` | — | ส่งอีเมลให้ plugin เช่น `smtp()` หรือ `consoleEmail()` [อีเมล](/th/guide/email) |
 | `emailLog` | `false \| { keepDays? }` | `{ keepDays: 30 }` | บันทึกอีเมลที่ส่งในหน้าตั้งค่า → Email โดยไม่เก็บเนื้อหา [บันทึกอีเมล](/th/guide/email#the-email-log) |
@@ -369,6 +371,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 |---|---|---|
 | `path` | `string` | ใต้ `routes.api` เช่น `/seo/generate` หรือ `/stats/:collection` segment แรกห้ามเป็น slug ของ collection หรือชื่อที่ API ในตัวใช้ ([path ที่สงวนไว้](/th/guide/plugins#endpoints)) |
 | `method` | `'get' \| 'post' \| 'put' \| 'patch' \| 'delete'` | |
+| `access` | `({ user, context, request, url, params, cms }) => boolean` | ใครเรียกได้: `false` ตอบ `401` เมื่อไม่มีผู้ใช้ และ `403` เมื่อมี ก่อน handler ทำงาน ค่าเริ่มต้น: ทุกคน [Endpoints](/th/guide/plugins#endpoints) |
 | `handler` | `(request: EndpointRequest) => unknown` | คืน `Response` หรือค่าที่ส่งเป็น JSON [Endpoints](/th/guide/plugins#endpoints) |
 | `root` | `boolean` | เสิร์ฟ path จาก root ของเว็บ (เฉพาะ standalone server) เช่น `/robots.txt` ค่าเริ่มต้น `false` |
 
