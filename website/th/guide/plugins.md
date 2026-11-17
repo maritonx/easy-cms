@@ -157,6 +157,13 @@ handler ได้รับ:
 คืนค่าใดก็ได้เพื่อส่งเป็น JSON หรือคืน `Response` สำหรับแบบอื่น ถ้าจะตอบ error ในรูปแบบของ API ให้ throw
 `UnauthorizedError`, `ForbiddenError`, `NotFoundError` หรือ `ValidationError` จาก `@easy-cms/core`
 
+- `access` บอกว่าใครเรียกได้ ก่อน handler ทำงาน: `false` ตอบ `401` เมื่อไม่มีผู้ใช้ และ `403` เมื่อมี
+  ได้รับ `{ user, context, request, url, params, cms }`:
+
+  ```ts
+  { path: '/reports/sales', method: 'get', access: ({ user }) => user?.role === 'admin', handler }
+  ```
+
 - การเขียนข้อมูลจาก browser ต้องผ่าน[การตรวจ CSRF](./security)เหมือน API ในตัว
 - segment แรกห้ามเป็น slug ของ collection หรือชื่อที่ API ในตัวใช้: `users`, `globals`, `admin`, `jobs`,
   `media`, `api-keys`, `auth` รวมถึง `system`, `health`, `internal` (กันไว้สำหรับเวอร์ชันถัดไป) path แบบนี้

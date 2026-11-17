@@ -216,10 +216,17 @@ async function respondLogged(
   const started = performance.now()
   const incoming = request.headers.get('x-request-id')
   const requestId = incoming && REQUEST_ID.test(incoming) ? incoming : randomUUID()
-  const requestLog = { userId: undefined as ID | undefined }
-  const response = await auditContext.run({ requestId }, () =>
+  const requestLog: RequestState = { userId: undefined, user: null, context: NO_CONTEXT }
+  const answered = await auditContext.run({ requestId }, () =>
     respondNow(cms, request, url, path, root, options, production, requestId, requestLog),
   )
+  // Probes every few seconds: not the app's responses.
+  const response =
+    !root && (path === '/healthz' || path === '/readyz')
+      ? answered
+      : await auditContext.run({ requestId }, () =>
+          applyOnResponse(cms, request, url, answered, requestLog),
+        )
   let tagged: Response
   try {
     response.headers.set('x-request-id', requestId)
@@ -254,7 +261,7 @@ async function respondNow(
   options: RestHandlerOptions,
   production: boolean,
   requestId: string,
-  requestLog: { userId: ID | undefined },
+  requestLog: RequestState,
 ): Promise<Response> {
   const headers = new Headers({
     'content-type': 'application/json; charset=utf-8',
@@ -284,6 +291,8 @@ async function respondNow(
     // The config's `onRequest` (e.g. a tenant plugin): the context, and the user within it.
     const { user, context } = await cms.applyOnRequest(request.headers, url, signedIn)
     requestLog.userId = user?.id
+    requestLog.user = user
+    requestLog.context = context
     const ctx: Context = {
       request,
       url,
@@ -335,8 +344,77 @@ async function respondNow(
       )
     return new Response(body, { status: result.status ?? 200, headers })
   } catch (error) {
-    return errorResponse(cms, error, headers, production)
+    const replaced = await applyOnError(cms, request, url, error, requestLog)
+    return replaced ?? errorResponse(cms, error, headers, production)
   }
+}
+
+/** What a request has worked out so far: for the request log, `onResponse` and `onError`. */
+interface RequestState {
+  userId: ID | undefined
+  user: AuthUser | null
+  context: RequestContext
+}
+
+const NO_CONTEXT: RequestContext = Object.freeze({})
+
+/** One hook, or a list of them, as a list. */
+const hookList = <T>(hooks: T | readonly T[] | undefined): readonly T[] =>
+  hooks === undefined ? [] : Array.isArray(hooks) ? (hooks as readonly T[]) : [hooks as T]
+
+/** The config's `onResponse`, in order: each may replace the response. */
+async function applyOnResponse(
+  cms: EasyCMS,
+  request: Request,
+  url: URL,
+  response: Response,
+  state: RequestState,
+): Promise<Response> {
+  let current = response
+  for (const onResponse of hookList(cms.config.onResponse)) {
+    try {
+      const next = await onResponse({
+        request,
+        url,
+        response: current,
+        user: state.user,
+        context: state.context,
+        cms,
+      })
+      if (next instanceof Response) current = next
+    } catch (error) {
+      cms.logger.error(`onResponse failed: ${(error as Error).message}`, { error })
+    }
+  }
+  return current
+}
+
+/** The config's `onError`, in order: the first `Response` one returns is sent instead. */
+async function applyOnError(
+  cms: EasyCMS,
+  request: Request,
+  url: URL,
+  error: unknown,
+  state: RequestState,
+): Promise<Response | undefined> {
+  const status = error instanceof EasyCMSError ? error.status : 500
+  for (const onError of hookList(cms.config.onError)) {
+    try {
+      const replaced = await onError({
+        error,
+        status,
+        request,
+        url,
+        user: state.user,
+        context: state.context,
+        cms,
+      })
+      if (replaced instanceof Response) return replaced
+    } catch (failed) {
+      cms.logger.error(`onError failed: ${(failed as Error).message}`, { error: failed })
+    }
+  }
+  return undefined
 }
 
 /** `/auth/<action>`: signing in and out, sign-up and password links. */
@@ -433,6 +511,17 @@ async function customEndpoint(
     // HEAD is answered by GET handlers, without a body.
     const verb = endpoint.method.toUpperCase()
     if (verb !== method && !(verb === 'GET' && method === 'HEAD')) continue
+    if (endpoint.access) {
+      const allowed = await endpoint.access({
+        user: ctx.user,
+        context: ctx.context,
+        request: ctx.request,
+        url: ctx.url,
+        params,
+        cms,
+      })
+      if (allowed !== true) throw ctx.user ? new ForbiddenError() : new UnauthorizedError()
+    }
     const body = await endpoint.handler({
       request: ctx.request,
       url: ctx.url,

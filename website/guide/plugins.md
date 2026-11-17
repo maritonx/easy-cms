@@ -164,6 +164,13 @@ Return a value to send it as JSON, or a `Response` for anything else. Throw `Una
 `ForbiddenError`, `NotFoundError` or `ValidationError` from `@easy-cms/core` for error responses in the
 API's format.
 
+- `access` says who may call it, before the handler runs: `false` answers `401` without a user and
+  `403` with one. It gets `{ user, context, request, url, params, cms }`:
+
+  ```ts
+  { path: '/reports/sales', method: 'get', access: ({ user }) => user?.role === 'admin', handler }
+  ```
+
 - Writes from the browser pass the same [CSRF check](./security) as the built-in API.
 - The first segment can't be a collection slug or one the built-in API uses: `users`, `globals`,
   `admin`, `jobs`, `media`, `api-keys`, `auth`, and `system`, `health`, `internal` (kept free for

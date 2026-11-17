@@ -42,6 +42,8 @@ export default defineConfig({ secret, db, collections, /* … */ })
 | `endpoints` | `Endpoint[]` | `[]` | See [endpoints](#endpoints). |
 | `cliCommands` | `CliCommand[]` | `[]` | `easy-cms <name>` commands, e.g. from plugins: `{ name, description, help?, run({ cms, args, flags, log }) }`. [CLI](/guide/cli#commands-from-plugins) |
 | `onRequest` | `OnRequest \| OnRequest[]`: `({ headers, url, user, cms }) => { context?, user? }` | — | Runs on each API request once its user is known: returns the request's `context` (e.g. its tenant) and may change the user (their role there, `scoped`). Usually set by a plugin. A list runs in order: each gets the user the one before returned, and their `context` objects are merged. [Multi-tenant](/guide/multi-tenant#how-it-works) |
+| `onResponse` | `OnResponse \| OnResponse[]`: `({ request, url, response, user, context, cms }) => Response \| undefined` | — | Runs on each API response (errors included; not health probes or CORS preflights): add headers, log, or return a different `Response`. A list runs in order, each given the one before's response. One that throws is logged and skipped. [Escape hatches](/guide/escape-hatches#on-the-server) |
+| `onError` | `OnError \| OnError[]`: `({ error, status, request, url, user, context, cms }) => Response \| undefined` | — | Runs when an API request fails, before the error response is made: report the error (e.g. to Sentry), or return a `Response` to send instead. A list runs in order; the first `Response` returned is sent. One that throws is logged and skipped. [Escape hatches](/guide/escape-hatches#on-the-server) |
 | `apiKeys` | `boolean` | `false` | API keys under Settings, for scripts and other apps. [API keys](/guide/api-keys) |
 | `email` | `EmailAdapter` | — | Sends email for plugins, e.g. `smtp()` or `consoleEmail()`. [Email](/guide/email) |
 | `emailLog` | `false \| { keepDays? }` | `{ keepDays: 30 }` | The log of emails sent in Settings → Email, without their content. [Email log](/guide/email#the-email-log) |
@@ -372,6 +374,7 @@ Every hook also gets `user`, `cms` and `slug`.
 |---|---|---|
 | `path` | `string` | Under `routes.api`, e.g. `/seo/generate` or `/stats/:collection`. The first segment can't be a collection slug or one the built-in API uses ([reserved paths](/guide/plugins#endpoints)). |
 | `method` | `'get' \| 'post' \| 'put' \| 'patch' \| 'delete'` | |
+| `access` | `({ user, context, request, url, params, cms }) => boolean` | Who may call it: `false` answers `401` without a user and `403` with one, before the handler runs. Default: everyone. [Endpoints](/guide/plugins#endpoints) |
 | `handler` | `(request: EndpointRequest) => unknown` | Returns a `Response`, or a value sent as JSON. [Endpoints](/guide/plugins#endpoints) |
 | `root` | `boolean` | Serve the path from the site's root (standalone server only), e.g. `/robots.txt`. Default `false`. |
 

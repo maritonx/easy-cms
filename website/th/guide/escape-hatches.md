@@ -17,12 +17,14 @@ Easy CMS ให้ collection, API และ admin จาก config ไฟล์
 
 | ต้องการ | ใช้ | |
 |---|---|---|
-| route ของคุณเอง: รายงาน, webhook รับชำระเงิน, การนำเข้า | `endpoints` | [Endpoints](./plugins#endpoints) |
+| route ของคุณเอง: รายงาน, webhook รับชำระเงิน, การนำเข้า | `endpoints` พร้อม `access` | [Endpoints](./plugins#endpoints) |
 | การเขียนหลายครั้งที่ต้องเกิดทั้งหมดหรือไม่เกิดเลย | `cms.transaction()` | [Transaction](./local-api#transactions) |
 | join, ยอดรวม และ query ที่ Local API ทำไม่ได้ | `` cms.sql`…` `` | [SQL ดิบ](./local-api#raw-sql) |
 | โค้ดที่รันเมื่อบันทึก ลบ หรืออ่านเอกสาร | collection hooks | [Hooks](./hooks) |
 | after-hook และ webhook ที่เกิดเฉพาะเมื่อการบันทึกสำเร็จจริง | `outbox: true` | [Outbox](./hooks#outbox) |
 | หา user หรือ context (tenant, เว็บไซต์) ของแต่ละ request | `onRequest` | [Multi-tenant](./multi-tenant) |
+| แก้ทุก response ของ API (header, log) | `onResponse` | [ตัวเลือกของ config](/th/reference/config#top-level) |
+| ส่ง error ออกไป (เช่น Sentry) หรือส่ง body ของ error เอง | `onError` | [ตัวเลือกของ config](/th/reference/config#top-level) |
 | ปุ่มใน admin ที่รันโค้ดฝั่งเซิร์ฟเวอร์ของคุณ | `actions` | [Actions](./actions) |
 | งานตามตารางเวลา ที่ลองใหม่เมื่อล้มเหลว | `jobs` | [Jobs](./jobs) |
 | event ของคุณเอง (`order.paid`) ส่งไป webhook และ listener | `events`, `cms.emit()`, `cms.on()` | [Event ของคุณเอง](./webhooks#your-own-events) |
@@ -79,7 +81,6 @@ await cms.update('orders', id, { status: 'paid' }, { user, overrideAccess: false
 ## สิ่งที่จะมาถัดไป {#coming-next}
 
 วางแผนไว้ ทำทีละชิ้นตาม [roadmap](https://github.com/maritonx/easy-cms/blob/main/docs/ROADMAP.md#m15):
-`access` ของ endpoint พร้อม `onResponse` และ `onError`,
 migration แบบ SQL และ TypeScript พร้อม `easy-cms seed`, `admin: false` ทุก adapter
 และ `easy-cms build:admin` ที่ compile component ของ admin จาก Vue, React และ Svelte หน้านี้จะเพิ่มแต่ละอย่างเมื่อออกแล้ว
 

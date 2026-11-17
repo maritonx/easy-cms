@@ -19,12 +19,14 @@ accident.
 
 | You want | Use | |
 |---|---|---|
-| A route of your own: a report, a payment webhook, an import | `endpoints` | [Endpoints](./plugins#endpoints) |
+| A route of your own: a report, a payment webhook, an import | `endpoints`, with `access` | [Endpoints](./plugins#endpoints) |
 | Several writes that all happen or none do | `cms.transaction()` | [Transactions](./local-api#transactions) |
 | Joins, totals and queries the Local API can't express | `` cms.sql`…` `` | [Raw SQL](./local-api#raw-sql) |
 | Code that runs when a document is saved, deleted or read | Collection hooks | [Hooks](./hooks) |
 | After-hooks and webhooks that happen only if the save did | `outbox: true` | [Outbox](./hooks#outbox) |
 | To work out the user or a context (a tenant, a site) per request | `onRequest` | [Multi-tenant](./multi-tenant) |
+| To change every API response (headers, logging) | `onResponse` | [Configuration reference](/reference/config#top-level) |
+| To report failures (e.g. to Sentry) or send your own error body | `onError` | [Configuration reference](/reference/config#top-level) |
 | A button in the admin that runs your server code | `actions` | [Actions](./actions) |
 | Work on a schedule, retried when it fails | `jobs` | [Jobs](./jobs) |
 | Events of your own (`order.paid`), to webhooks and listeners | `events`, `cms.emit()`, `cms.on()` | [Your own events](./webhooks#your-own-events) |
@@ -84,8 +86,7 @@ reports and your own tables, and check who is asking before you run it for someo
 ## Coming next
 
 Planned, one at a time, in the [roadmap](https://github.com/maritonx/easy-cms/blob/main/docs/ROADMAP.md#m15):
-`access` on endpoints with `onResponse` and
-`onError`, SQL and TypeScript data migrations with `easy-cms seed`, `admin: false` everywhere,
+SQL and TypeScript data migrations with `easy-cms seed`, `admin: false` everywhere,
 and `easy-cms build:admin` to compile Vue, React and Svelte admin components. This page lists
 each when it ships.
 
