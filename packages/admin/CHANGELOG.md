@@ -1,5 +1,9 @@
 # @easy-cms/admin
 
+## 1.49.0
+
+No changes in this release.
+
 ## 1.48.0
 
 ### Minor Changes
