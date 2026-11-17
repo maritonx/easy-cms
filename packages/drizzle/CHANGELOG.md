@@ -1,5 +1,13 @@
 # @easy-cms/drizzle
 
+## 1.51.0
+
+### Patch Changes
+
+- b9c4eda: `@easy-cms/drizzle` and `easy-cms` 1.50.0 failed to load beside `@easy-cms/core` 1.49 ("does not provide an export named 'importDefault'"), which npm installs when a project pins core and gets the newest database adapter. They look the loader up when a data migration or `easy-cms seed` needs it, and say to upgrade every package together if core is older.
+- Updated dependencies [4b45bee]
+  - @easy-cms/core@1.51.0
+
 ## 1.50.0
 
 ### Minor Changes

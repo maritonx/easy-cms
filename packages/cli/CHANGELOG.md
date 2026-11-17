@@ -1,5 +1,18 @@
 # easy-cms
 
+## 1.51.0
+
+### Minor Changes
+
+- 4b45bee: `admin: { enabled: false }` turns the admin UI off in every adapter (#442), for a team with an admin app of its own. Next.js's admin route answers 404 (and logs that the file can go), the Nuxt module leaves the admin out of the build, `easy-cms serve` answers 404 at the admin and at `/`, and the Workers build leaves the admin app out. The API, auth and sessions work as before; the routes only the admin UI uses (`<api>/admin/ui/*`) answer 404. Password, invitation and verification emails link to `auth.members.pages` for everyone (warned at start when they aren't set), and provider sign-in ends on the site (the `redirect` given, when a path of the site, else `admin.siteURL` or `/`). `admin: false` is refused with this way to write it.
+
+### Patch Changes
+
+- b9c4eda: `@easy-cms/drizzle` and `easy-cms` 1.50.0 failed to load beside `@easy-cms/core` 1.49 ("does not provide an export named 'importDefault'"), which npm installs when a project pins core and gets the newest database adapter. They look the loader up when a data migration or `easy-cms seed` needs it, and say to upgrade every package together if core is older.
+- Updated dependencies [4b45bee]
+  - @easy-cms/core@1.51.0
+  - @easy-cms/admin@1.51.0
+
 ## 1.50.0
 
 ### Minor Changes
