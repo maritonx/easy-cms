@@ -99,6 +99,18 @@ describe('createAdminRouteHandlers', () => {
   })
 })
 
+describe('createAdminRouteHandlers without the admin UI (#442)', () => {
+  it('answers 404, and says the route file can go', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { GET } = createAdminRouteHandlers({ ...config, admin: { enabled: false } })
+    expect((await GET(new Request('http://x.test/admin'))).status).toBe(404)
+    expect((await GET(new Request('http://x.test/admin/collections/notes'))).status).toBe(404)
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(String(warn.mock.calls[0]?.[0])).toContain('admin.enabled is false')
+    warn.mockRestore()
+  })
+})
+
 describe('createAdminRouteHandlers on a host that deploys only traced files', () => {
   it('serves the admin without the project node_modules (Vercel)', async () => {
     // Like Vercel's /var/task: the project's package.json, but no node_modules to resolve

@@ -138,6 +138,8 @@ export function renderShell(
 /** What `adminHandlerFor` reads from a resolved config (`resolveConfig()`, `cms.config`). */
 export interface AdminConfigLike {
   readonly admin: {
+    /** `false`: the admin UI is off; the handler answers 404. */
+    readonly enabled?: boolean
     readonly path: string
     readonly locale: 'en' | 'th'
     readonly brand: NonNullable<AdminHandlerOptions['brand']>
@@ -159,6 +161,7 @@ export function adminHandlerFor(
   config: AdminConfigLike,
   overrides: Omit<AdminHandlerOptions, 'basePath' | 'apiPath'> = {},
 ): AdminHandler {
+  if (config.admin.enabled === false) return notFound
   return createAdminHandler({
     basePath: config.admin.path,
     apiPath: config.routes.api,
@@ -172,6 +175,9 @@ export function adminHandlerFor(
     ...overrides,
   })
 }
+
+/** Without the admin UI (`admin.enabled: false`). */
+const notFound: AdminHandler = async () => Response.json({ message: 'Not found' }, { status: 404 })
 
 export function createAdminHandler(options: AdminHandlerOptions = {}): AdminHandler {
   const basePath = trimSlashes(options.basePath ?? '/admin')

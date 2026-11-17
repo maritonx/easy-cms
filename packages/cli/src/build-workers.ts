@@ -54,10 +54,11 @@ export default createWorker(config)
     join(dir, 'unavailable.js'),
     `throw new Error('This package is not available on Cloudflare Workers')\n`,
   )
-  // The admin app, read by the Worker through the ASSETS binding.
-  await cp(APP_DIR, join(dir, 'assets', ...ADMIN_ASSETS.split('/').filter(Boolean)), {
-    recursive: true,
-  })
+  // The admin app, read by the Worker through the ASSETS binding. Without the admin UI, the
+  // folder wrangler.jsonc names is still made, empty.
+  const assets = join(dir, 'assets', ...ADMIN_ASSETS.split('/').filter(Boolean))
+  if (config.admin.enabled) await cp(APP_DIR, assets, { recursive: true })
+  else await mkdir(join(dir, 'assets'), { recursive: true })
 
   const wrangler = join(cwd, 'wrangler.jsonc')
   const wroteWrangler = !existsSync(wrangler) && !existsSync(join(cwd, 'wrangler.toml'))

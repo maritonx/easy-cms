@@ -106,15 +106,19 @@ function loadAfter(): Promise<After | undefined> {
 export function createAdminRouteHandlers(config: Config, options: { appDir?: string } = {}) {
   let handler: Promise<AdminHandler> | undefined
   const handle: Handler = async (request) => {
-    handler ??= resolveConfig(config).then((resolved) =>
-      adminHandlerFor(resolved, {
+    handler ??= resolveConfig(config).then((resolved) => {
+      if (!resolved.admin.enabled)
+        console.warn(
+          `[easy-cms] admin.enabled is false: ${resolved.admin.path} answers 404. The admin route file can go.`,
+        )
+      return adminHandlerFor(resolved, {
         // The site is this Next.js app.
         siteURL: resolved.admin.siteURL || '/',
         appDir: options.appDir ?? adminAppDir(),
         // Next.js strips trailing slashes; redirecting back would loop.
         trailingSlashRedirect: false,
-      }),
-    )
+      })
+    })
     return (await handler)(request)
   }
   return { GET: handle, HEAD: handle }

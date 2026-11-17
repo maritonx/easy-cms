@@ -14,7 +14,7 @@ type Handler = (request: Request, clientIp?: string) => Promise<Response>
 /**
  * One Web-standard handler for the whole standalone server: the REST API at `routes.api`, the
  * admin at `admin.path`, `/healthz` and `/readyz` for load balancers, and endpoints marked `root` (such as a
- * plugin's `/robots.txt`). `/` redirects to the admin.
+ * plugin's `/robots.txt`). `/` redirects to the admin, when it is on.
  */
 export function createStandaloneHandler<C extends Config>(
   cms: EasyCMS<C>,
@@ -45,7 +45,7 @@ export function createStandaloneHandler<C extends Config>(
     clientIps.set(request, clientIp)
     const endpoint = await rootEndpoints(request)
     if (endpoint) return endpoint
-    if (pathname === '/')
+    if (pathname === '/' && config.admin.enabled)
       return new Response(null, { status: 302, headers: { location: `${adminPath}/` } })
     return Response.json({ message: 'Not found' }, { status: 404 })
   }

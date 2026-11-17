@@ -6,6 +6,7 @@ describe('resolveConfig', () => {
   it('applies defaults', async () => {
     const config = await resolveConfig(baseConfig())
     expect(config.admin).toEqual({
+      enabled: true,
       path: '/admin',
       locale: 'en',
       brand: {},
@@ -62,6 +63,7 @@ describe('resolveConfig', () => {
       baseConfig({ admin: { path: '/cms', locale: 'th', brand: { name: 'Acme' } } }),
     )
     expect(config.admin).toEqual({
+      enabled: true,
       path: '/cms',
       locale: 'th',
       brand: { name: 'Acme' },

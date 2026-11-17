@@ -45,7 +45,8 @@
    - `--empty`: ไฟล์ SQL ว่างให้เขียนเอง (เช่นตารางของแอปเอง) รันในชุด migration เดียวกัน
    - `--data`: ไฟล์ `.ts` ที่ export ฟังก์ชันรับ `tx` รันต่อจาก SQL ของ migration เดียวกันใน transaction เดียว ไว้ย้ายข้อมูล
    - `easy-cms seed`: รัน `easy-cms/seed.ts` (export ฟังก์ชันรับ `cms`) template ของ `create-easy-cms` และเว็บ easycms.dev ใช้คำสั่งนี้
-4. **`admin: false`** ปิด admin ได้ทุก adapter (Next.js, Nuxt, `easy-cms serve`) API ยังอยู่ ให้แอป admin ที่ dev เขียนเอง
+4. **`admin: { enabled: false }`** ปิด admin ได้ทุก adapter (Next.js, Nuxt, `easy-cms serve`) API ยังอยู่ ให้แอป admin ที่ dev เขียนเอง
+   (แก้จาก `admin: false` ตอนทำ #442: plugin spread และอ่าน `config.admin` ถ้า type รับ `false` ได้ plugin ทุกตัวจะ compile ไม่ผ่าน)
 5. **`easy-cms build:admin`** build component ของ admin ที่เขียนด้วย `.vue`, `.tsx` หรือ `.svelte` ด้วย Vite ให้เป็น ES module ไฟล์เดียว
    ที่ลงทะเบียน custom element (สัญญาเดิมของ ADR-0018) dev ไม่ต้องตั้ง bundler เอง ไม่ฝัง Vue component เข้า admin โดยตรง
    เพราะจะผูกกับ Vue และของภายใน admin ทุกเวอร์ชัน

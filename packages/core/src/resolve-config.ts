@@ -111,6 +111,7 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
       : null,
     routes: { api: `/${(config.routes?.api ?? DEFAULT_API_PATH).replace(/^\/+|\/+$/g, '')}` },
     admin: {
+      enabled: config.admin?.enabled !== false,
       path: config.admin?.path ?? DEFAULT_ADMIN_PATH,
       locale: config.admin?.locale ?? 'en',
       brand: config.admin?.brand ?? {},

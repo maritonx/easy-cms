@@ -531,6 +531,12 @@ export interface DashboardWidget {
 }
 
 export interface AdminConfig {
+  /**
+   * `false`: no admin UI in Next.js, Nuxt or `easy-cms serve`, for a team with an admin app of
+   * its own. The API (but `admin/ui/*`), auth and sessions work as before; emails link to
+   * `auth.members.pages`. Default `true`.
+   */
+  readonly enabled?: boolean
   /** Where the admin UI is served. Default `/admin`. */
   readonly path?: string
   /** Default admin UI language. Default `en`. */

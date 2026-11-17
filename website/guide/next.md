@@ -104,6 +104,8 @@ in Server Components, Route Handlers and Server Actions.
   [`/edge` route](https://github.com/maritonx/easy-cms/blob/main/examples/next-blog/app/edge/route.ts)
   does. Pages under a layout that calls `getEasyCMS()` can't be edge pages.
 - Next.js removes trailing slashes, so the admin lives at `/admin` (not `/admin/`).
+- With `admin: { enabled: false }` ([Turning the admin off](./admin#turning-it-off)), leave out
+  `app/admin/[[...path]]/route.ts`. If it is still there it answers 404 and logs that it can go.
 - In `next dev`, changing fields or options reloads the CMS; after changing only the code of a
   hook, access rule or other function in the config, restart the dev server.
 

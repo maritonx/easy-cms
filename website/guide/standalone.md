@@ -29,11 +29,11 @@ with an error is reported and the previous one keeps serving.
 
 | Path | |
 |---|---|
-| `/admin` | Admin UI (`admin.path`) |
+| `/admin` | Admin UI (`admin.path`), unless [it is off](./admin#turning-it-off) |
 | `/api/cms` | [REST API](./rest-api) (`routes.api`) |
 | `/healthz` | `ok` while the process runs: liveness |
 | `/readyz` | `200` when the database answers and no migration is pending: readiness. See [Health checks](./deployment#health-checks) |
-| `/` | Redirects to the admin |
+| `/` | Redirects to the admin (404 when it is off) |
 
 ## Calling it from a frontend
 

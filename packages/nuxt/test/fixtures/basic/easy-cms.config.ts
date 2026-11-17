@@ -4,6 +4,8 @@ import { sqlite } from '@easy-cms/db-sqlite'
 export default defineConfig({
   secret: process.env.EASY_CMS_SECRET ?? 'fixture-secret-fixture-secret-fixture',
   db: sqlite({ url: process.env.EASY_CMS_DB_URL ?? 'file:./cms.db' }),
+  // admin-off.test.ts turns the admin UI off.
+  admin: { enabled: process.env.EASY_CMS_TEST_NO_ADMIN !== '1' },
   collections: [
     {
       slug: 'posts',

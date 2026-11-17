@@ -65,6 +65,7 @@ The admin is a prebuilt app. You extend it with **Web Components**, so any frame
 | Pages of your own (a POS, stock, approvals) inside `/admin` | `admin.pages` | [Pages and dashboard panels](./plugins#pages-and-dashboard-panels) |
 | Panels on the dashboard | `admin.dashboard` | [Pages and dashboard panels](./plugins#pages-and-dashboard-panels) |
 | What an element receives and sends back | `value`, `api()`, `change`… | [What the element receives](./plugins#what-the-element-receives) |
+| An admin app of your own instead of this one | `admin: { enabled: false }` | [Turning the admin off](./admin#turning-it-off) |
 
 A page of your own can also embed another app of yours in an `<iframe>`.
 
@@ -89,10 +90,9 @@ reports and your own tables, and check who is asking before you run it for someo
 
 ## Coming next
 
-Planned, one at a time, in the [roadmap](https://github.com/maritonx/easy-cms/blob/main/docs/ROADMAP.md#m15):
-`admin: false` everywhere,
-and `easy-cms build:admin` to compile Vue, React and Svelte admin components. This page lists
-each when it ships.
+Planned in the [roadmap](https://github.com/maritonx/easy-cms/blob/main/docs/ROADMAP.md#m15):
+`easy-cms build:admin` to compile Vue, React and Svelte admin components. This page lists it when
+it ships.
 
 ## Next steps
 

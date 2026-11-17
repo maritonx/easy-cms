@@ -75,6 +75,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 
 | Option | Type | Default | |
 |---|---|---|---|
+| `enabled` | `boolean` | `true` | `false`: no admin UI in Next.js, Nuxt or `easy-cms serve`; the API works as before. [Turning the admin off](/guide/admin#turning-it-off) |
 | `path` | `string` | `/admin` | Where the admin is served. |
 | `locale` | `'en' \| 'th'` | `en` | Default admin language before a user picks one. |
 | `brand` | `AdminBrand` | `{}` | See [brand](#brand). |
@@ -190,7 +191,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 |---|---|---|
 | `roles` | `string[]` | Their roles, also in `roles`. Members never get into the admin, and `isStaff` (every collection's default) doesn't count them. [Site members](/guide/members) |
 | `signUp` | `MembersSignup` | Visitors create their own account: `POST <api>/auth/signup`. |
-| `pages` | `{ verifyEmail?, resetPassword? }` | The site's pages that open members' email links with `?token=`: paths on `admin.siteURL` (else `serverURL`) or URLs. Default: the admin's pages. |
+| `pages` | `{ verifyEmail?, resetPassword? }` | The site's pages that open members' email links with `?token=`: paths on `admin.siteURL` (else `serverURL`) or URLs. Default: the admin's pages. With `admin.enabled: false`, everyone's links use them. |
 | `emails` | `{ verifyEmail? }` | Your own text for the email that confirms an address. |
 
 <!-- api: MembersSignup -->

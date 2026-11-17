@@ -605,6 +605,8 @@ async function route(
   // What the admin UI alone uses lives under `/admin/ui/` and may change in any release; those
   // routes aren't served at their old place.
   const ui = path[0] === 'admin' && path[1] === 'ui'
+  // Without the admin UI (`admin.enabled: false`), nothing uses them.
+  if (ui && !cms.config.admin.enabled) throw new HttpError('Not found', 404)
   const segments = ui ? ['admin', ...path.slice(2)] : path
   const [first, second, third] = segments
   if (first === 'admin' && second !== undefined && ADMIN_UI_ROUTES.has(second) !== ui)

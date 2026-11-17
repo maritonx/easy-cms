@@ -19,7 +19,9 @@ const CONFIG =
   keys(`secret previousSecrets emailLog integrations listeners ai aiFeatures db serverURL cors cronSecret timeZone webhooks events jobs localization routes admin
   upload auth collections globals endpoints cliCommands onRequest fieldTypes apiKeys email backups
   audit logs countCacheSeconds maxPage httpCache outbox realtime rateLimit search telemetry plugins`)
-const ADMIN = keys('path locale brand siteURL nav commands modules pages dashboard switcher')
+const ADMIN = keys(
+  'enabled path locale brand siteURL nav commands modules pages dashboard switcher',
+)
 const AUTH = keys(`roles rbac tokenExpiration maxLoginAttempts lockWindow trustedOrigins
   resetPasswordExpiration inviteExpiration providers providerSignUp password setupCode members emails`)
 const MEMBERS = keys('roles signUp pages emails')

@@ -102,6 +102,8 @@ async function Post({ params }: { params: Params }) {
   [route `/edge`](https://github.com/maritonx/easy-cms/blob/main/examples/next-blog/app/edge/route.ts)
   ในตัวอย่างทำ หน้าที่อยู่ใต้ layout ที่เรียก `getEasyCMS()` จะเป็นหน้า edge ไม่ได้
 - Next.js ตัดเครื่องหมาย slash ท้าย URL ออก หน้า admin จึงอยู่ที่ `/admin` (ไม่ใช่ `/admin/`)
+- ถ้า `admin: { enabled: false }` ([ปิดหน้า admin](./admin#turning-it-off)) ไม่ต้องมี
+  `app/admin/[[...path]]/route.ts` ถ้ายังมีอยู่ จะตอบ 404 และเขียน log ว่าลบได้
 - ระหว่าง `next dev` การแก้ field หรือตัวเลือกจะโหลด CMS ใหม่ให้เอง แต่ถ้าแก้แค่โค้ดของ hook กฎสิทธิ์ หรือฟังก์ชันอื่นใน
   config ให้รีสตาร์ต dev server
 

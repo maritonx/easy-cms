@@ -758,9 +758,13 @@ export class Auth {
     const sso = (await this.sso.passwordAllowed(user))
       ? undefined
       : (await this.cms.signIn.providers()).map((p) => p.name)
-    const member = this.config.auth.members.roles.includes(String(user.role))
+    // Without the admin UI, everyone's links go to the site's pages (`auth.members.pages`).
+    const admin = this.config.admin.enabled
+    const member = !admin || this.config.auth.members.roles.includes(String(user.role))
     const url = sso
-      ? `${base}${this.config.admin.path}/login`
+      ? admin
+        ? `${base}${this.config.admin.path}/login`
+        : `${(this.config.admin.siteURL || base).replace(/\/+$/, '')}/`
       : member
         ? this.memberLink('resetPassword', token, options.origin)
         : `${base}${this.config.admin.path}/reset-password?token=${encodeURIComponent(token)}`

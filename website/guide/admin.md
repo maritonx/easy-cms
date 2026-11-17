@@ -339,6 +339,31 @@ type in it too. A post scheduled for 09:00 is 09:00 for everyone, wherever their
 in another zone sees it named next to date inputs ("Time zone: Indochina Time (GMT+7)"). Without
 `timeZone`, the admin uses each browser's zone.
 
+## Turning the admin off {#turning-it-off}
+
+A team with an admin app of its own (a company dashboard, a mobile app) can leave this one out:
+
+```ts
+export default defineConfig({
+  admin: { enabled: false },
+  // …
+})
+```
+
+- Next.js, Nuxt and `easy-cms serve` serve nothing at `admin.path`; in Next.js the admin route
+  file answers 404 and can go. The REST and GraphQL APIs, sign-in and sessions work as before.
+- The routes only this admin uses (`<api>/admin/ui/*`) answer 404. The others under
+  `<api>/admin/` (sign-in settings, audit log, backups, roles…) stay for your app.
+- Password, invitation and verification emails link to your site's pages for everyone: set
+  `auth.members.pages` (`resetPassword`, `verifyEmail`). Without them, the server warns at start.
+- Signing in with a provider ends on your site: the `redirect` given to
+  `<api>/auth/<id>/login` when it is a path of this site, else `admin.siteURL` (or `/`).
+- Settings made in the admin (sign-in providers, email, backups) are made over the API or in the
+  config instead.
+
+`admin: false` is refused, with this way to write it: plugins spread `config.admin`, which keeps
+`enabled: false`.
+
 ## Next steps
 
 - [Plugins](./plugins): give a plugin's collections and pages their own group.

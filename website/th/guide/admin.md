@@ -303,6 +303,29 @@ collection เหล่านั้นแยกสีกัน และสิ�
 ไม่ว่าเบราว์เซอร์จะอยู่ที่ไหน คนที่อยู่ต่างเขตจะเห็นชื่อเขตเวลาข้างช่องกรอกวันที่ ("เขตเวลา: เวลาอินโดจีน (GMT+7)") ถ้าไม่ได้ตั้ง
 `timeZone` หน้าแอดมินใช้เขตเวลาของเบราว์เซอร์แต่ละเครื่อง
 
+## ปิดหน้า admin {#turning-it-off}
+
+ทีมที่มีแอป admin ของตัวเอง (dashboard ของบริษัท, แอปมือถือ) ไม่ต้องใช้หน้า admin นี้ก็ได้:
+
+```ts
+export default defineConfig({
+  admin: { enabled: false },
+  // …
+})
+```
+
+- Next.js, Nuxt และ `easy-cms serve` จะไม่เสิร์ฟอะไรที่ `admin.path` ใน Next.js ไฟล์ route ของ admin จะตอบ 404
+  และลบได้ REST API, GraphQL, การ login และ session ทำงานเหมือนเดิม
+- route ที่หน้า admin นี้ใช้คนเดียว (`<api>/admin/ui/*`) ตอบ 404 ส่วน route อื่นใต้ `<api>/admin/`
+  (ตั้งค่าการ login, audit log, backup, role…) ยังอยู่ให้แอปของคุณใช้
+- อีเมลรีเซ็ตรหัสผ่าน อีเมลเชิญ และอีเมลยืนยัน จะลิงก์ไปหน้าของเว็บคุณสำหรับทุกคน ให้ตั้ง `auth.members.pages`
+  (`resetPassword`, `verifyEmail`) ถ้าไม่ตั้ง server จะเตือนตอนเริ่ม
+- login ด้วย provider จะกลับมาที่เว็บของคุณ: ไปที่ `redirect` ที่ส่งให้ `<api>/auth/<id>/login` ถ้าเป็น path ของเว็บนี้
+  ไม่อย่างนั้นไปที่ `admin.siteURL` (หรือ `/`)
+- สิ่งที่เคยตั้งในหน้า admin (provider สำหรับ login, อีเมล, backup) ให้ตั้งผ่าน API หรือใน config แทน
+
+`admin: false` จะถูกปฏิเสธพร้อมบอกวิธีเขียนแบบนี้ เพราะ plugin มัก spread `config.admin` ซึ่งยังคง `enabled: false` ไว้ได้
+
 ## ขั้นต่อไป {#next-steps}
 
 - [Plugins](./plugins): ให้ collection และหน้าของ plugin มีกลุ่มของตัวเอง

@@ -73,6 +73,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 
 | ตัวเลือก | Type | ค่าเริ่มต้น | |
 |---|---|---|---|
+| `enabled` | `boolean` | `true` | `false`: ไม่มีหน้า admin ใน Next.js, Nuxt และ `easy-cms serve` แต่ API ทำงานเหมือนเดิม [ปิดหน้า admin](/th/guide/admin#turning-it-off) |
 | `path` | `string` | `/admin` | ตำแหน่งของหน้า admin |
 | `locale` | `'en' \| 'th'` | `en` | ภาษาเริ่มต้นของหน้า admin ก่อนผู้ใช้เลือกเอง |
 | `brand` | `AdminBrand` | `{}` | ดู [brand](#brand) |
@@ -188,7 +189,7 @@ export default defineConfig({ secret, db, collections, /* … */ })
 |---|---|---|
 | `roles` | `string[]` | role ของสมาชิก (ต้องอยู่ใน `roles` ด้วย) สมาชิกเข้าระบบจัดการไม่ได้ และ `isStaff` (ค่าเริ่มต้นของทุก collection) ไม่นับพวกเขา [สมาชิกของเว็บ](/th/guide/members) |
 | `signUp` | `MembersSignup` | ให้ผู้เยี่ยมชมสมัครบัญชีเองได้: `POST <api>/auth/signup` |
-| `pages` | `{ verifyEmail?, resetPassword? }` | หน้าของเว็บที่เปิดลิงก์ในอีเมลของสมาชิกพร้อม `?token=` เป็น path บน `admin.siteURL` (หรือ `serverURL`) หรือ URL เต็ม ค่าเริ่มต้นคือหน้าของระบบจัดการ |
+| `pages` | `{ verifyEmail?, resetPassword? }` | หน้าของเว็บที่เปิดลิงก์ในอีเมลของสมาชิกพร้อม `?token=` เป็น path บน `admin.siteURL` (หรือ `serverURL`) หรือ URL เต็ม ค่าเริ่มต้นคือหน้าของระบบจัดการ ถ้า `admin.enabled: false` ลิงก์ของทุกคนจะใช้หน้าเหล่านี้ |
 | `emails` | `{ verifyEmail? }` | ข้อความอีเมลยืนยันที่อยู่อีเมลของคุณเอง |
 
 <!-- api: MembersSignup -->
