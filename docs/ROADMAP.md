@@ -6,6 +6,7 @@
 - **เป้าหมาย 1.0:** 1.0.0 วันที่ 2026-12-15 — **ออกแล้ว 2026-10-17** (RC 1.0.0-rc.0 วันเดียวกัน)
 - **เป้าหมาย 1.x:** open source ที่องค์กร self-host ได้อย่างมั่นใจ ดู [1.x](#one-x)
 - **ตำแหน่งและ roadmap หกระดับ:** TypeScript backend ครบในตัวพร้อม admin ดู [ADR-0069](adr/0069-typescript-backend-six-levels.md) และ roadmap บนเว็บ [easycms.dev/roadmap](https://easycms.dev/roadmap)
+- **Escape hatches:** ทุกอย่างที่ Easy CMS ทำให้ dev เขียนเองได้ ทางที่ข้ามกฎสิทธิ์ต้องเห็นในโค้ด ดู [ADR-0072](adr/0072-escape-hatches.md) และ [M15](#m15)
 - **ติดตามงาน:** GitHub Milestones ของ `maritonx/easy-cms` (หนึ่ง issue ต่อหนึ่งงาน, issue เขียนเป็นภาษาอังกฤษ)
 - **การออกเวอร์ชันใน 1.x:** ออกทันทีที่ merge (บั๊กเป็น patch, ฟีเจอร์เป็น minor) milestone ของ 1.x จึงตั้งชื่อตามหัวข้อ ไม่ผูกกับเลขเวอร์ชัน (ตกลง 2026-10-18)
 
@@ -273,6 +274,20 @@ Kanban → ธีม → พื้นที่ฟอร์ม → CRM → Bookin
 | — | Live updates in the admin: lists and edit pages follow others' saves | area:admin | รายการและหน้าแก้ไขอัปเดตจากการบันทึกของคนอื่น ถามก่อนทับ หนึ่ง connection ต่อแท็บ ([ADR-0071](adr/0071-admin-live-updates.md)) |
 | — | Presence and conflicts in the admin: who else is editing, refusing stale saves | area:core, area:admin | บอกว่าใครแก้เอกสารเดียวกันอยู่, เซิร์ฟเวอร์ตอบ 409 เมื่อบันทึกทับฉบับที่ใหม่กว่า |
 | — | Custom channels, WebSocket and streamed responses | area:core | ส่ง message ของตัวเองผ่าน protocol เดียวกัน, WebSocket ใช้ message เดียวกับ SSE |
+
+### M15 — `Escape hatches` (ไม่กำหนดวัน) {#m15}
+
+หลักการของทุกระดับใน [ADR-0069](adr/0069-typescript-backend-six-levels.md): ทุกอย่างที่ Easy CMS ทำให้ dev เขียนเองได้
+ทางที่ข้ามกฎสิทธิ์ต้องเห็นในโค้ด ออกแบบใน [ADR-0072](adr/0072-escape-hatches.md) ทำทีละชิ้นตามลำดับ backend ก่อน admin
+ของที่มีแล้วรวมไว้ใน [Escape hatches](https://easycms.dev/docs/escape-hatches)
+
+| # | Issue | Labels | เสร็จเมื่อ |
+|---|---|---|---|
+| — | Transactions and raw SQL: cms.transaction and sql | area:core, area:docs | `cms.transaction(tx => …)` ที่ `tx` ผ่านกฎสิทธิ์และ hook, `` sql`…` `` ที่ค่าเป็น parameter เสมอ, `after*` webhook และ realtime รอ commit; เทสบน SQLite, Turso, Postgres และ Workers ผ่าน |
+| — | Endpoint access, onResponse and onError | area:core, area:docs | `endpoints[].access`, `onResponse` และ `onError` ระดับ config (เป็นรายการได้) |
+| — | SQL and data migrations, and easy-cms seed | area:core, area:docs | `migrate:create --empty` / `--data` (`.ts` รับ `tx` ใน transaction เดียวกับ SQL), `easy-cms seed` ใช้ใน template ของ `create-easy-cms` |
+| — | admin: false in every adapter | area:core, area:docs | ปิด admin ได้ใน Next.js, Nuxt และ `easy-cms serve` โดย API ยังทำงาน |
+| — | easy-cms build:admin: Vue, React and Svelte admin components | area:admin, area:docs | build `.vue` / `.tsx` / `.svelte` เป็นโมดูลไฟล์เดียวตามสัญญาของ ADR-0018 พร้อมตัวอย่างที่ e2e ผ่าน |
 
 ---
 

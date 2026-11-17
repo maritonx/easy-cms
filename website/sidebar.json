@@ -228,6 +228,13 @@
           }
         },
         {
+          "path": "guide/escape-hatches",
+          "title": {
+            "en": "Escape hatches",
+            "th": "Escape hatches"
+          }
+        },
+        {
           "path": "guide/integrations",
           "title": {
             "en": "Integrations",
