@@ -22,7 +22,7 @@ Invalid Easy CMS config (1 problem):
   • admin.siteUrl: is now `siteURL`
 ```
 
-## 1.51 {#v1-51}
+## 1.50 {#v1-50}
 
 - **migration แบบ SQL และย้ายข้อมูล และ `easy-cms seed`:** `migrate:create --empty` และ `--data` กับคำสั่ง `seed`
   ที่รัน `easy-cms/seed.ts` ([CLI](./cli#data-migrations)) ไม่ต้องแก้อะไร โปรเจกต์ที่สร้างจาก
