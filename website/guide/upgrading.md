@@ -24,6 +24,14 @@ Invalid Easy CMS config (1 problem):
   • admin.siteUrl: is now `siteURL`
 ```
 
+## 1.51 {#v1-51}
+
+- **SQL and data migrations, and `easy-cms seed`:** `migrate:create --empty` and `--data`, and a
+  `seed` command for `easy-cms/seed.ts` ([CLI](./cli#data-migrations)). Nothing to change.
+  Projects made from the [one-click template](./one-click-deploy) can move `scripts/seed.mjs` to
+  `easy-cms/seed.ts` (`export default async (cms) => { … }`, without opening the CMS itself) and
+  run `easy-cms migrate && easy-cms seed && next build`.
+
 ## 1.44 {#v1-44}
 
 - **Passwords are hashed in 32 MB instead of 128 MB** (scrypt N=2¹⁵, r=8, p=3, as strong by

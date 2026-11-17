@@ -124,9 +124,32 @@ export function sqlite(options: SQLiteAdapterOptions): DatabaseAdapter {
             const result = await client.execute({ sql: text, args: [...params] as InArgs })
             return result.rows as unknown as Record<string, unknown>[]
           },
-          async transaction(statements) {
+          async transaction(steps) {
+            const statements = steps.filter((s): s is Statement => typeof s !== 'function')
             // A libSQL batch runs in one transaction.
-            await client.batch(statements.map(toStatement), 'write')
+            if (statements.length === steps.length) {
+              await client.batch(statements.map(toStatement), 'write')
+              return
+            }
+            // Code among the steps (a data migration): an interactive transaction.
+            const tx = await client.transaction('write')
+            try {
+              const run = async (text: string, params: readonly unknown[] = []) =>
+                (await tx.execute(toStatement({ sql: text, params }))).rows as unknown as Record<
+                  string,
+                  unknown
+                >[]
+              for (const step of steps) {
+                if (typeof step === 'function') await step(run)
+                else await run(step.sql, step.params)
+              }
+              await tx.commit()
+            } catch (error) {
+              await tx.rollback().catch(() => {})
+              throw error
+            } finally {
+              tx.close()
+            }
           },
         },
         close: async () => client.close(),

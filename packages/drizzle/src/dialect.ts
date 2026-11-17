@@ -23,11 +23,20 @@ export interface Statement {
   readonly params?: readonly unknown[]
 }
 
+/** Runs one statement in a transaction and returns its rows. */
+export type RunInTransaction = (
+  sql: string,
+  params?: readonly unknown[],
+) => Promise<Record<string, unknown>[]>
+
+/** A step of a transaction: a statement, or code that runs its own (a data migration). */
+export type TransactionStep = Statement | ((run: RunInTransaction) => Promise<void>)
+
 /** Raw SQL access for the migrations table and migration files. */
 export interface SqlRunner {
   query(sql: string, params?: readonly unknown[]): Promise<Record<string, unknown>[]>
-  /** Runs the statements in one transaction: all or nothing. */
-  transaction(statements: readonly Statement[]): Promise<void>
+  /** Runs the steps in order in one transaction: all or nothing. */
+  transaction(steps: readonly TransactionStep[]): Promise<void>
 }
 
 /** How to read a value out of a JSON element for comparing. */

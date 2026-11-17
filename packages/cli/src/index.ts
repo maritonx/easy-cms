@@ -21,6 +21,7 @@ import {
   decryptBackup,
   findConfigFile,
   generateTypes,
+  importDefault,
   logFormat,
   writeBackupFile,
 } from '@easy-cms/core/internal'
@@ -67,8 +68,9 @@ const HELP = `Usage: easy-cms <command> [options]
 
 Commands:
   migrate                 Apply pending migrations
-  migrate:create <name>   Create a migration from config changes
+  migrate:create <name>   Create a migration from config changes (--empty: SQL to write yourself, --data: with a .ts data step)
   migrate:status          List migrations and whether they are applied
+  seed                    Run easy-cms/seed.ts (sample or starting content)
   generate:types          Write TypeScript types for your collections and globals
   admin:create            Create an admin user (also: create-admin)
   serve                   Run the CMS as its own server (admin + REST API)
@@ -93,13 +95,26 @@ const COMMAND_HELP: Record<string, string> = {
   migrate: `Usage: easy-cms migrate [options]
 
 Applies every migration in easy-cms/migrations that the database has not run yet.
-Each migration runs in its own transaction; a failure rolls it back and stops.
+Each migration runs in its own transaction, its data step (<name>.ts) after its SQL;
+a failure rolls both back and stops.
 `,
-  'migrate:create': `Usage: easy-cms migrate:create <name> [options]
+  'migrate:create': `Usage: easy-cms migrate:create <name> [--empty | --data] [options]
 
 Compares the config with the latest migration and writes a new migration
 (easy-cms/migrations/<timestamp>_<name>.sql) if anything changed.
 In a terminal you are asked whether changed fields were renamed.
+
+  --empty   An empty SQL file to write yourself (your app's own tables, a view, a backfill),
+            run and recorded with the others. The config's changes still need their own.
+  --data    The config's changes (if any) and <name>.ts, a data step exporting
+            async (tx) => {}: it runs after the SQL, in the same transaction, to move data.
+`,
+  seed: `Usage: easy-cms seed [--file <file>] [options]
+
+Runs easy-cms/seed.ts (or --file), which exports async (cms) => {}: the Local API with access
+off, to add sample or starting content. It runs on every call, so check what is there first
+(e.g. \`if (await cms.count('posts')) return\`). In development the schema is pushed first; in
+production run \`easy-cms migrate\` before it.
 `,
   'migrate:status': `Usage: easy-cms migrate:status [options]
 
@@ -292,16 +307,48 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
       io.out(`Decrypted ${input} to ${out}`)
       return 0
     }
-    // admin:create writes a user, so the schema must exist: push in development like the app does.
+    // admin:create and seed write, so the schema must exist: push in development like the app
+    // does; in production it must be migrated already.
+    const production = process.env.NODE_ENV === 'production'
     const schema =
-      command === 'admin:create' && process.env.NODE_ENV !== 'production' ? 'push' : 'skip'
-    const cms = await createEasyCMS(config, {
-      cwd,
-      schema,
-      logger,
-      interactive: io.interactive,
-      scheduler: false,
-    })
+      command === 'admin:create'
+        ? production
+          ? 'skip'
+          : 'push'
+        : command === 'seed'
+          ? production
+            ? 'verify'
+            : 'skip' // pushed below, unless the project uses migrations
+          : 'skip'
+    if (command === 'migrate:create' && values.empty && values.data) {
+      io.err('Choose one: --empty or --data.\n')
+      io.err(COMMAND_HELP['migrate:create'] as string)
+      return 1
+    }
+    const seedFile = command === 'seed' ? findSeedFile(cwd, values.file) : undefined
+    if (command === 'seed' && !seedFile) {
+      io.err(
+        values.file
+          ? `${resolve(cwd, values.file)} not found.`
+          : `No seed file: create easy-cms/seed.ts with\n  export default async (cms) => { … }`,
+      )
+      return 1
+    }
+    const open = (mode: typeof schema | 'push') =>
+      createEasyCMS(config, {
+        cwd,
+        schema: mode,
+        logger,
+        interactive: io.interactive,
+        scheduler: false,
+      })
+    let cms = await open(schema)
+    // Seeding in development: push the schema like the app does, but never onto a database that
+    // migrations made (a build without NODE_ENV=production): `migrate` would refuse it afterwards.
+    if (command === 'seed' && !production && (await cms.db.migrationStatus()).length === 0) {
+      await cms.destroy()
+      cms = await open('push')
+    }
     try {
       switch (command) {
         case 'backup': {
@@ -432,11 +479,16 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
             io.err(COMMAND_HELP['migrate:create'] as string)
             return 1
           }
-          const created = await cms.db.createMigration({ name })
+          const kind = values.empty ? 'empty' : values.data ? 'data' : 'changes'
+          const created = await cms.db.createMigration({ name, kind })
           if (!created) {
             io.out('No changes; nothing to migrate.')
+          } else if (kind === 'empty') {
+            io.out(`Created ${created.file}: write its SQL.`)
+            io.out('Commit it, then run `easy-cms migrate` where you deploy.')
           } else {
             io.out(`Created ${created.file} (${created.statements.length} statements).`)
+            if (created.dataFile) io.out(`Created ${created.dataFile}: write its data step.`)
             io.out('Review it, commit it, then run `easy-cms migrate` where you deploy.')
           }
           return 0
@@ -479,7 +531,22 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
           const list = await cms.db.migrationStatus()
           if (list.length === 0)
             io.out('No migrations yet. Create one with `easy-cms migrate:create init`.')
-          for (const m of list) io.out(`${m.applied ? '✓ applied' : '• pending'}  ${m.name}`)
+          for (const m of list)
+            io.out(
+              `${m.applied ? '✓ applied' : '• pending'}  ${m.name}${m.data ? '  (+ data)' : ''}`,
+            )
+          return 0
+        }
+        case 'seed': {
+          const seed = await importDefault(seedFile as string)
+          if (typeof seed !== 'function') {
+            io.err(
+              `${seedFile} has no default export function: export default async (cms) => { … }`,
+            )
+            return 1
+          }
+          await seed(cms)
+          io.out(`Ran ${seedFile}`)
           return 0
         }
       }
@@ -582,8 +649,19 @@ const OPTIONS = {
   watch: { type: 'boolean' },
   'trust-proxy': { type: 'boolean' },
   target: { type: 'string' },
+  empty: { type: 'boolean' },
+  data: { type: 'boolean' },
+  file: { type: 'string' },
   help: { type: 'boolean', short: 'h' },
 } as const
+
+/** `easy-cms/seed.ts` (or .mts, .js, .mjs), or the `--file` given; undefined when missing. */
+function findSeedFile(cwd: string, file: string | undefined): string | undefined {
+  const candidates = file
+    ? [isAbsolute(file) ? file : resolve(cwd, file)]
+    : ['.ts', '.mts', '.js', '.mjs'].map((ext) => join(cwd, 'easy-cms', `seed${ext}`))
+  return candidates.find((c) => existsSync(c))
+}
 
 function parse(argv: readonly string[]) {
   return parseArgs({ args: [...argv], allowPositionals: true, options: OPTIONS })

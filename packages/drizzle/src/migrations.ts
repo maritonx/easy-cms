@@ -1,7 +1,15 @@
+import { existsSync } from 'node:fs'
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { type Logger, SchemaError } from '@easy-cms/core'
-import type { Dialect, Snapshot, SqlRunner, Statement } from './dialect.js'
+import {
+  type DataMigration,
+  type Logger,
+  type MigrationKind,
+  type MigrationTransaction,
+  SchemaError,
+} from '@easy-cms/core'
+import { importDefault } from '@easy-cms/core/internal'
+import type { Dialect, RunInTransaction, Snapshot, SqlRunner, Statement } from './dialect.js'
 import {
   type SchemaLocalization,
   type SchemaModel,
@@ -81,7 +89,25 @@ interface MigrationFile {
   statements: string[]
   hash: string
   snapshot: Snapshot
+  /** The data step (`<name>.ts`), when there is one. */
+  data: string | null
 }
+
+/** The data steps a migration can have, in the order they are looked for. */
+const DATA_EXTENSIONS = ['.ts', '.mts', '.js', '.mjs']
+
+const dataTemplate = (name: string) => `import type { DataMigration } from '@easy-cms/core'
+
+// Runs after ${name}.sql, in the same transaction: if it throws, both are rolled back and
+// \`easy-cms migrate\` stops. Values in tx.sql are bound parameters.
+const migrate: DataMigration = async (tx) => {
+  // const rows = await tx.sql\`SELECT id, title FROM ecms_posts WHERE summary IS NULL\`
+  // for (const row of rows)
+  //   await tx.sql\`UPDATE ecms_posts SET summary = \${String(row.title)} WHERE id = \${row.id}\`
+}
+
+export default migrate
+`
 
 export interface MigratorOptions {
   readonly dialect: Dialect
@@ -279,7 +305,12 @@ export class Migrator {
     await this.runner.query(this.options.dialect.migrationsTableSQL(this.options.table))
   }
 
-  private record(name: string, hash: string, snapshot: Snapshot, upsert: boolean): Statement {
+  private record(
+    name: string,
+    hash: string | null,
+    snapshot: Snapshot,
+    upsert: boolean,
+  ): Statement {
     const p = (n: number) => this.options.dialect.param(n)
     const table = this.q(this.options.table)
     const conflict = upsert
@@ -371,13 +402,25 @@ export class Migrator {
     }
   }
 
-  async create(name: string): Promise<{ name: string; file: string; statements: string[] } | null> {
+  /**
+   * Writes a migration: the SQL for the config's changes (`changes`); an empty SQL file to write
+   * yourself, which leaves the schema where the last migration left it (`empty`); or the changes
+   * with a data step (`data`). `changes` writes nothing when nothing changed.
+   */
+  async create(
+    name: string,
+    kind: MigrationKind = 'changes',
+  ): Promise<{ name: string; file: string; statements: string[]; dataFile?: string } | null> {
     const files = await this.files()
     const last = files.at(-1)
     const prev = last ? last.snapshot : await this.snapshotOf(null)
-    const cur = await this.snapshotOf(this.options.schema)
-    const statements = await this.diff(prev, cur, this.options.interactive)
-    if (statements.length === 0 && last?.hash === this.options.schema.hash) return null
+    const empty = kind === 'empty'
+    const cur = empty ? prev : await this.snapshotOf(this.options.schema)
+    const statements = empty ? [] : await this.diff(prev, cur, this.options.interactive)
+    if (kind === 'changes' && statements.length === 0 && last?.hash === this.options.schema.hash)
+      return null
+    // An empty migration keeps the last one's schema: the config's changes still need their own.
+    const hash = empty ? (last?.hash ?? null) : this.options.schema.hash
 
     const safeName =
       name
@@ -387,13 +430,40 @@ export class Migrator {
     const fullName = `${timestamp()}_${safeName}`
     await mkdir(this.options.dir, { recursive: true })
     const file = join(this.options.dir, `${fullName}.sql`)
-    const header = `-- Easy CMS migration ${fullName} (${this.options.dialect.name})\n-- Generated from the config; review before deploying.\n`
+    const header = empty
+      ? `-- Easy CMS migration ${fullName} (${this.options.dialect.name})\n-- Written by hand: runs with the other migrations, in its own transaction.\n-- Separate statements with a line: ${BREAKPOINT}\n`
+      : `-- Easy CMS migration ${fullName} (${this.options.dialect.name})\n-- Generated from the config; review before deploying.\n`
     await writeFile(file, `${header}${statements.join(`\n${BREAKPOINT}\n`)}\n`)
     await writeFile(
       join(this.options.dir, `${fullName}.json`),
-      `${JSON.stringify({ dialect: this.options.dialect.name, hash: this.options.schema.hash, snapshot: cur }, null, 2)}\n`,
+      `${JSON.stringify({ dialect: this.options.dialect.name, hash, snapshot: cur }, null, 2)}\n`,
     )
-    return { name: fullName, file, statements }
+    if (kind !== 'data') return { name: fullName, file, statements }
+    const dataFile = join(this.options.dir, `${fullName}.ts`)
+    await writeFile(dataFile, dataTemplate(fullName))
+    return { name: fullName, file, statements, dataFile }
+  }
+
+  /** What a data step gets: `sql` in the migration's transaction. */
+  private transactionFor(run: RunInTransaction): MigrationTransaction {
+    const p = (n: number) => this.options.dialect.param(n)
+    return {
+      sql: (strings, ...values) =>
+        run(
+          strings.reduce((text, part, i) => (i === 0 ? part : `${text}${p(i)}${part}`), ''),
+          values,
+        ),
+    }
+  }
+
+  private async loadData(migration: MigrationFile): Promise<DataMigration | null> {
+    if (!migration.data) return null
+    const fn = await importDefault(migration.data)
+    if (typeof fn !== 'function')
+      throw new SchemaError(
+        `${migration.data} has no default export function.\n    → export default async (tx) => { … }`,
+      )
+    return fn as DataMigration
   }
 
   async migrate(): Promise<string[]> {
@@ -408,10 +478,15 @@ export class Migrator {
     const pending = (await this.files()).filter((f) => !appliedNames.has(f.name))
 
     for (const migration of pending) {
+      const data = await this.loadData(migration)
       try {
-        // One transaction per migration: a failure is rolled back and not recorded.
+        // One transaction per migration, its data step after its SQL: a failure is rolled back
+        // and not recorded.
         await this.runner.transaction([
           ...migration.statements.map((sql) => ({ sql })),
+          ...(data
+            ? [(run: RunInTransaction) => Promise.resolve(data(this.transactionFor(run)))]
+            : []),
           this.record(migration.name, migration.hash, migration.snapshot, false),
         ])
       } catch (error) {
@@ -424,10 +499,14 @@ export class Migrator {
     return pending.map((m) => m.name)
   }
 
-  async status(): Promise<{ name: string; applied: boolean }[]> {
+  async status(): Promise<{ name: string; applied: boolean; data: boolean }[]> {
     await this.ensureTable()
     const appliedNames = new Set((await this.applied()).map((r) => r.name))
-    return (await this.files()).map((f) => ({ name: f.name, applied: appliedNames.has(f.name) }))
+    return (await this.files()).map((f) => ({
+      name: f.name,
+      applied: appliedNames.has(f.name),
+      data: f.data !== null,
+    }))
   }
 
   private async files(): Promise<MigrationFile[]> {
@@ -460,7 +539,11 @@ export class Migrator {
               .trim(),
           )
           .filter((s) => s.length > 0)
-        return { name, statements, hash: meta.hash, snapshot: meta.snapshot }
+        const data =
+          DATA_EXTENSIONS.map((ext) => join(this.options.dir, `${name}${ext}`)).find((file) =>
+            existsSync(file),
+          ) ?? null
+        return { name, statements, hash: meta.hash, snapshot: meta.snapshot, data }
       }),
     )
   }

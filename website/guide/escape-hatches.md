@@ -32,6 +32,9 @@ accident.
 | Events of your own (`order.paid`), to webhooks and listeners | `events`, `cms.emit()`, `cms.on()` | [Your own events](./webhooks#your-own-events) |
 | Your site's pages to follow changes as they are saved | `realtime: true`, `subscribe()` | [Realtime](./realtime) |
 | `easy-cms <command>` commands of your own | `cliCommands` | [CLI](./cli#commands-from-plugins) |
+| SQL of your own in the migrations: tables, views, indexes | `migrate:create --empty` | [CLI](./cli#empty-migrations) |
+| To move data while the schema changes | `migrate:create --data` | [CLI](./cli#data-migrations) |
+| Sample or starting content | `easy-cms seed` | [CLI](./cli#seed) |
 | A field type with its own input | `defineFieldType()` | [Custom field types](./field-types) |
 | Several of these, shipped together | A plugin: `(config) => config` | [Writing a plugin](./plugins#writing-a-plugin) |
 
@@ -45,8 +48,9 @@ live in the same database. See [Sharing a database with your app](./databases#sh
 
 - **Data Easy CMS should look after** (access rules, hooks, the admin, REST): make it a
   collection. `admin: { group: false }` keeps it out of the menu.
-- **Tables only your code uses:** create them with your own migrations and query them with
-  `` cms.sql`…` `` (or your own client). Easy CMS adds no access rules or hooks to tables that are
+- **Tables only your code uses:** create them in a migration of your own
+  (`easy-cms migrate:create <name> --empty`), so they are made with the rest wherever you deploy,
+  and query them with `` cms.sql`…` `` (or your own client). Easy CMS adds no access rules or hooks to tables that are
   not collections.
 
 ## In the admin
@@ -86,7 +90,7 @@ reports and your own tables, and check who is asking before you run it for someo
 ## Coming next
 
 Planned, one at a time, in the [roadmap](https://github.com/maritonx/easy-cms/blob/main/docs/ROADMAP.md#m15):
-SQL and TypeScript data migrations with `easy-cms seed`, `admin: false` everywhere,
+`admin: false` everywhere,
 and `easy-cms build:admin` to compile Vue, React and Svelte admin components. This page lists
 each when it ships.
 

@@ -47,8 +47,9 @@ npx easy-cms <command> [--config <file>] [--cwd <dir>]
 | Command | |
 |---|---|
 | [`migrate`](#migrate) | Apply pending migrations. |
-| [`migrate:create <name>`](#migrate-create) | Write a migration for config changes. |
+| [`migrate:create <name>`](#migrate-create) | Write a migration for config changes, SQL of your own (`--empty`) or a data step (`--data`). |
 | [`migrate:status`](#migrate-status) | List migrations and whether they are applied. |
+| [`seed`](#seed) | Run `easy-cms/seed.ts` to add sample or starting content. |
 | [`admin:create`](#admin-create) | Create a user. |
 | [`generate:types`](#generate-types) | Write TypeScript types for other apps. |
 | [`backup <file>`](#backup) | Copy the database to a SQLite file while the CMS runs. |
@@ -76,7 +77,8 @@ npx easy-cms migrate
 ```
 
 Applies every migration in `easy-cms/migrations` that the database has not run yet, in order.
-Each runs in its own transaction; a failure rolls it back and stops. Run it on every deploy,
+Each runs in its own transaction, its [data step](#data-migrations) after its SQL; a failure rolls
+it back and stops. Run it on every deploy,
 before the new version starts. See [Migrations & deployment](./deployment).
 
 ### migrate:create
@@ -90,13 +92,89 @@ Compares the config with the last migration and writes
 In a terminal it asks whether a field that disappeared was renamed, so data is kept instead of
 dropped. Review the SQL, then commit both files.
 
+#### SQL of your own {#empty-migrations}
+
+```bash [pm]
+npx easy-cms migrate:create app-log --empty
+```
+
+Writes an empty `<timestamp>_app-log.sql` for you to fill in: your app's own tables, a view, an
+index, a backfill. It runs and is recorded with the other migrations, in its own transaction.
+Separate statements with a line `--> statement-breakpoint`. It doesn't take in the config's
+changes: those still get a migration of their own.
+
+```sql
+CREATE TABLE app_log (id integer PRIMARY KEY, note text NOT NULL)
+--> statement-breakpoint
+CREATE INDEX app_log_note ON app_log (note)
+```
+
+Name your tables without Easy CMS's prefix (`ecms_`): it never changes those. See
+[Your own tables](./escape-hatches#your-own-tables).
+
+#### Moving data {#data-migrations}
+
+```bash [pm]
+npx easy-cms migrate:create split-name --data
+```
+
+Writes the SQL for the config's changes (if any) and `<timestamp>_split-name.ts`, a data step
+that runs after that SQL in the **same transaction**: if it throws, the new columns and every row
+it changed are rolled back together, and `migrate` stops.
+
+```ts
+import type { DataMigration } from '@easy-cms/core'
+
+const migrate: DataMigration = async (tx) => {
+  const users = await tx.sql`SELECT id, name FROM ecms_users WHERE first_name IS NULL`
+  for (const user of users) {
+    const [first, ...rest] = String(user.name ?? '').split(' ')
+    await tx.sql`UPDATE ecms_users SET first_name = ${first}, last_name = ${rest.join(' ')} WHERE id = ${user.id}`
+  }
+}
+
+export default migrate
+```
+
+`` tx.sql`…` `` works like [`cms.sql`](./local-api#raw-sql): each value is a bound parameter. A data
+step works on tables and columns as the migration leaves them, not on the config, so it keeps
+working when the config changes later. Commit the `.ts` file with the `.sql` and `.json`.
+
 ### migrate:status
 
 ```bash [pm]
 npx easy-cms migrate:status
 # ✓ applied  20260925091723_init
-# • pending  20260928040614_seo
+# ✓ applied  20261117080102_split-name  (+ data)
+# • pending  20261118040614_seo
 ```
+
+### seed
+
+```bash [pm]
+npx easy-cms seed
+npx easy-cms seed --file scripts/demo-content.ts
+```
+
+Runs `easy-cms/seed.ts` (or `--file`), whose default export gets `cms`, the
+[Local API](./local-api), with access rules off:
+
+```ts
+import type { Seed } from '@easy-cms/core'
+import type config from '../easy-cms.config.ts'
+
+const seed: Seed<typeof config> = async (cms) => {
+  if ((await cms.count('posts')) > 0) return // already seeded
+  await cms.create('posts', { title: 'Hello', status: 'published' })
+}
+
+export default seed
+```
+
+It runs every time it is called, so check what is there first. In development the schema is
+pushed first, as the dev server does, unless the project has migrations. With
+`NODE_ENV=production`, run `easy-cms migrate` before it. The
+[one-click template](./one-click-deploy) runs it in its build to add sample posts.
 
 ### admin:create
 

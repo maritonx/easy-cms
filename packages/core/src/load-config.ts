@@ -39,6 +39,17 @@ export async function importConfig(file: string): Promise<Config | undefined> {
   return mod.default
 }
 
+/**
+ * Imports a TypeScript or JavaScript module of the project (a data migration, `easy-cms/seed.ts`)
+ * and returns its default export.
+ */
+export async function importDefault(file: string): Promise<unknown> {
+  const { createJiti } = await import('jiti')
+  const jiti = createJiti(import.meta.url, { moduleCache: false, interopDefault: false })
+  const mod = await jiti.import<{ default?: unknown }>(file)
+  return mod.default
+}
+
 /** Loads `easy-cms.config.ts` (or `.mts`/`.js`/`.mjs`) and resolves it. */
 export async function loadConfig(options: LoadConfigOptions = {}): Promise<ResolvedConfig> {
   const cwd = options.cwd ?? process.cwd()

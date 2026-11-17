@@ -454,6 +454,12 @@ interface Guard {
   readonly context: RequestContext
 }
 
+/**
+ * The default export of `easy-cms/seed.ts`, run by `easy-cms seed`: adds sample or starting
+ * content with the Local API (access off). It runs on every call, so check what is there first.
+ */
+export type Seed<C extends Config = Config> = (cms: EasyCMS<C>) => Promise<void> | void
+
 export class EasyCMS<C extends Config = Config> {
   readonly config: ResolvedConfig
   readonly db: Database

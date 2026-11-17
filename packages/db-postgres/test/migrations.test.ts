@@ -188,7 +188,9 @@ describe('postgres migration files', () => {
       `${readFileSync(file, 'utf8')}\n--> statement-breakpoint\nTHIS IS NOT SQL;\n`,
     )
     await expect(tool.db.migrate()).rejects.toThrow(/rolled back/)
-    expect(await tool.db.migrationStatus()).toEqual([{ name: created?.name, applied: false }])
+    expect(await tool.db.migrationStatus()).toEqual([
+      { name: created?.name, applied: false, data: false },
+    ])
     await tool.destroy()
     expect(await tables(prefix)).toEqual(['migrations'])
   })

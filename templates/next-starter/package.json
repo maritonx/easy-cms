@@ -4,9 +4,9 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "build": "easy-cms migrate && node scripts/seed.mjs && next build",
+    "build": "easy-cms migrate && easy-cms seed && next build",
     "start": "next start",
-    "seed": "node --env-file-if-exists=.env scripts/seed.mjs",
+    "seed": "easy-cms seed",
     "migrate": "easy-cms migrate",
     "migrate:create": "easy-cms migrate:create"
   },
