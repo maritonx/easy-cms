@@ -286,7 +286,8 @@ async function prepareWorker() {
         anchor,
         `${anchor}  upload: {\n    storage: s3Storage({ bucket: process.env.S3_BUCKET ?? '', endpoint: process.env.S3_ENDPOINT }),\n  },\n`,
       )
-      .replace(posts, `${posts}      realtime: true,\n`)}`,
+      .replace(posts, `${posts}      realtime: true,\n`)
+      .replace(anchor, `${anchor}${TRANSACTION_ENDPOINT}`)}`,
   )
 
   const bucket = `smoke-${Date.now()}`
@@ -318,6 +319,32 @@ async function prepareWorker() {
   console.log(`✓ added @easy-cms/storage-s3 and Wrangler, and the bucket ${bucket}`)
 }
 
+/**
+ * An endpoint that rolls a transaction back, commits one and reads with `sql` (#439): on Workers
+ * the database is libSQL over HTTP, where a transaction is a stream of its own.
+ */
+const TRANSACTION_ENDPOINT = `  endpoints: [
+    {
+      path: '/smoke-transaction',
+      method: 'get',
+      handler: async ({ cms }) => {
+        const before = await cms.count('posts')
+        await cms
+          .transaction(async (tx) => {
+            await tx.create('posts', { title: 'Rolled back' })
+            throw new Error('undo')
+          })
+          .catch(() => {})
+        const rolledBack = (await cms.count('posts')) === before
+        const post = await cms.transaction((tx) => tx.create('posts', { title: 'Committed' }))
+        const [row] = await cms.sql\`select count(*) as n from ecms_posts where id = \${post.id}\`
+        await cms.delete('posts', post.id)
+        return { rolledBack, committed: Number(row?.n) === 1 }
+      },
+    },
+  ],
+`
+
 /** The admin app from the ASSETS binding, and Cron Triggers running the jobs. */
 async function checkWorker(origin: string) {
   const admin = await fetch(`${origin}/admin/`)
@@ -336,6 +363,12 @@ async function checkWorker(origin: string) {
   const printed = serverOutput.slice(before)
   if (/error|uncaught/i.test(printed)) throw new Error(`the scheduled event failed:\n${printed}`)
   console.log('✓ ran the Cron Trigger')
+
+  const tx = await fetch(`${origin}/api/cms/smoke-transaction`)
+  const result = (await tx.json()) as { rolledBack?: boolean; committed?: boolean }
+  if (!tx.ok || !result.rolledBack || !result.committed)
+    throw new Error(`transactions on Workers: ${tx.status} ${JSON.stringify(result)}`)
+  console.log('✓ rolled back and committed a transaction, and read it with sql')
 
   await checkRealtime(origin)
 }

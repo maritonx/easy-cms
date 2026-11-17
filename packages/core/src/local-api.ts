@@ -140,6 +140,7 @@ import { resolveConfig } from './resolve-config.js'
 import { cacheTags } from './rest/http-cache.js'
 import { Roles } from './roles.js'
 import { encode, fromBase64Url, toBase64Url } from './runtime/bytes.js'
+import { createContext } from './runtime/context.js'
 import { hash, hmac, randomBytes, randomUUID } from './runtime/crypto.js'
 import { fetchRemoteFile, RemoteFileError } from './runtime/node/remote-file.js'
 import { SearchIndex } from './search.js'
@@ -495,6 +496,11 @@ export class EasyCMS<C extends Config = Config> {
   private readonly searchIndex: SearchIndex | undefined
   /** @internal With `telemetry`: OpenTelemetry spans and metrics (set by `createEasyCMS`). */
   telemetry: Telemetry | undefined
+  /**
+   * Set while `transaction` runs: what waits for its commit (after hooks, events, the outbox and
+   * realtime), dropped when it rolls back.
+   */
+  private readonly txs = createContext<{ open: boolean; after: (() => unknown)[] }>()
 
   /** @internal */
   constructor(
@@ -1761,7 +1767,7 @@ export class EasyCMS<C extends Config = Config> {
         this.savedRows(outbox, realtime),
       )
       await this.realtimeSaved(realtime, parsed)
-      if (outbox) this.outbox?.kick()
+      if (outbox) this.kickOutbox()
       else {
         await this.notify(config.hooks?.afterChange, 'afterChange', config.slug, {
           ...base,
@@ -1847,7 +1853,7 @@ export class EasyCMS<C extends Config = Config> {
     if (!live) await this.saveVersion(config, collectionParent(collection), parsed, doc, guard)
     // A new password signs the user out everywhere.
     if (password !== undefined) await this.auth.revokeSessions(parsed)
-    if (outbox) this.outbox?.kick()
+    if (outbox) this.kickOutbox()
     else {
       await this.notify(config.hooks?.afterChange, 'afterChange', config.slug, {
         ...base,
@@ -1925,7 +1931,7 @@ export class EasyCMS<C extends Config = Config> {
         for (const job of await this.pendingJobs(collection, parsed))
           await this.db.delete({ collection: SCHEDULED_JOBS, id: job.id })
       }
-      if (outbox) this.outbox?.kick()
+      if (outbox) this.kickOutbox()
       else {
         await this.notify(config.hooks?.afterDelete, 'afterDelete', config.slug, {
           ...base,
@@ -2152,7 +2158,7 @@ export class EasyCMS<C extends Config = Config> {
       const draft = { ...prepared, updatedAt: now }
       const outbox = this.outboxRow(config, 'draft', guard, draft, { previousDoc: current })
       await this.saveVersion(config, globalParent(key), 0, draft, guard, outbox)
-      if (outbox) this.outbox?.kick()
+      if (outbox) this.kickOutbox()
       else {
         await this.notify(config.hooks?.afterChange, 'afterChange', slug, {
           ...base,
@@ -2173,7 +2179,7 @@ export class EasyCMS<C extends Config = Config> {
     })
     const doc = await this.db.updateGlobal({ slug: key, data, outbox })
     await this.saveVersion(config, globalParent(key), 0, doc, guard)
-    if (outbox) this.outbox?.kick()
+    if (outbox) this.kickOutbox()
     else {
       await this.notify(config.hooks?.afterChange, 'afterChange', slug, {
         ...base,
@@ -2829,12 +2835,78 @@ export class EasyCMS<C extends Config = Config> {
   }
 
   /**
+   * Runs `fn` in one database transaction (ADR-0072): every read and write made while it runs, by
+   * `tx` or any other code it calls, joins it. It commits when `fn` resolves and rolls back when it
+   * throws, rethrowing. Access rules and hooks apply as usual; `before*` hooks run inside it, while
+   * `after*` hooks, webhooks, `cms.on` listeners, `cms.emit()` events and realtime events wait
+   * for the commit, and are dropped on a rollback. Inside a transaction already, `fn` joins it.
+   *
+   * Files written to storage (uploads) are not rolled back.
+   */
+  async transaction<T>(fn: (tx: this) => Promise<T>): Promise<T> {
+    if (this.txs.getStore()?.open) return fn(this)
+    if (!this.db.transaction)
+      throw new QueryError(
+        `The "${this.config.db.name}" database adapter doesn't support transactions`,
+      )
+    const store = { open: true, after: [] as (() => unknown)[] }
+    let result: T
+    try {
+      result = await this.db.transaction(() => this.txs.run(store, () => fn(this)))
+    } finally {
+      store.open = false
+    }
+    for (const later of store.after) {
+      try {
+        await later()
+      } catch (error) {
+        this.logger.error(`After a transaction: ${(error as Error).message}`, { error })
+      }
+    }
+    return result
+  }
+
+  /**
+   * Raw SQL (ADR-0072), as a tagged template: `` await cms.sql`select count(*) as n from ecms_posts
+   * where status = ${status}` ``. Each `${}` is a bound parameter, never part of the SQL text.
+   * Returns the rows. Inside `transaction`, it runs in the transaction.
+   *
+   * It goes around Easy CMS: no access rules, hooks, validation, versions, webhooks or realtime
+   * events. Tables are named with the database's `tablePrefix` (`ecms_` by default), and the SQL is
+   * the database's own (SQLite or Postgres).
+   */
+  sql<Row extends Record<string, unknown> = Record<string, unknown>>(
+    strings: TemplateStringsArray,
+    ...values: unknown[]
+  ): Promise<Row[]> {
+    if (!this.db.query)
+      return Promise.reject(
+        new QueryError(`The "${this.config.db.name}" database adapter doesn't support sql`),
+      )
+    return this.db.query(strings, values) as Promise<Row[]>
+  }
+
+  /** Inside `transaction`: queues `later` for after the commit and returns true. */
+  private afterCommit(later: () => unknown): boolean {
+    const tx = this.txs.getStore()
+    if (!tx?.open) return false
+    tx.after.push(later)
+    return true
+  }
+
+  /** Runs the outbox now, or after the transaction commits: before, its rows can't be seen. */
+  private kickOutbox(): void {
+    if (!this.afterCommit(() => this.outbox?.kick())) this.outbox?.kick()
+  }
+
+  /**
    * Sends an event of the app or a plugin (`events` in the config, e.g. `order.paid`) to the
    * webhooks that list it. Returns at once; deliveries are queued and retried like content changes.
    */
   emit(event: string, data: Record<string, unknown>, about?: { collection: string; id: ID }): void {
     if (!this.config.events.includes(event))
       throw new QueryError(`Unknown event "${event}": add it to \`events\` in the config`)
+    if (this.afterCommit(() => this.emit(event, data, about))) return
     this.webhooks.emit(event, about ?? {}, data)
     this.dispatch(event, data, about)
   }
@@ -3733,7 +3805,7 @@ export class EasyCMS<C extends Config = Config> {
     await this.realtimeSaved(realtime, doc.id)
     if (collection === MEDIA_FOLDERS) this.folders.invalidate()
     await this.saveVersion(config, collectionParent(collection), doc.id, doc, guard)
-    if (outbox) this.outbox?.kick()
+    if (outbox) this.kickOutbox()
     else {
       await this.notify(config.hooks?.afterChange, 'afterChange', collection, {
         ...base,
@@ -3893,6 +3965,7 @@ export class EasyCMS<C extends Config = Config> {
     doc: Data,
     before?: unknown,
   ) {
+    if (this.afterCommit(() => this.emitChange(config, event, doc, before))) return
     for (const change of this.changeEvents(config, event, doc, before)) {
       this.webhooks.emit(change.event, change.target, change.body)
       this.dispatch(change.event, change.body, change.target)
@@ -3991,7 +4064,7 @@ export class EasyCMS<C extends Config = Config> {
             error,
           }),
         )
-    this.realtime?.kick()
+    if (!this.afterCommit(() => this.realtime?.kick())) this.realtime?.kick()
   }
 
   /**
@@ -4262,6 +4335,7 @@ export class EasyCMS<C extends Config = Config> {
     slug: string,
     args: Record<string, unknown>,
   ) {
+    if (hooks?.length && this.afterCommit(() => this.notify(hooks, name, slug, args))) return
     for (const hook of hooks ?? []) {
       try {
         await (hook as (a: Record<string, unknown>) => unknown)(args)

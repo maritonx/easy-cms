@@ -18,6 +18,8 @@ Easy CMS ให้ collection, API และ admin จาก config ไฟล์
 | ต้องการ | ใช้ | |
 |---|---|---|
 | route ของคุณเอง: รายงาน, webhook รับชำระเงิน, การนำเข้า | `endpoints` | [Endpoints](./plugins#endpoints) |
+| การเขียนหลายครั้งที่ต้องเกิดทั้งหมดหรือไม่เกิดเลย | `cms.transaction()` | [Transaction](./local-api#transactions) |
+| join, ยอดรวม และ query ที่ Local API ทำไม่ได้ | `` cms.sql`…` `` | [SQL ดิบ](./local-api#raw-sql) |
 | โค้ดที่รันเมื่อบันทึก ลบ หรืออ่านเอกสาร | collection hooks | [Hooks](./hooks) |
 | after-hook และ webhook ที่เกิดเฉพาะเมื่อการบันทึกสำเร็จจริง | `outbox: true` | [Outbox](./hooks#outbox) |
 | หา user หรือ context (tenant, เว็บไซต์) ของแต่ละ request | `onRequest` | [Multi-tenant](./multi-tenant) |
@@ -38,7 +40,7 @@ Easy CMS สร้างและแก้เฉพาะตารางที�
 
 - **ข้อมูลที่อยากให้ Easy CMS ดูแล** (กฎสิทธิ์, hook, admin, REST): ทำเป็น collection
   `admin: { group: false }` ซ่อนจากเมนู
-- **ตารางที่ใช้แค่ในโค้ดของคุณ:** สร้างด้วย migration ของคุณเองและ query ด้วย client ของคุณเอง
+- **ตารางที่ใช้แค่ในโค้ดของคุณ:** สร้างด้วย migration ของคุณเองและ query ด้วย `` cms.sql`…` `` (หรือ client ของคุณเอง)
   Easy CMS ไม่ใส่กฎสิทธิ์หรือ hook ให้ตารางที่ไม่ใช่ collection
 
 ## ในหน้า admin {#in-the-admin}
@@ -71,10 +73,13 @@ await cms.update('orders', id, { status: 'paid' }, { user, overrideAccess: false
 ใน endpoint หรือ action ให้ส่ง `{ user, overrideAccess: false }` ทุกครั้งที่ request มาจากคน
 เขาจะทำในนั้นไม่ได้ในสิ่งที่ admin และ REST ไม่ให้เขาทำ
 
+`cms.sql` ข้ามกฎสิทธิ์เสมอ รวมถึง hook การตรวจข้อมูล และเวอร์ชัน ใช้กับรายงานและตารางของคุณเอง
+และตรวจว่าใครเป็นคนขอก่อนรันแทนใคร
+
 ## สิ่งที่จะมาถัดไป {#coming-next}
 
 วางแผนไว้ ทำทีละชิ้นตาม [roadmap](https://github.com/maritonx/easy-cms/blob/main/docs/ROADMAP.md#m15):
-transaction และ raw SQL (`cms.transaction`, `sql`), `access` ของ endpoint พร้อม `onResponse` และ `onError`,
+`access` ของ endpoint พร้อม `onResponse` และ `onError`,
 migration แบบ SQL และ TypeScript พร้อม `easy-cms seed`, `admin: false` ทุก adapter
 และ `easy-cms build:admin` ที่ compile component ของ admin จาก Vue, React และ Svelte หน้านี้จะเพิ่มแต่ละอย่างเมื่อออกแล้ว
 

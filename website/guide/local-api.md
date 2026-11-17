@@ -120,6 +120,51 @@ Operators: `equals`, `not_equals`, `in`, `not_in`, `gt`, `gte`, `lt`, `lte`, `li
 plus `and` / `or`. `not_equals` and `not_in` include empty values. Querying inside a related
 document (`author.name`) is not supported.
 
+## Transactions
+
+`cms.transaction()` runs several writes as one: they all happen, or none do.
+
+```ts
+await cms.transaction(async (tx) => {
+  const order = await tx.create('orders', { customer: user.id, total: 120 })
+  await tx.update('products', productId, { stock: product.stock - 1 })
+  tx.emit('order.paid', { order: order.id })
+  if (!(await chargeCard(order))) throw new Error('Card declined') // undoes both writes
+})
+```
+
+- It commits when the function resolves, and rolls back and rethrows when it throws (your
+  error, a validation error or a refused access check).
+- Every read and write made while it runs joins it, through `tx` or any other code it calls,
+  even code that was given `cms`. A `cms.transaction()` inside one joins the outer one.
+- Access rules, validation and hooks work as usual. `beforeChange` and the other `before*` hooks
+  run inside it; `afterChange`, `afterDelete`, webhooks, `cms.on()` listeners, `cms.emit()`
+  events and [realtime](./realtime) events wait for the commit, and are dropped on a rollback.
+- Files written to storage (uploads) are not rolled back.
+- Keep it short: on SQLite, other writes wait until it ends.
+
+## Raw SQL
+
+`cms.sql` runs SQL that the Local API can't express, such as joins and totals:
+
+```ts
+const rows = await cms.sql<{ category: string; total: number }>`
+  select category, count(*) as total
+  from ecms_posts
+  where status = ${'published'}
+  group by category`
+```
+
+- Each `${}` is a bound parameter, never part of the SQL text, so values can't inject SQL.
+  Table and column names can't be parameters: write them in the SQL.
+- It returns the rows. Inside `cms.transaction()`, it runs in the transaction.
+- **It goes around Easy CMS:** no access rules, hooks, validation, versions, webhooks or
+  realtime events. Prefer the Local API for content; use `sql` for reports, totals and your own
+  tables.
+- Tables are named `<tablePrefix><collection>` (`ecms_` by default, slugs in snake_case), and
+  columns are field names in snake_case. The SQL is your database's own: a query written for
+  SQLite may need changes on Postgres.
+
 ## Types
 
 Results and inputs are typed from your config: `cms.find('posts')` gives `docs` with `title:

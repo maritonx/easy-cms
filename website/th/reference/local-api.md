@@ -38,6 +38,13 @@ Local API เชื่อผู้เรียกและข้ามกฎส�
 | `increment(collection, id, field, by, { min?, max? })` | `number \| null` | บวก `by` เข้ากับ field ตัวเลขชั้นบนสุดในคำสั่งเดียว ปลอดภัยเมื่อเรียกพร้อมกัน เช่น สต็อก คืน `null` ถ้าผลจะเกิน `min` / `max` และ throw `NotFoundError` ถ้าไม่มีเอกสาร ไม่รัน hook และไม่ตรวจสิทธิ์ |
 | `delete(collection, id, options?)` | เอกสารที่ถูกลบ | ลบเวอร์ชันและงานตั้งเวลาของมันด้วย ถ้าลบผู้ใช้เมื่อเปิด `auth.rbac`: `{ transferTo: id }` โอนเอกสารที่ผู้ใช้เป็นเจ้าของให้ผู้ใช้อีกคน ถ้าไม่ระบุ เอกสารจะไม่มีเจ้าของ |
 
+### Transaction และ SQL {#transactions-and-sql}
+
+| Method | คืนค่า | |
+|---|---|---|
+| `transaction(async (tx) => …)` | สิ่งที่ฟังก์ชันคืน | รันฟังก์ชันใน transaction เดียวของฐานข้อมูล การอ่านเขียนทุกอย่างข้างในเข้าร่วม ไม่ว่าจะผ่าน `tx` หรือโค้ดอื่นที่มันเรียก commit เมื่อฟังก์ชันจบ rollback และ throw ต่อเมื่อฟังก์ชัน throw hook `before*` รันข้างใน ส่วน hook `after*`, webhook, listener ของ `on`, event ของ `emit()` และ event realtime รอจน commit และถูกทิ้งเมื่อ rollback ถ้าอยู่ใน transaction อยู่แล้วจะเข้าร่วมอันเดิม ไฟล์ที่อัปโหลดไม่ถูก rollback [Transaction](/guide/local-api#transactions) |
+| `sql` (tagged template: `` sql`select … ${value}` ``) | แถว | SQL ดิบ ทุก `${}` เป็น parameter ที่ bind ไว้ อยู่ใน transaction เมื่อเรียกจากข้างใน ไม่ผ่านกฎสิทธิ์ hook การตรวจข้อมูล เวอร์ชัน และ event [SQL ดิบ](/guide/local-api#raw-sql) |
+
 ### Media {#media}
 
 | Method | คืนค่า | |
