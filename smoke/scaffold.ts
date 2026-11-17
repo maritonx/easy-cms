@@ -30,6 +30,32 @@ if (!['node', 'bun', 'deno', 'workers'].includes(RUNTIME))
 if (RUNTIME === 'workers' && PM !== 'npm') throw new Error('SMOKE_RUNTIME=workers runs with npm')
 // Next to a Worker, the CLI runs on Node: migrate, admin:create and build, as on your machine.
 const CLI_RUNTIME = RUNTIME === 'workers' ? 'node' : RUNTIME
+
+/**
+ * An endpoint that rolls a transaction back, commits one and reads with `sql` (#439): on Workers
+ * the database is libSQL over HTTP, where a transaction is a stream of its own.
+ */
+const TRANSACTION_ENDPOINT = `  endpoints: [
+    {
+      path: '/smoke-transaction',
+      method: 'get',
+      handler: async ({ cms }) => {
+        const before = await cms.count('posts')
+        await cms
+          .transaction(async (tx) => {
+            await tx.create('posts', { title: 'Rolled back' })
+            throw new Error('undo')
+          })
+          .catch(() => {})
+        const rolledBack = (await cms.count('posts')) === before
+        const post = await cms.transaction((tx) => tx.create('posts', { title: 'Committed' }))
+        const [row] = await cms.sql\`select count(*) as n from ecms_posts where id = \${post.id}\`
+        await cms.delete('posts', post.id)
+        return { rolledBack, committed: Number(row?.n) === 1 }
+      },
+    },
+  ],
+`
 const NAME = RUNTIME === 'node' ? PM : `${PM}, ${RUNTIME}`
 const windows = process.platform === 'win32'
 
@@ -318,32 +344,6 @@ async function prepareWorker() {
   if (!created.ok) throw new Error(`creating the bucket: ${created.status} ${await created.text()}`)
   console.log(`✓ added @easy-cms/storage-s3 and Wrangler, and the bucket ${bucket}`)
 }
-
-/**
- * An endpoint that rolls a transaction back, commits one and reads with `sql` (#439): on Workers
- * the database is libSQL over HTTP, where a transaction is a stream of its own.
- */
-const TRANSACTION_ENDPOINT = `  endpoints: [
-    {
-      path: '/smoke-transaction',
-      method: 'get',
-      handler: async ({ cms }) => {
-        const before = await cms.count('posts')
-        await cms
-          .transaction(async (tx) => {
-            await tx.create('posts', { title: 'Rolled back' })
-            throw new Error('undo')
-          })
-          .catch(() => {})
-        const rolledBack = (await cms.count('posts')) === before
-        const post = await cms.transaction((tx) => tx.create('posts', { title: 'Committed' }))
-        const [row] = await cms.sql\`select count(*) as n from ecms_posts where id = \${post.id}\`
-        await cms.delete('posts', post.id)
-        return { rolledBack, committed: Number(row?.n) === 1 }
-      },
-    },
-  ],
-`
 
 /** The admin app from the ASSETS binding, and Cron Triggers running the jobs. */
 async function checkWorker(origin: string) {
