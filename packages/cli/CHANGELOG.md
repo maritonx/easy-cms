@@ -1,5 +1,18 @@
 # easy-cms
 
+## 1.50.0
+
+### Minor Changes
+
+- 016188f: SQL and data migrations, and `easy-cms seed` (#441). `easy-cms migrate:create <name> --empty` writes an empty SQL migration to write yourself (your app's own tables, views, indexes), run and recorded with the others. `--data` writes the config's changes with a `<name>.ts` data step (`export default async (tx) => {}`, typed `DataMigration`) that runs after the SQL in the same transaction, so a failure rolls both back. `migrate:status` marks migrations with a data step. `easy-cms seed` runs `easy-cms/seed.ts` (or `--file`), whose default export gets the Local API (typed `Seed`); in development it pushes the schema first unless the project has migrations. The Next.js starter template seeds with it.
+
+### Patch Changes
+
+- Updated dependencies [53cd63a]
+- Updated dependencies [016188f]
+  - @easy-cms/core@1.50.0
+  - @easy-cms/admin@1.50.0
+
 ## 1.49.0
 
 ### Patch Changes

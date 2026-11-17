@@ -1,5 +1,12 @@
 # @easy-cms/core
 
+## 1.50.0
+
+### Minor Changes
+
+- 53cd63a: Endpoints take `access`: who may call them, answered with `401` or `403` before the handler runs. The config takes `onResponse`, run on each API response to add headers, log or replace it, and `onError`, run when an API request fails to report the error or send a different response; both may be lists, so plugins add theirs (#440, ADR-0072).
+- 016188f: SQL and data migrations, and `easy-cms seed` (#441). `easy-cms migrate:create <name> --empty` writes an empty SQL migration to write yourself (your app's own tables, views, indexes), run and recorded with the others. `--data` writes the config's changes with a `<name>.ts` data step (`export default async (tx) => {}`, typed `DataMigration`) that runs after the SQL in the same transaction, so a failure rolls both back. `migrate:status` marks migrations with a data step. `easy-cms seed` runs `easy-cms/seed.ts` (or `--file`), whose default export gets the Local API (typed `Seed`); in development it pushes the schema first unless the project has migrations. The Next.js starter template seeds with it.
+
 ## 1.49.0
 
 ### Minor Changes
