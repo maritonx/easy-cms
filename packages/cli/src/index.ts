@@ -21,7 +21,6 @@ import {
   decryptBackup,
   findConfigFile,
   generateTypes,
-  importDefault,
   logFormat,
   writeBackupFile,
 } from '@easy-cms/core/internal'
@@ -779,3 +778,19 @@ export {
   type StartOptions,
   startServer,
 } from './serve.js'
+
+/**
+ * `importDefault` of `@easy-cms/core`, looked up when used: it is new in core 1.50, and a static
+ * import would stop this package from loading beside an older core (npm installs the newest
+ * easy-cms with a pinned core).
+ */
+async function importDefault(file: string): Promise<unknown> {
+  const internal: { importDefault?: (file: string) => Promise<unknown> } = await import(
+    '@easy-cms/core/internal'
+  )
+  if (!internal.importDefault)
+    throw new Error(
+      `Loading ${file} needs @easy-cms/core 1.50 or later: upgrade every @easy-cms/* package together.`,
+    )
+  return internal.importDefault(file)
+}

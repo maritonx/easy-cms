@@ -8,7 +8,6 @@ import {
   type MigrationTransaction,
   SchemaError,
 } from '@easy-cms/core'
-import { importDefault } from '@easy-cms/core/internal'
 import type { Dialect, RunInTransaction, Snapshot, SqlRunner, Statement } from './dialect.js'
 import {
   type SchemaLocalization,
@@ -565,4 +564,20 @@ function extensionHint(error: unknown): string {
   )
   if (!match) return ''
   return `. Ask the database's owner to run, once: CREATE EXTENSION IF NOT EXISTS ${match[1]} (with SCHEMA <yours> when this role's search_path is a schema of its own).`
+}
+
+/**
+ * `importDefault` of `@easy-cms/core`, looked up when used: it is new in core 1.50, and a static
+ * import would stop this package from loading beside an older core (npm installs the newest
+ * @easy-cms/drizzle with a pinned core).
+ */
+async function importDefault(file: string): Promise<unknown> {
+  const internal: { importDefault?: (file: string) => Promise<unknown> } = await import(
+    '@easy-cms/core/internal'
+  )
+  if (!internal.importDefault)
+    throw new Error(
+      `Loading ${file} needs @easy-cms/core 1.50 or later: upgrade every @easy-cms/* package together.`,
+    )
+  return internal.importDefault(file)
 }
