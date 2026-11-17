@@ -121,10 +121,15 @@ describe('cms.transaction (#439)', () => {
       cms.transaction(async (tx) => {
         await tx.update('accounts', a.id, { balance: 1 })
         // Not an admin: refused, and the first write goes too.
-        await tx.update('accounts', a.id, { balance: 2 }, {
-          user: { id: 99, role: 'editor' } as never,
-          overrideAccess: false,
-        })
+        await tx.update(
+          'accounts',
+          a.id,
+          { balance: 2 },
+          {
+            user: { id: 99, role: 'editor' } as never,
+            overrideAccess: false,
+          },
+        )
       }),
     ).rejects.toThrow()
     await expect(
@@ -190,27 +195,36 @@ describe('cms.sql (#439)', () => {
     await cms.create('accounts', { name: 'b', balance: 50 })
     const accounts = table(cms.cwd, 'accounts')
 
-    const [sum] = await cms.sql<{ total: number }>([
-      `select sum(balance) as total from ${accounts} where balance >= `,
-      '',
-    ] as unknown as TemplateStringsArray, 50)
+    const [sum] = await cms.sql<{ total: number }>(
+      [
+        `select sum(balance) as total from ${accounts} where balance >= `,
+        '',
+      ] as unknown as TemplateStringsArray,
+      50,
+    )
     expect(Number(sum?.total)).toBe(150)
 
     // A value is a parameter, never SQL: this matches no name, and drops nothing.
     const evil = "a'; drop table x; --"
-    const none = await cms.sql([
-      `select name from ${accounts} where name = `,
-      '',
-    ] as unknown as TemplateStringsArray, evil)
+    const none = await cms.sql(
+      [`select name from ${accounts} where name = `, ''] as unknown as TemplateStringsArray,
+      evil,
+    )
     expect(none).toEqual([])
 
     await expect(
       cms.transaction(async (tx) => {
-        await tx.sql([`update ${accounts} set balance = 0 where name = `, ''] as unknown as TemplateStringsArray, 'a')
-        const [row] = await tx.sql<{ balance: number }>([
-          `select balance from ${accounts} where name = `,
-          '',
-        ] as unknown as TemplateStringsArray, 'a')
+        await tx.sql(
+          [
+            `update ${accounts} set balance = 0 where name = `,
+            '',
+          ] as unknown as TemplateStringsArray,
+          'a',
+        )
+        const [row] = await tx.sql<{ balance: number }>(
+          [`select balance from ${accounts} where name = `, ''] as unknown as TemplateStringsArray,
+          'a',
+        )
         expect(Number(row?.balance)).toBe(0)
         throw new Error('undo')
       }),
