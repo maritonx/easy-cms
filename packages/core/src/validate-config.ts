@@ -10,6 +10,7 @@ import {
 import { checkConfigKeys } from './config-keys.js'
 import { ADAPTER_API_VERSION } from './database.js'
 import { warnDeprecated } from './deprecation.js'
+import { hasEmail } from './email-providers.js'
 import type { ConfigIssue } from './errors.js'
 import { FIELD_TYPES, type Field, type RichTextBlock, type SelectOption } from './fields.js'
 import { NAV_ID, navGroups, navIds } from './nav.js'
@@ -94,6 +95,7 @@ export function validateConfig(config: Config): ConfigIssue[] {
   validateLocalization(config, add)
   validateWebhooks(config, add)
   warnNestedUnique(config, (issue) => issues.push(issue))
+  warnAdminOffPages(config, (issue) => issues.push(issue))
 
   const collections = asArray(config.collections, 'collections', add)
   const globals = asArray(config.globals, 'globals', add)
@@ -227,6 +229,23 @@ function validateCronSecret(value: unknown, push: (issue: ConfigIssue) => void) 
 }
 
 /**
+ * Without the admin UI, password and verification emails link to `auth.members.pages`: without
+ * them the links would open admin pages that aren't there.
+ */
+function warnAdminOffPages(config: Config, push: (issue: ConfigIssue) => void) {
+  if (config.admin?.enabled !== false || !hasEmail(config)) return
+  const pages = config.auth?.members?.pages
+  const missing = (['resetPassword', 'verifyEmail'] as const).filter((p) => !pages?.[p])
+  if (missing.length === 0) return
+  push({
+    path: 'auth.members.pages',
+    message: `without the admin UI, emails link to your site's pages: set ${missing.join(' and ')}`,
+    hint: "e.g. pages: { resetPassword: '/reset-password', verifyEmail: '/verify-email' }",
+    severity: 'warning',
+  })
+}
+
+/**
  * `unique` holds for top-level fields only: in a group, array or block it would be ignored, and
  * with `uniqueWithin` (e.g. per tenant) there would be nothing to scope it by. A warning, since
  * configs written before this check still work as they did.
@@ -275,6 +294,13 @@ function guessable(secret: string): boolean {
 function validateAdmin(config: Config, add: Add) {
   const admin = config.admin
   if (admin === undefined) return
+  if ((admin as unknown) === false || typeof admin !== 'object' || admin === null) {
+    add('admin', 'must be an object', 'to turn the admin UI off: admin: { enabled: false }')
+    return
+  }
+  const enabled: unknown = admin.enabled
+  if (enabled !== undefined && typeof enabled !== 'boolean')
+    add('admin.enabled', 'must be true or false')
   if (admin.path !== undefined && (typeof admin.path !== 'string' || !admin.path.startsWith('/'))) {
     add('admin.path', 'must start with "/"', "e.g. path: '/admin'")
   }

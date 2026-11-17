@@ -696,12 +696,12 @@ async function serve(
   const admin = `${server.url}/${config.admin.path.replace(/^\/+|\/+$/g, '')}`
   if (json) {
     serverLogger.info(`Easy CMS running at ${server.url}`, {
-      admin,
+      ...(config.admin.enabled ? { admin } : {}),
       api: `${server.url}${config.routes.api}`,
     })
   } else {
     io.out(`Easy CMS running at ${server.url}`)
-    io.out(`  admin  ${admin}`)
+    if (config.admin.enabled) io.out(`  admin  ${admin}`)
     io.out(`  API    ${server.url}${config.routes.api}`)
     if (values.watch) io.out('  watching for changes')
   }

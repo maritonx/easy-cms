@@ -26,8 +26,15 @@ const allHeaders =
       }
     : headers
 
+// `admin.enabled: false` read when the server starts: the build had the admin, this server doesn't.
+const enabled = config.admin?.enabled !== false
+
 export default defineEventHandler((event) => {
   const url = getRequestURL(event)
+  if (!enabled) {
+    setResponseStatus(event, 404)
+    return 'Not found'
+  }
   setResponseHeaders(event, allHeaders)
   if (process.env.NODE_ENV === 'production')
     setResponseHeaders(event, { 'strict-transport-security': hsts })

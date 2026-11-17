@@ -61,6 +61,7 @@ compile component เป็น ES module ไฟล์เดียว
 | หน้าของคุณเอง (POS, สต็อก, อนุมัติ) ใน `/admin` | `admin.pages` | [หน้าของ plugin และกล่องบนแดชบอร์ด](./plugins#pages-and-dashboard-panels) |
 | กล่องบนแดชบอร์ด | `admin.dashboard` | [หน้าของ plugin และกล่องบนแดชบอร์ด](./plugins#pages-and-dashboard-panels) |
 | สิ่งที่ element ได้รับและส่งกลับ | `value`, `api()`, `change`… | [สิ่งที่ element ได้รับ](./plugins#what-the-element-receives) |
+| แอป admin ของคุณเองแทนหน้านี้ | `admin: { enabled: false }` | [ปิดหน้า admin](./admin#turning-it-off) |
 
 หน้าของคุณเองฝังแอปอื่นของคุณใน `<iframe>` ได้ด้วย
 
@@ -84,9 +85,8 @@ await cms.update('orders', id, { status: 'paid' }, { user, overrideAccess: false
 
 ## สิ่งที่จะมาถัดไป {#coming-next}
 
-วางแผนไว้ ทำทีละชิ้นตาม [roadmap](https://github.com/maritonx/easy-cms/blob/main/docs/ROADMAP.md#m15):
-`admin: false` ทุก adapter
-และ `easy-cms build:admin` ที่ compile component ของ admin จาก Vue, React และ Svelte หน้านี้จะเพิ่มแต่ละอย่างเมื่อออกแล้ว
+วางแผนไว้ตาม [roadmap](https://github.com/maritonx/easy-cms/blob/main/docs/ROADMAP.md#m15):
+`easy-cms build:admin` ที่ compile component ของ admin จาก Vue, React และ Svelte หน้านี้จะเพิ่มเมื่อออกแล้ว
 
 ## ขั้นต่อไป {#next-steps}
 

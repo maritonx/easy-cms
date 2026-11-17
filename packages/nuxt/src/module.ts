@@ -153,22 +153,26 @@ declare module '${SERVER}' {
       inline: [...(nitro.externals?.inline ?? []), runtimeDir],
     }
 
-    // Admin UI: assets as Nitro public assets (CDN-friendly), the HTML shell from a handler
-    // that adds security headers and the settings the app reads at startup.
-    const adminPackage = createRequire(import.meta.url).resolve('@easy-cms/admin/package.json')
-    const adminAppDir = join(dirname(adminPackage), 'dist/app')
-    const shellFile = join(adminAppDir, SHELL_FILE)
-    const shellOptions = {
-      basePath: adminPath,
-      apiPath,
-      locale: rawConfig?.admin?.locale ?? 'en',
-      brand: rawConfig?.admin?.brand ?? {},
-      // The site is this Nuxt app.
-      siteURL: rawConfig?.admin?.siteURL ?? '/',
-    }
-    const shell = renderShell(readFileSync(shellFile, 'utf8'), shellOptions)
-    // In development the shell is read on each request, so a rebuilt admin is picked up.
-    nitro.virtual[ADMIN_SHELL] = `import config from ${config}
+    // Admin UI, unless the config turns it off (`admin.enabled: false`, read at build time; the
+    // handler checks it again when the server starts).
+    const adminEnabled = rawConfig?.admin?.enabled !== false
+    if (adminEnabled) {
+      // Admin UI: assets as Nitro public assets (CDN-friendly), the HTML shell from a handler
+      // that adds security headers and the settings the app reads at startup.
+      const adminPackage = createRequire(import.meta.url).resolve('@easy-cms/admin/package.json')
+      const adminAppDir = join(dirname(adminPackage), 'dist/app')
+      const shellFile = join(adminAppDir, SHELL_FILE)
+      const shellOptions = {
+        basePath: adminPath,
+        apiPath,
+        locale: rawConfig?.admin?.locale ?? 'en',
+        brand: rawConfig?.admin?.brand ?? {},
+        // The site is this Nuxt app.
+        siteURL: rawConfig?.admin?.siteURL ?? '/',
+      }
+      const shell = renderShell(readFileSync(shellFile, 'utf8'), shellOptions)
+      // In development the shell is read on each request, so a rebuilt admin is picked up.
+      nitro.virtual[ADMIN_SHELL] = `import config from ${config}
 export { config }
 export const basePath = ${JSON.stringify(adminPath)}
 export const html = ${JSON.stringify(shell)}
@@ -176,14 +180,15 @@ export const headers = ${JSON.stringify(SECURITY_HEADERS)}
 export const hsts = ${JSON.stringify(STRICT_TRANSPORT_SECURITY)}
 export const reload = ${nuxt.options.dev ? JSON.stringify({ file: shellFile, options: shellOptions }) : 'null'}
 `
-    nitro.publicAssets = [
-      ...(nitro.publicAssets ?? []),
-      // fallthrough: app routes (not files) continue to the shell handler below.
-      { dir: adminAppDir, baseURL: adminPath, maxAge: 60 * 60 * 24 * 365, fallthrough: true },
-    ]
-    const adminHandler = resolveRuntime('./runtime/admin.js')
-    addServerHandler({ route: adminPath, handler: adminHandler })
-    addServerHandler({ route: `${adminPath}/**`, handler: adminHandler })
+      nitro.publicAssets = [
+        ...(nitro.publicAssets ?? []),
+        // fallthrough: app routes (not files) continue to the shell handler below.
+        { dir: adminAppDir, baseURL: adminPath, maxAge: 60 * 60 * 24 * 365, fallthrough: true },
+      ]
+      const adminHandler = resolveRuntime('./runtime/admin.js')
+      addServerHandler({ route: adminPath, handler: adminHandler })
+      addServerHandler({ route: `${adminPath}/**`, handler: adminHandler })
+    }
 
     // Ship files the database adapter loads dynamically (e.g. libsql's native binary),
     // which Nitro's output tracing cannot find on its own.
@@ -209,7 +214,11 @@ export const reload = ${nuxt.options.dev ? JSON.stringify({ file: shellFile, opt
     nuxt.options.ignore.push('**/*.db', '**/*.db-*', 'easy-cms/migrations/**')
     nuxt.options.watch.push(configPath)
 
-    logger.info(`Easy CMS admin at ${adminPath}, API at ${apiPath}`)
+    logger.info(
+      adminEnabled
+        ? `Easy CMS admin at ${adminPath}, API at ${apiPath}`
+        : `Easy CMS API at ${apiPath} (admin.enabled is false: no admin UI)`,
+    )
   },
 })
 

@@ -231,18 +231,21 @@ export class SingleSignOn {
     options: { url: URL; cookie: string | undefined; origin?: string; user: AuthUser | null },
   ): Promise<{ redirect: string; session?: Session }> {
     const admin = trimChar(this.config.admin.path, '/', { start: false })
+    /** An admin page, or the site's home without the admin UI. */
+    const pageURL = (name: string, query: string) =>
+      this.config.admin.enabled ? `${admin}/${name}?${query}` : `${this.home()}?${query}`
     const pending = unseal(secretsOf(this.config), options.cookie)
     let email: string | null = null
-    const back = async (page: 'login' | 'account' | 'integrations', outcome: SsoOutcome) => {
+    const back = async (name: 'login' | 'account' | 'integrations', outcome: SsoOutcome) => {
       await this.cms.audit.record({
         action: 'sso.failed',
         target: 'auth',
-        ...(page === 'login' ? { user: null, email } : {}),
+        ...(name === 'login' ? { user: null, email } : {}),
         detail: { provider: providerId, outcome },
       })
       const extra =
-        page === 'integrations' && pending?.t ? `&integration=${pending.t.split(':')[0]}` : ''
-      return { redirect: `${admin}/${page}?sso=${outcome}${extra}` } as const
+        name === 'integrations' && pending?.t ? `&integration=${pending.t.split(':')[0]}` : ''
+      return { redirect: pageURL(name, `sso=${outcome}${extra}`) } as const
     }
     const page = pending?.t ? 'integrations' : pending?.u ? 'account' : 'login'
     if (!pending || pending.p !== providerId) return await back(page, 'expired')
@@ -287,7 +290,7 @@ export class SingleSignOn {
         integration: test.integration,
         ...(email ? { email } : {}),
       })
-      return { redirect: `${admin}/integrations?${query}` }
+      return { redirect: pageURL('integrations', String(query)) }
     }
 
     // Linking an account to the signed-in user.
@@ -303,7 +306,7 @@ export class SingleSignOn {
         user: options.user,
         detail: { provider: provider.id, email },
       })
-      return { redirect: `${admin}/account?sso=linked` }
+      return { redirect: pageURL('account', 'sso=linked') }
     }
 
     let user: RawDocument | null = null
@@ -461,17 +464,28 @@ export class SingleSignOn {
     return { integration: value.slice(0, at), connection: value.slice(at + 1) }
   }
 
-  /** Only pages of the admin: anything else (another site) goes to the admin's home. */
+  /**
+   * Only pages of the admin: anything else (another site) goes to the admin's home. Without the
+   * admin UI, any path of this site, else the site's home.
+   */
   private adminPage(redirect: string | null | undefined): string {
     const admin = this.config.admin.path.replace(/\/+$/, '')
+    const enabled = this.config.admin.enabled
     if (
       typeof redirect === 'string' &&
-      (redirect === admin || redirect.startsWith(`${admin}/`)) &&
+      (enabled
+        ? redirect === admin || redirect.startsWith(`${admin}/`)
+        : redirect.startsWith('/')) &&
       !redirect.startsWith('//') &&
       !redirect.includes('\\')
     )
       return redirect
-    return `${admin}/`
+    return enabled ? `${admin}/` : this.home()
+  }
+
+  /** The site's home (`admin.siteURL`, else `/`), where sign-in ends without the admin UI. */
+  private home(): string {
+    return this.config.admin.siteURL || '/'
   }
 
   private async identity(provider: string, subject: string): Promise<RawDocument | undefined> {

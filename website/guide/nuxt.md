@@ -54,6 +54,10 @@ export default defineEventHandler(async (event) => {
   immediately.
 - The admin's static files are Nitro public assets, so on platforms with a CDN they are served
   from it.
+- With `admin: { enabled: false }` ([Turning the admin off](./admin#turning-it-off)) the build
+  has no admin. It is read when the app builds: a value from an environment variable needs that
+  variable at build time. A server started with it off while the build had the admin answers 404
+  there.
 - **Nuxt's production server does not read `.env`.** Set `EASY_CMS_SECRET` on the host, or start
   with `node --env-file=.env .output/server/index.mjs`. See
   [Environment variables](./deployment#environment-variables).

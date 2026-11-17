@@ -29,11 +29,11 @@ script, `easy-cms.config.ts` และ secret ใน `.env` สำหรับ�
 
 | Path | |
 |---|---|
-| `/admin` | หน้า admin (`admin.path`) |
+| `/admin` | หน้า admin (`admin.path`) ยกเว้น[ปิดไว้](./admin#turning-it-off) |
 | `/api/cms` | [REST API](./rest-api) (`routes.api`) |
 | `/healthz` | `ok` เมื่อ process ยังทำงาน: liveness |
 | `/readyz` | `200` เมื่อฐานข้อมูลตอบและไม่มี migration ค้าง: readiness ดู[Health check](./deployment#health-checks) |
-| `/` | redirect ไปยังหน้า admin |
+| `/` | redirect ไปยังหน้า admin (404 เมื่อปิดไว้) |
 
 ## การเรียกใช้จาก frontend {#calling-it-from-a-frontend}
 

@@ -54,6 +54,9 @@ export default defineEventHandler(async (event) => {
   ทันที
 - ไฟล์ static ของหน้า admin เป็น public asset ของ Nitro ดังนั้นบนแพลตฟอร์มที่มี CDN ไฟล์เหล่านี้จะถูกเสิร์ฟ
   จาก CDN
+- ถ้า `admin: { enabled: false }` ([ปิดหน้า admin](./admin#turning-it-off)) build จะไม่มีหน้า admin
+  ค่านี้อ่านตอน build ถ้าใช้ค่าจาก environment variable ต้องมีตัวแปรนั้นตอน build ด้วย ถ้า build มีหน้า admin
+  แต่ server เริ่มโดยปิดไว้ จะตอบ 404 ที่นั่น
 - **production server ของ Nuxt ไม่อ่าน `.env`** ให้ตั้งค่า `EASY_CMS_SECRET` บนโฮสต์ หรือเริ่ม server
   ด้วย `node --env-file=.env .output/server/index.mjs` ดู
   [Environment variables](./deployment#environment-variables)
