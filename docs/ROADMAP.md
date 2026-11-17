@@ -283,11 +283,11 @@ Kanban → ธีม → พื้นที่ฟอร์ม → CRM → Bookin
 
 | # | Issue | Labels | เสร็จเมื่อ |
 |---|---|---|---|
-| — | Transactions and raw SQL: cms.transaction and sql | area:core, area:docs | `cms.transaction(tx => …)` ที่ `tx` ผ่านกฎสิทธิ์และ hook, `` sql`…` `` ที่ค่าเป็น parameter เสมอ, `after*` webhook และ realtime รอ commit; เทสบน SQLite, Turso, Postgres และ Workers ผ่าน |
-| — | Endpoint access, onResponse and onError | area:core, area:docs | `endpoints[].access`, `onResponse` และ `onError` ระดับ config (เป็นรายการได้) |
-| — | SQL and data migrations, and easy-cms seed | area:core, area:docs | `migrate:create --empty` / `--data` (`.ts` รับ `tx` ใน transaction เดียวกับ SQL), `easy-cms seed` ใช้ใน template ของ `create-easy-cms` |
-| — | admin: false in every adapter | area:core, area:docs | ปิด admin ได้ใน Next.js, Nuxt และ `easy-cms serve` โดย API ยังทำงาน |
-| — | easy-cms build:admin: Vue, React and Svelte admin components | area:admin, area:docs | build `.vue` / `.tsx` / `.svelte` เป็นโมดูลไฟล์เดียวตามสัญญาของ ADR-0018 พร้อมตัวอย่างที่ e2e ผ่าน |
+| [#439](https://github.com/maritonx/easy-cms/issues/439) | Transactions and raw SQL: cms.transaction and sql | area:core, area:docs | `cms.transaction(tx => …)` ที่ `tx` ผ่านกฎสิทธิ์และ hook, `` sql`…` `` ที่ค่าเป็น parameter เสมอ, `after*` webhook และ realtime รอ commit; เทสบน SQLite, Turso, Postgres และ Workers ผ่าน |
+| [#440](https://github.com/maritonx/easy-cms/issues/440) | Endpoint access, onResponse and onError | area:core, area:docs | `endpoints[].access`, `onResponse` และ `onError` ระดับ config (เป็นรายการได้) |
+| [#441](https://github.com/maritonx/easy-cms/issues/441) | SQL and data migrations, and easy-cms seed | area:core, area:docs | `migrate:create --empty` / `--data` (`.ts` รับ `tx` ใน transaction เดียวกับ SQL), `easy-cms seed` ใช้ใน template ของ `create-easy-cms` |
+| [#442](https://github.com/maritonx/easy-cms/issues/442) | admin: false in every adapter | area:core, area:docs | ปิด admin ได้ใน Next.js, Nuxt และ `easy-cms serve` โดย API ยังทำงาน |
+| [#443](https://github.com/maritonx/easy-cms/issues/443) | easy-cms build:admin: Vue, React and Svelte admin components | area:admin, area:docs | build `.vue` / `.tsx` / `.svelte` เป็นโมดูลไฟล์เดียวตามสัญญาของ ADR-0018 พร้อมตัวอย่างที่ e2e ผ่าน |
 
 ---
 
