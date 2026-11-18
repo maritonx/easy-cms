@@ -1,5 +1,13 @@
 # @easy-cms/db-postgres
 
+## 1.52.1
+
+### Patch Changes
+
+- c528c61: Back on postgres.js 3.4.9: with postgres 4, 200 editors' saves took twice as long and reads 35–50% longer in the nightly load test (1M posts on Postgres 17). Version 4 comes back once it is as fast.
+- @easy-cms/core@1.52.1
+  - @easy-cms/drizzle@1.52.1
+
 ## 1.52.0
 
 ### Patch Changes

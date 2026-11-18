@@ -1,5 +1,12 @@
 # @easy-cms/db-sqlite
 
+## 1.52.1
+
+### Patch Changes
+
+- @easy-cms/core@1.52.1
+  - @easy-cms/drizzle@1.52.1
+
 ## 1.52.0
 
 ### Patch Changes
