@@ -30,6 +30,8 @@ export default defineConfig({
     // make their links absolute with it. Not from the request: a client can send any Host, and
     // these answers are cached.
     ...(process.env.SITE_URL ? { siteURL: process.env.SITE_URL } : {}),
+    // Admin components written in Vue (.vue), built by `easy-cms build:admin`.
+    modules: ['./admin/dist/components.js'],
   },
   // API keys for scripts and AI assistants, managed under Settings → API keys.
   apiKeys: true,
@@ -135,6 +137,8 @@ export default defineConfig({
           label: { en: 'Excerpt', th: 'คำโปรย' },
           maxLength: 300,
           localized: true,
+          // Its length and "Use the title": admin/components/example-excerpt-tools.vue.
+          admin: { after: [{ tag: 'example-excerpt-tools', props: { max: 300 } }] },
         },
         {
           name: 'cover',

@@ -1,7 +1,9 @@
 import { existsSync } from 'node:fs'
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { createRequire } from 'node:module'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { createInterface } from 'node:readline/promises'
+import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 import { gzipSync } from 'node:zlib'
 import {
@@ -74,6 +76,7 @@ Commands:
   admin:create            Create an admin user (also: create-admin)
   serve                   Run the CMS as its own server (admin + REST API)
   build --target workers  Write what Wrangler needs to deploy to Cloudflare Workers
+  build:admin [files…]    Build admin components written in Vue, React or Svelte
   jobs:run                Run due scheduled publishes, jobs, webhook and email retries (also: run-scheduled)
   search:reindex [slug]   Build the search index again from the database
   audit:resign            After a new secret: sign the audit log with it
@@ -184,6 +187,21 @@ sign in (passwords, signing up) in Settings → Single sign-on, so people sign i
 it (\`auth.providers\`, \`auth.password\`, \`auth.providerSignUp\`). For an admin who can't sign in
 any more. Sessions started with providers turned on in the admin end. Recorded in the audit log.
 `,
+  'build:admin': `Usage: easy-cms build:admin [files…] [--out <file>] [--watch] [options]
+
+Builds admin components written in Vue (.vue), React (.tsx, .jsx) or Svelte (.svelte) into the
+module the admin loads: one ES module that defines a custom element per component, named after
+its file (acme-color-picker.vue → <acme-color-picker>). Needs @easy-cms/admin-build, and the
+framework with its Vite plugin, in the project.
+
+Without files: every component in admin/components/, into admin/dist/components.js. With files:
+a module per file in admin/dist/. List the module in admin.modules, e.g.
+admin: { modules: ['./admin/dist/components.js'] }, and build it before the app:
+"build": "easy-cms build:admin && next build".
+
+  --out <file>   The module (one), or the folder for them (several files)
+  --watch        Build again when a file changes; reload the admin to see it
+`,
   build: `Usage: easy-cms build --target workers [options]
 
 Writes what Wrangler needs to deploy the CMS as a Cloudflare Worker, the standalone server's
@@ -258,6 +276,8 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
   try {
     const load = () => loadConfig({ cwd, ...(values.config ? { configFile: values.config } : {}) })
     if (command === 'serve') return await serve(values, cwd, logger, load, io)
+    // Needs no config: the components and the frameworks are in the project.
+    if (command === 'build:admin') return await buildAdminModules(rest, values, cwd, io)
     const config = await load()
     if (command === 'build') {
       if (values.target !== 'workers') {
@@ -653,6 +673,39 @@ const OPTIONS = {
   file: { type: 'string' },
   help: { type: 'boolean', short: 'h' },
 } as const
+
+/**
+ * `easy-cms build:admin`: from @easy-cms/admin-build, installed in the project (it brings Vite,
+ * so it isn't a dependency of the CLI).
+ */
+async function buildAdminModules(
+  files: readonly string[],
+  values: ReturnType<typeof parse>['values'],
+  cwd: string,
+  io: IO,
+): Promise<number> {
+  let file: string
+  try {
+    file = createRequire(join(cwd, 'package.json')).resolve('@easy-cms/admin-build')
+  } catch {
+    io.err(
+      'Building admin components needs @easy-cms/admin-build: npm install -D @easy-cms/admin-build',
+    )
+    return 1
+  }
+  const { buildAdmin } = (await import(
+    pathToFileURL(file).href
+  )) as typeof import('@easy-cms/admin-build')
+  await buildAdmin({
+    cwd,
+    entries: files,
+    ...(values.out ? { out: values.out } : {}),
+    watch: values.watch ?? false,
+    log: io.out,
+  })
+  if (values.watch) await new Promise(() => {}) // until stopped
+  return 0
+}
 
 /** `easy-cms/seed.ts` (or .mts, .js, .mjs), or the `--file` given; undefined when missing. */
 function findSeedFile(cwd: string, file: string | undefined): string | undefined {

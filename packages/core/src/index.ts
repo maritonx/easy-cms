@@ -1,4 +1,5 @@
 export * from './access.js'
+export type { AdminComponentProps } from './admin-component.js'
 export {
   ADMIN_API_VERSION,
   type AdminElementProps,

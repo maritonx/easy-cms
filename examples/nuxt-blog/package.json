@@ -3,8 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "nuxi dev",
-    "build": "nuxi build",
+    "dev": "nuxi prepare && easy-cms build:admin && nuxi dev",
+    "build": "nuxi prepare && easy-cms build:admin && nuxi build",
     "preview": "node .output/server/index.mjs",
     "seed": "node --env-file-if-exists=.env scripts/seed.ts",
     "typecheck": "nuxi typecheck",
@@ -30,7 +30,10 @@
     "vue": "^3.5.0"
   },
   "devDependencies": {
+    "@easy-cms/admin-build": "workspace:^",
+    "@vitejs/plugin-vue": "^6.0.9",
     "easy-cms": "workspace:^",
+    "typescript": "~6.0.3",
     "vue-tsc": "^3.3.11"
   }
 }

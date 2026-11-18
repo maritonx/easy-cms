@@ -3,8 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "easy-cms build:admin && next dev",
+    "build": "easy-cms build:admin && next build",
     "start": "next start",
     "seed": "node --env-file-if-exists=.env scripts/seed.ts",
     "typecheck": "tsc --noEmit",
@@ -38,8 +38,10 @@
     "react-dom": "^19.3.0"
   },
   "devDependencies": {
+    "@easy-cms/admin-build": "workspace:^",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^6.3.0",
     "easy-cms": "workspace:^"
   }
 }

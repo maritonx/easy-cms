@@ -60,6 +60,8 @@ npx easy-cms <command> [--config <file>] [--cwd <dir>]
 | [`secrets:rotate`](#secrets-rotate) | หลังเปลี่ยน secret: เข้ารหัสการเชื่อมต่อใน Integrations ด้วยตัวใหม่ |
 | [`reset-sign-in`](#reset-sign-in) | ให้การเข้าสู่ระบบกลับไปใช้ผู้ให้บริการจาก config สำหรับผู้ดูแลระบบที่เข้าไม่ได้ |
 | [`serve`](#serve) | รัน CMS เป็น server ของตัวเอง |
+| [`build --target workers`](#build) | เขียนสิ่งที่ Wrangler ต้องใช้ deploy ไป Cloudflare Workers |
+| [`build:admin [files…]`](#build-admin) | build component ของ admin ที่เขียนด้วย Vue, React หรือ Svelte |
 
 ตัวเลือกที่ใช้ได้กับทุกคำสั่ง: `--config <file>` (ค่าเริ่มต้น `easy-cms.config.ts`), `--cwd <dir>`
 (root ของโปรเจกต์ ใช้ `.env` ในนั้น) และ `--help` ถ้าล้มเหลวจะจบด้วย exit code ที่ไม่ใช่ 0
@@ -306,6 +308,20 @@ npx easy-cms build --target workers
 Worker ไม่มีดิสก์ config จึงต้องมี `upload.storage` (เช่น `s3Storage()` กับ bucket ของ R2) และฐานข้อมูลที่ต่อผ่าน HTTP
 (เช่น Turso) และจะไม่ย่อรูป รัน `easy-cms migrate` กับฐานข้อมูลเดียวกันจากเครื่องของคุณหรือ CI แล้วจึง
 `npx wrangler deploy` ทีละขั้นตอนดู [Deploy บน Cloudflare Workers](./deploy/cloudflare-workers)
+
+### build:admin {#build-admin}
+
+```bash [pm]
+npx easy-cms build:admin
+npx easy-cms build:admin --watch
+npx easy-cms build:admin admin/components/acme-chart.tsx --out admin/dist/chart.js
+```
+
+build component ที่เขียนด้วย Vue (`.vue`), React (`.tsx`, `.jsx`) และ Svelte (`.svelte`) ใน `admin/components/`
+เป็น module เดียวที่ `admin/dist/components.js` สำหรับ `admin.modules` แต่ละไฟล์เป็น custom element ที่ใช้ชื่อไฟล์เป็นชื่อ tag
+ไฟล์ที่ระบุในคำสั่งจะได้ module แยกใน `admin/dist/` (`--out`: ชื่อไฟล์เมื่อมีไฟล์เดียว หรือโฟลเดอร์เมื่อมีหลายไฟล์)
+`--watch` build ใหม่เมื่อไฟล์เปลี่ยน ต้องมี `@easy-cms/admin-build` และ Vite plugin ของ framework ในโปรเจกต์
+ดู [Vue, React หรือ Svelte](./plugins#frameworks)
 
 ### คำสั่งจาก plugin {#commands-from-plugins}
 

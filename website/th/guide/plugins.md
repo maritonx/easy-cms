@@ -310,6 +310,97 @@ customElements.define('ecms-color-picker', ColorPicker)
 
 การเปลี่ยนแปลงจะยังไม่ถูกบันทึกจนกว่าผู้แก้จะกดบันทึก
 
+### Vue, React หรือ Svelte {#frameworks}
+
+เขียน component ด้วย framework ที่ใช้อยู่ แล้วให้ `easy-cms build:admin` แปลงเป็น module ให้ คำสั่งนี้ build ไฟล์ `.vue`,
+`.tsx`/`.jsx` และ `.svelte` ด้วย Vite แล้วห่อแต่ละไฟล์เป็น custom element ที่ใช้ชื่อไฟล์เป็นชื่อ tag
+
+```bash [pm]
+npm install -D @easy-cms/admin-build @vitejs/plugin-vue   # Vue (3.5 ขึ้นไป)
+npm install -D @easy-cms/admin-build @vitejs/plugin-react # React (18 ขึ้นไป)
+npm install -D @easy-cms/admin-build @sveltejs/vite-plugin-svelte svelte # Svelte 5
+```
+
+```text
+admin/components/
+  acme-word-count.vue      → <acme-word-count>
+  acme-color-picker.tsx    → <acme-color-picker>
+```
+
+แต่ละ component ได้ [property ด้านบน](#what-the-element-receives) เป็น props ชื่อเดียวกัน และได้ฟังก์ชันอีก 3 ตัวที่ส่ง event
+คือ `change(value)`, `setField(path, value)` และ `navigate(path)` ใส่ type ด้วย `AdminComponentProps<Value, Options>`
+จาก `@easy-cms/core`:
+
+::: code-group
+
+```vue [Vue]
+<script setup lang="ts">
+import type { AdminComponentProps } from '@easy-cms/core'
+
+const props = defineProps<AdminComponentProps<string, { max: number }>>()
+</script>
+
+<template>
+  <input :value="props.value" :disabled="props.readOnly" @input="props.change(($event.target as HTMLInputElement).value)" />
+  <span>{{ props.value?.length ?? 0 }} / {{ props.options.max }}</span>
+</template>
+```
+
+```tsx [React]
+import type { AdminComponentProps } from '@easy-cms/core'
+
+export default function WordCount({ value, readOnly, options, change }: AdminComponentProps<string, { max: number }>) {
+  return (
+    <>
+      <input value={value ?? ''} disabled={readOnly} onChange={(e) => change(e.target.value)} />
+      <span>{value?.length ?? 0} / {options.max}</span>
+    </>
+  )
+}
+```
+
+```svelte [Svelte]
+<script lang="ts">
+  import type { AdminComponentProps } from '@easy-cms/core'
+
+  let { value, readOnly, options, change }: AdminComponentProps<string, { max: number }> = $props()
+</script>
+
+<input value={value ?? ''} disabled={readOnly} oninput={(e) => change(e.currentTarget.value)} />
+<span>{value?.length ?? 0} / {options.max}</span>
+```
+
+:::
+
+จากนั้น build ใส่ module ใน config และ build ก่อนแอปทุกครั้งที่ deploy:
+
+```bash [pm]
+npx easy-cms build:admin            # → admin/dist/components.js
+npx easy-cms build:admin --watch    # ระหว่างพัฒนา: reload หน้า admin เพื่อดูผล
+```
+
+```ts
+admin: { modules: ['./admin/dist/components.js'] }
+```
+
+```json
+"build": "easy-cms build:admin && next build"
+```
+
+- ทุก component ใน `admin/components/` รวมอยู่ใน module เดียว framework จึงถูกรวมแค่ครั้งเดียว module ยังไม่มี import
+  แต่ละ module จึงมี framework ของตัวเองอยู่ข้างใน (React เพิ่มประมาณ 45 KB หลัง gzip) ถ้าระบุชื่อไฟล์ จะได้ module แยกต่อไฟล์:
+  `easy-cms build:admin admin/components/acme-word-count.vue`
+- สไตล์ของ component (`<style>`, ไฟล์ `.css` ที่ import) ถูกใส่ใน shadow root ของ element และใช้
+  [CSS variables ของ admin](#styling) ได้
+- Vue ได้เฉพาะ props ที่ประกาศไว้ (`defineProps`) การอ่าน type จาก `@easy-cms/core` ต้องมี TypeScript ในโปรเจกต์
+- ตอน build ไม่ตรวจ type ให้รัน `vue-tsc`, `tsc` หรือ `svelte-check` เหมือนโค้ดส่วนอื่น
+- Nuxt: `tsconfig.json` ของโปรเจกต์ชี้ไปที่ไฟล์ใน `.nuxt/` จึงต้องรัน `nuxi prepare` ก่อน:
+  `"build": "nuxi prepare && easy-cms build:admin && nuxi build"`
+- ใส่ `admin/dist/` ใน `.gitignore` ส่วน plugin ให้ build module ก่อน publish แล้วส่งไปในแพ็กเกจ
+
+ตัวอย่างมีอย่างละตัว: Vue ใน `examples/nuxt-blog`, React ใน `examples/next-blog` และ Svelte ใน `examples/standalone`
+(`admin/components/example-excerpt-tools`)
+
 ### การจัดสไตล์ {#styling}
 
 สไตล์ใน shadow root ไม่รั่วเข้าหรือออก แต่ CSS variable ผ่านเข้าไปได้ ให้ใช้ตัวแปรของหน้า admin

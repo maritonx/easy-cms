@@ -38,8 +38,12 @@ function files(cms: EasyCMS): (string | undefined)[] {
     result = cms.config.admin.modules.map((specifier) => {
       const file = resolveAdminModule(specifier, cms.cwd)
       if (!file) {
+        // A module `easy-cms build:admin` makes (admin/dist/…): not built yet.
+        const built = /(^|\/)dist\//.test(specifier) && specifier.startsWith('.')
         cms.logger.error(
-          `Admin module "${specifier}" not found: install the package, or check the path (relative to ${cms.cwd}). The admin loads without it.`,
+          built
+            ? `Admin module "${specifier}" not found: build it with \`npx easy-cms build:admin\` before starting (e.g. in the build script), then restart. The admin loads without it.`
+            : `Admin module "${specifier}" not found: install the package, or check the path (relative to ${cms.cwd}). The admin loads without it.`,
         )
       }
       return file

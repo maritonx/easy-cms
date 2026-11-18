@@ -1,0 +1,91 @@
+{
+  "name": "@easy-cms/admin-build",
+  "version": "1.51.0",
+  "description": "Builds Easy CMS admin components written in Vue, React or Svelte into the admin's custom-element modules (easy-cms build:admin)",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "prepack": "node ../../scripts/check-publish.mjs"
+  },
+  "dependencies": {
+    "vite": "^8.3.1"
+  },
+  "peerDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.0.0",
+    "@vitejs/plugin-react": "^6.0.0",
+    "@vitejs/plugin-vue": "^6.0.0",
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0",
+    "svelte": "^5.0.0",
+    "vue": "^3.5.0"
+  },
+  "peerDependenciesMeta": {
+    "@sveltejs/vite-plugin-svelte": {
+      "optional": true
+    },
+    "@vitejs/plugin-react": {
+      "optional": true
+    },
+    "@vitejs/plugin-vue": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    },
+    "svelte": {
+      "optional": true
+    },
+    "vue": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@easy-cms/core": "workspace:^",
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "@vitejs/plugin-react": "^6.3.0",
+    "@vitejs/plugin-vue": "^6.0.9",
+    "happy-dom": "^21.0.4",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "svelte": "^5.57.3",
+    "typescript": "~6.0.3",
+    "vue": "^3.5.43"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maritonx/easy-cms.git",
+    "directory": "packages/admin-build"
+  },
+  "keywords": [
+    "easy-cms",
+    "admin",
+    "web-components",
+    "vite",
+    "vue",
+    "react",
+    "svelte"
+  ]
+}

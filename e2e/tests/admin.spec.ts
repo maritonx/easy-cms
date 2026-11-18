@@ -1185,6 +1185,21 @@ test.describe('logged in as admin', () => {
     })
   })
 
+  test('edits a field through an admin component built from Vue, React or Svelte (#443)', async ({
+    page,
+  }) => {
+    // examples/*/admin/components/example-excerpt-tools: .vue in Nuxt, .tsx in Next.js, .svelte
+    // in the standalone app, built by `easy-cms build:admin`.
+    await page.goto('/admin/collections/posts/new')
+    const tools = page.locator('example-excerpt-tools')
+    await expect(tools).toContainText('0 / 300')
+    await expect(tools.getByRole('button', { name: 'Use the title' })).toBeDisabled()
+    await page.getByRole('textbox', { name: 'Title', exact: true }).fill('Built with a framework')
+    await tools.getByRole('button', { name: 'Use the title' }).click()
+    await expect(page.getByLabel('Excerpt')).toHaveValue('Built with a framework')
+    await expect(tools).toContainText('22 / 300')
+  })
+
   test('shows posts on a calendar, and creates one from a day (#272)', async ({ page }) => {
     // The standalone app's posts: admin.calendar by publishedAt, coloured by category.
     test.skip(test.info().project.name !== 'standalone', 'admin.calendar is set in standalone')

@@ -3,8 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "easy-cms serve --watch",
-    "start": "easy-cms serve",
+    "dev": "easy-cms build:admin && easy-cms serve --watch",
+    "start": "easy-cms build:admin && easy-cms serve",
     "migrate:create": "easy-cms migrate:create",
     "migrate": "easy-cms migrate"
   },
@@ -22,5 +22,10 @@
     "@easy-cms/plugin-seo": "workspace:^",
     "easy-cms": "workspace:^",
     "graphql": "^17.0.2"
+  },
+  "devDependencies": {
+    "@easy-cms/admin-build": "workspace:^",
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "svelte": "^5.57.3"
   }
 }
