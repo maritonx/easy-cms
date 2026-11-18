@@ -35,6 +35,7 @@
     "@easy-cms/admin": "workspace:^"
   },
   "devDependencies": {
+    "@easy-cms/admin-build": "workspace:^",
     "@easy-cms/db-sqlite": "workspace:^"
   },
   "publishConfig": {

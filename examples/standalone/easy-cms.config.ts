@@ -19,7 +19,9 @@ export default defineConfig({
   db: sqlite({ url: process.env.DATABASE_URL ?? 'file:./cms.db' }),
   // The admin menu: posts first; users are listed under Settings. `modules`: the admin's own
   // components, here the reading time beside a post.
-  admin: { locale: 'th', modules: ['./admin/reading-time.js'] },
+  // reading-time.js is written by hand; admin/dist/components.js is built from the Svelte
+  // components in admin/components/ by `easy-cms build:admin`.
+  admin: { locale: 'th', modules: ['./admin/reading-time.js', './admin/dist/components.js'] },
   // API keys for scripts and AI assistants, managed under Settings → API keys.
   apiKeys: true,
   // Posts and the site name in Thai and English; the slug and other fields are shared.
@@ -121,6 +123,8 @@ export default defineConfig({
           label: { en: 'Excerpt', th: 'คำโปรย' },
           maxLength: 300,
           localized: true,
+          // Its length and "Use the title": admin/components/example-excerpt-tools.svelte.
+          admin: { after: [{ tag: 'example-excerpt-tools', props: { max: 300 } }] },
         },
         {
           name: 'cover',

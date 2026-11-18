@@ -279,6 +279,19 @@ export default seed
     })
   })
 
+  it('builds admin components with @easy-cms/admin-build (#443)', async () => {
+    expect((await cli('--help')).out).toContain('build:admin [files…]')
+    const dir = project()
+    expect(await cli('build:admin', '--cwd', dir)).toMatchObject({
+      code: 1,
+      err: expect.stringContaining('No components in admin/components/'),
+    })
+    expect(await cli('build:admin', 'admin/Color.vue', '--cwd', dir)).toMatchObject({
+      code: 1,
+      err: expect.stringContaining('not found'),
+    })
+  })
+
   it('loads .env from the project root', async () => {
     const dir = project()
     const config = join(dir, 'easy-cms.config.ts')

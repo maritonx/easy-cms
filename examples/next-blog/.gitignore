@@ -5,3 +5,5 @@ next-env.d.ts
 uploads/
 tsconfig.tsbuildinfo
 backups/
+# Built by `easy-cms build:admin`.
+admin/dist/

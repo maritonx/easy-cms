@@ -61,6 +61,8 @@ npx easy-cms <command> [--config <file>] [--cwd <dir>]
 | [`secrets:rotate`](#secrets-rotate) | After a new secret: encrypt the Integrations' connections with it. |
 | [`reset-sign-in`](#reset-sign-in) | Sign-in back to the config's providers, for admins locked out. |
 | [`serve`](#serve) | Run the CMS as its own server. |
+| [`build --target workers`](#build) | Write what Wrangler needs to deploy to Cloudflare Workers. |
+| [`build:admin [files…]`](#build-admin) | Build admin components written in Vue, React or Svelte. |
 
 Options for every command: `--config <file>` (default `easy-cms.config.ts`), `--cwd <dir>`
 (the project root; its `.env` is loaded) and `--help`. Commands exit non-zero on failure, so
@@ -329,6 +331,21 @@ A Worker has no disk: the config needs `upload.storage` (e.g. `s3Storage()` with
 a database over HTTP (e.g. Turso). Images aren't resized there. Run `easy-cms migrate` against the
 same database from your machine or CI, then `npx wrangler deploy`. Step by step:
 [Deploy on Cloudflare Workers](./deploy/cloudflare-workers).
+
+### build:admin
+
+```bash [pm]
+npx easy-cms build:admin
+npx easy-cms build:admin --watch
+npx easy-cms build:admin admin/components/acme-chart.tsx --out admin/dist/chart.js
+```
+
+Builds the Vue (`.vue`), React (`.tsx`, `.jsx`) and Svelte (`.svelte`) components in
+`admin/components/` into one module, `admin/dist/components.js`, for `admin.modules`. Each becomes
+a custom element named after its file. Files named on the command line get a module each in
+`admin/dist/` (`--out`: the file for one, the folder for several). `--watch` builds again when a
+file changes. Needs `@easy-cms/admin-build` and the framework's Vite plugin in the project. See
+[Vue, React or Svelte](./plugins#frameworks).
 
 ### Commands from plugins
 

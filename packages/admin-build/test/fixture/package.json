@@ -1,0 +1,5 @@
+{
+  "name": "admin-build-fixture",
+  "private": true,
+  "type": "module"
+}

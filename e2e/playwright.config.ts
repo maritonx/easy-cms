@@ -54,7 +54,7 @@ const apps = [
     // A production build, like Next.js: `nuxi dev` compiles on demand and reloaded pages mid-test,
     // so tests failed at random (#128). Production also verifies the migrations.
     command:
-      'pnpm --dir ../examples/nuxt-blog exec nuxi build && pnpm --dir ../examples/nuxt-blog exec easy-cms migrate && pnpm --dir ../examples/nuxt-blog exec node .output/server/index.mjs',
+      'pnpm --dir ../examples/nuxt-blog exec easy-cms build:admin && pnpm --dir ../examples/nuxt-blog exec nuxi build && pnpm --dir ../examples/nuxt-blog exec easy-cms migrate && pnpm --dir ../examples/nuxt-blog exec node .output/server/index.mjs',
   },
   {
     name: 'next',
@@ -62,12 +62,13 @@ const apps = [
     // A production build: `next dev` compiles routes on demand and reloads pages mid-test, which
     // aborted navigations in CI. Production also verifies the migrations, so apply them first.
     command:
-      'pnpm --dir ../examples/next-blog exec next build && pnpm --dir ../examples/next-blog exec easy-cms migrate && pnpm --dir ../examples/next-blog exec next start --port 3101',
+      'pnpm --dir ../examples/next-blog exec easy-cms build:admin && pnpm --dir ../examples/next-blog exec next build && pnpm --dir ../examples/next-blog exec easy-cms migrate && pnpm --dir ../examples/next-blog exec next start --port 3101',
   },
   {
     name: 'standalone',
     port: 3102,
-    command: 'pnpm --dir ../examples/standalone exec easy-cms serve --port 3102',
+    command:
+      'pnpm --dir ../examples/standalone exec easy-cms build:admin && pnpm --dir ../examples/standalone exec easy-cms serve --port 3102',
   },
 ] as const
 

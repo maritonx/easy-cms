@@ -245,6 +245,7 @@ from [`@easy-cms/fields`](packages/fields): see
 | [`@easy-cms/richtext`](packages/richtext) | Rich text to safe HTML or Markdown |
 | [`@easy-cms/fields`](packages/fields) | More field types: `color`, with a picker and swatches |
 | [`@easy-cms/admin`](packages/admin) | The admin UI (installed by the adapters) |
+| [`@easy-cms/admin-build`](packages/admin-build) | Builds admin components written in Vue, React or Svelte (`easy-cms build:admin`) |
 | [`@easy-cms/drizzle`](packages/drizzle) | Shared database layer (installed by the database adapters) |
 
 </details>

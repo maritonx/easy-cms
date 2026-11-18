@@ -2,3 +2,5 @@ cms.db*
 uploads/
 .env
 backups/
+# Built by `easy-cms build:admin`.
+admin/dist/
