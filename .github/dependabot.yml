@@ -38,6 +38,15 @@ updates:
       # maintained (`legacy`); patches come.
       - dependency-name: '@fullcalendar/*'
         update-types: [version-update:semver-major]
+      # Database drivers: the CI that runs on a pull request doesn't measure speed under load, and
+      # postgres 4 made 200 editors' saves twice as slow, found only by the nightly Perf run. A new
+      # major goes in by hand, with Perf run on its branch (workflow_dispatch) before merging.
+      - dependency-name: postgres
+        update-types: [version-update:semver-major]
+      - dependency-name: '@libsql/client'
+        update-types: [version-update:semver-major]
+      - dependency-name: '@electric-sql/pglite'
+        update-types: [version-update:semver-major]
     groups:
       minor-and-patch:
         update-types: [minor, patch]

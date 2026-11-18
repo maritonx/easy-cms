@@ -164,4 +164,4 @@ jobs:
         if: always()
         run: docker logs pg 2>&1 | grep -E 'ERROR|FATAL|PANIC' | sed -E 's/^[0-9-]+ [0-9:.]+ UTC \[[0-9]+\] //' | sort | uniq -c | sort -rn | head -20 || true
       - if: failure()
-        run: tail -50 serve-*.log || true
+        run: tail -n 50 serve-*.log || true
