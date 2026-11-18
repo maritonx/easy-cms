@@ -1,7 +1,0 @@
----
-"@easy-cms/admin-build": minor
-"@easy-cms/core": minor
-"easy-cms": minor
----
-
-`easy-cms build:admin` builds admin components written in Vue (`.vue`), React (`.tsx`, `.jsx`) or Svelte (`.svelte`) into the admin's module (#443): one ES module without imports, in `admin/dist/components.js` for `admin.modules`, with a custom element per component named after its file and the component's styles in its shadow root. Components get the admin's properties as props, plus `change`, `setField` and `navigate` (typed `AdminComponentProps` from `@easy-cms/core`). The new `@easy-cms/admin-build` package holds the build (Vite); install it with the framework's Vite plugin. `--watch` builds again as files change. A missing `admin/dist/…` module now says to run `easy-cms build:admin`. The Nuxt, Next.js and standalone examples each have one (Vue, React, Svelte).
