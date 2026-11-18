@@ -394,6 +394,8 @@ admin: { modules: ['./admin/dist/components.js'] }
   [CSS variables ของ admin](#styling) ได้
 - Vue ได้เฉพาะ props ที่ประกาศไว้ (`defineProps`) การอ่าน type จาก `@easy-cms/core` ต้องมี TypeScript ในโปรเจกต์
 - ตอน build ไม่ตรวจ type ให้รัน `vue-tsc`, `tsc` หรือ `svelte-check` เหมือนโค้ดส่วนอื่น
+- Nuxt: `tsconfig.json` ของโปรเจกต์ชี้ไปที่ไฟล์ใน `.nuxt/` จึงต้องรัน `nuxi prepare` ก่อน:
+  `"build": "nuxi prepare && easy-cms build:admin && nuxi build"`
 - ใส่ `admin/dist/` ใน `.gitignore` ส่วน plugin ให้ build module ก่อน publish แล้วส่งไปในแพ็กเกจ
 
 ตัวอย่างมีอย่างละตัว: Vue ใน `examples/nuxt-blog`, React ใน `examples/next-blog` และ Svelte ใน `examples/standalone`

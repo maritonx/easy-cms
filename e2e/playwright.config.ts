@@ -54,7 +54,7 @@ const apps = [
     // A production build, like Next.js: `nuxi dev` compiles on demand and reloaded pages mid-test,
     // so tests failed at random (#128). Production also verifies the migrations.
     command:
-      'pnpm --dir ../examples/nuxt-blog exec easy-cms build:admin && pnpm --dir ../examples/nuxt-blog exec nuxi build && pnpm --dir ../examples/nuxt-blog exec easy-cms migrate && pnpm --dir ../examples/nuxt-blog exec node .output/server/index.mjs',
+      'pnpm --dir ../examples/nuxt-blog exec nuxi prepare && pnpm --dir ../examples/nuxt-blog exec easy-cms build:admin && pnpm --dir ../examples/nuxt-blog exec nuxi build && pnpm --dir ../examples/nuxt-blog exec easy-cms migrate && pnpm --dir ../examples/nuxt-blog exec node .output/server/index.mjs',
   },
   {
     name: 'next',

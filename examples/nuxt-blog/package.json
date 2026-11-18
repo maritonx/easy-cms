@@ -3,8 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "easy-cms build:admin && nuxi dev",
-    "build": "easy-cms build:admin && nuxi build",
+    "dev": "nuxi prepare && easy-cms build:admin && nuxi dev",
+    "build": "nuxi prepare && easy-cms build:admin && nuxi build",
     "preview": "node .output/server/index.mjs",
     "seed": "node --env-file-if-exists=.env scripts/seed.ts",
     "typecheck": "nuxi typecheck",

@@ -79,7 +79,7 @@ export async function buildAdmin(options: BuildAdminOptions): Promise<BuiltModul
     for (const framework of frameworks) checkVersion(require, framework)
     const plugins = await Promise.all(frameworks.map((f) => frameworkPlugin(require, f)))
     const entry = await writeEntry(cwd, group.out, group.components)
-    await build({
+    await viteBuild(build, {
       root: cwd,
       configFile: false,
       logLevel: 'warn',
@@ -102,6 +102,26 @@ export async function buildAdmin(options: BuildAdminOptions): Promise<BuiltModul
     )
   }
   return built
+}
+
+/**
+ * Vite's build, with what to do when the TypeScript transform can't load the project's
+ * tsconfig.json: Nuxt's points to `.nuxt/` files that `nuxi prepare` writes.
+ */
+async function viteBuild(
+  build: typeof import('vite').build,
+  config: Parameters<typeof import('vite').build>[0],
+): Promise<void> {
+  try {
+    await build(config)
+  } catch (error) {
+    const message = (error as Error).message ?? ''
+    const missing = /Failed to load tsconfig '([^']+)'/.exec(message)?.[1]
+    if (!missing) throw error
+    throw new AdminBuildError(
+      `TypeScript components need the project's tsconfig.json, which names ${missing}, not there yet.${missing.includes('.nuxt') ? ' Run `nuxi prepare` first (e.g. "build": "nuxi prepare && easy-cms build:admin && nuxi build").' : ''}`,
+    )
+  }
 }
 
 function plan(cwd: string, options: BuildAdminOptions): { out: string; components: Component[] }[] {

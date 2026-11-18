@@ -411,6 +411,8 @@ admin: { modules: ['./admin/dist/components.js'] }
   needs TypeScript in the project.
 - The build doesn't check types: run `vue-tsc`, `tsc` or `svelte-check` as you do for the rest of
   your code.
+- Nuxt: the project's `tsconfig.json` points to files in `.nuxt/`, so run `nuxi prepare` first:
+  `"build": "nuxi prepare && easy-cms build:admin && nuxi build"`.
 - Add `admin/dist/` to `.gitignore`. A plugin builds its module before publishing and ships it in
   its package.
 
