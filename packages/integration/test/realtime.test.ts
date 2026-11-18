@@ -476,19 +476,23 @@ describe('realtime (ADR-0070)', () => {
     const visitor = ctx.cms.subscribe('posts', { overrideAccess: false, user: null })
     await all.ready
     await visitor.ready
-    const post = await ctx.cms.create('posts', { title: 'Local', notes: 'n' })
-    await ctx.cms.update('posts', post.id, { status: 'published' })
-    await ctx.cms.delete('posts', post.id)
     const take = async <T>(it: AsyncIterator<T>, n: number) => {
       const out: T[] = []
       while (out.length < n) out.push((await it.next()).value as T)
       return out
     }
-    const events = (await take(all, 3)) as RealtimeEvent[]
+    const post = await ctx.cms.create('posts', { title: 'Local', notes: 'n' })
+    await ctx.cms.update('posts', post.id, { status: 'published' })
+    // An event carries the document as it is when the subscriber gets it: deleted before then, a
+    // visitor's `publish` would have nothing to show. So the delete waits for both to have it.
+    const events = (await take(all, 2)) as RealtimeEvent[]
+    // A visitor's never saw the draft: publish, then delete.
+    const seen = (await take(visitor, 1)) as RealtimeEvent[]
+    await ctx.cms.delete('posts', post.id)
+    events.push(...((await take(all, 1)) as RealtimeEvent[]))
+    seen.push(...((await take(visitor, 1)) as RealtimeEvent[]))
     expect(events.map((e) => e.event)).toEqual(['create', 'publish', 'delete'])
     expect(events[0]).toMatchObject({ doc: { title: 'Local', notes: 'n', status: 'draft' } })
-    // A visitor's never saw the draft: publish, then delete.
-    const seen = (await take(visitor, 2)) as RealtimeEvent[]
     expect(seen.map((e) => e.event)).toEqual(['publish', 'delete'])
     expect((seen[0] as { doc: object }).doc).not.toHaveProperty('notes')
     all.close()
