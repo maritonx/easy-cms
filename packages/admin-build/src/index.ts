@@ -25,8 +25,9 @@ const NEEDS: Record<Framework, { package: string; min: [number, number]; plugin:
 }
 
 /** Where components are looked for, and the module they make, without entries. */
-export const DEFAULT_DIR = join('admin', 'components')
-export const DEFAULT_OUT = join('admin', 'dist', 'components.js')
+// With `/` on Windows too: they are shown in messages, and path functions take them.
+export const DEFAULT_DIR = 'admin/components'
+export const DEFAULT_OUT = 'admin/dist/components.js'
 
 export class AdminBuildError extends Error {
   override name = 'AdminBuildError'
@@ -135,7 +136,7 @@ function plan(cwd: string, options: BuildAdminOptions): { out: string; component
       : []
     if (files.length === 0)
       throw new AdminBuildError(
-        `No components in ${DEFAULT_DIR}/: add one, e.g. ${join(DEFAULT_DIR, 'acme-color-picker.vue')} (the file name is the tag), or name the files to build.`,
+        `No components in ${DEFAULT_DIR}/: add one, e.g. ${DEFAULT_DIR}/acme-color-picker.vue (the file name is the tag), or name the files to build.`,
       )
     return [{ out: resolve(cwd, options.out ?? DEFAULT_OUT), components: files.map(component) }]
   }
