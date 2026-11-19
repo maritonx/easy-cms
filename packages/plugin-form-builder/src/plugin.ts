@@ -21,7 +21,14 @@ import {
   type PublicField,
   type PublicForm,
 } from './shared.js'
-import { checkToken, formToken, honeypotName, rateKeys, verifyTurnstile } from './spam.js'
+import {
+  checkToken,
+  formToken,
+  honeypotName,
+  rateKeys,
+  turnstileKeyProblem,
+  verifyTurnstile,
+} from './spam.js'
 import { validateSubmission } from './validate.js'
 
 type Row = Record<string, unknown>
@@ -119,6 +126,8 @@ export function formBuilderPlugin<
     fields: 'fieldKinds',
     minSubmitTime: 'minSubmitSeconds (in seconds)',
   })
+  const keyProblem = options.turnstile && turnstileKeyProblem(options.turnstile)
+  if (keyProblem) throw new Error(`formBuilderPlugin: turnstile.${keyProblem}`)
   return definePlugin<FormBuilderPluginTypes<F, S>>((config: Config): Config => {
     const forms = options.slugs?.forms ?? 'forms'
     const submissions = options.slugs?.submissions ?? 'form-submissions'
@@ -425,7 +434,9 @@ export function formBuilderPlugin<
         if (token !== 'ok') return fail(400, [{ message: reload }])
         if (
           options.turnstile &&
-          !(await verifyTurnstile(options.turnstile.secretKey, body.turnstile, ip))
+          !(await verifyTurnstile(options.turnstile.secretKey, body.turnstile, ip, (m) =>
+            cms.logger.warn(`formBuilderPlugin: ${m}`),
+          ))
         )
           return fail(400, [
             {

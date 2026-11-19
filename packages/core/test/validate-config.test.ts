@@ -31,6 +31,25 @@ describe('validateConfig', () => {
     }
   })
 
+  it('refuses Turnstile keys for member sign-up that cannot work', () => {
+    const issues = (turnstile: { siteKey: string; secretKey: string }) =>
+      validateConfig(
+        baseConfig({
+          auth: {
+            roles: ['admin', 'customer'],
+            members: { roles: ['customer'], signUp: { role: 'customer', turnstile } },
+          },
+        }),
+      ).map((i) => `${i.path}: ${i.message}`)
+    expect(issues({ siteKey: 'site', secretKey: 'secret' })).toEqual([])
+    expect(issues({ siteKey: 'same', secretKey: 'same' })).toEqual([
+      expect.stringContaining('auth.members.signUp.turnstile: secretKey is the site key'),
+    ])
+    expect(issues({ siteKey: 'site', secretKey: 'secret\n' })).toEqual([
+      'auth.members.signUp.turnstile: secretKey has spaces around it',
+    ])
+  })
+
   it('checks job times and the time zone', () => {
     const run = () => {}
     const issues = (config: Parameters<typeof baseConfig>[0]) =>

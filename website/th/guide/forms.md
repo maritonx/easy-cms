@@ -175,6 +175,10 @@ formBuilderPlugin({
 จากนั้น `<easy-form>` จะโหลดสคริปต์ของ Cloudflare ถ้าเว็บมี Content Security Policy ให้เพิ่ม
 `https://challenges.cloudflare.com` ใน `script-src` และ `frame-src`
 
+key ทั้งสองมาจาก widget ใน Cloudflare dashboard (Turnstile → widget → Settings) **Secret Key** คือตัวที่ยาวกว่า
+ไม่ใช่ site key ซ้ำ ถ้า Cloudflare ไม่รับ secret key ทุกฟอร์มจะล้มด้วย "Verification failed" และ server จะ log สาเหตุไว้หนึ่งครั้ง
+ปุ่มส่งจะกดได้เมื่อ Turnstile ตรวจเสร็จแล้ว
+
 ## ความเป็นส่วนตัว {#privacy}
 
 ข้อมูลที่ส่งมาเก็บค่าที่กรอก หน้า และภาษา ไม่เก็บ IP ลบข้อมูลเก่าอัตโนมัติได้ด้วย `retentionDays` เช่น `retentionDays: 365`

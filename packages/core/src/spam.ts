@@ -56,23 +56,56 @@ export function honeypotName(names: readonly string[]): string {
   return ['website', 'homepage', 'url_address'].find((n) => !names.includes(n)) ?? 'hp_field'
 }
 
-/** Checks a Cloudflare Turnstile response with Cloudflare. */
+/**
+ * Why Turnstile keys can't work, if they can't: Cloudflare refuses every check, so each form or
+ * sign-up fails with "verification failed" and nothing says why.
+ */
+export function turnstileKeyProblem(keys: {
+  readonly siteKey: string
+  readonly secretKey: string
+}): string | undefined {
+  if (keys.secretKey !== keys.secretKey.trim()) return 'secretKey has spaces around it'
+  if (keys.secretKey === keys.siteKey)
+    return 'secretKey is the site key: copy the Secret Key from the Turnstile widget in the Cloudflare dashboard'
+  return undefined
+}
+
+/** Problems already logged: one line each, not one per visitor. */
+const warned = new Set<string>()
+
+/**
+ * Checks a Cloudflare Turnstile response with Cloudflare. A wrong secret or Cloudflare out of reach
+ * is the site's problem, not the visitor's: `warn` hears of it once.
+ */
 export async function verifyTurnstile(
   secretKey: string,
   response: unknown,
   ip: string | undefined,
+  warn?: (message: string) => void,
   fetcher: typeof fetch = fetch,
 ): Promise<boolean> {
   if (typeof response !== 'string' || !response) return false
   const body = new URLSearchParams({ secret: secretKey, response, ...(ip ? { remoteip: ip } : {}) })
+  const once = (message: string) => {
+    if (!warn || warned.has(message)) return
+    warned.add(message)
+    warn(message)
+  }
   try {
     const result = await fetcher('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
       method: 'POST',
       body,
       signal: AbortSignal.timeout(10_000),
     })
-    return ((await result.json()) as { success?: boolean }).success === true
-  } catch {
+    const json = (await result.json()) as { success?: boolean; 'error-codes'?: string[] }
+    const codes = json['error-codes'] ?? []
+    if (codes.includes('invalid-input-secret') || codes.includes('missing-input-secret'))
+      once(
+        'Cloudflare Turnstile refuses the secret key, so every check fails: copy the Secret Key from the Turnstile widget in the Cloudflare dashboard',
+      )
+    return json.success === true
+  } catch (error) {
+    once(`Could not reach Cloudflare Turnstile, so checks fail: ${(error as Error).message}`)
     return false
   }
 }
