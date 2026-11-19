@@ -2,7 +2,7 @@
 
 The database layer shared by the Easy CMS database adapters: tables built from the config, `where`
 to SQL, documents with their child tables, migrations and copying between databases. Part of
-[Easy CMS](https://github.com/maritonx/easy-cms), the embedded, code-first headless CMS for Nuxt
+[Easy CMS](https://github.com/maritonx/easy-cms), the code-first CMS and app backend for Nuxt
 and Next.js.
 
 **Internal:** [`@easy-cms/db-sqlite`](https://www.npmjs.com/package/@easy-cms/db-sqlite) and

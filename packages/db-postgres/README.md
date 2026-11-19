@@ -1,6 +1,6 @@
 # @easy-cms/db-postgres
 
-PostgreSQL database adapter for Easy CMS: a Postgres server through postgres.js, or PGlite (Postgres in WebAssembly) for local development. Part of [Easy CMS](https://github.com/maritonx/easy-cms), the embedded, code-first headless CMS for Nuxt and Next.js.
+PostgreSQL database adapter for Easy CMS: a Postgres server through postgres.js, or PGlite (Postgres in WebAssembly) for local development. Part of [Easy CMS](https://github.com/maritonx/easy-cms), the code-first CMS and app backend for Nuxt and Next.js.
 
 ## Install
 

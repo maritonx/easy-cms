@@ -1,6 +1,6 @@
 # @easy-cms/richtext
 
-Renders Easy CMS rich text (Tiptap JSON) to safe HTML, plain text or Markdown. Part of [Easy CMS](https://github.com/maritonx/easy-cms), the embedded, code-first headless CMS for Nuxt and Next.js.
+Renders Easy CMS rich text (Tiptap JSON) to safe HTML, plain text or Markdown. Part of [Easy CMS](https://github.com/maritonx/easy-cms), the code-first CMS and app backend for Nuxt and Next.js.
 
 ## Install
 

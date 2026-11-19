@@ -1,6 +1,6 @@
 # @easy-cms/plugin-nested-docs
 
-Nested pages for Easy CMS: a parent for each page, its full path (`/about/team`) and breadcrumbs kept up to date when a page above it moves, and a tree in the admin. Part of [Easy CMS](https://github.com/maritonx/easy-cms), the embedded, code-first headless CMS for Nuxt and Next.js.
+Nested pages for Easy CMS: a parent for each page, its full path (`/about/team`) and breadcrumbs kept up to date when a page above it moves, and a tree in the admin. Part of [Easy CMS](https://github.com/maritonx/easy-cms), the code-first CMS and app backend for Nuxt and Next.js.
 
 ## Install
 

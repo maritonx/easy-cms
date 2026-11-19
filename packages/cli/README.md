@@ -1,8 +1,8 @@
 # easy-cms
 
 The Easy CMS command line: migrations, generated types, users, backups and the standalone
-server. Part of [Easy CMS](https://github.com/maritonx/easy-cms), the embedded, code-first
-headless CMS for Nuxt and Next.js.
+server. Part of [Easy CMS](https://github.com/maritonx/easy-cms), the code-first CMS and app
+backend for Nuxt and Next.js.
 
 ## Install
 

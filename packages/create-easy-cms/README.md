@@ -1,8 +1,8 @@
 # create-easy-cms
 
 Adds Easy CMS to a Nuxt or Next.js project, or creates a standalone Easy CMS server in a new
-directory. Part of [Easy CMS](https://github.com/maritonx/easy-cms), the embedded, code-first
-headless CMS for Nuxt and Next.js.
+directory. Part of [Easy CMS](https://github.com/maritonx/easy-cms), the code-first CMS and app
+backend for Nuxt and Next.js.
 
 ## Usage
 

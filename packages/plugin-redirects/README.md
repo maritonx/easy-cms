@@ -1,6 +1,6 @@
 # @easy-cms/plugin-redirects
 
-Redirects for Easy CMS: a Redirects list under Settings in the admin, and automatic redirects when a published page's address changes. Part of [Easy CMS](https://github.com/maritonx/easy-cms), the embedded, code-first headless CMS for Nuxt and Next.js.
+Redirects for Easy CMS: a Redirects list under Settings in the admin, and automatic redirects when a published page's address changes. Part of [Easy CMS](https://github.com/maritonx/easy-cms), the code-first CMS and app backend for Nuxt and Next.js.
 
 ## Install
 

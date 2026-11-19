@@ -1,6 +1,6 @@
 # @easy-cms/storage-s3
 
-Upload storage for Easy CMS on AWS S3, Cloudflare R2, MinIO or any S3-compatible service, for hosts without a persistent disk (Vercel, Netlify, containers). Part of [Easy CMS](https://github.com/maritonx/easy-cms), the embedded, code-first headless CMS for Nuxt and Next.js.
+Upload storage for Easy CMS on AWS S3, Cloudflare R2, MinIO or any S3-compatible service, for hosts without a persistent disk (Vercel, Netlify, containers). Part of [Easy CMS](https://github.com/maritonx/easy-cms), the code-first CMS and app backend for Nuxt and Next.js.
 
 ## Install
 

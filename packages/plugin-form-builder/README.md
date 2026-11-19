@@ -1,6 +1,6 @@
 # @easy-cms/plugin-form-builder
 
-Forms for Easy CMS: editors build them in the admin, submissions are validated, stored and emailed, bots are kept out (honeypot, timing, rate limits, Cloudflare Turnstile), and `<easy-form>` puts a form on any page. Part of [Easy CMS](https://github.com/maritonx/easy-cms), the embedded, code-first headless CMS for Nuxt and Next.js.
+Forms for Easy CMS: editors build them in the admin, submissions are validated, stored and emailed, bots are kept out (honeypot, timing, rate limits, Cloudflare Turnstile), and `<easy-form>` puts a form on any page. Part of [Easy CMS](https://github.com/maritonx/easy-cms), the code-first CMS and app backend for Nuxt and Next.js.
 
 ## Install
 

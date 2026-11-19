@@ -1,6 +1,6 @@
 # @easy-cms/storage-vercel-blob
 
-Vercel Blob storage for Easy CMS uploads, for sites on Vercel (whose disk doesn't keep files). Part of [Easy CMS](https://github.com/maritonx/easy-cms), the embedded, code-first headless CMS for Nuxt and Next.js.
+Vercel Blob storage for Easy CMS uploads, for sites on Vercel (whose disk doesn't keep files). Part of [Easy CMS](https://github.com/maritonx/easy-cms), the code-first CMS and app backend for Nuxt and Next.js.
 
 ## Install
 
