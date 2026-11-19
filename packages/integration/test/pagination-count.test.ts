@@ -5,7 +5,7 @@ import {
   defineConfig,
   silentLogger,
 } from '@easy-cms/core'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { db, open, SECRET, tempProject } from './helpers.js'
 
 const config = defineConfig({
@@ -67,7 +67,8 @@ describe('pagination without counting (#231)', () => {
 
   it('reuses a total for countCacheSeconds, writes included, with current documents', async () => {
     const cwd = tempProject()
-    const cms = await seeded(4, { countCacheSeconds: 0.3 }, cwd)
+    // Long enough that a slow runner can't outlast it; the test moves the clock instead.
+    const cms = await seeded(4, { countCacheSeconds: 60 }, cwd)
     // Another instance on the same database, as on a second server.
     const other = await createEasyCMS(config, {
       cwd,
@@ -84,8 +85,13 @@ describe('pagination without counting (#231)', () => {
     expect(page.docs.map((d) => d.n)).toEqual([100, 99])
     // Counting directly is never cached.
     expect(await cms.count('notes')).toBe(6)
-    await new Promise((r) => setTimeout(r, 400))
-    expect((await cms.find('notes', { limit: 2 })).totalDocs).toBe(6)
+    const later = Date.now() + 61_000
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(later)
+    try {
+      expect((await cms.find('notes', { limit: 2 })).totalDocs).toBe(6)
+    } finally {
+      clock.mockRestore()
+    }
     await other.destroy()
     await cms.destroy()
   })
