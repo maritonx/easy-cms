@@ -4,10 +4,13 @@
 
 # Easy CMS
 
-**The embedded, code-first headless CMS for Nuxt and Next.js.**
+**The code-first CMS and app backend for Nuxt and Next.js.**
 
-A headless CMS that lives inside your Nuxt or Next.js app: the content model is TypeScript in
-your repository, the admin and APIs come with it, and there is no extra server to run.
+**C**ode-first · **M**any systems, one app · **S**ecure
+
+A CMS that lives inside your Nuxt or Next.js app, and more than a CMS now: content, users, a shop,
+forms and members, modelled in TypeScript in your repository, with the admin and APIs included and
+no extra server to run.
 
 [![npm](https://img.shields.io/npm/v/@easy-cms/core?label=npm&color=2f6f5e)](https://www.npmjs.com/package/@easy-cms/core)
 [![Downloads](https://img.shields.io/npm/dm/@easy-cms/core?label=downloads&color=2f6f5e)](https://www.npmjs.com/package/@easy-cms/core)
@@ -49,21 +52,31 @@ your repository, the admin and APIs come with it, and there is no extra server t
 
 ## Why Easy CMS
 
+Easy CMS still manages content, but **CMS** now says what it is for:
+
+**C — Code-first**
 - **Runs inside your app.** A Nuxt module or Next.js route handlers add the admin at `/admin` and
   the API at `/api/cms`. One deployment, one database (yours, with prefixed tables).
-- **Code-first and typed.** Collections, fields and access rules are TypeScript. The Local API
-  infers document types from the config, so queries are typed without a build step.
-- **Any frontend, too.** Using Vite, React, Vue, a mobile app or a static site? Run the same CMS
-  as a [standalone server](https://easycms.dev/docs/standalone) and use its REST
-  API.
+- **Typed from the config.** Collections, fields and access rules are TypeScript, reviewed in pull
+  requests. The Local API infers document types from the config, so queries are typed without a
+  build step.
+
+**M — Many systems, one app**
 - **An admin editors like**, in English and Thai: drafts, version history, live preview,
   scheduled publishing, a calendar, blocks, translations, a media library and a light and dark
   theme.
+- **More than content.** Site members, jobs, events and webhooks are built in, and official
+  plugins add a shop, forms, SEO, redirects, nested pages, GraphQL, several sites in one CMS
+  (multi-tenant) and AI assistants (MCP). Add only what you need, on the same users, roles and
+  database.
+- **Any frontend, too.** Using Vite, React, Vue, a mobile app or a static site? Run the same CMS
+  as a [standalone server](https://easycms.dev/docs/standalone) and use its REST
+  API.
+
+**S — Secure**
 - **Secure by default:** [self-reviewed](docs/security/asvs-l1.md) against OWASP ASVS level 1.
   Common passwords are refused, cookies are `__Host-` and HSTS is on in production, unreadable
   documents answer 404, and the audit log is signed against tampering.
-- **Official plugins** for SEO, forms, redirects, nested pages, a shop, GraphQL, several sites in
-  one CMS (multi-tenant) and AI assistants (MCP).
 
 > [!NOTE]
 > **Stable since 1.0.** Breaking changes come only in a major release, with an upgrade guide;
@@ -74,9 +87,10 @@ your repository, the admin and APIs come with it, and there is no extra server t
 
 ## When to use it
 
-**A good fit** if you build sites with Nuxt or Next.js, or want a CMS on your own server for
-another frontend; if you want the content model in code, reviewed and deployed like the rest of
-the app; and if one deployment and one database is what you want to run.
+**A good fit** if you build sites or apps with Nuxt or Next.js, or want a CMS and backend on your
+own server for another frontend; if you want the content model, access rules and business logic in
+code, reviewed and deployed like the rest of the app; and if one deployment and one database is
+what you want to run, for content, members, a shop and forms alike.
 
 **Look elsewhere** if you want a hosted service with nothing to deploy, if people who don't write
 code should design the content model, or if you need a large marketplace of third-party plugins:
@@ -171,6 +185,10 @@ cd my-cms && npm run dev       # http://localhost:4000/admin
 - Roles from the admin: tick what each role may do per collection, page and field, or on its own
   documents only, no code
 - An audit log of who changed which fields, sign-ins and admin actions, signed against tampering
+- Actions: buttons that run your code on a document, a list row or a selection (confirm a booking,
+  refund an order), with who may press them and a form
+- Your own pages and dashboard panels in `/admin`, and field components, written as Web
+  Components or in Vue, React or Svelte (`easy-cms build:admin`)
 - English and Thai interface, light and dark themes, works on phones
 
 **APIs**
@@ -181,6 +199,11 @@ cd my-cms && npm run dev       # http://localhost:4000/admin
   Connect provider
 - Site members (customers, subscribers) who sign up on your site, kept out of the admin
 - API keys with per-collection permissions, signed webhooks with retries, email with retries
+- Realtime: pages follow changes as editors save, over Server-Sent Events, with your access rules
+- Events of your own (`cms.emit()`) to webhooks and listeners, an outbox so after-hooks run only
+  when a save commits, `cms.transaction()` and raw SQL (`` cms.sql`…` ``) for what the API can't do
+- Search by relevance, Thai included, with a built-in adapter or your own (Meilisearch,
+  Typesense…)
 
 **Data and operations**
 - SQLite (libSQL) or Postgres (postgres.js or PGlite) through Drizzle
@@ -191,6 +214,10 @@ cd my-cms && npm run dev       # http://localhost:4000/admin
 - Database backups on a schedule or by hand from the admin, downloadable, optionally encrypted
   (AES-256-GCM)
 - `easy-cms` CLI: migrations, backups, copying between databases, scheduled jobs
+- Scheduled jobs with retries, health checks (`/healthz`, `/readyz`), JSON logs, and traces and
+  metrics through OpenTelemetry
+- On Postgres, the CMS in a schema of its own, kept apart from your app's data
+- The standalone server also runs on Cloudflare Workers, with Turso and R2
 - Upgrades tested in CI: databases made by older releases migrate to the current one
 
 **SEO and AI**

@@ -34,7 +34,7 @@ export default defineConfig({
     root: {
       label: 'English',
       lang: 'en',
-      description: 'Embedded, code-first headless CMS for Nuxt and Next.js',
+      description: 'The code-first CMS and app backend for Nuxt and Next.js',
       themeConfig: {
         nav: [
           { text: 'Guide', link: '/guide/getting-started' },
@@ -54,7 +54,7 @@ export default defineConfig({
       label: 'ไทย',
       lang: 'th',
       link: '/th/',
-      description: 'Headless CMS แบบ code-first ที่ฝังอยู่ในแอป Nuxt และ Next.js',
+      description: 'CMS และ app backend แบบ code-first สำหรับ Nuxt และ Next.js',
       themeConfig: {
         nav: [
           { text: 'คู่มือ', link: '/th/guide/getting-started' },
