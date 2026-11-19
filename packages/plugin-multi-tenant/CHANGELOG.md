@@ -1,5 +1,12 @@
 # @easy-cms/plugin-multi-tenant
 
+## 1.52.2
+
+### Patch Changes
+
+- Updated dependencies [dcd3c84]
+  - @easy-cms/core@1.52.2
+
 ## 1.52.1
 
 ### Patch Changes
