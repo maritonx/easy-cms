@@ -13,10 +13,10 @@ const COPY = {
   en: {
     badge: 'On the way to 1.0: the API is set. Upgrading from 0.x',
     badgeLink: 'upgrading#to-1-0',
-    title: 'Your CMS,',
+    title: 'Your CMS and app backend,',
     titleAccent: 'inside your app',
     tagline:
-      'Define content in TypeScript. Get an admin, typed APIs and plugins, with no separate server to run.',
+      'Define content in TypeScript. Get an admin, typed APIs and plugins for a shop, forms, members and more, with no separate server to run.',
     start: 'Get started',
     github: 'GitHub',
     deployLabel: 'Or try it with a database, in one click:',
@@ -234,9 +234,10 @@ const COPY = {
   th: {
     badge: 'กำลังไปสู่ 1.0: API ลงตัวแล้ว ดูวิธีอัปเกรดจาก 0.x',
     badgeLink: 'upgrading#to-1-0',
-    title: 'CMS ที่อยู่',
+    title: 'CMS และ backend ที่อยู่',
     titleAccent: 'ในแอปของคุณ',
-    tagline: 'กำหนดเนื้อหาด้วย TypeScript ได้หน้า admin, API ที่มี type และ plugin โดยไม่ต้องดูแล server แยก',
+    tagline:
+      'กำหนดเนื้อหาด้วย TypeScript ได้หน้า admin, API ที่มี type และ plugin สำหรับร้านค้า ฟอร์ม สมาชิก และอื่นๆ โดยไม่ต้องดูแล server แยก',
     start: 'เริ่มใช้งาน',
     github: 'GitHub',
     deployLabel: 'หรือลองพร้อมฐานข้อมูลในคลิกเดียว:',

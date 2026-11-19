@@ -1,7 +1,7 @@
 ---
 layout: home
 title: Easy CMS
-titleTemplate: Your CMS, inside your app
+titleTemplate: Your CMS and app backend, inside your app
 ---
 
 <HomePage lang="en">

@@ -5,8 +5,9 @@ What Easy CMS is, how its parts fit together, the words the rest of the guide us
 it is (and isn't) a good fit.
 :::
 
-Easy CMS is a headless CMS you install into your Nuxt or Next.js app with npm. It runs inside
-your app's server, so there is no separate CMS service to host, pay for or keep in sync:
+Easy CMS is a code-first CMS and app backend you install into your Nuxt or Next.js app with npm.
+It runs inside your app's server, so there is no separate service to host, pay for or keep in
+sync:
 
 - **You define content in code.** Collections, fields, access rules and hooks go in
   `easy-cms.config.ts`, which you review and version like any other code.
@@ -22,6 +23,17 @@ your app's server, so there is no separate CMS service to host, pay for or keep 
 
 <Screenshot name="edit" alt="Editing a post in the Easy CMS admin" />
 
+## What CMS stands for {#what-cms-stands-for}
+
+Easy CMS still manages content, but it does more than that now, so the letters say what it is
+for:
+
+| Letter | What it means |
+|---|---|
+| **C**ode-first | The content model, access rules and hooks are TypeScript in your repository, and the Local API is typed from them. |
+| **M**any systems, one app | Content, site members, jobs, events and webhooks are built in; [plugins](./plugins) add a shop, forms, SEO, several sites and more. All of them share one set of users, roles and one database. |
+| **S**ecure | [Secure defaults](./security), self-reviewed against OWASP ASVS level 1, and an audit log signed against tampering. |
+
 ## How it fits together
 
 ```
@@ -30,6 +42,7 @@ your app's server, so there is no separate CMS service to host, pay for or keep 
 │  editors ──► /admin                                          │
 │                  @easy-cms/nuxt | @easy-cms/next             │
 │                        @easy-cms/core                        │
+│  plugins: shop · forms · SEO · multi-tenant · GraphQL · MCP  │
 │          SQLite / Postgres (ecms_ tables) · uploads          │
 └──────────────────────────────────────────────────────────────┘
 ```

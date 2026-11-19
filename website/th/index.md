@@ -1,7 +1,7 @@
 ---
 layout: home
 title: Easy CMS
-titleTemplate: CMS ที่อยู่ในแอปของคุณ
+titleTemplate: CMS และ backend ที่อยู่ในแอปของคุณ
 ---
 
 <HomePage lang="th">
