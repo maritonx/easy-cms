@@ -1,6 +1,6 @@
 # @easy-cms/fields
 
-More field types for Easy CMS, starting with `color`: a color picker with suggested colors in the admin, a check that every value is a color, and swatches in lists. Part of [Easy CMS](https://github.com/maritonx/easy-cms), the embedded, code-first headless CMS for Nuxt and Next.js.
+More field types for Easy CMS, starting with `color`: a color picker with suggested colors in the admin, a check that every value is a color, and swatches in lists. Part of [Easy CMS](https://github.com/maritonx/easy-cms), the code-first CMS and app backend for Nuxt and Next.js.
 
 ## Install
 

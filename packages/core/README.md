@@ -2,7 +2,7 @@
 
 The core of Easy CMS: the config, the typed Local API, the REST handler, auth and access control,
 hooks, drafts and versions, localization, uploads, webhooks and plugins. Part of
-[Easy CMS](https://github.com/maritonx/easy-cms), the embedded, code-first headless CMS for Nuxt
+[Easy CMS](https://github.com/maritonx/easy-cms), the code-first CMS and app backend for Nuxt
 and Next.js.
 
 ## Install

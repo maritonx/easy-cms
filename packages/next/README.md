@@ -1,6 +1,6 @@
 # @easy-cms/next
 
-Next.js adapter for Easy CMS (App Router, 15 or later): route handlers for the REST API and the admin UI, and a typed `getEasyCMS()` for Server Components. Part of [Easy CMS](https://github.com/maritonx/easy-cms), the embedded, code-first headless CMS for Nuxt and Next.js.
+Next.js adapter for Easy CMS (App Router, 15 or later): route handlers for the REST API and the admin UI, and a typed `getEasyCMS()` for Server Components. Part of [Easy CMS](https://github.com/maritonx/easy-cms), the code-first CMS and app backend for Nuxt and Next.js.
 
 ## Install
 

@@ -1,6 +1,6 @@
 # @easy-cms/email-smtp
 
-SMTP email for Easy CMS, with nodemailer: Gmail, Amazon SES, Resend, Mailgun, Postmark or your own server. Part of [Easy CMS](https://github.com/maritonx/easy-cms), the embedded, code-first headless CMS for Nuxt and Next.js.
+SMTP email for Easy CMS, with nodemailer: Gmail, Amazon SES, Resend, Mailgun, Postmark or your own server. Part of [Easy CMS](https://github.com/maritonx/easy-cms), the code-first CMS and app backend for Nuxt and Next.js.
 
 ## Install
 

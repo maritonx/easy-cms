@@ -1,6 +1,6 @@
 # @easy-cms/plugin-seo
 
-SEO for Easy CMS: meta fields with length meters, a search preview and Generate buttons in the admin; page metadata, sitemaps, robots.txt, hreflang, JSON-LD and llms.txt for your site. Part of [Easy CMS](https://github.com/maritonx/easy-cms), the embedded, code-first headless CMS for Nuxt and Next.js.
+SEO for Easy CMS: meta fields with length meters, a search preview and Generate buttons in the admin; page metadata, sitemaps, robots.txt, hreflang, JSON-LD and llms.txt for your site. Part of [Easy CMS](https://github.com/maritonx/easy-cms), the code-first CMS and app backend for Nuxt and Next.js.
 
 ## Install
 

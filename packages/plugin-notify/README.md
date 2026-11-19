@@ -1,6 +1,6 @@
 # @easy-cms/plugin-notify
 
-Notifications for Easy CMS admins: a Telegram message when a form is sent, an order comes in, or something fails (scheduled publishing, webhooks and email, backups, integrations). Admins connect the chat on the Integrations page. Part of [Easy CMS](https://github.com/maritonx/easy-cms), the embedded, code-first headless CMS for Nuxt and Next.js.
+Notifications for Easy CMS admins: a Telegram message when a form is sent, an order comes in, or something fails (scheduled publishing, webhooks and email, backups, integrations). Admins connect the chat on the Integrations page. Part of [Easy CMS](https://github.com/maritonx/easy-cms), the code-first CMS and app backend for Nuxt and Next.js.
 
 ## Install
 

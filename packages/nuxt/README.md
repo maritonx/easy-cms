@@ -1,6 +1,6 @@
 # @easy-cms/nuxt
 
-Nuxt 4 module for Easy CMS: the REST API, the admin UI and a typed `useEasyCMS()` inside your Nuxt app. Part of [Easy CMS](https://github.com/maritonx/easy-cms), the embedded, code-first headless CMS for Nuxt and Next.js.
+Nuxt 4 module for Easy CMS: the REST API, the admin UI and a typed `useEasyCMS()` inside your Nuxt app. Part of [Easy CMS](https://github.com/maritonx/easy-cms), the code-first CMS and app backend for Nuxt and Next.js.
 
 ## Install
 

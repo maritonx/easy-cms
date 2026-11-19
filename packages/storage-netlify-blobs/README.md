@@ -1,6 +1,6 @@
 # @easy-cms/storage-netlify-blobs
 
-Netlify Blobs storage for Easy CMS uploads, for sites on Netlify (whose disk doesn't keep files). Part of [Easy CMS](https://github.com/maritonx/easy-cms), the embedded, code-first headless CMS for Nuxt and Next.js.
+Netlify Blobs storage for Easy CMS uploads, for sites on Netlify (whose disk doesn't keep files). Part of [Easy CMS](https://github.com/maritonx/easy-cms), the code-first CMS and app backend for Nuxt and Next.js.
 
 ## Install
 

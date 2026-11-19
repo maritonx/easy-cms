@@ -1,6 +1,6 @@
 # @easy-cms/plugin-ai
 
-AI for Easy CMS: connect Anthropic (Claude), OpenAI (GPT), Google Gemini or an OpenAI-compatible server (Ollama, OpenRouter) on the Integrations page, for the admin's AI features. Keys stay on the server; each user has a daily limit, and usage shows per connection, user and feature. Part of [Easy CMS](https://github.com/maritonx/easy-cms), the embedded, code-first headless CMS for Nuxt and Next.js.
+AI for Easy CMS: connect Anthropic (Claude), OpenAI (GPT), Google Gemini or an OpenAI-compatible server (Ollama, OpenRouter) on the Integrations page, for the admin's AI features. Keys stay on the server; each user has a daily limit, and usage shows per connection, user and feature. Part of [Easy CMS](https://github.com/maritonx/easy-cms), the code-first CMS and app backend for Nuxt and Next.js.
 
 ## Install
 

@@ -1,6 +1,6 @@
 # @easy-cms/db-sqlite
 
-SQLite and libSQL (Turso) database adapter for Easy CMS. Part of [Easy CMS](https://github.com/maritonx/easy-cms), the embedded, code-first headless CMS for Nuxt and Next.js.
+SQLite and libSQL (Turso) database adapter for Easy CMS. Part of [Easy CMS](https://github.com/maritonx/easy-cms), the code-first CMS and app backend for Nuxt and Next.js.
 
 ## Install
 

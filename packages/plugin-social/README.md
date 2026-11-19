@@ -1,6 +1,6 @@
 # @easy-cms/plugin-social
 
-Social posts for Easy CMS (experimental): write a post once and send it to several channels, each with its own text, now or at a time, with retries and a state per channel. Channels are accounts connected on the Integrations page; the first is a webhook to a Make, n8n or Zapier scenario. Part of [Easy CMS](https://github.com/maritonx/easy-cms), the embedded, code-first headless CMS for Nuxt and Next.js.
+Social posts for Easy CMS (experimental): write a post once and send it to several channels, each with its own text, now or at a time, with retries and a state per channel. Channels are accounts connected on the Integrations page; the first is a webhook to a Make, n8n or Zapier scenario. Part of [Easy CMS](https://github.com/maritonx/easy-cms), the code-first CMS and app backend for Nuxt and Next.js.
 
 ## Install
 

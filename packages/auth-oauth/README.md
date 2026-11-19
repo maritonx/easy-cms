@@ -1,6 +1,6 @@
 # @easy-cms/auth-oauth
 
-Sign in to the Easy CMS admin with Google, Microsoft (Entra ID), GitHub or any OpenID Connect provider (Okta, Keycloak, Auth0…). Part of [Easy CMS](https://github.com/maritonx/easy-cms), the embedded, code-first headless CMS for Nuxt and Next.js.
+Sign in to the Easy CMS admin with Google, Microsoft (Entra ID), GitHub or any OpenID Connect provider (Okta, Keycloak, Auth0…). Part of [Easy CMS](https://github.com/maritonx/easy-cms), the code-first CMS and app backend for Nuxt and Next.js.
 
 ## Install
 

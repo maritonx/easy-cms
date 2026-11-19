@@ -1,7 +1,7 @@
 # @easy-cms/admin
 
 The admin UI of Easy CMS, a prebuilt Vue 3 app that talks to the REST API. Part of
-[Easy CMS](https://github.com/maritonx/easy-cms), the embedded, code-first headless CMS for Nuxt
+[Easy CMS](https://github.com/maritonx/easy-cms), the code-first CMS and app backend for Nuxt
 and Next.js.
 
 **Internal:** the framework adapters (`@easy-cms/nuxt`, `@easy-cms/next`) and `easy-cms serve`
