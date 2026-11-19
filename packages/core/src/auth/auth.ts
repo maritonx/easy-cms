@@ -296,7 +296,9 @@ export class Auth {
       )
     if (
       signup.turnstile &&
-      !(await verifyTurnstile(signup.turnstile.secretKey, args.turnstile, args.ip))
+      !(await verifyTurnstile(signup.turnstile.secretKey, args.turnstile, args.ip, (m) =>
+        this.cms.logger.warn(m),
+      ))
     )
       throw refuse('turnstile', 'is not complete')
     // Every sign-up counts towards the limit per IP.

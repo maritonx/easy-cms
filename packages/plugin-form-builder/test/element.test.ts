@@ -43,7 +43,7 @@ afterEach(() => {
   document.body.innerHTML = ''
 })
 
-async function mount(respond: (body: Record<string, unknown>) => Response) {
+async function mount(respond: (body: Record<string, unknown>) => Response, served: object = form) {
   const sent: Record<string, unknown>[] = []
   vi.stubGlobal(
     'fetch',
@@ -54,7 +54,7 @@ async function mount(respond: (body: Record<string, unknown>) => Response) {
         return respond(body)
       }
       expect(url).toBe('/api/cms/form/contact?locale=en')
-      return Response.json(form)
+      return Response.json(served)
     }),
   )
   await import('../src/element.js')
@@ -119,5 +119,51 @@ describe('<easy-form>', () => {
     expect(el.getAttribute('locale')).toBe('th')
     el.locale = null
     expect(el.hasAttribute('locale')).toBe(false)
+  })
+  it('waits for Turnstile, and sends each of its tokens once', async () => {
+    const widget: {
+      callback?: ((token: string) => void) | undefined
+      expired?: (() => void) | undefined
+      error?: (() => void) | undefined
+    } = {}
+    const reset = vi.fn()
+    vi.stubGlobal('turnstile', {
+      render: (_: Element, options: Record<string, () => void>) => {
+        widget.callback = options.callback as (token: string) => void
+        widget.expired = options['expired-callback']
+        widget.error = options['error-callback']
+        return 'w1'
+      },
+      reset,
+    })
+    const { element, sent } = await mount(
+      () =>
+        Response.json(
+          { errors: [{ field: 'email', message: 'must be an email address' }] },
+          { status: 400 },
+        ),
+      { ...form, turnstile: 'site-key' },
+    )
+    const button = element.querySelector('button') as HTMLButtonElement
+    const status = () => element.querySelector('.easy-form__status')?.textContent
+    // No token yet: nothing to send.
+    expect(button.disabled).toBe(true)
+    expect(status()).toBe('Checking you are not a bot…')
+    await vi.waitFor(() => expect(widget.callback).toBeDefined())
+    widget.callback?.('first')
+    expect(button.disabled).toBe(false)
+    expect(status()).toBe('')
+    // A token lasts 5 minutes.
+    widget.expired?.()
+    expect(button.disabled).toBe(true)
+    widget.callback?.('second')
+    element.querySelector('form')?.dispatchEvent(new Event('submit', { cancelable: true }))
+    await vi.waitFor(() => expect(sent).toHaveLength(1))
+    expect(sent[0]?.turnstile).toBe('second')
+    // Cloudflare took that token: the next try waits for a new one.
+    await vi.waitFor(() => expect(reset).toHaveBeenCalledWith('w1'))
+    expect(button.disabled).toBe(true)
+    widget.error?.()
+    expect(status()).toBe('Could not check that you are not a bot. Reload the page and try again.')
   })
 })

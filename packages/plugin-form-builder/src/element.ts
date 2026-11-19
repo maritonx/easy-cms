@@ -18,6 +18,8 @@ const MESSAGES = {
     fix: 'Please check the fields marked below.',
     choose: 'Choose…',
     required: 'Required',
+    checking: 'Checking you are not a bot…',
+    unchecked: 'Could not check that you are not a bot. Reload the page and try again.',
   },
   th: {
     loading: 'กำลังโหลดฟอร์ม…',
@@ -27,6 +29,8 @@ const MESSAGES = {
     fix: 'โปรดตรวจช่องที่มีเครื่องหมายด้านล่าง',
     choose: 'เลือก…',
     required: 'จำเป็น',
+    checking: 'กำลังตรวจสอบว่าไม่ใช่บอท…',
+    unchecked: 'ตรวจสอบว่าไม่ใช่บอทไม่สำเร็จ โปรดโหลดหน้าใหม่แล้วลองอีกครั้ง',
   },
 } as const
 
@@ -39,6 +43,8 @@ const esc = (value: string) =>
 const TURNSTILE = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'
 let turnstileScript: Promise<void> | undefined
 function loadTurnstile(): Promise<void> {
+  // The page may load Turnstile itself.
+  if ((window as unknown as { turnstile?: unknown }).turnstile) return Promise.resolve()
   turnstileScript ??= new Promise((resolve, reject) => {
     const script = document.createElement('script')
     script.src = TURNSTILE
@@ -51,7 +57,15 @@ function loadTurnstile(): Promise<void> {
 }
 
 interface Turnstile {
-  render(element: Element, options: { sitekey: string; callback: (token: string) => void }): string
+  render(
+    element: Element,
+    options: {
+      sitekey: string
+      callback: (token: string) => void
+      'expired-callback': () => void
+      'error-callback': () => void
+    },
+  ): string
   reset(id?: string): void
 }
 
@@ -145,7 +159,19 @@ export class EasyFormElement extends HTMLElement {
       event.preventDefault()
       void this.submit(element)
     })
-    if (form.turnstile) void this.mountTurnstile(form.turnstile)
+    if (form.turnstile) {
+      // Sending before Turnstile has answered could only fail.
+      this.setTurnstileToken('')
+      this.status(this.t('checking'), false)
+      void this.mountTurnstile(form.turnstile)
+    }
+  }
+
+  /** Turnstile's token: none yet, used, expired or failed is '', and the button waits for one. */
+  private setTurnstileToken(token: string) {
+    this.turnstileToken = token
+    const button = this.querySelector<HTMLButtonElement>('.easy-form__submit')
+    if (button) button.disabled = token === ''
   }
 
   private field(field: PublicField): string {
@@ -225,7 +251,14 @@ export class EasyFormElement extends HTMLElement {
       this.turnstileId = turnstile.render(box, {
         sitekey: siteKey,
         callback: (token) => {
-          this.turnstileToken = token
+          this.setTurnstileToken(token)
+          if (this.statusText() === this.t('checking')) this.status('', false)
+        },
+        // A token lasts 5 minutes; Turnstile then gets a new one.
+        'expired-callback': () => this.setTurnstileToken(''),
+        'error-callback': () => {
+          this.setTurnstileToken('')
+          this.status(this.t('unchecked'), true)
         },
       })
     } catch {
@@ -283,7 +316,9 @@ export class EasyFormElement extends HTMLElement {
     } catch {
       result = { ok: false, status: 0, errors: [{ message: this.t('failed') }] }
     }
-    if (button) button.disabled = false
+    // Cloudflare takes a token once: the next try waits for a new one.
+    if (form.turnstile) this.setTurnstileToken('')
+    else if (button) button.disabled = false
     if (result.ok) {
       this.dispatchEvent(
         new CustomEvent('easy-form:submitted', {
@@ -337,6 +372,10 @@ export class EasyFormElement extends HTMLElement {
     }
     for (const input of this.querySelectorAll('[aria-invalid]'))
       input.removeAttribute('aria-invalid')
+  }
+
+  private statusText(): string {
+    return this.querySelector<HTMLElement>('.easy-form__status')?.textContent ?? ''
   }
 
   private status(text: string, error: boolean) {

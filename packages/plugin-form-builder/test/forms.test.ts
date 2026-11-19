@@ -319,6 +319,30 @@ describe('forms', () => {
     }
   })
 
+  it('refuses Turnstile keys that cannot work, and says when Cloudflare refuses the secret', async () => {
+    expect(() =>
+      formBuilderPlugin({ turnstile: { siteKey: '0x4AAAA', secretKey: '0x4AAAA' } }),
+    ).toThrow('formBuilderPlugin: turnstile.secretKey is the site key')
+    vi.stubGlobal('fetch', (async () =>
+      Response.json({ success: false, 'error-codes': ['invalid-input-secret'] })) as typeof fetch)
+    const warn = vi.spyOn(silentLogger, 'warn')
+    const { cms, load, submit, good } = await setup({
+      turnstile: { siteKey: 'site-key', secretKey: 'old-secret' },
+    })
+    try {
+      const { token } = await load()
+      expect((await submit({ data: good, token, turnstile: 'human' })).status).toBe(400)
+      expect((await submit({ data: good, token, turnstile: 'human' })).status).toBe(400)
+      const said = warn.mock.calls.map(([m]) => String(m)).filter((m) => m.includes('Turnstile'))
+      expect(said).toEqual([
+        'formBuilderPlugin: Cloudflare Turnstile refuses the secret key, so every check fails: copy the Secret Key from the Turnstile widget in the Cloudflare dashboard',
+      ])
+    } finally {
+      warn.mockRestore()
+      await cms.destroy()
+    }
+  })
+
   it('takes submissions from frontends allowed by cors, without cookies', async () => {
     const { cms, load, submit, good } = await setup({}, { cors: ['http://frontend.test'] })
     try {

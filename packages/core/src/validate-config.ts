@@ -15,6 +15,7 @@ import type { ConfigIssue } from './errors.js'
 import { FIELD_TYPES, type Field, type RichTextBlock, type SelectOption } from './fields.js'
 import { NAV_ID, navGroups, navIds } from './nav.js'
 import { fieldAt, SEARCHABLE_TYPES } from './search.js'
+import { turnstileKeyProblem } from './spam.js'
 import { isTimeZone } from './time-of-day.js'
 import { SYSTEM_EVENTS, WEBHOOK_EVENTS } from './webhooks.js'
 
@@ -650,7 +651,7 @@ const LOCALIZABLE = new Set([
 
 function validateMembers(members: unknown, roles: readonly string[], add: Add) {
   if (members === undefined) return
-  const { roles: memberRoles, signup, pages } = (members ?? {}) as Record<string, unknown>
+  const { roles: memberRoles, signUp: signup, pages } = (members ?? {}) as Record<string, unknown>
   if (!Array.isArray(memberRoles) || memberRoles.some((r) => typeof r !== 'string')) {
     add('auth.members.roles', 'must be an array of roles', "e.g. roles: ['customer']")
     return
@@ -672,6 +673,10 @@ function validateMembers(members: unknown, roles: readonly string[], add: Add) {
         typeof (turnstile as Record<string, unknown>)?.secretKey !== 'string')
     )
       add('auth.members.signUp.turnstile', 'needs siteKey and secretKey')
+    else if (turnstile !== undefined) {
+      const problem = turnstileKeyProblem(turnstile as { siteKey: string; secretKey: string })
+      if (problem) add('auth.members.signUp.turnstile', problem)
+    }
   }
   for (const [key, value] of Object.entries((pages ?? {}) as Record<string, unknown>))
     if (value !== undefined && typeof value !== 'string')

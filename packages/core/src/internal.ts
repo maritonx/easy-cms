@@ -70,7 +70,14 @@ export {
   readCookie,
   SESSION_COOKIE,
 } from './rest/handler.js'
-export { checkFormToken, formToken, honeypotName, rateKeys, verifyTurnstile } from './spam.js'
+export {
+  checkFormToken,
+  formToken,
+  honeypotName,
+  rateKeys,
+  turnstileKeyProblem,
+  verifyTurnstile,
+} from './spam.js'
 export { generateTypes, singularize } from './typegen.js'
 export { BUILTIN_COLLECTIONS, MIN_SECRET_LENGTH, validateConfig } from './validate-config.js'
 export { DEFAULT_MAX_VERSIONS } from './versions.js'

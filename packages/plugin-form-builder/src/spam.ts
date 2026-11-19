@@ -30,4 +30,4 @@ export const rateKeys = (
   now = Date.now(),
 ) => coreRateKeys(secret, `easy-form-rate:${ip}:${String(form)}`, window, now)
 
-export { honeypotName, verifyTurnstile } from '@easy-cms/core/internal'
+export { honeypotName, turnstileKeyProblem, verifyTurnstile } from '@easy-cms/core/internal'

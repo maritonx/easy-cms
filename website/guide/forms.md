@@ -186,6 +186,11 @@ formBuilderPlugin({
 `<easy-form>` then loads Cloudflare's script: add `https://challenges.cloudflare.com` to
 `script-src` and `frame-src` if your site has a Content Security Policy.
 
+Both keys come from the widget in the Cloudflare dashboard (Turnstile → the widget → Settings):
+the **Secret Key** is the long one, not the site key again. A secret key Cloudflare refuses fails
+every form with "Verification failed": the server logs why, once. Send stays off until Turnstile
+has answered.
+
 ## Privacy
 
 Submissions keep the values, the page and the language, not the IP address. Delete old ones
