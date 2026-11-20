@@ -1,5 +1,16 @@
 # @easy-cms/plugin-seo
 
+## 1.53.0
+
+### Minor Changes
+
+- 22a3455: `docMarkdownResponse(cms, { collection, doc })` serves a page's Markdown version (`/posts/hello.md`) as `text/markdown` with a `Link: <page>; rel="canonical"` header naming the HTML page, so search engines that find the Markdown copy count it as that page instead of a second one. The address comes from `url`, else the plugin's `generateURL`, made absolute with `admin.siteURL`, `serverURL` or the request's origin.
+
+### Patch Changes
+
+- @easy-cms/core@1.53.0
+  - @easy-cms/richtext@1.53.0
+
 ## 1.52.2
 
 ### Patch Changes
