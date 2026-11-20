@@ -1,7 +1,9 @@
 export { type IndexNowOptions, indexNowKeyFile } from './indexnow.js'
 export {
   type DocMarkdownOptions,
+  type DocMarkdownResponseOptions,
   docMarkdown,
+  docMarkdownResponse,
   type LlmsFullTxtOptions,
   type LlmsTxtOptions,
   llmsFullTxt,

@@ -137,7 +137,7 @@ arrays, in the order of the fields. Serve it next to the page, e.g. `/posts/hell
 ::: code-group
 
 ```ts [Nuxt: server/middleware/markdown.ts]
-import { docMarkdown } from '@easy-cms/plugin-seo'
+import { docMarkdownResponse } from '@easy-cms/plugin-seo'
 
 export default defineEventHandler(async (event) => {
   const slug = /^\/posts\/([^/]+)\.md$/.exec(getRequestURL(event).pathname)?.[1]
@@ -150,18 +150,17 @@ export default defineEventHandler(async (event) => {
     user: null,
   })
   if (!docs[0]) throw createError({ statusCode: 404 })
-  setHeader(event, 'content-type', 'text/markdown; charset=utf-8')
-  return docMarkdown(cms, { collection: 'posts', doc: docs[0] })
+  return docMarkdownResponse(cms, { collection: 'posts', doc: docs[0], request: toWebRequest(event) })
 })
 ```
 
 ```ts [Next.js: app/md/posts/[slug]/route.ts]
 import { getEasyCMS } from '@easy-cms/next'
-import { docMarkdown } from '@easy-cms/plugin-seo'
+import { docMarkdownResponse } from '@easy-cms/plugin-seo'
 import config from '@/easy-cms.config'
 
 // next.config.ts: rewrites: async () => [{ source: '/posts/:slug.md', destination: '/md/posts/:slug' }]
-export async function GET(_: Request, { params }) {
+export async function GET(request: Request, { params }) {
   const { slug } = await params
   const cms = await getEasyCMS(config)
   const { docs } = await cms.find('posts', {
@@ -171,13 +170,16 @@ export async function GET(_: Request, { params }) {
     user: null,
   })
   if (!docs[0]) return new Response('Not found', { status: 404 })
-  return new Response(docMarkdown(cms, { collection: 'posts', doc: docs[0] }), {
-    headers: { 'content-type': 'text/markdown; charset=utf-8' },
-  })
+  return docMarkdownResponse(cms, { collection: 'posts', doc: docs[0], request })
 }
 ```
 
 :::
+
+`docMarkdownResponse()` sends it as `text/markdown` with a `Link: <page>; rel="canonical"` header
+naming the HTML page (from `url`, else your `generateURL`, made absolute with `admin.siteURL` or the
+request), so search engines that find the Markdown copy count it as that page, not a second one.
+If you build the response yourself, send that header too; `docMarkdown()` returns only the text.
 
 To write the Markdown yourself for a collection, pass `markdown` to the plugin. Rich text alone
 converts with [`renderMarkdown()`](./rich-text#markdown).

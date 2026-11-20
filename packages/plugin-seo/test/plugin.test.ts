@@ -553,6 +553,57 @@ describe('llms.txt and Markdown', () => {
       await cms.destroy()
     }
   })
+  it('serves the Markdown with the HTML page as its canonical', async () => {
+    const { docMarkdownResponse } = await import('../src/index.js')
+    const cms = await open(blog())
+    try {
+      const post = await cms.create('posts', { title: 'สวัสดี', status: 'published' })
+      // The address from generateURL, made absolute with admin.siteURL.
+      const response = await docMarkdownResponse(cms, { collection: 'posts', doc: post as never })
+      expect(response.headers.get('content-type')).toBe('text/markdown; charset=utf-8')
+      expect(response.headers.get('cache-control')).toBe('public, max-age=600')
+      const link = response.headers.get('link')
+      expect(link).toMatch(/^<https:\/\/blog\.test\/posts\/[^>]+>; rel="canonical"$/)
+      // Header values are ASCII: a Thai slug is percent-encoded.
+      expect(link).toContain('%E0%B8')
+      expect(await response.text()).toContain('URL: https://blog.test/posts/')
+
+      const given = await docMarkdownResponse(cms, {
+        collection: 'posts',
+        doc: post as never,
+        url: 'https://other.test/p',
+      })
+      expect(given.headers.get('link')).toBe('<https://other.test/p>; rel="canonical"')
+    } finally {
+      await cms.destroy()
+    }
+  })
+
+  it('takes the origin from the request, and leaves the header out without an address', async () => {
+    const { docMarkdownResponse } = await import('../src/index.js')
+    const { siteURL: _, ...admin } = blog().admin ?? {}
+    const cms = await open({ ...blog(), admin })
+    try {
+      const doc = { title: 'Page' }
+      const relative = await docMarkdownResponse(cms, {
+        collection: 'posts',
+        doc,
+        url: '/posts/page',
+        request: new Request('https://from-request.test/posts/page.md'),
+      })
+      expect(relative.headers.get('link')).toBe(
+        '<https://from-request.test/posts/page>; rel="canonical"',
+      )
+      const unknown = await docMarkdownResponse(cms, {
+        collection: 'posts',
+        doc,
+        url: '/posts/page',
+      })
+      expect(unknown.headers.get('link')).toBeNull()
+    } finally {
+      await cms.destroy()
+    }
+  })
 })
 
 describe('IndexNow', () => {
