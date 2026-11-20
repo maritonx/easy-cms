@@ -127,7 +127,7 @@ standalone server เสิร์ฟ `/llms.txt` และ `/llms-full.txt` เ�
 ::: code-group
 
 ```ts [Nuxt: server/middleware/markdown.ts]
-import { docMarkdown } from '@easy-cms/plugin-seo'
+import { docMarkdownResponse } from '@easy-cms/plugin-seo'
 
 export default defineEventHandler(async (event) => {
   const slug = /^\/posts\/([^/]+)\.md$/.exec(getRequestURL(event).pathname)?.[1]
@@ -140,18 +140,17 @@ export default defineEventHandler(async (event) => {
     user: null,
   })
   if (!docs[0]) throw createError({ statusCode: 404 })
-  setHeader(event, 'content-type', 'text/markdown; charset=utf-8')
-  return docMarkdown(cms, { collection: 'posts', doc: docs[0] })
+  return docMarkdownResponse(cms, { collection: 'posts', doc: docs[0], request: toWebRequest(event) })
 })
 ```
 
 ```ts [Next.js: app/md/posts/[slug]/route.ts]
 import { getEasyCMS } from '@easy-cms/next'
-import { docMarkdown } from '@easy-cms/plugin-seo'
+import { docMarkdownResponse } from '@easy-cms/plugin-seo'
 import config from '@/easy-cms.config'
 
 // next.config.ts: rewrites: async () => [{ source: '/posts/:slug.md', destination: '/md/posts/:slug' }]
-export async function GET(_: Request, { params }) {
+export async function GET(request: Request, { params }) {
   const { slug } = await params
   const cms = await getEasyCMS(config)
   const { docs } = await cms.find('posts', {
@@ -161,13 +160,16 @@ export async function GET(_: Request, { params }) {
     user: null,
   })
   if (!docs[0]) return new Response('Not found', { status: 404 })
-  return new Response(docMarkdown(cms, { collection: 'posts', doc: docs[0] }), {
-    headers: { 'content-type': 'text/markdown; charset=utf-8' },
-  })
+  return docMarkdownResponse(cms, { collection: 'posts', doc: docs[0], request })
 }
 ```
 
 :::
+
+`docMarkdownResponse()` ส่งเป็น `text/markdown` พร้อม header `Link: <page>; rel="canonical"` ที่ชี้ไปหน้า HTML
+(จาก `url` หรือ `generateURL` ของคุณ ทำเป็น URL เต็มด้วย `admin.siteURL` หรือ request) search engine ที่เจอฉบับ
+Markdown จึงนับเป็นหน้าเดียวกับหน้า HTML ไม่ใช่อีกหน้าหนึ่ง ถ้าสร้าง response เอง ให้ส่ง header นี้ด้วย
+เพราะ `docMarkdown()` คืนแค่ข้อความ
 
 ถ้าต้องการเขียน Markdown ของ collection เอง ให้ส่ง `markdown` ให้ plugin ส่วน rich text อย่างเดียวแปลงได้ด้วย
 [`renderMarkdown()`](./rich-text#markdown)

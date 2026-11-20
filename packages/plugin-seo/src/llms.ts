@@ -128,6 +128,54 @@ export function docMarkdown(cms: SeoCMS, options: DocMarkdownOptions): string {
   return `${pageMarkdown(cms, source, page)}\n`
 }
 
+export interface DocMarkdownResponseOptions extends DocMarkdownOptions {
+  /**
+   * The request, for its origin when the page's address is a path and the config has no
+   * `admin.siteURL` or `serverURL`.
+   */
+  readonly request?: Request
+}
+
+/**
+ * `docMarkdown()` as a response, e.g. for `/posts/hello.md`: `text/markdown`, cached for 10
+ * minutes, and a `Link: <page>; rel="canonical"` header naming the HTML page, so search engines
+ * that find the Markdown copy count it as that page instead of a second one. The page's address
+ * is `url`, else the plugin's `generateURL`; without one that can be made absolute, there is no
+ * `Link` header.
+ */
+export async function docMarkdownResponse(
+  cms: SeoCMS,
+  options: DocMarkdownResponseOptions,
+): Promise<Response> {
+  const source = findSource(cms, 'docMarkdownResponse')
+  let url = options.url
+  if (url === undefined && source.generateURL) {
+    const generated = await source.generateURL({
+      doc: options.doc,
+      id: (options.doc.id as string | number | undefined) ?? null,
+      locale: null,
+      cms: cms as never,
+      user: null,
+      ...(options.collection ? { collection: options.collection } : {}),
+      ...(options.global ? { global: options.global } : {}),
+    })
+    if (typeof generated === 'string' && generated.trim() !== '') url = generated.trim()
+  }
+  const site = siteOf(cms) || (options.request ? new URL(options.request.url).origin : undefined)
+  const page = url === undefined ? undefined : absolute(url, site)
+  const headers = new Headers({
+    'content-type': 'text/markdown; charset=utf-8',
+    'cache-control': 'public, max-age=600',
+  })
+  // URL() percent-encodes a Thai slug: header values are ASCII.
+  const canonical = page && /^https?:\/\//.test(page) ? URL.parse(page)?.href : undefined
+  if (canonical) headers.set('link', `<${canonical}>; rel="canonical"`)
+  const { request: _, ...markdown } = options
+  return new Response(docMarkdown(cms, { ...markdown, ...(page ? { url: page } : {}) }), {
+    headers,
+  })
+}
+
 function pageMarkdown(cms: SeoCMS, source: SeoSource, page: VisiblePage) {
   const slug = page.collection ?? page.global ?? ''
   const custom = source.markdown[slug]

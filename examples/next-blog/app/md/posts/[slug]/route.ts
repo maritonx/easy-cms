@@ -1,5 +1,5 @@
 import { getEasyCMS } from '@easy-cms/next'
-import { docMarkdown } from '@easy-cms/plugin-seo'
+import { docMarkdownResponse } from '@easy-cms/plugin-seo'
 import config from '@/easy-cms.config'
 
 export const dynamic = 'force-dynamic'
@@ -20,7 +20,6 @@ export async function GET(_request: Request, { params }: { params: Promise<{ slu
   if (!post || hidden) return new Response('Not found', { status: 404 })
   // The address on the site from the config (SITE_URL), not from the request's Host.
   const url = `${cms.config.admin.siteURL.replace(/\/+$/, '')}/posts/${post.slug}`
-  return new Response(docMarkdown(cms, { collection: 'posts', doc: post, url }), {
-    headers: { 'content-type': 'text/markdown; charset=utf-8' },
-  })
+  // Link: <url>; rel="canonical", so search engines count this copy as the HTML page.
+  return docMarkdownResponse(cms, { collection: 'posts', doc: post, url })
 }
