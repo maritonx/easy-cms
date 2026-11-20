@@ -1,5 +1,11 @@
 # @easy-cms/email-smtp
 
+## 1.53.0
+
+### Patch Changes
+
+- @easy-cms/core@1.53.0
+
 ## 1.52.2
 
 ### Patch Changes
