@@ -837,6 +837,12 @@ const en = {
   'ai.feature': 'Feature',
   'ai.requests': 'Requests',
   'ai.tokens': 'Tokens',
+  'ai.retries': 'Retries',
+  'ai.retriesHint':
+    'Calls tried again after the provider was busy or failing (429, 5xx). Providers may bill them too.',
+  'ai.repeats': 'Asked again',
+  'ai.repeatsHint':
+    'Requests someone had already made this month for the same document and text, e.g. a field generated over and over.',
   'ai.testFeature': 'Test button',
   'ai.usage': 'This month: requests {requests}, tokens {tokens}',
   'roles.aiPerDay': 'AI requests per day',
@@ -2219,6 +2225,10 @@ const th: Record<MessageKey, string> = {
   'ai.feature': 'ฟีเจอร์',
   'ai.requests': 'คำขอ',
   'ai.tokens': 'Token',
+  'ai.retries': 'ลองซ้ำ',
+  'ai.retriesHint': 'ครั้งที่เรียกซ้ำเพราะผู้ให้บริการไม่ว่างหรือขัดข้อง (429, 5xx) ผู้ให้บริการอาจคิดเงินครั้งเหล่านี้ด้วย',
+  'ai.repeats': 'สั่งซ้ำ',
+  'ai.repeatsHint': 'คำขอที่มีคนเคยสั่งแล้วในเดือนนี้ สำหรับเอกสารและข้อความเดิม เช่น สั่งสร้าง field เดิมซ้ำหลายรอบ',
   'ai.testFeature': 'ปุ่มทดสอบ',
   'ai.usage': 'เดือนนี้: คำขอ {requests} token {tokens}',
   'roles.aiPerDay': 'คำขอ AI ต่อวัน',

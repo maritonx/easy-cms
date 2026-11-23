@@ -101,7 +101,16 @@ aiPlugin({ limits: { perUserPerDay: 50, roles: { editor: 20 } } })
 ```
 
 The box shows this month's requests and tokens by user and by feature. Prompts and answers are not
-stored: only who asked, which feature and connection, the tokens and when, for 90 days.
+stored: only who asked, which feature and connection, the tokens and when, for 90 days, with:
+
+- **Retries:** a provider that answers 429 or 5xx is asked once more after a second. Only the request
+  counts toward the daily limit, but providers may bill both calls; the feature's **Retries** column
+  shows how many there were.
+- **Asked again:** a hash of the feature, the document and the text sent (not the text itself). A
+  request someone already made this month for the same document counts in **Asked again**, e.g. a
+  field generated over and over.
+- **Image bytes:** the size of the images sent, after picking the smallest copy at least 1024 pixels
+  wide (in the `ai-usage` rows, not the box).
 
 ## In your code
 
