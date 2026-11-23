@@ -1,5 +1,13 @@
 # @easy-cms/plugin-backups
 
+## 1.56.0
+
+### Patch Changes
+
+- Updated dependencies [c4103eb]
+  - @easy-cms/core@1.56.0
+  - @easy-cms/storage-s3@1.56.0
+
 ## 1.55.0
 
 ### Patch Changes

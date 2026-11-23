@@ -1,5 +1,12 @@
 # @easy-cms/plugin-social
 
+## 1.56.0
+
+### Patch Changes
+
+- Updated dependencies [c4103eb]
+  - @easy-cms/core@1.56.0
+
 ## 1.55.0
 
 ### Patch Changes
