@@ -384,6 +384,59 @@ describe('aiPlugin', () => {
     expect(card.connections[0].lastError).toBe('mock 401')
   })
 
+  it('records retries, image bytes and a hash of the request, never the prompt', async () => {
+    const { cms, connect, call, editor: user } = await open()
+    await connect('anthropic', { apiKey: 'a' })
+    const ai = cms.ai as NonNullable<typeof cms.ai>
+    const usage = async () =>
+      (
+        await cms.db.find({
+          collection: 'ai-usage',
+          where: { feature: { equals: 'summary' } },
+          sort: ['id'],
+          limit: 0,
+          page: 1,
+        })
+      ).docs as Record<string, unknown>[]
+    // Busy once, then fine: two calls to the provider, one request toward the limit.
+    fail = [529]
+    await ai.generate({ feature: 'summary', prompt: 'Write a title' }, { user })
+    // 'aGk=' is two bytes.
+    await ai.generate(
+      {
+        feature: 'summary',
+        prompt: 'Write a title',
+        images: [{ data: 'aGk=', mediaType: 'image/png' }],
+      },
+      { user, about: { collection: 'posts', id: 1 } },
+    )
+    await ai.generate(
+      {
+        feature: 'summary',
+        prompt: 'Write a title',
+        images: [{ data: 'aGk=', mediaType: 'image/png' }],
+      },
+      { user, about: { collection: 'posts', id: 1 } },
+    )
+    const rows = await usage()
+    expect(rows.map((r) => [r.attempts, r.imageBytes])).toEqual([
+      [2, 0],
+      [1, 2],
+      [1, 2],
+    ])
+    // The same document and prompt: the same hash; another document: another.
+    expect(rows[1]?.promptHash).toMatch(/^[0-9a-f]{16}$/)
+    expect(rows[2]?.promptHash).toBe(rows[1]?.promptHash)
+    expect(rows[0]?.promptHash).not.toBe(rows[1]?.promptHash)
+    expect(JSON.stringify(rows)).not.toContain('Write a title')
+    expect((await ai.remaining(user)).used).toBe(3)
+
+    const summary = (await call('/ai')).body.usage.byFeature.find(
+      (f: { feature: string }) => f.feature === 'summary',
+    )
+    expect(summary).toMatchObject({ requests: 3, retries: 1, repeats: 1 })
+  })
+
   it('parses JSON answers and sends images', async () => {
     const { cms, connect } = await open()
     await connect('anthropic', { apiKey: 'a' })

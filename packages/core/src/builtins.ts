@@ -575,6 +575,13 @@ export const aiUsageCollection: CollectionConfig = {
     { name: 'error', type: 'text' },
     // The document it was for, e.g. the image of alt text.
     { name: 'about', type: 'text' },
+    // Calls to the provider: 2 when a 429 or 5xx was tried again (providers may bill both).
+    { name: 'attempts', type: 'number' },
+    // Bytes of the images sent, after picking the smallest size at least 1024 pixels wide.
+    { name: 'imageBytes', type: 'number' },
+    // A hash of the feature, the document and the prompt, never the prompt: the same request
+    // again shows a field generated over and over.
+    { name: 'promptHash', type: 'text' },
   ],
 }
 

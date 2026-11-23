@@ -6,6 +6,7 @@ import type { Field, Label } from './fields.js'
 import type { IntegrationConnection, IntegrationTestResult } from './integrations.js'
 import type { EasyCMS } from './local-api.js'
 import { encode } from './runtime/bytes.js'
+import { hash } from './runtime/crypto.js'
 import { lastSlot } from './time-of-day.js'
 
 // AI (#357): providers (a plugin's integrations) answer prompts for the admin's features. Core
@@ -120,7 +121,16 @@ export interface AdminAi {
   /** This month, in `timeZone`. */
   usage: {
     byUser: { user: string; requests: number; input: number; output: number }[]
-    byFeature: { feature: string; requests: number; input: number; output: number }[]
+    byFeature: {
+      feature: string
+      requests: number
+      input: number
+      output: number
+      /** Calls tried again after a 429 or 5xx: providers may bill them too. */
+      retries: number
+      /** Requests a user made again for the same document and prompt (by hash). */
+      repeats: number
+    }[]
   }
 }
 
@@ -331,6 +341,14 @@ export class Ai {
   ): Promise<AiResult> {
     const provider = this.ai.providers.find((p) => p.integration === conn.integration)
     if (!provider) throw new QueryError(`No AI provider answers for "${conn.integration}"`)
+    const about = args.about ? `${args.about.collection}:${args.about.id}` : null
+    const promptHash = hash(
+      'sha256',
+      [args.feature, about ?? '', args.request.system ?? '', args.request.prompt].join('\n'),
+      'hex',
+    ).slice(0, 16)
+    const imageBytes = args.request.images.reduce((sum, image) => sum + base64Bytes(image.data), 0)
+    const tries = { count: 0 }
     const record = (data: Data) =>
       this.cms.db.create({
         collection: AI_USAGE,
@@ -342,7 +360,10 @@ export class Ai {
           input: 0,
           output: 0,
           error: null,
-          about: args.about ? `${args.about.collection}:${args.about.id}` : null,
+          about,
+          attempts: tries.count,
+          imageBytes,
+          promptHash,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           ...data,
@@ -350,7 +371,7 @@ export class Ai {
       })
     let result: AiProviderResult
     try {
-      result = await this.call(provider, conn.values, args.request)
+      result = await this.call(provider, conn.values, args.request, tries)
     } catch (error) {
       const status = error instanceof AiProviderError ? error.status : undefined
       const message = (error as Error).message
@@ -384,8 +405,10 @@ export class Ai {
     provider: AiProvider,
     values: Readonly<Record<string, string>>,
     request: Omit<AiProviderRequest, 'signal'>,
+    tries: { count: number } = { count: 0 },
   ): Promise<AiProviderResult> {
     for (let attempt = 0; ; attempt++) {
+      tries.count = attempt + 1
       try {
         return await provider.generate(values, { ...request, signal: AbortSignal.timeout(TIMEOUT) })
       } catch (error) {
@@ -647,6 +670,19 @@ export class Ai {
       }
       return [...totals].sort((a, b) => b[1].requests - a[1].requests)
     }
+    // Per feature: calls tried again after a 429 or 5xx, and requests a user had already made
+    // this month for the same document and prompt.
+    const seen = new Set<string>()
+    const extra = new Map<string, { retries: number; repeats: number }>()
+    for (const row of rows) {
+      const e = extra.get(String(row.feature)) ?? { retries: 0, repeats: 0 }
+      e.retries += Math.max(0, Number(row.attempts ?? 1) - 1)
+      const key =
+        row.user && row.promptHash ? `${String(row.user)}:${String(row.promptHash)}` : null
+      if (key && seen.has(key)) e.repeats++
+      if (key) seen.add(key)
+      extra.set(String(row.feature), e)
+    }
     const users = sum('user')
     const emails = new Map<string, string>()
     if (users.length > 0) {
@@ -677,7 +713,11 @@ export class Ai {
       ),
       usage: {
         byUser: users.map(([id, t]) => ({ user: emails.get(id) ?? id, ...t })),
-        byFeature: sum('feature').map(([feature, t]) => ({ feature, ...t })),
+        byFeature: sum('feature').map(([feature, t]) => ({
+          feature,
+          ...t,
+          ...(extra.get(feature) ?? { retries: 0, repeats: 0 }),
+        })),
       },
     }
   }
@@ -796,6 +836,10 @@ export class Ai {
     }
   }
 }
+
+/** The bytes a base64 string holds. */
+const base64Bytes = (data: string) =>
+  Math.floor((data.length * 3) / 4) - (data.endsWith('==') ? 2 : data.endsWith('=') ? 1 : 0)
 
 type Node = { type?: string; text?: string; content?: Node[]; attrs?: Record<string, unknown> }
 

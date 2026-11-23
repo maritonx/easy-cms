@@ -24,7 +24,14 @@ interface AdminAi {
   }[]
   usage: {
     byUser: { user: string; requests: number; input: number; output: number }[]
-    byFeature: { feature: string; requests: number; input: number; output: number }[]
+    byFeature: {
+      feature: string
+      requests: number
+      input: number
+      output: number
+      retries: number
+      repeats: number
+    }[]
   }
 }
 
@@ -160,9 +167,9 @@ const number = (n: number) => n.toLocaleString()
       </table>
       <table v-if="data.usage.byFeature.length">
         <caption>{{ t('ai.byFeature') }}</caption>
-        <thead><tr><th scope="col">{{ t('ai.feature') }}</th><th scope="col">{{ t('ai.requests') }}</th><th scope="col">{{ t('ai.tokens') }}</th></tr></thead>
+        <thead><tr><th scope="col">{{ t('ai.feature') }}</th><th scope="col">{{ t('ai.requests') }}</th><th scope="col">{{ t('ai.tokens') }}</th><th scope="col" :title="t('ai.retriesHint')">{{ t('ai.retries') }}</th><th scope="col" :title="t('ai.repeatsHint')">{{ t('ai.repeats') }}</th></tr></thead>
         <tbody>
-          <tr v-for="row in data.usage.byFeature" :key="row.feature"><td>{{ featureLabel(row.feature) }}</td><td>{{ number(row.requests) }}</td><td>{{ number(row.input + row.output) }}</td></tr>
+          <tr v-for="row in data.usage.byFeature" :key="row.feature"><td>{{ featureLabel(row.feature) }}</td><td>{{ number(row.requests) }}</td><td>{{ number(row.input + row.output) }}</td><td>{{ number(row.retries ?? 0) }}</td><td>{{ number(row.repeats ?? 0) }}</td></tr>
         </tbody>
       </table>
     </div>

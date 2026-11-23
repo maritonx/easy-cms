@@ -96,13 +96,15 @@ const order = (
 })
 
 const collected = () => hits.filter((h) => h.path === '/mp/collect')
+/** CI runs many packages at once: deliveries can take seconds. */
+const WAIT = { timeout: 15_000, interval: 50 }
 
 describe('GA4 from the server', () => {
   it('sends a paid order as a purchase, in baht, with the session, once', async () => {
     const cms = await open()
     try {
       cms.emit('order.paid', order())
-      await vi.waitFor(() => expect(collected()).toHaveLength(1))
+      await vi.waitFor(() => expect(collected()).toHaveLength(1), WAIT)
       const [hit] = collected()
       expect(hit?.query.get('measurement_id')).toBe('G-TEST123')
       expect(hit?.query.get('api_secret')).toBe('secret')
@@ -126,7 +128,7 @@ describe('GA4 from the server', () => {
       // The same order paid again (a webhook sent twice) is not counted twice.
       cms.emit('order.paid', order())
       cms.emit('order.refunded', order())
-      await vi.waitFor(() => expect(collected()).toHaveLength(2))
+      await vi.waitFor(() => expect(collected()).toHaveLength(2), WAIT)
       expect(collected()[1]?.body).toMatchObject({ events: [{ name: 'refund' }] })
     } finally {
       await cms.destroy()
@@ -136,12 +138,16 @@ describe('GA4 from the server', () => {
   it('sends nothing without consent or without GA4', async () => {
     const cms = await open()
     try {
-      cms.emit('order.paid', { ...order(null), id: 8 })
+      cms.emit('order.paid', { ...order(null), id: 8, orderNumber: '2001' })
       const quiet = await open(false)
       try {
-        quiet.emit('order.paid', order())
-        await new Promise((resolve) => setTimeout(resolve, 300))
-        expect(collected()).toHaveLength(0)
+        quiet.emit('order.paid', { ...order(), id: 9, orderNumber: '2002' })
+        await new Promise((resolve) => setTimeout(resolve, 500))
+        // Only this test's orders: a slow delivery of an earlier test may still arrive.
+        const ours = collected().filter((h) =>
+          JSON.stringify(h.body).match(/"transaction_id":"200[12]"/),
+        )
+        expect(ours).toHaveLength(0)
       } finally {
         await quiet.destroy()
       }
@@ -155,14 +161,14 @@ describe('GA4 from the server', () => {
     try {
       status = 503
       cms.emit('order.paid', order())
-      await vi.waitFor(() => expect(collected()).toHaveLength(1))
+      await vi.waitFor(() => expect(collected()).toHaveLength(1), WAIT)
       status = 204
       const job = cms.config.jobs.find((j) => j.name === 'analytics:ga4')
       // A minute later the job sends it again.
       await vi.waitFor(async () => {
         await job?.run({ cms: cms as never, now: new Date(Date.now() + 61_000) })
         expect(collected()).toHaveLength(2)
-      })
+      }, WAIT)
     } finally {
       await cms.destroy()
     }
