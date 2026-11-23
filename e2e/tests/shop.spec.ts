@@ -77,6 +77,23 @@ test('a guest buys by bank transfer', async ({ page }) => {
   await expect(page.getByTestId('order-number')).toHaveText('1001')
   await expect(page.getByText('กสิกรไทย 123-4-56789-0')).toBeVisible()
   await expect(page.getByTestId('cart-link')).toHaveText('ตะกร้า (0)')
+
+  // The shop told Tag Manager, in GA4 ecommerce events, in baht (not satang).
+  const events = (await page.evaluate(() =>
+    (window as unknown as { dataLayer: Record<string, unknown>[] }).dataLayer.filter(
+      (e) => e && typeof e === 'object' && 'ecommerce' in e && e.ecommerce,
+    ),
+  )) as { event: string; ecommerce: Record<string, unknown> }[]
+  // Client-side navigation keeps the page's dataLayer, from the cart on.
+  expect(events.map((e) => e.event)).toEqual(
+    expect.arrayContaining(['add_to_cart', 'begin_checkout', 'purchase']),
+  )
+  expect(events.find((e) => e.event === 'purchase')?.ecommerce).toMatchObject({
+    transaction_id: '1001',
+    currency: 'THB',
+    value: 550,
+    items: [expect.objectContaining({ item_name: 'Jasmine tea', price: 250, quantity: 2 })],
+  })
 })
 
 test('staff mark the payment received, and the stock is taken', async ({ page }) => {

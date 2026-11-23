@@ -1,3 +1,4 @@
+import { EasyAnalytics } from '@easy-cms/next/analytics'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { CartLink } from './cart-link'
@@ -30,6 +31,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             </footer>
           </div>
         </Providers>
+        {/* Tag Manager and the consent banner, from Settings → Analytics & consent. */}
+        <EasyAnalytics />
       </body>
     </html>
   )

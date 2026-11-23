@@ -128,13 +128,30 @@ PDPA และ GDPR ให้คุณแสดงได้ว่าผู้เ
 
 ## Event {#events}
 
-ส่ง event ของคุณเองเข้า `dataLayer` ของ Tag Manager:
+Easy CMS ส่ง event เข้า `dataLayer` ของ Tag Manager ด้วย
+[ชื่อตามมาตรฐาน GA4](https://developers.google.com/analytics/devguides/collection/ga4/reference/events)
+แท็ก GA4 ใน Tag Manager จึงรับได้เลยโดยไม่ต้องเขียนโค้ดในเว็บ ส่วน Consent Mode ตัดสินว่าแท็กจะส่งอะไรต่อ
+
+| Event | เมื่อไหร่ | ข้อมูล |
+|---|---|---|
+| `generate_lead` | ส่ง [`<easy-form>`](./forms) สำเร็จ | `form_id`: slug ของฟอร์ม |
+| `login`, `sign_up` | ลูกค้าเข้าสู่ระบบหรือสมัครผ่าน[client ของร้านค้า](./ecommerce) | `method: 'email'` |
+| `view_item` | เรียก `shop.viewItem(product)` ในหน้าสินค้า | `ecommerce`: สินค้าและราคา |
+| `add_to_cart`, `remove_from_cart` | ตะกร้าเปลี่ยน: เพิ่ม, เพิ่มหรือลดจำนวน, ลบ, ล้าง | `ecommerce`: สิ่งที่เปลี่ยน |
+| `begin_checkout` | เรียก `shop.checkout()` | `ecommerce`: ตะกร้า |
+| `purchase` | มีคำสั่งซื้อ (`checkout()` สำหรับโอนเงิน, `confirm()` หลังจ่ายด้วยบัตร) | `ecommerce`: `transaction_id` (เลขคำสั่งซื้อ) และตะกร้า |
+| `easy_consent` | ผู้เข้าชมเลือกใน banner | `consent: { analytics, marketing }` |
+
+event ของร้านค้ามี `currency`, `value` และ `items` (`item_id`, `item_name`, `item_variant`, `price`, `quantity`)
+เป็นหน่วยหลักของสกุลเงิน (บาท ไม่ใช่สตางค์) `purchase` ส่งครั้งเดียวต่อคำสั่งซื้อ รวมถึงตอนจ่ายด้วยบัตรแล้วกลับมาจากธนาคาร
+ปิด event ของร้านค้าได้ด้วย `createShopClient({ analytics: false })` (หรือ option เดียวกันใน `ShopProvider` และ `provideShop`)
+
+ส่ง event ของคุณเอง เช่น การค้นหา หรือการสมัครผ่านฟอร์มที่ทำเอง:
 
 ```js
+window.easyAnalytics.track('search', { search_term: query })
 window.easyAnalytics.track('sign_up', { method: 'email' })
 ```
-
-script ส่ง `easy_consent` พร้อม `{ consent: { analytics, marketing } }` ทุกครั้งที่ผู้เข้าชมเลือกด้วย สำหรับแท็กที่ควรรอ
 
 ## Content Security Policy {#csp}
 

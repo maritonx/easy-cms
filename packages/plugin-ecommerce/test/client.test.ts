@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { createShopClient, ShopError } from '../src/client.js'
 import { openShop } from './shop-server.js'
 
@@ -11,6 +11,7 @@ beforeAll(async () => {
   mug = server.mug
 })
 afterAll(() => server.close())
+afterEach(() => vi.unstubAllGlobals())
 
 describe('the shop client', () => {
   it('shops as a guest, remembering the cart', async () => {
@@ -42,6 +43,63 @@ describe('the shop client', () => {
     expect(paid.order?.status).toBe('pending')
     expect(again.getState().cart).toBeNull()
     expect(b.store.has('easy-cms-cart')).toBe(false)
+  })
+
+  it('tells Tag Manager about the cart and the purchase, in GA4 ecommerce events', async () => {
+    const dataLayer: Record<string, unknown>[] = []
+    const kept = new Map<string, string>()
+    vi.stubGlobal('window', { dataLayer })
+    vi.stubGlobal('sessionStorage', {
+      getItem: (k: string) => kept.get(k) ?? null,
+      setItem: (k: string, v: string) => kept.set(k, v),
+      removeItem: (k: string) => kept.delete(k),
+    })
+    const events = () => dataLayer.filter((e) => e.event).map((e) => e.event)
+    const last = (event: string) =>
+      dataLayer.filter((e) => e.event === event).at(-1)?.ecommerce as Record<string, unknown>
+
+    const b = browser()
+    const shop = createShopClient({ fetch: b.fetch, storage: b.storage })
+    await shop.load()
+    shop.viewItem({ id: mug, title: 'Mug', price: 25_000 })
+    expect(last('view_item')).toMatchObject({ currency: 'THB', value: 250 })
+    const cart = await shop.addItem(mug, { quantity: 2 })
+    expect(last('add_to_cart')).toEqual({
+      currency: 'THB',
+      value: 500,
+      items: [expect.objectContaining({ item_id: String(mug), price: 250, quantity: 2 })],
+    })
+    const line = cart.lines[0]?.id as string
+    await shop.decrementItem(line)
+    expect(last('remove_from_cart')).toMatchObject({ value: 250, items: [{ quantity: 1 }] })
+    // GA4 asks for the previous ecommerce data to be cleared before each event.
+    expect(dataLayer[dataLayer.length - 2]).toEqual({ ecommerce: null })
+
+    const paid = await shop.checkout({
+      method: 'bank-transfer',
+      email: 'guest@example.com',
+      shippingAddress: { name: 'A', line1: 'B', country: 'TH' },
+    })
+    expect(last('begin_checkout')).toMatchObject({ value: 250, items: [{ quantity: 1 }] })
+    expect(last('purchase')).toMatchObject({
+      transaction_id: paid.order?.orderNumber,
+      currency: 'THB',
+      value: 250,
+      items: [{ item_id: String(mug), quantity: 1 }],
+    })
+    expect(events()).toEqual([
+      'view_item',
+      'add_to_cart',
+      'remove_from_cart',
+      'begin_checkout',
+      'purchase',
+    ])
+
+    // Off: nothing pushed.
+    const quiet = createShopClient({ fetch: b.fetch, storage: b.storage, analytics: false })
+    await quiet.load()
+    await quiet.addItem(mug)
+    expect(events()).toHaveLength(5)
   })
 
   it('reports invalid input with its fields', async () => {

@@ -250,6 +250,11 @@ system:
 webhooks: [{ url: 'https://erp.example.com/hook', events: ['order.paid'], secret }],
 ```
 
+With Google Tag Manager on the page ([Analytics & consent](./analytics)), the client also pushes
+GA4 ecommerce events: `add_to_cart`, `remove_from_cart`, `begin_checkout` and `purchase` as the
+cart and checkout go, `view_item` when a product page calls `shop.viewItem(product)`, and `login`
+and `sign_up`. `analytics: false` turns them off.
+
 ## Several shops
 
 With the [multi-tenant plugin](./multi-tenant), each tenant is a shop of its own: list the

@@ -231,6 +231,10 @@ ecommercePlugin({
 webhooks: [{ url: 'https://erp.example.com/hook', events: ['order.paid'], secret }],
 ```
 
+เมื่อหน้าเว็บมี Google Tag Manager ([Analytics และความยินยอม](./analytics)) client ยังส่ง event ecommerce แบบ GA4 ด้วย:
+`add_to_cart`, `remove_from_cart`, `begin_checkout` และ `purchase` ตามการใช้ตะกร้าและชำระเงิน, `view_item` เมื่อหน้าสินค้าเรียก
+`shop.viewItem(product)` และ `login` กับ `sign_up` ปิดได้ด้วย `analytics: false`
+
 ## หลายร้าน {#several-shops}
 
 เมื่อใช้ [plugin multi-tenant](./multi-tenant) แต่ละ tenant เป็นร้านของตัวเอง: ใส่ collection ของร้านและวาง

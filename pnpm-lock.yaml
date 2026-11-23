@@ -239,6 +239,9 @@ importers:
       '@easy-cms/next':
         specifier: workspace:^
         version: link:../../packages/next
+      '@easy-cms/plugin-analytics':
+        specifier: workspace:^
+        version: link:../../packages/plugin-analytics
       '@easy-cms/plugin-ecommerce':
         specifier: workspace:^
         version: link:../../packages/plugin-ecommerce
