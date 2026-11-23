@@ -133,14 +133,32 @@ are deleted after the days set in the settings.
 
 ## Events {#events}
 
-Push your own events to Tag Manager's `dataLayer`:
+Easy CMS pushes events to Tag Manager's `dataLayer` with
+[GA4's names](https://developers.google.com/analytics/devguides/collection/ga4/reference/events),
+so a GA4 tag in Tag Manager picks them up with no code on your site. Consent Mode decides what the
+tags then send.
+
+| Event | When | Data |
+|---|---|---|
+| `generate_lead` | An [`<easy-form>`](./forms) is sent | `form_id`: the form's slug |
+| `login`, `sign_up` | A customer signs in or signs up with the [shop's client](./ecommerce) | `method: 'email'` |
+| `view_item` | `shop.viewItem(product)` on a product page | `ecommerce`: the product, its price |
+| `add_to_cart`, `remove_from_cart` | The cart changes: add, quantity up or down, remove, clear | `ecommerce`: what changed |
+| `begin_checkout` | `shop.checkout()` | `ecommerce`: the cart |
+| `purchase` | An order is placed (`checkout()` for a bank transfer, `confirm()` after a card) | `ecommerce`: `transaction_id` (the order number), the cart |
+| `easy_consent` | A visitor chooses in the banner | `consent: { analytics, marketing }` |
+
+Shop events carry `currency`, `value` and `items` (`item_id`, `item_name`, `item_variant`, `price`,
+`quantity`) in the currency's main unit (baht, not satang). `purchase` is sent once per order,
+also when a card payment comes back from the bank. Turn the shop's events off with
+`createShopClient({ analytics: false })` (or the same option on `ShopProvider` and `provideShop`).
+
+Push your own, e.g. a search or a sign-up on your own form:
 
 ```js
+window.easyAnalytics.track('search', { search_term: query })
 window.easyAnalytics.track('sign_up', { method: 'email' })
 ```
-
-The script also pushes `easy_consent` with `{ consent: { analytics, marketing } }` whenever a
-visitor chooses, for tags that should wait for it.
 
 ## Content Security Policy {#csp}
 

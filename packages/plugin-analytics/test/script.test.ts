@@ -152,6 +152,15 @@ describe('analytics.js', () => {
     }
   })
 
+  it('counts a sent <easy-form> as a lead', () => {
+    const { window, w } = page()
+    const form = window.document.createElement('easy-form')
+    form.setAttribute('form', 'contact')
+    window.document.body.append(form)
+    form.dispatchEvent(new window.CustomEvent('easy-form:submitted', { bubbles: true }))
+    expect(w.dataLayer.at(-1)).toEqual({ event: 'generate_lead', form_id: 'contact' })
+  })
+
   it('works without a banner (own consent tool) or a container', () => {
     const { banner, w, window } = page({}, { ...settings, banner: false, gtm: null })
     expect(banner()).toBeNull()

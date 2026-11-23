@@ -2,11 +2,21 @@
  * The shop for pages, without a framework: cart, customer, checkout, addresses and orders over
  * the REST API, with a guest's cart kept in `localStorage`. `/react` and `/vue` wrap it.
  */
+
+import {
+  cartChanged,
+  checkoutStarted,
+  purchased,
+  pushEcommerce,
+  pushEvent,
+  rememberCheckout,
+} from './analytics.js'
 import {
   type Address,
   type CartView,
   type CheckoutResult,
   type ConfirmResult,
+  CURRENCIES,
   type Currency,
   formatPrice,
   type ShopSettings,
@@ -26,6 +36,11 @@ export interface ShopClientOptions {
   /** `en` or `th`: the language of emails and messages. Default `en`. */
   readonly locale?: string
   readonly fetch?: typeof fetch
+  /**
+   * Push GA4 ecommerce events (`add_to_cart`, `begin_checkout`, `purchase`…) and `login` /
+   * `sign_up` to Tag Manager's `dataLayer`, when the page has one. Default `true`.
+   */
+  readonly analytics?: boolean
 }
 
 /** The signed-in customer (or staff member). */
@@ -111,6 +126,18 @@ export interface ShopClient {
   }): Promise<CheckoutResult>
   /** After the payment on the page (e.g. Stripe's `confirmPayment`): makes the order. */
   confirm(transaction: ID, input?: Record<string, unknown>): Promise<ConfirmResult>
+  /**
+   * Tells Tag Manager a product page was seen (`view_item`), with the price shown, in the
+   * currency's smallest unit like every price of the shop (25000 for ฿250.00). Does nothing
+   * without a `dataLayer` or with `analytics: false`.
+   */
+  viewItem(product: {
+    id: ID
+    title: string
+    price?: number | null
+    variant?: string | null
+    currency?: string
+  }): void
 
   addresses(): Promise<(Address & { id: ID })[]>
   createAddress(address: Address): Promise<Address & { id: ID }>
@@ -144,6 +171,7 @@ export function createShopClient(options: ShopClientOptions = {}): ShopClient {
   const key = options.storageKey ?? 'easy-cms-cart'
   const locale = options.locale ?? 'en'
   const doFetch = options.fetch ?? ((...args: Parameters<typeof fetch>) => fetch(...args))
+  const tracking = options.analytics !== false
 
   let state: ShopState = { settings: null, user: null, cart: null, loading: true, busy: false }
   const listeners = new Set<(state: ShopState) => void>()
@@ -223,7 +251,9 @@ export function createShopClient(options: ShopClientOptions = {}): ShopClient {
         withCart(body),
       )
       if (result.secret && result.cart) remember({ id: result.cart.id, secret: result.secret })
+      const before = state.cart
       set({ cart: result.cart })
+      if (tracking && path !== '/currency') cartChanged(before, result.cart, decimals)
       return result.cart
     })
 
@@ -240,6 +270,13 @@ export function createShopClient(options: ShopClientOptions = {}): ShopClient {
     set({ cart: result.cart })
     return user
   }
+
+  /** Digits after the point of a currency, for the main unit GA4 wants. */
+  const decimals = (code: string | undefined) =>
+    (
+      state.settings?.currencies.find((c) => c.code === code) ??
+      (code ? CURRENCIES[code] : undefined)
+    )?.decimals ?? 2
 
   const lineQuantity = (line: string) => state.cart?.lines.find((l) => l.id === line)?.quantity ?? 0
 
@@ -303,6 +340,7 @@ export function createShopClient(options: ShopClientOptions = {}): ShopClient {
           password,
         })
         csrf = result.csrfToken
+        if (tracking) pushEvent('login', { method: 'email' })
         return signedIn(result.user)
       })
     },
@@ -325,6 +363,7 @@ export function createShopClient(options: ShopClientOptions = {}): ShopClient {
           '/auth/signup',
           { ...data, token: signupToken.token, locale },
         )
+        if (tracking) pushEvent('sign_up', { method: 'email' })
         if (result.verify) return { verify: true }
         csrf = result.csrfToken
         if (result.user) await signedIn(result.user)
@@ -355,13 +394,17 @@ export function createShopClient(options: ShopClientOptions = {}): ShopClient {
 
     async checkout(input) {
       return busy(async () => {
+        const cart = state.cart
+        if (tracking) checkoutStarted(cart, decimals)
         const result = await call<CheckoutResult>(
           'POST',
           '/shop/checkout',
           withCart({ ...input, locale }),
         )
+        if (tracking) rememberCheckout(result.transaction, cart)
         // Paid later (bank transfer): the order exists and the cart is bought.
         if (result.order) {
+          if (tracking) purchased(result.order, result.transaction, decimals)
           remember(null)
           set({ cart: null })
         }
@@ -377,10 +420,33 @@ export function createShopClient(options: ShopClientOptions = {}): ShopClient {
           withCart({ ...input, transaction }),
         )
         if (result.order) {
+          if (tracking) purchased(result.order, transaction, decimals)
           remember(null)
           set({ cart: null })
         }
         return result
+      })
+    },
+
+    viewItem(product) {
+      if (!tracking) return
+      const currency = product.currency ?? state.cart?.currency ?? state.settings?.defaultCurrency
+      const price =
+        typeof product.price === 'number'
+          ? Math.round(product.price) / 10 ** decimals(currency)
+          : undefined
+      pushEcommerce('view_item', {
+        currency,
+        ...(price !== undefined ? { value: price } : {}),
+        items: [
+          {
+            item_id: String(product.id),
+            item_name: product.title,
+            ...(product.variant ? { item_variant: product.variant } : {}),
+            ...(price !== undefined ? { price } : {}),
+            quantity: 1,
+          },
+        ],
       })
     },
 

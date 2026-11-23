@@ -160,6 +160,11 @@ export function analyticsScript(settings: ScriptSettings): string {
     'button:focus-visible{outline:3px solid var(--easy-consent-accent,#2f6f5e);outline-offset:2px}' +
     '@media (prefers-color-scheme:dark){section{background:var(--easy-consent-bg,#1f2421);color:var(--easy-consent-fg,#f1f1f1)}}';
 
+  // A form of @easy-cms/plugin-form-builder sent: a lead, named by the form's slug.
+  d.addEventListener('easy-form:submitted', function (e) {
+    var form = e.target && e.target.getAttribute ? e.target.getAttribute('form') : null;
+    w.dataLayer.push({ event: 'generate_lead', form_id: form || undefined });
+  });
   d.addEventListener('click', function (e) {
     var el = e.target && e.target.closest ? e.target.closest('[data-easy-consent]') : null;
     if (!el) return;

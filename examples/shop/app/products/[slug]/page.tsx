@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { baht, cms, imageOf } from '@/lib'
 import { AddToCart } from './add-to-cart'
+import { ViewItem } from './view-item'
 
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
@@ -22,6 +23,11 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     <article>
       {/* biome-ignore lint/performance/noImgElement: CMS media URLs; next/image would need remotePatterns */}
       {imageOf(product) ? <img className="cover" src={imageOf(product) as string} alt="" /> : null}
+      <ViewItem
+        id={product.id}
+        title={String(product.title)}
+        price={typeof product.priceInTHB === 'number' ? product.priceInTHB : null}
+      />
       <h1>{product.title}</h1>
       <p className="price">{baht(product.priceInTHB)}</p>
       <AddToCart

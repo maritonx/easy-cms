@@ -1,5 +1,6 @@
 import { consoleEmail, defineConfig } from '@easy-cms/core'
 import { sqlite } from '@easy-cms/db-sqlite'
+import { analyticsPlugin } from '@easy-cms/plugin-analytics'
 import { ecommercePlugin, manualAdapter } from '@easy-cms/plugin-ecommerce'
 import { stripeAdapter } from '@easy-cms/plugin-ecommerce/stripe'
 
@@ -54,6 +55,11 @@ export default defineConfig({
       },
       customers: { pages: { verifyEmail: '/account/verify', resetPassword: '/account/reset' } },
       emails: { notify: 'shop@example.com' },
+    }),
+    // Google Tag Manager and the consent banner (Settings → Analytics & consent); the shop's
+    // client pushes GA4 ecommerce events (add_to_cart, begin_checkout, purchase…) to it.
+    analyticsPlugin({
+      defaults: { gtm: process.env.GTM_ID, banner: process.env.CONSENT_BANNER !== 'off' },
     }),
   ],
 })

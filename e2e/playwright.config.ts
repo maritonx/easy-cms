@@ -216,6 +216,9 @@ export default defineConfig({
         STRIPE_PUBLISHABLE_KEY: 'pk_test_e2e',
         STRIPE_WEBHOOK_SECRET: 'whsec_e2e',
         STRIPE_API_URL: STRIPE,
+        // The consent banner would cover the checkout's button; events need no consent to be
+        // pushed to the dataLayer (Consent Mode decides what tags send).
+        CONSENT_BANNER: 'off',
       },
     },
     // The standalone example's frontend, on its own origin.
