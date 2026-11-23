@@ -1,5 +1,9 @@
 # @easy-cms/admin-build
 
+## 1.54.0
+
+No changes in this release.
+
 ## 1.53.0
 
 No changes in this release.
