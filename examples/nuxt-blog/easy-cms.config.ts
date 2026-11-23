@@ -3,6 +3,7 @@ import { consoleEmail, defineConfig } from '@easy-cms/core'
 import { sqlite } from '@easy-cms/db-sqlite'
 import { smtp } from '@easy-cms/email-smtp'
 import { color } from '@easy-cms/fields'
+import { analyticsPlugin } from '@easy-cms/plugin-analytics'
 import { formBuilderPlugin } from '@easy-cms/plugin-form-builder'
 import { graphqlPlugin } from '@easy-cms/plugin-graphql'
 import { mcpPlugin } from '@easy-cms/plugin-mcp'
@@ -269,6 +270,11 @@ export default defineConfig({
   plugins: [
     // Forms editors build in the admin (Forms), shown on the site with <easy-form>.
     formBuilderPlugin({ defaultTo: process.env.FORMS_TO ?? 'owner@localhost' }),
+    // Google Tag Manager and the consent banner (Settings → Analytics & consent); the Nuxt
+    // module adds its script to every page. GTM_ID sets the container until an admin saves one.
+    analyticsPlugin({
+      defaults: { gtm: process.env.GTM_ID, banner: process.env.CONSENT_BANNER !== 'off' },
+    }),
     // AI assistants (Claude, Cursor…) at /api/cms/mcp, with an API key.
     mcpPlugin(),
     // A GraphQL API at /api/cms/graphql (GraphiQL in the browser outside production).

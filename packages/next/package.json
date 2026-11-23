@@ -21,6 +21,10 @@
       "types": "./dist/live.d.ts",
       "default": "./dist/live.js"
     },
+    "./analytics": {
+      "types": "./dist/analytics.d.ts",
+      "default": "./dist/analytics.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

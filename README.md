@@ -66,9 +66,9 @@ Easy CMS still manages content, but **CMS** now says what it is for:
   scheduled publishing, a calendar, blocks, translations, a media library and a light and dark
   theme.
 - **More than content.** Site members, jobs, events and webhooks are built in, and official
-  plugins add a shop, forms, SEO, redirects, nested pages, GraphQL, several sites in one CMS
-  (multi-tenant) and AI assistants (MCP). Add only what you need, on the same users, roles and
-  database.
+  plugins add a shop, forms, SEO, Google Tag Manager with consent, redirects, nested pages,
+  GraphQL, several sites in one CMS (multi-tenant) and AI assistants (MCP). Add only what you
+  need, on the same users, roles and database.
 - **Any frontend, too.** Using Vite, React, Vue, a mobile app or a static site? Run the same CMS
   as a [standalone server](https://easycms.dev/docs/standalone) and use its REST
   API.
@@ -82,7 +82,7 @@ Easy CMS still manages content, but **CMS** now says what it is for:
 > **Stable since 1.0.** Breaking changes come only in a major release, with an upgrade guide;
 > renamed APIs keep working until the next major, with a warning.
 > [Versions and deprecations](https://easycms.dev/docs/versioning) says what is covered (the shop,
-> GraphQL and MCP plugins are still experimental), and the
+> analytics, GraphQL and MCP plugins are still experimental), and the
 > [changelog](https://easycms.dev/changelog) what each release added.
 
 ## When to use it
@@ -231,6 +231,7 @@ cd my-cms && npm run dev       # http://localhost:4000/admin
 |---|---|---|
 | [`@easy-cms/plugin-seo`](packages/plugin-seo) | Meta fields, search preview, sitemap, robots.txt, structured data, llms.txt | [SEO](https://easycms.dev/docs/seo) |
 | [`@easy-cms/plugin-form-builder`](packages/plugin-form-builder) | Forms built in the admin, submissions with an overview and a dashboard panel, email notifications, spam protection, `<easy-form>` | [Forms](https://easycms.dev/docs/forms) |
+| [`@easy-cms/plugin-analytics`](packages/plugin-analytics) (experimental) | Google Tag Manager set up in the admin, a consent banner in English and Thai (Consent Mode v2), consent records for PDPA and GDPR, `dataLayer` events | [Analytics & consent](https://easycms.dev/docs/analytics) |
 | [`@easy-cms/plugin-redirects`](packages/plugin-redirects) | Redirects managed in the admin, automatic redirects when a page moves | [Redirects](https://easycms.dev/docs/redirects) |
 | [`@easy-cms/plugin-notify`](packages/plugin-notify) | Telegram messages to admins when a form is sent, an order comes in or something fails | [Notifications](https://easycms.dev/docs/notifications) |
 | [`@easy-cms/plugin-ai`](packages/plugin-ai) | Claude, GPT, Gemini or an OpenAI-compatible server for the admin's AI features, with daily limits and usage | [AI](https://easycms.dev/docs/ai) |

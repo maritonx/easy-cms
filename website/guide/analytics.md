@@ -1,0 +1,156 @@
+# Analytics & consent
+
+::: info What you'll learn
+Add Google Tag Manager to your site from the admin, ask visitors for consent the way PDPA and
+GDPR expect (Consent Mode v2), and keep proof of their choice.
+
+**Before this page:** [Plugins](./plugins).
+:::
+
+::: warning Experimental
+This plugin is experimental. It has the same version number as the rest of Easy CMS, but its
+options, endpoints and data may still change in a minor release, after 1.0 too: it is not covered
+by the [stability promise](./versioning#experimental). The changelog and the
+[upgrade guide](./upgrading) say what changed.
+:::
+
+`@easy-cms/plugin-analytics` puts Google Tag Manager on your pages with one script, set up in
+**Settings → Analytics & consent**. Marketing can change the container or the banner's text
+without a deploy, and tags only fire once visitors agree.
+
+```bash [pm]
+npm install @easy-cms/plugin-analytics
+```
+
+```ts
+import { defineConfig } from '@easy-cms/core'
+import { analyticsPlugin } from '@easy-cms/plugin-analytics'
+
+export default defineConfig({
+  // …
+  plugins: [analyticsPlugin({ defaults: { gtm: process.env.GTM_ID } })],
+})
+```
+
+`defaults.gtm` is used until an admin saves the settings; leave it out to set the container in the
+admin only.
+
+## Add the script to your pages {#the-script}
+
+Everything runs from one script the API serves, `<api>/analytics.js`. It sets the consent
+defaults, shows the banner, loads Tag Manager and defines `easyConsent` and `easyAnalytics`.
+
+::: code-group
+
+```ts [Nuxt]
+// Nothing to do: the module adds the script to every page when the plugin is installed.
+```
+
+```tsx [Next.js: app/layout.tsx]
+import { EasyAnalytics } from '@easy-cms/next/analytics'
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body>
+        {children}
+        <EasyAnalytics />
+      </body>
+    </html>
+  )
+}
+```
+
+```html [Any other site]
+<script src="https://cms.example.com/api/cms/analytics.js" async></script>
+```
+
+:::
+
+Changes in the admin reach pages within a minute (the script is cached for 60 seconds).
+
+**Never in the admin or previews.** In the admin's live preview, and on pages opened with
+`?preview=`, the script loads nothing: editors' visits never show up in your reports.
+
+## Settings {#settings}
+
+**Settings → Analytics & consent** holds:
+
+| Setting | |
+|---|---|
+| Google Tag Manager container | `GTM-XXXXXXX`. Empty: no Tag Manager; the banner and `dataLayer` still work |
+| Show the consent banner | Off when you use your own consent tool (see below) |
+| Banner title, text | Empty: the built-in text, in English or Thai to match the page |
+| Privacy policy page | Linked from the banner, e.g. `/privacy` |
+| Ask for consent | Everywhere (recommended), or only in the EU/EEA, UK, Switzerland and Thailand |
+| Keep consent records, for (days) | See [Consent records](#consent-records). Default on, 730 days |
+
+With [localization](./localization), the title, text and privacy page have a value per language.
+With [multi-tenant](./multi-tenant), list `analytics` in the plugin's `globals` and
+`consent-records` in its `collections`: each site has its own container, banner and records.
+
+## Consent {#consent}
+
+The script uses Google's [Consent Mode v2](https://developers.google.com/tag-platform/security/guides/consent):
+everything is **denied** until the visitor chooses, so Google tags send no cookies before then.
+
+| In the banner | Consent Mode |
+|---|---|
+| Necessary (always on) | none: remembering the choice |
+| Analytics | `analytics_storage` |
+| Marketing | `ad_storage`, `ad_user_data`, `ad_personalization` |
+
+The banner has **Accept all** and **Reject all** side by side, of the same weight, and **Settings**
+to choose per category. The choice is kept for 12 months in a first-party cookie, `easy_consent`.
+Changing the banner's title, text or privacy page asks everyone again.
+
+Let visitors change their mind with any element marked `data-easy-consent`, e.g. in the footer:
+
+```html
+<a href="#" data-easy-consent>Cookie settings</a>
+```
+
+The banner takes your colors from CSS variables: `--easy-consent-accent`, `--easy-consent-bg` and
+`--easy-consent-fg`.
+
+### Your own consent tool {#own-consent-tool}
+
+Using Cookiebot, OneTrust or your own banner? Turn **Show the consent banner** off. The defaults
+stay denied, and your tool grants consent with `gtag('consent', 'update', …)`, which most do
+already, or with:
+
+```js
+window.easyConsent.set({ analytics: true, marketing: false })
+window.easyConsent.get() // { analytics: true, marketing: false }, or null before a choice
+```
+
+## Consent records {#consent-records}
+
+PDPA and GDPR ask you to show that a visitor agreed. Each choice is kept in **Consent records**:
+a random ID (the one in the visitor's cookie), the categories, the banner's version and the time.
+No IP address and nothing that names the person. Admins can read them; nobody can edit them. They
+are deleted after the days set in the settings.
+
+## Events {#events}
+
+Push your own events to Tag Manager's `dataLayer`:
+
+```js
+window.easyAnalytics.track('sign_up', { method: 'email' })
+```
+
+The script also pushes `easy_consent` with `{ consent: { analytics, marketing } }` whenever a
+visitor chooses, for tags that should wait for it.
+
+## Content Security Policy {#csp}
+
+If your site sends a Content Security Policy, allow Tag Manager, and anything your tags load:
+
+```
+script-src 'self' https://www.googletagmanager.com;
+```
+
+## Next steps
+
+- [SEO](./seo): meta tags, sitemaps and structured data for the same pages
+- [Forms](./forms): forms in the admin, with spam protection

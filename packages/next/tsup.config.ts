@@ -5,11 +5,20 @@ const dts = { compilerOptions: { ignoreDeprecations: '6.0' } }
 
 export default defineConfig([
   {
-    entry: ['src/index.ts', 'src/config.ts'],
+    entry: ['src/index.ts', 'src/config.ts', 'src/analytics.ts'],
     format: ['esm'],
     // All declarations come from this config: the two configs build in parallel, and this one's
     // clean step would delete a declaration file written by the other.
-    dts: { ...dts, entry: ['src/index.ts', 'src/config.ts', 'src/live-preview.ts', 'src/live.ts'] },
+    dts: {
+      ...dts,
+      entry: [
+        'src/index.ts',
+        'src/config.ts',
+        'src/analytics.ts',
+        'src/live-preview.ts',
+        'src/live.ts',
+      ],
+    },
     clean: true,
     target: 'node22',
     external: ['next', 'next/headers.js', 'next/server.js'],

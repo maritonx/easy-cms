@@ -40,8 +40,8 @@ other way; the changelog says so.
 
 ## Experimental packages {#experimental}
 
-[`@easy-cms/plugin-ecommerce`](./ecommerce), [`@easy-cms/plugin-graphql`](./graphql) and
-[`@easy-cms/plugin-mcp`](./mcp) share the version number but not the promise: their options,
+[`@easy-cms/plugin-ecommerce`](./ecommerce), [`@easy-cms/plugin-analytics`](./analytics),
+[`@easy-cms/plugin-graphql`](./graphql) and [`@easy-cms/plugin-mcp`](./mcp) share the version number but not the promise: their options,
 endpoints and data may change in a minor release, after 1.0 too. Their pages and READMEs say so
 at the top.
 

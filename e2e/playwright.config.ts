@@ -107,6 +107,9 @@ export default defineConfig({
         DATABASE_URL: app.name === 'next' ? '' : `file:${join(scratch, `${app.name}.db`)}`,
         PGLITE_DIR: join(scratch, 'next-pglite'),
         NUXT_TELEMETRY_DISABLED: '1',
+        // The Nuxt example's consent banner covers the bottom of its pages; the analytics test
+        // turns it on for itself.
+        CONSENT_BANNER: 'off',
         // The built Nuxt server's port (the others take --port).
         PORT: String(app.port),
         NEXT_TELEMETRY_DISABLED: '1',

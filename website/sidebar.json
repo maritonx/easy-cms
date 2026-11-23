@@ -298,6 +298,13 @@
           }
         },
         {
+          "path": "guide/analytics",
+          "title": {
+            "en": "Analytics & consent",
+            "th": "Analytics และความยินยอม"
+          }
+        },
+        {
           "path": "guide/mcp",
           "title": {
             "en": "MCP (AI assistants)",
