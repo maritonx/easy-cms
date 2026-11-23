@@ -18,5 +18,7 @@ export interface EasyAnalyticsProps {
  * ```
  */
 export function EasyAnalytics({ api = '/api/cms' }: EasyAnalyticsProps = {}) {
-  return createElement('script', { src: `${api.replace(/\/+$/, '')}/analytics.js`, async: true })
+  let base = api
+  while (base.endsWith('/')) base = base.slice(0, -1)
+  return createElement('script', { src: `${base}/analytics.js`, async: true })
 }
