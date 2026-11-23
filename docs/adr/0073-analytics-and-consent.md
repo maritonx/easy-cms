@@ -39,7 +39,14 @@
 - **event ใน `dataLayer` ชื่อมาตรฐาน GA4 (PR ที่สอง):** `generate_lead` (`<easy-form>`), `sign_up` / `login` (สมาชิก), `search`,
   ร้านค้าเต็มชุด (`view_item`, `add_to_cart`, `remove_from_cart`, `begin_checkout`, `purchase`) อัตโนมัติจาก hook ของ
   plugin-ecommerce และ `track(event, params)` Consent Mode ตัดสินว่าแท็กไหนยิง
-- **เฟสสอง (ไม่อยู่ใน 1.54):** `purchase` ฝั่ง server ผ่าน GA4 Measurement Protocol เมื่อคำสั่งซื้อชำระแล้ว
+- **เฟสสอง (1.55): `purchase` ฝั่ง server ผ่าน GA4 Measurement Protocol** (ตกลงกัน 2026-11-23)
+  - ส่งเมื่อ `order.paid` (เงินเข้าจริง) และ `refund` เมื่อ `order.refunded` ครั้งเดียวต่อคำสั่งซื้อ
+  - Measurement ID และ API secret อยู่ใน Integrations หมวดใหม่ "analytics" (secret เข้ารหัส ปุ่ม Test ใช้ `/debug/mp/collect`)
+    ค่าเดียวทั้งระบบ ยังแยกต่อ tenant ไม่ได้
+  - ตอน checkout client ส่ง `client_id` และ session ID จากคุกกี้ `_ga` พร้อมความยินยอม เก็บใน field `analytics` ของคำสั่งซื้อ
+    (พนักงานอ่านได้ ไม่มีใครแก้) เฉพาะเมื่อยินยอมหมวดวิเคราะห์ ไม่ยินยอม = ไม่เก็บ ไม่ส่ง
+  - เมื่อเชื่อม GA4 แล้ว หน้าเว็บไม่ส่ง `purchase` เอง (`easyAnalytics.serverPurchase`) กันนับซ้ำ
+  - ส่งผ่านแถวใน collection ซ่อน `analytics-hits` และ job `analytics:ga4` ลองใหม่ 1, 5, 30 นาที แล้ว mark error ที่ Integration
 
 ## ผลที่ตามมา
 

@@ -145,7 +145,7 @@ tags then send.
 | `view_item` | `shop.viewItem(product)` on a product page | `ecommerce`: the product, its price |
 | `add_to_cart`, `remove_from_cart` | The cart changes: add, quantity up or down, remove, clear | `ecommerce`: what changed |
 | `begin_checkout` | `shop.checkout()` | `ecommerce`: the cart |
-| `purchase` | An order is placed (`checkout()` for a bank transfer, `confirm()` after a card) | `ecommerce`: `transaction_id` (the order number), the cart |
+| `purchase` | An order is placed (`checkout()` for a bank transfer, `confirm()` after a card); not with [GA4 from the server](#server-purchases) | `ecommerce`: `transaction_id` (the order number), the cart |
 | `easy_consent` | A visitor chooses in the banner | `consent: { analytics, marketing }` |
 
 Shop events carry `currency`, `value` and `items` (`item_id`, `item_name`, `item_variant`, `price`,
@@ -159,6 +159,36 @@ Push your own, e.g. a search or a sign-up on your own form:
 window.easyAnalytics.track('search', { search_term: query })
 window.easyAnalytics.track('sign_up', { method: 'email' })
 ```
+
+## Purchases from the server {#server-purchases}
+
+The page reports a purchase when the order is placed, before a bank transfer is paid, and only if
+Tag Manager loads. Connect **Google Analytics 4** in Settings → Integrations (Analytics) to have the
+server send it instead, through GA4's
+[Measurement Protocol](https://developers.google.com/analytics/devguides/collection/protocol/ga4),
+when the money arrives:
+
+| Integration field | Where |
+|---|---|
+| Measurement ID | Google Analytics → Admin → Data streams → your web stream (`G-…`) |
+| API secret | The same stream → Measurement Protocol API secrets → Create |
+
+**Test** checks both with GA4's validation server. Or set `GA4_MEASUREMENT_ID` and
+`GA4_API_SECRET`.
+
+Then:
+
+- At checkout, the shop's client sends the Google Analytics IDs from the `_ga` cookies (client and
+  session), with the customer's consent. They are kept on the order, read by staff only, and only
+  when the customer agreed to **Analytics**; otherwise nothing is kept and nothing is sent.
+- When the order is paid (`order.paid`: a card payment confirmed, a transfer marked received),
+  the server sends `purchase`; when it is refunded, `refund`. Once per order, with the order number
+  as `transaction_id`, in the currency's main unit. `ad_user_data` and `ad_personalization` follow
+  the customer's **Marketing** choice.
+- The page stops pushing its own `purchase`, so it isn't counted twice. The cart and checkout
+  events stay.
+- A hit Google doesn't take (a network error, a 5xx) is tried again after 1, 5 and 30 minutes
+  by the `analytics:ga4` job; after that the integration shows the error.
 
 ## Content Security Policy {#csp}
 

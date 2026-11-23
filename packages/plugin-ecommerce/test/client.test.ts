@@ -102,6 +102,84 @@ describe('the shop client', () => {
     expect(events()).toHaveLength(5)
   })
 
+  it('gives the server the Google Analytics IDs, with consent, and leaves purchase to it', async () => {
+    const dataLayer: Record<string, unknown>[] = []
+    let consent: { analytics: boolean; marketing: boolean } | null = {
+      analytics: true,
+      marketing: true,
+    }
+    vi.stubGlobal('window', {
+      dataLayer,
+      easyConsent: { get: () => consent },
+      // GA4 is connected (@easy-cms/plugin-analytics): the server sends purchases.
+      easyAnalytics: { serverPurchase: true },
+    })
+    vi.stubGlobal('document', {
+      cookie: '_ga=GA1.1.111.222; _ga_TEST123=GS2.1.s1700000000$o3$g1$t1700000100; other=1',
+    })
+    const buy = async () => {
+      const b = browser()
+      const shop = createShopClient({ fetch: b.fetch, storage: b.storage })
+      await shop.load()
+      await shop.addItem(mug)
+      const paid = await shop.checkout({
+        method: 'bank-transfer',
+        email: 'ga@example.com',
+        shippingAddress: { name: 'A', line1: 'B', country: 'TH' },
+      })
+      return (await server.cms.findById('orders', paid.order?.id as number)) as Record<
+        string,
+        unknown
+      >
+    }
+    expect((await buy()).analytics).toEqual({
+      clientId: '111.222',
+      sessions: { TEST123: '1700000000' },
+      marketing: true,
+    })
+    // The page leaves the purchase to the server, so it isn't counted twice.
+    expect(dataLayer.some((e) => e.event === 'purchase')).toBe(false)
+    expect(dataLayer.some((e) => e.event === 'begin_checkout')).toBe(true)
+
+    // A customer's own orders don't show them.
+    await server.cms.create('users', {
+      email: 'ga-buyer@example.com',
+      password: 'customer-ga1',
+      role: 'customer',
+      emailVerified: true,
+    })
+    const b = browser()
+    const customer = createShopClient({ fetch: b.fetch, storage: b.storage })
+    await customer.load()
+    await customer.login('ga-buyer@example.com', 'customer-ga1')
+    await customer.addItem(mug)
+    await customer.checkout({
+      method: 'bank-transfer',
+      shippingAddress: { name: 'A', line1: 'B', country: 'TH' },
+    })
+    const own = await customer.orders()
+    expect(own.docs[0]).toBeDefined()
+    expect(own.docs[0]?.analytics).toBeUndefined()
+
+    // No consent to analytics: nothing kept.
+    consent = { analytics: false, marketing: false }
+    expect((await buy()).analytics ?? null).toBeNull()
+  })
+
+  it('keeps only Google Analytics IDs that look right', async () => {
+    const { analyticsOf } = await import('../src/shop.js')
+    const good = { analytics: true, marketing: false, clientId: '1.2', sessions: { ABCD1: '9' } }
+    expect(analyticsOf(good)).toEqual({
+      clientId: '1.2',
+      sessions: { ABCD1: '9' },
+      marketing: false,
+    })
+    expect(analyticsOf({ ...good, analytics: false })).toBeNull()
+    expect(analyticsOf({ ...good, clientId: '<script>' })).toBeNull()
+    expect(analyticsOf({ ...good, sessions: { bad: 'x', ABCD1: 'nope' } })?.sessions).toEqual({})
+    expect(analyticsOf('nope')).toBeNull()
+  })
+
   it('reports invalid input with its fields', async () => {
     const b = browser()
     const shop = createShopClient({ fetch: b.fetch, storage: b.storage })

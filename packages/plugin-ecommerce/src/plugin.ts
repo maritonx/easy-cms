@@ -563,6 +563,7 @@ export function ecommercePlugin<const Cur extends string = 'THB'>(
           shippingAddress: body.shippingAddress,
           address: body.address,
           locale: body.locale,
+          analytics: body.analytics,
         })
       },
     },

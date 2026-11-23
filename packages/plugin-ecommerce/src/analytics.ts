@@ -100,6 +100,49 @@ const cartData = (cart: CartView, decimals: Decimals) => {
   }
 }
 
+type Page = {
+  easyConsent?: { get(): { analytics: boolean; marketing: boolean } | null }
+  easyAnalytics?: { serverPurchase?: boolean }
+}
+const page = (): Page | null => (typeof window === 'undefined' ? null : (window as unknown as Page))
+
+/** The server sends `purchase` to GA4 itself (@easy-cms/plugin-analytics with GA4 connected). */
+export const serverPurchases = () => page()?.easyAnalytics?.serverPurchase === true
+
+const cookie = (name: string) => {
+  if (typeof document === 'undefined') return null
+  for (const part of document.cookie.split('; '))
+    if (part.startsWith(`${name}=`)) return decodeURIComponent(part.slice(name.length + 1))
+  return null
+}
+
+/**
+ * What checkout sends for the server's GA4 purchase: the Google Analytics client ID and session
+ * IDs from its cookies, with the customer's consent. Nothing without consent to analytics.
+ */
+export function checkoutAnalytics() {
+  const consent = page()?.easyConsent?.get()
+  if (!consent?.analytics || typeof document === 'undefined') return undefined
+  // _ga: GA1.1.<random>.<time>
+  const ga = cookie('_ga')?.split('.')
+  if (!ga || ga.length < 4) return undefined
+  const sessions: Record<string, string> = {}
+  for (const part of document.cookie.split('; ')) {
+    const match = /^_ga_([A-Z0-9]+)=(.*)$/.exec(part)
+    if (!match?.[1] || !match[2]) continue
+    // GS1.1.<session>.… or GS2.1.s<session>$o…
+    const value = decodeURIComponent(match[2])
+    const id = /^GS2\.\d+\.s(\d+)/.exec(value)?.[1] ?? /^GS1\.\d+\.(\d+)\./.exec(value)?.[1]
+    if (id) sessions[match[1]] = id
+  }
+  return {
+    analytics: true,
+    marketing: consent.marketing,
+    clientId: `${ga[2]}.${ga[3]}`,
+    sessions,
+  }
+}
+
 const PURCHASED = 'easy-cms-purchased'
 const CHECKOUT = 'easy-cms-checkout'
 
@@ -140,6 +183,8 @@ export function purchased(
     // Unreadable: report it anyway.
   }
   if (done.includes(String(order.id))) return
+  // Sent by the server when the payment arrives; the page would count it twice.
+  if (serverPurchases()) return
   const cart = kept && kept.transaction === String(transaction) ? kept.cart : null
   pushEcommerce('purchase', {
     transaction_id: order.orderNumber,

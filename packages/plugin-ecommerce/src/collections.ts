@@ -590,6 +590,16 @@ export function shopCollections(o: CollectionOptions): CollectionConfig[] {
         access: bySystem,
         label: { en: 'Language', th: 'ภาษา' },
       },
+      // Google Analytics IDs from checkout, kept only when the customer agreed to analytics, for
+      // the server's GA4 purchase event (@easy-cms/plugin-analytics). Staff only, never edited.
+      {
+        name: 'analytics',
+        type: 'json',
+        // Staff: signed in, not a site member (as isStaff).
+        access: { read: ({ user }) => user !== null && user.member !== true, update: () => false },
+        admin: { position: 'sidebar' },
+        label: { en: 'Analytics', th: 'Analytics' },
+      },
       // Stock ran out while the customer paid: the money is in, the items may not be.
       {
         name: 'stockShort',

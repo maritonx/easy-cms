@@ -2161,13 +2161,20 @@ function validateIntegrations(config: Config, add: Add) {
     else ids.add(item.id)
     if (!isLabel(item.label)) add(`${at}.label`, 'must be a string or { en, th }')
     if (
-      !['social', 'ai', 'notifications', 'automation', 'backups', 'email', 'sign-in'].includes(
-        item.category as string,
-      )
+      ![
+        'social',
+        'ai',
+        'notifications',
+        'automation',
+        'backups',
+        'email',
+        'analytics',
+        'sign-in',
+      ].includes(item.category as string)
     )
       add(
         `${at}.category`,
-        "must be 'social', 'ai', 'notifications', 'automation', 'backups', 'email' or 'sign-in'",
+        "must be 'social', 'ai', 'notifications', 'automation', 'backups', 'email', 'analytics' or 'sign-in'",
       )
     if (item.category === 'sign-in') {
       const signIn = (item.signIn ?? {}) as Record<string, unknown>

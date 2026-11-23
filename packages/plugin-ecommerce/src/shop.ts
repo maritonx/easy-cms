@@ -496,6 +496,35 @@ interface Snapshot {
   locale: string
   /** The checkout request's context (e.g. the tenant), for the order made later from a webhook. */
   context: RequestContext
+  analytics?: OrderAnalytics
+}
+
+/** Google Analytics IDs a page sends at checkout, when the customer agreed to analytics. */
+export interface OrderAnalytics {
+  /** From the `_ga` cookie, e.g. `1234567890.1700000000`. */
+  readonly clientId: string
+  /** Session IDs by GA4 property, from the `_ga_<id>` cookies. */
+  readonly sessions?: Readonly<Record<string, string>>
+  readonly marketing: boolean
+}
+
+const analyticsField = (value: unknown): { analytics?: OrderAnalytics } => {
+  const analytics = analyticsOf(value)
+  return analytics ? { analytics } : {}
+}
+
+/** What the page sent, if it looks right and the customer agreed to analytics; otherwise nothing. */
+export function analyticsOf(value: unknown): OrderAnalytics | null {
+  if (!value || typeof value !== 'object') return null
+  const v = value as Record<string, unknown>
+  if (v.analytics !== true) return null
+  if (typeof v.clientId !== 'string' || !/^\d{1,20}\.\d{1,20}$/.test(v.clientId)) return null
+  const sessions: Record<string, string> = {}
+  if (v.sessions && typeof v.sessions === 'object')
+    for (const [key, id] of Object.entries(v.sessions as Record<string, unknown>).slice(0, 5))
+      if (/^[A-Z0-9]{4,16}$/.test(key) && typeof id === 'string' && /^\d{1,20}$/.test(id))
+        sessions[key] = id
+  return { clientId: v.clientId, sessions, marketing: v.marketing === true }
 }
 
 const toPayment = (tx: Data): PaymentTransaction => ({
@@ -550,6 +579,7 @@ export class Orders {
       shippingAddress?: unknown
       address?: unknown
       locale?: unknown
+      analytics?: unknown
     },
   ): Promise<CheckoutResult> {
     const adapter = this.adapter(input.method)
@@ -598,6 +628,7 @@ export class Orders {
       shippingAddress,
       locale: input.locale === 'th' ? 'th' : 'en',
       context: plainContext(who.context),
+      ...analyticsField(input.analytics),
     }
     const tx = (await this.cms.create(
       TRANSACTIONS,
@@ -822,6 +853,7 @@ export class Orders {
         paymentMethod: String(tx.method),
         stockShort: short,
         locale: snapshot.locale,
+        ...(snapshot.analytics ? { analytics: snapshot.analytics } : {}),
         ...(status === 'paid' ? { paidAt: new Date().toISOString() } : {}),
         ...(status === 'pending' && typeof adapter?.expiresIn === 'number'
           ? { expiresAt: new Date(Date.now() + adapter.expiresIn * 1000).toISOString() }
