@@ -29,7 +29,7 @@
     "@easy-cms/core": "workspace:^",
     "@easy-cms/db-sqlite": "workspace:^",
     "happy-dom": "^21.0.4",
-    "simple-icons": "16.37.0"
+    "simple-icons": "16.38.0"
   },
   "engines": {
     "node": ">=22.12"
