@@ -37,8 +37,8 @@ Easy CMS ใช้ [semantic versioning](https://semver.org) แพ็กเก�
 
 ## แพ็กเกจทดลอง {#experimental}
 
-[`@easy-cms/plugin-ecommerce`](./ecommerce), [`@easy-cms/plugin-graphql`](./graphql) และ
-[`@easy-cms/plugin-mcp`](./mcp) ใช้เลขเวอร์ชันเดียวกันแต่ไม่อยู่ใต้สัญญา option, endpoint และข้อมูล
+[`@easy-cms/plugin-ecommerce`](./ecommerce), [`@easy-cms/plugin-analytics`](./analytics),
+[`@easy-cms/plugin-graphql`](./graphql) และ [`@easy-cms/plugin-mcp`](./mcp) ใช้เลขเวอร์ชันเดียวกันแต่ไม่อยู่ใต้สัญญา option, endpoint และข้อมูล
 อาจเปลี่ยนใน minor release ได้ แม้หลัง 1.0 หน้าเอกสารและ README ของแต่ละตัวมีป้ายบอกไว้ด้านบน
 
 แพ็กเกจจะออกจากรายการนี้ใน minor release เมื่อครบทุกข้อ:

@@ -2256,6 +2256,73 @@ test.describe('logged in as admin', () => {
     }
   })
 
+  test('asks for consent before Tag Manager counts anything (analytics plugin)', async ({
+    page,
+  }) => {
+    test.skip(test.info().project.name !== 'nuxt', 'The Nuxt example has the analytics plugin')
+    await page.goto('/admin/')
+    const me = (await (await page.request.get('/api/cms/auth/me')).json()) as { csrfToken: string }
+    const headers = { 'x-csrf-token': me.csrfToken, origin: new URL(page.url()).origin }
+    const settings = (data: Record<string, unknown>) =>
+      page.request.patch('/api/cms/globals/analytics', { headers, data })
+    // The other tests click near the bottom of pages: the banner is on only here.
+    expect((await settings({ banner: true, gtm: 'GTM-E2ETEST' })).status()).toBe(200)
+    try {
+      // Tag Manager itself stays out of the test; what matters is that it is asked for.
+      const loaded: string[] = []
+      await page.route('https://www.googletagmanager.com/**', (route) => {
+        loaded.push(route.request().url())
+        return route.fulfill({ contentType: 'text/javascript', body: '' })
+      })
+      // The admin never loads it.
+      const adminScripts = await page.locator('script[src*="analytics.js"]').count()
+      expect(adminScripts).toBe(0)
+
+      await page.goto('/posts/plugins-work')
+      // The Nuxt module adds the script to every page.
+      await expect(page.locator('script[src="/api/cms/analytics.js"]')).toHaveCount(1)
+      const banner = page.locator('[data-easy-consent-banner]')
+      await expect(banner.getByRole('dialog', { name: 'Cookies on this site' })).toBeVisible()
+      const reject = banner.getByRole('button', { name: 'Reject all' })
+      const accept = banner.getByRole('button', { name: 'Accept all' })
+      await expect(reject).toBeVisible()
+      await expect(accept).toBeVisible()
+      // Denied before anything else, then Tag Manager.
+      const layer = await page.evaluate(() =>
+        (window as unknown as { dataLayer: unknown[] }).dataLayer.map((e) =>
+          e && typeof e === 'object' && 'length' in e ? Array.from(e as ArrayLike<unknown>) : e,
+        ),
+      )
+      expect(layer[0]).toEqual([
+        'consent',
+        'default',
+        expect.objectContaining({ analytics_storage: 'denied', ad_storage: 'denied' }),
+      ])
+      await expect
+        .poll(() => loaded)
+        .toEqual(['https://www.googletagmanager.com/gtm.js?id=GTM-E2ETEST'])
+
+      const recorded = page.waitForResponse((r) => r.url().endsWith('/api/cms/analytics/consent'))
+      await reject.click()
+      expect((await recorded).status()).toBe(204)
+      await expect(banner).toHaveCount(0)
+      const cookie = (await page.context().cookies()).find((c) => c.name === 'easy_consent')
+      expect(cookie?.sameSite).toBe('Lax')
+
+      // Remembered on the next page, and kept as a record admins can read.
+      await page.goto('/')
+      await expect(page.locator('script[src="/api/cms/analytics.js"]')).toHaveCount(1)
+      await expect(banner).toHaveCount(0)
+      const records = (await (
+        await page.request.get('/api/cms/consent-records?sort=-createdAt&limit=1')
+      ).json()) as { docs: { analytics: boolean; marketing: boolean }[] }
+      expect(records.docs[0]).toMatchObject({ analytics: false, marketing: false })
+    } finally {
+      await settings({ banner: false, gtm: '' })
+      await page.context().clearCookies({ name: 'easy_consent' })
+    }
+  })
+
   test('publishes a sitemap, robots.txt, hreflang and JSON-LD (SEO plugin)', async ({ page }) => {
     // A post hidden from search engines.
     await page.goto('/admin/collections/posts/new')

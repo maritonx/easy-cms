@@ -146,6 +146,17 @@ declare module '${SERVER}' {
     addServerHandler({ route: `${apiPath}/**`, handler: HANDLER })
     addServerPlugin(resolveRuntime('./runtime/plugin.js'))
 
+    // Analytics and consent (ADR-0073): its script on every page when the plugin is installed.
+    // The admin is its own app, so it never loads it.
+    const analytics = (rawConfig?.plugins ?? []).some(
+      (plugin) =>
+        (plugin as { info?: { name?: string } }).info?.name === '@easy-cms/plugin-analytics',
+    )
+    if (analytics) {
+      const head = nuxt.options.app.head
+      head.script = [...(head.script ?? []), { src: `${apiPath}/analytics.js`, async: true }]
+    }
+
     // The runtime imports the virtual modules, so Nitro must bundle it rather than load it from node_modules.
     const runtimeDir = resolveRuntime('./runtime')
     nitro.externals = {

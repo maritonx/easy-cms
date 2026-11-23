@@ -1,0 +1,53 @@
+{
+  "name": "@easy-cms/plugin-analytics",
+  "version": "1.53.0",
+  "description": "Google Tag Manager for Easy CMS sites, with a consent banner (Consent Mode v2, PDPA and GDPR), consent records and GA4 events",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "prepack": "node ../../scripts/check-publish.mjs"
+  },
+  "peerDependencies": {
+    "@easy-cms/core": "workspace:^"
+  },
+  "devDependencies": {
+    "@easy-cms/core": "workspace:^",
+    "@easy-cms/db-sqlite": "workspace:^",
+    "happy-dom": "^21.0.4"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maritonx/easy-cms.git",
+    "directory": "packages/plugin-analytics"
+  },
+  "keywords": [
+    "easy-cms",
+    "easy-cms-plugin",
+    "google-tag-manager",
+    "gtm",
+    "consent",
+    "pdpa",
+    "gdpr",
+    "analytics"
+  ]
+}
