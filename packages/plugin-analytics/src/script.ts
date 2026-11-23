@@ -13,6 +13,8 @@ export interface ScriptSettings {
   readonly texts: Readonly<Record<string, BannerTexts>>
   /** Where the API is, e.g. `/api/cms`, for recording choices. */
   readonly api: string
+  /** GA4 is connected: the server sends purchases, so the shop's page doesn't. */
+  readonly serverPurchase?: boolean
 }
 
 /** JSON inside a <script>: `<` can't end the element. */
@@ -93,7 +95,10 @@ export function analyticsScript(settings: ScriptSettings): string {
     set: set,
     open: function () { show(true) }
   };
-  w.easyAnalytics = { track: function (event, params) { w.dataLayer.push(extend({ event: event }, params || {})) } };
+  w.easyAnalytics = {
+    serverPurchase: !!C.serverPurchase,
+    track: function (event, params) { w.dataLayer.push(extend({ event: event }, params || {})) }
+  };
 
   if (C.gtm) {
     w.dataLayer.push({ 'gtm.start': Date.now(), event: 'gtm.js' });

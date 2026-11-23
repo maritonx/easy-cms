@@ -5,6 +5,7 @@
 
 import {
   cartChanged,
+  checkoutAnalytics,
   checkoutStarted,
   purchased,
   pushEcommerce,
@@ -399,7 +400,11 @@ export function createShopClient(options: ShopClientOptions = {}): ShopClient {
         const result = await call<CheckoutResult>(
           'POST',
           '/shop/checkout',
-          withCart({ ...input, locale }),
+          withCart({
+            ...input,
+            locale,
+            ...(tracking && checkoutAnalytics() ? { analytics: checkoutAnalytics() } : {}),
+          }),
         )
         if (tracking) rememberCheckout(result.transaction, cart)
         // Paid later (bank transfer): the order exists and the cart is bought.

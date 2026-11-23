@@ -28,7 +28,15 @@ import { notify } from '../lib/toast'
  * drawer with its accounts (`?open=<id>`).
  */
 
-type Category = 'social' | 'ai' | 'notifications' | 'automation' | 'backups' | 'email' | 'sign-in'
+type Category =
+  | 'social'
+  | 'ai'
+  | 'notifications'
+  | 'automation'
+  | 'backups'
+  | 'email'
+  | 'analytics'
+  | 'sign-in'
 interface Field {
   name: string
   label?: Label
@@ -123,6 +131,7 @@ const CATEGORIES: (Category | 'code')[] = [
   'automation',
   'backups',
   'email',
+  'analytics',
   'sign-in',
   'code',
 ]

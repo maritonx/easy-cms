@@ -21,6 +21,7 @@ export type IntegrationCategory =
   | 'automation'
   | 'backups'
   | 'email'
+  | 'analytics'
   | 'sign-in'
 
 /**
@@ -385,6 +386,15 @@ export const OFFICIAL_PLUGINS: readonly {
       th: 'ส่งอีเมลด้วย Resend, Postmark หรือ Brevo เลือกในหน้า admin และกันที่อยู่ที่ตีกลับ',
     },
     docs: 'https://easycms.dev/docs/email#providers',
+  },
+  {
+    name: '@easy-cms/plugin-analytics',
+    category: 'analytics',
+    description: {
+      en: 'Google Tag Manager with a consent banner, and GA4 purchases sent by the server',
+      th: 'Google Tag Manager พร้อม banner ขอความยินยอม และส่งการซื้อไป GA4 จาก server',
+    },
+    docs: 'https://easycms.dev/docs/analytics',
   },
   {
     name: '@easy-cms/plugin-ecommerce',

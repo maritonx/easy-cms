@@ -27,6 +27,7 @@
   "devDependencies": {
     "@easy-cms/core": "workspace:^",
     "@easy-cms/db-sqlite": "workspace:^",
+    "@easy-cms/plugin-ecommerce": "workspace:^",
     "happy-dom": "^21.0.4"
   },
   "engines": {

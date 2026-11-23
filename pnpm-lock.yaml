@@ -677,6 +677,9 @@ importers:
       '@easy-cms/db-sqlite':
         specifier: workspace:^
         version: link:../db-sqlite
+      '@easy-cms/plugin-ecommerce':
+        specifier: workspace:^
+        version: link:../plugin-ecommerce
       happy-dom:
         specifier: ^21.0.4
         version: 21.0.4

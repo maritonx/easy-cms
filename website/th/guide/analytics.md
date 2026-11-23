@@ -139,7 +139,7 @@ Easy CMS ส่ง event เข้า `dataLayer` ของ Tag Manager ด้�
 | `view_item` | เรียก `shop.viewItem(product)` ในหน้าสินค้า | `ecommerce`: สินค้าและราคา |
 | `add_to_cart`, `remove_from_cart` | ตะกร้าเปลี่ยน: เพิ่ม, เพิ่มหรือลดจำนวน, ลบ, ล้าง | `ecommerce`: สิ่งที่เปลี่ยน |
 | `begin_checkout` | เรียก `shop.checkout()` | `ecommerce`: ตะกร้า |
-| `purchase` | มีคำสั่งซื้อ (`checkout()` สำหรับโอนเงิน, `confirm()` หลังจ่ายด้วยบัตร) | `ecommerce`: `transaction_id` (เลขคำสั่งซื้อ) และตะกร้า |
+| `purchase` | มีคำสั่งซื้อ (`checkout()` สำหรับโอนเงิน, `confirm()` หลังจ่ายด้วยบัตร) ยกเว้นเมื่อใช้[GA4 จาก server](#server-purchases) | `ecommerce`: `transaction_id` (เลขคำสั่งซื้อ) และตะกร้า |
 | `easy_consent` | ผู้เข้าชมเลือกใน banner | `consent: { analytics, marketing }` |
 
 event ของร้านค้ามี `currency`, `value` และ `items` (`item_id`, `item_name`, `item_variant`, `price`, `quantity`)
@@ -152,6 +152,30 @@ event ของร้านค้ามี `currency`, `value` และ `items`
 window.easyAnalytics.track('search', { search_term: query })
 window.easyAnalytics.track('sign_up', { method: 'email' })
 ```
+
+## การซื้อจากฝั่ง server {#server-purchases}
+
+หน้าเว็บรายงานการซื้อตอนสร้างคำสั่งซื้อ ก่อนลูกค้าจะโอนเงินจริง และเฉพาะเมื่อ Tag Manager โหลดได้ เชื่อม
+**Google Analytics 4** ที่ Settings → Integrations (Analytics) เพื่อให้ server ส่งแทนผ่าน
+[Measurement Protocol](https://developers.google.com/analytics/devguides/collection/protocol/ga4) ของ GA4
+เมื่อได้รับเงินจริง:
+
+| ช่องใน Integration | หาได้ที่ |
+|---|---|
+| Measurement ID | Google Analytics → Admin → Data streams → web stream ของคุณ (`G-…`) |
+| API secret | stream เดียวกัน → Measurement Protocol API secrets → Create |
+
+ปุ่ม **Test** ตรวจทั้งสองค่ากับ server ตรวจสอบของ GA4 หรือตั้ง `GA4_MEASUREMENT_ID` และ `GA4_API_SECRET` ก็ได้
+
+จากนั้น:
+
+- ตอน checkout client ของร้านค้าส่ง ID ของ Google Analytics จากคุกกี้ `_ga` (client และ session) พร้อมความยินยอมของลูกค้า
+  เก็บไว้กับคำสั่งซื้อ ให้พนักงานอ่านได้เท่านั้น และเก็บเฉพาะเมื่อลูกค้ายินยอมหมวด**การวิเคราะห์** ถ้าไม่ยินยอมจะไม่เก็บและไม่ส่งอะไรเลย
+- เมื่อคำสั่งซื้อชำระแล้ว (`order.paid`: จ่ายบัตรสำเร็จ หรือพนักงานกดได้รับเงินโอนแล้ว) server ส่ง `purchase` และเมื่อคืนเงินส่ง `refund`
+  ครั้งเดียวต่อคำสั่งซื้อ ใช้เลขคำสั่งซื้อเป็น `transaction_id` เป็นหน่วยหลักของสกุลเงิน ส่วน `ad_user_data` และ `ad_personalization`
+  เป็นไปตามที่ลูกค้าเลือกหมวด**การตลาด**
+- หน้าเว็บหยุดส่ง `purchase` เอง จึงไม่นับซ้ำ ส่วน event ของตะกร้าและการชำระเงินยังส่งตามเดิม
+- ถ้า Google ไม่รับ (เครือข่ายล้ม หรือตอบ 5xx) job `analytics:ga4` จะลองใหม่หลัง 1, 5 และ 30 นาที ถ้ายังไม่ได้ Integration จะแสดง error
 
 ## Content Security Policy {#csp}
 

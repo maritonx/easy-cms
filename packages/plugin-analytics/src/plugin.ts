@@ -1,5 +1,6 @@
 import type { CollectionConfig, Config, EasyCMS, Endpoint, GlobalConfig } from '@easy-cms/core'
 import { definePlugin } from '@easy-cms/core'
+import { GA4, ga4Integration, HITS, hitsCollection, hitsJob, onOrder } from './ga4.js'
 import { INFO } from './info.js'
 import { analyticsScript } from './script.js'
 import {
@@ -46,7 +47,7 @@ export function analyticsPlugin(options: AnalyticsPluginOptions = {}) {
     )
 
   return definePlugin((config: Config): Config => {
-    for (const slug of [settings, records])
+    for (const slug of [settings, records, HITS])
       if (
         config.collections?.some((c) => c.slug === slug) ||
         config.globals?.some((g) => g.slug === slug)
@@ -204,7 +205,10 @@ export function analyticsPlugin(options: AnalyticsPluginOptions = {}) {
           }
         }
         const gtm = str(base.gtm) || defaults.gtm || ''
+        // With GA4 connected, the server sends purchases; the shop's page then doesn't.
+        const serverPurchase = (await cms.integrations.get(GA4).catch(() => null)) !== null
         const body = analyticsScript({
+          serverPurchase,
           gtm: GTM_ID.test(gtm) ? gtm : null,
           banner: typeof base.banner === 'boolean' ? base.banner : defaults.banner !== false,
           record: base.record !== false,
@@ -265,8 +269,15 @@ export function analyticsPlugin(options: AnalyticsPluginOptions = {}) {
     return {
       ...config,
       globals: [...(config.globals ?? []), settingsGlobal],
-      collections: [...(config.collections ?? []), recordsCollection],
+      collections: [...(config.collections ?? []), recordsCollection, hitsCollection],
       endpoints: [...(config.endpoints ?? []), scriptEndpoint, consentEndpoint],
+      integrations: [...(config.integrations ?? []), ga4Integration],
+      jobs: [...(config.jobs ?? []), hitsJob],
+      // The shop's events (@easy-cms/plugin-ecommerce), when it is installed.
+      listeners: [
+        ...(config.listeners ?? []),
+        { events: ['order.paid', 'order.refunded'], handler: onOrder },
+      ],
     }
   }, INFO)
 }

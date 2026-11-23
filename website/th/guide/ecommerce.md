@@ -233,7 +233,8 @@ webhooks: [{ url: 'https://erp.example.com/hook', events: ['order.paid'], secret
 
 เมื่อหน้าเว็บมี Google Tag Manager ([Analytics และความยินยอม](./analytics)) client ยังส่ง event ecommerce แบบ GA4 ด้วย:
 `add_to_cart`, `remove_from_cart`, `begin_checkout` และ `purchase` ตามการใช้ตะกร้าและชำระเงิน, `view_item` เมื่อหน้าสินค้าเรียก
-`shop.viewItem(product)` และ `login` กับ `sign_up` ปิดได้ด้วย `analytics: false`
+`shop.viewItem(product)` และ `login` กับ `sign_up` ปิดได้ด้วย `analytics: false` เมื่อเชื่อม Google Analytics 4 แล้ว server จะส่ง `purchase`
+เองเมื่อได้รับเงินจริงแทน ([การซื้อจากฝั่ง server](./analytics#server-purchases))
 
 ## หลายร้าน {#several-shops}
 
