@@ -185,6 +185,16 @@ describe('notifyPlugin', () => {
     expect(JSON.stringify(bad.body)).toContain('Unauthorized')
   })
 
+  it('keeps a link inside its href, quotes and all', async () => {
+    const { telegram } = await import('../src/index.js')
+    const text = telegram.format(
+      { title: 'A "quoted" form', lines: ['say "hi"'], open: 'Open' },
+      'https://site.test/a"onmouseover="x',
+    )
+    expect(text).toContain('href="https://site.test/a&quot;onmouseover=&quot;x"')
+    expect(text).toContain('<b>A &quot;quoted&quot; form</b>')
+  })
+
   it('tells each connection about the events it wants, escaped and linked', async () => {
     const { cms, connect } = await open()
     await connect({ chatId: '1' }, 'All')

@@ -6,6 +6,7 @@ import { ForbiddenError, NotFoundError, QueryError, ValidationError } from '../e
 import type { EasyCMS } from '../local-api.js'
 import { encode, fromBase64Url, toBase64Url } from '../runtime/bytes.js'
 import { hmac, randomBytes } from '../runtime/crypto.js'
+import { trimSlashes } from '../slashes.js'
 import { trimChar } from '../trim.js'
 import type { Session } from './auth.js'
 import type { AuthProvider, AuthProviderProfile } from './providers.js'
@@ -469,7 +470,7 @@ export class SingleSignOn {
    * admin UI, any path of this site, else the site's home.
    */
   private adminPage(redirect: string | null | undefined): string {
-    const admin = this.config.admin.path.replace(/\/+$/, '')
+    const admin = trimSlashes(this.config.admin.path, 'end')
     const enabled = this.config.admin.enabled
     if (
       typeof redirect === 'string' &&

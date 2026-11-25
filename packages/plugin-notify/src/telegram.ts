@@ -7,7 +7,9 @@ import type { Notice } from './messages.js'
 // a stand-in server.
 const api = () => (process.env.TELEGRAM_API_URL ?? 'https://api.telegram.org').replace(/\/$/, '')
 
-const html = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+// Quotes too: the link goes in an href attribute.
+const html = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
 type Answer = { ok: boolean; result?: unknown; description?: string; error_code?: number }
 
