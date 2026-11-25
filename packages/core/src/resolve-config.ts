@@ -32,6 +32,7 @@ import { ConfigError } from './errors.js'
 import { applyFieldTypes, fieldTypeModules } from './field-types.js'
 import type { Field } from './fields.js'
 import { rolesCollection } from './roles.js'
+import { trimSlashes } from './slashes.js'
 import { validateConfig } from './validate-config.js'
 import { SYSTEM_EVENTS } from './webhooks.js'
 
@@ -109,7 +110,7 @@ export async function resolveConfig(input: Config | ResolvedConfig): Promise<Res
           fallback: config.localization.fallback ?? true,
         }
       : null,
-    routes: { api: `/${(config.routes?.api ?? DEFAULT_API_PATH).replace(/^\/+|\/+$/g, '')}` },
+    routes: { api: `/${trimSlashes(config.routes?.api ?? DEFAULT_API_PATH)}` },
     admin: {
       enabled: config.admin?.enabled !== false,
       path: config.admin?.path ?? DEFAULT_ADMIN_PATH,

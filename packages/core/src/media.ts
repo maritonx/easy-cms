@@ -227,7 +227,10 @@ export function storageKey(originalName: string, type: string, random: string): 
       .normalize('NFKC')
       .toLowerCase()
       .replace(/[^\p{L}\p{M}\p{N}]+/gu, '-')
-      .replace(/^-+|-+$/g, '')
+      // A loop, not /^-+|-+$/: that regex is slow on a long run of "-" in a client's file name.
+      .split('-')
+      .filter(Boolean)
+      .join('-')
       .slice(0, 60) || 'file'
   return `${base}-${random}.${EXTENSIONS[type] ?? 'bin'}`
 }

@@ -156,6 +156,14 @@ describe('storageKey', () => {
     expect(storageKey('C:\\photos\\cat.jpeg', 'image/jpeg', 'abcd1234')).toBe('cat-abcd1234.jpg')
     expect(storageKey('.env', 'text/plain', 'abcd1234')).toBe('env-abcd1234.txt')
     expect(storageKey('...', 'image/gif', 'abcd1234')).toBe('file-abcd1234.gif')
+    expect(storageKey('--a  --  b--.png', 'image/png', 'abcd1234')).toBe('a-b-abcd1234.png')
+  })
+
+  it('stays fast on a client name made of separators (CodeQL js/polynomial-redos)', () => {
+    const start = performance.now()
+    const name = `${'-'.repeat(100_000)}x${' '.repeat(100_000)}.png`
+    expect(storageKey(name, 'image/png', 'abcd1234')).toBe('x-abcd1234.png')
+    expect(performance.now() - start).toBeLessThan(1000)
   })
 })
 
