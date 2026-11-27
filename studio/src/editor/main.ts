@@ -37,6 +37,11 @@ ts.typescriptDefaults.setCompilerOptions({
 })
 for (const [path, content] of Object.entries(types))
   ts.typescriptDefaults.addExtraLib(content, path)
+// What a config sees in Studio (runtime/compile.ts): `process.env`, empty.
+ts.typescriptDefaults.addExtraLib(
+  'declare const process: { env: Record<string, string | undefined> }',
+  'file:///node_modules/@types/studio-process/index.d.ts',
+)
 
 function savedDraft(): string | null {
   try {
