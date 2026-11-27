@@ -9,6 +9,11 @@
       "types": "./dist/server/index.d.ts",
       "default": "./dist/server/index.js"
     },
+    "./shell": {
+      "types": "./dist/server/shell.d.ts",
+      "default": "./dist/server/shell.js"
+    },
+    "./app/*": "./dist/app/*",
     "./package.json": "./package.json"
   },
   "files": [

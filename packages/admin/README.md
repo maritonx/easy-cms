@@ -23,6 +23,21 @@ const admin = createAdminHandler({ basePath: '/admin', apiPath: '/api/cms', loca
 
 For static hosting, serve `dist/app` at the admin path and answer every other admin route with
 `renderShell(readFileSync('dist/app/shell.html', 'utf8'), options)` plus `SECURITY_HEADERS`.
+The files are exported as `@easy-cms/admin/app/*`, and `renderShell` without Node's modules as
+`@easy-cms/admin/shell`.
+
+## Studio mode
+
+For Studio (ADR-0074); outside semver, like the `admin/ui/*` routes. Render the shell with
+`renderShell(shell, { studio: { origin: 'https://studio.example' } })` and frame the admin from a
+page at that origin:
+
+- Its requests carry no credentials of their own: the page's Service Worker answers the API and
+  signs each request in (`Authorization: Bearer <session token>`). There is no Log out.
+- It posts `{ type: 'easy-cms:ready' }` to the framing page once mounted.
+- Posted `{ type: 'easy-cms:reload' }` by the framing page (only that window, only that origin),
+  it loads the session and schema again and shows its page afresh, on the same route, without
+  reloading; then posts `{ type: 'easy-cms:reloaded' }`.
 
 ## Developing
 

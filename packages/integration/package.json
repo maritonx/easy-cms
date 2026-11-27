@@ -14,6 +14,7 @@
     "perf:compare-ab": "node perf/compare-ab.ts"
   },
   "devDependencies": {
+    "@easy-cms/admin": "workspace:^",
     "@easy-cms/auth-oauth": "workspace:^",
     "@easy-cms/core": "workspace:^",
     "@easy-cms/db-memory": "workspace:^",

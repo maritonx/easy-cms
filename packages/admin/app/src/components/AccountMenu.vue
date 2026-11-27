@@ -4,6 +4,7 @@ import { onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { locale, setLocale, t } from '../lib/i18n'
 import { logOutAndLeave, session } from '../lib/session'
+import { inStudio } from '../lib/studio'
 import { initials, setTheme, type ThemeMode, themeMode } from '../lib/theme'
 
 /** The avatar at the foot of the rail: theme, interface language, account and logging out. */
@@ -104,7 +105,8 @@ function logOut() {
         <UserRound :size="17" aria-hidden="true" />
         {{ t('nav.account') }}
       </RouterLink>
-      <button type="button" class="pop-item" @click="logOut">
+      <!-- Studio signs every request in: logging out would only end the session it made. -->
+      <button v-if="!inStudio" type="button" class="pop-item" @click="logOut">
         <LogOut :size="17" aria-hidden="true" />
         {{ t('nav.logout') }}
       </button>

@@ -7,6 +7,7 @@ import { t } from '../lib/i18n'
 import { groupForPath, navState, shownGroup } from '../lib/nav'
 import { settings } from '../lib/settings'
 import { installShortcuts, openPalette } from '../lib/shortcuts'
+import { studioReloads } from '../lib/studio'
 import { brandName } from '../lib/theme'
 import CommandPalette from './CommandPalette.vue'
 import NavPanel from './NavPanel.vue'
@@ -120,8 +121,9 @@ function onMenuKey(event: KeyboardEvent) {
       />
     </nav>
     <main id="main" ref="main" class="content" tabindex="-1">
-      <!-- Keyed by path: query changes (filters, an open drawer) keep the page. -->
-      <RouterView :key="$route.path" />
+      <!-- Keyed by path: query changes (filters, an open drawer) keep the page. Studio's reloads
+           mount it again, with the new schema. -->
+      <RouterView :key="`${$route.path}#${studioReloads}`" />
     </main>
   </div>
   <CommandPalette />

@@ -74,10 +74,11 @@
    จึงใช้ dialect และ connection เดียวกับ db-sqlite (ย้ายไปไว้ที่ `@easy-cms/drizzle/sqlite`) SQL สร้างตารางมาจาก drizzle-kit ที่ build
    สำหรับเบราว์เซอร์ (module ของ Node เป็นตัวแทน) ได้ SQL เดียวกับ db-sqlite เทส integration ทั้งชุดรันบนตัวนี้ด้วย
 3. **studio mode ของ admin** (`directions/issues/8-admin-studio-mode.md`):
-   - export ไฟล์ static ของ SPA
-   - ตั้ง `apiPath` ได้
-   - ส่ง bearer token แทน cookie
-   - รับ schema ใหม่ผ่าน `postMessage` โดยไม่ reload ทั้งหน้า
+   - export ไฟล์ static ของ SPA (`@easy-cms/admin/app/*`) และ `renderShell` ที่ไม่ใช้ module ของ Node (`@easy-cms/admin/shell`)
+   - Service Worker ของ Studio ใส่ bearer token ให้ทุก request (fetch, XHR, รูป, ไฟล์ดาวน์โหลด) admin จึงไม่ต้องรู้ token
+     และไม่มีปุ่ม Log out
+   - parent ส่ง `easy-cms:reload` ทาง `postMessage` แล้ว admin โหลด schema ใหม่จาก API และแสดงหน้าเดิมโดยไม่ reload ทั้งหน้า
+     ไม่ส่ง schema มากับข้อความ เพื่อให้ API เป็นแหล่งข้อมูลเดียว
    - เป็นสัญญาที่ชัดเจน ไม่ให้ Studio ไปแกะ `dist/` เอง
 4. **แอป Studio** (`directions/issues/9-studio-app.md`): Monaco, esbuild-wasm, Service Worker, sandbox origin, แถบ error, Console panel,
    ข้อมูลตัวอย่าง, เทมเพลต Blog
