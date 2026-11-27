@@ -1,0 +1,29 @@
+{
+  "name": "easy-cms-studio",
+  "private": true,
+  "type": "module",
+  "description": "studio.easycms.dev: write an Easy CMS config, see its admin (ADR-0074)",
+  "scripts": {
+    "build": "vite build",
+    "preview": "vite preview --port 5180",
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.sw.json && tsc -p tsconfig.node.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@easy-cms/admin": "workspace:^",
+    "@easy-cms/core": "workspace:^",
+    "@easy-cms/db-memory": "workspace:^",
+    "@easy-cms/fields": "workspace:^",
+    "@easy-cms/plugin-multi-tenant": "workspace:^",
+    "@easy-cms/plugin-redirects": "workspace:^",
+    "@easy-cms/plugin-seo": "workspace:^",
+    "monaco-editor": "^0.58.0",
+    "sucrase": "^3.35.1"
+  },
+  "devDependencies": {
+    "@easy-cms/db-sqlite": "workspace:^",
+    "playwright-core": "1.65.1",
+    "vite": "^8.3.1",
+    "vitest": "^5.1.1"
+  }
+}

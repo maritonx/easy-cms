@@ -33,18 +33,20 @@
   แก้โค้ดแล้ว preview เปลี่ยนตาม ไม่มี visual builder และไม่แก้โค้ดจาก UI
 - **รัน core ตัวจริงในเบราว์เซอร์:** ไม่เขียนตัวสร้าง schema ใหม่ใน Studio (จะเพี้ยนจาก core ทุกครั้งที่เพิ่ม field หรือ plugin)
   และไม่รันโค้ดของคนนอกบน server ของเรา
-  - Service Worker ใน iframe รัน `createRestHandler` ของ core จริง กับฐานข้อมูลในหน่วยความจำ admin เรียก `fetch` ตามปกติ
+  - หน้า sandbox รัน `createEasyCMS` และ `createRestHandler` ของ core จริงกับฐานข้อมูลในหน่วยความจำ admin เรียก `fetch` ตามปกติ
+    และ Service Worker ส่ง request ต่อให้หน้า sandbox (ไม่รัน CMS ใน Service Worker เพราะเบราว์เซอร์ปิด worker ที่ว่าง
+    ฐานข้อมูลในหน่วยความจำจะหายไปด้วย)
   - เมื่อ config เปลี่ยน CMS เริ่มใหม่บนฐานข้อมูลชื่อเดิม (`memory({ name })`) แล้ว push schema ใหม่ทับ เอกสารใน field ที่ยังอยู่จึงไม่หาย
 - **การรันโค้ดของผู้ใช้:**
-  - แปลง TypeScript ด้วย esbuild-wasm (debounce 300ms)
+  - แปลง TypeScript ด้วย sucrase (debounce 300ms): เล็กกว่า esbuild-wasm (wasm ราว 10MB) มาก และคงเลขบรรทัดเดิม error จึงชี้บรรทัดใน editor ได้
   - `import` ได้เฉพาะ `@easy-cms/*` ที่ Studio bundle ไว้ import อื่นขึ้นข้อความว่ายังไม่รองรับใน Studio
   - `process.env` เป็นออบเจกต์ว่าง
   - `db:` และ `storage:` ในโค้ดผู้ใช้ถูกแทนด้วยฐานข้อมูลและ storage ในหน่วยความจำ โค้ดใน editor ยังเหมือนไฟล์จริง
 - **access, hooks และ plugins:**
   - access functions และ hooks รันจริง
   - adapter ที่มี side effect (email, storage ภายนอก, Telegram) เป็น stub ที่พิมพ์ลง Console panel
-  - plugin ที่รันในเบราว์เซอร์ได้เปิดจริง: seo, redirects, nested-docs, form-builder, social, multi-tenant
-    ตัวอื่น (ai, backups, notify, analytics) แสดงป้าย "stubbed in Studio"
+  - plugin ที่รันในเบราว์เซอร์ได้เปิดจริง: seo, redirects, multi-tenant และ field จาก `@easy-cms/fields`
+    ตัวอื่นแจ้งใน Console ว่า "stubbed in Studio" (nested-docs, form-builder และ social ยัง import `node:*` อยู่ ย้ายมาฝั่งที่รันได้ใน v0.2)
 - **ข้อมูลตัวอย่าง:** สร้าง 5–10 แถวต่อ collection ตาม field type เมื่อ config เปลี่ยน ค่าของ field ที่ยังใช้ได้อยู่ต่อเพราะใช้ฐานข้อมูลชื่อเดิม
 - **Error:** type error ขีดเส้นแดงใน Monaco ส่วน error ตอนรันหรือตอนตรวจ config ให้คง preview ล่าสุดที่ใช้ได้ไว้ และแสดงแถบ error พร้อมบรรทัด
 - **ความปลอดภัย:** ลิงก์แชร์รันโค้ดของคนอื่นทันทีที่เปิด ส่วนที่รันโค้ดและ admin จึงอยู่ใน iframe แบบ sandbox บน origin แยก
@@ -80,8 +82,8 @@
    - parent ส่ง `easy-cms:reload` ทาง `postMessage` แล้ว admin โหลด schema ใหม่จาก API และแสดงหน้าเดิมโดยไม่ reload ทั้งหน้า
      ไม่ส่ง schema มากับข้อความ เพื่อให้ API เป็นแหล่งข้อมูลเดียว
    - เป็นสัญญาที่ชัดเจน ไม่ให้ Studio ไปแกะ `dist/` เอง
-4. **แอป Studio** (`directions/issues/9-studio-app.md`): Monaco, esbuild-wasm, Service Worker, sandbox origin, แถบ error, Console panel,
-   ข้อมูลตัวอย่าง, เทมเพลต Blog
+4. **แอป Studio** (`directions/issues/9-studio-app.md`): `studio/` ใน monorepo มี Monaco พร้อม type ของทุกแพ็กเกจ, sucrase, หน้า sandbox
+   ที่รัน CMS, Service Worker ที่ส่ง request ต่อ, sandbox origin, แถบ error, Console panel, ข้อมูลตัวอย่าง และเทมเพลต Blog
 5. **แชร์และ export** (`directions/issues/10-studio-share-and-export.md`): URL hash พร้อม version, Copy config, `create-easy-cms --from`
 
 ### v0.2
