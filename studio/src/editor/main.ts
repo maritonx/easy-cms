@@ -10,6 +10,7 @@ import { decodeStudioLink, encodeStudioHash } from 'create-easy-cms/studio-link'
 import * as monaco from 'monaco-editor'
 import { SANDBOX_PAGE, sandboxOrigin, type ToEditor, type ToSandbox } from '../protocol'
 import blog from '../templates/blog.config.ts?raw'
+import { startAnalytics, track } from './analytics'
 
 self.MonacoEnvironment = {
   getWorker: (_id, label) =>
@@ -17,6 +18,8 @@ self.MonacoEnvironment = {
       ? new Worker(new URL('./ts.worker.ts', import.meta.url), { type: 'module' })
       : new Worker(new URL('./editor.worker.ts', import.meta.url), { type: 'module' }),
 }
+
+startAnalytics()
 
 const DRAFT_KEY = 'easy-cms-studio:draft'
 const PAUSE_MS = 300
@@ -55,6 +58,7 @@ async function startingCode(): Promise<{ code: string; note?: string }> {
   if (location.hash.includes('c=')) {
     try {
       const shared = await decodeStudioLink(location.hash)
+      track('studio-open-link')
       const note =
         shared.version && shared.version !== VERSION
           ? `This link was made with Easy CMS ${shared.version}; Studio runs ${VERSION}.`
@@ -107,6 +111,7 @@ model.onDidChangeContent(() => {
     const code = model.getValue()
     saveDraft(code)
     send(code)
+    track('studio-edit', { once: true })
     void keepInAddress(code)
   }, PAUSE_MS)
 })
@@ -212,6 +217,7 @@ async function copy(button: HTMLElement, text: string) {
 const createCommand = (link: string) => `npm create easy-cms@latest -- --from "${link}"`
 
 $('share').addEventListener('click', async () => {
+  track('studio-share')
   await copy($('share'), await shareLink())
 })
 $('export').addEventListener('click', async () => {
@@ -219,9 +225,11 @@ $('export').addEventListener('click', async () => {
   $<HTMLDialogElement>('export-dialog').showModal()
 })
 $('copy-command').addEventListener('click', async () => {
+  track('studio-copy-command')
   await copy($('copy-command'), createCommand(await shareLink()))
 })
 $('copy-config').addEventListener('click', async () => {
+  track('studio-copy-config')
   await copy($('copy-config'), model.getValue())
 })
 if (start.note) addConsoleLine('warn', start.note)

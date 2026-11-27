@@ -49,8 +49,11 @@
     ตัวอื่นแจ้งใน Console ว่า "stubbed in Studio" (nested-docs, form-builder และ social ยัง import `node:*` อยู่ ย้ายมาฝั่งที่รันได้ใน v0.2)
 - **ข้อมูลตัวอย่าง:** สร้าง 5–10 แถวต่อ collection ตาม field type เมื่อ config เปลี่ยน ค่าของ field ที่ยังใช้ได้อยู่ต่อเพราะใช้ฐานข้อมูลชื่อเดิม
 - **Error:** type error ขีดเส้นแดงใน Monaco ส่วน error ตอนรันหรือตอนตรวจ config ให้คง preview ล่าสุดที่ใช้ได้ไว้ และแสดงแถบ error พร้อมบรรทัด
-- **ความปลอดภัย:** ลิงก์แชร์รันโค้ดของคนอื่นทันทีที่เปิด ส่วนที่รันโค้ดและ admin จึงอยู่ใน iframe แบบ sandbox บน origin แยก
-  ที่ไม่มี cookie ไม่ใช่ `studio.easycms.dev`
+- **ความปลอดภัย:** ลิงก์แชร์รันโค้ดของคนอื่นทันทีที่เปิด ส่วนที่รันโค้ดและ admin จึงอยู่ใน iframe บน origin แยก
+  `sandbox.easycms.dev` (ตกลง 2026-11-27) ซึ่งไม่มี cookie และให้แค่ `studio.easycms.dev` ฝังได้ (CSP `frame-ancestors`)
+  - เป็น subdomain ของ easycms.dev ได้เพราะ cookie session ของเว็บเป็นแบบ `__Host-` ซึ่ง subdomain ไม่ได้รับ
+    เงื่อนไข: easycms.dev ต้องไม่ตั้ง cookie แบบ `Domain=easycms.dev`
+  - header ทั้งหมดอยู่ที่ `studio/deploy/headers.ts` ที่เดียว และมีเทสที่รันบน 2 origin พร้อม header จริง
 - **ลิงก์แชร์:** config บีบอัดด้วย deflate (`CompressionStream` ที่เบราว์เซอร์และ Node มีอยู่แล้ว ไม่ต้องใช้ lz-string) เป็น base64url
   ใส่ใน URL hash พร้อม version (`#v=1.4.0&c=…`) config ไม่ถูกส่งไปที่ server แถบที่อยู่มีลิงก์ล่าสุดเสมอ
   ตัวอ่านเขียนลิงก์อยู่ที่ `create-easy-cms/studio-link` ใช้ทั้ง Studio และ CLI
@@ -60,9 +63,11 @@
   - ไม่ทำ zip (ต้องดูแลเทมเพลตซ้ำกับ `templates/`)
 - **จุดเริ่ม:** เปิดมาเป็นเทมเพลต Blog ทันที มีเทมเพลตอื่นให้เลือกจาก `examples/`
 - **มือถือ:** ออกแบบสำหรับ desktop บนมือถือดู preview ได้อย่างเดียว พร้อมข้อความให้เปิดบน desktop
-- **ที่อยู่และการ deploy:** `studio/` ใน monorepo คู่กับ `website/` เป็น static site บน Cloudflare Pages deploy ใหม่ทุก release
-  CI จะเจอทันทีถ้าการแก้ core ทำให้ Studio พัง
-- **วัดผล:** event แบบไม่เก็บข้อมูลส่วนตัว (Plausible หรือ Umami): เปิด → แก้โค้ด → Copy CLI → Share
+- **ที่อยู่และการ deploy:** `studio/` ใน monorepo คู่กับ `website/` เป็น static site บน Hetzner + Caddy เครื่องเดียวกับ easycms.dev
+  (ตกลง 2026-11-27 แทน Cloudflare Pages เพราะมีระบบอยู่แล้ว ย้ายไป CDN ทีหลังได้โดยแก้แค่ DNS) `studio.yml` deploy ใหม่ทุก release
+  พร้อม site block ของ Caddy CI จะเจอทันทีถ้าการแก้ core ทำให้ Studio พัง
+- **วัดผล:** event ของ Umami แบบไม่ใช้ cookie มีตั้งแต่วันเปิด (ตกลง 2026-11-27): เปิด → แก้โค้ด (`studio-edit`) → Copy command
+  (`studio-copy-command`) → Share (`studio-share`) ไม่ส่งส่วนใดของ config
   ตัวเลขหลักคือสัดส่วน Copy CLI ต่อคนเปิด ตั้งเป้าไม่ต่ำกว่า 5% CLI ไม่เก็บ telemetry
   ตัวเลขนี้บอกด้วยว่าปัญหาคือคนไม่รู้จัก Easy CMS (ต้องโปรโมต) หรือคนเห็นแล้วไม่ไปต่อ (ต้องแก้ Studio)
 

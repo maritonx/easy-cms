@@ -58,6 +58,25 @@ function studioTypes(): Plugin {
   }
 }
 
+/**
+ * Monaco with TypeScript (and JavaScript) only: its main entry brings every language Monaco
+ * knows, and the CSS, HTML and JSON services with their workers, which a config never needs.
+ */
+function monacoTypeScriptOnly(): Plugin {
+  const unused =
+    /monaco-editor\/esm\/vs\/languages\/(definitions\/(?!typescript\/|javascript\/)[^/]+|features\/(css|html|json))\/register\.js$/
+  return {
+    name: 'monaco-typescript-only',
+    enforce: 'pre',
+    async resolveId(source, importer, options) {
+      if (!importer?.includes('monaco-editor')) return
+      const resolved = await this.resolve(source, importer, { ...options, skipSelf: true })
+      return resolved && unused.test(resolved.id) ? '\0monaco-unused' : undefined
+    },
+    load: (id) => (id === '\0monaco-unused' ? 'export {}' : undefined),
+  }
+}
+
 /** The admin's built app at /admin/, served as files; the Service Worker renders its shell. */
 function copyAdminApp(): Plugin {
   let outDir = 'dist'
@@ -78,7 +97,7 @@ function copyAdminApp(): Plugin {
 export default defineConfig({
   // Studio's own builds of core and the in-memory database, without Node's modules (ADR-0074).
   resolve: { conditions: ['easy-cms-browser', ...defaultClientConditions] },
-  plugins: [studioTypes(), copyAdminApp()],
+  plugins: [monacoTypeScriptOnly(), studioTypes(), copyAdminApp()],
   worker: { format: 'es' },
   build: {
     target: 'es2022',

@@ -294,18 +294,22 @@ Kanban → ธีม → พื้นที่ฟอร์ม → CRM → Bookin
 ### M16 — `Studio` (ไม่กำหนดวัน) {#m16}
 
 ให้ dev เห็นหน้า admin ของ config ตัวเองภายในไม่กี่วินาทีโดยไม่ต้องติดตั้ง เพื่อเลือก Easy CMS ออกแบบใน [ADR-0074](adr/0074-studio.md)
-core ตัวจริงรันใน Service Worker กับฐานข้อมูลในหน่วยความจำ Studio เป็น static site ไม่มี backend และไม่ต้อง login
+core ตัวจริงรันในหน้า sandbox กับฐานข้อมูลในหน่วยความจำ (Service Worker ส่ง request ต่อ) Studio เป็น static site ไม่มี backend และไม่ต้อง login
 ตัวชี้วัดหลักคือสัดส่วนคนที่กด Copy CLI ต่อคนเปิด Studio เป้าไม่ต่ำกว่า 5%
-ตารางนี้คือ v0.1 ส่วน v0.2 (สลับ role, ล็อก version, เทมเพลตเพิ่ม, analytics, มือถือ) อยู่ใน ADR
-เลขในตารางเป็นลำดับงาน ยังไม่ใช่เลข issue บน GitHub
+v0.1 (งาน 6–10) อยู่ใน [#480](https://github.com/maritonx/easy-cms/pull/480) งานที่เหลือเป็น issue ใน GitHub Milestone `Studio`
 
 | # | Issue | Labels | เสร็จเมื่อ |
 |---|---|---|---|
-| 6 | Core and drizzle run in the browser | area:core | build สำหรับเบราว์เซอร์ (condition `easy-cms-browser`) ไม่มี `node:*`, ผลเหมือนฝั่ง Node, รันใน headless Chrome ได้ |
-| 7 | In-memory SQLite adapter | area:adapters | SQLite แบบ WASM ในหน่วยความจำ รองรับ `push` ผ่านเทสชุดเดียวกับ adapter อื่นทั้งใน Node และเบราว์เซอร์; ในเบราว์เซอร์ login → CRUD → `admin/ui/schema` ผ่าน |
-| 8 | Admin studio mode | area:admin | export SPA แบบ static, bearer token แทน cookie, รับ schema ใหม่ผ่าน `postMessage` โดยไม่ reload |
-| 9 | Studio app | area:studio | e2e: เพิ่ม field ในโค้ด → เห็นในฟอร์ม admin → สร้างเอกสารได้; config ผิดแล้ว preview เดิมยังอยู่ |
-| 10 | Studio share links and export | area:studio, area:core | ลิงก์ Studio → `create-easy-cms --from` ได้ `easy-cms.config.ts` ตัวเดิม |
+| [#480](https://github.com/maritonx/easy-cms/pull/480) (6) | Core and drizzle run in the browser | area:core | build สำหรับเบราว์เซอร์ (condition `easy-cms-browser`) ไม่มี `node:*`, ผลเหมือนฝั่ง Node, รันใน headless Chrome ได้ |
+| [#480](https://github.com/maritonx/easy-cms/pull/480) (7) | In-memory SQLite adapter | area:adapters | SQLite แบบ WASM ในหน่วยความจำ รองรับ `push` ผ่านเทสชุดเดียวกับ adapter อื่นทั้งใน Node และเบราว์เซอร์; ในเบราว์เซอร์ login → CRUD → `admin/ui/schema` ผ่าน |
+| [#480](https://github.com/maritonx/easy-cms/pull/480) (8) | Admin studio mode | area:admin | export SPA แบบ static, bearer token แทน cookie, รับ schema ใหม่ผ่าน `postMessage` โดยไม่ reload |
+| [#480](https://github.com/maritonx/easy-cms/pull/480) (9) | Studio app | area:studio | e2e: เพิ่ม field ในโค้ด → เห็นในฟอร์ม admin → สร้างเอกสารได้; config ผิดแล้ว preview เดิมยังอยู่ |
+| [#480](https://github.com/maritonx/easy-cms/pull/480) (10) | Studio share links and export | area:studio, area:core | ลิงก์ Studio → `create-easy-cms --from` ได้ `easy-cms.config.ts` ตัวเดิม |
+| [#481](https://github.com/maritonx/easy-cms/issues/481) | Deploy Studio to studio.easycms.dev, with analytics | area:studio, area:release | เปิดที่ studio.easycms.dev ได้, ลิงก์แชร์เปิดที่อื่นได้, `studio-copy-command` ขึ้นใน Umami |
+| [#485](https://github.com/maritonx/easy-cms/issues/485) | nested-docs, form-builder and social run in browsers | area:studio, area:plugins | ไม่ import `node:*` และใช้ได้จริงใน Studio |
+| [#482](https://github.com/maritonx/easy-cms/issues/482) | Studio: view the admin as each role | area:studio | สลับเป็น Admin, Editor, Viewer แล้วเห็นผลของ access ทันที |
+| [#483](https://github.com/maritonx/easy-cms/issues/483) | create-easy-cms --from installs the link's version | area:studio | ลิงก์ `v=1.57.0` ติดตั้ง `@easy-cms/core@1.57.0` |
+| [#484](https://github.com/maritonx/easy-cms/issues/484) | Studio: Shop and Multi-tenant templates | area:studio | แต่ละเทมเพลตเปิดได้พร้อมข้อมูลตัวอย่าง |
 
 ---
 

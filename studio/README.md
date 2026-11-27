@@ -47,12 +47,26 @@ editor (index.html)                       sandbox (sandbox.html, its own origin 
 
 ## Deploying
 
-A static site: `studio/dist/`. In production the sandbox has an origin of its own, without
-cookies, so code from a shared link can't reach the editor's origin:
+Each release deploys it (`.github/workflows/studio.yml`, called by `release.yml`): Studio is
+built at the released version and copied to the server that hosts easycms.dev (Hetzner, Caddy),
+into `/srv/easycms/studio/`, with its site blocks in `/srv/easycms/studio.caddy`, which the
+site's Caddyfile imports. The workflow is skipped until `STUDIO_ORIGIN` is set.
 
-| Variable (at build time) | |
+| Repository variable | |
 |---|---|
-| `VITE_SANDBOX_ORIGIN` | e.g. `https://sandbox.studio.easycms.dev`: where the editor frames `sandbox.html` |
-| `VITE_STUDIO_ORIGIN` | e.g. `https://studio.easycms.dev`: the only origin the sandbox takes configs from |
+| `STUDIO_ORIGIN` | `https://studio.easycms.dev`: the editor |
+| `SANDBOX_ORIGIN` | `https://sandbox.easycms.dev`: the only page the editor frames, framed by nothing else |
+| `UMAMI_SRC`, `UMAMI_WEBSITE_ID` | Umami (optional): `studio-edit`, `studio-share`, `studio-copy-command`, `studio-copy-config`, `studio-open-link` |
+| `ANALYTICS_ORIGINS` | where Umami's script loads from and sends to, comma-separated, for the editor's CSP |
 
-Both hosts serve the same `dist/`. Without them (local runs) both pages share one origin.
+Secrets: `DEPLOY_HOST`, `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS`, as in the site's repository.
+DNS: `studio` and `sandbox` records pointing at the server.
+
+The headers (CSP, framing, caching) are in `deploy/headers.ts`, the one place
+`deploy/caddy.ts`, the Service Worker (for the admin's shell) and `test/deployed.test.ts` take
+them from. That test runs the build on two origins (`studio.localhost`, `sandbox.localhost`)
+with those headers. The sandbox is a subdomain of easycms.dev: the site's session cookies are
+`__Host-` cookies, which subdomains never get, and it must never set `Domain=easycms.dev`.
+
+Monaco is built with TypeScript and JavaScript only (`monacoTypeScriptOnly` in
+`vite.config.ts`). The TypeScript worker (about 7 MB, the compiler) is most of what is left.

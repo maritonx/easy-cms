@@ -10,6 +10,6 @@
     "declaration": false,
     "noEmit": true
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "deploy/headers.ts"],
   "exclude": ["src/sw.ts"]
 }

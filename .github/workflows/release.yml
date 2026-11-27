@@ -61,6 +61,15 @@ jobs:
         if: steps.changesets.outputs.published == 'true'
         run: echo "version=$(node -p "require('./packages/cli/package.json').version")" >> "$GITHUB_OUTPUT"
 
+  # studio.easycms.dev at the version just published (ADR-0074).
+  studio:
+    needs: release
+    if: needs.release.outputs.published == 'true'
+    uses: ./.github/workflows/studio.yml
+    secrets: inherit
+    permissions:
+      contents: read
+
   # The Docker image of the version just published.
   docker:
     needs: release

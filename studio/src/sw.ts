@@ -5,7 +5,15 @@
  * (browsers stop idle workers): which page hosts which admin is a hint, found again if lost.
  */
 import { renderShell } from '@easy-cms/admin/shell'
-import { ADMIN_PATH, API_PATH, type ApiRequest, type ApiResponse, SANDBOX_PAGE } from './protocol'
+import { adminHeaders } from '../deploy/headers'
+import {
+  ADMIN_PATH,
+  API_PATH,
+  type ApiRequest,
+  type ApiResponse,
+  SANDBOX_PAGE,
+  studioOrigin,
+} from './protocol'
 
 declare const self: ServiceWorkerGlobalScope
 
@@ -44,7 +52,13 @@ async function adminShell(): Promise<Response> {
     apiPath: API_PATH,
     studio: { origin: self.location.origin },
   })
-  return new Response(html, { headers: { 'content-type': 'text/html; charset=utf-8' } })
+  return new Response(html, {
+    headers: {
+      ...adminHeaders({ studio: studioOrigin() }),
+      'content-type': 'text/html; charset=utf-8',
+      'cache-control': 'no-cache',
+    },
+  })
 }
 
 /** The page that runs the CMS for this admin. */
