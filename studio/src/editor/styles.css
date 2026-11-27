@@ -138,6 +138,14 @@ dialog .hint {
   grid-template-columns: minmax(360px, 2fr) 3fr;
   min-height: 0;
 }
+/* Full screen: the admin across the window, under the bar. The frame stays where it is: moving
+   it would load the sandbox again, and its in-memory documents would go. */
+.panes[data-full-screen] {
+  grid-template-columns: 1fr;
+}
+.panes[data-full-screen] .code {
+  display: none;
+}
 .code {
   display: flex;
   flex-direction: column;

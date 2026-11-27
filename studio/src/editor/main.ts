@@ -195,6 +195,39 @@ $('console-clear').addEventListener('click', () => {
   consoleList.replaceChildren()
   $('console-count').textContent = '0'
 })
+/** Full screen: the admin across the window, the code hidden; ⌘\ or Ctrl+\ outside the admin. */
+const panes = $('panes')
+const fullScreenButton = $('full-screen')
+const shortcut = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘\\' : 'Ctrl+\\'
+fullScreenButton.title = `Show the admin across the window (${shortcut})`
+
+function setFullScreen(on: boolean) {
+  panes.toggleAttribute('data-full-screen', on)
+  fullScreenButton.setAttribute('aria-pressed', String(on))
+  fullScreenButton.textContent = on ? '⤡ Show code' : '⤢ Full screen'
+  fullScreenButton.title = on
+    ? `Show the code again (${shortcut})`
+    : `Show the admin across the window (${shortcut})`
+  if (on) track('studio-expand')
+  else editor.layout()
+}
+
+fullScreenButton.addEventListener('click', () => {
+  setFullScreen(!panes.hasAttribute('data-full-screen'))
+})
+// Capture: before Monaco, which keeps keys it knows. Keys pressed inside the admin never get
+// here (another origin's frame), so the button stays the way out.
+window.addEventListener(
+  'keydown',
+  (event) => {
+    if (event.key !== '\\' || !(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey)
+      return
+    event.preventDefault()
+    setFullScreen(!panes.hasAttribute('data-full-screen'))
+  },
+  true,
+)
+
 $('reset').addEventListener('click', () => {
   model.setValue(blog)
 })

@@ -38,6 +38,9 @@ editor (index.html)                       sandbox (sandbox.html, its own origin 
   `plugin-redirects`, `plugin-multi-tenant`. Databases, storages, email and sign-in packages are
   stand-ins Studio replaces (SQLite in memory, files in memory, emails to the console, no SSO);
   plugins that don't run in a browser yet do nothing and say so in the console.
+- **Full screen** (the button, or ⌘\ / Ctrl+\ outside the admin) hides the code so the admin
+  shows at its real width; the bar stays. The frame isn't moved: moving it would load the sandbox
+  again, and its in-memory documents would go.
 - **Share links:** the address always holds the config, deflated in its hash with the version
   (`#v=…&c=…`, `create-easy-cms/studio-link`), so it can be shared as it is; the hash never
   reaches a server. **Use in a project** gives `npm create easy-cms@latest -- --from "<link>"`,
@@ -56,7 +59,7 @@ site's Caddyfile imports. The workflow is skipped until `STUDIO_ORIGIN` is set.
 |---|---|
 | `STUDIO_ORIGIN` | `https://studio.easycms.dev`: the editor |
 | `SANDBOX_ORIGIN` | `https://sandbox.easycms.dev`: the only page the editor frames, framed by nothing else |
-| `UMAMI_SRC`, `UMAMI_WEBSITE_ID` | Umami (optional): `studio-edit`, `studio-share`, `studio-copy-command`, `studio-copy-config`, `studio-open-link` |
+| `UMAMI_SRC`, `UMAMI_WEBSITE_ID` | Umami (optional): `studio-edit`, `studio-share`, `studio-copy-command`, `studio-copy-config`, `studio-open-link`, `studio-expand` |
 | `ANALYTICS_ORIGINS` | where Umami's script loads from and sends to, comma-separated, for the editor's CSP |
 
 Secrets: `DEPLOY_HOST`, `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS`, as in the site's repository.

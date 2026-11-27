@@ -89,6 +89,37 @@ describe('Studio', () => {
     await frame.getByText('Made in Studio').first().waitFor({ timeout: 30_000 })
   })
 
+  it('shows the admin full screen and back, keeping what is in it', async () => {
+    const frame = await adminFrame(page)
+    await frame.goto(`${new URL(frame.url()).origin}/admin/collections/posts`)
+    await frame.getByText('Made in Studio').first().waitFor({ timeout: 30_000 })
+    // Gone if the frame loads again.
+    await frame.evaluate(() => {
+      ;(globalThis as unknown as { kept: boolean }).kept = true
+    })
+    const width = async () => (await page.locator('#sandbox').boundingBox())?.width ?? 0
+    const before = await width()
+    const button = page.locator('#full-screen')
+
+    await button.click()
+    expect(await button.getAttribute('aria-pressed')).toBe('true')
+    expect(await button.textContent()).toContain('Show code')
+    expect(await page.locator('.code').isVisible()).toBe(false)
+    const viewport = page.viewportSize()?.width ?? 0
+    await expect.poll(width).toBeGreaterThan(before)
+    expect(await width()).toBeGreaterThanOrEqual(viewport - 2)
+    const same = admin(page) as Frame
+    expect(await same.evaluate(() => (globalThis as unknown as { kept?: boolean }).kept)).toBe(true)
+    await same.getByText('Made in Studio').first().waitFor()
+
+    // Back with the shortcut, from outside the admin.
+    await page.locator('.bar').click({ position: { x: 5, y: 5 } })
+    await page.keyboard.press('ControlOrMeta+Backslash')
+    expect(await button.getAttribute('aria-pressed')).toBe('false')
+    expect(await page.locator('.code').isVisible()).toBe(true)
+    await expect.poll(width).toBeCloseTo(before, -1)
+  })
+
   it('shares a link that opens the same config, and create-easy-cms writes it', async () => {
     const code = await getCode(page)
     const link = await page.evaluate(() => (globalThis as unknown as Studio).studio.shareLink())
