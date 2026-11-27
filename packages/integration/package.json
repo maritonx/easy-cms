@@ -18,6 +18,7 @@
     "@easy-cms/core": "workspace:^",
     "@easy-cms/db-postgres": "workspace:^",
     "@easy-cms/db-sqlite": "workspace:^",
+    "@easy-cms/drizzle": "workspace:^",
     "@easy-cms/storage-s3": "workspace:^",
     "@electric-sql/pglite": "^0.5.8",
     "@libsql/client": "^0.18.0",
@@ -28,7 +29,9 @@
     "aws4fetch": "^1.0.20",
     "easy-cms": "workspace:^",
     "edge-runtime": "^4.0.1",
+    "esbuild": "0.28.2",
     "miniflare": "^4.20260730.0",
+    "playwright-core": "1.65.1",
     "postgres": "^3.4.9",
     "sharp": "^0.35.5"
   }

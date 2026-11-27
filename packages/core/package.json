@@ -8,26 +8,32 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
+      "easy-cms-browser": "./dist/browser/index.js",
       "default": "./dist/index.js"
     },
     "./live-preview": {
       "types": "./dist/live-preview.d.ts",
+      "easy-cms-browser": "./dist/browser/live-preview.js",
       "default": "./dist/live-preview.js"
     },
     "./conditions": {
       "types": "./dist/conditions.d.ts",
+      "easy-cms-browser": "./dist/browser/conditions.js",
       "default": "./dist/conditions.js"
     },
     "./plugin": {
       "types": "./dist/plugin.d.ts",
+      "easy-cms-browser": "./dist/browser/plugin.js",
       "default": "./dist/plugin.js"
     },
     "./client": {
       "types": "./dist/client.d.ts",
+      "easy-cms-browser": "./dist/browser/client.js",
       "default": "./dist/client.js"
     },
     "./internal": {
       "types": "./dist/internal.d.ts",
+      "easy-cms-browser": "./dist/browser/internal.js",
       "default": "./dist/internal.js"
     },
     "./package.json": "./package.json"
@@ -45,6 +51,8 @@
     "prepack": "node ../../scripts/check-publish.mjs"
   },
   "dependencies": {
+    "@noble/ciphers": "^2.4.0",
+    "@noble/hashes": "^2.4.0",
     "jiti": "^2.7.0"
   },
   "publishConfig": {
@@ -64,8 +72,8 @@
     "react"
   ],
   "peerDependencies": {
-    "sharp": ">=0.33.0",
-    "@opentelemetry/api": ">=1.9.0 <2"
+    "@opentelemetry/api": ">=1.9.0 <2",
+    "sharp": ">=0.33.0"
   },
   "peerDependenciesMeta": {
     "sharp": {

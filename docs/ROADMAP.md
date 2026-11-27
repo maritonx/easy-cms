@@ -7,6 +7,7 @@
 - **เป้าหมาย 1.x:** open source ที่องค์กร self-host ได้อย่างมั่นใจ ดู [1.x](#one-x)
 - **ตำแหน่งและ roadmap หกระดับ:** TypeScript backend ครบในตัวพร้อม admin ดู [ADR-0069](adr/0069-typescript-backend-six-levels.md) และ roadmap บนเว็บ [easycms.dev/roadmap](https://easycms.dev/roadmap)
 - **Escape hatches:** ทุกอย่างที่ Easy CMS ทำให้ dev เขียนเองได้ ทางที่ข้ามกฎสิทธิ์ต้องเห็นในโค้ด ดู [ADR-0072](adr/0072-escape-hatches.md) และ [M15](#m15)
+- **Studio:** `studio.easycms.dev` เขียน config แล้วเห็นหน้า admin ในเบราว์เซอร์ ไม่ต้องติดตั้ง ดู [ADR-0074](adr/0074-studio.md) และ [M16](#m16)
 - **ติดตามงาน:** GitHub Milestones ของ `maritonx/easy-cms` (หนึ่ง issue ต่อหนึ่งงาน, issue เขียนเป็นภาษาอังกฤษ)
 - **การออกเวอร์ชันใน 1.x:** ออกทันทีที่ merge (บั๊กเป็น patch, ฟีเจอร์เป็น minor) milestone ของ 1.x จึงตั้งชื่อตามหัวข้อ ไม่ผูกกับเลขเวอร์ชัน (ตกลง 2026-10-18)
 
@@ -54,10 +55,11 @@
 | [`Integrations & social`](https://github.com/maritonx/easy-cms/milestone/9) | — | หน้า Integrations ให้ plugin เชื่อมกับผู้ให้บริการภายนอก, โพสไปหลายช่องทาง และแจ้งเตือนผู้ดูแลทาง Telegram |
 | [`AI`](https://github.com/maritonx/easy-cms/milestone/12) | — | เชื่อม Claude, GPT, Gemini ในหน้า Integrations และใช้ใน admin: alt text, SEO, แปลภาษา |
 | `Apps` | — | application engine แบบ code-first ([ADR-0065](adr/0065-code-first-application-engine.md)): custom actions, view ของตัวเอง, Kanban, ธีม, พื้นที่ฟอร์ม, template CRM และ Booking |
+| `Studio` | — | `studio.easycms.dev`: เขียน config แล้วเห็นหน้า admin ในเบราว์เซอร์ แชร์ลิงก์ และ export เป็นโปรเจกต์ ([ADR-0074](adr/0074-studio.md)) |
 
 ### Labels
 
-`area:core`, `area:admin`, `area:adapters`, `area:plugins`, `area:release`, `area:docs`, `area:security`
+`area:core`, `area:admin`, `area:adapters`, `area:plugins`, `area:release`, `area:docs`, `area:security`, `area:studio`
 และ `release-blocker` (ต้องเสร็จก่อนออกเวอร์ชันของ milestone นั้น)
 
 ---
@@ -288,6 +290,22 @@ Kanban → ธีม → พื้นที่ฟอร์ม → CRM → Bookin
 | [#441](https://github.com/maritonx/easy-cms/issues/441) | SQL and data migrations, and easy-cms seed | area:core, area:docs | `migrate:create --empty` / `--data` (`.ts` รับ `tx` ใน transaction เดียวกับ SQL), `easy-cms seed` ใช้ใน template ของ `create-easy-cms` |
 | [#442](https://github.com/maritonx/easy-cms/issues/442) | admin: { enabled: false } in every adapter | area:core, area:docs | ปิด admin ได้ใน Next.js, Nuxt และ `easy-cms serve` โดย API ยังทำงาน |
 | [#443](https://github.com/maritonx/easy-cms/issues/443) | easy-cms build:admin: Vue, React and Svelte admin components | area:admin, area:docs | build `.vue` / `.tsx` / `.svelte` เป็นโมดูลไฟล์เดียวตามสัญญาของ ADR-0018 พร้อมตัวอย่างที่ e2e ผ่าน |
+
+### M16 — `Studio` (ไม่กำหนดวัน) {#m16}
+
+ให้ dev เห็นหน้า admin ของ config ตัวเองภายในไม่กี่วินาทีโดยไม่ต้องติดตั้ง เพื่อเลือก Easy CMS ออกแบบใน [ADR-0074](adr/0074-studio.md)
+core ตัวจริงรันใน Service Worker กับฐานข้อมูลในหน่วยความจำ Studio เป็น static site ไม่มี backend และไม่ต้อง login
+ตัวชี้วัดหลักคือสัดส่วนคนที่กด Copy CLI ต่อคนเปิด Studio เป้าไม่ต่ำกว่า 5%
+ตารางนี้คือ v0.1 ส่วน v0.2 (สลับ role, ล็อก version, เทมเพลตเพิ่ม, analytics, มือถือ) อยู่ใน ADR
+เลขในตารางเป็นลำดับงาน ยังไม่ใช่เลข issue บน GitHub
+
+| # | Issue | Labels | เสร็จเมื่อ |
+|---|---|---|---|
+| 6 | Core and drizzle run in the browser | area:core | build สำหรับเบราว์เซอร์ (condition `easy-cms-browser`) ไม่มี `node:*`, ผลเหมือนฝั่ง Node, รันใน headless Chrome ได้ |
+| 7 | In-memory SQLite adapter | area:adapters | SQLite แบบ WASM ในหน่วยความจำ รองรับ `push` ผ่านเทสชุดเดียวกับ adapter อื่นทั้งใน Node และเบราว์เซอร์; ในเบราว์เซอร์ login → CRUD → `admin/ui/schema` ผ่าน |
+| 8 | Admin studio mode | area:admin | export SPA แบบ static, bearer token แทน cookie, รับ schema ใหม่ผ่าน `postMessage` โดยไม่ reload |
+| 9 | Studio app | area:studio | e2e: เพิ่ม field ในโค้ด → เห็นในฟอร์ม admin → สร้างเอกสารได้; config ผิดแล้ว preview เดิมยังอยู่ |
+| 10 | Studio share links and export | area:studio, area:core | ลิงก์ Studio → `create-easy-cms --from` ได้ `easy-cms.config.ts` ตัวเดิม |
 
 ---
 

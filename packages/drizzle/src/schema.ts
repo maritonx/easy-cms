@@ -1,8 +1,8 @@
-import { createHash } from 'node:crypto'
 import type { CollectionConfig, Field, ResolvedConfig } from '@easy-cms/core'
 import { ConfigError } from '@easy-cms/core'
 import { isHasMany, isPolymorphic } from '@easy-cms/core/internal'
 import type { AnyColumn, AnyTable, ColumnBuilder, Dialect } from './dialect.js'
+import { sha256Hex } from './runtime.js'
 
 /** A scalar field stored as a column of this table. */
 export interface ColumnModel {
@@ -175,8 +175,7 @@ export function buildSchema(config: ResolvedConfig, prefix: string, dialect: Dia
   )
   tables[globalsName] = globals
   builder.description.push(['globals', globalsName])
-  const hashOf = (description: unknown[]) =>
-    createHash('sha256').update(JSON.stringify(description)).digest('hex').slice(0, 16)
+  const hashOf = (description: unknown[]) => sha256Hex(JSON.stringify(description)).slice(0, 16)
   const configHash = hashOf(builder.description)
   // Statistics (Postgres only) count only when there are some: a config without keeps its hash.
   const hash =
