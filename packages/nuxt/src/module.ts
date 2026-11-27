@@ -27,6 +27,7 @@ import {
   useLogger,
 } from '@nuxt/kit'
 import type { NuxtModule } from '@nuxt/schema'
+import { missingConfigHint } from './setup-hint.js'
 
 export interface ModuleOptions {
   /** Path to the Easy CMS config, relative to the project root. Default: `easy-cms.config.ts` (or .mts/.js/.mjs). */
@@ -66,9 +67,7 @@ const module: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
         : resolve(rootDir, options.configPath)
       : CONFIG_FILE_NAMES.map((name) => join(rootDir, name)).find((path) => existsSync(path))
     if (!configPath || !existsSync(configPath)) {
-      logger.warn(
-        `No Easy CMS config found in ${rootDir}. Create easy-cms.config.ts (or run create-easy-cms: \`npm create easy-cms\`, or pnpm, yarn or bun create easy-cms). The module is disabled.`,
-      )
+      logger.warn(missingConfigHint(rootDir))
       return
     }
 
