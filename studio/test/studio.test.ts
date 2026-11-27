@@ -4,18 +4,21 @@ import { join, resolve } from 'node:path'
 import { run } from 'create-easy-cms'
 import { decodeStudioLink } from 'create-easy-cms/studio-link'
 import { type Browser, chromium, type Frame, type Page } from 'playwright-core'
-import { type PreviewServer, preview } from 'vite'
+import { build, type PreviewServer, preview } from 'vite'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-// The built Studio (`pnpm build`) in headless Chrome: the editor frames the sandbox, which runs
-// the CMS on the in-memory database and frames the admin (ADR-0074).
+// Studio, built here (CI runs tests without the build task), in headless Chrome: the editor frames
+// the sandbox, which runs the CMS on the in-memory database and frames the admin (ADR-0074).
 
 let server: PreviewServer
 let browser: Browser
 let base = ''
 
 beforeAll(async () => {
-  server = await preview({ root: resolve(import.meta.dirname, '..'), preview: { port: 0 } })
+  const root = resolve(import.meta.dirname, '..')
+  const outDir = join(root, 'test/.tmp/studio')
+  await build({ root, logLevel: 'error', build: { outDir, emptyOutDir: true } })
+  server = await preview({ root, build: { outDir }, preview: { port: 0 } })
   base = server.resolvedUrls?.local[0]?.replace(/\/$/, '') ?? ''
   browser = await chromium.launch({ channel: 'chrome' }).catch(() => chromium.launch())
 })

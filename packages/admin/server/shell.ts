@@ -27,7 +27,15 @@ export interface ShellOptions {
 
 const escapeAttr = (value: string) =>
   value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
-export const trimSlashes = (path: string) => `/${path.replace(/^\/+|\/+$/g, '')}`
+/** `/path` from `path`, `/path/` or `//path//`: one slash in front, none at the end. */
+export function trimSlashes(path: string): string {
+  // A loop, not /^\/+|\/+$/: that regex takes quadratic time on long runs of slashes.
+  let start = 0
+  let end = path.length
+  while (start < end && path[start] === '/') start++
+  while (end > start && path[end - 1] === '/') end--
+  return `/${path.slice(start, end)}`
+}
 
 /** Injects `<base href>` and the settings the app reads at startup into the shell HTML. */
 export function renderShell(source: string, options: ShellOptions = {}): string {

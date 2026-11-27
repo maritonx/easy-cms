@@ -172,6 +172,20 @@ describe('renderShell', () => {
       (/<meta name="easy-cms" content="([^"]*)">/.exec(html)?.[1] ?? '').replace(/&quot;/g, '"'),
     )
 
+  it('trims slashes from paths in linear time', async () => {
+    const { trimSlashes } = await import('../server/shell.js')
+    expect(['admin', '/admin/', '//admin//', '/', ''].map(trimSlashes)).toEqual([
+      '/admin',
+      '/admin',
+      '/admin',
+      '/',
+      '/',
+    ])
+    const started = performance.now()
+    trimSlashes(`${'/'.repeat(100_000)}a`)
+    expect(performance.now() - started).toBeLessThan(200)
+  })
+
   it('turns on Studio mode only when asked, and the handler never does', async () => {
     expect(settingsOf(renderShell('<head></head>')).studio).toBeUndefined()
     const studio = renderShell('<head></head>', { studio: { origin: 'https://studio.test' } })

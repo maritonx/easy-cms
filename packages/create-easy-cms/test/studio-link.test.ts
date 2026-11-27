@@ -81,6 +81,13 @@ describe('Studio links', () => {
     await expect(decodeStudioLink(shared.slice(0, -20))).rejects.toThrow(/cut off or changed/)
   })
 
+  it('read imports in linear time, whatever the spacing', () => {
+    const started = performance.now()
+    packagesIn(`from${' '.repeat(100_000)}x`)
+    expect(performance.now() - started).toBeLessThan(200)
+    expect(packagesIn("import ( '@easy-cms/fields' )")).toEqual(['@easy-cms/fields'])
+  })
+
   it('find the @easy-cms packages a config imports', () => {
     expect(packagesIn(CONFIG)).toEqual([
       '@easy-cms/db-sqlite',

@@ -65,7 +65,7 @@ export async function decodeStudioLink(link: string): Promise<StudioConfig> {
 export function packagesIn(code: string): string[] {
   const found = new Set<string>()
   for (const match of code.matchAll(
-    /(?:from|import)\s*\(?\s*['"](@easy-cms\/[a-z0-9-]+)(?:\/[^'"]*)?['"]/g,
+    /(?:from|import)\s*(?:\(\s*)?['"](@easy-cms\/[a-z0-9-]+)(?:\/[^'"]*)?['"]/g,
   ))
     if (match[1] !== '@easy-cms/core') found.add(match[1] as string)
   return [...found].sort()
