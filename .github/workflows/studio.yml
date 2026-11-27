@@ -66,6 +66,9 @@ jobs:
             "cd /srv/easycms && docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile"
       - name: Check
         run: |
+          # A new host's certificate takes Caddy a while after the reload; until then TLS fails,
+          # which plain --retry doesn't retry. Up to a minute and a half per address.
           for url in "$STUDIO_ORIGIN/" "$SANDBOX_ORIGIN/sandbox.html" "$SANDBOX_ORIGIN/sw.js"; do
-            curl --fail --silent --show-error --output /dev/null --retry 5 --retry-delay 3 "$url"
+            curl --fail --silent --show-error --output /dev/null \
+              --retry 15 --retry-delay 6 --retry-all-errors "$url"
           done
