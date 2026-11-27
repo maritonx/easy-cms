@@ -41,7 +41,14 @@ const open = (db: Config['db'], cwd = '/') =>
 
 const dirs: string[] = []
 afterAll(() => {
-  for (const dir of dirs) rmSync(dir, { recursive: true, force: true })
+  for (const dir of dirs) {
+    // Windows may still hold the SQLite file for a moment after close: retry, then leave it.
+    try {
+      rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
+    } catch {
+      // the OS cleans its temp directory
+    }
+  }
 })
 
 /** Every table and index, as SQLite stores them. */
