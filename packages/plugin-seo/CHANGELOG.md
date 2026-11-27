@@ -1,5 +1,12 @@
 # @easy-cms/plugin-seo
 
+## 1.56.2
+
+### Patch Changes
+
+- @easy-cms/core@1.56.2
+  - @easy-cms/richtext@1.56.2
+
 ## 1.56.1
 
 ### Patch Changes
