@@ -51,7 +51,9 @@
 - **Error:** type error ขีดเส้นแดงใน Monaco ส่วน error ตอนรันหรือตอนตรวจ config ให้คง preview ล่าสุดที่ใช้ได้ไว้ และแสดงแถบ error พร้อมบรรทัด
 - **ความปลอดภัย:** ลิงก์แชร์รันโค้ดของคนอื่นทันทีที่เปิด ส่วนที่รันโค้ดและ admin จึงอยู่ใน iframe แบบ sandbox บน origin แยก
   ที่ไม่มี cookie ไม่ใช่ `studio.easycms.dev`
-- **ลิงก์แชร์:** config บีบอัดด้วย lz-string ใส่ใน URL hash พร้อม version (`#v=1.4.0&c=…`) config ไม่ถูกส่งไปที่ server
+- **ลิงก์แชร์:** config บีบอัดด้วย deflate (`CompressionStream` ที่เบราว์เซอร์และ Node มีอยู่แล้ว ไม่ต้องใช้ lz-string) เป็น base64url
+  ใส่ใน URL hash พร้อม version (`#v=1.4.0&c=…`) config ไม่ถูกส่งไปที่ server แถบที่อยู่มีลิงก์ล่าสุดเสมอ
+  ตัวอ่านเขียนลิงก์อยู่ที่ `create-easy-cms/studio-link` ใช้ทั้ง Studio และ CLI
 - **Export:**
   - ปุ่ม Copy config
   - `npm create easy-cms@latest -- --from "<studio-url>"` เขียน `easy-cms.config.ts` จากลิงก์ แล้วถามเรื่องเฟรมเวิร์กและฐานข้อมูลตามปกติ

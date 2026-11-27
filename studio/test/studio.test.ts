@@ -1,4 +1,8 @@
-import { resolve } from 'node:path'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
+import { run } from 'create-easy-cms'
+import { decodeStudioLink } from 'create-easy-cms/studio-link'
 import { type Browser, chromium, type Frame, type Page } from 'playwright-core'
 import { type PreviewServer, preview } from 'vite'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -23,7 +27,12 @@ afterAll(async () => {
 
 /** The page's globals this test uses (its types have no DOM). */
 interface Studio {
-  studio: { getCode(): string; setCode(code: string): void }
+  studio: {
+    getCode(): string
+    setCode(code: string): void
+    shareLink(): Promise<string>
+    createCommand(): Promise<string>
+  }
 }
 
 const admin = (page: Page): Frame | undefined =>
@@ -75,6 +84,44 @@ describe('Studio', () => {
     await frame.waitForURL(/\/admin\/collections\/posts\/\d+/, { timeout: 30_000 })
     await frame.goto(`${new URL(frame.url()).origin}/admin/collections/posts`)
     await frame.getByText('Made in Studio').first().waitFor({ timeout: 30_000 })
+  })
+
+  it('shares a link that opens the same config, and create-easy-cms writes it', async () => {
+    const code = await getCode(page)
+    const link = await page.evaluate(() => (globalThis as unknown as Studio).studio.shareLink())
+    expect((await decodeStudioLink(link)).code).toBe(code)
+    // The address holds the link too, once the pause after the edit is over.
+    await expect.poll(() => page.url()).toBe(link)
+    const command = await page.evaluate(() =>
+      (globalThis as unknown as Studio).studio.createCommand(),
+    )
+    expect(command).toBe(`npm create easy-cms@latest -- --from "${link}"`)
+
+    // Opened elsewhere (another browser has no draft of it): the same config, running.
+    const other = await browser.newContext()
+    const shared = await other.newPage()
+    await shared.goto(link)
+    await expect.poll(() => status(shared).textContent(), { timeout: 60_000 }).toBe('Up to date')
+    expect(await getCode(shared)).toBe(code)
+    await other.close()
+
+    // And into a project.
+    const dir = mkdtempSync(join(tmpdir(), 'studio-export-'))
+    try {
+      const out: string[] = []
+      const exit = await run([dir, '--standalone', '--skip-install', '--from', link], {
+        out: (line) => out.push(line),
+        err: (line) => out.push(line),
+        interactive: false,
+      })
+      expect(exit, out.join('\n')).toBe(0)
+      expect(readFileSync(join(dir, 'easy-cms.config.ts'), 'utf8')).toBe(
+        code.endsWith('\n') ? code : `${code}\n`,
+      )
+      expect(out.join('\n')).toContain('@easy-cms/plugin-seo')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 
   it('shows an error and keeps the last admin when the config is wrong', async () => {

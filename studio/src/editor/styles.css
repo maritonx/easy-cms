@@ -77,6 +77,61 @@ body {
   text-decoration: none;
   cursor: pointer;
 }
+.bar button.primary,
+dialog button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+dialog {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--text);
+  max-width: min(640px, calc(100vw - 32px));
+  padding: 20px 24px;
+}
+dialog::backdrop {
+  background: rgb(0 0 0 / 0.35);
+}
+dialog h2 {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+dialog pre {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 10px 12px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 160px;
+  overflow: auto;
+  font:
+    12px / 1.5 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+}
+dialog .actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+dialog button {
+  font: inherit;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 12px;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+}
+dialog .hint {
+  color: var(--muted);
+  font-size: 13px;
+  margin-bottom: 0;
+}
 .panes {
   flex: 1;
   display: grid;

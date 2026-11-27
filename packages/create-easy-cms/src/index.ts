@@ -16,9 +16,11 @@ import {
   type PackageManager,
   runScript,
 } from './commands.js'
+import { decodeStudioLink, packagesIn, type StudioConfig, StudioLinkError } from './studio-link.js'
 import { configTemplate, type DatabaseChoice, nextAdminRoute, nextApiRoute } from './templates.js'
 
 export * from './commands.js'
+export * from './studio-link.js'
 
 export type Framework = 'nuxt' | 'next'
 /** Where Easy CMS runs: inside a Nuxt or Next.js app, or as its own server. */
@@ -82,6 +84,7 @@ backend for a Vite, React, Vue or static frontend.
 Options:
   --standalone            Set up a standalone server even in an existing project
   --db <sqlite|postgres>  Database (default: ask, or sqlite with --yes)
+  --from <link>           easy-cms.config.ts from a Studio link (studio.easycms.dev)
   --yes, -y               Accept the defaults without asking
   --pm <npm|pnpm|yarn|bun>  Package manager (default: the project's, or the one running this)
   --skip-install          Write files only; install the packages yourself
@@ -157,6 +160,8 @@ function ownVersion(): string {
 export function packagesFor(
   target: Target,
   db: DatabaseChoice,
+  /** More `@easy-cms/*` packages the config imports (a config from Studio). */
+  more: readonly string[] = [],
 ): { deps: string[]; devDeps: string[] } {
   const v = ownVersion()
   // Standalone: the `easy-cms` CLI is the server, so it is a runtime dependency.
@@ -166,13 +171,26 @@ export function packagesFor(
       : [`@easy-cms/core@${v}`, `@easy-cms/${target}@${v}`]
   if (db === 'sqlite') deps.push(`@easy-cms/db-sqlite@${v}`)
   else deps.push(`@easy-cms/db-postgres@${v}`, '@electric-sql/pglite')
+  for (const name of more) {
+    const spec = `${name}@${v}`
+    if (!deps.includes(spec)) deps.push(spec)
+  }
   return { deps, devDeps: target === 'standalone' ? [] : [`easy-cms@${v}`] }
+}
+
+/** The database a config imports an adapter for, if one. */
+export function databaseIn(code: string): DatabaseChoice | undefined {
+  const packages = packagesIn(code)
+  if (packages.includes('@easy-cms/db-postgres')) return 'postgres'
+  if (packages.includes('@easy-cms/db-sqlite')) return 'sqlite'
+  return undefined
 }
 
 /** Runs create-easy-cms and returns the exit code. */
 export async function run(argv: readonly string[], io: IO = defaultIO): Promise<number> {
   let values: {
     db?: string
+    from?: string
     yes?: boolean
     pm?: string
     standalone?: boolean
@@ -186,6 +204,7 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
       allowPositionals: true,
       options: {
         db: { type: 'string' },
+        from: { type: 'string' },
         yes: { type: 'boolean', short: 'y' },
         pm: { type: 'string' },
         standalone: { type: 'boolean' },
@@ -201,6 +220,18 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
   if (values.help) {
     io.out(HELP)
     return 0
+  }
+
+  // Read first: a bad link stops before anything is written.
+  let studio: StudioConfig | undefined
+  if (values.from !== undefined) {
+    try {
+      studio = await decodeStudioLink(values.from)
+    } catch (error) {
+      if (!(error instanceof StudioLinkError)) throw error
+      io.err(error.message)
+      return 1
+    }
   }
 
   if (values.pm !== undefined && !isPackageManager(values.pm)) {
@@ -239,6 +270,15 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
     io.err(`--db must be "sqlite" or "postgres" (got "${db}")`)
     return 1
   }
+  // A config from Studio names its database: the packages follow it.
+  const studioDb = studio ? databaseIn(studio.code) : undefined
+  if (studioDb && db && db !== studioDb) {
+    io.err(
+      `--db ${db}, but the config from Studio uses ${studioDb}: change db in it, or leave out --db`,
+    )
+    return 1
+  }
+  db ??= studioDb
   if (!db) {
     if (!values.yes && io.interactive && io.prompt) {
       const answer = (
@@ -260,7 +300,23 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
 
   // easy-cms.config.ts
   const configFile = join(dir, 'easy-cms.config.ts')
-  if (existsSync(configFile)) {
+  if (studio) {
+    await mkdir(dir, { recursive: true })
+    // Never over a config already there: beside it, to compare.
+    const file = existsSync(configFile) ? join(dir, 'easy-cms.config.studio.ts') : configFile
+    await writeFile(file, studio.code.endsWith('\n') ? studio.code : `${studio.code}\n`)
+    changes.push(`created ${relative(dir, file)} from the Studio link`)
+    if (file !== configFile)
+      notes.push('easy-cms.config.ts already exists: the config from Studio is beside it.')
+    if (!studioDb)
+      notes.push(`The config from Studio has no database adapter: set db (${db}) in it.`)
+    const made = studio.version
+    const installing = ownVersion().replace(/^\^/, '')
+    if (made && installing !== 'latest' && made.split('.')[0] !== installing.split('.')[0])
+      notes.push(
+        `The config was made in Studio with Easy CMS ${made}; this installs ${installing}.`,
+      )
+  } else if (existsSync(configFile)) {
     notes.push('easy-cms.config.ts already exists; left unchanged.')
   } else {
     await mkdir(dir, { recursive: true })
@@ -309,7 +365,7 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
   for (const change of changes) io.out(`  ✓ ${change}`)
   for (const note of notes) io.out(`  • ${note}`)
 
-  const { deps, devDeps } = packagesFor(target, db)
+  const { deps, devDeps } = packagesFor(target, db, studio ? packagesIn(studio.code) : [])
   if (values['skip-install']) {
     io.out('\nInstall the packages:')
     io.out(`  ${pm} ${installArgs(pm, deps, false).join(' ')}`)

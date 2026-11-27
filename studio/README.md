@@ -38,6 +38,10 @@ editor (index.html)                       sandbox (sandbox.html, its own origin 
   `plugin-redirects`, `plugin-multi-tenant`. Databases, storages, email and sign-in packages are
   stand-ins Studio replaces (SQLite in memory, files in memory, emails to the console, no SSO);
   plugins that don't run in a browser yet do nothing and say so in the console.
+- **Share links:** the address always holds the config, deflated in its hash with the version
+  (`#v=…&c=…`, `create-easy-cms/studio-link`), so it can be shared as it is; the hash never
+  reaches a server. **Use in a project** gives `npm create easy-cms@latest -- --from "<link>"`,
+  which writes that config into a project, and **Copy config** the code itself.
 - **No environment variables:** `process.env` is empty; a config without a 32-character secret
   gets Studio's own.
 

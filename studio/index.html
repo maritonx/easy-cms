@@ -13,6 +13,8 @@
       <span id="status" class="status" data-state="busy" role="status">Starting…</span>
       <span class="spacer"></span>
       <button id="reset" type="button">Reset to the Blog template</button>
+      <button id="share" type="button">Share link</button>
+      <button id="export" type="button" class="primary">Use in a project</button>
       <a href="https://easycms.dev/docs/getting-started" target="_blank" rel="noopener">Docs</a>
     </header>
     <main class="panes">
@@ -35,6 +37,19 @@
         ></iframe>
       </section>
     </main>
+    <dialog id="export-dialog" aria-labelledby="export-title">
+      <form method="dialog">
+        <h2 id="export-title">Use this config in a project</h2>
+        <p>In a Nuxt or Next.js project, or an empty folder for a server of its own:</p>
+        <pre><code id="export-command"></code></pre>
+        <div class="actions">
+          <button id="copy-command" type="button" class="primary">Copy command</button>
+          <button id="copy-config" type="button">Copy config</button>
+          <button type="submit" value="close">Close</button>
+        </div>
+        <p class="hint">It writes easy-cms.config.ts from this link, then installs the packages the config uses.</p>
+      </form>
+    </dialog>
     <script type="module" src="./src/editor/main.ts"></script>
   </body>
 </html>

@@ -5,6 +5,8 @@
  */
 
 import types from 'virtual:studio-types'
+import { VERSION } from '@easy-cms/core'
+import { decodeStudioLink, encodeStudioHash } from 'create-easy-cms/studio-link'
 import * as monaco from 'monaco-editor'
 import { SANDBOX_PAGE, sandboxOrigin, type ToEditor, type ToSandbox } from '../protocol'
 import blog from '../templates/blog.config.ts?raw'
@@ -48,8 +50,26 @@ function saveDraft(code: string) {
   }
 }
 
+/** A shared link's config (the hash), else this browser's draft, else the Blog template. */
+async function startingCode(): Promise<{ code: string; note?: string }> {
+  if (location.hash.includes('c=')) {
+    try {
+      const shared = await decodeStudioLink(location.hash)
+      const note =
+        shared.version && shared.version !== VERSION
+          ? `This link was made with Easy CMS ${shared.version}; Studio runs ${VERSION}.`
+          : undefined
+      return note ? { code: shared.code, note } : { code: shared.code }
+    } catch (error) {
+      return { code: savedDraft() ?? blog, note: (error as Error).message }
+    }
+  }
+  return { code: savedDraft() ?? blog }
+}
+
+const start = await startingCode()
 const model = monaco.editor.createModel(
-  savedDraft() ?? blog,
+  start.code,
   'typescript',
   monaco.Uri.parse('file:///easy-cms.config.ts'),
 )
@@ -74,6 +94,12 @@ function send(code: string) {
   frame.contentWindow?.postMessage(message, origin)
 }
 
+/** The address holds the config, so it can be shared as it is (the hash never reaches a server). */
+async function keepInAddress(code: string) {
+  const hash = await encodeStudioHash({ code, version: VERSION })
+  if (model.getValue() === code) history.replaceState(null, '', `#${hash}`)
+}
+
 let timer: ReturnType<typeof setTimeout> | undefined
 model.onDidChangeContent(() => {
   clearTimeout(timer)
@@ -81,8 +107,10 @@ model.onDidChangeContent(() => {
     const code = model.getValue()
     saveDraft(code)
     send(code)
+    void keepInAddress(code)
   }, PAUSE_MS)
 })
+void keepInAddress(model.getValue())
 
 const status = $('status')
 const errorBar = $('error')
@@ -161,11 +189,50 @@ $('reset').addEventListener('click', () => {
   model.setValue(blog)
 })
 
+/** The link to this config, up to date even inside the pause after an edit. */
+async function shareLink(): Promise<string> {
+  const hash = await encodeStudioHash({ code: model.getValue(), version: VERSION })
+  return `${location.origin}${location.pathname}#${hash}`
+}
+
+async function copy(button: HTMLElement, text: string) {
+  const label = button.textContent
+  try {
+    await navigator.clipboard.writeText(text)
+    button.textContent = 'Copied'
+  } catch {
+    button.textContent = 'Copy failed: select and copy it'
+  }
+  setTimeout(() => {
+    button.textContent = label
+  }, 1500)
+}
+
+/** What a project runs to get this config (npm; pnpm, yarn and bun take the same link). */
+const createCommand = (link: string) => `npm create easy-cms@latest -- --from "${link}"`
+
+$('share').addEventListener('click', async () => {
+  await copy($('share'), await shareLink())
+})
+$('export').addEventListener('click', async () => {
+  $('export-command').textContent = createCommand(await shareLink())
+  $<HTMLDialogElement>('export-dialog').showModal()
+})
+$('copy-command').addEventListener('click', async () => {
+  await copy($('copy-command'), createCommand(await shareLink()))
+})
+$('copy-config').addEventListener('click', async () => {
+  await copy($('copy-config'), model.getValue())
+})
+if (start.note) addConsoleLine('warn', start.note)
+
 /** For tests and the curious: the editor's code. */
 Object.assign(window, {
   studio: {
     getCode: () => model.getValue(),
     setCode: (code: string) => model.setValue(code),
+    shareLink,
+    createCommand: async () => createCommand(await shareLink()),
   },
 })
 editor.focus()
