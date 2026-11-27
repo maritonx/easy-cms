@@ -1,6 +1,6 @@
 {
   "name": "@easy-cms/db-memory",
-  "version": "1.56.1",
+  "version": "1.57.0",
   "description": "In-memory SQLite (WebAssembly) database adapter for Easy CMS, for Studio and tests",
   "license": "MIT",
   "type": "module",

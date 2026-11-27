@@ -1,5 +1,21 @@
 # @easy-cms/drizzle
 
+## 1.57.0
+
+### Minor Changes
+
+- 3835f2f: New `@easy-cms/db-memory`: SQLite in memory (sql.js, WebAssembly), for Studio (ADR-0074) and tests. The same tables and SQL as `@easy-cms/db-sqlite`, in Node and in browsers (with the `easy-cms-browser` condition). `memory({ name })` keeps a database while the process runs: a CMS started again with the name, after its config changed, finds its documents and pushes the new schema onto them.
+  
+  `@easy-cms/drizzle/sqlite` holds what the two SQLite adapters share: the dialect and a connection over a libSQL-shaped client. `@easy-cms/db-sqlite` uses it; nothing changes for its users.
+
+### Patch Changes
+
+- 0d6260d: A browser build of core, for Studio (ADR-0074): bundlers that set the `easy-cms-browser` export condition get `dist/browser/`, with no Node module. Hashes, MACs, HKDF, AES-GCM and scrypt come from @noble (the same results as `node:crypto`), request context follows one request at a time, and what needs a disk (config files, disk storage, uploads from a link) says so when used. Node, Bun, Deno and Workers keep the build they have: the condition has a name no runtime sets.
+  
+  `@easy-cms/drizzle` imports no Node module: it takes them from core, or from Node itself beside an older core.
+- Updated dependencies [0d6260d]
+  - @easy-cms/core@1.57.0
+
 ## 1.56.2
 
 ### Patch Changes

@@ -1,5 +1,9 @@
 # @easy-cms/richtext
 
+## 1.57.0
+
+No changes in this release.
+
 ## 1.56.2
 
 No changes in this release.
