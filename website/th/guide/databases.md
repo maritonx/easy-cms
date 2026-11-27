@@ -1,7 +1,7 @@
 # ฐานข้อมูล {#databases}
 
 ::: info หน้านี้สอนอะไร
-SQLite, Turso, Postgres และ PGlite: การเชื่อมต่อ การเลือก และการปรับแต่ง
+SQLite, Turso, Postgres, PGlite และ SQLite ในหน่วยความจำ: การเชื่อมต่อ การเลือก และการปรับแต่ง
 
 **ควรอ่านก่อน:** [เริ่มใช้งาน](./getting-started)
 :::
@@ -19,7 +19,7 @@ db: sqlite({ url: 'file:./cms.db' }) // relative to the project root
 db: sqlite({ url: 'libsql://my-db.turso.io', authToken: process.env.TURSO_TOKEN })
 ```
 
-ใช้ libSQL ไม่รองรับฐานข้อมูลแบบ in-memory (`:memory:`)
+ใช้ libSQL ถ้าต้องการฐานข้อมูลในหน่วยความจำ ใช้ [`@easy-cms/db-memory`](#in-memory)
 
 SQLite เขียนได้ทีละรายการ การเขียนใน process เดียวกันจะเข้าคิวรอกัน ส่วนเมื่อ process อื่นเขียนไฟล์เดียวกันอยู่
 (server ตัวที่สอง หรือคำสั่ง `easy-cms`) การเขียนจะรอได้นานสูงสุด `busyTimeoutMs` (ค่าเริ่มต้น 10000 ms)
@@ -93,6 +93,30 @@ db: postgres({ url: process.env.DATABASE_POOLER_URL, max: 2, prepare: false })
   ไปใช้แผนเดียวกับทุกค่า และสำหรับการกรอง แผนนั้นอาจอ่านทุกแถวที่ตรงเพื่อเรียง ที่ 1M แถวจึงใช้เป็นวินาทีแทนมิลลิวินาที ถ้าใช้
   `prepare: false` แต่ละ query จะถูกวางแผนตามค่าของมันอยู่แล้ว
 - **Migration** รันผ่าน pooler ได้ หรือต่อตรงก็ได้ถ้าผู้ให้บริการมีให้
+
+## ในหน่วยความจำ {#in-memory}
+
+```bash [pm]
+npm install @easy-cms/db-memory
+```
+
+```ts
+import { memory } from '@easy-cms/db-memory'
+
+db: memory() // ฐานข้อมูลใหม่ว่างเปล่าทุกครั้งที่ CMS เริ่ม
+db: memory({ name: 'preview' }) // เก็บไว้จนกว่าจะเรียก dropMemoryDatabase('preview')
+```
+
+SQLite ที่คอมไพล์เป็น WebAssembly (sql.js) เก็บในหน่วยความจำ ได้ตารางและ SQL ชุดเดียวกับ
+`@easy-cms/db-sqlite` ใช้ได้ทั้งใน Node และในเบราว์เซอร์ Studio (`studio.easycms.dev` ที่กำลังทำ) ใช้ตัวนี้
+และเหมาะกับเทส ไม่เหมาะกับ production เพราะไม่มีอะไรเขียนลง disk
+
+- **`name`** เก็บฐานข้อมูลไว้ตลอดที่ process ยังทำงาน CMS ที่เริ่มใหม่ด้วยชื่อเดิมหลัง config เปลี่ยน
+  จะเห็นเอกสารเดิม และ push schema ใหม่ทับลงไป `dropMemoryDatabase(name)` ลบชื่อนั้นทิ้ง
+- **`sqlJs`** โหลด sql.js ค่าเริ่มต้นเป็น build ที่ฝัง WebAssembly ไว้ข้างใน (JavaScript ประมาณ 1 MB
+  ไม่ต้องเสิร์ฟไฟล์ `.wasm`) ถ้าจะเสิร์ฟ `.wasm` เอง ส่ง `() => initSqlJs({ locateFile })`
+- **ในเบราว์เซอร์** ให้ bundle ด้วย export condition `easy-cms-browser` (ใน Vite คือ `resolve.conditions`)
+  จะได้ build ของ `@easy-cms/core` และแพ็กเกจนี้ที่ไม่ใช้ module ของ Node
 
 ## ตัวเลือกทั่วไป {#common-options}
 

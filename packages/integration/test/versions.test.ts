@@ -1,6 +1,6 @@
 import { createRestHandler, defineConfig, isStaff } from '@easy-cms/core'
 import { describe, expect, it } from 'vitest'
-import { db, open, rawQuery, SECRET, table } from './helpers.js'
+import { db, open, rawQuery, SECRET, SQLITE, table } from './helpers.js'
 
 const config = defineConfig({
   secret: SECRET,
@@ -209,7 +209,7 @@ describe('versions schema', () => {
     )
     const tables = await rawQuery(
       plain.cwd,
-      process.env.EASY_CMS_TEST_DIALECT === 'sqlite' || !process.env.EASY_CMS_TEST_DIALECT
+      SQLITE
         ? `select name from sqlite_master where type = 'table'`
         : `select tablename as name from pg_tables where schemaname = 'public'`,
     )

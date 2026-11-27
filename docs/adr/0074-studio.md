@@ -34,7 +34,7 @@
 - **รัน core ตัวจริงในเบราว์เซอร์:** ไม่เขียนตัวสร้าง schema ใหม่ใน Studio (จะเพี้ยนจาก core ทุกครั้งที่เพิ่ม field หรือ plugin)
   และไม่รันโค้ดของคนนอกบน server ของเรา
   - Service Worker ใน iframe รัน `createRestHandler` ของ core จริง กับฐานข้อมูลในหน่วยความจำ admin เรียก `fetch` ตามปกติ
-  - ตารางสร้างด้วย `schema: 'push'` ใหม่ทุกครั้งที่ config เปลี่ยน
+  - เมื่อ config เปลี่ยน CMS เริ่มใหม่บนฐานข้อมูลชื่อเดิม (`memory({ name })`) แล้ว push schema ใหม่ทับ เอกสารใน field ที่ยังอยู่จึงไม่หาย
 - **การรันโค้ดของผู้ใช้:**
   - แปลง TypeScript ด้วย esbuild-wasm (debounce 300ms)
   - `import` ได้เฉพาะ `@easy-cms/*` ที่ Studio bundle ไว้ import อื่นขึ้นข้อความว่ายังไม่รองรับใน Studio
@@ -45,7 +45,7 @@
   - adapter ที่มี side effect (email, storage ภายนอก, Telegram) เป็น stub ที่พิมพ์ลง Console panel
   - plugin ที่รันในเบราว์เซอร์ได้เปิดจริง: seo, redirects, nested-docs, form-builder, social, multi-tenant
     ตัวอื่น (ai, backups, notify, analytics) แสดงป้าย "stubbed in Studio"
-- **ข้อมูลตัวอย่าง:** สร้าง 5–10 แถวต่อ collection ตาม field type เมื่อ config เปลี่ยนให้เก็บค่าของ field ที่ยังใช้ได้ไว้
+- **ข้อมูลตัวอย่าง:** สร้าง 5–10 แถวต่อ collection ตาม field type เมื่อ config เปลี่ยน ค่าของ field ที่ยังใช้ได้อยู่ต่อเพราะใช้ฐานข้อมูลชื่อเดิม
 - **Error:** type error ขีดเส้นแดงใน Monaco ส่วน error ตอนรันหรือตอนตรวจ config ให้คง preview ล่าสุดที่ใช้ได้ไว้ และแสดงแถบ error พร้อมบรรทัด
 - **ความปลอดภัย:** ลิงก์แชร์รันโค้ดของคนอื่นทันทีที่เปิด ส่วนที่รันโค้ดและ admin จึงอยู่ใน iframe แบบ sandbox บน origin แยก
   ที่ไม่มี cookie ไม่ใช่ `studio.easycms.dev`
@@ -70,7 +70,9 @@
    - ไม่รวม `runtime/node/` และ `load-config.ts`
    - drizzle ไม่ import `node:*` เอง ใช้ context, hash และไฟล์จาก `@easy-cms/core/internal`
    - ผลพลอยได้: ปูทางไป runtime ที่ไม่มี `nodejs_compat` ตามปลายทางของ ADR-0067
-2. **ฐานข้อมูลในหน่วยความจำ** (`directions/issues/7-db-memory.md`): SQLite แบบ WASM ใช้ dialect SQLite เดิม รองรับ `push` ใช้ใน Studio และในเทส
+2. **ฐานข้อมูลในหน่วยความจำ** (`directions/issues/7-db-memory.md`): `@easy-cms/db-memory` ใช้ sql.js ครอบด้วย client หน้าตาแบบ libSQL
+   จึงใช้ dialect และ connection เดียวกับ db-sqlite (ย้ายไปไว้ที่ `@easy-cms/drizzle/sqlite`) SQL สร้างตารางมาจาก drizzle-kit ที่ build
+   สำหรับเบราว์เซอร์ (module ของ Node เป็นตัวแทน) ได้ SQL เดียวกับ db-sqlite เทส integration ทั้งชุดรันบนตัวนี้ด้วย
 3. **studio mode ของ admin** (`directions/issues/8-admin-studio-mode.md`):
    - export ไฟล์ static ของ SPA
    - ตั้ง `apiPath` ได้

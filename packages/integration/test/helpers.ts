@@ -4,10 +4,12 @@ import { join } from 'node:path'
 import {
   type Config,
   createEasyCMS,
+  type Database,
   type DatabaseAdapter,
   type SchemaMode,
   silentLogger,
 } from '@easy-cms/core'
+import { dropMemoryDatabase, memory } from '@easy-cms/db-memory'
 import { type PostgresAdapterOptions, postgres } from '@easy-cms/db-postgres'
 import { sqlite } from '@easy-cms/db-sqlite'
 import { PGlite } from '@electric-sql/pglite'
@@ -25,8 +27,10 @@ function removeTemp(path: string) {
   }
 }
 
-export type Dialect = 'sqlite' | 'pglite' | 'postgres'
+export type Dialect = 'sqlite' | 'pglite' | 'postgres' | 'memory'
 export const DIALECT = (process.env.EASY_CMS_TEST_DIALECT ?? 'sqlite') as Dialect
+/** SQLite, on a file or in memory (`@easy-cms/db-memory`): the same SQL. */
+export const SQLITE = DIALECT === 'sqlite' || DIALECT === 'memory'
 // Random-looking: in production, secrets that look like examples or patterns are refused.
 export const SECRET = '9b2e7c41d8f05a63e1c4b7d92a0f6e38'
 
@@ -34,12 +38,17 @@ export const SECRET = '9b2e7c41d8f05a63e1c4b7d92a0f6e38'
 const dirs: string[] = []
 /** Directories made in `beforeAll`: a CMS opened there uses its database until the file ends. */
 const fileDirs: string[] = []
-afterEach(() => {
-  for (const dir of dirs.splice(0)) removeTemp(dir)
+afterEach(async () => {
+  for (const dir of dirs.splice(0)) await removeProject(dir)
 })
-afterAll(() => {
-  for (const dir of fileDirs.splice(0)) removeTemp(dir)
+afterAll(async () => {
+  for (const dir of fileDirs.splice(0)) await removeProject(dir)
 })
+
+async function removeProject(dir: string) {
+  removeTemp(dir)
+  if (memories.delete(dir)) await dropMemoryDatabase(dir)
+}
 
 /**
  * A fresh temporary project directory: removed after the test that made it, or, when made in
@@ -59,7 +68,7 @@ let server: postgresJs.Sql | undefined
 const prefixes = new Map<string, string>()
 
 function prefixFor(cwd: string): string {
-  if (DIALECT === 'sqlite') return 'ecms_' // every project has its own file
+  if (DIALECT === 'sqlite' || DIALECT === 'memory') return 'ecms_' // every project has its own
   let prefix = prefixes.get(cwd)
   if (!prefix) {
     prefix = `t${process.pid}_${prefixes.size}_`
@@ -88,10 +97,17 @@ afterAll(async () => {
  */
 export function db(server: Partial<PostgresAdapterOptions> = {}): DatabaseAdapter {
   return {
-    name: `test-${DIALECT}`,
+    // As the adapters name themselves: telemetry tells SQLite from Postgres by the name.
+    name: `test-${DIALECT === 'memory' ? 'sqlite-memory' : DIALECT}`,
     init(args) {
       const tablePrefix = prefixFor(args.cwd)
       if (DIALECT === 'sqlite') return sqlite({ url: 'file:./cms.db', tablePrefix }).init(args)
+      if (DIALECT === 'memory') {
+        // One database per project, kept while the test runs, as a file would be.
+        const database = memory({ name: args.cwd, tablePrefix }).init(args)
+        memories.set(args.cwd, database)
+        return database
+      }
       if (DIALECT === 'pglite') {
         pglite ??= new PGlite({ extensions: { pg_trgm } })
         return postgres({ pglite, tablePrefix }).init(args)
@@ -107,6 +123,9 @@ export function db(server: Partial<PostgresAdapterOptions> = {}): DatabaseAdapte
     },
   }
 }
+
+/** The in-memory database of each project, for `rawQuery`. */
+const memories = new Map<string, Promise<Database>>()
 
 /** A table name as created for a project, e.g. `table(cwd, 'posts__tags')`. */
 export function table(cwd: string, name: string): string {
@@ -125,6 +144,11 @@ export async function rawQuery(cwd: string, sql: string): Promise<Record<string,
   }
   if (DIALECT === 'pglite')
     return (await (pglite as PGlite).query(sql)).rows as Record<string, unknown>[]
+  if (DIALECT === 'memory') {
+    const database = await memories.get(cwd)
+    if (!database?.query) throw new Error(`No in-memory database for ${cwd}`)
+    return database.query([sql], [])
+  }
   server ??= postgresJs(process.env.POSTGRES_URL as string, { max: 2, onnotice: () => {} })
   return [...(await server.unsafe(sql))] as Record<string, unknown>[]
 }

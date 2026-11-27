@@ -21,7 +21,7 @@ pnpm lint         # Biome
 | Path | |
 |---|---|
 | `packages/core` | Config, Local API, REST handler, auth, access control, hooks, type generation |
-| `packages/drizzle` | Shared database layer; `db-sqlite` and `db-postgres` add the dialects |
+| `packages/drizzle` | Shared database layer; `db-sqlite` and `db-postgres` add the dialects, `db-memory` runs SQLite's in memory |
 | `packages/admin` | The admin SPA (Vue) and its static handler |
 | `packages/nuxt`, `packages/next` | Framework adapters (keep them thin) |
 | `packages/cli`, `packages/create-easy-cms` | The `easy-cms` CLI and the project generator |

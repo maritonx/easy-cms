@@ -16,6 +16,7 @@
   "devDependencies": {
     "@easy-cms/auth-oauth": "workspace:^",
     "@easy-cms/core": "workspace:^",
+    "@easy-cms/db-memory": "workspace:^",
     "@easy-cms/db-postgres": "workspace:^",
     "@easy-cms/db-sqlite": "workspace:^",
     "@easy-cms/drizzle": "workspace:^",

@@ -1,0 +1,57 @@
+{
+  "name": "@easy-cms/db-memory",
+  "version": "1.56.1",
+  "description": "In-memory SQLite (WebAssembly) database adapter for Easy CMS, for Studio and tests",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "easy-cms-browser": "./dist/browser/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "prepack": "node ../../scripts/check-publish.mjs"
+  },
+  "dependencies": {
+    "@easy-cms/drizzle": "workspace:^",
+    "drizzle-orm": "0.45.4",
+    "sql.js": "^1.17.0"
+  },
+  "peerDependencies": {
+    "@easy-cms/core": "workspace:^"
+  },
+  "devDependencies": {
+    "@easy-cms/core": "workspace:^",
+    "@easy-cms/db-sqlite": "workspace:^",
+    "@libsql/client": "^0.18.0",
+    "drizzle-kit": "0.31.11"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maritonx/easy-cms.git",
+    "directory": "packages/db-memory"
+  },
+  "keywords": [
+    "easy-cms",
+    "sqlite",
+    "wasm",
+    "in-memory",
+    "drizzle"
+  ]
+}
