@@ -70,6 +70,17 @@ export {
   readCookie,
   SESSION_COOKIE,
 } from './rest/handler.js'
+export { type AsyncContext, createContext } from './runtime/context.js'
+export { hash } from './runtime/crypto.js'
+export {
+  fileExists,
+  joinPath,
+  listDir,
+  makeDir,
+  readUtf8,
+  resolvePath,
+  writeText,
+} from './runtime/node/files.js'
 export {
   checkFormToken,
   formToken,

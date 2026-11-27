@@ -16,7 +16,7 @@ import {
 import { InMemorySpanExporter, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base'
 import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { DIALECT, db, open, SECRET, tempProject } from './helpers.js'
+import { db, open, SECRET, SQLITE, tempProject } from './helpers.js'
 
 // OpenTelemetry (#179, ADR-0057): spans and metrics through @opentelemetry/api, sent wherever the
 // app's SDK sends them; names of routes and collections, never values.
@@ -101,7 +101,7 @@ describe('telemetry (#179)', () => {
     expect(query?.parentSpanContext?.spanId).toBe(find?.spanContext().spanId)
     expect(query?.kind).toBe(SpanKind.CLIENT)
     expect(query?.attributes).toMatchObject({
-      'db.system.name': DIALECT === 'sqlite' ? 'sqlite' : 'postgresql',
+      'db.system.name': SQLITE ? 'sqlite' : 'postgresql',
       'db.operation.name': 'find',
       'db.collection.name': 'posts',
     })

@@ -166,6 +166,34 @@ describe('renderShell', () => {
     )
     expect(settings.brand).toEqual({ name: 'Acme "Co" <x>', logo: '/logo.svg', color: '#0f766e' })
   })
+
+  const settingsOf = (html: string) =>
+    JSON.parse(
+      (/<meta name="easy-cms" content="([^"]*)">/.exec(html)?.[1] ?? '').replace(/&quot;/g, '"'),
+    )
+
+  it('trims slashes from paths in linear time', async () => {
+    const { trimSlashes } = await import('../server/shell.js')
+    expect(['admin', '/admin/', '//admin//', '/', ''].map(trimSlashes)).toEqual([
+      '/admin',
+      '/admin',
+      '/admin',
+      '/',
+      '/',
+    ])
+    const started = performance.now()
+    trimSlashes(`${'/'.repeat(100_000)}a`)
+    expect(performance.now() - started).toBeLessThan(200)
+  })
+
+  it('turns on Studio mode only when asked, and the handler never does', async () => {
+    expect(settingsOf(renderShell('<head></head>')).studio).toBeUndefined()
+    const studio = renderShell('<head></head>', { studio: { origin: 'https://studio.test' } })
+    expect(settingsOf(studio).studio).toEqual({ origin: 'https://studio.test' })
+    // The same function, without Node's modules, for Studio's page.
+    const shell = await import('../server/shell.js')
+    expect(shell.renderShell).toBe(renderShell)
+  })
 })
 
 describe('without the trailing slash redirect', () => {

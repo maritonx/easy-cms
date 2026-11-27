@@ -1,8 +1,8 @@
 import { configDefaults, defineConfig } from 'vitest/config'
 
-// The same suites run against every database: SQLite, PGlite (Postgres in WebAssembly),
-// and a real Postgres server when POSTGRES_URL is set (CI).
-const dialects = ['sqlite', 'pglite', ...(process.env.POSTGRES_URL ? ['postgres'] : [])]
+// The same suites run against every database: SQLite, PGlite (Postgres in WebAssembly), SQLite in
+// memory (@easy-cms/db-memory, for Studio) and a real Postgres server when POSTGRES_URL is set (CI).
+const dialects = ['sqlite', 'pglite', 'memory', ...(process.env.POSTGRES_URL ? ['postgres'] : [])]
 
 export default defineConfig({
   test: {

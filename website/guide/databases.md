@@ -1,7 +1,7 @@
 # Databases
 
 ::: info What you'll learn
-SQLite, Turso, Postgres and PGlite: how to connect, choose and tune each.
+SQLite, Turso, Postgres, PGlite and SQLite in memory: how to connect, choose and tune each.
 
 **Before this page:** [Getting started](./getting-started).
 :::
@@ -19,7 +19,7 @@ db: sqlite({ url: 'file:./cms.db' }) // relative to the project root
 db: sqlite({ url: 'libsql://my-db.turso.io', authToken: process.env.TURSO_TOKEN })
 ```
 
-Uses libSQL. In-memory databases (`:memory:`) are not supported.
+Uses libSQL. For a database in memory, use [`@easy-cms/db-memory`](#in-memory).
 
 SQLite has one writer at a time. Writes from one process wait their turn in a queue; when
 another process writes to the same file (a second server, `easy-cms` commands), a write waits
@@ -101,6 +101,33 @@ db: postgres({ url: process.env.DATABASE_POOLER_URL, max: 2, prepare: false })
   `prepare: false` each query is planned for its values anyway.
 - **Migrations** run through the pooler too, or over a direct connection if your host offers
   one.
+
+## In memory {#in-memory}
+
+```bash [pm]
+npm install @easy-cms/db-memory
+```
+
+```ts
+import { memory } from '@easy-cms/db-memory'
+
+db: memory() // a new, empty database each time the CMS starts
+db: memory({ name: 'preview' }) // kept until dropMemoryDatabase('preview')
+```
+
+SQLite compiled to WebAssembly (sql.js), held in memory: the same tables and SQL as
+`@easy-cms/db-sqlite`, in Node and in browsers. Studio (`studio.easycms.dev`, coming) runs on it,
+and it suits tests. Not for production: nothing is written to disk.
+
+- **`name`** keeps the database while the process runs. A CMS started again with the same name,
+  after its config changed, finds the documents there and pushes the new schema onto them.
+  `dropMemoryDatabase(name)` forgets it.
+- **`sqlJs`** loads sql.js. The default build has the WebAssembly inside (about 1 MB of
+  JavaScript, no `.wasm` file to serve); pass `() => initSqlJs({ locateFile })` to serve the
+  `.wasm` yourself.
+- **In a browser,** bundle with the `easy-cms-browser` export condition (in Vite,
+  `resolve.conditions`), which picks the builds of `@easy-cms/core` and this package that use no
+  Node module.
 
 ## Common options
 

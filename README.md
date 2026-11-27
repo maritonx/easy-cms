@@ -265,6 +265,7 @@ from [`@easy-cms/fields`](packages/fields): see
 | [`create-easy-cms`](packages/create-easy-cms) | Adds Easy CMS to a project, or creates a standalone server |
 | [`@easy-cms/db-sqlite`](packages/db-sqlite) | SQLite / libSQL database adapter |
 | [`@easy-cms/db-postgres`](packages/db-postgres) | Postgres adapter (postgres.js or PGlite) |
+| [`@easy-cms/db-memory`](packages/db-memory) | In-memory SQLite (WebAssembly), for Studio and tests |
 | [`@easy-cms/storage-s3`](packages/storage-s3) | Uploads on S3, Cloudflare R2 or MinIO |
 | [`@easy-cms/storage-vercel-blob`](packages/storage-vercel-blob) | Uploads on Vercel Blob |
 | [`@easy-cms/storage-netlify-blobs`](packages/storage-netlify-blobs) | Uploads on Netlify Blobs |

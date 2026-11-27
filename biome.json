@@ -52,7 +52,11 @@
       }
     },
     {
-      "includes": ["packages/core/src/**", "!packages/core/src/runtime/**"],
+      "includes": [
+        "packages/core/src/**",
+        "!packages/core/src/runtime/**",
+        "packages/drizzle/src/**"
+      ],
       "linter": {
         "rules": {
           "style": {

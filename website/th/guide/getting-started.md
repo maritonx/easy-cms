@@ -37,7 +37,20 @@ npx create-easy-cms
 - **Next.js:** สร้าง `app/api/cms/[[...path]]/route.ts` และ `app/admin/[[...path]]/route.ts`
   และครอบ `next.config.ts` ด้วย `withEasyCMS()`
 
-ตัวเลือก: `--db sqlite|postgres`, `--pm npm|pnpm|yarn|bun`, `--yes` (ใช้ค่าเริ่มต้น), `--skip-install` รันซ้ำได้อย่างปลอดภัย คำสั่งในเอกสารมีแท็บของแต่ละ package manager และจำตัวที่คุณเลือกไว้
+ตัวเลือก: `--db sqlite|postgres`, `--pm npm|pnpm|yarn|bun`, `--yes` (ใช้ค่าเริ่มต้น), `--skip-install`, `--from <ลิงก์>` รันซ้ำได้อย่างปลอดภัย คำสั่งในเอกสารมีแท็บของแต่ละ package manager และจำตัวที่คุณเลือกไว้
+
+
+### จาก config ที่ทำใน Studio {#from-a-config-made-in-studio}
+
+Studio (`studio.easycms.dev` ที่กำลังทำ) รัน config พร้อมหน้า admin ในเบราว์เซอร์ ปุ่ม **Use in a project** ในนั้นให้คำสั่ง
+ที่มี config อยู่ในลิงก์:
+
+```bash
+npm create easy-cms@latest -- --from "https://studio.easycms.dev/#v=…&c=…"
+```
+
+คำสั่งนี้เขียน `easy-cms.config.ts` ตามลิงก์ ใช้ฐานข้อมูลตาม adapter ใน config และติดตั้งแพ็กเกจ `@easy-cms` ที่ config import
+config อยู่ในส่วน `#…` ของลิงก์ ซึ่งเบราว์เซอร์ไม่เคยส่งไปที่ server
 
 ## รันระบบ {#run-it}
 

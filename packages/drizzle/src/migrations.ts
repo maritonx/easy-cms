@@ -1,6 +1,3 @@
-import { existsSync } from 'node:fs'
-import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
 import {
   type DataMigration,
   type Logger,
@@ -9,6 +6,7 @@ import {
   SchemaError,
 } from '@easy-cms/core'
 import type { Dialect, RunInTransaction, Snapshot, SqlRunner, Statement } from './dialect.js'
+import { fileExists, joinPath, listDir, makeDir, readUtf8, writeText } from './runtime.js'
 import {
   type SchemaLocalization,
   type SchemaModel,
@@ -427,19 +425,19 @@ export class Migrator {
         .replace(/[^a-z0-9]+/g, '_')
         .replace(/^_|_$/g, '') || 'migration'
     const fullName = `${timestamp()}_${safeName}`
-    await mkdir(this.options.dir, { recursive: true })
-    const file = join(this.options.dir, `${fullName}.sql`)
+    await makeDir(this.options.dir)
+    const file = joinPath(this.options.dir, `${fullName}.sql`)
     const header = empty
       ? `-- Easy CMS migration ${fullName} (${this.options.dialect.name})\n-- Written by hand: runs with the other migrations, in its own transaction.\n-- Separate statements with a line: ${BREAKPOINT}\n`
       : `-- Easy CMS migration ${fullName} (${this.options.dialect.name})\n-- Generated from the config; review before deploying.\n`
-    await writeFile(file, `${header}${statements.join(`\n${BREAKPOINT}\n`)}\n`)
-    await writeFile(
-      join(this.options.dir, `${fullName}.json`),
+    await writeText(file, `${header}${statements.join(`\n${BREAKPOINT}\n`)}\n`)
+    await writeText(
+      joinPath(this.options.dir, `${fullName}.json`),
       `${JSON.stringify({ dialect: this.options.dialect.name, hash, snapshot: cur }, null, 2)}\n`,
     )
     if (kind !== 'data') return { name: fullName, file, statements }
-    const dataFile = join(this.options.dir, `${fullName}.ts`)
-    await writeFile(dataFile, dataTemplate(fullName))
+    const dataFile = joinPath(this.options.dir, `${fullName}.ts`)
+    await writeText(dataFile, dataTemplate(fullName))
     return { name: fullName, file, statements, dataFile }
   }
 
@@ -511,7 +509,7 @@ export class Migrator {
   private async files(): Promise<MigrationFile[]> {
     let entries: string[]
     try {
-      entries = await readdir(this.options.dir)
+      entries = await listDir(this.options.dir)
     } catch {
       return []
     }
@@ -521,8 +519,8 @@ export class Migrator {
       .sort()
     return Promise.all(
       names.map(async (name) => {
-        const sqlText = await readFile(join(this.options.dir, `${name}.sql`), 'utf8')
-        const meta = JSON.parse(await readFile(join(this.options.dir, `${name}.json`), 'utf8'))
+        const sqlText = await readUtf8(joinPath(this.options.dir, `${name}.sql`))
+        const meta = JSON.parse(await readUtf8(joinPath(this.options.dir, `${name}.json`)))
         if (meta.dialect && meta.dialect !== this.options.dialect.name) {
           throw new SchemaError(
             `Migration ${name} was created for ${meta.dialect}, but the database is ${this.options.dialect.name}.`,
@@ -539,8 +537,8 @@ export class Migrator {
           )
           .filter((s) => s.length > 0)
         const data =
-          DATA_EXTENSIONS.map((ext) => join(this.options.dir, `${name}${ext}`)).find((file) =>
-            existsSync(file),
+          DATA_EXTENSIONS.map((ext) => joinPath(this.options.dir, `${name}${ext}`)).find((file) =>
+            fileExists(file),
           ) ?? null
         return { name, statements, hash: meta.hash, snapshot: meta.snapshot, data }
       }),

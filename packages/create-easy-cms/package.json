@@ -11,6 +11,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./studio-link": {
+      "types": "./dist/studio-link.d.ts",
+      "default": "./dist/studio-link.js"
     }
   },
   "files": [

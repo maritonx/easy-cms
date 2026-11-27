@@ -39,7 +39,20 @@ It detects Nuxt or Next.js, asks which database to use, installs the packages an
 - **Next.js:** creates `app/api/cms/[[...path]]/route.ts` and `app/admin/[[...path]]/route.ts`
   and wraps `next.config.ts` in `withEasyCMS()`
 
-Options: `--db sqlite|postgres`, `--pm npm|pnpm|yarn|bun`, `--yes` (accept defaults), `--skip-install`. Running it again is safe. Commands on these pages have a tab for each package manager; the one you pick is kept.
+Options: `--db sqlite|postgres`, `--pm npm|pnpm|yarn|bun`, `--yes` (accept defaults), `--skip-install`, `--from <link>`. Running it again is safe. Commands on these pages have a tab for each package manager; the one you pick is kept.
+
+### From a config made in Studio
+
+Studio (`studio.easycms.dev`, coming) runs a config and its admin in the browser. **Use in a
+project** there gives a command with the config in its link:
+
+```bash
+npm create easy-cms@latest -- --from "https://studio.easycms.dev/#v=…&c=…"
+```
+
+It writes that `easy-cms.config.ts`, takes the database from its adapter, and installs the
+`@easy-cms` packages it imports. The config travels in the link's `#…` part, which browsers
+never send to a server.
 
 ## Run it
 

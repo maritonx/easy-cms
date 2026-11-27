@@ -1,0 +1,251 @@
+:root {
+  --bg: #f7f7f5;
+  --panel: #ffffff;
+  --text: #1c1f1e;
+  --muted: #5f6662;
+  --line: #dfe2df;
+  --accent: #2f6f5e;
+  --error-bg: #fdecea;
+  --error-text: #8a1c12;
+  --busy: #8a6100;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161917;
+    --panel: #1e2220;
+    --text: #e8ebe9;
+    --muted: #a3aba6;
+    --line: #333936;
+    --accent: #6fbfa6;
+    --error-bg: #3a1d1a;
+    --error-text: #ffb4a8;
+    --busy: #e0b04a;
+  }
+}
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+body {
+  background: var(--bg);
+  color: var(--text);
+  font:
+    14px / 1.4 system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
+  display: flex;
+  flex-direction: column;
+}
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+.brand span {
+  color: var(--accent);
+}
+.spacer {
+  flex: 1;
+}
+.status {
+  color: var(--muted);
+  font-size: 13px;
+}
+.status[data-state="busy"] {
+  color: var(--busy);
+}
+.status[data-state="error"] {
+  color: var(--error-text);
+}
+.bar a,
+.bar button {
+  color: var(--text);
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+.bar button.primary,
+dialog button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+dialog {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--text);
+  max-width: min(640px, calc(100vw - 32px));
+  padding: 20px 24px;
+}
+dialog::backdrop {
+  background: rgb(0 0 0 / 0.35);
+}
+dialog h2 {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+dialog pre {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 10px 12px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 160px;
+  overflow: auto;
+  font:
+    12px / 1.5 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+}
+dialog .actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+dialog button {
+  font: inherit;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 12px;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+}
+dialog .hint {
+  color: var(--muted);
+  font-size: 13px;
+  margin-bottom: 0;
+}
+.panes {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(360px, 2fr) 3fr;
+  min-height: 0;
+}
+.code {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--line);
+  min-width: 0;
+  background: var(--panel);
+}
+.file {
+  padding: 6px 16px;
+  color: var(--muted);
+  font-size: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.editor {
+  flex: 1;
+  min-height: 0;
+}
+.error {
+  padding: 8px 16px;
+  background: var(--error-bg);
+  color: var(--error-text);
+  font:
+    12px / 1.4 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+  white-space: pre-wrap;
+  max-height: 30%;
+  overflow: auto;
+}
+.console {
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+  position: relative;
+}
+.console summary {
+  padding: 6px 16px;
+  cursor: pointer;
+  color: var(--muted);
+}
+.console summary span {
+  margin-left: 4px;
+}
+.console button {
+  position: absolute;
+  right: 12px;
+  top: 3px;
+  font: inherit;
+  background: none;
+  color: var(--muted);
+  border: 0;
+  cursor: pointer;
+}
+.console ol {
+  margin: 0;
+  padding: 0 16px 8px;
+  list-style: none;
+  max-height: 160px;
+  overflow: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.console li[data-level="warn"] {
+  color: var(--busy);
+}
+.console li[data-level="error"] {
+  color: var(--error-text);
+}
+.preview {
+  position: relative;
+  min-width: 0;
+}
+.preview iframe {
+  border: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: #fff;
+}
+.phone-note {
+  display: none;
+}
+/* Phones: the admin only; editing wants a keyboard and room. */
+@media (max-width: 767px) {
+  .bar {
+    padding: 8px 16px;
+  }
+  .bar button {
+    display: none;
+  }
+  .panes {
+    grid-template-columns: 1fr;
+  }
+  .code {
+    display: none;
+  }
+  .phone-note {
+    display: block;
+    margin: 0;
+    padding: 8px 16px;
+    color: var(--muted);
+    font-size: 13px;
+    border-bottom: 1px solid var(--line);
+  }
+  .preview {
+    display: flex;
+    flex-direction: column;
+  }
+  .preview iframe {
+    flex: 1;
+  }
+}

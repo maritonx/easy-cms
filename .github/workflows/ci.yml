@@ -152,15 +152,36 @@ jobs:
       # public, job logs need a login. The integration suite (~70 files) runs on its own
       # afterwards: run alongside every other package on a 3-core macOS runner, PGlite starved for
       # minutes. A package whose test worker crashed in libsql's Windows teardown runs once more
-      # (#132).
+      # (#132). Studio runs in its own job (below).
       - if: ${{ !matrix.coverage && (!matrix.integration || matrix.packages) }}
-        run: node .github/scripts/test-retry-crashes.mjs test-output.log --only --continue '--filter=!easy-cms-integration-tests'
+        run: node .github/scripts/test-retry-crashes.mjs test-output.log --only --continue '--filter=!easy-cms-integration-tests' '--filter=!easy-cms-studio'
         shell: bash
       - if: ${{ !matrix.coverage && (success() || failure()) }}
         run: node .github/scripts/test-retry-crashes.mjs test-output.log --only --filter=easy-cms-integration-tests ${{ matrix.integration && format('-- --project {0}', matrix.integration) || '' }} ${{ matrix.shard && format('--shard={0}', matrix.shard) || '' }}
         shell: bash
       - if: failure()
         run: node .github/scripts/annotate-failures.mjs test-output.log "Tests failed (${{ matrix.os }}, Node ${{ matrix.node }})"
+
+  # studio.easycms.dev (ADR-0074): builds of the site driven in Chrome (installed on GitHub's
+  # Ubuntu images). Its own job: the builds are heavy, and on a 3-core macOS runner beside every
+  # other package's tests they starved them into timeouts. A static site in a browser doesn't
+  # differ by OS; the integration suite's browser tests still run on all three.
+  studio:
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v8
+        with:
+          name: packages-dist
+          path: packages
+      - run: pnpm turbo run test --only --filter=easy-cms-studio
 
   postgres:
     needs: build
@@ -483,8 +504,8 @@ jobs:
   # its bare name, so "test (ubuntu-latest, 24)" never shows up on "Version Packages": this job
   # always runs and fails only when a job it needs failed or was cancelled. Skipped ones pass.
   ci-ok:
-    needs: [scope, lint, build, typecheck, test, postgres, pgbouncer, upgrade, s3, multi-instance,
-      docker, e2e, template, smoke]
+    needs: [scope, lint, build, typecheck, test, studio, postgres, pgbouncer, upgrade, s3,
+      multi-instance, docker, e2e, template, smoke]
     if: always()
     runs-on: ubuntu-24.04
     steps:

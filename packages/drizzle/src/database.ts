@@ -1,5 +1,3 @@
-import { AsyncLocalStorage } from 'node:async_hooks'
-import { resolve } from 'node:path'
 import type {
   Database,
   DatabaseInitArgs,
@@ -37,6 +35,7 @@ import {
 } from './documents.js'
 import { Migrator } from './migrations.js'
 import { WhereBuilder } from './query.js'
+import { createContext, resolvePath } from './runtime.js'
 import {
   buildSchema,
   type CollectionModel,
@@ -89,7 +88,7 @@ export async function connectDatabase(
       runner: connection.runner,
       schema,
       table: migrationsTableName(prefix),
-      dir: resolve(args.cwd, options.migrationDir ?? DEFAULT_MIGRATION_DIR),
+      dir: resolvePath(args.cwd, options.migrationDir ?? DEFAULT_MIGRATION_DIR),
       logger: args.logger,
       interactive: args.interactive ?? false,
     })
@@ -113,13 +112,13 @@ class DrizzleDatabase implements Database {
    */
   private readonly counts = new Map<string, { total: Promise<number>; until: number }>()
   /** Set inside `writing`: queries there use the connections for writes. */
-  private readonly writes = new AsyncLocalStorage<true>()
+  private readonly writes = createContext<true>()
   /**
    * Set inside `transaction`: every query made there, by any code, runs in it. `open` turns false
    * when it ends, so work started inside and still running afterwards uses the connection again.
    * `queue` keeps its writes one after another: each is a savepoint, which must not interleave.
    */
-  private readonly tx = new AsyncLocalStorage<{
+  private readonly tx = createContext<{
     db: DrizzleDb
     open: boolean
     queue: Promise<unknown>

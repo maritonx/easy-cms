@@ -1,18 +1,12 @@
 import { readFile, stat } from 'node:fs/promises'
 import { dirname, extname, join, normalize, posix, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { renderShell, SHELL_FILE, type ShellOptions, trimSlashes } from './shell.js'
 
-export interface AdminHandlerOptions {
-  /** Where the admin UI is served. Default `/admin`. */
-  readonly basePath?: string
-  /** Where the REST API is served. Default `/api/cms`. */
-  readonly apiPath?: string
-  /** Default UI language before the user picks one. Default `en`. */
-  readonly locale?: 'en' | 'th'
-  /** Name, logo and main color shown in the admin (`admin.brand` in the config). */
-  readonly brand?: { readonly name?: string; readonly logo?: string; readonly color?: string }
-  /** The public site, for the "View site" link (`admin.siteURL`). Empty: no link. */
-  readonly siteURL?: string
+export { renderShell, SHELL_FILE, type ShellOptions } from './shell.js'
+
+/** The shell's settings (not Studio mode: Studio serves the app itself), and where it comes from. */
+export interface AdminHandlerOptions extends Omit<ShellOptions, 'studio'> {
   /** Directory with the built app. Defaults to the one shipped in this package. */
   readonly appDir?: string
   /**
@@ -102,39 +96,12 @@ export function securityHeaders(connectSrc: readonly string[] = []): Record<stri
     : { ...SECURITY_HEADERS }
 }
 
-/** The SPA's HTML entry inside the app directory. */
-export const SHELL_FILE = 'shell.html'
-
 /**
  * HSTS, sent in production: browsers then reach the site over HTTPS only, for a year. Browsers
  * ignore it on plain HTTP, and it leaves subdomains alone.
  */
 export const STRICT_TRANSPORT_SECURITY = 'max-age=31536000'
 
-const escapeAttr = (value: string) =>
-  value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
-const trimSlashes = (path: string) => `/${path.replace(/^\/+|\/+$/g, '')}`
-
-/** Injects `<base href>` and the settings the app reads at startup into the shell HTML. */
-export function renderShell(
-  source: string,
-  options: Omit<AdminHandlerOptions, 'appDir' | 'readFile'> = {},
-): string {
-  const basePath = trimSlashes(options.basePath ?? '/admin')
-  const settings = JSON.stringify({
-    adminPath: basePath,
-    apiPath: trimSlashes(options.apiPath ?? '/api/cms'),
-    locale: options.locale ?? 'en',
-    brand: options.brand ?? {},
-    siteURL: options.siteURL ?? '',
-  })
-  return source.replace(
-    '<head>',
-    `<head>\n    <base href="${escapeAttr(`${basePath}/`)}">\n    <meta name="easy-cms" content="${escapeAttr(settings)}">`,
-  )
-}
-
-/** Serves the admin SPA: static assets, and index.html for every other path under `basePath`. */
 /** What `adminHandlerFor` reads from a resolved config (`resolveConfig()`, `cms.config`). */
 export interface AdminConfigLike {
   readonly admin: {
@@ -179,6 +146,7 @@ export function adminHandlerFor(
 /** Without the admin UI (`admin.enabled: false`). */
 const notFound: AdminHandler = async () => Response.json({ message: 'Not found' }, { status: 404 })
 
+/** Serves the admin SPA: static assets, and index.html for every other path under `basePath`. */
 export function createAdminHandler(options: AdminHandlerOptions = {}): AdminHandler {
   const basePath = trimSlashes(options.basePath ?? '/admin')
   const appDir = options.appDir ?? APP_DIR

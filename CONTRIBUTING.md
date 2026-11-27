@@ -21,7 +21,7 @@ pnpm lint         # Biome
 | Path | |
 |---|---|
 | `packages/core` | Config, Local API, REST handler, auth, access control, hooks, type generation |
-| `packages/drizzle` | Shared database layer; `db-sqlite` and `db-postgres` add the dialects |
+| `packages/drizzle` | Shared database layer; `db-sqlite` and `db-postgres` add the dialects, `db-memory` runs SQLite's in memory |
 | `packages/admin` | The admin SPA (Vue) and its static handler |
 | `packages/nuxt`, `packages/next` | Framework adapters (keep them thin) |
 | `packages/cli`, `packages/create-easy-cms` | The `easy-cms` CLI and the project generator |
@@ -31,11 +31,12 @@ pnpm lint         # Biome
 | `e2e` | Playwright suite and the docs screenshot script |
 | `smoke` | Package-manager smoke test (a local registry) |
 | `website` | Documentation (VitePress, English and Thai) |
+| `studio` | studio.easycms.dev: a config's admin in the browser (ADR-0074); private, not published |
 | `docs` | Design document, requirements (SRS) and architecture decisions (ADRs) |
 
 ## Tests
 
-- **Unit and integration:** `pnpm test`. The integration suites run on SQLite and PGlite, and on
+- **Unit and integration:** `pnpm test`. The integration suites run on SQLite, PGlite and SQLite in memory, and on
   a Postgres server too with `POSTGRES_URL=postgres://… pnpm --filter easy-cms-integration-tests test`.
 - **Coverage:** `pnpm coverage` builds the packages with source maps, runs the same tests with
   coverage and writes `coverage/lcov.info`, with line coverage per package. The admin and the Nuxt

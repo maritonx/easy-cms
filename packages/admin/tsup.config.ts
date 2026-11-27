@@ -1,7 +1,7 @@
 import { defineConfig } from 'tsup'
 
 export default defineConfig({
-  entry: { index: 'server/index.ts' },
+  entry: { index: 'server/index.ts', shell: 'server/shell.ts' },
   outDir: 'dist/server',
   format: ['esm'],
   // tsup's dts build sets `baseUrl`, which TypeScript 6 deprecates.

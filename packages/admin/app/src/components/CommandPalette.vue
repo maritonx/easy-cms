@@ -25,6 +25,7 @@ import { crumbsFor, entryOf, flatten, navState } from '../lib/nav'
 import { recent } from '../lib/recent'
 import { logOutAndLeave, session } from '../lib/session'
 import { modKey, overlays } from '../lib/shortcuts'
+import { inStudio } from '../lib/studio'
 import { setTheme, themeMode } from '../lib/theme'
 
 /**
@@ -184,13 +185,18 @@ const options = computed<Option[]>(() => {
         overlays.help = true
       },
     },
-    {
-      id: 'cmd:logout',
-      section: 'commands',
-      label: t('nav.logout'),
-      icon: LogOut,
-      run: () => logOutAndLeave(router),
-    },
+    // Not in Studio, which signs every request in.
+    ...(inStudio
+      ? []
+      : [
+          {
+            id: 'cmd:logout',
+            section: 'commands' as const,
+            label: t('nav.logout'),
+            icon: LogOut,
+            run: () => logOutAndLeave(router),
+          },
+        ]),
   ]
   out.push(
     ...commands.filter(

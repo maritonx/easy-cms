@@ -1,0 +1,15 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": ["vite/client"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "customConditions": ["easy-cms-browser"],
+    "allowImportingTsExtensions": true,
+    "declaration": false,
+    "noEmit": true
+  },
+  "include": ["src/**/*.ts", "deploy/headers.ts"],
+  "exclude": ["src/sw.ts"]
+}

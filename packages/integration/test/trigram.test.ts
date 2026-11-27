@@ -8,7 +8,7 @@ import {
   type Where,
 } from '@easy-cms/core'
 import { describe, expect, it } from 'vitest'
-import { DIALECT, db, open, rawQuery, SECRET, table, tempProject } from './helpers.js'
+import { db, open, rawQuery, SECRET, SQLITE, table, tempProject } from './helpers.js'
 
 const config = defineConfig({
   secret: SECRET,
@@ -45,7 +45,7 @@ describe("index: 'trigram' (#176)", () => {
     await cms.destroy()
   })
 
-  it.runIf(DIALECT !== 'sqlite')(
+  it.runIf(!SQLITE)(
     'makes a GIN pg_trgm index for every locale, after creating the extension',
     async () => {
       const cwd = tempProject()
@@ -69,22 +69,19 @@ describe("index: 'trigram' (#176)", () => {
     },
   )
 
-  it.runIf(DIALECT === 'sqlite')(
-    'makes no index on SQLite, and the config still works',
-    async () => {
-      const cms = await open(config)
-      const rows = await rawQuery(
-        cms.cwd,
-        "select name from sqlite_master where type = 'index' and name like '%trgm%'",
-      )
-      expect(rows).toEqual([])
-      await cms.destroy()
-    },
-  )
+  it.runIf(SQLITE)('makes no index on SQLite, and the config still works', async () => {
+    const cms = await open(config)
+    const rows = await rawQuery(
+      cms.cwd,
+      "select name from sqlite_master where type = 'index' and name like '%trgm%'",
+    )
+    expect(rows).toEqual([])
+    await cms.destroy()
+  })
 })
 
 describe('like on a field with a trigram index needs three characters (#257)', () => {
-  it.runIf(DIALECT !== 'sqlite')('refuses fewer, which would read every row', async () => {
+  it.runIf(!SQLITE)('refuses fewer, which would read every row', async () => {
     const cms = await open(config)
     await cms.create('articles', { title: 'กาแฟดริป', summary: 'ab' })
     await expect(cms.find('articles', { where: { title: { like: 'กา' } } })).rejects.toThrow(
@@ -105,7 +102,7 @@ describe('like on a field with a trigram index needs three characters (#257)', (
     const cms = await open(config)
     await cms.create('articles', { title: 'กาแฟดริป' })
     const short = cms.find('articles', { where: { title: { like: 'กา' } } })
-    if (DIALECT === 'sqlite') await expect(short).resolves.toMatchObject({ totalDocs: 1 })
+    if (SQLITE) await expect(short).resolves.toMatchObject({ totalDocs: 1 })
     else await expect(short).rejects.toThrow(QueryError)
     await cms.destroy()
   })

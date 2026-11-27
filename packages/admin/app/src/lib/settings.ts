@@ -6,6 +6,8 @@ export interface Settings {
   brand: { name?: string; logo?: string; color?: string }
   /** The public site for the "View site" link; empty when unknown. */
   siteURL: string
+  /** Studio mode (ADR-0074): the page framing the admin, at this origin (see `lib/studio.ts`). */
+  studio?: { origin: string }
 }
 
 /** Injected by the server as <meta name="easy-cms">. Falls back to defaults for `vite dev`. */

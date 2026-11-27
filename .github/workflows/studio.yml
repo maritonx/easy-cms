@@ -1,0 +1,71 @@
+name: Studio
+
+# studio.easycms.dev (ADR-0074): builds Studio at the released version and copies it to the
+# server that hosts easycms.dev, with its Caddy site blocks (studio/deploy/caddy.ts), which the
+# site's Caddyfile imports. release.yml calls this after each release; run it by hand to deploy
+# again. Skipped until the repository variable STUDIO_ORIGIN is set.
+#
+# Repository variables:
+#   STUDIO_ORIGIN       https://studio.easycms.dev
+#   SANDBOX_ORIGIN      https://sandbox.easycms.dev
+#   UMAMI_SRC           Umami's script (optional), e.g. https://cloud.umami.is/script.js
+#   UMAMI_WEBSITE_ID    the Studio website in Umami (optional)
+#   ANALYTICS_ORIGINS   where that script loads from and sends to, comma-separated (optional),
+#                       e.g. https://cloud.umami.is,https://gateway.umami.is
+# Repository secrets (the same as the easy-cms-website repository's):
+#   DEPLOY_HOST, DEPLOY_SSH_KEY, DEPLOY_KNOWN_HOSTS
+on:
+  workflow_call:
+  workflow_dispatch:
+
+concurrency:
+  group: studio
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: vars.STUDIO_ORIGIN != ''
+    runs-on: ubuntu-24.04
+    env:
+      VITE_STUDIO_ORIGIN: ${{ vars.STUDIO_ORIGIN }}
+      VITE_SANDBOX_ORIGIN: ${{ vars.SANDBOX_ORIGIN }}
+      VITE_UMAMI_SRC: ${{ vars.UMAMI_SRC }}
+      VITE_UMAMI_WEBSITE_ID: ${{ vars.UMAMI_WEBSITE_ID }}
+      STUDIO_ORIGIN: ${{ vars.STUDIO_ORIGIN }}
+      SANDBOX_ORIGIN: ${{ vars.SANDBOX_ORIGIN }}
+      ANALYTICS_ORIGINS: ${{ vars.ANALYTICS_ORIGINS }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build
+        run: |
+          # Only the live host counts in Umami, not previews.
+          export VITE_UMAMI_DOMAINS="$(node -p "new URL(process.env.STUDIO_ORIGIN).host")"
+          pnpm turbo run build --filter=easy-cms-studio...
+          node studio/deploy/caddy.ts > studio.caddy
+      - name: SSH key
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "${{ secrets.DEPLOY_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+      - name: Copy and reload
+        run: |
+          # Old hashed files stay: a page still open loads its chunks after a deploy.
+          rsync -az studio/dist/ deploy@${{ secrets.DEPLOY_HOST }}:/srv/easycms/studio/
+          scp studio.caddy deploy@${{ secrets.DEPLOY_HOST }}:/srv/easycms/studio.caddy
+          ssh deploy@${{ secrets.DEPLOY_HOST }} \
+            "cd /srv/easycms && docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile"
+      - name: Check
+        run: |
+          for url in "$STUDIO_ORIGIN/" "$SANDBOX_ORIGIN/sandbox.html" "$SANDBOX_ORIGIN/sw.js"; do
+            curl --fail --silent --show-error --output /dev/null --retry 5 --retry-delay 3 "$url"
+          done

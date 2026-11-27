@@ -8,7 +8,7 @@ migrations, users, types, backups, scheduled jobs and the standalone server.
 ## create-easy-cms
 
 ```bash [pm]
-npx create-easy-cms [dir] [--db sqlite|postgres] [--pm npm|pnpm|yarn|bun] [--standalone] [--yes] [--skip-install]
+npx create-easy-cms [dir] [--db sqlite|postgres] [--pm npm|pnpm|yarn|bun] [--standalone] [--yes] [--skip-install] [--from <link>]
 ```
 
 Adds Easy CMS to a project:
@@ -27,6 +27,7 @@ Adds Easy CMS to a project:
 | `--standalone` | A standalone server even inside a Nuxt or Next.js project. |
 | `--yes` | Accept the defaults without asking. |
 | `--skip-install` | Only write files; run your package manager yourself. |
+| `--from` | A Studio link: writes `easy-cms.config.ts` from it (beside an existing one, as `easy-cms.config.studio.ts`), takes the database from its adapter and installs every `@easy-cms` package it imports. |
 
 It installs and prints the next steps with that package manager (`pnpm exec easy-cms …`,
 `yarn easy-cms …`, `bunx easy-cms …`). With Yarn 2 or later it writes `.yarnrc.yml` with
