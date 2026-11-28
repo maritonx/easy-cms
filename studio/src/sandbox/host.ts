@@ -9,7 +9,9 @@ import {
   ADMIN_PATH,
   type ApiRequest,
   type ApiResponse,
+  type ConfigMessage,
   studioOrigin,
+  type ThemeMode,
   type ToEditor,
   type ToSandbox,
 } from '../protocol'
@@ -38,19 +40,19 @@ function oneAtATime<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 /** The config to apply next: a newer one replaces one still waiting (keeping a fresh start). */
-let waiting: ToSandbox | null = null
-function apply(message: ToSandbox) {
+let waiting: ConfigMessage | null = null
+function apply(message: ConfigMessage) {
   const first = waiting === null
   waiting = { ...message, fresh: message.fresh === true || waiting?.fresh === true }
   if (!first) return
   void oneAtATime(async () => {
-    const next = waiting as ToSandbox
+    const next = waiting as ConfigMessage
     waiting = null
     await start(next)
   })
 }
 
-async function start({ code, template, fresh }: ToSandbox) {
+async function start({ code, template, fresh }: ConfigMessage) {
   tell({ type: 'studio:status', state: 'busy' })
   let config: Config
   try {
@@ -107,6 +109,14 @@ async function start({ code, template, fresh }: ToSandbox) {
   }
   showAdmin()
   tell({ type: 'studio:status', state: 'ok' })
+}
+
+/** The theme Studio's toggle chose: this page's, and the admin's once it is ready. */
+let theme: ThemeMode = 'system'
+function setTheme(mode: ThemeMode) {
+  theme = mode
+  document.documentElement.style.colorScheme = mode === 'system' ? '' : mode
+  adminFrame?.contentWindow?.postMessage({ type: 'easy-cms:theme', mode }, location.origin)
 }
 
 /** Frames the admin the first time; asks it to load the schema again after that. */
@@ -176,8 +186,19 @@ async function main() {
     )
   })
   window.addEventListener('message', (event: MessageEvent<ToSandbox>) => {
+    // The admin, mounted: it gets the theme (its own default is the operating system's).
+    if (
+      adminFrame &&
+      event.source === adminFrame.contentWindow &&
+      event.origin === location.origin &&
+      (event.data as { type?: unknown } | null)?.type === 'easy-cms:ready'
+    ) {
+      if (theme !== 'system') setTheme(theme)
+      return
+    }
     if (event.source !== window.parent || event.origin !== studioOrigin()) return
     if (event.data?.type === 'studio:config') apply(event.data)
+    else if (event.data?.type === 'studio:theme') setTheme(event.data.mode)
   })
   tell({ type: 'studio:ready' })
 }

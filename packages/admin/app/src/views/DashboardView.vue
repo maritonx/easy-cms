@@ -18,6 +18,7 @@ import { inSettings } from '../lib/nav'
 import { session } from '../lib/session'
 import { settings } from '../lib/settings'
 import { liveIdsOf, loadSchedules, type ShownStatus, shownStatus } from '../lib/status'
+import { inStudio } from '../lib/studio'
 import { adminTimeZone } from '../lib/time-zone'
 
 const collections = menuOrder(
@@ -251,7 +252,13 @@ function describe(item: AdminAttention) {
       }
   }
 }
-const attention = computed(() => (status.value?.attention ?? []).map(describe))
+/** Setup a deployment needs, which Studio (a CMS in the browser) has no use for. */
+const NOT_IN_STUDIO = new Set<AdminAttention['id']>(['no-email', 'no-server-url'])
+const attention = computed(() =>
+  (status.value?.attention ?? [])
+    .filter((item) => !(inStudio && NOT_IN_STUDIO.has(item.id)))
+    .map(describe),
+)
 const DATABASES: Record<string, string> = { sqlite: 'SQLite', postgres: 'PostgreSQL' }
 const system = computed(() => {
   const s = status.value?.system

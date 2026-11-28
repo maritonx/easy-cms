@@ -1003,6 +1003,9 @@ importers:
       '@easy-cms/db-sqlite':
         specifier: workspace:^
         version: link:../packages/db-sqlite
+      '@fontsource/ibm-plex-sans-thai':
+        specifier: ^5.3.0
+        version: 5.3.0
       playwright-core:
         specifier: 1.65.1
         version: 1.65.1
@@ -1826,6 +1829,9 @@ packages:
 
   '@fontsource-variable/anuphan@5.3.0':
     resolution: {integrity: sha512-4kR8VqHI5El8z3tvCeKB4EE23Xj/R41UpAlsez4spDCZTMHGrlp1CzE65SAu/hGVIhNcJHaTyHNdZ2yfPl/w/A==}
+
+  '@fontsource/ibm-plex-sans-thai@5.3.0':
+    resolution: {integrity: sha512-olXzgcA/CTk0PibqGMJrheml3/z8N9VzNLcHkzv9tCoBqnaMoxYYwZp4PZrDkPuOCUe1gW942e9f5fGOOlr3zg==}
 
   '@fullcalendar/core@6.1.22':
     resolution: {integrity: sha512-ju5PJUE++zr8XXCGtlXlrodF6doUy9BDfzx+VmE0B+XDBM2A5cUi/aU3M1ANfw/StmKhwqew7Ps7bXMiv/JREg==}
@@ -7658,6 +7664,8 @@ snapshots:
   '@floating-ui/utils@0.2.12': {}
 
   '@fontsource-variable/anuphan@5.3.0': {}
+
+  '@fontsource/ibm-plex-sans-thai@5.3.0': {}
 
   '@fullcalendar/core@6.1.22':
     dependencies:

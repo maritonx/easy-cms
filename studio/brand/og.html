@@ -1,0 +1,91 @@
+<!doctype html>
+<!--
+  Studio's share image (public/og.png, 1200×630), in the look of easycms.dev's (the site's
+  app/og). Render it again with `node brand/render.ts` after changing this file.
+-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      @font-face { font-family: Plex; font-weight: 500; src: url(../node_modules/@fontsource/ibm-plex-sans-thai/files/ibm-plex-sans-thai-latin-500-normal.woff2); }
+      @font-face { font-family: Plex; font-weight: 700; src: url(../node_modules/@fontsource/ibm-plex-sans-thai/files/ibm-plex-sans-thai-latin-700-normal.woff2); }
+      * { box-sizing: border-box; margin: 0; }
+      body {
+        width: 1200px;
+        height: 630px;
+        overflow: hidden;
+        font-family: Plex, sans-serif;
+        font-weight: 500;
+        color: #e4eee9;
+        background: radial-gradient(70% 90% at 85% 0%, #1d3a31 0%, #0b1210 70%);
+        display: grid;
+        grid-template-columns: 500px 1fr;
+        gap: 44px;
+        padding: 72px 56px 64px 80px;
+      }
+      .brand { display: flex; align-items: center; gap: 18px; font-size: 30px; font-weight: 700; }
+      .brand span { color: #6fbfa5; }
+      .logo {
+        width: 56px; height: 56px; border-radius: 14px; background: #4f9e86;
+        display: flex; flex-direction: column; justify-content: center; gap: 7px; padding: 0 15px;
+      }
+      .logo i { display: block; height: 10px; border-radius: 5px; background: #fff; width: 26px; }
+      .logo i:nth-child(2) { width: 19px; }
+      .copy { display: flex; flex-direction: column; justify-content: space-between; }
+      h1 { font-size: 64px; line-height: 1.08; font-weight: 700; letter-spacing: -0.5px; }
+      p { font-size: 28px; line-height: 1.45; color: #8fa49c; margin-top: 24px; }
+      .host { font-size: 24px; color: #5f746c; }
+      /* The two panes: the config, and the admin it makes. */
+      .shot {
+        display: grid; grid-template-columns: auto 1fr; border-radius: 16px; overflow: hidden;
+        border: 1px solid #2a3a34; background: #141c19; align-self: center; height: 400px;
+        box-shadow: 0 30px 80px rgb(0 0 0 / 0.45);
+      }
+      .code { padding: 22px 20px; font: 14px/1.75 ui-monospace, Menlo, monospace; color: #a9bbb3; border-right: 1px solid #2a3a34; white-space: pre; }
+      .code b { color: #6fbfa5; font-weight: 400; }
+      .code em { color: #e0b04a; font-style: normal; }
+      .admin { padding: 22px; display: flex; flex-direction: column; gap: 14px; background: #18211e; }
+      .admin h2 { font-size: 20px; font-weight: 700; }
+      .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+      .card { border: 1px solid #2a3a34; border-radius: 10px; padding: 10px 12px; font-size: 13px; color: #8fa49c; }
+      .card strong { display: block; font-size: 26px; color: #e4eee9; margin-top: 4px; }
+      .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; border-top: 1px solid #2a3a34; padding-top: 10px; font-size: 14px; white-space: nowrap; }
+      .pill { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: #1f3b31; color: #6fbfa5; }
+    </style>
+  </head>
+  <body>
+    <div class="copy">
+      <div class="brand"><div class="logo"><i></i><i></i><i></i></div>Easy CMS <span>Studio</span></div>
+      <div>
+        <h1>Write a config.<br />See its admin.</h1>
+        <p>In your browser, nothing to install.<br />Ten templates to start from.</p>
+      </div>
+      <div class="host">studio.easycms.dev</div>
+    </div>
+    <div class="shot">
+      <div class="code">{
+  slug: <em>'products'</em>,
+  fields: [
+    { name: <em>'name'</em>,
+      type: <b>'text'</b> },
+    { name: <em>'price'</em>,
+      type: <b>'number'</b> },
+    { name: <em>'category'</em>,
+      type: <b>'relationship'</b>,
+      to: <em>'categories'</em> },
+  ],
+}</div>
+      <div class="admin">
+        <h2>Products</h2>
+        <div class="cards">
+          <div class="card">Products<strong>5</strong></div>
+          <div class="card">Orders<strong>3</strong></div>
+        </div>
+        <div class="row">Doi Chang coffee <span class="pill">Published</span></div>
+        <div class="row">Espresso blend <span class="pill">Published</span></div>
+        <div class="row">Pour-over kettle <span class="pill">Published</span></div>
+        <div class="row">Hand grinder <span class="pill">Published</span></div>
+      </div>
+    </div>
+  </body>
+</html>

@@ -209,20 +209,30 @@ describe('Templates', () => {
     await expect.poll(() => page.url()).toMatch(/&t=shop$/)
   })
 
-  it('asks before replacing code that was changed', async () => {
+  it('asks before replacing code that was changed, offering to copy it first', async () => {
     const changed = (await getCode(page)).replace("slug: 'orders'", "slug: 'sales'")
     await setCode(page, changed)
-    page.once('dialog', (dialog) => void dialog.dismiss())
+    const ask = page.locator('#ask')
     await pick('crm')
+    expect(await ask.isVisible()).toBe(true)
+    expect(await page.locator('#ask-title').textContent()).toBe('Replace your code with CRM?')
+    expect(await page.locator('#ask-extra').textContent()).toBe('Copy my code first')
+    // Cancel is where focus goes: Enter keeps the code.
+    expect(
+      await page.evaluate(
+        () =>
+          (globalThis as unknown as { document: { activeElement: { id: string } } }).document
+            .activeElement.id,
+      ),
+    ).toBe('ask-cancel')
+    await page.locator('#ask-cancel').click()
+    expect(await ask.isVisible()).toBe(false)
     expect(await getCode(page)).toBe(changed)
     await page.keyboard.press('Escape')
 
-    page.once('dialog', (dialog) => {
-      expect(dialog.message()).toContain('CRM')
-      void dialog.accept()
-    })
     await pick('crm')
-    expect(await getCode(page)).toContain("slug: 'deals'")
+    await page.locator('#ask-confirm').click()
+    await expect.poll(() => getCode(page)).toContain("slug: 'deals'")
     await expect.poll(() => status(page).textContent(), { timeout: 60_000 }).toBe('Up to date')
   })
 
@@ -248,8 +258,6 @@ describe('Templates', () => {
       )
     await page.keyboard.press('Escape')
     expect([...ids].sort()).toEqual(Object.keys(SAMPLES).sort())
-    const accept = (dialog: { accept(): Promise<void> }) => void dialog.accept()
-    page.on('dialog', accept)
     for (const id of ids) {
       // Inside the closed console: no need to open it.
       await page.locator('#console-clear').dispatchEvent('click')
@@ -260,6 +268,173 @@ describe('Templates', () => {
       expect(await consoleText(), id).not.toContain('Sample documents:')
       await expect.poll(() => status(page).textContent(), { timeout: 60_000 }).toBe('Up to date')
     }
-    page.off('dialog', accept)
+  })
+})
+
+describe('Workspace', () => {
+  let page: Page
+  /** The theme a page set on its root (`data-theme`), if any. */
+  const themeOf = (target: Page | Frame) =>
+    target.evaluate(
+      () =>
+        (
+          globalThis as unknown as {
+            document: { documentElement: { dataset: { theme?: string } } }
+          }
+        ).document.documentElement.dataset.theme,
+    )
+
+  it('opens the admin without the setup notices a deployment needs', async () => {
+    page = await (await browser.newContext({ viewport: { width: 1280, height: 800 } })).newPage()
+    await page.goto(`${base}/`)
+    await expect.poll(() => status(page).textContent(), { timeout: 60_000 }).toBe('Up to date')
+    const frame = await adminFrame(page)
+    await frame.getByText('Getting started with Easy CMS').first().waitFor({ timeout: 30_000 })
+    expect(await frame.getByText('Email is not set up').count()).toBe(0)
+  })
+
+  it('switches the theme for Studio, the editor and the admin, and remembers it', async () => {
+    const button = page.locator('#theme')
+    expect(await button.getAttribute('aria-label')).toBe('Theme: System')
+    await button.click()
+    await button.click()
+    expect(await button.getAttribute('aria-label')).toBe('Theme: Dark')
+    expect(await themeOf(page)).toBe('dark')
+    expect(await page.locator('.monaco-editor').getAttribute('class')).toContain('vs-dark')
+    const frame = await adminFrame(page)
+    await expect.poll(() => themeOf(frame)).toBe('dark')
+
+    // A reload keeps it; the admin, framed afresh, gets it too.
+    await page.reload()
+    await expect.poll(() => status(page).textContent(), { timeout: 60_000 }).toBe('Up to date')
+    expect(await page.locator('#theme').getAttribute('aria-label')).toBe('Theme: Dark')
+    const again = await adminFrame(page)
+    await expect.poll(() => themeOf(again), { timeout: 30_000 }).toBe('dark')
+
+    await page.locator('#theme').click()
+    expect(await page.locator('#theme').getAttribute('aria-label')).toBe('Theme: System')
+    expect(await themeOf(page)).toBeUndefined()
+  })
+
+  it('counts type problems the config still runs with, and goes to the first', async () => {
+    const problems = page.locator('#problems')
+    expect(await problems.isHidden()).toBe(true)
+    await setCode(page, `const port: number = '3000'\n${await getCode(page)}`)
+    await expect
+      .poll(() => problems.getAttribute('aria-label'), { timeout: 30_000 })
+      .toBe('1 type problem')
+    expect(await problems.getAttribute('title')).toMatch(/^1 type problem\. Line 1: /)
+    await expect.poll(() => status(page).textContent(), { timeout: 60_000 }).toBe('Up to date')
+    await problems.click()
+    await setCode(page, (await getCode(page)).replace("const port: number = '3000'\n", ''))
+    await expect.poll(() => problems.isHidden(), { timeout: 30_000 }).toBe(true)
+  })
+
+  it('resizes the code with the divider, by keyboard too, and remembers the width', async () => {
+    const width = async () => (await page.locator('#code').boundingBox())?.width ?? 0
+    const before = await width()
+    const divider = page.locator('#divider')
+    await divider.focus()
+    await page.keyboard.press('Shift+ArrowRight')
+    expect(await width()).toBeCloseTo(before + 96, -1)
+    expect(Number(await divider.getAttribute('aria-valuenow'))).toBeCloseTo(before + 96, -1)
+
+    const box = (await divider.boundingBox()) as { x: number; y: number; width: number }
+    await page.mouse.move(box.x + box.width / 2, box.y + 200)
+    await page.mouse.down()
+    await page.mouse.move(400, box.y + 200, { steps: 5 })
+    await page.mouse.up()
+    expect(await width()).toBeCloseTo(400, -1)
+
+    await page.reload()
+    await expect.poll(() => status(page).textContent(), { timeout: 60_000 }).toBe('Up to date')
+    expect(await width()).toBeCloseTo(400, -1)
+    await page.locator('#divider').dblclick()
+    expect(await width()).toBeCloseTo(before, -1)
+  })
+
+  it('resets the sample data, keeping the code', async () => {
+    const code = await getCode(page)
+    await page.locator('#console-clear').dispatchEvent('click')
+    await page.locator('#reset-data').click()
+    expect(await page.locator('#ask-title').textContent()).toBe('Reset the sample data?')
+    await page.locator('#ask-confirm').click()
+    // Samples only go into empty collections: all of them again means the data went.
+    await expect
+      .poll(() => page.locator('#console-lines').textContent(), { timeout: 60_000 })
+      .toContain(`Added ${Object.values(SAMPLES.blog ?? {}).flat().length} sample documents.`)
+    expect(await getCode(page)).toBe(code)
+  })
+
+  it('copies the share link with Cmd/Ctrl+S instead of saving the page', async () => {
+    const context = await browser.newContext({ permissions: ['clipboard-read', 'clipboard-write'] })
+    const other = await context.newPage()
+    await other.goto(`${base}/`)
+    await expect.poll(() => status(other).textContent(), { timeout: 60_000 }).toBe('Up to date')
+    await other.locator('.bar').click({ position: { x: 5, y: 5 } })
+    await other.keyboard.press('ControlOrMeta+KeyS')
+    await expect.poll(() => other.locator('#share').textContent()).toBe('Copied')
+    const link = await other.evaluate(() => (globalThis as unknown as Studio).studio.shareLink())
+    const copied = await other.evaluate(() =>
+      (
+        globalThis as unknown as { navigator: { clipboard: { readText(): Promise<string> } } }
+      ).navigator.clipboard.readText(),
+    )
+    expect(copied).toBe(link)
+    await expect
+      .poll(() => other.locator('#share').textContent(), { timeout: 5_000 })
+      .toBe('Share link')
+    await context.close()
+  })
+})
+
+describe('First visit, phones and sharing', () => {
+  it('shows a tip on the first visit, and not again once closed', async () => {
+    const context = await browser.newContext()
+    const page = await context.newPage()
+    await page.goto(`${base}/`)
+    await expect.poll(() => status(page).textContent(), { timeout: 60_000 }).toBe('Up to date')
+    expect(await page.locator('#hint').isVisible()).toBe(true)
+    await page.locator('#hint-close').click()
+    expect(await page.locator('#hint').isVisible()).toBe(false)
+    await page.reload()
+    await expect.poll(() => status(page).textContent(), { timeout: 60_000 }).toBe('Up to date')
+    expect(await page.locator('#hint').isVisible()).toBe(false)
+    await context.close()
+  })
+
+  it('lets a phone pick a template, without the editing buttons', async () => {
+    const context = await browser.newContext({ viewport: { width: 375, height: 812 } })
+    const page = await context.newPage()
+    await page.goto(`${base}/`)
+    await expect.poll(() => status(page).textContent(), { timeout: 60_000 }).toBe('Up to date')
+    for (const id of ['#share', '#export', '#full-screen'])
+      expect(await page.locator(id).isVisible(), id).toBe(false)
+    expect(await page.locator('#theme').isVisible()).toBe(true)
+    await page.locator('#templates-open').click()
+    await page.locator('#templates [data-template="shop"]').click()
+    const frame = await adminFrame(page)
+    await expect.poll(() => frame.url(), { timeout: 30_000 }).toContain('/admin')
+    await frame.goto(`${new URL(frame.url()).origin}/admin/collections/products`)
+    await frame.getByText('Doi Chang single origin').first().waitFor({ timeout: 60_000 })
+    await context.close()
+  })
+
+  it('has an icon and a share card with its image', async () => {
+    const html = await (await fetch(`${base}/`)).text()
+    expect(html).toContain('<link rel="icon" href="/favicon.svg"')
+    expect(html).toMatch(/<meta property="og:image" content="https:\/\/[^"]+\/og\.png">/)
+    expect(html).toContain('<meta name="twitter:card" content="summary_large_image">')
+    for (const [path, type] of [
+      ['/og.png', 'image/png'],
+      ['/favicon.svg', 'image/svg+xml'],
+      ['/apple-touch-icon.png', 'image/png'],
+    ] as const) {
+      const response = await fetch(`${base}${path}`)
+      expect(response.status, path).toBe(200)
+      expect(response.headers.get('content-type'), path).toContain(type)
+    }
+    // The sandbox page is no one's to share.
+    expect(await (await fetch(`${base}/sandbox.html`)).text()).not.toContain('og:image')
   })
 })

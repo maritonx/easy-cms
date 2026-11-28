@@ -94,10 +94,52 @@ function copyAdminApp(): Plugin {
   }
 }
 
+/**
+ * The editor page's share card (Open Graph, X): the image needs an absolute address, so the
+ * build puts Studio's origin in (the release sets VITE_STUDIO_ORIGIN; else the live one).
+ */
+function shareCard(): Plugin {
+  const title = 'Easy CMS Studio'
+  const description = 'Write an Easy CMS config and see its admin, in your browser.'
+  return {
+    name: 'studio-share-card',
+    transformIndexHtml: {
+      order: 'post',
+      handler(_html, context) {
+        if (!context.filename.endsWith('index.html')) return
+        const origin = (process.env.VITE_STUDIO_ORIGIN || 'https://studio.easycms.dev').replace(
+          /\/$/,
+          '',
+        )
+        const meta = (attrs: Record<string, string>) => ({
+          tag: 'meta',
+          attrs,
+          injectTo: 'head' as const,
+        })
+        return [
+          meta({ property: 'og:type', content: 'website' }),
+          meta({ property: 'og:site_name', content: 'Easy CMS' }),
+          meta({ property: 'og:title', content: title }),
+          meta({ property: 'og:description', content: description }),
+          meta({ property: 'og:url', content: `${origin}/` }),
+          meta({ property: 'og:image', content: `${origin}/og.png` }),
+          meta({ property: 'og:image:width', content: '1200' }),
+          meta({ property: 'og:image:height', content: '630' }),
+          meta({
+            property: 'og:image:alt',
+            content: 'Easy CMS Studio: a config on the left, its admin on the right',
+          }),
+          meta({ name: 'twitter:card', content: 'summary_large_image' }),
+        ]
+      },
+    },
+  }
+}
+
 export default defineConfig({
   // Studio's own builds of core and the in-memory database, without Node's modules (ADR-0074).
   resolve: { conditions: ['easy-cms-browser', ...defaultClientConditions] },
-  plugins: [monacoTypeScriptOnly(), studioTypes(), copyAdminApp()],
+  plugins: [monacoTypeScriptOnly(), studioTypes(), copyAdminApp(), shareCard()],
   worker: { format: 'es' },
   build: {
     target: 'es2022',
