@@ -1,7 +1,8 @@
 // Packages that aren't on npm yet. The release publishes through trusted publishing (OIDC), which
 // can't create a package: its first version has to be published by hand, and the package then
-// set to trust the release workflow, or the release fails for it (E404) and skips Docker and
-// Studio. CI runs this on every pull request: a warning, so a new package can be merged; an error
+// set to trust the release workflow with "Allow npm publish" ticked (without it, only staged
+// publishes), or the release fails for it (E404) and skips Docker and Studio. It can't see that
+// setting, only that the package exists: the message says to check it. CI runs this on every pull request: a warning, so a new package can be merged; an error
 // on the "Version Packages" pull request (--strict), before the release that would fail.
 //
 //   node scripts/check-npm-packages.mjs [--strict] [--root <dir>]
@@ -59,6 +60,9 @@ const steps = [
   'The release publishes with trusted publishing, which can only publish packages that exist and trust it. For each:',
   '  1. Publish a first version by hand: pnpm --filter <name> publish --access public --no-git-checks',
   '  2. On npmjs.com, Settings > Trusted Publisher > GitHub Actions: maritonx / easy-cms / release.yml, no environment',
+  '  3. Under "Allowed actions", tick "Allow npm publish": without it the release may only stage, and npm answers E404',
+  'Steps 2 and 3 in one command: npx npm@12 trust github <name> --file release.yml --repo maritonx/easy-cms --allow-publish -y',
+  '(CONTRIBUTING.md, Releases.)',
 ]
 for (const name of missing)
   console.log(
