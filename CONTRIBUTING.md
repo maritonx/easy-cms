@@ -86,6 +86,12 @@ A **new package** must exist on npm before CI can publish it: publish it once by
 npx npm@12 trust github <package> --file release.yml --repo maritonx/easy-cms --allow-publish -y
 ```
 
+On npmjs.com instead (the package's Settings → Trusted Publisher → GitHub Actions:
+`maritonx` / `easy-cms` / `release.yml`, no environment), tick **Allow npm publish** under
+"Allowed actions": without it the release may only stage a version, and npm answers `E404`, as
+it did for `@easy-cms/db-memory` in 1.57.0–1.57.2. CI warns about a package npm doesn't have yet
+(`scripts/check-npm-packages.mjs`), but can't see this setting.
+
 ## Security
 
 Please report vulnerabilities privately, as described in [SECURITY.md](SECURITY.md).
