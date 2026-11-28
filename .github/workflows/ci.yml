@@ -82,6 +82,17 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm biome ci .
+      # A package npm doesn't have yet can't be released (trusted publishing can't create it):
+      # a warning on pull requests, an error on the "Version Packages" one, before the release.
+      - name: Packages not on npm yet
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          if [[ "$HEAD_REF" == "changeset-release/main" ]]; then
+            node scripts/check-npm-packages.mjs --strict
+          else
+            node scripts/check-npm-packages.mjs
+          fi
 
   # Types don't depend on the OS: checked once, against the built packages.
   typecheck:
