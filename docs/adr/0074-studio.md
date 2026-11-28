@@ -96,7 +96,7 @@
 ### v0.2
 
 - toolbar สลับ role (Admin, Editor, Viewer) ให้เห็นผลของ access ทันที
-- `create-easy-cms --from` ติดตั้ง version ที่ตรงกับลิงก์ หรือเตือนถ้าไม่ตรง ลิงก์เก่าบน Studio ใหม่แสดงคำเตือน
+- `create-easy-cms --from` ติดตั้งอย่างน้อย version ของลิงก์ (`^<version>`) เมื่อลิงก์ใหม่กว่า CLI ใน major เดียวกัน ลิงก์ที่เก่ากว่าได้ version ของ CLI (รุ่นใหม่ใน major เดียวกันรัน config เก่าได้) ข้าม major ได้ version ของ CLI พร้อมคำเตือน (#483) ลิงก์เก่าบน Studio ใหม่แสดงคำเตือน
 - เทมเพลต Shop และ Multi-tenant
 - analytics
 - หน้ามือถือ

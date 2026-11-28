@@ -109,6 +109,27 @@ describe('create-easy-cms --from', () => {
       expect(result.out).toContain(`@easy-cms/${name}@${V}`)
   })
 
+  it('installs at least the version a newer link was made with (#483)', async () => {
+    if (V === 'latest') return
+    const [major, minor] = pkg.version.split('.').map(Number) as [number, number]
+    const newer = `${major}.${minor + 1}.0`
+    const result = await create(project(), '--from', await link(CONFIG, newer))
+    expect(result.code).toBe(0)
+    for (const name of ['core', 'db-sqlite', 'plugin-seo'])
+      expect(result.out).toContain(`@easy-cms/${name}@^${newer}`)
+    expect(result.out).toContain(`installs ${newer} or later`)
+
+    // An older link of the same major: this version runs it.
+    const older = await create(project(), '--from', await link(CONFIG, `${major}.0.0`))
+    expect(older.out).toContain(`@easy-cms/core@${V}`)
+    expect(older.out).not.toContain('or later')
+
+    // Another major: this version, and a note.
+    const other = await create(project(), '--from', await link(CONFIG, `${major + 1}.0.0`))
+    expect(other.out).toContain(`@easy-cms/core@${V}`)
+    expect(other.out).toContain(`made in Studio with Easy CMS ${major + 1}.0.0`)
+  })
+
   it('takes the database from the config', async () => {
     const dir = project()
     const postgres = CONFIG.replace(

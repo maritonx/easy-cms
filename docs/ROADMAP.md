@@ -308,7 +308,7 @@ v0.1 (งาน 6–10) อยู่ใน [#480](https://github.com/maritonx/ea
 | [#481](https://github.com/maritonx/easy-cms/issues/481) | Deploy Studio to studio.easycms.dev, with analytics | area:studio, area:release | เปิดที่ studio.easycms.dev ได้, ลิงก์แชร์เปิดที่อื่นได้, `studio-copy-command` ขึ้นใน Umami |
 | [#485](https://github.com/maritonx/easy-cms/issues/485) | nested-docs, form-builder and social run in browsers | area:studio, area:plugins | ไม่ import `node:*` และใช้ได้จริงใน Studio |
 | [#482](https://github.com/maritonx/easy-cms/issues/482) | Studio: view the admin as each role | area:studio | สลับเป็น Admin, Editor, Viewer แล้วเห็นผลของ access ทันที |
-| [#483](https://github.com/maritonx/easy-cms/issues/483) | create-easy-cms --from installs the link's version | area:studio | ลิงก์ `v=1.57.0` ติดตั้ง `@easy-cms/core@1.57.0` |
+| [#483](https://github.com/maritonx/easy-cms/issues/483) | create-easy-cms --from installs at least the link's version | area:studio | ลิงก์ที่ใหม่กว่า CLI ติดตั้ง `@easy-cms/core@^<version ของลิงก์>`, ลิงก์เก่ากว่าได้ version ของ CLI |
 | [#484](https://github.com/maritonx/easy-cms/issues/484) | Studio: 10 templates in a dialog | area:studio | เลือก 10 เทมเพลต (Blog, Company, Shop, Booking, CRM, Job board, Restaurant, Courses, Real estate, Multi-tenant SaaS) จาก modal แล้วแต่ละตัวเปิดพร้อมข้อมูลตัวอย่าง, `?template=` |
 
 ---

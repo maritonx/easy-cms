@@ -157,13 +157,40 @@ function ownVersion(): string {
   }
 }
 
+const SEMVER = /^(\d+)\.(\d+)\.(\d+)$/
+
+/** -1, 0 or 1: how `a` compares to `b` (plain x.y.z versions). */
+function compareVersions(a: string, b: string): number {
+  const [x, y] = [SEMVER.exec(a), SEMVER.exec(b)]
+  if (!x || !y) return 0
+  for (let i = 1; i <= 3; i++) {
+    const diff = Number(x[i]) - Number(y[i])
+    if (diff !== 0) return Math.sign(diff)
+  }
+  return 0
+}
+
+/**
+ * The range to install for a config from Studio made with Easy CMS `made`: at least that version
+ * when it is newer than this create-easy-cms in the same major (the config may use what came
+ * in it); else this create-easy-cms's own, which runs older configs of its major. Across
+ * majors, its own too, with a note (#483).
+ */
+export function rangeFor(made: string | undefined, own: string = ownVersion()): string {
+  const installing = own.replace(/^\^/, '')
+  if (!made || !SEMVER.test(made) || !SEMVER.test(installing)) return own
+  if (made.split('.')[0] !== installing.split('.')[0]) return own
+  return compareVersions(made, installing) > 0 ? `^${made}` : own
+}
+
 export function packagesFor(
   target: Target,
   db: DatabaseChoice,
   /** More `@easy-cms/*` packages the config imports (a config from Studio). */
   more: readonly string[] = [],
+  /** The range for every `@easy-cms` package (`rangeFor`); this create-easy-cms's own by default. */
+  v: string = ownVersion(),
 ): { deps: string[]; devDeps: string[] } {
-  const v = ownVersion()
   // Standalone: the `easy-cms` CLI is the server, so it is a runtime dependency.
   const deps =
     target === 'standalone'
@@ -316,6 +343,10 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
       notes.push(
         `The config was made in Studio with Easy CMS ${made}; this installs ${installing}.`,
       )
+    else if (made && rangeFor(made) !== ownVersion())
+      notes.push(
+        `The config was made in Studio with Easy CMS ${made}, newer than this create-easy-cms (${installing}): it installs ${made} or later.`,
+      )
   } else if (existsSync(configFile)) {
     notes.push('easy-cms.config.ts already exists; left unchanged.')
   } else {
@@ -365,7 +396,12 @@ export async function run(argv: readonly string[], io: IO = defaultIO): Promise<
   for (const change of changes) io.out(`  ✓ ${change}`)
   for (const note of notes) io.out(`  • ${note}`)
 
-  const { deps, devDeps } = packagesFor(target, db, studio ? packagesIn(studio.code) : [])
+  const { deps, devDeps } = packagesFor(
+    target,
+    db,
+    studio ? packagesIn(studio.code) : [],
+    rangeFor(studio?.version),
+  )
   if (values['skip-install']) {
     io.out('\nInstall the packages:')
     io.out(`  ${pm} ${installArgs(pm, deps, false).join(' ')}`)
