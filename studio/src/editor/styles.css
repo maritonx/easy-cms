@@ -11,6 +11,9 @@
   /* Text on the accent: 5.8:1 here, 7.9:1 in dark. */
   --on-accent: #ffffff;
   --control-line: #9aa09c;
+  /* A step that can't be undone: 6.5:1 here, 9:1 in dark. */
+  --danger: #b3261e;
+  --on-danger: #ffffff;
   color-scheme: light;
 }
 /* Dark: the system's, unless the theme button chose light; or chosen (data-theme, main.ts). */
@@ -27,6 +30,8 @@
     --busy: #e0b04a;
     --on-accent: #0d1f19;
     --control-line: #5b635f;
+    --danger: #ffb4a8;
+    --on-danger: #3a0d08;
     color-scheme: dark;
   }
 }
@@ -42,6 +47,8 @@
   --busy: #e0b04a;
   --on-accent: #0d1f19;
   --control-line: #5b635f;
+  --danger: #ffb4a8;
+  --on-danger: #3a0d08;
   color-scheme: dark;
 }
 * {
@@ -498,4 +505,24 @@ dialog.templates {
 /* While the divider is dragged, the frames don't take the pointer. */
 .panes[data-resizing] iframe {
   pointer-events: none;
+}
+/* Studio's own question (ask in main.ts): what will go, and a way to keep it first. */
+dialog.ask {
+  max-width: min(480px, calc(100vw - 32px));
+}
+dialog.ask p {
+  margin: 0 0 16px;
+  color: var(--muted);
+}
+dialog button.danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--on-danger);
+}
+.bar #reset-data {
+  padding: 4px 6px;
+  line-height: 0;
+}
+.bar #reset-data svg {
+  margin: 0;
 }

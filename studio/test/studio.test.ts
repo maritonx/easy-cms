@@ -209,20 +209,30 @@ describe('Templates', () => {
     await expect.poll(() => page.url()).toMatch(/&t=shop$/)
   })
 
-  it('asks before replacing code that was changed', async () => {
+  it('asks before replacing code that was changed, offering to copy it first', async () => {
     const changed = (await getCode(page)).replace("slug: 'orders'", "slug: 'sales'")
     await setCode(page, changed)
-    page.once('dialog', (dialog) => void dialog.dismiss())
+    const ask = page.locator('#ask')
     await pick('crm')
+    expect(await ask.isVisible()).toBe(true)
+    expect(await page.locator('#ask-title').textContent()).toBe('Replace your code with CRM?')
+    expect(await page.locator('#ask-extra').textContent()).toBe('Copy my code first')
+    // Cancel is where focus goes: Enter keeps the code.
+    expect(
+      await page.evaluate(
+        () =>
+          (globalThis as unknown as { document: { activeElement: { id: string } } }).document
+            .activeElement.id,
+      ),
+    ).toBe('ask-cancel')
+    await page.locator('#ask-cancel').click()
+    expect(await ask.isVisible()).toBe(false)
     expect(await getCode(page)).toBe(changed)
     await page.keyboard.press('Escape')
 
-    page.once('dialog', (dialog) => {
-      expect(dialog.message()).toContain('CRM')
-      void dialog.accept()
-    })
     await pick('crm')
-    expect(await getCode(page)).toContain("slug: 'deals'")
+    await page.locator('#ask-confirm').click()
+    await expect.poll(() => getCode(page)).toContain("slug: 'deals'")
     await expect.poll(() => status(page).textContent(), { timeout: 60_000 }).toBe('Up to date')
   })
 
@@ -248,8 +258,6 @@ describe('Templates', () => {
       )
     await page.keyboard.press('Escape')
     expect([...ids].sort()).toEqual(Object.keys(SAMPLES).sort())
-    const accept = (dialog: { accept(): Promise<void> }) => void dialog.accept()
-    page.on('dialog', accept)
     for (const id of ids) {
       // Inside the closed console: no need to open it.
       await page.locator('#console-clear').dispatchEvent('click')
@@ -260,7 +268,6 @@ describe('Templates', () => {
       expect(await consoleText(), id).not.toContain('Sample documents:')
       await expect.poll(() => status(page).textContent(), { timeout: 60_000 }).toBe('Up to date')
     }
-    page.off('dialog', accept)
   })
 })
 
@@ -342,6 +349,40 @@ describe('Workspace', () => {
     expect(await width()).toBeCloseTo(400, -1)
     await page.locator('#divider').dblclick()
     expect(await width()).toBeCloseTo(before, -1)
+  })
+
+  it('resets the sample data, keeping the code', async () => {
+    const code = await getCode(page)
+    await page.locator('#console-clear').dispatchEvent('click')
+    await page.locator('#reset-data').click()
+    expect(await page.locator('#ask-title').textContent()).toBe('Reset the sample data?')
+    await page.locator('#ask-confirm').click()
+    // Samples only go into empty collections: all of them again means the data went.
+    await expect
+      .poll(() => page.locator('#console-lines').textContent(), { timeout: 60_000 })
+      .toContain(`Added ${Object.values(SAMPLES.blog ?? {}).flat().length} sample documents.`)
+    expect(await getCode(page)).toBe(code)
+  })
+
+  it('copies the share link with Cmd/Ctrl+S instead of saving the page', async () => {
+    const context = await browser.newContext({ permissions: ['clipboard-read', 'clipboard-write'] })
+    const other = await context.newPage()
+    await other.goto(`${base}/`)
+    await expect.poll(() => status(other).textContent(), { timeout: 60_000 }).toBe('Up to date')
+    await other.locator('.bar').click({ position: { x: 5, y: 5 } })
+    await other.keyboard.press('ControlOrMeta+KeyS')
+    await expect.poll(() => other.locator('#share').textContent()).toBe('Copied')
+    const link = await other.evaluate(() => (globalThis as unknown as Studio).studio.shareLink())
+    const copied = await other.evaluate(() =>
+      (
+        globalThis as unknown as { navigator: { clipboard: { readText(): Promise<string> } } }
+      ).navigator.clipboard.readText(),
+    )
+    expect(copied).toBe(link)
+    await expect
+      .poll(() => other.locator('#share').textContent(), { timeout: 5_000 })
+      .toBe('Share link')
+    await context.close()
   })
 })
 

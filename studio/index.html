@@ -18,6 +18,7 @@
       <button id="problems" class="problems" type="button" hidden></button>
       <span class="spacer"></span>
       <button id="templates-open" type="button" aria-haspopup="dialog" aria-controls="templates">Templates</button>
+      <button id="reset-data" type="button" aria-label="Reset the sample data" title="Reset the sample data"></button>
       <button id="full-screen" type="button" aria-pressed="false" aria-controls="panes">⤢ Full screen</button>
       <button id="share" type="button">Share link</button>
       <button id="export" type="button" class="primary">Use in a project</button>
@@ -85,6 +86,17 @@
         </header>
         <p class="hint">Each one opens with its own sample data. Picking one replaces the code and empties the database.</p>
         <ul id="template-list" class="template-list"></ul>
+      </form>
+    </dialog>
+    <dialog id="ask" class="ask" aria-labelledby="ask-title" aria-describedby="ask-text">
+      <form method="dialog">
+        <h2 id="ask-title">Are you sure?</h2>
+        <p id="ask-text"></p>
+        <div class="actions">
+          <button id="ask-confirm" class="danger" type="submit" value="confirm"></button>
+          <button id="ask-extra" type="button" hidden></button>
+          <button id="ask-cancel" type="submit" value="cancel" autofocus>Cancel</button>
+        </div>
       </form>
     </dialog>
     <script type="module" src="./src/editor/main.ts"></script>

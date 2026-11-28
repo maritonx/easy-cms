@@ -7,7 +7,16 @@
 import types from 'virtual:studio-types'
 import { VERSION } from '@easy-cms/core'
 import { decodeStudioLink, encodeStudioHash } from 'create-easy-cms/studio-link'
-import { createElement, LayoutTemplate, Monitor, Moon, Sun, TriangleAlert, X } from 'lucide'
+import {
+  createElement,
+  LayoutTemplate,
+  Monitor,
+  Moon,
+  RotateCcw,
+  Sun,
+  TriangleAlert,
+  X,
+} from 'lucide'
 import * as monaco from 'monaco-editor'
 import {
   SANDBOX_PAGE,
@@ -468,17 +477,22 @@ function renderTemplates() {
         }),
       )
       button.append(box, name, description, features)
-      button.addEventListener('click', () => useTemplate(t))
+      button.addEventListener('click', () => void useTemplate(t))
       item.append(button)
       return item
     }),
   )
 }
 
-function useTemplate(picked: Template) {
+async function useTemplate(picked: Template) {
   if (
     edited() &&
-    !confirm(`Replace your code with the ${picked.name} template? Your changes will be lost.`)
+    !(await ask({
+      title: `Replace your code with ${picked.name}?`,
+      text: 'Your changes to the code will be lost, and the admin starts again from the template’s sample data.',
+      confirm: 'Replace',
+      extra: { label: 'Copy my code first', run: (button) => copy(button, model.getValue()) },
+    }))
   )
     return
   templatesDialog.close()
@@ -508,26 +522,88 @@ async function shareLink(): Promise<string> {
   return `${location.origin}${location.pathname}#${await hashFor(model.getValue())}`
 }
 
+/** Copies, saying so on the button for a moment (pressed again meanwhile, it keeps its label). */
 async function copy(button: HTMLElement, text: string) {
-  const label = button.textContent
+  button.dataset.label ??= button.textContent ?? ''
+  const label = button.dataset.label
   try {
     await navigator.clipboard.writeText(text)
     button.textContent = 'Copied'
   } catch {
     button.textContent = 'Copy failed: select and copy it'
   }
-  setTimeout(() => {
-    button.textContent = label
-  }, 1500)
+  clearTimeout(Number(button.dataset.timer))
+  button.dataset.timer = String(
+    setTimeout(() => {
+      button.textContent = label
+      delete button.dataset.label
+    }, 1500),
+  )
 }
+
+/**
+ * Studio's own question before a step that loses something: what goes, the step, and maybe a
+ * way to keep it first (the dialog stays open for that). True if the step was chosen.
+ */
+function ask(question: {
+  title: string
+  text: string
+  confirm: string
+  extra?: { label: string; run: (button: HTMLElement) => unknown }
+}): Promise<boolean> {
+  const dialog = $<HTMLDialogElement>('ask')
+  const extra = $<HTMLButtonElement>('ask-extra')
+  $('ask-title').textContent = question.title
+  $('ask-text').textContent = question.text
+  $('ask-confirm').textContent = question.confirm
+  extra.hidden = !question.extra
+  extra.textContent = question.extra?.label ?? ''
+  delete extra.dataset.label
+  extra.onclick = question.extra ? () => question.extra?.run(extra) : null
+  dialog.returnValue = ''
+  dialog.showModal()
+  $('ask-cancel').focus()
+  return new Promise((resolve) => {
+    dialog.addEventListener('close', () => resolve(dialog.returnValue === 'confirm'), {
+      once: true,
+    })
+  })
+}
+
+/** Reset: the sample data again (an empty database, then the template's), keeping the code. */
+$('reset-data').append(icon(RotateCcw))
+$('reset-data').addEventListener('click', async () => {
+  const ok = await ask({
+    title: 'Reset the sample data?',
+    text: 'The documents in the admin go, and the sample data comes back. Your code stays as it is.',
+    confirm: 'Reset data',
+  })
+  if (!ok) return
+  clearTimeout(timer)
+  send(model.getValue(), true)
+  track('studio-reset')
+})
 
 /** What a project runs to get this config (npm; pnpm, yarn and bun take the same link). */
 const createCommand = (link: string) => `npm create easy-cms@latest -- --from "${link}"`
 
-$('share').addEventListener('click', async () => {
-  track('studio-share')
+async function share(from: 'button' | 'shortcut') {
+  track('studio-share', { data: { from } })
   await copy($('share'), await shareLink())
-})
+}
+$('share').addEventListener('click', () => void share('button'))
+$('share').title = `Copy a link to this config (${shortcut.replace('\\', 'S')})`
+// ⌘S / Ctrl+S: the browser would save the page; a link is what keeps the config.
+window.addEventListener(
+  'keydown',
+  (event) => {
+    if (event.key.toLowerCase() !== 's' || !(event.metaKey || event.ctrlKey)) return
+    if (event.altKey || event.shiftKey) return
+    event.preventDefault()
+    void share('shortcut')
+  },
+  true,
+)
 $('export').addEventListener('click', async () => {
   $('export-command').textContent = createCommand(await shareLink())
   $<HTMLDialogElement>('export-dialog').showModal()
