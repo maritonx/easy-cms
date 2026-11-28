@@ -1,5 +1,9 @@
 # @easy-cms/core
 
+## 1.57.1
+
+No changes in this release.
+
 ## 1.57.0
 
 ### Minor Changes

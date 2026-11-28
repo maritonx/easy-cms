@@ -1,6 +1,6 @@
 {
   "name": "@easy-cms/core",
-  "version": "1.57.0",
+  "version": "1.57.1",
   "description": "The code-first CMS and app backend for Nuxt and Next.js",
   "license": "MIT",
   "type": "module",
