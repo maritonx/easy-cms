@@ -35,7 +35,9 @@ editor (index.html)                       sandbox (sandbox.html, its own origin 
 - **A config that fails** (code, validation, startup) leaves the last working CMS and admin in
   place; the editor shows the error on its line.
 - **What a config can import:** `@easy-cms/core`, `db-memory`, `fields`, `plugin-seo`,
-  `plugin-redirects`, `plugin-multi-tenant`. Databases, storages, email and sign-in packages are
+  `plugin-redirects`, `plugin-multi-tenant`, `plugin-nested-docs`, `plugin-form-builder`,
+  `plugin-social` (they import no Node module: random values from Web Crypto, files and HMAC
+  from `@easy-cms/core/internal`). Databases, storages, email and sign-in packages are
   stand-ins Studio replaces (SQLite in memory, files in memory, emails to the console, no SSO);
   plugins that don't run in a browser yet do nothing and say so in the console.
 - **Plugins' admin UIs** (SEO's panel, the tenant Members page, the color field) are admin

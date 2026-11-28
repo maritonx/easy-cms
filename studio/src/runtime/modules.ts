@@ -6,17 +6,23 @@
 import * as core from '@easy-cms/core'
 import * as dbMemory from '@easy-cms/db-memory'
 import * as fields from '@easy-cms/fields'
+import * as formBuilder from '@easy-cms/plugin-form-builder'
 import * as multiTenant from '@easy-cms/plugin-multi-tenant'
+import * as nestedDocs from '@easy-cms/plugin-nested-docs'
 import * as redirects from '@easy-cms/plugin-redirects'
 import * as seo from '@easy-cms/plugin-seo'
+import * as social from '@easy-cms/plugin-social'
 
 const REAL: Record<string, unknown> = {
   '@easy-cms/core': core,
   '@easy-cms/db-memory': dbMemory,
   '@easy-cms/fields': fields,
+  '@easy-cms/plugin-form-builder': formBuilder,
   '@easy-cms/plugin-multi-tenant': multiTenant,
+  '@easy-cms/plugin-nested-docs': nestedDocs,
   '@easy-cms/plugin-redirects': redirects,
   '@easy-cms/plugin-seo': seo,
+  '@easy-cms/plugin-social': social,
 }
 
 /** Server-only packages: Studio puts its own in their place (see `prepare`). */
@@ -37,12 +43,9 @@ const STUBBED = new Set([
   '@easy-cms/plugin-backups',
   '@easy-cms/plugin-ecommerce',
   '@easy-cms/plugin-email',
-  '@easy-cms/plugin-form-builder',
   '@easy-cms/plugin-graphql',
   '@easy-cms/plugin-mcp',
-  '@easy-cms/plugin-nested-docs',
   '@easy-cms/plugin-notify',
-  '@easy-cms/plugin-social',
 ])
 
 /** Marks what a replaced package's function returned, so `prepare` knows to drop it. */

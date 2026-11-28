@@ -1,5 +1,5 @@
-import { createHmac, randomUUID } from 'node:crypto'
 import { ChannelError, type SocialChannel, type SocialMessage } from './channel.js'
+import { hmac } from './runtime.js'
 
 // A URL that gets each post as signed JSON: a Make, n8n or Zapier scenario that posts it to LinkedIn or
 // anywhere else. Signed like Easy CMS's webhooks, so `verifyWebhook` checks it.
@@ -8,7 +8,7 @@ async function post(values: Readonly<Record<string, string>>, body: Record<strin
   const url = values.url ?? ''
   if (!/^https?:\/\//.test(url)) throw new ChannelError('The webhook URL is not http(s)', true)
   const json = JSON.stringify(body)
-  const delivery = randomUUID()
+  const delivery = globalThis.crypto.randomUUID()
   const timestamp = Math.floor(Date.now() / 1000)
   const headers: Record<string, string> = {
     'content-type': 'application/json',
@@ -18,7 +18,7 @@ async function post(values: Readonly<Record<string, string>>, body: Record<strin
   }
   if (values.secret)
     headers['x-easy-cms-signature-v2'] =
-      `v1=${createHmac('sha256', values.secret).update(`${delivery}.${timestamp}.${json}`).digest('hex')}`
+      `v1=${hmac(values.secret, `${delivery}.${timestamp}.${json}`, 'hex')}`
   let response: Response
   try {
     response = await fetch(url, {

@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto'
 import type { EasyCMS, Where } from '@easy-cms/core'
 import {
   type Breadcrumb,
@@ -136,12 +135,12 @@ export async function trailOf(
     const label = textIn(data[nested.titleField], locale, source) || slug
     breadcrumbs.set(locale, [
       ...above.map((row) => ({
-        id: randomUUID(),
+        id: globalThis.crypto.randomUUID(),
         doc: idOf(row.doc),
         label: typeof row.label === 'string' ? row.label : '',
         url: typeof row.url === 'string' ? row.url : '',
       })),
-      { id: randomUUID(), doc: selfId, label, url: own ?? '' },
+      { id: globalThis.crypto.randomUUID(), doc: selfId, label, url: own ?? '' },
     ])
     path.set(locale, own)
   }

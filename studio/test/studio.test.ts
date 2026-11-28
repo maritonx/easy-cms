@@ -517,3 +517,74 @@ describe('View as (#482)', () => {
     await page.context().close()
   })
 })
+
+describe('Plugins in the browser (#485)', () => {
+  it('runs nested-docs, form-builder and social for real, their fields in the admin', async () => {
+    const page = await (await browser.newContext()).newPage()
+    await page.goto(`${base}/?template=blog`)
+    await expect.poll(() => status(page).textContent(), { timeout: 60_000 }).toBe('Up to date')
+    await page.locator('#console-clear').dispatchEvent('click')
+    await setCode(
+      page,
+      `import { defineConfig } from '@easy-cms/core'
+import { sqlite } from '@easy-cms/db-sqlite'
+import { formBuilderPlugin } from '@easy-cms/plugin-form-builder'
+import { nestedDocsPlugin } from '@easy-cms/plugin-nested-docs'
+import { socialPlugin } from '@easy-cms/plugin-social'
+
+export default defineConfig({
+  secret: process.env.EASY_CMS_SECRET ?? '',
+  serverURL: 'https://example.com',
+  db: sqlite({ url: 'file:./cms.db' }),
+  collections: [
+    {
+      slug: 'pages',
+      useAsTitle: 'title',
+      fields: [
+        { name: 'title', type: 'text', required: true },
+        { name: 'slug', type: 'slug', from: 'title' },
+      ],
+    },
+    { slug: 'posts', useAsTitle: 'title', fields: [{ name: 'title', type: 'text', required: true }] },
+  ],
+  plugins: [
+    nestedDocsPlugin({ collections: ['pages'] }),
+    formBuilderPlugin({ defaultTo: 'hello@example.com' }),
+    socialPlugin({ collections: ['posts'] }),
+  ],
+})
+`,
+    )
+    await expect.poll(() => status(page).textContent(), { timeout: 60_000 }).toBe('Up to date')
+    expect(await page.locator('#error').isVisible()).toBe(false)
+    // Not stubbed: no "does nothing in Studio" note for them.
+    const lines = (await page.locator('#console-lines').textContent()) ?? ''
+    for (const name of ['plugin-form-builder', 'plugin-nested-docs', 'plugin-social'])
+      expect(lines, name).not.toContain(name)
+
+    const frame = await adminFrame(page)
+    type Schema = {
+      collections: { slug: string; fields: { name?: string }[] }[]
+      modules: string[]
+    }
+    const readSchema = () =>
+      frame.evaluate(async () => {
+        const at = (globalThis as unknown as { location: { search: string } }).location.search
+        return (await (await fetch(`/api/cms/admin/ui/schema${at}`)).json()) as Schema
+      })
+    // The config applies after the editor's pause: wait for the plugins' collections.
+    await expect
+      .poll(async () => (await readSchema()).collections.map((c) => c.slug), { timeout: 60_000 })
+      .toContain('forms')
+    const schema = await readSchema()
+    const slugs = schema.collections.map((c) => c.slug)
+    for (const slug of ['forms', 'form-submissions', 'social-posts']) expect(slugs).toContain(slug)
+    const pageFields = schema.collections.find((c) => c.slug === 'pages')?.fields.map((f) => f.name)
+    expect(pageFields).toEqual(expect.arrayContaining(['parent', 'breadcrumbs']))
+    expect(schema.modules).toHaveLength(3)
+
+    await frame.goto(`${new URL(frame.url()).origin}/admin/collections/pages/new`)
+    await frame.getByLabel('Parent', { exact: false }).first().waitFor({ timeout: 30_000 })
+    await page.context().close()
+  })
+})
