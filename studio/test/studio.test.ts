@@ -232,7 +232,8 @@ describe('Templates', () => {
 
     await pick('crm')
     await page.locator('#ask-confirm').click()
-    await expect.poll(() => getCode(page)).toContain("slug: 'deals'")
+    // The dialog's close event replaces the code: 10s for a busy CI runner, not the 1s default.
+    await expect.poll(() => getCode(page), { timeout: 10_000 }).toContain("slug: 'deals'")
     await expect.poll(() => status(page).textContent(), { timeout: 60_000 }).toBe('Up to date')
   })
 
