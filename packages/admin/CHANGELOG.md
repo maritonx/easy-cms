@@ -1,5 +1,9 @@
 # @easy-cms/admin
 
+## 1.57.2
+
+No changes in this release.
+
 ## 1.57.1
 
 ### Patch Changes

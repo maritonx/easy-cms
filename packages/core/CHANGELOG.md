@@ -1,5 +1,11 @@
 # @easy-cms/core
 
+## 1.57.2
+
+### Patch Changes
+
+- b78cf4e: `provideAdminModules({ [specifier]: code })` in `@easy-cms/core/internal` gives admin modules (`admin.modules`) as code rather than files, for where there are none to read: Studio (ADR-0074) uses it so the SEO panel, the tenant Members page and the color field show in its admin, instead of each being logged as not found.
+
 ## 1.57.1
 
 No changes in this release.

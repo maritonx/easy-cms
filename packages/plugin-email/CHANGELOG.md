@@ -1,5 +1,12 @@
 # @easy-cms/plugin-email
 
+## 1.57.2
+
+### Patch Changes
+
+- Updated dependencies [b78cf4e]
+  - @easy-cms/core@1.57.2
+
 ## 1.57.1
 
 ### Patch Changes
