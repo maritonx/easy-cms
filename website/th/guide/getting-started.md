@@ -42,14 +42,15 @@ npx create-easy-cms
 
 ### จาก config ที่ทำใน Studio {#from-a-config-made-in-studio}
 
-Studio (`studio.easycms.dev` ที่กำลังทำ) รัน config พร้อมหน้า admin ในเบราว์เซอร์ ปุ่ม **Use in a project** ในนั้นให้คำสั่ง
-ที่มี config อยู่ในลิงก์:
+[Studio](./studio) ([studio.easycms.dev](https://studio.easycms.dev)) รัน config พร้อมหน้า admin ในเบราว์เซอร์ เริ่มได้จากเทมเพลต 10 แบบ
+ปุ่ม **Use in a project** ในนั้นให้คำสั่งที่มี config อยู่ในลิงก์:
 
 ```bash
 npm create easy-cms@latest -- --from "https://studio.easycms.dev/#v=…&c=…"
 ```
 
 คำสั่งนี้เขียน `easy-cms.config.ts` ตามลิงก์ ใช้ฐานข้อมูลตาม adapter ใน config และติดตั้งแพ็กเกจ `@easy-cms` ที่ config import
+โดยติดตั้งอย่างน้อยเวอร์ชันที่ลิงก์ทำไว้ ถ้าเวอร์ชันนั้นใหม่กว่า `create-easy-cms` (ลิงก์ที่เก่ากว่าได้เวอร์ชันปัจจุบัน ซึ่งรัน config นั้นได้)
 config อยู่ในส่วน `#…` ของลิงก์ ซึ่งเบราว์เซอร์ไม่เคยส่งไปที่ server
 
 ## รันระบบ {#run-it}

@@ -43,16 +43,18 @@ Options: `--db sqlite|postgres`, `--pm npm|pnpm|yarn|bun`, `--yes` (accept defau
 
 ### From a config made in Studio
 
-Studio (`studio.easycms.dev`, coming) runs a config and its admin in the browser. **Use in a
-project** there gives a command with the config in its link:
+[Studio](./studio) ([studio.easycms.dev](https://studio.easycms.dev)) runs a config and its admin
+in the browser, from ten templates. **Use in a project** there gives a command with the config in
+its link:
 
 ```bash
 npm create easy-cms@latest -- --from "https://studio.easycms.dev/#v=…&c=…"
 ```
 
 It writes that `easy-cms.config.ts`, takes the database from its adapter, and installs the
-`@easy-cms` packages it imports. The config travels in the link's `#…` part, which browsers
-never send to a server.
+`@easy-cms` packages it imports: at least the Easy CMS version the link was made with, when that's
+newer than `create-easy-cms` (an older link gets the current version, which runs it). The config
+travels in the link's `#…` part, which browsers never send to a server.
 
 ## Run it
 
