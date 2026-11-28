@@ -232,7 +232,8 @@ describe('Templates', () => {
 
     await pick('crm')
     await page.locator('#ask-confirm').click()
-    await expect.poll(() => getCode(page)).toContain("slug: 'deals'")
+    // The dialog's close event replaces the code: 10s for a busy CI runner, not the 1s default.
+    await expect.poll(() => getCode(page), { timeout: 10_000 }).toContain("slug: 'deals'")
     await expect.poll(() => status(page).textContent(), { timeout: 60_000 }).toBe('Up to date')
   })
 
@@ -475,6 +476,44 @@ describe('Plugin admin modules', () => {
       .poll(() => defined(frame, ['ecms-tenant-members']), { timeout: 30_000 })
       .toEqual([])
     expect(await page.locator('#console-lines').textContent()).not.toContain('not found')
+    await page.context().close()
+  })
+})
+
+describe('View as (#482)', () => {
+  it('shows the admin as each role of the config, on the same page', async () => {
+    const page = await (
+      await browser.newContext({ viewport: { width: 1280, height: 800 } })
+    ).newPage()
+    await page.goto(`${base}/?template=blog`)
+    await expect.poll(() => status(page).textContent(), { timeout: 60_000 }).toBe('Up to date')
+    const select = page.locator('#view-as-role')
+    expect(await page.locator('#view-as').isVisible()).toBe(true)
+    expect(await select.locator('option').allTextContents()).toEqual(['Admin', 'Editor'])
+
+    // Only admins create categories.
+    await setCode(
+      page,
+      (await getCode(page)).replace(
+        "slug: 'categories',",
+        "slug: 'categories',\n      access: { create: ({ user }) => user?.role === 'admin' },",
+      ),
+    )
+    await expect.poll(() => status(page).textContent(), { timeout: 60_000 }).toBe('Up to date')
+    const frame = await adminFrame(page)
+    await frame.goto(`${new URL(frame.url()).origin}/admin/collections/categories`)
+    const create = frame
+      .getByRole('link', { name: 'Create new' })
+      .or(frame.getByRole('button', { name: 'Create new' }))
+    await create.first().waitFor({ timeout: 30_000 })
+
+    await select.selectOption('editor')
+    await expect.poll(() => create.count(), { timeout: 30_000 }).toBe(0)
+    expect(new URL(frame.url()).pathname).toBe('/admin/collections/categories')
+    await frame.getByText('Engineering').first().waitFor()
+
+    await select.selectOption('admin')
+    await create.first().waitFor({ timeout: 30_000 })
     await page.context().close()
   })
 })
