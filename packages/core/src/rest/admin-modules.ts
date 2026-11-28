@@ -31,11 +31,24 @@ export interface AdminModuleFile {
 
 const resolved = new WeakMap<EasyCMS, (string | undefined)[]>()
 
+/** Marks a module given as code (`provideAdminModules`) where a file's path would be. */
+const GIVEN = 'given:'
+const given = new Map<string, string>()
+
+/**
+ * Admin modules given as code rather than found as files, by specifier: where there are no files
+ * to read (Studio runs the CMS in a browser, ADR-0074). A module given here wins over a file.
+ */
+export function provideAdminModules(modules: Readonly<Record<string, string>>): void {
+  for (const [specifier, code] of Object.entries(modules)) given.set(specifier, code)
+}
+
 /** The files of `admin.modules`, resolved once per CMS; a missing one is logged and skipped. */
 function files(cms: EasyCMS): (string | undefined)[] {
   let result = resolved.get(cms)
   if (!result) {
     result = cms.config.admin.modules.map((specifier) => {
+      if (given.has(specifier)) return `${GIVEN}${specifier}`
       const file = resolveAdminModule(specifier, cms.cwd)
       if (!file) {
         // A module `easy-cms build:admin` makes (admin/dist/…): not built yet.
@@ -65,7 +78,7 @@ export async function readAdminModule(
 ): Promise<AdminModuleFile | undefined> {
   const file = files(cms)[index]
   if (!file) return undefined
-  const body = await readText(file)
+  const body = file.startsWith(GIVEN) ? given.get(file.slice(GIVEN.length)) : await readText(file)
   if (body === undefined) return undefined
   return { body, etag: `"${hash('sha1', body, 'base64url')}"` }
 }

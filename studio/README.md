@@ -38,6 +38,10 @@ editor (index.html)                       sandbox (sandbox.html, its own origin 
   `plugin-redirects`, `plugin-multi-tenant`. Databases, storages, email and sign-in packages are
   stand-ins Studio replaces (SQLite in memory, files in memory, emails to the console, no SSO);
   plugins that don't run in a browser yet do nothing and say so in the console.
+- **Plugins' admin UIs** (SEO's panel, the tenant Members page, the color field) are admin
+  modules that core finds as files on a server. A browser has none, so Studio gives their code
+  to core (`runtime/admin-modules.ts`, `provideAdminModules` from `@easy-cms/core/internal`);
+  a bundled package with an admin module of its own goes in that list too.
 - **Full screen** (the button, or ⌘\ / Ctrl+\ outside the admin) hides the code so the admin
   shows at its real width; the bar stays. The frame isn't moved: moving it would load the sandbox
   again, and its in-memory documents would go.
