@@ -78,8 +78,28 @@ body {
   border-bottom: 1px solid var(--line);
   background: var(--panel);
 }
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
 .brand span {
   color: var(--accent);
+}
+/* easycms.dev's logo (public/favicon.svg), in the page's accent so it follows the theme. */
+.brand .logo {
+  width: 22px;
+  height: 22px;
+  flex: none;
+}
+.brand .logo rect {
+  fill: var(--accent);
+}
+.brand .logo path {
+  stroke: var(--on-accent);
+  stroke-width: 3;
+  stroke-linecap: round;
 }
 .spacer {
   flex: 1;
@@ -87,6 +107,7 @@ body {
 .status {
   color: var(--muted);
   font-size: 13px;
+  white-space: nowrap;
 }
 .status[data-state="busy"] {
   color: var(--busy);
@@ -103,6 +124,7 @@ body {
   padding: 4px 10px;
   font: inherit;
   text-decoration: none;
+  white-space: nowrap;
   cursor: pointer;
 }
 .bar button.primary,
@@ -275,6 +297,31 @@ dialog .hint {
 }
 .phone-note {
   display: none;
+}
+/* Narrow screens: the bar's buttons need the room; the status keeps its dot (its words stay
+   for screen readers, and errors still show under the code). */
+@media (max-width: 1279px) {
+  .problems-words {
+    display: none;
+  }
+}
+@media (max-width: 1023px) {
+  .bar {
+    gap: 10px;
+  }
+  .status {
+    font-size: 0;
+  }
+}
+/* Tablets: tighter, and the Docs link goes (easycms.dev has them). */
+@media (max-width: 899px) {
+  .bar {
+    gap: 6px;
+    padding: 8px 12px;
+  }
+  .bar a {
+    display: none;
+  }
 }
 /* Phones: the admin only; editing wants a keyboard and room. */
 @media (max-width: 767px) {

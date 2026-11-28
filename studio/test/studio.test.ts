@@ -320,8 +320,10 @@ describe('Workspace', () => {
     const problems = page.locator('#problems')
     expect(await problems.isHidden()).toBe(true)
     await setCode(page, `const port: number = '3000'\n${await getCode(page)}`)
-    await expect.poll(() => problems.textContent(), { timeout: 30_000 }).toBe('1 type problem')
-    expect(await problems.getAttribute('title')).toMatch(/^Line 1: /)
+    await expect
+      .poll(() => problems.getAttribute('aria-label'), { timeout: 30_000 })
+      .toBe('1 type problem')
+    expect(await problems.getAttribute('title')).toMatch(/^1 type problem\. Line 1: /)
     await expect.poll(() => status(page).textContent(), { timeout: 60_000 }).toBe('Up to date')
     await problems.click()
     await setCode(page, (await getCode(page)).replace("const port: number = '3000'\n", ''))

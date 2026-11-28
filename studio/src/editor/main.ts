@@ -206,9 +206,11 @@ const status = $('status')
 const errorBar = $('error')
 const consoleList = $('console-lines')
 
-function setStatus(state: 'busy' | 'ok' | 'error', text: string) {
+function setStatus(state: 'busy' | 'ok' | 'error', text: string, detail?: string) {
   status.dataset.state = state
   status.textContent = text
+  if (detail) status.title = detail
+  else status.removeAttribute('title')
 }
 
 function showError(message: string, line?: number) {
@@ -262,7 +264,11 @@ window.addEventListener('message', (event: MessageEvent<ToEditor>) => {
         setStatus('ok', 'Up to date')
         clearError()
       } else {
-        setStatus('error', 'Error: the admin shows the last config that worked')
+        setStatus(
+          'error',
+          'Error',
+          'The admin shows the last config that worked; what is wrong is under the code.',
+        )
         showError(message.message, message.line)
       }
       break
@@ -318,10 +324,15 @@ function showProblems() {
   const problems = typeProblems()
   problemsButton.hidden = problems.length === 0
   if (!problems.length) return
-  const text = `${problems.length} type problem${problems.length === 1 ? '' : 's'}`
-  problemsButton.replaceChildren(icon(TriangleAlert), text)
+  const words = ` type problem${problems.length === 1 ? '' : 's'}`
+  // Narrow screens show the number alone (styles.css); the label always says it all.
+  const label = document.createElement('span')
+  label.className = 'problems-words'
+  label.textContent = words
+  problemsButton.replaceChildren(icon(TriangleAlert), String(problems.length), label)
+  problemsButton.setAttribute('aria-label', `${problems.length}${words}`)
   const first = problems[0] as monaco.editor.IMarker
-  problemsButton.title = `Line ${first.startLineNumber}: ${first.message}`
+  problemsButton.title = `${problems.length}${words}. Line ${first.startLineNumber}: ${first.message}`
 }
 monaco.editor.onDidChangeMarkers((uris) => {
   if (uris.some((uri) => uri.toString() === model.uri.toString())) showProblems()
