@@ -1,6 +1,6 @@
 {
   "name": "@easy-cms/nuxt",
-  "version": "1.57.2",
+  "version": "1.57.3",
   "description": "Code-first CMS and app backend that runs inside your app: admin UI, REST API and a typed local API from one config file.",
   "license": "MIT",
   "type": "module",
