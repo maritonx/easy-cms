@@ -30,9 +30,14 @@ export function hash(
   return encoding ? encode(digest, encoding) : digest
 }
 
-/** The HMAC-SHA256 of `data` with `key`. */
-export function hmac(key: Data, data: Data, encoding: Encoding): string {
-  return encode(nobleHmac(sha256, bytes(key), bytes(data)), encoding)
+/** The HMAC of `data` with `key`: SHA-256, or SHA-1 where a protocol asks (OAuth 1.0a). */
+export function hmac(
+  key: Data,
+  data: Data,
+  encoding: Encoding,
+  algorithm: 'sha1' | 'sha256' = 'sha256',
+): string {
+  return encode(nobleHmac(algorithm === 'sha1' ? sha1 : sha256, bytes(key), bytes(data)), encoding)
 }
 
 /**

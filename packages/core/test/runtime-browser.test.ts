@@ -73,6 +73,10 @@ describe('browser crypto', () => {
       expect(browserCrypto.hmac('key', data, 'base64url')).toBe(
         nodeCrypto.hmac('key', data, 'base64url'),
       )
+      // SHA-1, for OAuth 1.0a signatures (plugin-social's X).
+      expect(browserCrypto.hmac('key', data, 'base64', 'sha1')).toBe(
+        nodeCrypto.hmac('key', data, 'base64', 'sha1'),
+      )
     }
     expect(browserCrypto.hkdf('secret', 'salt', 'info', 42)).toEqual(
       nodeCrypto.hkdf('secret', 'salt', 'info', 42),

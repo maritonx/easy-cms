@@ -71,7 +71,7 @@ export {
   SESSION_COOKIE,
 } from './rest/handler.js'
 export { type AsyncContext, createContext } from './runtime/context.js'
-export { hash } from './runtime/crypto.js'
+export { hash, hmac } from './runtime/crypto.js'
 export {
   fileExists,
   joinPath,

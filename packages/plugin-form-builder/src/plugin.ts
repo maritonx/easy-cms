@@ -1,4 +1,3 @@
-import { readFile } from 'node:fs/promises'
 import {
   type CollectionConfig,
   type Config,
@@ -9,7 +8,21 @@ import {
   type RequestContext,
   type TypedPlugin,
 } from '@easy-cms/core'
+import * as coreInternal from '@easy-cms/core/internal'
 import { checkRenamedOptions, resolveAdminModule, secretsOf } from '@easy-cms/core/internal'
+
+/**
+ * A file's text: core's (no Node module, so this package runs in browsers too, ADR-0074), or
+ * Node's with an older core that doesn't have it (`process.getBuiltinModule`, Node 22.3+).
+ */
+const internal: Partial<typeof coreInternal> = coreInternal
+const readUtf8 = (path: string): Promise<string> =>
+  internal.readUtf8
+    ? internal.readUtf8(path)
+    : (globalThis.process as { getBuiltinModule(name: string): typeof import('node:fs/promises') })
+        .getBuiltinModule('node:fs/promises')
+        .readFile(path, 'utf8')
+
 import { renderRichText } from '@easy-cms/richtext'
 import { buildEmails } from './emails.js'
 import { fieldBlocks } from './fields.js'
@@ -669,7 +682,7 @@ export function formBuilderPlugin<
       handler: async ({ cms }) => {
         element ??= (async () => {
           const file = resolveAdminModule('@easy-cms/plugin-form-builder/element', cms.cwd)
-          return file ? readFile(file, 'utf8') : undefined
+          return file ? readUtf8(file) : undefined
         })()
         const code = await element
         if (!code) return fail(404, [{ message: 'The <easy-form> element was not found' }])

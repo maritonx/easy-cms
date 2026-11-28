@@ -1,6 +1,6 @@
-import { createHmac, randomBytes } from 'node:crypto'
 import { ChannelError, type SocialChannel, type SocialMessage } from './channel.js'
 import { X } from './logos.js'
+import { hmac, randomHex } from './runtime.js'
 import { X_MAX, xLength } from './shared.js'
 
 // X through its API v2, without an SDK (#380): OAuth 1.0a with your own app's keys and the access
@@ -26,7 +26,7 @@ export function oauthHeader(
   url: string,
   keys: Keys,
   now = Math.floor(Date.now() / 1000),
-  nonce = randomBytes(16).toString('hex'),
+  nonce = randomHex(16),
 ) {
   const target = new URL(url)
   const oauth: Record<string, string> = {
@@ -45,12 +45,12 @@ export function oauthHeader(
   const base = [method.toUpperCase(), enc(`${target.origin}${target.pathname}`), enc(params)].join(
     '&',
   )
-  const signature = createHmac(
-    'sha1',
+  const signature = hmac(
     `${enc(keys.apiSecret ?? '')}&${enc(keys.accessTokenSecret ?? '')}`,
+    base,
+    'base64',
+    'sha1',
   )
-    .update(base)
-    .digest('base64')
   return `OAuth ${Object.entries({ ...oauth, oauth_signature: signature })
     .map(([k, v]) => `${enc(k)}="${enc(v)}"`)
     .join(', ')}`
