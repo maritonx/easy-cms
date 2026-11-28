@@ -52,6 +52,23 @@ editor (index.html)                       sandbox (sandbox.html, its own origin 
   it is) and starts from an empty database with its samples. `?template=shop` opens one; the
   hash keeps the template as `t`, so a shared link gets its samples too. Collections a template
   has no samples for get generic ones.
+- **Theme:** the system's, unless the theme button (System → Light → Dark) chose one, remembered
+  in the browser. The sandbox passes it on to the admin (`easy-cms:theme`), and Monaco follows.
+- **Type problems** Monaco finds show beside the status as a count; the config may still run
+  (the status says whether it did), and clicking the count goes to the first.
+- **The divider** between code and admin drags, or moves with the arrow keys (Shift for bigger
+  steps, Enter or a double-click for the default width); the width is remembered.
+- **Phones** get the admin and Templates (to see what each kind of system looks like), not the
+  editor; editing wants a keyboard and room.
+- **The first visit** shows a tip above the code until it is closed or the code is edited.
+- **Sharing:** `public/favicon.svg` is easycms.dev's logo; `public/og.png` is the share card's
+  image, rendered from `brand/og.html` with `node brand/render.ts` (headless Chrome, the site's
+  font), with `apple-touch-icon.png`. The build adds the card's tags to the editor page with
+  Studio's origin (`VITE_STUDIO_ORIGIN`) for the image's address.
+- **Asking first:** replacing edited code (a template) or the admin's documents (**Reset the
+  sample data**, the ↺ button: an empty database, then the samples, the code kept) goes through
+  Studio's own dialog, with Cancel focused; for code it offers **Copy my code first**.
+- **⌘S / Ctrl+S** copies the share link, as **Share link** does, instead of saving the page.
 - **No environment variables:** `process.env` is empty; a config without a 32-character secret
   gets Studio's own.
 
@@ -66,7 +83,7 @@ site's Caddyfile imports. The workflow is skipped until `STUDIO_ORIGIN` is set.
 |---|---|
 | `STUDIO_ORIGIN` | `https://studio.easycms.dev`: the editor |
 | `SANDBOX_ORIGIN` | `https://sandbox.easycms.dev`: the only page the editor frames, framed by nothing else |
-| `UMAMI_SRC`, `UMAMI_WEBSITE_ID` | Umami (optional): `studio-edit`, `studio-share`, `studio-copy-command`, `studio-copy-config`, `studio-open-link`, `studio-expand`, `studio-template` (with the template, and `from`: dialog or link) |
+| `UMAMI_SRC`, `UMAMI_WEBSITE_ID` | Umami (optional): `studio-edit`, `studio-share`, `studio-copy-command`, `studio-copy-config`, `studio-open-link`, `studio-expand`, `studio-template` (with the template, and `from`: dialog or link), `studio-reset`; `studio-share` says `from`: button or shortcut |
 | `ANALYTICS_ORIGINS` | where Umami's script loads from and sends to, comma-separated, for the editor's CSP |
 
 Secrets: `DEPLOY_HOST`, `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS`, as in the site's repository.

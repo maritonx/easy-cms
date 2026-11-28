@@ -5,22 +5,42 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Easy CMS Studio</title>
     <meta name="description" content="Write an Easy CMS config and see its admin, in your browser." />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1e2220" media="(prefers-color-scheme: dark)" />
     <link rel="stylesheet" href="./src/editor/styles.css" />
   </head>
   <body>
     <header class="bar">
-      <strong class="brand">Easy CMS <span>Studio</span></strong>
+      <strong class="brand">
+        <svg class="logo" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+          <rect width="32" height="32" rx="8" />
+          <path d="M10 10h12M10 16h9M10 22h12" />
+        </svg>
+        Easy CMS <span>Studio</span>
+      </strong>
       <span id="status" class="status" data-state="busy" role="status">Starting…</span>
+      <button id="problems" class="problems" type="button" hidden></button>
       <span class="spacer"></span>
       <button id="templates-open" type="button" aria-haspopup="dialog" aria-controls="templates">Templates</button>
+      <button id="reset-data" type="button" aria-label="Reset the sample data" title="Reset the sample data"></button>
       <button id="full-screen" type="button" aria-pressed="false" aria-controls="panes">⤢ Full screen</button>
       <button id="share" type="button">Share link</button>
       <button id="export" type="button" class="primary">Use in a project</button>
       <a href="https://easycms.dev/docs/getting-started" target="_blank" rel="noopener">Docs</a>
+      <button id="theme" type="button"></button>
     </header>
     <main id="panes" class="panes">
-      <section class="code" aria-label="easy-cms.config.ts">
+      <section id="code" class="code" aria-label="easy-cms.config.ts">
         <div class="file">easy-cms.config.ts</div>
+        <div id="hint" class="hint-bar" role="note" hidden>
+          <p>
+            <strong>Edit the code: the admin on the right follows.</strong> Start from something else
+            with <b>Templates</b>; <b>Use in a project</b> takes the config with you.
+          </p>
+          <button id="hint-close" type="button" aria-label="Dismiss the tip"></button>
+        </div>
         <div id="editor" class="editor"></div>
         <div id="error" class="error" role="alert" hidden></div>
         <details class="console">
@@ -29,8 +49,21 @@
           <ol id="console-lines"></ol>
         </details>
       </section>
+      <!-- biome-ignore lint/a11y/useSemanticElements: a splitter moves and takes focus; <hr> does neither -->
+      <div
+        id="divider"
+        class="divider"
+        role="separator"
+        aria-orientation="vertical"
+        aria-controls="code"
+        aria-label="Resize the code"
+        aria-valuenow="0"
+        aria-valuemin="280"
+        tabindex="0"
+        title="Drag to resize; double-click for the default width"
+      ></div>
       <section class="preview" aria-label="Admin preview">
-        <p class="phone-note">Open Studio on a computer to edit the config.</p>
+        <p class="phone-note">Pick a template to see its admin. To edit the config, open Studio on a computer.</p>
         <iframe
           id="sandbox"
           title="Admin preview"
@@ -59,6 +92,17 @@
         </header>
         <p class="hint">Each one opens with its own sample data. Picking one replaces the code and empties the database.</p>
         <ul id="template-list" class="template-list"></ul>
+      </form>
+    </dialog>
+    <dialog id="ask" class="ask" aria-labelledby="ask-title" aria-describedby="ask-text">
+      <form method="dialog">
+        <h2 id="ask-title">Are you sure?</h2>
+        <p id="ask-text"></p>
+        <div class="actions">
+          <button id="ask-confirm" class="danger" type="submit" value="confirm"></button>
+          <button id="ask-extra" type="button" hidden></button>
+          <button id="ask-cancel" type="submit" value="cancel" autofocus>Cancel</button>
+        </div>
       </form>
     </dialog>
     <script type="module" src="./src/editor/main.ts"></script>

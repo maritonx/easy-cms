@@ -7,9 +7,24 @@
 import types from 'virtual:studio-types'
 import { VERSION } from '@easy-cms/core'
 import { decodeStudioLink, encodeStudioHash } from 'create-easy-cms/studio-link'
-import { createElement, LayoutTemplate, X } from 'lucide'
+import {
+  createElement,
+  LayoutTemplate,
+  Monitor,
+  Moon,
+  RotateCcw,
+  Sun,
+  TriangleAlert,
+  X,
+} from 'lucide'
 import * as monaco from 'monaco-editor'
-import { SANDBOX_PAGE, sandboxOrigin, type ToEditor, type ToSandbox } from '../protocol'
+import {
+  SANDBOX_PAGE,
+  sandboxOrigin,
+  type ThemeMode,
+  type ToEditor,
+  type ToSandbox,
+} from '../protocol'
 import { TEMPLATES, type Template, templateById } from '../templates'
 import { startAnalytics, track } from './analytics'
 
@@ -26,8 +41,15 @@ const DRAFT_KEY = 'easy-cms-studio:draft'
 /** The template the draft came from, for its sample documents. */
 const TEMPLATE_KEY = 'easy-cms-studio:template'
 const BLOG = templateById('blog') as Template
+const THEME_KEY = 'easy-cms-studio:theme'
+const CODE_WIDTH_KEY = 'easy-cms-studio:code-width'
+/** Set once the first visit's tip was closed, or the code edited (then it isn't needed again). */
+const HINT_KEY = 'easy-cms-studio:hint-seen'
 const PAUSE_MS = 300
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
+/** A Lucide icon beside a label (or labelled by its button), hidden from screen readers. */
+const icon = (node: Parameters<typeof createElement>[0]) =>
+  createElement(node, { 'aria-hidden': 'true', focusable: 'false' })
 
 const ts = monaco.typescript
 ts.typescriptDefaults.setCompilerOptions({
@@ -108,6 +130,17 @@ async function startingCode(): Promise<Start> {
   return draft()
 }
 
+/** The theme: the system's unless the theme button chose one; the admin follows it. */
+const systemDark = matchMedia('(prefers-color-scheme: dark)')
+const storedTheme = stored(THEME_KEY)
+let theme: ThemeMode = storedTheme === 'light' || storedTheme === 'dark' ? storedTheme : 'system'
+const isDark = () => theme === 'dark' || (theme === 'system' && systemDark.matches)
+const applyPageTheme = () => {
+  if (theme === 'system') delete document.documentElement.dataset.theme
+  else document.documentElement.dataset.theme = theme
+}
+applyPageTheme()
+
 const start = await startingCode()
 /** The template the code came from; its sample documents fill an empty database. */
 let template = start.template
@@ -123,7 +156,7 @@ const editor = monaco.editor.create($('editor'), {
   fontSize: 13,
   tabSize: 2,
   scrollBeyondLastLine: false,
-  theme: matchMedia('(prefers-color-scheme: dark)').matches ? 'vs-dark' : 'vs',
+  theme: isDark() ? 'vs-dark' : 'vs',
 })
 
 const frame = $<HTMLIFrameElement>('sandbox')
@@ -161,6 +194,7 @@ model.onDidChangeContent(() => {
     const code = model.getValue()
     store(DRAFT_KEY, code)
     store(TEMPLATE_KEY, template)
+    store(HINT_KEY, '1')
     send(code)
     track('studio-edit', { once: true })
     void keepInAddress(code)
@@ -172,9 +206,11 @@ const status = $('status')
 const errorBar = $('error')
 const consoleList = $('console-lines')
 
-function setStatus(state: 'busy' | 'ok' | 'error', text: string) {
+function setStatus(state: 'busy' | 'ok' | 'error', text: string, detail?: string) {
   status.dataset.state = state
   status.textContent = text
+  if (detail) status.title = detail
+  else status.removeAttribute('title')
 }
 
 function showError(message: string, line?: number) {
@@ -219,6 +255,7 @@ window.addEventListener('message', (event: MessageEvent<ToEditor>) => {
   switch (message?.type) {
     case 'studio:ready':
       sandboxReady = true
+      sendTheme()
       send(model.getValue())
       break
     case 'studio:status':
@@ -227,7 +264,11 @@ window.addEventListener('message', (event: MessageEvent<ToEditor>) => {
         setStatus('ok', 'Up to date')
         clearError()
       } else {
-        setStatus('error', 'Error: the admin shows the last config that worked')
+        setStatus(
+          'error',
+          'Error',
+          'The admin shows the last config that worked; what is wrong is under the code.',
+        )
         showError(message.message, message.line)
       }
       break
@@ -235,6 +276,74 @@ window.addEventListener('message', (event: MessageEvent<ToEditor>) => {
       addConsoleLine(message.level, message.message)
       break
   }
+})
+
+const THEMES: Record<ThemeMode, { next: ThemeMode; label: string; icon: typeof Sun }> = {
+  system: { next: 'light', label: 'System', icon: Monitor },
+  light: { next: 'dark', label: 'Light', icon: Sun },
+  dark: { next: 'system', label: 'Dark', icon: Moon },
+}
+const themeButton = $('theme')
+
+function sendTheme() {
+  if (!sandboxReady) return
+  const message: ToSandbox = { type: 'studio:theme', mode: theme }
+  frame.contentWindow?.postMessage(message, origin)
+}
+
+/** Shows the theme on its button, and gives Monaco and the admin the same. */
+function showTheme() {
+  const { next, label, icon: shown } = THEMES[theme]
+  themeButton.replaceChildren(icon(shown))
+  themeButton.setAttribute('aria-label', `Theme: ${label}`)
+  themeButton.title = `Theme: ${label} (click for ${THEMES[next].label})`
+  monaco.editor.setTheme(isDark() ? 'vs-dark' : 'vs')
+}
+
+themeButton.addEventListener('click', () => {
+  theme = THEMES[theme].next
+  store(THEME_KEY, theme === 'system' ? undefined : theme)
+  applyPageTheme()
+  showTheme()
+  sendTheme()
+})
+// The system's theme changing: the page follows by itself (CSS), Monaco needs telling.
+systemDark.addEventListener('change', () => {
+  if (theme === 'system') showTheme()
+})
+
+/** Type problems (Monaco's TypeScript): the config may still run, but it is not right. */
+const problemsButton = $<HTMLButtonElement>('problems')
+const typeProblems = () =>
+  monaco.editor
+    .getModelMarkers({ resource: model.uri, owner: 'typescript' })
+    .filter((marker) => marker.severity === monaco.MarkerSeverity.Error)
+    .sort((a, b) => a.startLineNumber - b.startLineNumber || a.startColumn - b.startColumn)
+
+function showProblems() {
+  const problems = typeProblems()
+  problemsButton.hidden = problems.length === 0
+  if (!problems.length) return
+  const words = ` type problem${problems.length === 1 ? '' : 's'}`
+  // Narrow screens show the number alone (styles.css); the label always says it all.
+  const label = document.createElement('span')
+  label.className = 'problems-words'
+  label.textContent = words
+  problemsButton.replaceChildren(icon(TriangleAlert), String(problems.length), label)
+  problemsButton.setAttribute('aria-label', `${problems.length}${words}`)
+  const first = problems[0] as monaco.editor.IMarker
+  problemsButton.title = `${problems.length}${words}. Line ${first.startLineNumber}: ${first.message}`
+}
+monaco.editor.onDidChangeMarkers((uris) => {
+  if (uris.some((uri) => uri.toString() === model.uri.toString())) showProblems()
+})
+problemsButton.addEventListener('click', () => {
+  const [first] = typeProblems()
+  if (!first) return
+  setFullScreen(false)
+  editor.setPosition({ lineNumber: first.startLineNumber, column: first.startColumn })
+  editor.revealLineInCenter(first.startLineNumber)
+  editor.focus()
 })
 
 $('console-clear').addEventListener('click', () => {
@@ -274,11 +383,68 @@ window.addEventListener(
   true,
 )
 
+/** The divider: drag (or arrow keys) to give the code more or less room; remembered. */
+const divider = $('divider')
+const codePane = $('code')
+const MIN_CODE = 280
+const MIN_PREVIEW = 360
+
+/** The width chosen (null: the default), kept as chosen; shown within what the window allows. */
+let chosenWidth: number | null = Number(stored(CODE_WIDTH_KEY)) || null
+
+function layoutCode() {
+  if (chosenWidth === null) panes.style.removeProperty('--code-width')
+  else {
+    const max = Math.max(MIN_CODE, panes.clientWidth - MIN_PREVIEW)
+    const width = Math.round(Math.min(Math.max(chosenWidth, MIN_CODE), max))
+    panes.style.setProperty('--code-width', `${width}px`)
+  }
+  divider.setAttribute('aria-valuenow', String(Math.round(codePane.getBoundingClientRect().width)))
+}
+
+function setCodeWidth(width: number | null) {
+  const max = Math.max(MIN_CODE, panes.clientWidth - MIN_PREVIEW)
+  chosenWidth = width === null ? null : Math.min(Math.max(width, MIN_CODE), max)
+  store(CODE_WIDTH_KEY, chosenWidth === null ? undefined : String(Math.round(chosenWidth)))
+  layoutCode()
+}
+layoutCode()
+
+divider.addEventListener('pointerdown', (event) => {
+  if (event.button !== 0) return
+  event.preventDefault()
+  divider.setPointerCapture(event.pointerId)
+  panes.toggleAttribute('data-resizing', true)
+  const left = panes.getBoundingClientRect().left
+  const move = (e: PointerEvent) => setCodeWidth(e.clientX - left)
+  const end = () => {
+    panes.removeAttribute('data-resizing')
+    divider.removeEventListener('pointermove', move)
+    divider.removeEventListener('pointerup', end)
+    divider.removeEventListener('pointercancel', end)
+  }
+  divider.addEventListener('pointermove', move)
+  divider.addEventListener('pointerup', end)
+  divider.addEventListener('pointercancel', end)
+})
+divider.addEventListener('dblclick', () => setCodeWidth(null))
+divider.addEventListener('keydown', (event) => {
+  const step = event.shiftKey ? 96 : 24
+  const width = codePane.getBoundingClientRect().width
+  if (event.key === 'ArrowLeft') setCodeWidth(width - step)
+  else if (event.key === 'ArrowRight') setCodeWidth(width + step)
+  else if (event.key === 'Home') setCodeWidth(MIN_CODE)
+  else if (event.key === 'End') setCodeWidth(Number.POSITIVE_INFINITY)
+  else if (event.key === 'Enter') setCodeWidth(null)
+  else return
+  event.preventDefault()
+})
+// A narrower window: the chosen width may leave the admin too little room for now.
+window.addEventListener('resize', layoutCode)
+
 /** Templates: a dialog of cards; picking one replaces the code and starts from its samples. */
 const templatesDialog = $<HTMLDialogElement>('templates')
 const templateList = $('template-list')
-const icon = (node: Parameters<typeof createElement>[0]) =>
-  createElement(node, { 'aria-hidden': 'true', focusable: 'false' })
 $('templates-open').prepend(icon(LayoutTemplate))
 $('templates-close').append(icon(X))
 
@@ -322,17 +488,22 @@ function renderTemplates() {
         }),
       )
       button.append(box, name, description, features)
-      button.addEventListener('click', () => useTemplate(t))
+      button.addEventListener('click', () => void useTemplate(t))
       item.append(button)
       return item
     }),
   )
 }
 
-function useTemplate(picked: Template) {
+async function useTemplate(picked: Template) {
   if (
     edited() &&
-    !confirm(`Replace your code with the ${picked.name} template? Your changes will be lost.`)
+    !(await ask({
+      title: `Replace your code with ${picked.name}?`,
+      text: 'Your changes to the code will be lost, and the admin starts again from the template’s sample data.',
+      confirm: 'Replace',
+      extra: { label: 'Copy my code first', run: (button) => copy(button, model.getValue()) },
+    }))
   )
     return
   templatesDialog.close()
@@ -362,26 +533,88 @@ async function shareLink(): Promise<string> {
   return `${location.origin}${location.pathname}#${await hashFor(model.getValue())}`
 }
 
+/** Copies, saying so on the button for a moment (pressed again meanwhile, it keeps its label). */
 async function copy(button: HTMLElement, text: string) {
-  const label = button.textContent
+  button.dataset.label ??= button.textContent ?? ''
+  const label = button.dataset.label
   try {
     await navigator.clipboard.writeText(text)
     button.textContent = 'Copied'
   } catch {
     button.textContent = 'Copy failed: select and copy it'
   }
-  setTimeout(() => {
-    button.textContent = label
-  }, 1500)
+  clearTimeout(Number(button.dataset.timer))
+  button.dataset.timer = String(
+    setTimeout(() => {
+      button.textContent = label
+      delete button.dataset.label
+    }, 1500),
+  )
 }
+
+/**
+ * Studio's own question before a step that loses something: what goes, the step, and maybe a
+ * way to keep it first (the dialog stays open for that). True if the step was chosen.
+ */
+function ask(question: {
+  title: string
+  text: string
+  confirm: string
+  extra?: { label: string; run: (button: HTMLElement) => unknown }
+}): Promise<boolean> {
+  const dialog = $<HTMLDialogElement>('ask')
+  const extra = $<HTMLButtonElement>('ask-extra')
+  $('ask-title').textContent = question.title
+  $('ask-text').textContent = question.text
+  $('ask-confirm').textContent = question.confirm
+  extra.hidden = !question.extra
+  extra.textContent = question.extra?.label ?? ''
+  delete extra.dataset.label
+  extra.onclick = question.extra ? () => question.extra?.run(extra) : null
+  dialog.returnValue = ''
+  dialog.showModal()
+  $('ask-cancel').focus()
+  return new Promise((resolve) => {
+    dialog.addEventListener('close', () => resolve(dialog.returnValue === 'confirm'), {
+      once: true,
+    })
+  })
+}
+
+/** Reset: the sample data again (an empty database, then the template's), keeping the code. */
+$('reset-data').append(icon(RotateCcw))
+$('reset-data').addEventListener('click', async () => {
+  const ok = await ask({
+    title: 'Reset the sample data?',
+    text: 'The documents in the admin go, and the sample data comes back. Your code stays as it is.',
+    confirm: 'Reset data',
+  })
+  if (!ok) return
+  clearTimeout(timer)
+  send(model.getValue(), true)
+  track('studio-reset')
+})
 
 /** What a project runs to get this config (npm; pnpm, yarn and bun take the same link). */
 const createCommand = (link: string) => `npm create easy-cms@latest -- --from "${link}"`
 
-$('share').addEventListener('click', async () => {
-  track('studio-share')
+async function share(from: 'button' | 'shortcut') {
+  track('studio-share', { data: { from } })
   await copy($('share'), await shareLink())
-})
+}
+$('share').addEventListener('click', () => void share('button'))
+$('share').title = `Copy a link to this config (${shortcut.replace('\\', 'S')})`
+// ⌘S / Ctrl+S: the browser would save the page; a link is what keeps the config.
+window.addEventListener(
+  'keydown',
+  (event) => {
+    if (event.key.toLowerCase() !== 's' || !(event.metaKey || event.ctrlKey)) return
+    if (event.altKey || event.shiftKey) return
+    event.preventDefault()
+    void share('shortcut')
+  },
+  true,
+)
 $('export').addEventListener('click', async () => {
   $('export-command').textContent = createCommand(await shareLink())
   $<HTMLDialogElement>('export-dialog').showModal()
@@ -395,6 +628,17 @@ $('copy-config').addEventListener('click', async () => {
   await copy($('copy-config'), model.getValue())
 })
 if (start.note) addConsoleLine('warn', start.note)
+showTheme()
+
+/** The first visit's tip: what Studio is for, closed for good with its button. */
+const hint = $('hint')
+hint.hidden = stored(HINT_KEY) !== null
+$('hint-close').append(icon(X))
+$('hint-close').addEventListener('click', () => {
+  hint.hidden = true
+  store(HINT_KEY, '1')
+  editor.focus()
+})
 
 /** For tests and the curious: the editor's code. */
 Object.assign(window, {
