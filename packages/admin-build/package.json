@@ -1,6 +1,6 @@
 {
   "name": "@easy-cms/admin-build",
-  "version": "1.57.1",
+  "version": "1.57.2",
   "description": "Builds Easy CMS admin components written in Vue, React or Svelte into the admin's custom-element modules (easy-cms build:admin)",
   "license": "MIT",
   "type": "module",
