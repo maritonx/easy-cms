@@ -15,6 +15,7 @@ import {
   type ToEditor,
   type ToSandbox,
 } from '../protocol'
+import '../runtime/admin-modules'
 import { ConfigCodeError, compile } from '../runtime/compile'
 import { consoleOf, DATABASE, prepare } from '../runtime/prepare'
 import { seed } from '../runtime/seed'
