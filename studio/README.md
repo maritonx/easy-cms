@@ -52,6 +52,12 @@ editor (index.html)                       sandbox (sandbox.html, its own origin 
   it is) and starts from an empty database with its samples. `?template=shop` opens one; the
   hash keeps the template as `t`, so a shared link gets its samples too. Collections a template
   has no samples for get generic ones.
+- **Theme:** the system's, unless the theme button (System → Light → Dark) chose one, remembered
+  in the browser. The sandbox passes it on to the admin (`easy-cms:theme`), and Monaco follows.
+- **Type problems** Monaco finds show beside the status as a count; the config may still run
+  (the status says whether it did), and clicking the count goes to the first.
+- **The divider** between code and admin drags, or moves with the arrow keys (Shift for bigger
+  steps, Enter or a double-click for the default width); the width is remembered.
 - **No environment variables:** `process.env` is empty; a config without a 32-character secret
   gets Studio's own.
 

@@ -4,8 +4,14 @@
  * Worker carries the admin's API requests to it.
  */
 
+/** Light, dark, or the operating system's (`prefers-color-scheme`). */
+export type ThemeMode = 'light' | 'dark' | 'system'
+
 /** Editor → sandbox. */
-export interface ToSandbox {
+export type ToSandbox = ConfigMessage | { type: 'studio:theme'; mode: ThemeMode }
+
+/** A config to run. */
+export interface ConfigMessage {
   type: 'studio:config'
   code: string
   /** The template the code came from, for its sample documents (templates/samples.ts). */

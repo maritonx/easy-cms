@@ -11,15 +11,17 @@
     <header class="bar">
       <strong class="brand">Easy CMS <span>Studio</span></strong>
       <span id="status" class="status" data-state="busy" role="status">Starting…</span>
+      <button id="problems" class="problems" type="button" hidden></button>
       <span class="spacer"></span>
       <button id="templates-open" type="button" aria-haspopup="dialog" aria-controls="templates">Templates</button>
       <button id="full-screen" type="button" aria-pressed="false" aria-controls="panes">⤢ Full screen</button>
       <button id="share" type="button">Share link</button>
       <button id="export" type="button" class="primary">Use in a project</button>
       <a href="https://easycms.dev/docs/getting-started" target="_blank" rel="noopener">Docs</a>
+      <button id="theme" type="button"></button>
     </header>
     <main id="panes" class="panes">
-      <section class="code" aria-label="easy-cms.config.ts">
+      <section id="code" class="code" aria-label="easy-cms.config.ts">
         <div class="file">easy-cms.config.ts</div>
         <div id="editor" class="editor"></div>
         <div id="error" class="error" role="alert" hidden></div>
@@ -29,6 +31,19 @@
           <ol id="console-lines"></ol>
         </details>
       </section>
+      <!-- biome-ignore lint/a11y/useSemanticElements: a splitter moves and takes focus; <hr> does neither -->
+      <div
+        id="divider"
+        class="divider"
+        role="separator"
+        aria-orientation="vertical"
+        aria-controls="code"
+        aria-label="Resize the code"
+        aria-valuenow="0"
+        aria-valuemin="280"
+        tabindex="0"
+        title="Drag to resize; double-click for the default width"
+      ></div>
       <section class="preview" aria-label="Admin preview">
         <p class="phone-note">Open Studio on a computer to edit the config.</p>
         <iframe

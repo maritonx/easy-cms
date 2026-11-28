@@ -263,3 +263,84 @@ describe('Templates', () => {
     page.off('dialog', accept)
   })
 })
+
+describe('Workspace', () => {
+  let page: Page
+  /** The theme a page set on its root (`data-theme`), if any. */
+  const themeOf = (target: Page | Frame) =>
+    target.evaluate(
+      () =>
+        (
+          globalThis as unknown as {
+            document: { documentElement: { dataset: { theme?: string } } }
+          }
+        ).document.documentElement.dataset.theme,
+    )
+
+  it('opens the admin without the setup notices a deployment needs', async () => {
+    page = await (await browser.newContext({ viewport: { width: 1280, height: 800 } })).newPage()
+    await page.goto(`${base}/`)
+    await expect.poll(() => status(page).textContent(), { timeout: 60_000 }).toBe('Up to date')
+    const frame = await adminFrame(page)
+    await frame.getByText('Getting started with Easy CMS').first().waitFor({ timeout: 30_000 })
+    expect(await frame.getByText('Email is not set up').count()).toBe(0)
+  })
+
+  it('switches the theme for Studio, the editor and the admin, and remembers it', async () => {
+    const button = page.locator('#theme')
+    expect(await button.getAttribute('aria-label')).toBe('Theme: System')
+    await button.click()
+    await button.click()
+    expect(await button.getAttribute('aria-label')).toBe('Theme: Dark')
+    expect(await themeOf(page)).toBe('dark')
+    expect(await page.locator('.monaco-editor').getAttribute('class')).toContain('vs-dark')
+    const frame = await adminFrame(page)
+    await expect.poll(() => themeOf(frame)).toBe('dark')
+
+    // A reload keeps it; the admin, framed afresh, gets it too.
+    await page.reload()
+    await expect.poll(() => status(page).textContent(), { timeout: 60_000 }).toBe('Up to date')
+    expect(await page.locator('#theme').getAttribute('aria-label')).toBe('Theme: Dark')
+    const again = await adminFrame(page)
+    await expect.poll(() => themeOf(again), { timeout: 30_000 }).toBe('dark')
+
+    await page.locator('#theme').click()
+    expect(await page.locator('#theme').getAttribute('aria-label')).toBe('Theme: System')
+    expect(await themeOf(page)).toBeUndefined()
+  })
+
+  it('counts type problems the config still runs with, and goes to the first', async () => {
+    const problems = page.locator('#problems')
+    expect(await problems.isHidden()).toBe(true)
+    await setCode(page, `const port: number = '3000'\n${await getCode(page)}`)
+    await expect.poll(() => problems.textContent(), { timeout: 30_000 }).toBe('1 type problem')
+    expect(await problems.getAttribute('title')).toMatch(/^Line 1: /)
+    await expect.poll(() => status(page).textContent(), { timeout: 60_000 }).toBe('Up to date')
+    await problems.click()
+    await setCode(page, (await getCode(page)).replace("const port: number = '3000'\n", ''))
+    await expect.poll(() => problems.isHidden(), { timeout: 30_000 }).toBe(true)
+  })
+
+  it('resizes the code with the divider, by keyboard too, and remembers the width', async () => {
+    const width = async () => (await page.locator('#code').boundingBox())?.width ?? 0
+    const before = await width()
+    const divider = page.locator('#divider')
+    await divider.focus()
+    await page.keyboard.press('Shift+ArrowRight')
+    expect(await width()).toBeCloseTo(before + 96, -1)
+    expect(Number(await divider.getAttribute('aria-valuenow'))).toBeCloseTo(before + 96, -1)
+
+    const box = (await divider.boundingBox()) as { x: number; y: number; width: number }
+    await page.mouse.move(box.x + box.width / 2, box.y + 200)
+    await page.mouse.down()
+    await page.mouse.move(400, box.y + 200, { steps: 5 })
+    await page.mouse.up()
+    expect(await width()).toBeCloseTo(400, -1)
+
+    await page.reload()
+    await expect.poll(() => status(page).textContent(), { timeout: 60_000 }).toBe('Up to date')
+    expect(await width()).toBeCloseTo(400, -1)
+    await page.locator('#divider').dblclick()
+    expect(await width()).toBeCloseTo(before, -1)
+  })
+})

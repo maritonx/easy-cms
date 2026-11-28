@@ -8,10 +8,14 @@
   --error-bg: #fdecea;
   --error-text: #8a1c12;
   --busy: #8a6100;
-  color-scheme: light dark;
+  /* Text on the accent: 5.8:1 here, 7.9:1 in dark. */
+  --on-accent: #ffffff;
+  --control-line: #9aa09c;
+  color-scheme: light;
 }
+/* Dark: the system's, unless the theme button chose light; or chosen (data-theme, main.ts). */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #161917;
     --panel: #1e2220;
     --text: #e8ebe9;
@@ -21,7 +25,24 @@
     --error-bg: #3a1d1a;
     --error-text: #ffb4a8;
     --busy: #e0b04a;
+    --on-accent: #0d1f19;
+    --control-line: #5b635f;
+    color-scheme: dark;
   }
+}
+:root[data-theme="dark"] {
+  --bg: #161917;
+  --panel: #1e2220;
+  --text: #e8ebe9;
+  --muted: #a3aba6;
+  --line: #333936;
+  --accent: #6fbfa6;
+  --error-bg: #3a1d1a;
+  --error-text: #ffb4a8;
+  --busy: #e0b04a;
+  --on-accent: #0d1f19;
+  --control-line: #5b635f;
+  color-scheme: dark;
 }
 * {
   box-sizing: border-box;
@@ -70,7 +91,7 @@ body {
 .bar button {
   color: var(--text);
   background: none;
-  border: 1px solid var(--line);
+  border: 1px solid var(--control-line);
   border-radius: 6px;
   padding: 4px 10px;
   font: inherit;
@@ -81,7 +102,7 @@ body {
 dialog button.primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 dialog {
   border: 1px solid var(--line);
@@ -135,21 +156,42 @@ dialog .hint {
 .panes {
   flex: 1;
   display: grid;
-  grid-template-columns: minmax(360px, 2fr) 3fr;
+  /* The code's width is the divider's (main.ts sets --code-width), else two fifths. */
+  grid-template-columns: var(--code-width, minmax(360px, 2fr)) auto 3fr;
   min-height: 0;
+}
+/* Dragging: the selection would follow the pointer. */
+.panes[data-resizing] {
+  cursor: col-resize;
+  user-select: none;
+}
+.divider {
+  width: 7px;
+  margin: 0 -3px;
+  z-index: 1;
+  cursor: col-resize;
+  background: linear-gradient(var(--line), var(--line)) center / 1px 100% no-repeat;
+  touch-action: none;
+}
+.divider:hover,
+.divider:focus-visible,
+.panes[data-resizing] .divider {
+  background-image: linear-gradient(var(--accent), var(--accent));
+  background-size: 3px 100%;
+  outline: none;
 }
 /* Full screen: the admin across the window, under the bar. The frame stays where it is: moving
    it would load the sandbox again, and its in-memory documents would go. */
 .panes[data-full-screen] {
   grid-template-columns: 1fr;
 }
-.panes[data-full-screen] .code {
+.panes[data-full-screen] .code,
+.panes[data-full-screen] .divider {
   display: none;
 }
 .code {
   display: flex;
   flex-direction: column;
-  border-right: 1px solid var(--line);
   min-width: 0;
   background: var(--panel);
 }
@@ -222,7 +264,7 @@ dialog .hint {
   width: 100%;
   height: 100%;
   display: block;
-  background: #fff;
+  background: var(--panel);
 }
 .phone-note {
   display: none;
@@ -232,13 +274,14 @@ dialog .hint {
   .bar {
     padding: 8px 16px;
   }
-  .bar button {
+  .bar button:not(#theme) {
     display: none;
   }
   .panes {
     grid-template-columns: 1fr;
   }
-  .code {
+  .code,
+  .divider {
     display: none;
   }
   .phone-note {
@@ -371,4 +414,40 @@ dialog.templates {
   .template-list button {
     transition: none;
   }
+}
+/* The status line: a dot with the state's colour (the words say it too), and type problems. */
+.status::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+  background: var(--accent);
+  vertical-align: 1px;
+}
+.status[data-state="busy"]::before {
+  background: var(--busy);
+}
+.status[data-state="error"]::before {
+  background: var(--error-text);
+}
+.bar .problems {
+  color: var(--busy);
+  border-color: transparent;
+  padding: 4px 6px;
+}
+.bar .problems:hover {
+  border-color: var(--control-line);
+}
+.bar #theme {
+  padding: 4px 6px;
+  line-height: 0;
+}
+.bar #theme svg {
+  margin: 0;
+}
+/* While the divider is dragged, the frames don't take the pointer. */
+.panes[data-resizing] iframe {
+  pointer-events: none;
 }
