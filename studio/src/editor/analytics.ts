@@ -12,6 +12,7 @@ type Event =
   | 'studio-expand'
   | 'studio-template'
   | 'studio-reset'
+  | 'studio-view-as'
 
 const src = import.meta.env.VITE_UMAMI_SRC
 const websiteId = import.meta.env.VITE_UMAMI_WEBSITE_ID

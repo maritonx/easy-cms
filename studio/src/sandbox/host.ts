@@ -20,12 +20,22 @@ import { consoleOf, DATABASE, prepare } from '../runtime/prepare'
 import { seed } from '../runtime/seed'
 import { SAMPLES } from '../templates/samples'
 
-/** The admin Studio signs in as (its Service Worker sends the session token). */
-const ADMIN = { email: 'admin@studio.easycms.dev', password: 'studio-admin-0f3c9a71' }
+/**
+ * The users Studio signs in as, one per role of the config (`auth.roles`): the admin is viewed as
+ * one of them (#482), its session token added to each request.
+ */
+const PASSWORD = 'studio-admin-0f3c9a71'
+const emailFor = (role: string) => `${role}@studio.easycms.dev`
 
 type Cms = Awaited<ReturnType<typeof createEasyCMS>>
-let current: { cms: Cms; handle: (request: Request) => Promise<Response>; token: string } | null =
-  null
+let current: {
+  cms: Cms
+  handle: (request: Request) => Promise<Response>
+  /** Session tokens by role. */
+  tokens: Map<string, string>
+} | null = null
+/** The role the admin is viewed as; admin until the editor asks for another. */
+let viewAs = 'admin'
 let adminFrame: HTMLIFrameElement | null = null
 let hostId = ''
 
@@ -84,11 +94,16 @@ async function start({ code, template, fresh }: ConfigMessage) {
     return
   }
   try {
-    const [admin] = (
-      await cms.find('users', { where: { email: { equals: ADMIN.email } }, limit: 1 })
-    ).docs
-    if (!admin) await cms.create('users', { ...ADMIN, role: 'admin' })
-    const { token } = await cms.auth.login(ADMIN)
+    const tokens = new Map<string, string>()
+    for (const role of cms.config.auth.roles) {
+      const email = emailFor(role)
+      const [user] = (await cms.find('users', { where: { email: { equals: email } }, limit: 1 }))
+        .docs
+      if (!user) await cms.create('users', { email, password: PASSWORD, role })
+      tokens.set(role, (await cms.auth.login({ email, password: PASSWORD })).token)
+    }
+    // A role the new config doesn't have: back to admin.
+    if (!tokens.has(viewAs)) viewAs = 'admin'
     const samples = (template && SAMPLES[template]) || {}
     // The config's collections, and those a template has samples for (a plugin's, like tenants).
     const own = new Set([...(config.collections ?? []).map((c) => c.slug), ...Object.keys(samples)])
@@ -100,7 +115,8 @@ async function start({ code, template, fresh }: ConfigMessage) {
     if (result.created) log.info(`Added ${result.created} sample documents.`)
     for (const problem of result.problems) log.warn(`Sample documents: ${problem}`)
     const previous = current
-    current = { cms, handle: createRestHandler(cms), token }
+    current = { cms, handle: createRestHandler(cms), tokens }
+    tell({ type: 'studio:roles', roles: [...tokens.keys()], current: viewAs })
     await previous?.cms.destroy()
   } catch (error) {
     await cms.destroy().catch(() => {})
@@ -109,6 +125,16 @@ async function start({ code, template, fresh }: ConfigMessage) {
   }
   showAdmin()
   tell({ type: 'studio:status', state: 'ok' })
+}
+
+/** Views the admin as another role: the admin loads the session again, on the same page. */
+function viewRole(role: string) {
+  void oneAtATime(async () => {
+    if (!current?.tokens.has(role) || role === viewAs) return
+    viewAs = role
+    tell({ type: 'studio:roles', roles: [...current.tokens.keys()], current: viewAs })
+    showAdmin()
+  })
 }
 
 /** The theme Studio's toggle chose: this page's, and the admin's once it is ready. */
@@ -136,7 +162,10 @@ async function answer(request: ApiRequest): Promise<ApiResponse> {
   if (!current) return json(503, { errors: [{ message: 'Studio is starting' }] })
   const headers = new Headers(request.headers)
   headers.delete('cookie')
-  headers.set('authorization', `Bearer ${current.token}`)
+  headers.set(
+    'authorization',
+    `Bearer ${current.tokens.get(viewAs) ?? current.tokens.get('admin')}`,
+  )
   const response = await current.handle(
     new Request(request.url, {
       method: request.method,
@@ -199,6 +228,7 @@ async function main() {
     if (event.source !== window.parent || event.origin !== studioOrigin()) return
     if (event.data?.type === 'studio:config') apply(event.data)
     else if (event.data?.type === 'studio:theme') setTheme(event.data.mode)
+    else if (event.data?.type === 'studio:role') viewRole(event.data.role)
   })
   tell({ type: 'studio:ready' })
 }

@@ -275,7 +275,30 @@ window.addEventListener('message', (event: MessageEvent<ToEditor>) => {
     case 'studio:console':
       addConsoleLine(message.level, message.message)
       break
+    case 'studio:roles':
+      showRoles(message.roles, message.current)
+      break
   }
+})
+
+/** View as: the admin as each role of the config, so its access rules show (#482). */
+const viewAs = $('view-as')
+const roleSelect = $<HTMLSelectElement>('view-as-role')
+const roleLabel = (role: string) => role.charAt(0).toUpperCase() + role.slice(1)
+
+function showRoles(roles: string[], current: string) {
+  viewAs.hidden = roles.length < 2
+  const same =
+    roleSelect.options.length === roles.length &&
+    roles.every((role, i) => roleSelect.options[i]?.value === role)
+  if (!same) roleSelect.replaceChildren(...roles.map((role) => new Option(roleLabel(role), role)))
+  roleSelect.value = current
+}
+
+roleSelect.addEventListener('change', () => {
+  const message: ToSandbox = { type: 'studio:role', role: roleSelect.value }
+  frame.contentWindow?.postMessage(message, origin)
+  track('studio-view-as', { data: { role: roleSelect.value === 'admin' ? 'admin' : 'other' } })
 })
 
 const THEMES: Record<ThemeMode, { next: ThemeMode; label: string; icon: typeof Sun }> = {
@@ -359,7 +382,13 @@ fullScreenButton.title = `Show the admin across the window (${shortcut})`
 function setFullScreen(on: boolean) {
   panes.toggleAttribute('data-full-screen', on)
   fullScreenButton.setAttribute('aria-pressed', String(on))
-  fullScreenButton.textContent = on ? '⤡ Show code' : '⤢ Full screen'
+  // The words go on narrow screens (styles.css); the label keeps them for screen readers.
+  const words = on ? 'Show code' : 'Full screen'
+  const label = document.createElement('span')
+  label.className = 'words'
+  label.textContent = ` ${words}`
+  fullScreenButton.replaceChildren(on ? '⤡' : '⤢', label)
+  fullScreenButton.setAttribute('aria-label', words)
   fullScreenButton.title = on
     ? `Show the code again (${shortcut})`
     : `Show the admin across the window (${shortcut})`

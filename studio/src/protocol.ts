@@ -8,7 +8,11 @@
 export type ThemeMode = 'light' | 'dark' | 'system'
 
 /** Editor → sandbox. */
-export type ToSandbox = ConfigMessage | { type: 'studio:theme'; mode: ThemeMode }
+export type ToSandbox =
+  | ConfigMessage
+  | { type: 'studio:theme'; mode: ThemeMode }
+  /** View the admin as a user with this role (one of `studio:roles`). */
+  | { type: 'studio:role'; role: string }
 
 /** A config to run. */
 export interface ConfigMessage {
@@ -27,6 +31,8 @@ export type ToEditor =
   | { type: 'studio:status'; state: 'ok' }
   | { type: 'studio:status'; state: 'error'; message: string; line?: number }
   | { type: 'studio:console'; level: 'info' | 'warn' | 'error'; message: string }
+  /** The config's roles (`auth.roles`), and the one the admin is viewed as. */
+  | { type: 'studio:roles'; roles: string[]; current: string }
 
 /** Service Worker → sandbox: an API request of the admin, answered on `port`. */
 export interface ApiRequest {

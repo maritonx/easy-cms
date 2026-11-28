@@ -305,6 +305,12 @@ dialog .hint {
     display: none;
   }
 }
+/* The words of Full screen go too; its label and title keep them. */
+@media (max-width: 1099px) {
+  #full-screen .words {
+    display: none;
+  }
+}
 @media (max-width: 1023px) {
   .bar {
     gap: 10px;
@@ -572,4 +578,36 @@ dialog button.danger {
 }
 .bar #reset-data svg {
   margin: 0;
+}
+/* View as: the admin as each role of the config (#482). */
+.view-as {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.view-as[hidden] {
+  display: none;
+}
+.view-as select {
+  font: inherit;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--control-line);
+  border-radius: 6px;
+  padding: 3px 6px;
+  cursor: pointer;
+}
+@media (max-width: 1279px) {
+  .view-as span {
+    display: none;
+  }
+}
+@media (max-width: 767px) {
+  .view-as {
+    display: none;
+  }
 }
