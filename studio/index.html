@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Easy CMS Studio</title>
     <meta name="description" content="Write an Easy CMS config and see its admin, in your browser." />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1e2220" media="(prefers-color-scheme: dark)" />
     <link rel="stylesheet" href="./src/editor/styles.css" />
   </head>
   <body>
@@ -23,6 +27,13 @@
     <main id="panes" class="panes">
       <section id="code" class="code" aria-label="easy-cms.config.ts">
         <div class="file">easy-cms.config.ts</div>
+        <div id="hint" class="hint-bar" role="note" hidden>
+          <p>
+            <strong>Edit the code: the admin on the right follows.</strong> Start from something else
+            with <b>Templates</b>; <b>Use in a project</b> takes the config with you.
+          </p>
+          <button id="hint-close" type="button" aria-label="Dismiss the tip"></button>
+        </div>
         <div id="editor" class="editor"></div>
         <div id="error" class="error" role="alert" hidden></div>
         <details class="console">
@@ -45,7 +56,7 @@
         title="Drag to resize; double-click for the default width"
       ></div>
       <section class="preview" aria-label="Admin preview">
-        <p class="phone-note">Open Studio on a computer to edit the config.</p>
+        <p class="phone-note">Pick a template to see its admin. To edit the config, open Studio on a computer.</p>
         <iframe
           id="sandbox"
           title="Admin preview"

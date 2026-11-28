@@ -344,3 +344,54 @@ describe('Workspace', () => {
     expect(await width()).toBeCloseTo(before, -1)
   })
 })
+
+describe('First visit, phones and sharing', () => {
+  it('shows a tip on the first visit, and not again once closed', async () => {
+    const context = await browser.newContext()
+    const page = await context.newPage()
+    await page.goto(`${base}/`)
+    await expect.poll(() => status(page).textContent(), { timeout: 60_000 }).toBe('Up to date')
+    expect(await page.locator('#hint').isVisible()).toBe(true)
+    await page.locator('#hint-close').click()
+    expect(await page.locator('#hint').isVisible()).toBe(false)
+    await page.reload()
+    await expect.poll(() => status(page).textContent(), { timeout: 60_000 }).toBe('Up to date')
+    expect(await page.locator('#hint').isVisible()).toBe(false)
+    await context.close()
+  })
+
+  it('lets a phone pick a template, without the editing buttons', async () => {
+    const context = await browser.newContext({ viewport: { width: 375, height: 812 } })
+    const page = await context.newPage()
+    await page.goto(`${base}/`)
+    await expect.poll(() => status(page).textContent(), { timeout: 60_000 }).toBe('Up to date')
+    for (const id of ['#share', '#export', '#full-screen'])
+      expect(await page.locator(id).isVisible(), id).toBe(false)
+    expect(await page.locator('#theme').isVisible()).toBe(true)
+    await page.locator('#templates-open').click()
+    await page.locator('#templates [data-template="shop"]').click()
+    const frame = await adminFrame(page)
+    await expect.poll(() => frame.url(), { timeout: 30_000 }).toContain('/admin')
+    await frame.goto(`${new URL(frame.url()).origin}/admin/collections/products`)
+    await frame.getByText('Doi Chang single origin').first().waitFor({ timeout: 60_000 })
+    await context.close()
+  })
+
+  it('has an icon and a share card with its image', async () => {
+    const html = await (await fetch(`${base}/`)).text()
+    expect(html).toContain('<link rel="icon" href="/favicon.svg"')
+    expect(html).toMatch(/<meta property="og:image" content="https:\/\/[^"]+\/og\.png">/)
+    expect(html).toContain('<meta name="twitter:card" content="summary_large_image">')
+    for (const [path, type] of [
+      ['/og.png', 'image/png'],
+      ['/favicon.svg', 'image/svg+xml'],
+      ['/apple-touch-icon.png', 'image/png'],
+    ] as const) {
+      const response = await fetch(`${base}${path}`)
+      expect(response.status, path).toBe(200)
+      expect(response.headers.get('content-type'), path).toContain(type)
+    }
+    // The sandbox page is no one's to share.
+    expect(await (await fetch(`${base}/sandbox.html`)).text()).not.toContain('og:image')
+  })
+})

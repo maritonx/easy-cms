@@ -58,6 +58,13 @@ editor (index.html)                       sandbox (sandbox.html, its own origin 
   (the status says whether it did), and clicking the count goes to the first.
 - **The divider** between code and admin drags, or moves with the arrow keys (Shift for bigger
   steps, Enter or a double-click for the default width); the width is remembered.
+- **Phones** get the admin and Templates (to see what each kind of system looks like), not the
+  editor; editing wants a keyboard and room.
+- **The first visit** shows a tip above the code until it is closed or the code is edited.
+- **Sharing:** `public/favicon.svg` is easycms.dev's logo; `public/og.png` is the share card's
+  image, rendered from `brand/og.html` with `node brand/render.ts` (headless Chrome, the site's
+  font), with `apple-touch-icon.png`. The build adds the card's tags to the editor page with
+  Studio's origin (`VITE_STUDIO_ORIGIN`) for the image's address.
 - **No environment variables:** `process.env` is empty; a config without a 32-character secret
   gets Studio's own.
 

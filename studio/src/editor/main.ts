@@ -34,6 +34,8 @@ const TEMPLATE_KEY = 'easy-cms-studio:template'
 const BLOG = templateById('blog') as Template
 const THEME_KEY = 'easy-cms-studio:theme'
 const CODE_WIDTH_KEY = 'easy-cms-studio:code-width'
+/** Set once the first visit's tip was closed, or the code edited (then it isn't needed again). */
+const HINT_KEY = 'easy-cms-studio:hint-seen'
 const PAUSE_MS = 300
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
 /** A Lucide icon beside a label (or labelled by its button), hidden from screen readers. */
@@ -183,6 +185,7 @@ model.onDidChangeContent(() => {
     const code = model.getValue()
     store(DRAFT_KEY, code)
     store(TEMPLATE_KEY, template)
+    store(HINT_KEY, '1')
     send(code)
     track('studio-edit', { once: true })
     void keepInAddress(code)
@@ -539,6 +542,16 @@ $('copy-config').addEventListener('click', async () => {
 })
 if (start.note) addConsoleLine('warn', start.note)
 showTheme()
+
+/** The first visit's tip: what Studio is for, closed for good with its button. */
+const hint = $('hint')
+hint.hidden = stored(HINT_KEY) !== null
+$('hint-close').append(icon(X))
+$('hint-close').addEventListener('click', () => {
+  hint.hidden = true
+  store(HINT_KEY, '1')
+  editor.focus()
+})
 
 /** For tests and the curious: the editor's code. */
 Object.assign(window, {

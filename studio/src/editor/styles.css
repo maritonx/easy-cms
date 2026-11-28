@@ -271,11 +271,22 @@ dialog .hint {
 }
 /* Phones: the admin only; editing wants a keyboard and room. */
 @media (max-width: 767px) {
+  /* Phones: no editing, so no code buttons; templates and the theme stay, at a size for thumbs.
+     The status keeps its dot (its words stay for screen readers); Docs goes for room. */
   .bar {
     padding: 8px 16px;
+    gap: 8px;
   }
-  .bar button:not(#theme) {
+  .bar button:not(#theme, #templates-open),
+  .bar a {
     display: none;
+  }
+  .bar button {
+    min-height: 40px;
+    min-width: 40px;
+  }
+  .status {
+    font-size: 0;
   }
   .panes {
     grid-template-columns: 1fr;
@@ -414,6 +425,43 @@ dialog.templates {
   .template-list button {
     transition: none;
   }
+}
+/* The first visit's tip, above the code. */
+.hint-bar {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 8px 8px 16px;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--accent) 10%, var(--panel));
+  font-size: 13px;
+}
+.hint-bar[hidden] {
+  display: none;
+}
+.hint-bar p {
+  margin: 0;
+  flex: 1;
+  padding-top: 3px;
+}
+.hint-bar b {
+  font-weight: 600;
+}
+.hint-bar button {
+  border: 0;
+  background: none;
+  color: var(--muted);
+  padding: 4px;
+  line-height: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.hint-bar button:hover {
+  color: var(--text);
+}
+#hint-close svg {
+  width: 16px;
+  height: 16px;
 }
 /* The status line: a dot with the state's colour (the words say it too), and type problems. */
 .status::before {
