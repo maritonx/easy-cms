@@ -438,3 +438,43 @@ describe('First visit, phones and sharing', () => {
     expect(await (await fetch(`${base}/sandbox.html`)).text()).not.toContain('og:image')
   })
 })
+
+describe('Plugin admin modules', () => {
+  /** Whether the admin defined these elements (its admin modules loaded). */
+  const defined = (frame: Frame, tags: string[]) =>
+    frame.evaluate(
+      (names) =>
+        names.filter(
+          (name) =>
+            !(
+              globalThis as unknown as { customElements: { get(n: string): unknown } }
+            ).customElements.get(name),
+        ),
+      tags,
+    )
+
+  it('loads the SEO and multi-tenant admin modules, with no "not found" in the console', async () => {
+    const page = await (await browser.newContext()).newPage()
+    await page.goto(`${base}/?template=blog`)
+    await expect.poll(() => status(page).textContent(), { timeout: 60_000 }).toBe('Up to date')
+    let frame = await adminFrame(page)
+    await frame.goto(`${new URL(frame.url()).origin}/admin/collections/posts/1`)
+    await frame.getByText('Getting started with Easy CMS').first().waitFor({ timeout: 30_000 })
+    await expect
+      .poll(() => defined(frame, ['ecms-seo-meter', 'ecms-seo-preview']), { timeout: 30_000 })
+      .toEqual([])
+    await frame.getByRole('tab', { name: 'SEO' }).click()
+    await frame.getByText('0 / 60 characters').first().waitFor({ timeout: 30_000 })
+
+    await page.locator('#templates-open').click()
+    await page.locator('#templates [data-template="saas"]').click()
+    await expect.poll(() => status(page).textContent(), { timeout: 60_000 }).toBe('Up to date')
+    frame = await adminFrame(page)
+    await frame.goto(`${new URL(frame.url()).origin}/admin`)
+    await expect
+      .poll(() => defined(frame, ['ecms-tenant-members']), { timeout: 30_000 })
+      .toEqual([])
+    expect(await page.locator('#console-lines').textContent()).not.toContain('not found')
+    await page.context().close()
+  })
+})
