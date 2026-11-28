@@ -38,6 +38,10 @@ editor (index.html)                       sandbox (sandbox.html, its own origin 
   `plugin-redirects`, `plugin-multi-tenant`. Databases, storages, email and sign-in packages are
   stand-ins Studio replaces (SQLite in memory, files in memory, emails to the console, no SSO);
   plugins that don't run in a browser yet do nothing and say so in the console.
+- **Plugins' admin UIs** (SEO's panel, the tenant Members page, the color field) are admin
+  modules that core finds as files on a server. A browser has none, so Studio gives their code
+  to core (`runtime/admin-modules.ts`, `provideAdminModules` from `@easy-cms/core/internal`);
+  a bundled package with an admin module of its own goes in that list too.
 - **Full screen** (the button, or ⌘\ / Ctrl+\ outside the admin) hides the code so the admin
   shows at its real width; the bar stays. The frame isn't moved: moving it would load the sandbox
   again, and its in-memory documents would go.
@@ -69,6 +73,10 @@ editor (index.html)                       sandbox (sandbox.html, its own origin 
   sample data**, the ↺ button: an empty database, then the samples, the code kept) goes through
   Studio's own dialog, with Cancel focused; for code it offers **Copy my code first**.
 - **⌘S / Ctrl+S** copies the share link, as **Share link** does, instead of saving the page.
+- **View as** (#482): the sandbox makes a user for each role of the config (`auth.roles`,
+  `<role>@studio.easycms.dev`) and signs each in; the bar's select picks whose session token the
+  Service Worker's requests carry, and the admin reloads its session on the same page. A role the
+  new config drops falls back to admin.
 - **No environment variables:** `process.env` is empty; a config without a 32-character secret
   gets Studio's own.
 
@@ -83,7 +91,7 @@ site's Caddyfile imports. The workflow is skipped until `STUDIO_ORIGIN` is set.
 |---|---|
 | `STUDIO_ORIGIN` | `https://studio.easycms.dev`: the editor |
 | `SANDBOX_ORIGIN` | `https://sandbox.easycms.dev`: the only page the editor frames, framed by nothing else |
-| `UMAMI_SRC`, `UMAMI_WEBSITE_ID` | Umami (optional): `studio-edit`, `studio-share`, `studio-copy-command`, `studio-copy-config`, `studio-open-link`, `studio-expand`, `studio-template` (with the template, and `from`: dialog or link), `studio-reset`; `studio-share` says `from`: button or shortcut |
+| `UMAMI_SRC`, `UMAMI_WEBSITE_ID` | Umami (optional): `studio-edit`, `studio-share`, `studio-copy-command`, `studio-copy-config`, `studio-open-link`, `studio-expand`, `studio-template` (with the template, and `from`: dialog or link), `studio-reset`, `studio-view-as` (`role`: admin or other, never the role's name); `studio-share` says `from`: button or shortcut |
 | `ANALYTICS_ORIGINS` | where Umami's script loads from and sends to, comma-separated, for the editor's CSP |
 
 Secrets: `DEPLOY_HOST`, `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS`, as in the site's repository.

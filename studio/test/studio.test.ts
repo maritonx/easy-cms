@@ -232,7 +232,8 @@ describe('Templates', () => {
 
     await pick('crm')
     await page.locator('#ask-confirm').click()
-    await expect.poll(() => getCode(page)).toContain("slug: 'deals'")
+    // The dialog's close event replaces the code: 10s for a busy CI runner, not the 1s default.
+    await expect.poll(() => getCode(page), { timeout: 10_000 }).toContain("slug: 'deals'")
     await expect.poll(() => status(page).textContent(), { timeout: 60_000 }).toBe('Up to date')
   })
 
@@ -436,5 +437,83 @@ describe('First visit, phones and sharing', () => {
     }
     // The sandbox page is no one's to share.
     expect(await (await fetch(`${base}/sandbox.html`)).text()).not.toContain('og:image')
+  })
+})
+
+describe('Plugin admin modules', () => {
+  /** Whether the admin defined these elements (its admin modules loaded). */
+  const defined = (frame: Frame, tags: string[]) =>
+    frame.evaluate(
+      (names) =>
+        names.filter(
+          (name) =>
+            !(
+              globalThis as unknown as { customElements: { get(n: string): unknown } }
+            ).customElements.get(name),
+        ),
+      tags,
+    )
+
+  it('loads the SEO and multi-tenant admin modules, with no "not found" in the console', async () => {
+    const page = await (await browser.newContext()).newPage()
+    await page.goto(`${base}/?template=blog`)
+    await expect.poll(() => status(page).textContent(), { timeout: 60_000 }).toBe('Up to date')
+    let frame = await adminFrame(page)
+    await frame.goto(`${new URL(frame.url()).origin}/admin/collections/posts/1`)
+    await frame.getByText('Getting started with Easy CMS').first().waitFor({ timeout: 30_000 })
+    await expect
+      .poll(() => defined(frame, ['ecms-seo-meter', 'ecms-seo-preview']), { timeout: 30_000 })
+      .toEqual([])
+    await frame.getByRole('tab', { name: 'SEO' }).click()
+    await frame.getByText('0 / 60 characters').first().waitFor({ timeout: 30_000 })
+
+    await page.locator('#templates-open').click()
+    await page.locator('#templates [data-template="saas"]').click()
+    await expect.poll(() => status(page).textContent(), { timeout: 60_000 }).toBe('Up to date')
+    frame = await adminFrame(page)
+    await frame.goto(`${new URL(frame.url()).origin}/admin`)
+    await expect
+      .poll(() => defined(frame, ['ecms-tenant-members']), { timeout: 30_000 })
+      .toEqual([])
+    expect(await page.locator('#console-lines').textContent()).not.toContain('not found')
+    await page.context().close()
+  })
+})
+
+describe('View as (#482)', () => {
+  it('shows the admin as each role of the config, on the same page', async () => {
+    const page = await (
+      await browser.newContext({ viewport: { width: 1280, height: 800 } })
+    ).newPage()
+    await page.goto(`${base}/?template=blog`)
+    await expect.poll(() => status(page).textContent(), { timeout: 60_000 }).toBe('Up to date')
+    const select = page.locator('#view-as-role')
+    expect(await page.locator('#view-as').isVisible()).toBe(true)
+    expect(await select.locator('option').allTextContents()).toEqual(['Admin', 'Editor'])
+
+    // Only admins create categories.
+    await setCode(
+      page,
+      (await getCode(page)).replace(
+        "slug: 'categories',",
+        "slug: 'categories',\n      access: { create: ({ user }) => user?.role === 'admin' },",
+      ),
+    )
+    await expect.poll(() => status(page).textContent(), { timeout: 60_000 }).toBe('Up to date')
+    const frame = await adminFrame(page)
+    await frame.goto(`${new URL(frame.url()).origin}/admin/collections/categories`)
+    const create = frame
+      .getByRole('link', { name: 'Create new' })
+      .or(frame.getByRole('button', { name: 'Create new' }))
+    await create.first().waitFor({ timeout: 30_000 })
+
+    await select.selectOption('editor')
+    await expect.poll(() => create.count(), { timeout: 30_000 }).toBe(0)
+    expect(new URL(frame.url()).pathname).toBe('/admin/collections/categories')
+    await frame.getByText('Engineering').first().waitFor()
+
+    await select.selectOption('admin')
+    await create.first().waitFor({ timeout: 30_000 })
+    await page.context().close()
   })
 })

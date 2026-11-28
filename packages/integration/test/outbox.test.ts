@@ -263,8 +263,9 @@ describe('outbox (#178)', () => {
     )
     const second = await open(config(), cwd)
     await first.create('posts', { title: 'A' })
-    await new Promise((resolve) => setTimeout(resolve, 50))
-    expect(calls).toHaveLength(1)
+    // The outbox runs the hook after the save returns: wait for it rather than a fixed time,
+    // which a slow CI machine overran (expected [] to have a length of 1).
+    await expect.poll(() => calls.length, { timeout: 10_000 }).toBe(1)
     // Claimed: another instance leaves it alone until the lease runs out.
     expect((await second.runJobs()).outbox).toEqual({ ran: 0, failed: 0 })
     stuck = false

@@ -62,7 +62,7 @@ export {
   DEFAULT_MAX_FILE_SIZE,
   DEFAULT_TOKEN_EXPIRATION,
 } from './resolve-config.js'
-export { resolveAdminModule } from './rest/admin-modules.js'
+export { provideAdminModules, resolveAdminModule } from './rest/admin-modules.js'
 export {
   CSRF_COOKIE,
   CSRF_HEADER,

@@ -10,7 +10,7 @@ import {
   ForbiddenError,
   type RestHandler,
 } from '@easy-cms/core'
-import { createRootEndpointHandler } from '@easy-cms/core/internal'
+import { createRootEndpointHandler, provideAdminModules } from '@easy-cms/core/internal'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { db, open, SECRET } from './helpers.js'
 
@@ -293,5 +293,53 @@ describe('admin components', () => {
     expect(cached.status).toBe(304)
     expect((await call('/admin/ui/modules/0.js', { headers })).status).toBe(404)
     expect((await call('/admin/ui/modules/..%2Fx.js', { headers })).status).toBe(404)
+  })
+})
+
+// Studio (ADR-0074) runs the CMS in a browser, with no files: it gives the plugins' admin
+// modules as code, and they're listed and served like files.
+describe('admin modules given as code', () => {
+  it('lists and serves them, with no "not found" logged', async () => {
+    provideAdminModules({
+      '@easy-cms/given-plugin/admin':
+        "customElements.define('ecms-given', class extends HTMLElement {})\n",
+    })
+    const given = await open(
+      defineConfig({
+        secret: SECRET,
+        db: db(),
+        admin: { modules: ['@easy-cms/given-plugin/admin'] },
+        collections: [{ slug: 'notes', fields: [{ name: 'title', type: 'text' }] }],
+      }),
+    )
+    const logged: string[] = []
+    Object.assign(given, { logger: { ...given.logger, error: (m: string) => logged.push(m) } })
+    try {
+      const serve = createRestHandler(given)
+      await given.create('users', { email: 'admin@x.co', password: PASSWORD, role: 'admin' })
+      const response = await serve(
+        new Request(`${BASE}/auth/login`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ email: 'admin@x.co', password: PASSWORD }),
+        }),
+      )
+      const cookie = response.headers
+        .getSetCookie()
+        .find((c) => c.startsWith('ecms-session='))
+        ?.split(';')[0] as string
+      const schema = (await (
+        await serve(new Request(`${BASE}/admin/ui/schema`, { headers: { cookie } }))
+      ).json()) as AdminSchema
+      expect(schema.modules).toEqual(['/admin/ui/modules/0.js'])
+      const code = await serve(
+        new Request(`${BASE}/admin/ui/modules/0.js`, { headers: { cookie } }),
+      )
+      expect(code.status).toBe(200)
+      expect(await code.text()).toContain("customElements.define('ecms-given'")
+      expect(logged).toEqual([])
+    } finally {
+      await given.destroy()
+    }
   })
 })
