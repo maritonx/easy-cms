@@ -1,6 +1,6 @@
 {
   "name": "@easy-cms/admin",
-  "version": "1.57.2",
+  "version": "1.57.3",
   "description": "Prebuilt admin UI for Easy CMS",
   "license": "MIT",
   "type": "module",
