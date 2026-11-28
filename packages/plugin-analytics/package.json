@@ -1,6 +1,6 @@
 {
   "name": "@easy-cms/plugin-analytics",
-  "version": "1.57.0",
+  "version": "1.57.1",
   "description": "Google Tag Manager for Easy CMS sites, with a consent banner (Consent Mode v2, PDPA and GDPR), consent records and GA4 events",
   "license": "MIT",
   "type": "module",
