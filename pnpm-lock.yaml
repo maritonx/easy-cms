@@ -990,6 +990,9 @@ importers:
       create-easy-cms:
         specifier: workspace:^
         version: link:../packages/create-easy-cms
+      lucide:
+        specifier: ^1.82.0
+        version: 1.82.0
       monaco-editor:
         specifier: ^0.58.0
         version: 0.58.0
@@ -5045,6 +5048,9 @@ packages:
 
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
+
+  lucide@1.82.0:
+    resolution: {integrity: sha512-c4S0RMNDjGQ5Qu791zF+jIlQkNLlSZUCPFqVnYuuBDVP59kSkcHw8230E9Xwo9HR++JDXyIALNFW/Kc6t3zHlg==}
 
   magic-string-ast@1.0.3:
     resolution: {integrity: sha512-CvkkH1i81zl7mmb94DsRiFeG9V2fR2JeuK8yDgS8oiZSFa++wWLEgZ5ufEOyLHbvSbD1gTRKv9NdX69Rnvr9JA==}
@@ -10903,6 +10909,8 @@ snapshots:
   lru-cache@5.1.1:
     dependencies:
       yallist: 3.1.1
+
+  lucide@1.82.0: {}
 
   magic-string-ast@1.0.3:
     dependencies:

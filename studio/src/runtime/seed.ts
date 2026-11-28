@@ -1,7 +1,7 @@
 /**
- * Sample documents, so the admin opens with something in it: a few per collection of the
- * config, made from each field's type. A collection that has documents already (from before the
- * config changed) is left as it is.
+ * Sample documents, so the admin opens with something in it. A template brings its own (see
+ * templates/samples.ts); other collections get a few made from each field's type. A collection
+ * that has documents already (from before the config changed) is left as it is.
  */
 import type { Field } from '@easy-cms/core'
 
@@ -123,15 +123,38 @@ function targetsOf(collection: SeedCollection, slugs: Set<string>): string[] {
 }
 
 /** Seeds the collections that are empty; returns how many documents were made, and problems. */
+/**
+ * A template's documents per collection, in the order to make them. A string `@slug:n` stands
+ * for the id of the n-th document made in `slug` (a relationship), anywhere in a document.
+ */
+export type Samples = Readonly<Record<string, readonly Doc[]>>
+
+const REF = /^@([a-z0-9_-]+):(\d+)$/
+
+function resolve(value: unknown, ids: Map<string, Id[]>): unknown {
+  if (typeof value === 'string') {
+    const ref = REF.exec(value)
+    return ref ? ids.get(ref[1] as string)?.[Number(ref[2])] : value
+  }
+  if (Array.isArray(value)) return value.map((v) => resolve(v, ids))
+  if (value && typeof value === 'object')
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, resolve(v, ids)]))
+  return value
+}
+
 export async function seed(
   cms: SeedTarget,
   collections: readonly SeedCollection[],
+  samples: Samples = {},
 ): Promise<{ created: number; problems: string[] }> {
   const slugs = new Set(collections.map((c) => c.slug))
-  // Collections others point to first, so links have something to point at.
-  const ordered = [...collections].sort(
-    (a, b) => targetsOf(a, slugs).length - targetsOf(b, slugs).length,
-  )
+  // A template's collections first, in its order; then the rest, those others point to first.
+  const order = Object.keys(samples)
+  const rank = (c: SeedCollection) => {
+    const i = order.indexOf(c.slug)
+    return i === -1 ? order.length + targetsOf(c, slugs).length : i
+  }
+  const ordered = [...collections].sort((a, b) => rank(a) - rank(b))
   const ids = new Map<string, Id[]>()
   const problems: string[] = []
   let created = 0
@@ -142,6 +165,20 @@ export async function seed(
       existing.docs.map((d) => d.id as Id),
     )
     if (existing.totalDocs > 0) continue
+    const own = samples[collection.slug]
+    if (own) {
+      for (const sample of own) {
+        try {
+          const doc = await cms.create(collection.slug, resolve(sample, ids) as Doc)
+          ids.get(collection.slug)?.push(doc.id as Id)
+          created++
+        } catch (error) {
+          problems.push(`${collection.slug}: ${(error as Error).message}`)
+          break
+        }
+      }
+      continue
+    }
     for (let n = 0; n < PER_COLLECTION; n++) {
       const data = docFor(collection.fields, n, ids)
       if (collection.drafts) data.status = n === PER_COLLECTION - 1 ? 'draft' : 'published'

@@ -12,7 +12,7 @@
       <strong class="brand">Easy CMS <span>Studio</span></strong>
       <span id="status" class="status" data-state="busy" role="status">Starting…</span>
       <span class="spacer"></span>
-      <button id="reset" type="button">Reset to the Blog template</button>
+      <button id="templates-open" type="button" aria-haspopup="dialog" aria-controls="templates">Templates</button>
       <button id="full-screen" type="button" aria-pressed="false" aria-controls="panes">⤢ Full screen</button>
       <button id="share" type="button">Share link</button>
       <button id="export" type="button" class="primary">Use in a project</button>
@@ -49,6 +49,16 @@
           <button type="submit" value="close">Close</button>
         </div>
         <p class="hint">It writes easy-cms.config.ts from this link, then installs the packages the config uses.</p>
+      </form>
+    </dialog>
+    <dialog id="templates" class="templates" aria-labelledby="templates-title">
+      <form method="dialog">
+        <header>
+          <h2 id="templates-title">Start from a template</h2>
+          <button id="templates-close" class="close" type="submit" value="close" aria-label="Close"></button>
+        </header>
+        <p class="hint">Each one opens with its own sample data. Picking one replaces the code and empties the database.</p>
+        <ul id="template-list" class="template-list"></ul>
       </form>
     </dialog>
     <script type="module" src="./src/editor/main.ts"></script>

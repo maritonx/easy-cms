@@ -5,7 +5,14 @@
  */
 
 /** Editor → sandbox. */
-export type ToSandbox = { type: 'studio:config'; code: string }
+export interface ToSandbox {
+  type: 'studio:config'
+  code: string
+  /** The template the code came from, for its sample documents (templates/samples.ts). */
+  template?: string
+  /** Start from an empty database: a template was picked. */
+  fresh?: boolean
+}
 
 /** Sandbox → editor. */
 export type ToEditor =
