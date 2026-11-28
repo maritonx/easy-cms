@@ -6,6 +6,7 @@ import { decodeStudioLink } from 'create-easy-cms/studio-link'
 import { type Browser, chromium, type Frame, type Page } from 'playwright-core'
 import { build, type PreviewServer, preview } from 'vite'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { SAMPLES } from '../src/templates/samples.ts'
 
 // Studio, built here (CI runs tests without the build task), in headless Chrome: the editor frames
 // the sandbox, which runs the CMS on the in-memory database and frames the admin (ADR-0074).
@@ -166,5 +167,99 @@ describe('Studio', () => {
     expect(await status(page).textContent()).toMatch(/^Error/)
     expect(admin(page)?.url()).toBe(before)
     await (await adminFrame(page)).getByText('Made in Studio').first().waitFor()
+  })
+})
+
+describe('Templates', () => {
+  let page: Page
+
+  const pick = async (id: string) => {
+    await page.locator('#templates-open').click()
+    await page.locator(`#templates [data-template="${id}"]`).click()
+  }
+  const samplesOf = (id: string) =>
+    Object.values(SAMPLES[id] ?? {}).reduce((sum, docs) => sum + docs.length, 0)
+  const consoleText = () => page.locator('#console-lines').textContent()
+
+  it('picks Shop from the dialog: its code, and its sample products in the admin', async () => {
+    page = await (await browser.newContext()).newPage()
+    await page.goto(`${base}/`)
+    await expect.poll(() => status(page).textContent(), { timeout: 60_000 }).toBe('Up to date')
+    await page.locator('#templates-open').click()
+    expect(await page.locator('#templates').isVisible()).toBe(true)
+    expect(await page.locator('#template-list button').count()).toBe(10)
+    expect(
+      await page
+        .locator('#template-list button[aria-current="true"]')
+        .getAttribute('data-template'),
+    ).toBe('blog')
+    await page.locator('#templates [data-template="shop"]').click()
+    expect(await page.locator('#templates').isVisible()).toBe(false)
+    expect(await getCode(page)).toContain("slug: 'orders'")
+    await expect
+      .poll(consoleText, { timeout: 60_000 })
+      .toContain(`Added ${samplesOf('shop')} sample documents.`)
+    const frame = await adminFrame(page)
+    await frame.goto(`${new URL(frame.url()).origin}/admin/collections/products`)
+    await frame.getByText('Doi Chang single origin').first().waitFor({ timeout: 30_000 })
+    // Only Shop's documents: the Blog's went with the database.
+    await frame.goto(`${new URL(frame.url()).origin}/admin`)
+    expect(await frame.getByText('Getting started with Easy CMS').count()).toBe(0)
+    // Its link keeps the template, for the samples.
+    await expect.poll(() => page.url()).toMatch(/&t=shop$/)
+  })
+
+  it('asks before replacing code that was changed', async () => {
+    const changed = (await getCode(page)).replace("slug: 'orders'", "slug: 'sales'")
+    await setCode(page, changed)
+    page.once('dialog', (dialog) => void dialog.dismiss())
+    await pick('crm')
+    expect(await getCode(page)).toBe(changed)
+    await page.keyboard.press('Escape')
+
+    page.once('dialog', (dialog) => {
+      expect(dialog.message()).toContain('CRM')
+      void dialog.accept()
+    })
+    await pick('crm')
+    expect(await getCode(page)).toContain("slug: 'deals'")
+    await expect.poll(() => status(page).textContent(), { timeout: 60_000 }).toBe('Up to date')
+  })
+
+  it('opens the template a link names (?template=crm)', async () => {
+    const other = await browser.newContext()
+    const named = await other.newPage()
+    await named.goto(`${base}/?template=crm`)
+    await expect.poll(() => status(named).textContent(), { timeout: 60_000 }).toBe('Up to date')
+    expect(await getCode(named)).toContain("slug: 'deals'")
+    const frame = await adminFrame(named)
+    await frame.goto(`${new URL(frame.url()).origin}/admin/collections/deals`)
+    await frame.getByText('Online store rebuild').first().waitFor({ timeout: 30_000 })
+    await other.close()
+  })
+
+  it('starts every template with all of its sample documents', async () => {
+    // Every template in the dialog has samples of its own.
+    await page.locator('#templates-open').click()
+    const ids = await page
+      .locator('#template-list button')
+      .evaluateAll((buttons) =>
+        buttons.map((b) => (b as unknown as { dataset: { template: string } }).dataset.template),
+      )
+    await page.keyboard.press('Escape')
+    expect([...ids].sort()).toEqual(Object.keys(SAMPLES).sort())
+    const accept = (dialog: { accept(): Promise<void> }) => void dialog.accept()
+    page.on('dialog', accept)
+    for (const id of ids) {
+      // Inside the closed console: no need to open it.
+      await page.locator('#console-clear').dispatchEvent('click')
+      await pick(id)
+      await expect
+        .poll(consoleText, { timeout: 60_000, message: id })
+        .toContain(`Added ${samplesOf(id)} sample documents.`)
+      expect(await consoleText(), id).not.toContain('Sample documents:')
+      await expect.poll(() => status(page).textContent(), { timeout: 60_000 }).toBe('Up to date')
+    }
+    page.off('dialog', accept)
   })
 })

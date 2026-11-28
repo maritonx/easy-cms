@@ -4,6 +4,7 @@
  * a time: core's request context in browsers follows one request at a time.
  */
 import { type Config, createEasyCMS, createRestHandler } from '@easy-cms/core'
+import { dropMemoryDatabase } from '@easy-cms/db-memory'
 import {
   ADMIN_PATH,
   type ApiRequest,
@@ -13,8 +14,9 @@ import {
   type ToSandbox,
 } from '../protocol'
 import { ConfigCodeError, compile } from '../runtime/compile'
-import { consoleOf, prepare } from '../runtime/prepare'
+import { consoleOf, DATABASE, prepare } from '../runtime/prepare'
 import { seed } from '../runtime/seed'
+import { SAMPLES } from '../templates/samples'
 
 /** The admin Studio signs in as (its Service Worker sends the session token). */
 const ADMIN = { email: 'admin@studio.easycms.dev', password: 'studio-admin-0f3c9a71' }
@@ -35,20 +37,20 @@ function oneAtATime<T>(fn: () => Promise<T>): Promise<T> {
   return run
 }
 
-/** The config to apply next: a newer one replaces one still waiting. */
-let waiting: string | null = null
-function apply(code: string) {
+/** The config to apply next: a newer one replaces one still waiting (keeping a fresh start). */
+let waiting: ToSandbox | null = null
+function apply(message: ToSandbox) {
   const first = waiting === null
-  waiting = code
+  waiting = { ...message, fresh: message.fresh === true || waiting?.fresh === true }
   if (!first) return
   void oneAtATime(async () => {
-    const next = waiting as string
+    const next = waiting as ToSandbox
     waiting = null
     await start(next)
   })
 }
 
-async function start(code: string) {
+async function start({ code, template, fresh }: ToSandbox) {
   tell({ type: 'studio:status', state: 'busy' })
   let config: Config
   try {
@@ -65,6 +67,12 @@ async function start(code: string) {
     })
     return
   }
+  if (fresh) {
+    // A template was picked: its documents, not the last one's.
+    await current?.cms.destroy().catch(() => {})
+    current = null
+    await dropMemoryDatabase(DATABASE)
+  }
   let cms: Cms
   try {
     cms = await createEasyCMS(config, { logger: log, cwd: '/' })
@@ -79,10 +87,13 @@ async function start(code: string) {
     ).docs
     if (!admin) await cms.create('users', { ...ADMIN, role: 'admin' })
     const { token } = await cms.auth.login(ADMIN)
-    const own = new Set((config.collections ?? []).map((c) => c.slug))
+    const samples = (template && SAMPLES[template]) || {}
+    // The config's collections, and those a template has samples for (a plugin's, like tenants).
+    const own = new Set([...(config.collections ?? []).map((c) => c.slug), ...Object.keys(samples)])
     const result = await seed(
       cms as never,
       cms.config.collections.filter((c) => own.has(c.slug)),
+      samples,
     )
     if (result.created) log.info(`Added ${result.created} sample documents.`)
     for (const problem of result.problems) log.warn(`Sample documents: ${problem}`)
@@ -166,7 +177,7 @@ async function main() {
   })
   window.addEventListener('message', (event: MessageEvent<ToSandbox>) => {
     if (event.source !== window.parent || event.origin !== studioOrigin()) return
-    if (event.data?.type === 'studio:config') apply(event.data.code)
+    if (event.data?.type === 'studio:config') apply(event.data)
   })
   tell({ type: 'studio:ready' })
 }

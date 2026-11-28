@@ -45,6 +45,13 @@ editor (index.html)                       sandbox (sandbox.html, its own origin 
   (`#v=…&c=…`, `create-easy-cms/studio-link`), so it can be shared as it is; the hash never
   reaches a server. **Use in a project** gives `npm create easy-cms@latest -- --from "<link>"`,
   which writes that config into a project, and **Copy config** the code itself.
+- **Templates** (the dialog in the bar): ten configs, one per kind of system (`src/templates/`,
+  one `.config.ts` each, so typecheck covers them; listed in `templates/index.ts`). Each has its
+  own sample documents (`templates/samples.ts`, `@slug:n` for the n-th document of a
+  collection). Picking one replaces the code (after asking, when the code isn't a template's as
+  it is) and starts from an empty database with its samples. `?template=shop` opens one; the
+  hash keeps the template as `t`, so a shared link gets its samples too. Collections a template
+  has no samples for get generic ones.
 - **No environment variables:** `process.env` is empty; a config without a 32-character secret
   gets Studio's own.
 
@@ -59,7 +66,7 @@ site's Caddyfile imports. The workflow is skipped until `STUDIO_ORIGIN` is set.
 |---|---|
 | `STUDIO_ORIGIN` | `https://studio.easycms.dev`: the editor |
 | `SANDBOX_ORIGIN` | `https://sandbox.easycms.dev`: the only page the editor frames, framed by nothing else |
-| `UMAMI_SRC`, `UMAMI_WEBSITE_ID` | Umami (optional): `studio-edit`, `studio-share`, `studio-copy-command`, `studio-copy-config`, `studio-open-link`, `studio-expand` |
+| `UMAMI_SRC`, `UMAMI_WEBSITE_ID` | Umami (optional): `studio-edit`, `studio-share`, `studio-copy-command`, `studio-copy-config`, `studio-open-link`, `studio-expand`, `studio-template` (with the template, and `from`: dialog or link) |
 | `ANALYTICS_ORIGINS` | where Umami's script loads from and sends to, comma-separated, for the editor's CSP |
 
 Secrets: `DEPLOY_HOST`, `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS`, as in the site's repository.

@@ -10,14 +10,17 @@ type Event =
   | 'studio-copy-config'
   | 'studio-open-link'
   | 'studio-expand'
+  | 'studio-template'
 
 const src = import.meta.env.VITE_UMAMI_SRC
 const websiteId = import.meta.env.VITE_UMAMI_WEBSITE_ID
 
-type Umami = { track(name: string): void }
+/** Event data: which template, say. Never anything from the config. */
+type Data = Record<string, string>
+type Umami = { track(name: string, data?: Data): void }
 const umami = () => (window as { umami?: Umami }).umami
 /** Events from before the script loaded (opening a shared link happens at once). */
-const waiting: Event[] = []
+const waiting: [Event, Data | undefined][] = []
 
 export function startAnalytics(): void {
   if (!src || !websiteId) return
@@ -31,7 +34,7 @@ export function startAnalytics(): void {
   // Never the config: it is in the address's hash, which Umami would otherwise not see anyway.
   script.dataset.excludeHash = 'true'
   script.addEventListener('load', () => {
-    for (const event of waiting.splice(0)) umami()?.track(event)
+    for (const [event, data] of waiting.splice(0)) umami()?.track(event, data)
   })
   document.head.append(script)
 }
@@ -39,12 +42,12 @@ export function startAnalytics(): void {
 const sent = new Set<Event>()
 
 /** Counts an event; `once` counts it once per visit (editing, say). */
-export function track(event: Event, options: { once?: boolean } = {}): void {
+export function track(event: Event, options: { once?: boolean; data?: Data } = {}): void {
   if (options.once) {
     if (sent.has(event)) return
     sent.add(event)
   }
   const loaded = umami()
-  if (loaded) loaded.track(event)
-  else if (src && websiteId) waiting.push(event)
+  if (loaded) loaded.track(event, options.data)
+  else if (src && websiteId) waiting.push([event, options.data])
 }
