@@ -116,7 +116,7 @@ db: memory({ name: 'preview' }) // kept until dropMemoryDatabase('preview')
 ```
 
 SQLite compiled to WebAssembly (sql.js), held in memory: the same tables and SQL as
-`@easy-cms/db-sqlite`, in Node and in browsers. Studio (`studio.easycms.dev`, coming) runs on it,
+`@easy-cms/db-sqlite`, in Node and in browsers. [Studio](./studio) runs on it,
 and it suits tests. Not for production: nothing is written to disk.
 
 - **`name`** keeps the database while the process runs. A CMS started again with the same name,

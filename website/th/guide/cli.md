@@ -26,7 +26,7 @@ npx create-easy-cms [dir] [--db sqlite|postgres] [--pm npm|pnpm|yarn|bun] [--sta
 | `--standalone` | ตั้งค่า standalone server แม้อยู่ในโปรเจกต์ Nuxt หรือ Next.js |
 | `--yes` | ใช้ค่าเริ่มต้นโดยไม่ถาม |
 | `--skip-install` | เขียนไฟล์อย่างเดียว คุณติดตั้งแพ็กเกจเอง |
-| `--from` | ลิงก์จาก Studio: เขียน `easy-cms.config.ts` จากลิงก์ (ถ้ามีไฟล์อยู่แล้วจะเขียนไว้ข้างกันเป็น `easy-cms.config.studio.ts`) ใช้ฐานข้อมูลตาม adapter ใน config และติดตั้งทุกแพ็กเกจ `@easy-cms` ที่ config import |
+| `--from` | ลิงก์จาก [Studio](./studio): เขียน `easy-cms.config.ts` จากลิงก์ (ถ้ามีไฟล์อยู่แล้วจะเขียนไว้ข้างกันเป็น `easy-cms.config.studio.ts`) ใช้ฐานข้อมูลตาม adapter ใน config และติดตั้งทุกแพ็กเกจ `@easy-cms` ที่ config import โดยติดตั้งอย่างน้อยเวอร์ชันที่ลิงก์ทำไว้ถ้าใหม่กว่า `create-easy-cms` (ต่าง major ได้เวอร์ชันของ CLI พร้อมคำเตือน) |
 
 คำสั่งนี้ติดตั้งและแสดงขั้นต่อไปด้วย package manager ตัวนั้น (`pnpm exec easy-cms …`, `yarn easy-cms …`,
 `bunx easy-cms …`) ถ้าเป็น Yarn 2 ขึ้นไปจะเขียน `.yarnrc.yml` ที่ตั้ง `nodeLinker: node-modules` ให้

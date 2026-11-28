@@ -27,7 +27,7 @@ Adds Easy CMS to a project:
 | `--standalone` | A standalone server even inside a Nuxt or Next.js project. |
 | `--yes` | Accept the defaults without asking. |
 | `--skip-install` | Only write files; run your package manager yourself. |
-| `--from` | A Studio link: writes `easy-cms.config.ts` from it (beside an existing one, as `easy-cms.config.studio.ts`), takes the database from its adapter and installs every `@easy-cms` package it imports. |
+| `--from` | A [Studio](./studio) link: writes `easy-cms.config.ts` from it (beside an existing one, as `easy-cms.config.studio.ts`), takes the database from its adapter and installs every `@easy-cms` package it imports, at least the version the link was made with when that's newer than `create-easy-cms` (another major: the CLI's own, with a note). |
 
 It installs and prints the next steps with that package manager (`pnpm exec easy-cms …`,
 `yarn easy-cms …`, `bunx easy-cms …`). With Yarn 2 or later it writes `.yarnrc.yml` with

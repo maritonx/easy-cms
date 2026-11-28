@@ -108,7 +108,7 @@ db: memory({ name: 'preview' }) // เก็บไว้จนกว่าจะ
 ```
 
 SQLite ที่คอมไพล์เป็น WebAssembly (sql.js) เก็บในหน่วยความจำ ได้ตารางและ SQL ชุดเดียวกับ
-`@easy-cms/db-sqlite` ใช้ได้ทั้งใน Node และในเบราว์เซอร์ Studio (`studio.easycms.dev` ที่กำลังทำ) ใช้ตัวนี้
+`@easy-cms/db-sqlite` ใช้ได้ทั้งใน Node และในเบราว์เซอร์ [Studio](./studio) ใช้ตัวนี้
 และเหมาะกับเทส ไม่เหมาะกับ production เพราะไม่มีอะไรเขียนลง disk
 
 - **`name`** เก็บฐานข้อมูลไว้ตลอดที่ process ยังทำงาน CMS ที่เริ่มใหม่ด้วยชื่อเดิมหลัง config เปลี่ยน
